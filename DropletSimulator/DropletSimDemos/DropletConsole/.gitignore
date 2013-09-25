@@ -1,0 +1,7 @@
+# Ignore files
+# bin/
+build/
+
+*.o
+*.a
+#DropletConsole

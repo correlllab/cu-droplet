@@ -1,0 +1,6 @@
+col_tiles 5
+row_tiles 5
+
+projecting GuitarStart.bmp
+
+droplets customfive 80

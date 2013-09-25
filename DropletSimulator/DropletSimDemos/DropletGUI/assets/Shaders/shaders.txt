@@ -1,0 +1,14 @@
+# simple vertex shader for debugging drawing issues
+debug DebugVertex.glsl DebugFragment.glsl
+
+# per-pixel lighting for the droplets
+simpledroplet DropletCommonVertex.glsl DropletFragment.glsl
+droplet DropletCommonVertex.glsl DropletTexFragment.glsl
+
+# per-pixel lighting for the arena
+simple CommonVertex.glsl SimpleFragment.glsl
+texture CommonVertex.glsl TextureFragment.glsl
+
+# projected shaders
+projtexture CommonVertex.glsl ProjectorFragment.glsl
+projdroplet DropletCommonVertex.glsl ProjDropletFragment.glsl

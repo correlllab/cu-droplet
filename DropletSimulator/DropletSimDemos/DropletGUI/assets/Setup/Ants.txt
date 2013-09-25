@@ -1,0 +1,10 @@
+col_tiles 5
+row_tiles 4
+arena antsFloor.txt
+
+projecting ants.bmp
+
+droplets ants 40
+
+# sphere x y radius mass friction
+sphere 0 25 10 100 0.2

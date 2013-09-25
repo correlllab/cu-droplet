@@ -1,0 +1,36 @@
+col_tiles 6
+row_tiles 6
+
+fps 60
+droplet_radius 2.2
+#tile_length 25.0
+wall_height 20.0
+wall_width 0.5
+
+projecting circles.bmp
+
+#droplets stickpullers 128
+#droplets commtest 20 
+#droplets randomwalk 10
+
+#type program x y
+droplets stickpullers 10 10
+droplets stickpullers 5 5
+droplets stickpullers -10 -10
+droplets stickpullers -5 -5
+droplets stickpullers -10 10
+droplets stickpullers -5 5
+droplets stickpullers 10 -10
+droplets stickpullers 5 -5
+
+#type program number-of-droplets
+droplets randomwalk 64
+
+#object x y radius mass friction
+#radius, mass, and friction are optional
+cube -25 25 5 10 0.1
+sphere 25 -25 5 10 0.1
+
+#objects number radius mass friction
+#radius, mass, and friction are optional
+spheres 5 5 10 0.1

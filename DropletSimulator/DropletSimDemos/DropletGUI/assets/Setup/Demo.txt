@@ -1,0 +1,49 @@
+arena Squares.txt
+col_tiles 5
+row_tiles 5
+#projecting scaledarena.bmp
+
+sphere 37.5 37.5 6 0.25 1.0
+cube -37.5 -37.5 3 0.25 0.1
+
+droplets rainbow 44.1 -44.1
+droplets rainbow 30.9 -30.9
+droplets rainbow 44.1 -30.9
+droplets rainbow 30.9 -44.1
+
+droplets rainbow 37.5 -44.1
+droplets rainbow 30.9 -37.5
+droplets rainbow 37.5 -30.9
+droplets rainbow 44.1 -37.5
+
+droplets randomwalk -44.1 -44.1
+droplets randomwalk -30.9 -30.9
+droplets randomwalk -44.1 -30.9
+droplets randomwalk -30.9 -44.1
+
+droplets randomwalk -37.5 -44.1
+droplets randomwalk -30.9 -37.5
+droplets randomwalk -37.5 -30.9
+droplets randomwalk -44.1 -37.5
+
+droplets turntest 44.1 44.1
+droplets turntest 30.9 30.9
+droplets turntest 44.1 30.9
+droplets turntest 30.9 44.1
+
+droplets turntest 37.5 44.1
+droplets turntest 30.9 37.5
+droplets turntest 37.5 30.9
+droplets turntest 44.1 37.5
+
+droplets commtest -44.1 44.1
+droplets commtest -30.9 30.9
+droplets commtest -44.1 30.9
+droplets commtest -30.9 44.1
+
+droplets commtest -37.5 44.1
+droplets commtest -30.9 37.5
+droplets commtest -37.5 30.9
+droplets commtest -44.1 37.5
+
+

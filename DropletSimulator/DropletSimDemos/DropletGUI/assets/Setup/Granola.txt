@@ -1,0 +1,8 @@
+col_tiles 3
+row_tiles 3
+
+projecting 2Dgradientmap32bit.bmp
+
+droplets granola 150
+
+sphere 15 0 3 100000 0.05

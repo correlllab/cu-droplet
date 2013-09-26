@@ -1,6 +1,5 @@
 #include "main.h"
 
-//Experiment with scanf
 int main(void)
 {
 	init_all_systems();

@@ -18,13 +18,9 @@ void handle_serial_command(char* command, uint16_t command_length)
 		char command_word[BUFFER_SIZE];
 		char command_args[BUFFER_SIZE];
 		get_command_word_and_args(command,command_length,command_word,command_args);
-		if(strcmp(command_word,"set_led")==0)
+		if(strcmp(command_word,"data")==0)
 		{
-			handle_set_led(command_args);
-		}
-		else if(strcmp(command_word,"cmd")==0)
-		{
-			handle_cmd(command_args, 1);
+			handle_data(command_args);
 		}
 		else if(strcmp(command_word,"walk")==0)
 		{
@@ -34,25 +30,13 @@ void handle_serial_command(char* command, uint16_t command_length)
 		{
 			handle_set_motor(command_args);
 		}
-		else if(strcmp(command_word,"print_motor_settings")==0)
-		{
-			print_motor_settings();
-		}
-		else if(strcmp(command_word,"write_motor_settings")==0)
-		{
-			write_motor_settings();
-		}
-		else if(strcmp(command_word,"ir_test")==0)
-		{
-			handle_ir_test(command_args);
-		}
-		else if(strcmp(command_word,"tasks")==0)
-		{
-			print_task_queue();
-		}
 		else if(strcmp(command_word,"rnb_b")==0)
 		{
 			handle_rnb_broadcast();
+		}
+		else if(strcmp(command_word,"rnb_c")==0)
+		{
+			handle_rnb_collect(command_args);
 		}
 		else if(strcmp(command_word, "rnb_t")==0)
 		{
@@ -62,21 +46,25 @@ void handle_serial_command(char* command, uint16_t command_length)
 		{
 			handle_rnb_receive();	
 		}
-		else if(strcmp(command_word,"rnb_c")==0)
+		else if(strcmp(command_word,"set_led")==0)
 		{
-			handle_rnb_collect(command_args);
+			handle_set_led(command_args);
 		}
-		else if(strcmp(command_word,"time")==0)
+		else if(strcmp(command_word,"cmd")==0)
 		{
-			handle_timing_test();
+			handle_cmd(command_args, 1);
 		}
-		else if(strcmp(command_word,"data")==0)
+		else if(strcmp(command_word,"tasks")==0)
 		{
-			handle_data(command_args);
+			print_task_queue();
 		}
-		else if(strcmp(command_word,"toggle")==0)
+		else if(strcmp(command_word,"print_motor_settings")==0)
 		{
-			check_messages_toggle = !check_messages_toggle;
+			print_motor_settings();
+		}
+		else if(strcmp(command_word,"write_motor_settings")==0)
+		{
+			write_motor_settings();
 		}
 		else
 		{
@@ -85,58 +73,68 @@ void handle_serial_command(char* command, uint16_t command_length)
 	}
 }
 
-//TODO: Handle variable power with the RNB stuff.
-
-//This tells the droplet that it should tell other droplets nearby their rnb to it.
-//In other words, this tells nearby droplets to listen, and then performs an IR_range_blast.
-void handle_rnb_broadcast()
+void handle_data(char *command_args)
 {
-	schedule_task(5,broadcast_rnb_data,NULL);
-}
-
-//This tells the droplet that it should ask nearby droplets to do an IR_range_blast so it can learn their rnb.
-void handle_rnb_collect(char* command_args)
-{
-	uint8_t power = atoi(command_args);	
-	schedule_task(5,collect_rnb_data, power);
-}
-
-//This should only be called when another droplet asks this droplet to do an IR_range_blast (ie., by using handle_rnb_collect).
-void handle_rnb_transmit(char* command_args)
-{
-	uint16_t power = (uint16_t)command_args[0] + 2;
-	IR_range_blast(power);
-	got_rnb_cmd_flag = 1;
-}
-
-//This should only be called when another droplet is about to broadcast its rnb_data (ie., by using handle_rnb_broadcast()).
-void handle_rnb_receive()
-{
-	receive_rnb_data();
-	rnb_updated = 0;
-	last_good_rnb.id_number = (uint16_t)last_command_source_id;
-}
-
-void handle_timing_test()
-{
-	uint8_t bright_meas[6][6][20];
-	printf("| ");
-	for(uint8_t i=0 ; i<20 ; i++)
+	memset(serial_data_out_buffer.data, 0, BUFFER_SIZE);
+	serial_data_out_buffer.length = strlen(command_args);
+	if(serial_data_out_buffer.length < BUFFER_SIZE)
 	{
-		uint16_t pre_time = get_16bit_time();
-		//start code to be tested.
-		//uint16_t pre_sync_op = get_16bit_time();
-		//for (uint8_t sensor_num = 0; sensor_num < 6; sensor_num++)
-		//{
-			//bright_meas[sensor_num][0][0] = get_IR_sensor(sensor_num);
-		//}
-		//while((get_16bit_time() - pre_sync_op) < 2);
-		//end code to be tested.
-		uint16_t post_time = get_16bit_time();
-		uint16_t difference = post_time - pre_time;
-		printf("%u | ",difference);
+		memcpy(serial_data_out_buffer.data, command_args, serial_data_out_buffer.length);
 	}
-	printf("\r\n");
+	else
+	{
+		memcpy(serial_data_out_buffer.data, command_args, BUFFER_SIZE);
+	}
+}
+
+void handle_walk(char* command_args)
+{
+	const char delim[2] = " ";
+	uint8_t direction, num_steps;
+	uint8_t successful_read = 1;
+	
+	char* token = strtok(command_args,delim);
+	
+	switch (token[0])
+	{
+		case '0': direction = 0; break;
+		case '1': direction = 1; break;
+		case '2': direction = 2; break;
+		case '3': direction = 3; break;
+		case '4': direction = 4; break;
+		case '5': direction = 5; break;
+		case '6': direction = 6; break;
+		case '7': direction = 7; break;
+		case 'N':
+	if (token[1] == 'E') { direction = 1; break; }
+else if (token[1] == 'W') { direction = 5; break; }
+			else { direction = 0; break; }
+		case 'S':
+			if (token[1] == 'E') { direction = 2; break; }
+			else if (token[1] == 'W') { direction = 4; break; }
+			else { direction = 3; break; }
+		case 'C':
+			if (token[1] == 'W') { direction = 6; break; }
+			else { direction = 7; break; }
+				
+		default:
+			successful_read = 0;		
+	}
+
+	token = strtok(NULL,delim);
+	num_steps = (uint8_t)atoi(token);
+	if (num_steps < 1) successful_read = 0;
+
+	if (successful_read)
+	{
+		move_steps(direction, num_steps);
+		printf("walk direction %u, num_steps %u\r\n", direction, num_steps);
+	}		
+	else
+	{
+		printf("\tGot command walk, but arguments (%s) were invalid. Format should be:\r\n",command_args);
+		printf("\t Direction (1-6), followed by number of steps (uint8_t).\r\n");
+	}
 }
 
 void handle_set_motor(char* command_args)
@@ -161,8 +159,8 @@ void handle_set_motor(char* command_args)
 		case '6': direction = 6; break;
 		case '7': direction = 7; break;
 		case 'N':
-			if (token[1] == 'E') { direction = 1; break; }
-			else if (token[1] == 'W') { direction = 5; break; }
+	if (token[1] == 'E') { direction = 1; break; }
+else if (token[1] == 'W') { direction = 5; break; }
 			else { direction = 0; break; }
 		case 'S':
 			if (token[1] == 'E') { direction = 2; break; }
@@ -198,6 +196,43 @@ void handle_set_motor(char* command_args)
 
 }
 
+/* This tells the droplet that it should tell other droplets nearby their rnb to it.
+ * In other words, this tells nearby droplets to listen, and then performs an IR_range_blast.
+ */
+void handle_rnb_broadcast()
+{
+	schedule_task(5,broadcast_rnb_data,NULL);
+}
+
+/* This tells the droplet that it should ask nearby droplets to do an 
+ * IR_range_blast so it can learn their rnb.
+ */
+void handle_rnb_collect(char* command_args)
+{
+	uint8_t power = atoi(command_args);	
+	schedule_task(5,collect_rnb_data, power);
+}
+
+/* This should only be called when another droplet asks this droplet 
+ * to do an IR_range_blast (ie., by using handle_rnb_collect).
+ */
+void handle_rnb_transmit(char* command_args)
+{
+	uint16_t power = (uint16_t)command_args[0] + 2;
+	IR_range_blast(power);
+	got_rnb_cmd_flag = 1;
+}
+
+/* This should only be called when another droplet is about to 
+ * broadcast its rnb_data (ie., by using handle_rnb_broadcast()).
+ */
+void handle_rnb_receive()
+{
+	receive_rnb_data();
+	rnb_updated = 0;
+	last_good_rnb.id_number = (uint16_t)last_command_source_id;
+}
+
 void handle_cmd(char* command_args, uint8_t should_broadcast)
 {
 	if(OK_to_send())
@@ -212,12 +247,12 @@ void handle_cmd(char* command_args, uint8_t should_broadcast)
 		{
 			//printf("Transmitting command: \"%s\", of length %i.\r\n",(uint8_t*)command_args, strlen(command_args));
 			ir_send_command(1,(uint8_t*)command_args,strlen(command_args));
-		}						
+		}
 
 		//if(0==ir_send_command(0,(uint8_t*)command_args,strlen(command_args)))
-			//printf("\tSent command \"%s\", of length %i\r\n",command_args,strlen(command_args));
+		//printf("\tSent command \"%s\", of length %i\r\n",command_args,strlen(command_args));
 		//else
-			//printf("\tFailed to send \"%s\", of length %i\r\n",command_args,strlen(command_args));
+		//printf("\tFailed to send \"%s\", of length %i\r\n",command_args,strlen(command_args));
 	}
 	
 	else
@@ -289,103 +324,6 @@ void handle_set_led(char* command_args)
 	}
 }
 
-void handle_walk(char* command_args)
-{
-	const char delim[2] = " ";
-	uint8_t direction, num_steps;
-	uint8_t successful_read = 1;
-	
-	char* token = strtok(command_args,delim);
-	
-	switch (token[0])
-	{
-		case '0': direction = 0; break;
-		case '1': direction = 1; break;
-		case '2': direction = 2; break;
-		case '3': direction = 3; break;
-		case '4': direction = 4; break;
-		case '5': direction = 5; break;
-		case '6': direction = 6; break;
-		case '7': direction = 7; break;
-		case 'N':
-			if (token[1] == 'E') { direction = 1; break; }
-			else if (token[1] == 'W') { direction = 5; break; }
-			else { direction = 0; break; }
-		case 'S':
-			if (token[1] == 'E') { direction = 2; break; }
-			else if (token[1] == 'W') { direction = 4; break; }
-			else { direction = 3; break; }
-		case 'C':
-			if (token[1] == 'W') { direction = 6; break; }
-			else { direction = 7; break; }
-				
-		default:
-			successful_read = 0;		
-	}
-
-	token = strtok(NULL,delim);
-	num_steps = (uint8_t)atoi(token);
-	if (num_steps < 1) successful_read = 0;
-
-	if (successful_read)
-	{
-		move_steps(direction, num_steps);
-		printf("walk direction %u, num_steps %u\r\n", direction, num_steps);
-	}		
-	else
-	{
-		printf("\tGot command walk, but arguments (%s) were invalid. Format should be:\r\n",command_args);
-		printf("\t Direction (1-6), followed by number of steps (uint8_t).\r\n");
-	}
-}
-
-void handle_ir_test(char* command_args)
-{
-	uint8_t chan;
-	
-	if(sscanf(command_args,"%hhu",&chan)==1)
-	{
-		if(OK_to_send())
-		{
-			char* test_data_to_send = "foo";
-			if(chan >= 0 && chan <= 5)
-			{
-				printf("\tTesting channel %u.\r\n",chan);
-				ir_send(chan,(uint8_t*)test_data_to_send,3);	
-			}
-			else
-			{
-				printf("\tTesting broadcast.\r\n");
-				ir_broadcast((uint8_t*)test_data_to_send,3);
-			} 
-			
-		}
-		else
-		{
-			printf("\tIt wasn't okay to send. :(");
-		}
-	}
-	else
-	{
-		printf("\tGot command ir_test, but arguments ( %s ) were invalid. Should just be an unsigned int.\r\n",command_args);
-	}
-	//delay_ms(5000);
-}
-
-void handle_data(char *command_args)
-{
-	memset(serial_data_out_buffer.data, 0, BUFFER_SIZE);
-	serial_data_out_buffer.length = strlen(command_args);
-	if(serial_data_out_buffer.length < BUFFER_SIZE)
-	{
-		memcpy(serial_data_out_buffer.data, command_args, serial_data_out_buffer.length);	
-	}
-	else
-	{
-		memcpy(serial_data_out_buffer.data, command_args, BUFFER_SIZE);	
-	}
-}
-
 void get_command_word_and_args(char* command, uint16_t command_length, char* command_word, char* command_args)
 {
 	uint16_t write_index = 0;
@@ -426,7 +364,7 @@ void get_command_word_and_args(char* command, uint16_t command_length, char* com
 	}
 }
 
-//TODO: MOVE THIS TO RGB_LED.c
+//TODO: MOVE THIS TO RGB_LED.c and fix it.
 //Adapted from wikipedia page "en.wikipedia.org/wiki/HSL_and_HSV#Converting_to_RGB"
 void hsv_to_rgb(float hue, float saturation, float val, uint8_t* rgb){
 	float c = (val*saturation);

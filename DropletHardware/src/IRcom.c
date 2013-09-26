@@ -104,16 +104,7 @@ void ir_com_init(uint16_t buffersize)
 	
 	if(!buffer_memory_allocated)
 	{
-		if (buffersize < IR_BUFFER_SIZE + HEADER_LEN)
-		// then buffer size is too small for IR reprogramming, needs to be bigger
-		{
-			printf("IR buffersize increased to minimum size\r\n");
-			buffersize = IR_BUFFER_SIZE + HEADER_LEN; 
-		}
-		else if (buffersize > IR_BUFFER_SIZE + HEADER_LEN)
-		{
-			printf("IR buffersize is bigger than needed\r\n");
-		}
+		buffersize = IR_BUFFER_SIZE + HEADER_LEN; 
 	
 		for (uint8_t i = 0; i < 6; i++)
 		{
@@ -227,14 +218,27 @@ void set_ir_power(uint8_t dir, uint16_t power)
 	i2c_stopbit();
 }
 
+uint8_t ir_broadcast_command(uint8_t *data, uint16_t data_length)
+{
+	uint8_t oldstatus[6];
+	for(uint8_t dir=0 ; dir < 6 ; dir++)
+	{
+		oldstatus[dir] = ir_tx[dir].ir_status;
+		ir_tx[dir].ir_status |= IR_TX_STATUS_COMMAND_bm;
+	}
+	uint8_t retval = ir_broadcast(data,data_length);
+	if (retval != 0)
+	{
+		for(uint8_t dir=0 ; dir < 6 ; dir++) ir_tx[dir].ir_status = oldstatus[dir];
+	}
+	return retval;
+}
+
 uint8_t ir_send_command(uint8_t dir, uint8_t *data, uint16_t data_length)
 {
 	uint8_t return_val, oldstatus;
 	
 	oldstatus = ir_tx[dir].ir_status;
-	
-	// at this point in the code, what is the expected value of ir_tx[dir].ir_status???
-	// why is this an OR-EQUALS and not just EQUALS??
 	
 	ir_tx[dir].ir_status |= IR_TX_STATUS_COMMAND_bm;
 	return_val = ir_send(dir,data,data_length);	// ir_send currently ONLY returns 0
@@ -242,7 +246,6 @@ uint8_t ir_send_command(uint8_t dir, uint8_t *data, uint16_t data_length)
 	if (return_val != 0)
 	{
 		ir_tx[dir].ir_status = oldstatus;
-	// NO ELSE CASE?
 		printf("ir_send_command ERROR %i\r\n", return_val);
 	}	
 	
@@ -277,10 +280,10 @@ uint8_t ir_send(uint8_t dir, uint8_t *data, uint16_t data_length)
 	// in which case, IR_RX_STATUS_BUSY_bm should turn off, and then IR_RX_STATUS_PACKET_DONE_bm should turn on
 	//TODO: Double check john change of this = to |=
 	
-	if((ir_tx[dir].ir_status != 0)||(ir_tx[dir].ir_status != IR_TX_STATUS_COMMAND_bm))
-	{	// this is the double check, NDF will remove as TODO
-		printf("NDF says: this is a serious error!\r\n");
-	}
+	//if((ir_tx[dir].ir_status != 0)||(ir_tx[dir].ir_status != IR_TX_STATUS_COMMAND_bm))
+	//{	// this is the double check, NDF will remove as TODO
+		//printf("NDF says: this is a serious error!\r\n");
+	//}
 	
 	
 	ir_tx[dir].ir_status |= IR_TX_STATUS_BUSY_bm;
@@ -556,7 +559,7 @@ void ir_receive(uint8_t dir)
 							// its not really a length error, but we dont have a better classification, this error is probably rare
 							ir_rx[dir].ir_status |= IR_RX_STATUS_LENERR_bm;
 
-							return;
+							return 1;
 						}
 					}
 				}
@@ -804,8 +807,10 @@ void ir_receive(uint8_t dir)
 							char command[ir_rx[dir].data_len];
 							last_command_source_id = rx_msg_header[dir].sender_ID;
 							memcpy(command,ir_rx[dir].buf+HEADER_LEN,ir_rx[dir].data_len);
+							//printf("Got command \"%s\" over IR.\r\n", command);
 							handle_serial_command(command,ir_rx[dir].data_len);
 							ir_reset_rx(dir);
+							ir_reset_tx(dir);
 							return;
 						}
 						else
@@ -919,7 +924,7 @@ uint8_t check_for_new_messages()
 	if(!global_rx_buffer.read)	// if the current message has not yet been read
 	{
 		printf(" - unread message available -\r\n");
-		return 2;
+		return;
 	}
 
 	/* CASE 2 */
@@ -1230,21 +1235,7 @@ ISR( USARTF0_TXC_vect ) { ir_transmit_complete(5); }
 ISR( USARTF0_DRE_vect ) { ir_transmit(5); }
 
 
-uint8_t ir_broadcast_command(uint8_t *data, uint16_t data_length)
-{
-	uint8_t oldstatus[6];
-	for(uint8_t dir=0 ; dir < 6 ; dir++) 
-	{
-		oldstatus[dir] = ir_tx[dir].ir_status;
-		ir_tx[dir].ir_status |= IR_TX_STATUS_COMMAND_bm;
-	}
-	uint8_t retval = ir_broadcast(data,data_length);
-	if (retval != 0) 
-	{
-		for(uint8_t dir=0 ; dir < 6 ; dir++) ir_tx[dir].ir_status = oldstatus[dir];
-	}
-	return retval;
-}
+
 
 // TODO: Refactor ir_send() and ir_broadcast() with better modularity
 uint8_t ir_broadcast(uint8_t *data, uint16_t data_length)

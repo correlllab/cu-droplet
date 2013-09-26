@@ -121,7 +121,7 @@ void IR_sensor_init()
 	PORTB.OUTSET = 0b00000000;		// put a low voltage on these pins (typically, this will be about 15 mV)
 
 	ADCB.CH0.MUXCTRL |= IR_SENSOR_0_FOR_ADCB_MUXPOS;
-	_delay_ms(1);	// may have to wait a bit before the new multiplexer (MUX) connection is made in hardware?		TODO ???
+	//_delay_ms(1);	// may have to wait a bit before the new multiplexer (MUX) connection is made in hardware?		TODO ???
 	ADCB.CTRLA |= ADC_CH0START_bm;
 	while (ADCB.CH0.INTFLAGS==0){};		// wait for 'complete flag' to be set
 	ADCB.CH0.INTFLAGS = 1;				// clear the complete flag
@@ -129,7 +129,7 @@ void IR_sensor_init()
 
 	ADCB.CH0.MUXCTRL &= ~0b01111000;	// clear out the old value
 	ADCB.CH0.MUXCTRL |= IR_SENSOR_1_FOR_ADCB_MUXPOS;
-	_delay_ms(1);	// may have to wait a bit before the new multiplexer (MUX) connection is made in hardware?		TODO ???
+	//_delay_ms(1);	// may have to wait a bit before the new multiplexer (MUX) connection is made in hardware?		TODO ???
 	ADCB.CTRLA |= ADC_CH0START_bm;
 	while (ADCB.CH0.INTFLAGS==0){};		// wait for 'complete flag' to be set
 	ADCB.CH0.INTFLAGS = 1;				// clear the complete flag
@@ -137,7 +137,7 @@ void IR_sensor_init()
 
 	ADCB.CH0.MUXCTRL &= ~0b01111000;	// clear out the old value
 	ADCB.CH0.MUXCTRL |= IR_SENSOR_2_FOR_ADCB_MUXPOS;
-	_delay_ms(1);	// may have to wait a bit before the new multiplexer (MUX) connection is made in hardware?		TODO ???
+	//_delay_ms(1);	// may have to wait a bit before the new multiplexer (MUX) connection is made in hardware?		TODO ???
 	ADCB.CTRLA |= ADC_CH0START_bm;
 	while (ADCB.CH0.INTFLAGS==0){};		// wait for 'complete flag' to be set
 	ADCB.CH0.INTFLAGS = 1;				// clear the complete flag
@@ -145,7 +145,7 @@ void IR_sensor_init()
 
 	ADCB.CH0.MUXCTRL &= ~0b01111000;	// clear out the old value
 	ADCB.CH0.MUXCTRL |= IR_SENSOR_3_FOR_ADCB_MUXPOS;
-	_delay_ms(1);	// may have to wait a bit before the new multiplexer (MUX) connection is made in hardware?		TODO ???
+	//_delay_ms(1);	// may have to wait a bit before the new multiplexer (MUX) connection is made in hardware?		TODO ???
 	ADCB.CTRLA |= ADC_CH0START_bm;
 	while (ADCB.CH0.INTFLAGS==0){};		// wait for 'complete flag' to be set
 	ADCB.CH0.INTFLAGS = 1;				// clear the complete flag
@@ -153,7 +153,7 @@ void IR_sensor_init()
 
 	ADCB.CH0.MUXCTRL &= ~0b01111000;	// clear out the old value
 	ADCB.CH0.MUXCTRL |= IR_SENSOR_4_FOR_ADCB_MUXPOS;
-	_delay_ms(1);	// may have to wait a bit before the new multiplexer (MUX) connection is made in hardware?		TODO ???
+	//_delay_ms(1);	// may have to wait a bit before the new multiplexer (MUX) connection is made in hardware?		TODO ???
 	ADCB.CTRLA |= ADC_CH0START_bm;
 	while (ADCB.CH0.INTFLAGS==0){};		// wait for 'complete flag' to be set
 	ADCB.CH0.INTFLAGS = 1;				// clear the complete flag
@@ -161,13 +161,13 @@ void IR_sensor_init()
 
 	ADCB.CH0.MUXCTRL &= ~0b01111000;	// clear out the old value
 	ADCB.CH0.MUXCTRL |= IR_SENSOR_5_FOR_ADCB_MUXPOS;
-	_delay_ms(1);	// may have to wait a bit before the new multiplexer (MUX) connection is made in hardware?		TODO ???
+	//_delay_ms(1);	// may have to wait a bit before the new multiplexer (MUX) connection is made in hardware?		TODO ???
 	ADCB.CTRLA |= ADC_CH0START_bm;
 	while (ADCB.CH0.INTFLAGS==0){};		// wait for 'complete flag' to be set
 	ADCB.CH0.INTFLAGS = 1;				// clear the complete flag
 	ADC_offset[5] = ADCB.CH0.RES*(-1);
-
-/*	printf("ADC offset 0: %i\r\n",ADC_offset[0]);
+/*
+	printf("ADC offset 0: %i\r\n",ADC_offset[0]);
 	printf("ADC offset 1: %i\r\n",ADC_offset[1]);
 	printf("ADC offset 2: %i\r\n",ADC_offset[2]);
 	printf("ADC offset 3: %i\r\n",ADC_offset[3]);
@@ -175,6 +175,8 @@ void IR_sensor_init()
 	printf("ADC offset 5: %i\r\n",ADC_offset[5]);
 */
 	PORTB.DIRCLR = 0xFF;			// return the IR sense pins back to inputs
+	
+	//printf("Offsets: [0: %i, 1: %i, 2: %i, 3: %i, 4: %i, 5: %i\r\n",ADC_offset[0],ADC_offset[1],ADC_offset[2],ADC_offset[3],ADC_offset[4],ADC_offset[5]);
 }
 
 
@@ -227,10 +229,12 @@ uint8_t get_IR_sensor(uint8_t sensor_num)
 		//printf("meas1: %i\r\n",meas1);
 	}		
 
-	average = ((uint16_t)meas[0] + (uint16_t)meas[1] + (uint16_t)meas[2]) / 3;
+	average = ((int16_t)meas[0] + (int16_t)meas[1] + (int16_t)meas[2]) / 3;
 	scaled_average = (uint8_t)(average+ADC_offset[sensor_num]);
 	scaled_median = (uint8_t)(find_median(meas)+ADC_offset[sensor_num]);
-	//printf("uavg: %u\r\n",u_avg);
+	//printf("measA: %i, measB: %i, measC: %i\r\n",meas[0],meas[1],meas[2]);
+	//printf("avg: %i, scale_avg: %u, scale_med: %u\r\n",average, scaled_average, scaled_median);
+	return scaled_median;
 
 	// notes on how this works:
 	// the usual range of outputs for the 8 bit signed ADC is -127 to 128

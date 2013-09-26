@@ -83,6 +83,7 @@ void init_all_systems()
 	{
 		set_ir_power(i,256);
 	}
+	check_messages_toggle = 0;
 
 	rnb_updated = 0; //The user code can check this flag to see if we have new rnb_data in last_good_rnb
 

@@ -27,6 +27,7 @@
 //#include "commands.h"
 
 uint16_t droplet_ID;
+uint8_t got_rnb_cmd_flag;
 
 void Config32MHzClock(void);
 

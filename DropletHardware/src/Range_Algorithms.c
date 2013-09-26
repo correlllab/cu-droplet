@@ -44,21 +44,31 @@ void range_algorithms_init()
 	}
 }
 
-//TODO: Actually use power.
-void collect_rnb_data()
-{		
+void collect_rnb_data(void* arg)
+{	
+	delay_ms(100);
+	uint8_t power = (uint8_t)arg;
+	char* cmd = "rnb_t ";
+	cmd[6] = power;
 	get_baseline_readings(bright_meas);
-		
-	if(!OK_to_send())
+	uint8_t error = 1;
+	uint8_t brightness_matrix[6][6];
+	uint8_t number_of_tries = 0;
+	while(error && (number_of_tries < 5))
 	{
-		printf("RNB request failed. Not ok to send.");
-		return;
-	}
-		
-	ir_broadcast_command("rnb_t",5);	
-	while(ir_tx[5].ir_status & IR_TX_STATUS_BUSY_bm);
-	get_IR_range_readings();
+		if(number_of_tries > 0) delay_ms(1000);
+		if(!OK_to_send())
+		{
+			printf("ERROR: RNB request failed. Not ok to send.");
+			return;
+		}
 
+		ir_broadcast_command(cmd, 7);
+		while(ir_tx[5].ir_status & IR_TX_STATUS_BUSY_bm);
+		get_IR_range_readings();
+		error = pack_measurements_into_matrix(brightness_matrix);
+		number_of_tries++;
+	}
 	/*
 	For testing, comment out the above and use a hardcoded matrix from the mathematica notebook.
 	uint8_t brightness_matrix[6][6] = {
@@ -70,8 +80,12 @@ void collect_rnb_data()
 		{0, 0, 0, 0, 0, 0}
 	};
 	*/
-	
-	use_rnb_data();
+	//brightness_meas_printout_mathematica();
+	if(error){
+		printf("ERROR: Gave up hearing from other droplet.\r\n");
+		return;
+	}
+	use_rnb_data(power);
 }
 
 //TODO: handle variable power.
@@ -91,13 +105,11 @@ void receive_rnb_data()
 	schedule_task(10,use_rnb_data,NULL);
 }
 
-void use_rnb_data()
+void use_rnb_data(uint8_t power)
 {
-	//print_brightness_matrix(brightness_matrix);
-	
 	uint8_t brightness_matrix[6][6];
-	pack_measurements_into_matrix(brightness_matrix);
-	
+	pack_measurements_into_matrix(brightness_matrix);;
+	//print_brightness_matrix(brightness_matrix);
 	uint8_t emitter_total[6];
 	uint8_t sensor_total[6];
 	
@@ -106,19 +118,15 @@ void use_rnb_data()
 	float bearing = get_bearing(sensor_total);
 	float heading = get_heading(emitter_total, bearing);
 	
-	float range = get_initial_range_guess(bearing, heading, sensor_total, emitter_total, brightness_matrix);
-	
-	//TODO: In my mathematica notebook tests, the initial range guess was more accurate than the more complicated thing below.
-	//I'm sure with some more work the more complicated range_estimate can be made better, but for now lets go with what works.
-	//float range = range_estimate( brightness_matrix, initial_range, bearing, heading);
-	
+	float initial_range = get_initial_range_guess(bearing, heading, sensor_total, emitter_total, brightness_matrix, power);
+	float range = range_estimate(brightness_matrix, initial_range, bearing, heading, power);
 	//TODO: Actually incorporate the ID #.
-	rnb temp = {.range = range, .bearing = bearing, .heading = heading, .id_number = 0};
-
+	//rnb temp = {.range = range, .bearing = bearing, .heading = heading, .id_number = 0};
 	//printf("Bearing: %f | Heading: %f | Initial Range Guess: %f | Range: %f\r\n", rad_to_deg(bearing), rad_to_deg(heading), initial_range, range);
 	last_good_rnb.range = range;
 	last_good_rnb.bearing = bearing;
 	last_good_rnb.heading = heading;
+	last_good_rnb.brightness_matrix_ptr = brightness_matrix;
 	rnb_updated=1;
 }
 
@@ -156,7 +164,7 @@ float get_heading(uint8_t emitter_total[6], float bearing)
 	return pretty_angle(heading);
 }
 
-float get_initial_range_guess(float bearing, float heading, uint8_t sensor_total[6], uint8_t emitter_total[6], uint8_t brightness_matrix[6][6])
+float get_initial_range_guess(float bearing, float heading, uint8_t sensor_total[6], uint8_t emitter_total[6], uint8_t brightness_matrix[6][6], uint8_t power)
 {
 	uint8_t i, e, s, best_e, best_s;
 	uint16_t biggest_e_val = 0;
@@ -196,33 +204,29 @@ float get_initial_range_guess(float bearing, float heading, uint8_t sensor_total
 
 	if((alpha > M_PI/2)||(alpha < -M_PI/2))			// pi/2 = 1.5708
 	{
-		printf("ERROR: alpha out of range (");
-		////RNB_print_float(alpha*180/M_PI);
-		printf(" deg, sensor %u)\r\n", best_s);
+		printf("ERROR: alpha out of range (alpha: %f, sensor %u)\r\n",alpha, best_s);
 	}
 
 	if((beta > M_PI/2)||(beta < -M_PI/2))
 	{
-		printf("ERROR: beta out of range (");
-		////RNB_print_float(beta*180/M_PI);
-		printf(" deg, emitter %u)\r\n", best_e);
+		printf("ERROR: beta out of range (beta: %f, emitter %u)\r\n", beta, best_e);
 	}
 
 	EC = sensor_model(alpha)*emitter_model(beta);
 
 	if(EC > 0)
+	{
 		amplitude = brightness_matrix[best_e][best_s]/EC;
+	}		
 	else
 	{
-		printf("ERROR: EC is negative (or zero)! oh, my (EC = ");
-		////RNB_print_float(EC);
-		printf(")\r\n");
+		printf("ERROR: EC is negative (or zero)! oh, my (EC = %f)\r\n", EC);
 	}
 
-	return inverse_amplitude_model(amplitude) + 2*DROPLET_RADIUS;
+	return inverse_amplitude_model(amplitude, power) + 2*DROPLET_RADIUS;
 }
 
-float range_estimate(uint8_t brightness_matrix[6][6], float range_upper_limit, float bearing, float heading)
+float range_estimate(uint8_t brightness_matrix[6][6], float range_upper_limit, float bearing, float heading, uint8_t power)
 {
 	float alpha, beta;
 
@@ -232,36 +236,24 @@ float range_estimate(uint8_t brightness_matrix[6][6], float range_upper_limit, f
 	
 	float calcRIJmag, calcRmag;
 	float calcRx, calcRy;
+	
+	float range_matrix[6][6];
 
-	uint8_t num_inserted = 0;
-	uint8_t num_removed = 0;
-
-	float totalRx = 0;
-	float totalRy = 0;
-	uint16_t total = 0;	
-
-	float newTheta, newR;
-
-	uint8_t debug_printout = 0;	// boolean
-
-	rVectorNode *curr, *head;
-	head=NULL;
-	curr=NULL;
-
-	uint8_t max=0;
-	uint8_t maxE=0;
-	uint8_t maxS=0;
-
+	uint8_t maxBright = 0;
+	uint8_t maxE;
+	uint8_t maxS;
 	for(uint8_t e = 0; e < 6; e++)
 	{
 		for(uint8_t s = 0; s < 6; s++)
 		{
-			if(brightness_matrix[e][s]>max){
-				max=brightness_matrix[e][s];
-				maxE=e;
-				maxS=s;
+			if(brightness_matrix[e][s]>maxBright)
+			{
+				maxBright = brightness_matrix[e][s];
+				maxE = e;
+				maxS = s;
 			}
-			if(brightness_matrix[e][s] > BRIGHTNESS_THRESHOLD)
+			
+			if(brightness_matrix[e][s] > BASELINE_NOISE_THRESHOLD)
 			{				
 				sensorRXx = DROPLET_SENSOR_RADIUS*basis[s][0];
 				sensorRXy = DROPLET_SENSOR_RADIUS*basis[s][1];
@@ -274,111 +266,34 @@ float range_estimate(uint8_t brightness_matrix[6][6], float range_upper_limit, f
 				alpha = pretty_angle(alpha);
 				beta = pretty_angle(beta);
 				
-				if((alpha < M_PI/2)&&(alpha > -M_PI/2))
-				{
-					if((beta < M_PI/2)&&(beta > -M_PI/2))
-					{
+				//if((alpha < M_PI/2)&&(alpha > -M_PI/2))
+				//{
+					//if((beta < M_PI/2)&&(beta > -M_PI/2))
+					//{
 						SEcontribution = sensor_model(alpha)*emitter_model(beta);
-						
-						if(debug_printout)
-						{
-							printf("\r\ngood pair s=%u e=%u, lambda:%u ", s, e,brightness_matrix[e][s]);
-							printf("alpha=");
-							////RNB_print_float(alpha * 180/M_PI);
-							printf(", beta=");
-							////RNB_print_float(beta * 180/M_PI);
-							printf("\r\n");
-						}
 
-						total+=brightness_matrix[e][s];
-						num_inserted++;
-
-						calcRIJmag = inverse_amplitude_model(brightness_matrix[e][s]/SEcontribution);
-
-					//	calcRx = DROPLET_SENSOR_RADIUS*basis[s][0] + calcRIJmag*my_cosine(alpha+basis_angle[s]) - DROPLET_SENSOR_RADIUS*my_cosine(basis_angle[e]+heading);
-
-						//calcRy = DROPLET_SENSOR_RADIUS*basis[s][1] + calcRIJmag*my_sine(alpha+basis_angle[s]) - DROPLET_SENSOR_RADIUS*my_sine(basis_angle[e]+heading);
-
-						calcRx = (calcRIJmag+2*DROPLET_SENSOR_RADIUS)*cosf(alpha+basis_angle[s]);
-						
-						calcRy = (calcRIJmag+2*DROPLET_SENSOR_RADIUS)*sinf(alpha+basis_angle[s]);
-
-						curr = (rVectorNode*)malloc(sizeof(rVectorNode));
-						curr->e=e;
-						curr->s=s;
-						curr->Rx=calcRx;
-						curr->Ry=calcRy;
-						curr->rijMag=calcRIJmag;
-						
-						if(head==NULL)
-						{
-							head=curr;
-						}
-						else
-						{
-							curr->next=head->next;
-							head->next=curr;
-						}			
-					}
-				}
+						calcRIJmag = inverse_amplitude_model(brightness_matrix[e][s]/SEcontribution, power);
+						calcRx = calcRIJmag*cosf(alpha) + DROPLET_SENSOR_RADIUS*(basis[s][0] - basis[e][0]);
+						calcRy = calcRIJmag*sinf(alpha) + DROPLET_SENSOR_RADIUS*(basis[s][1] - basis[e][1]);
+						range_matrix[e][s] = sqrt(calcRx*calcRx + calcRy*calcRy);
+						continue;
+					//}
+				//}
 			}
+			range_matrix[e][s]=0;
 		}
 	}
-
-	float weightingDenom;
-
-	weightingDenom = 1/(float)total;
-
-	curr=head;
-	rVectorNode *temp;
-	while(curr!=NULL)
-	{
-		if(debug_printout)
-		{
-			printf("\r\n Rx: ");
-			//RNB_print_float(curr->Rx);
-			printf(" | Ry: ");
-			//RNB_print_float(curr->Ry);
-			printf(" | e: %u | s: %u\n",curr->e,curr->s);
-		}
-		//TODO : We can see if this method is superior to averaging at a later date.
-		//if(curr->e==maxE && curr->s==maxS){
-			//*best_revised_R = (curr->rijMag)+2*DROPLET_SENSOR_RADIUS;
+	
+	//
+	//for(uint8_t e=0; e<6 ; e++){
+		//for(uint8_t s=0; s<6; s++){
+			//printf("%02.3f  ",range_matrix[e][s]);
 		//}
-
-		totalRx+=brightness_matrix[curr->e][curr->s]*weightingDenom*curr->Rx;
-		totalRy+=brightness_matrix[curr->e][curr->s]*weightingDenom*curr->Ry;
-	
-		temp=curr->next;
-		curr->next = NULL;
-		free(curr);
-		curr=temp;
-		num_removed++;
-	}
-	
-
-	if(debug_printout)
-	{
-		printf("\r\ntotal: ");
-		//RNB_print_float(total);
-		printf("\r\nweighting denom: ");
-		//RNB_print_float(weightingDenom);
-
-		printf("\r\n");
-		printf("X: ");
-		//RNB_print_float(totalRx);
-		printf(",Y: ");
-		//RNB_print_float(totalRy);
-		printf("\r\n");
-		printf("added: %u == removed: %u\r\n",num_inserted, num_removed);
-	}
-	
-	newR = sqrt(totalRx*totalRx+totalRy*totalRy);
-	
-	//We can look in to using newTheta later.
-	newTheta = atan2f(totalRy,totalRx);// * 180/M_PI;
-
-	return newR;
+		//printf("\r\n");
+	//}
+	float range = range_matrix[maxE][maxS];
+	//printf("range from 0,0: %f\r\n",range_matrix[maxE][maxS]);
+	return range;
 }
 
 void fill_S_and_T(uint8_t brightness_matrix[6][6], uint8_t sensor_total[6], uint8_t emitter_total[6])
@@ -405,6 +320,8 @@ void fill_S_and_T(uint8_t brightness_matrix[6][6], uint8_t sensor_total[6], uint
 uint8_t pack_measurements_into_matrix(uint8_t brightness_matrix[6][6])
 {
 	uint8_t high, low, diff;
+	
+	uint8_t max_diff = 0;
 
 	uint8_t probable_timing_fail = 0;
 
@@ -423,44 +340,45 @@ uint8_t pack_measurements_into_matrix(uint8_t brightness_matrix[6][6])
 			
 			for(uint8_t meas_num = 0; meas_num < NUMBER_OF_RB_MEASUREMENTS; meas_num++)
 			{
-				if(bright_meas[emitter_dir][sensor_num][meas_num] < low)
-				{
-					low = bright_meas[emitter_dir][sensor_num][meas_num];
-				}
 				
 				if(bright_meas[emitter_dir][sensor_num][meas_num] > high)
 				{
 					high = bright_meas[emitter_dir][sensor_num][meas_num];
 				}
+				if(bright_meas[emitter_dir][sensor_num][meas_num] < low)
+				{
+					low = bright_meas[emitter_dir][sensor_num][meas_num];
+				}
 			}
 
 			diff = high - low;
 
-			if(print_results)
-				printf("[S%u E%u] lowest %u, highest %u, diff %u ", sensor_num, emitter_dir, low, high, diff);
+			//if(print_results)
+				//printf("[S%u E%u] lowest %u, highest %u, diff %u ", sensor_num, emitter_dir, low, high, diff);
 
-/*			if(low + BASELINE_NOISE_THRESHOLD < bright_meas[sensor_num][emitter_dir][0])
-			//if(low_meas[sensor_num] < bright_meas[sensor_num][emitter_dir][0])
-			{
-				//printf("L M N T F: %u\r\n", bright_meas[sensor_num][emitter_dir][0]);		// "lowest measurement is not the first"
-				printf("TIMING FAIL? sensor %u emitter %u\r\n", sensor_num, emitter_dir);
-				probable_timing_fail = 1;
-			}
-			else if(abs(bright_meas[sensor_num][emitter_dir][0] - bright_meas[sensor_num][emitter_dir][NUMBER_OF_RB_MEASUREMENTS-1]) > BASELINE_NOISE_THRESHOLD)
-			{
-				printf("TIMING FAIL? (FRAME ERROR) sensor %u emitter %u\r\n", sensor_num, emitter_dir);
-				probable_timing_fail = 2;
-			}
-			else 
-			{
-				if(print_results)	printf("\r\n");
-			}
-*/			
-			brightness_matrix[sensor_num][emitter_dir] = diff;
+			//if(low + BASELINE_NOISE_THRESHOLD < bright_meas[sensor_num][emitter_dir][0])
+			////if(low_meas[sensor_num] < bright_meas[sensor_num][emitter_dir][0])
+			//{
+				//printf("base: %u, low: %u\r\n", bright_meas[sensor_num][emitter_dir][0], low);		// "lowest measurement is not the first"
+				//printf("TIMING FAIL? sensor %u emitter %u\r\n", sensor_num, emitter_dir);
+				//probable_timing_fail = 1;
+			//}
+			//else if(abs(bright_meas[sensor_num][emitter_dir][0] - bright_meas[sensor_num][emitter_dir][NUMBER_OF_RB_MEASUREMENTS-1]) > BASELINE_NOISE_THRESHOLD)
+			//{
+				//printf("TIMING FAIL? (FRAME ERROR) sensor %u emitter %u\r\n", sensor_num, emitter_dir);
+				//probable_timing_fail = 2;
+			//}
+			//else 
+			//{
+				//if(print_results)	printf("\r\n");
+			//}
+			
+			brightness_matrix[emitter_dir][sensor_num] = diff;
+			if(diff > max_diff) max_diff = diff;
 		}
 
 	}// end loop through DOING MATH WITH the 6 emitters DATA
-
+	if(max_diff < BASELINE_NOISE_THRESHOLD) probable_timing_fail = 1;
 	return probable_timing_fail;
 }
 
@@ -469,7 +387,7 @@ void get_baseline_readings()
 	// Baseline measurements
 	// take 6 readings, one for each 'emitter'
 	for (uint8_t emitter_num = 0; emitter_num <6; emitter_num++)
-	{			//[sensor#][emitter#][meas#]
+	{			//[emitter#][sensor#][meas#]
 		for (uint8_t sensor_num = 0; sensor_num < 6; sensor_num++)
 		{
 			bright_meas[emitter_num][sensor_num][0] = get_IR_sensor(sensor_num);
@@ -650,10 +568,10 @@ void IR_emit(uint8_t direction, uint8_t duration) // this is now BLOCKING ***
 
 float pretty_angle(float alpha)
 {
-	if (alpha >= 0)
-	return fmodf(alpha + M_PI, 2*M_PI) - M_PI;
-	else
-	return fmodf(alpha - M_PI, 2*M_PI) + M_PI;
+	float val;
+	if (alpha >= 0) val = fmodf(alpha + M_PI, 2*M_PI) - M_PI;
+	else val = fmodf(alpha - M_PI, 2*M_PI) + M_PI;
+	return val;
 }
 
 float rad_to_deg(float rad){
@@ -666,36 +584,52 @@ float deg_to_rad(float deg){
 
 float sensor_model(float alpha)
 {
-	volatile float result;
-	
-	result = cosf(alpha);
-	return result;
+	volatile float alphaFourth = alpha*alpha*alpha*alpha;
+	if(abs(alpha) < 0.618614)
+	{
+		return 1 - alphaFourth;
+	}
+	else
+	{
+		return 1/(8*alphaFourth);
+	}
 }
 
 float emitter_model(float beta)
-{
-	volatile float result;
-	
-	result = cosf(beta);
-	
-	return result;
+{	
+	volatile float betaSquared = beta*beta;
+	if(abs(beta) < 0.720527)
+	{
+		return 0.9375 + 0.5*betaSquared - betaSquared*betaSquared;
+	}
+	else
+	{
+		return 1/(4*betaSquared*betaSquared);
+	}
 }
 
-float amplitude_model(float r)
+float amplitude_model(float r, uint8_t power)
 {
-	return (14000/((r-3)*(r-3))) - 1;
+	if(power==255){
+		return (14000/((r-3)*(r-3))) - 1;
+	}else if(power ==250){
+		return (1100./((r-4.)*(r-4.)))+12.5;
+	}else{
+		printf("ERROR: Unexpected power: %hhu\r\n",power);
+		return 0;
+	}
 }
 
-float inverse_amplitude_model(float ADC_val)
+float inverse_amplitude_model(float ADC_val, uint8_t power)
 {
-	float range;
-
-	//printf("trying to guess range with input to A-inverse ");
-	////RNB_print_float(ADC_val);
-
-	range = (118/sqrtf(ADC_val+1)) + 3;
-	
-	return range;
+	if(power==255){
+		return (118/sqrtf(ADC_val+1)) + 3;
+	}else if(power ==250){
+		return (33.166/sqrtf(ADC_val - 12.5)) + 4;
+	}else{
+		printf("ERROR: Unexpected power: %hhu\r\n",power);
+		return 0;
+	}
 }
 
 
@@ -712,15 +646,19 @@ void debug_print_timer(uint32_t timer[20])
 
 void print_brightness_matrix(uint8_t brightness_matrix[6][6])
 {
+	printf("{");
 	for(uint8_t emitter_num=0 ; emitter_num<6 ; emitter_num++)
 	{
-		printf("| ");
+		printf("{");
 		for(uint8_t sensor_num=0 ; sensor_num<6 ; sensor_num++)
 		{
-			printf("%3hhu ",brightness_matrix[emitter_num][sensor_num]);
+			printf("%u",brightness_matrix[emitter_num][sensor_num]);
+			if(sensor_num<5) printf(",");
 		}
-		printf("|\r\n");
+		printf("}");
+		if(emitter_num<5) printf(",");
 	}
+	printf("};\r\n");
 }
 
 void brightness_meas_printout_mathematica()
@@ -738,14 +676,11 @@ void brightness_meas_printout_mathematica()
 						{	//[sensor#][emitter#][meas#]
 							if(meas_num == 10)
 							printf("\r\n");
-							printf("%u",bright_meas[emitter_num][sensor_num][meas_num]);
-							if (meas_num < NUMBER_OF_RB_MEASUREMENTS - 1) printf(",");
+							printf("%u,",bright_meas[emitter_num][sensor_num][meas_num]);
 						}
-					printf("\b}");
-					if (sensor_num < 5) printf(",");
+					printf("\b},");
 				}
-			printf("\b}");
-			if (emitter_num < 5) printf(",");
+			printf("\b},");
 		}
 	printf("\b};\r\n");
 }

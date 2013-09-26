@@ -7,7 +7,7 @@ void handle_serial_command(char* command, uint16_t command_length)
 	uint32_t command_time = get_32bit_time();
 	if((command_time - last_serial_command_time) < 5)
 	{
-		printf("Ignoring a command.\r\n");
+		//printf("Ignoring a command: %s.\r\n",command);
 		return;
 	}
 	last_serial_command_time = command_time;
@@ -24,7 +24,7 @@ void handle_serial_command(char* command, uint16_t command_length)
 		}
 		else if(strcmp(command_word,"cmd")==0)
 		{
-			handle_cmd(command_args);
+			handle_cmd(command_args, 1);
 		}
 		else if(strcmp(command_word,"walk")==0)
 		{
@@ -56,7 +56,7 @@ void handle_serial_command(char* command, uint16_t command_length)
 		}
 		else if(strcmp(command_word, "rnb_t")==0)
 		{
-			handle_rnb_transmit();
+			handle_rnb_transmit(command_args);
 		}
 		else if(strcmp(command_word,"rnb_r")==0)
 		{
@@ -64,7 +64,7 @@ void handle_serial_command(char* command, uint16_t command_length)
 		}
 		else if(strcmp(command_word,"rnb_c")==0)
 		{
-			handle_rnb_collect();
+			handle_rnb_collect(command_args);
 		}
 		else if(strcmp(command_word,"time")==0)
 		{
@@ -73,6 +73,10 @@ void handle_serial_command(char* command, uint16_t command_length)
 		else if(strcmp(command_word,"data")==0)
 		{
 			handle_data(command_args);
+		}
+		else if(strcmp(command_word,"toggle")==0)
+		{
+			check_messages_toggle = !check_messages_toggle;
 		}
 		else
 		{
@@ -91,16 +95,18 @@ void handle_rnb_broadcast()
 }
 
 //This tells the droplet that it should ask nearby droplets to do an IR_range_blast so it can learn their rnb.
-void handle_rnb_collect()
+void handle_rnb_collect(char* command_args)
 {
-	schedule_task(5,collect_rnb_data,NULL);
+	uint8_t power = atoi(command_args);	
+	schedule_task(5,collect_rnb_data, power);
 }
 
 //This should only be called when another droplet asks this droplet to do an IR_range_blast (ie., by using handle_rnb_collect).
-void handle_rnb_transmit()
+void handle_rnb_transmit(char* command_args)
 {
-	uint16_t power = 257;
+	uint16_t power = (uint16_t)command_args[0] + 2;
 	IR_range_blast(power);
+	got_rnb_cmd_flag = 1;
 }
 
 //This should only be called when another droplet is about to broadcast its rnb_data (ie., by using handle_rnb_broadcast()).
@@ -192,15 +198,26 @@ void handle_set_motor(char* command_args)
 
 }
 
-void handle_cmd(char* command_args)
+void handle_cmd(char* command_args, uint8_t should_broadcast)
 {
 	if(OK_to_send())
 	{
-		// ir_broadcast_command((uint8_t*)command_args,strlen(command_args));
-		if(0==ir_send_command(0,(uint8_t*)command_args,strlen(command_args)))
-			printf("\tSent command \"%s\", of length %i\r\n",command_args,strlen(command_args));
+		
+		if(should_broadcast)
+		{
+			//printf("Broadcasting command: \"%s\", of length %i.\r\n",(uint8_t*)command_args, strlen(command_args));
+			ir_broadcast_command((uint8_t*)command_args,strlen(command_args));
+		}
 		else
-			printf("\tFailed to send \"%s\", of length %i\r\n",command_args,strlen(command_args));
+		{
+			//printf("Transmitting command: \"%s\", of length %i.\r\n",(uint8_t*)command_args, strlen(command_args));
+			ir_send_command(1,(uint8_t*)command_args,strlen(command_args));
+		}						
+
+		//if(0==ir_send_command(0,(uint8_t*)command_args,strlen(command_args)))
+			//printf("\tSent command \"%s\", of length %i\r\n",command_args,strlen(command_args));
+		//else
+			//printf("\tFailed to send \"%s\", of length %i\r\n",command_args,strlen(command_args));
 	}
 	
 	else

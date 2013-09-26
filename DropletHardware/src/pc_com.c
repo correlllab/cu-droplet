@@ -56,7 +56,7 @@ void handle_serial_input()
 		}
 		escaped=0;
 	}
-	else if(data == '\r') //We got the newline character.
+	else if(data == '\r' || data == '\n') //We got the newline character.
 	{
 		printf("\r\n");
 		serial_in_buffer[serial_in_index]='\0';

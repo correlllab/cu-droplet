@@ -1,4 +1,4 @@
 cu-droplet
 ==========
 
-Droplets: The Correll Lab Swarm Robotics Framework
+Droplets: The Correll Lab Swarm Robotics Platform

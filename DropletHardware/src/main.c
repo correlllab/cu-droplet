@@ -12,7 +12,7 @@ int main(void)
 		 * recieving broadcast commands on this droplet. 
 		 * TODO: Why? Fix it.
 		 */
-		check_messages(); 
+		check_messages();		
 	}
 }
 

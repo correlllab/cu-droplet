@@ -7,6 +7,7 @@
 #include <string.h>
 #include "droplet_init.h"
 #include "pc_com.h"
+#include "motor.h"
 
 char input_str_buffer[16];
 void test_fgets();

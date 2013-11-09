@@ -221,7 +221,7 @@ void take_step(void* arg)
 		
 	motor_curr_step++;
 	
-	uint32_t step_time = get_32bit_time() + 5L;
+	uint32_t step_time = 5L;
 
 	if (get_motor_duty_cycle(1, direction) != 0)
 	{

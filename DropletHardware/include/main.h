@@ -12,5 +12,6 @@
 
 void pulse();
 void check_messages();
+void color_cycle();
 
 #endif

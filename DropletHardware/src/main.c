@@ -12,7 +12,8 @@ int main(void)
 		 * recieving broadcast commands on this droplet. 
 		 * TODO: Why? Fix it.
 		 */
-		check_messages();		
+		check_messages();	
+		//color_cycle();	
 	}
 }
 
@@ -48,5 +49,14 @@ void check_messages()
 	{
 		//do stuff with last_good_rnb
 		rnb_updated=0;
+	}
+}
+
+void color_cycle()
+{
+	for(uint16_t i=0;i<=360;i++)
+	{
+		set_hsv(i, 255, 10);
+		delay_ms(10);
 	}
 }

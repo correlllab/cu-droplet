@@ -280,17 +280,15 @@ void handle_set_led(char* command_args)
 	if(strcmp(colors,"hsv")==0)
 	{
 		uint16_t hVal;
-		uint8_t sVal, vVal, rVal, gVal, bVal;
+		uint8_t sVal, vVal;
 		token = strtok(NULL,delim);
 		hVal = atoi(token);
 		token = strtok(NULL,delim);
 		sVal = atoi(token);
-		token = strtok(NULL,delim);
+		token = strtok(NULL,delim);	
 		vVal = atoi(token);
-		//hsv_to_rgb(hVal,sVal,vVal,&rVal,&gVal,&bVal);
-		//set_rgb(rVal,gVal,bVal);
+		set_hsv(hVal,sVal,vVal);
 		successful_read=1;
-		printf("This is currently unimplemented.\r\n");
 	}
 	else
 	{
@@ -475,112 +473,3 @@ void handle_reset()
 {
 	droplet_reboot();
 }
-
-//TODO: MOVE THIS TO RGB_LED.c and fix it.
-//Adapted from wikipedia page "en.wikipedia.org/wiki/HSL_and_HSV#Converting_to_RGB"
-void hsv_to_rgb(float hue, float saturation, float val, uint8_t* rgb){
-	float c = (val*saturation);
-	float hPrime = (hue/(M_PI/3.0f));
-	float x = (c*(1-fabs((((uint8_t)hPrime)%2)-1)));
-	
-	int SCALING_FACTOR = 100; //equations want to output r,g,b from 0 to 1; this is used to convert them to uint8_t's with maxVal of the scaling factor.
-	
-	uint8_t intC = (uint8_t)(SCALING_FACTOR*c);
-	uint8_t intX = (uint8_t)(SCALING_FACTOR*x);
-
-	if(0<=hPrime && hPrime < 1)
-	{
-		rgb[0]=intC;
-		rgb[1]=intX;
-		rgb[2]=0;
-	}
-	else if(1<=hPrime && hPrime <2)
-	{
-		rgb[0]=intX;
-		rgb[1]=intC;
-		rgb[2]=0;
-	}
-	else if(2<=hPrime && hPrime <3)
-	{
-		rgb[0]=0;
-		rgb[1]=intC;
-		rgb[2]=intX;
-	}
-	else if(3<=hPrime && hPrime <4)
-	{
-		rgb[0]=0;
-		rgb[1]=intX;
-		rgb[2]=intC;
-	}
-	else if(4<=hPrime && hPrime <5)
-	{
-		rgb[0]=intX;
-		rgb[1]=0;
-		rgb[2]=intC;
-	}
-	else if(5<=hPrime && hPrime <6)
-	{
-		rgb[0]=intC;
-		rgb[1]=0;
-		rgb[2]=intX;
-	}
-	else
-	{
-		rgb[0]=0;
-		rgb[1]=0;
-		rgb[2]=0;
-	}
-	
-	float m = val-c;
-	uint8_t intM = (uint8_t)(SCALING_FACTOR*m);
-	
-	for(uint8_t i=0; i<3 ; i++)
-	{
-		rgb[i]+=m;
-	}
-
-	return rgb;
-}
-
-
-//void hsv_to_rgb(uint16_t h, uint8_t s, uint8_t v, uint8_t *r, uint8_t *g, uint8_t *b)
-//{
-	//printf("hsv to rgb with h: %hu, s: %hhu, and v: %hhu.\r\n",h,s,v);
-	//if(h>360) h=360;
-	//uint8_t i = h/60;	
-	//
-	//float h_f = h/60. - i; //We only want the fractional part.
-	//float s_f = s/255.;
-	//uint8_t p, q, t;
-	//
-	//p = (uint8_t)(v * (255 - s_f));
-	//q = (uint8_t)(v * (1 - (s_f * h_f)));
-	//t = (uint8_t)(v * (1 - (s_f * (1 - h_f))));
-	//
-	//switch(i)
-	//{
-		//case 0:
-			//*r = v; *g = t; *b = p;
-			//break;
-		//case 1:
-			//*r = q; *g = v; *b = p;
-			//break;
-		//case 2:
-			//*r = p; *g = v; *b = t;
-			//break;
-		//case 3:
-			//*r = p; *g = q; *b = v;
-			//break;
-		//case 4:
-			//*r = t; *g = p; *b = v;
-			//break;
-		//case 5: 
-			//*r = v; *g = p; *b = q;
-			//break;
-		//default:
-			//printf("Error in hsv_to_rgb: default not reached.");
-			//break;
-	//}
-	//
-	//printf("Calculated r: %hhu, g: %hhu, b: %hhu.\r\n",*r,*g,*b);
-//}

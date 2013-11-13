@@ -8,9 +8,9 @@
 #include "droplet_init.h"
 #include "pc_com.h"
 #include "motor.h"
+#include "IRcom.h"
 
-char input_str_buffer[16];
-void test_fgets();
-void test_scanf();
+void pulse();
+void check_messages();
 
 #endif

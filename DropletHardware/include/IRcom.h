@@ -13,13 +13,14 @@
 #define IR_PACKET_COMMAND_bm		0x0100	// command byte, and we should treat this message as a serial command.
 #define IR_PACKET_HEADER_bm			0x0200	// byte is first of message
 #define IR_PACKET_START_OR_END_bm	0x0400	// byte is last byte of message
-#define IR_PACKET_PROG_bm			0x0800	// byte is part of message coming from tower
+#define IR_PACKET_TARGET_bm			0x0800	// byte is targeted
 
 #define IR_TX_STATUS_BUSY_bm				0x01	// 0000 0001				
 #define IR_TX_STATUS_SEND_HEADER_bm			0x02
 #define IR_TX_STATUS_SEND_START_OR_END_bm	0x04
 #define IR_TX_STATUS_COMMAND_bm				0x08	// 0000 1000
 #define IR_TX_STATUS_BROADCAST_bm			0x10
+#define IR_TX_STATUS_TARGETED_bm			0x20
 
 #define IR_RX_STATUS_BUSY_bm		0x01	// 0000 0001	note: this flag should be mutually exclusive with IR_RX_STATUS_PACKET_DONE (TODO, enforce this constraint)
 #define IR_RX_STATUS_PACKET_DONE_bm	0x02	// 0000 0010	note: there is only exactly ONE place in the code where this flag should be set!
@@ -30,7 +31,7 @@
 #define IR_RX_STATUS_LENERR_bm		0x20	// 0010 0000
 #define IR_RX_STATUS_TIMEOUT_bm		0x40	// 0100 0000	note: see 1*
 #define IR_RX_STATUS_ERR_gc			0x70	// 0111 0000	note: this is NEVER assigned, only used for reading flags!
-#define IR_RX_STATUS_PROGRAMMING_bm	0x80	// 1000 0000
+#define IR_RX_STATUS_TARGETED_bm	0x80	// 1000 0000
 
 // notes:
 // 1*	ir_receive is only called IF there is new data coming in, it will not be able to check the timeout condition if there is no new data
@@ -89,7 +90,7 @@ struct
 	uint8_t receivers_used;			// set flags of the receiver numbers which successfully received the message
 
 	uint8_t data_len;				// to be copied from the header
-	uint8_t sender_ID;				// to be copied from the header 
+	uint16_t sender_ID;				// to be copied from the header 
 
 	uint16_t last_access_time;
 	uint16_t initial_receive_time;
@@ -99,11 +100,13 @@ struct
 
 } global_rx_buffer;
 
-
-#define HEADER_LEN 3
 #define HEADER_POS_MSG_LENGTH 0
 #define HEADER_POS_CRC 1
-#define HEADER_POS_SENDER_ID 2
+#define HEADER_POS_SENDER_ID_LOW 2
+#define HEADER_POS_SENDER_ID_HIGH 3
+#define HEADER_POS_TARGET_ID_LOW 4
+#define HEADER_POS_TARGET_ID_HIGH 5
+#define HEADER_LEN 6
 
 struct Message_header
 {
@@ -111,7 +114,8 @@ struct Message_header
 	// it must follow the #defines just above
 	uint8_t msg_data_length;
 	uint8_t data_crc;
-	uint8_t sender_ID;
+	uint16_t sender_ID;
+	uint16_t target_ID;
 	
 } tx_msg_header[6], rx_msg_header[6];
 
@@ -155,9 +159,14 @@ uint8_t OK_to_send();
 // returns 1 [GOOD] if all RX channels were ready with no work required, nearby IR likely quiet
 // returns 2 [GOOD] if all RX channels are now clear, nearby IR may be noisy, (some (possibly all) channels had to be reset)
 // returns 3 [GOOD] if all RX channels are now clear, nearby IR may be VERY noisy, (some (possibly all) channels had to be reset)
-
-uint8_t ir_send_command(uint8_t dir, uint8_t *data, uint16_t data_length); //Just sets the command bit and then calls ir_send.
+uint8_t ir_targeted_cmd(uint8_t dir, uint8_t *data, uint16_t data_length, uint16_t target); //Just sets the command bit and then calls ir_send.
+uint8_t ir_targeted_broadcasted_cmd(uint8_t *data, uint16_t data_length, uint16_t target);
+uint8_t ir_send_cmd(uint8_t dir, uint8_t *data, uint16_t data_length); //Just sets the command bit and then calls ir_send.
+uint8_t ir_broadcast_cmd(uint8_t *data, uint16_t data_length);
+uint8_t ir_targeted_send(uint8_t dir, uint8_t *data, uint16_t data_length, uint16_t target);
+uint8_t ir_targeted_broadcast(uint8_t *data, uint16_t data_length, uint16_t target);
 uint8_t ir_send(uint8_t dir, uint8_t *data, uint16_t data_length);	// 'kind of' BLOCKING (MED_LVL interrupt heavy routine)
+uint8_t ir_broadcast(uint8_t *data, uint16_t data_length);
 // possible return values:
 // Error 0: no error
 // Error 1: transmitter busy
@@ -176,9 +185,6 @@ uint8_t check_for_new_messages();
 
 uint8_t check_buffers_for_packets();
 // CALLED BY check_for_new_messages(), DO NOT CALL
-
-uint8_t ir_broadcast_command(uint8_t *data, uint16_t data_length);
-uint8_t ir_broadcast(uint8_t *data, uint16_t data_length);
 
 
 #endif

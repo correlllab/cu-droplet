@@ -39,8 +39,8 @@ void set_current_time(uint16_t count);
 
 void delay_ms(uint16_t ms);
 
-uint16_t get_id_number();
+uint16_t get_droplet_id();//DEPRECATED
 
-uint16_t calculate_id_number();
+void calculate_id_number();
 
 #endif

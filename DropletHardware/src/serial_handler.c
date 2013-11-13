@@ -30,6 +30,10 @@ void handle_serial_command(char* command, uint16_t command_length)
 		{
 			handle_set_motor(command_args);
 		}
+		else if(strcmp(command_word,"stop_walk")==0)
+		{
+			handle_stop_walk();
+		}
 		else if(strcmp(command_word,"rnb_b")==0)
 		{
 			handle_rnb_broadcast();
@@ -50,13 +54,37 @@ void handle_serial_command(char* command, uint16_t command_length)
 		{
 			handle_set_led(command_args);
 		}
+		else if(strcmp(command_word,"get_id")==0)
+		{
+			handle_get_id();
+		}
+		else if(strcmp(command_word,"broadcast_id")==0)
+		{
+			handle_broadcast_id();
+		}
 		else if(strcmp(command_word,"cmd")==0)
 		{
 			handle_cmd(command_args, 1);
 		}
+		else if(strcmp(command_word,"tgt_cmd")==0)
+		{
+			handle_targeted_cmd(command_args);
+		}
 		else if(strcmp(command_word,"tasks")==0)
 		{
 			print_task_queue();
+		}
+		else if(strcmp(command_word,"msg")==0)
+		{
+			handle_shout(command_args);
+		}	
+		else if(strcmp(command_word,"tgt")==0)
+		{
+			handle_target(command_args);
+		}
+		else if(strcmp(command_word,"reset")==0)
+		{
+			handle_reset();
 		}
 		else if(strcmp(command_word,"print_motor_settings")==0)
 		{
@@ -135,6 +163,11 @@ else if (token[1] == 'W') { direction = 5; break; }
 		printf("\tGot command walk, but arguments (%s) were invalid. Format should be:\r\n",command_args);
 		printf("\t Direction (1-6), followed by number of steps (uint8_t).\r\n");
 	}
+}
+
+void handle_stop_walk()
+{
+	stop();
 }
 
 void handle_set_motor(char* command_args)
@@ -233,34 +266,6 @@ void handle_rnb_receive()
 	last_good_rnb.id_number = (uint16_t)last_command_source_id;
 }
 
-void handle_cmd(char* command_args, uint8_t should_broadcast)
-{
-	if(OK_to_send())
-	{
-		
-		if(should_broadcast)
-		{
-			//printf("Broadcasting command: \"%s\", of length %i.\r\n",(uint8_t*)command_args, strlen(command_args));
-			ir_broadcast_command((uint8_t*)command_args,strlen(command_args));
-		}
-		else
-		{
-			//printf("Transmitting command: \"%s\", of length %i.\r\n",(uint8_t*)command_args, strlen(command_args));
-			ir_send_command(1,(uint8_t*)command_args,strlen(command_args));
-		}
-
-		//if(0==ir_send_command(0,(uint8_t*)command_args,strlen(command_args)))
-		//printf("\tSent command \"%s\", of length %i\r\n",command_args,strlen(command_args));
-		//else
-		//printf("\tFailed to send \"%s\", of length %i\r\n",command_args,strlen(command_args));
-	}
-	
-	else
-	{
-		printf("\tIt wasn't OK to send command");
-	}
-}
-
 void handle_set_led(char* command_args)
 {
 	const char delim[2] = " ";
@@ -323,6 +328,108 @@ void handle_set_led(char* command_args)
 		printf("\t \"set_led bgr 5 30 0\" gives a bluish green.\r\n");
 	}
 }
+void handle_broadcast_id()
+{
+	schedule_task(5,send_id, NULL);
+}
+
+void handle_get_id()
+{
+	printf("My ID is: %X\r\n",droplet_ID);
+}
+
+void send_id()
+{
+	if(OK_to_send())
+	{
+		set_rgb(50,50,0);
+		uint8_t data[2];
+		data[0] = 0xFF & (droplet_ID>>8);
+		data[1] = 0xFF & droplet_ID;
+		ir_broadcast(data, 2);
+		delay_ms(100);
+		set_rgb(0,0,0);
+	}
+}
+
+void handle_cmd(char* command_args, uint8_t should_broadcast)
+{
+	if(OK_to_send())
+	{
+		
+		if(should_broadcast)
+		{
+			//printf("Broadcasting command: \"%s\", of length %i.\r\n",(uint8_t*)command_args, strlen(command_args));
+			ir_broadcast_cmd((uint8_t*)command_args,strlen(command_args));
+		}
+		else
+		{
+			//printf("Transmitting command: \"%s\", of length %i.\r\n",(uint8_t*)command_args, strlen(command_args));
+			ir_send_cmd(1,(uint8_t*)command_args,strlen(command_args));
+		}
+
+		//if(0==ir_send_command(0,(uint8_t*)command_args,strlen(command_args)))
+		//printf("\tSent command \"%s\", of length %i\r\n",command_args,strlen(command_args));
+		//else
+		//printf("\tFailed to send \"%s\", of length %i\r\n",command_args,strlen(command_args));
+	}
+	
+	else
+	{
+		printf("\tIt wasn't OK to send command");
+	}
+}
+
+void handle_targeted_cmd(char* command_args)
+{
+	uint8_t loc = strcspn(command_args, " ");
+	char targetString[5];
+	char cmdString[32];
+	
+	strncpy(targetString, command_args, loc);
+	strcpy(cmdString, command_args+loc+1);
+	
+	uint16_t target = strtoul(targetString, NULL, 16);
+	printf("command string: %s, length: %d\r\n",cmdString, strlen(cmdString));
+	if(OK_to_send())
+	{
+		ir_targeted_broadcasted_cmd(cmdString,strlen(cmdString), target);
+	}
+}
+
+void handle_shout(char* command_args)
+{
+	if(strlen(command_args)==0)
+	{
+		command_args = "Hello over there.";
+	}
+	
+	if(OK_to_send())
+	{
+		ir_broadcast(command_args,strlen(command_args));
+	}
+}
+
+void handle_target(char* command_args)
+{
+	uint8_t loc = strcspn(command_args, " ");
+	char targetString[5];
+	char msgString[32];
+	
+	strncpy(targetString, command_args, loc);
+	strcpy(msgString, command_args+loc);
+	
+	
+	uint16_t target = strtoul(targetString, NULL, 16);
+	
+	//printf("Target: %04X\r\n",target);
+	
+	if(OK_to_send())
+	{
+		ir_targeted_broadcast(msgString,strlen(msgString), target);
+	}
+} 
+
 
 void get_command_word_and_args(char* command, uint16_t command_length, char* command_word, char* command_args)
 {
@@ -362,6 +469,11 @@ void get_command_word_and_args(char* command, uint16_t command_length, char* com
 	{
 		command_args[write_index] = '\0';
 	}
+}
+
+void handle_reset()
+{
+	droplet_reboot();
 }
 
 //TODO: MOVE THIS TO RGB_LED.c and fix it.

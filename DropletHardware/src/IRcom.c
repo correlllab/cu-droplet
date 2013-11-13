@@ -42,7 +42,6 @@ static uint8_t IR_TX_DEBUG_ENCODE = 0;
 
 uint8_t buffer_memory_allocated = 0;
 
-#define USING_XMEGA_A3 0 //As opposed to the A3U
 
 /* Hardware addresses for the USARTs on the IR channels */
 // channel[] is defined here, but declared in IRcom.h
@@ -71,34 +70,17 @@ void ir_com_init(uint16_t buffersize)
 {
 	/* Initialize carrier waves */
 	
-	if(USING_XMEGA_A3)
-	{
-		//Only channels 0 and 1 will work in this case.
-		uint8_t carrier_pins = PIN0_bm | PIN1_bm;
-		PORTF.DIRSET = carrier_pins;
-				
-//		TCF0.CTRLE = TC_BYTEM_NORMAL_gc;		// "split mode" puts this timer counter into "Type 2 mode"
-		TCF0.CTRLA |= TC_CLKSEL_DIV4_gc;		// see CTRLA description in TC2 mode
-		TCF0.CTRLB = TC0_CCAEN_bm | TC0_CCBEN_bm | TC_WGMODE_SINGLESLOPE_gc;
-//		TCF0.CTRLB = carrier_pins;				// Set TC outputs on carrier wave pins (see CTRLA description in TC2 mode)
-		
-		TCF0.PER = 210;												// 32MHz / (4 * 210) = 38kHz
-		TCF0.CCA = TCF0.CCB = 105;		// 50% duty cycLE
-	}
-	else
-	{
-		uint8_t carrier_pins = PIN0_bm | PIN1_bm | PIN4_bm | PIN5_bm | PIN6_bm | PIN7_bm;
-		PORTF.DIRSET = carrier_pins;
+	uint8_t carrier_pins = PIN0_bm | PIN1_bm | PIN4_bm | PIN5_bm | PIN6_bm | PIN7_bm;
+	PORTF.DIRSET = carrier_pins;
 	
-		TCF2.CTRLE = TC_BYTEM_SPLITMODE_gc;		// "split mode" puts this timer counter into "Type 2 mode"
-		TCF2.CTRLA |= TC_CLKSEL_DIV4_gc;		// see CTRLA description in TC2 mode
-		TCF2.CTRLB = carrier_pins;				// Set TC outputs on carrier wave pins (see CTRLA description in TC2 mode)
+	TCF2.CTRLE = TC_BYTEM_SPLITMODE_gc;		// "split mode" puts this timer counter into "Type 2 mode"
+	TCF2.CTRLA |= TC_CLKSEL_DIV4_gc;		// see CTRLA description in TC2 mode
+	TCF2.CTRLB = carrier_pins;				// Set TC outputs on carrier wave pins (see CTRLA description in TC2 mode)
 	
-		TCF2.HPER = 210;												// 32MHz / (4 * 210) = 38kHz
-		TCF2.LPER = 210;
-		TCF2.HCMPA = TCF2.HCMPB = TCF2.HCMPC = TCF2.HCMPD = 105;		// 50% duty cycle
-		TCF2.LCMPA = TCF2.LCMPB = 105;		
-	}
+	TCF2.HPER = 210;												// 32MHz / (4 * 210) = 38kHz
+	TCF2.LPER = 210;
+	TCF2.HCMPA = TCF2.HCMPB = TCF2.HCMPC = TCF2.HCMPD = 105;		// 50% duty cycle
+	TCF2.LCMPA = TCF2.LCMPB = 105;		
 		
 	/* Initialize send & receive buffers */
 	
@@ -130,7 +112,7 @@ void ir_com_init(uint16_t buffersize)
 			ir_tx[i].data_len = 0;
 			ir_tx[i].ir_status = 0;
 	
-			tx_msg_header[i].sender_ID = get_id_number();
+			tx_msg_header[i].sender_ID = droplet_ID;
 		}
 
 		/* Initialize the common RX buffer */
@@ -218,40 +200,69 @@ void set_ir_power(uint8_t dir, uint16_t power)
 	i2c_stopbit();
 }
 
-uint8_t ir_broadcast_command(uint8_t *data, uint16_t data_length)
+uint8_t ir_targeted_cmd(uint8_t dir, uint8_t *data, uint16_t data_length, uint16_t target)
 {
-	uint8_t oldstatus[6];
-	for(uint8_t dir=0 ; dir < 6 ; dir++)
-	{
-		oldstatus[dir] = ir_tx[dir].ir_status;
-		ir_tx[dir].ir_status |= IR_TX_STATUS_COMMAND_bm;
-	}
-	uint8_t retval = ir_broadcast(data,data_length);
-	if (retval != 0)
-	{
-		for(uint8_t dir=0 ; dir < 6 ; dir++) ir_tx[dir].ir_status = oldstatus[dir];
-	}
-	return retval;
+	
+	ir_tx[dir].ir_status |= IR_TX_STATUS_TARGETED_bm;
+	ir_tx[dir].ir_status |= IR_TX_STATUS_COMMAND_bm;
+	tx_msg_header[dir].target_ID = target;
+	uint8_t return_val = ir_send(dir,data,data_length);	// ir_send currently ONLY returns 0
+
+	return return_val;
 }
 
-uint8_t ir_send_command(uint8_t dir, uint8_t *data, uint16_t data_length)
+uint8_t ir_targeted_broadcasted_cmd(uint8_t *data, uint16_t data_length, uint16_t target)
 {
-	uint8_t return_val, oldstatus;
-	
-	oldstatus = ir_tx[dir].ir_status;
-	
-	ir_tx[dir].ir_status |= IR_TX_STATUS_COMMAND_bm;
-	return_val = ir_send(dir,data,data_length);	// ir_send currently ONLY returns 0
-	
-	if (return_val != 0)
+	for(uint8_t dir=0 ; dir < 6 ; dir++)
 	{
-		ir_tx[dir].ir_status = oldstatus;
-		printf("ir_send_command ERROR %i\r\n", return_val);
-	}	
+		ir_tx[dir].ir_status |= IR_TX_STATUS_TARGETED_bm;
+		ir_tx[dir].ir_status |= IR_TX_STATUS_COMMAND_bm;
+		tx_msg_header[dir].target_ID = target;
+	}
+	uint8_t return_val = ir_broadcast(data,data_length);
 	
 	return return_val;
 }
 
+uint8_t ir_send_cmd(uint8_t dir, uint8_t *data, uint16_t data_length)
+{
+	uint8_t return_val;
+	
+	ir_tx[dir].ir_status |= IR_TX_STATUS_COMMAND_bm;
+	return_val = ir_send(dir,data,data_length);
+
+	return return_val;
+}
+
+uint8_t ir_broadcast_cmd(uint8_t *data, uint16_t data_length)
+{
+	for(uint8_t dir=0 ; dir < 6 ; dir++)
+	{
+		ir_tx[dir].ir_status |= IR_TX_STATUS_COMMAND_bm;
+	}
+	uint8_t retval = ir_broadcast(data,data_length);
+	return retval;
+}
+
+uint8_t ir_targeted_send(uint8_t dir, uint8_t *data, uint16_t data_length, uint16_t target)
+{
+	
+	ir_tx[dir].ir_status |= IR_TX_STATUS_TARGETED_bm;
+	tx_msg_header[dir].target_ID = target;
+	uint8_t return_val = ir_send(dir,data,data_length);	// ir_send currently ONLY returns 0
+	return return_val;
+}
+
+uint8_t ir_targeted_broadcast(uint8_t *data, uint16_t data_length, uint16_t target)
+{
+	for(uint8_t dir=0 ; dir < 6 ; dir++)
+	{
+		ir_tx[dir].ir_status |= IR_TX_STATUS_TARGETED_bm;
+		tx_msg_header[dir].target_ID = target;
+	}
+	uint8_t return_val = ir_broadcast(data,data_length);
+	return return_val;
+}
 
 // return values: 0 = OK, 1-4 = errors
 uint8_t ir_send(uint8_t dir, uint8_t *data, uint16_t data_length)
@@ -324,6 +335,75 @@ uint8_t ir_send(uint8_t dir, uint8_t *data, uint16_t data_length)
 	return 0;
 }
 
+// TODO: Refactor ir_send() and ir_broadcast() with better modularity
+uint8_t ir_broadcast(uint8_t *data, uint16_t data_length)
+{
+	uint8_t dir;
+
+	/* CHECK FOR ANY REASONS WHY TRANSMITTING IS A BAD IDEA */
+	if (data_length == 0)								return 3;		// Error 2: zero-length transmission
+	if (data_length+HEADER_LEN > ir_tx[0].size)			return 4;		// Error 3: message too big for transmit buffer
+	for (dir = 0; dir < 6; dir++)
+	{
+		if (ir_tx[dir].ir_status & IR_TX_STATUS_BUSY_bm)	return 1;		// Error 1: transmitter busy
+		if (ir_rx[dir].ir_status & IR_RX_STATUS_BUSY_bm)	return 2;		// Error 2: receiver busy				(TODO, may want to check all the dirs or brightness levels)
+	}
+
+	for (dir = 0; dir < 6; dir++)
+	{
+		/* DISABLE RECEIVE MESSAGES WHILE TRANSMITTIG */
+		channel[dir]->CTRLB &= ~USART_RXEN_bm;
+
+		/* SET TX STATUS TO BUSY AND BROADCAST IN ALL DIRECTIONS */
+		ir_tx[dir].ir_status |= IR_TX_STATUS_BUSY_bm | IR_TX_STATUS_BROADCAST_bm;
+		
+		/* TURN ON CARRIER WAVES */
+		TCF2.CTRLB |= ir_carrier_bm[dir];
+	}
+	
+	// Broadcast data using TX 0's buffers
+	dir = 0;
+	uint8_t byte;
+	uint16_t crc = 0;
+	//printf("Calculating CRC to broadcast.\r\n");
+	crc = (uint8_t)droplet_ID;	// include sender ID in crc calculation, has to be 8-bit for now
+	//printf("%02X ",crc);
+	/* CALCULATE THE CRC OF THE OUTBOUND MESSAGE */
+	for (uint8_t i = 0; i < data_length; i++)
+	{
+		byte = data[i];
+		//printf("%02X ",byte);
+		crc = _crc16_update(crc, byte);
+	}
+
+	tx_msg_header[dir].msg_data_length = data_length;
+	tx_msg_header[dir].data_crc = (uint8_t)crc;
+	
+	memcpy(ir_tx[dir].buf, &(tx_msg_header[dir]), HEADER_LEN);
+
+	if(IR_RX_DEBUG_MODE >= 2)
+	for(uint8_t header_cursor = 0; header_cursor < HEADER_LEN; header_cursor++)
+	printf("HEADER: %02X, [%i]\r\n", ((uint8_t*)(&tx_msg_header[dir]))[header_cursor], header_cursor);
+
+	ir_tx[dir].data_len = data_length;
+	memcpy(ir_tx[dir].buf+HEADER_LEN, data, data_length);
+	ir_tx[dir].curr_pos = 0;
+	ir_tx[dir].curr_encoded_pos = 0;
+	
+	ir_tx[dir].initial_use_time = get_16bit_time();
+
+	/* Enable DRE interrupt to begin transmission */
+	
+	channel[dir]->CTRLA |= USART_DREINTLVL_MED_gc;			// USARTs are medium-level priority
+
+	
+	// *** THE WHOLE TX WILL OCCUR HERE VIA INTERRUPTS! *** //
+	//
+	//					( non blocking )
+
+	return 0;
+}
+
 // TO BE CALLED FROM INTERRUPT HANDLER ONLY
 // DO NOT CALL
 void ir_transmit(uint8_t dir)
@@ -370,6 +450,12 @@ void ir_transmit(uint8_t dir)
 			data |= IR_PACKET_COMMAND_bm;
 			//printf("In ir_transmit, at top of byte, we saw the command flag.\r\n");
 		}
+		
+		if((ir_tx[dir].ir_status & IR_TX_STATUS_TARGETED_bm) == IR_TX_STATUS_TARGETED_bm)
+		{
+			data |= IR_PACKET_TARGET_bm;
+			//printf("In ir_transmit, at top of byte, we saw the command flag.\r\n");
+		}
 
 		ir_tx[dir].encoded = golay_encode(data);
 	}
@@ -391,7 +477,7 @@ void ir_transmit(uint8_t dir)
 	{
 		channel[dir]->DATA = tx_data;		// (* BOMBS AWAY *) this data is heading out
 	}
-	//printf("%x ",tx_data); //Used for debugging - prints raw bytes as we send them	
+	//printf("%02X ",tx_data); //Used for debugging - prints raw bytes as we send them	
 
 	if(IR_TX_DEBUG_MODE == 1)		printf("TX: %02X ", tx_data);
 
@@ -417,11 +503,18 @@ void ir_receive(uint8_t dir)
 	/* GET THE DATA, AND "Frame Error Status" IF APPLICABLE */
 	uint8_t error_status = channel[dir]->STATUS & USART_FERR_bm;		// what does this do? is it used?
 	uint8_t in_data = channel[dir]->DATA;				// (* KA-POW *) some data just came in
-	//printf("%x ",in_data); //Used for debugging - prints raw bytes as we get them.
+	//printf("%02X ",in_data); //Used for debugging - prints raw bytes as we get them.
 	if(ir_rx[dir].ir_status & IR_RX_STATUS_ERR_gc)
 	{
 		// there was an irrecoverable error in a previous byte,
 		// we are done accepting new bytes on this channel
+		//set_red_led(50);
+		//delay_ms(50);
+		//set_red_led(0);
+		//delay_ms(50);
+		//set_red_led(50);
+		//delay_ms(50);
+		//set_red_led(0);
 		//printf("Due to errors, disabling this channel!");
 		return;
 	}
@@ -525,7 +618,7 @@ void ir_receive(uint8_t dir)
 			/*
 			if(decoded & IR_PACKET_HEADER_bm)			printf(" H");
 			if(decoded & IR_PACKET_START_OR_END_bm)		printf(" S/E");
-			if(decoded & IR_PACKET_PROG_bm)				printf(" P");
+			if(decoded & IR_PACKET_TARGET_bm)				printf(" T");
 			if(decoded & 0x0100)						printf(" ???");		// this one is VERY BAD
 			*/
 		}
@@ -546,6 +639,7 @@ void ir_receive(uint8_t dir)
 						/* this message is already trashed, and we don't know the sender */
 						if(suspicious_package)
 						{
+							//printf("Flag set, line 539.\r\n");
 							ir_rx[dir].ir_status |= IR_RX_STATUS_ECCERR_bm;
 
 							return;
@@ -570,6 +664,7 @@ void ir_receive(uint8_t dir)
 						/* this message is already trashed, and we may not know the sender */
 						if(suspicious_package)
 						{
+							//printf("Flag set, line 564.\r\n");							
 							ir_rx[dir].ir_status |= IR_RX_STATUS_ECCERR_bm;
 
 							return;
@@ -592,6 +687,7 @@ void ir_receive(uint8_t dir)
 					/* this message is already trashed, and we don't know the sender */
 					if(suspicious_package)
 					{
+						//printf("Flag set, line 587.\r\n");						
 						ir_rx[dir].ir_status |= IR_RX_STATUS_ECCERR_bm;
 
 						return;
@@ -610,23 +706,25 @@ void ir_receive(uint8_t dir)
 
 				}
 
-				if(decoded & IR_PACKET_PROG_bm)
+				if(decoded & IR_PACKET_TARGET_bm)
 				{
-					// PROG HEADER BYTE RECEIVED!
-
-					/* this is OKAY, but unexpected in development, programming bytes come from the tower? */
-					// if this is a programming byte, then we would expect all of them to be programming bytes
+					// TARGETED HEADER BYTE RECEIVED!
+					
 					if(ir_rx[dir].curr_pos == 0)
 						// upon first notification, we should record that this is the case, so we can check against in future bytes
-						ir_rx[dir].ir_status |= IR_RX_STATUS_PROGRAMMING_bm;
+						ir_rx[dir].ir_status |= IR_RX_STATUS_TARGETED_bm;
 					else
 					{
-						if(!(ir_rx[dir].ir_status & IR_RX_STATUS_PROGRAMMING_bm))
-						// PREVIOUS BYTES ARE NOT PROGRAMMING BYTES (bad)
+						if(!(ir_rx[dir].ir_status & IR_RX_STATUS_TARGETED_bm))
+						{
+							printf("Targeted flag set, but wasn't set in first byte of this message.\r\n");
+						}
+						// PREVIOUS BYTES ARE NOT TARGETED BYTES (bad)
 						// this would be an error
 
 						if(suspicious_package)
 						{
+							//printf("Flag set, line 624.\r\n");
 							ir_rx[dir].ir_status |= IR_RX_STATUS_ECCERR_bm;
 
 							return;
@@ -652,6 +750,7 @@ void ir_receive(uint8_t dir)
 						
 						if(suspicious_package)
 						{
+							//printf("Flag set, line 650.\r\n");
 							ir_rx[dir].ir_status |= IR_RX_STATUS_ECCERR_bm;
 							return;
 						}
@@ -693,8 +792,23 @@ void ir_receive(uint8_t dir)
 						rx_msg_header[dir].data_crc = (uint8_t)decoded;
 						break;			
 					
-					case HEADER_POS_SENDER_ID:		// if currently importing the sender ID
-						rx_msg_header[dir].sender_ID = (uint8_t)decoded;
+					case HEADER_POS_SENDER_ID_LOW:		// if currently importing the low byte of the sender ID
+						//printf("sL: %02X\r\n",(uint8_t)decoded);
+						rx_msg_header[dir].sender_ID = rx_msg_header[dir].sender_ID | (uint8_t)decoded;
+						break;
+						
+					case HEADER_POS_SENDER_ID_HIGH:		// if currently importing the high byte of the sender ID
+						//printf("sH: %02X\r\n",(uint8_t)decoded);
+						rx_msg_header[dir].sender_ID = rx_msg_header[dir].sender_ID | decoded<<8;
+						//printf("$%04X\r\n",rx_msg_header[dir].sender_ID);
+						break;
+					
+					case HEADER_POS_TARGET_ID_LOW:		// if currently importing the low byte of the target ID
+						rx_msg_header[dir].target_ID = rx_msg_header[dir].target_ID | (uint8_t)decoded;
+						break;
+					
+					case HEADER_POS_TARGET_ID_HIGH:		// if currently importing the high byte of the target ID
+						rx_msg_header[dir].target_ID = rx_msg_header[dir].target_ID | decoded<<8;
 						break;
 					
 					default:
@@ -716,42 +830,47 @@ void ir_receive(uint8_t dir)
 
 					if(suspicious_package)
 					{
+						//printf("Flag set, line 715.\r\n");						
 						ir_rx[dir].ir_status |= IR_RX_STATUS_ECCERR_bm;
 
 						return;
 					}
 
 				}
-				if((decoded & IR_PACKET_PROG_bm)==IR_PACKET_PROG_bm)
+				if((decoded & IR_PACKET_TARGET_bm)==IR_PACKET_TARGET_bm)
 				{
-					// PROGRAMMING BYTE RECEIVED!
+					// TARGETED BYTE RECEIVED!
 
-					/* this is OKAY, but unexpected in development, programming bytes come from the tower? */
-					// if this is a programming byte, then we would expect all of them to be programming bytes
-					if(!(ir_rx[dir].ir_status & IR_RX_STATUS_PROGRAMMING_bm))
-						// programming status byte is only set on the first byte, all others that follow should also be programming bytes
+					// if this is a targeted byte, then we would expect all of them to be targeted bytes
+					if(!(ir_rx[dir].ir_status & IR_RX_STATUS_TARGETED_bm))
+					{
+						printf("Targeted flag set, but wasn't set in first byte of this message.\r\n");				
+						// targeted status byte is only set on the first byte, all others that follow should also be targeted bytes
 						// this would be an error
-						// PREV BYTES ARE NOT PROGRAMMING BYTES (bad)
+						// PREV BYTES ARE NOT TARGETED BYTES (bad)
 
 						if(suspicious_package)
 						{
+							//printf("Flag set, line 735.\r\n");
 							ir_rx[dir].ir_status |= IR_RX_STATUS_ECCERR_bm;
 
 							return;
 						}
+					}					
 				}
 				if((decoded & IR_PACKET_COMMAND_bm)==IR_PACKET_COMMAND_bm)
 				{
 					if(!(ir_rx[dir].ir_status & IR_RX_STATUS_COMMAND_bm))
 					{
 						printf("Command flag set, but wasn't set in first byte of this message.\r\n");
-					}
 										
-					if(suspicious_package)
-					{
-						ir_rx[dir].ir_status |= IR_RX_STATUS_ECCERR_bm;
-						return;
-					}
+						if(suspicious_package)
+						{
+							//printf("Flag set, line 752.\r\n");
+							ir_rx[dir].ir_status |= IR_RX_STATUS_ECCERR_bm;
+							return;
+						}
+					}					
 				}
 			}
 
@@ -776,6 +895,7 @@ void ir_receive(uint8_t dir)
 						// TODO: this message is now suspect, handle it accordingly
 						if(suspicious_package)
 						{
+							//printf("Flag set, line 780.\r\n");
 							ir_rx[dir].ir_status |= IR_RX_STATUS_ECCERR_bm;
 
 							return;
@@ -802,7 +922,20 @@ void ir_receive(uint8_t dir)
 						// dont check crc in ir_receive, this is a time consuming process
 					
 						if(ir_rx[dir].ir_status & IR_RX_STATUS_COMMAND_bm)
-						{
+						{	
+							//printf("Got command.\r\n");
+							if(ir_rx[dir].ir_status & IR_RX_STATUS_TARGETED_bm)
+							{
+								//printf("Targeted.\r\n");
+								if(rx_msg_header[dir].target_ID != droplet_ID)
+								{
+									//printf("ID no match, target ID: %04X\r\n",rx_msg_header[dir].target_ID);
+									ir_reset_rx(dir);
+									ir_reset_tx(dir);
+									return;
+								}
+								//printf("ID match OK, target ID: %04X\r\n",rx_msg_header[dir].target_ID);
+							}
 							//If this is a command, we don't want to publish to buffer. We want to handle the command.
 							char command[ir_rx[dir].data_len];
 							last_command_source_id = rx_msg_header[dir].sender_ID;
@@ -818,10 +951,21 @@ void ir_receive(uint8_t dir)
 							/* YOUR MESSAGE IS NOW DONE */
 							// the message should now sit in the buffer until check message ready
 							// is able to copy it into the general buffer
-							ir_rx[dir].ir_status |= IR_RX_STATUS_PACKET_DONE_bm;	// this is the ONLY! place in the code where this assignment is allowed
+							//printf("About to mark packet as done.\r\n");
 							ir_rx[dir].ir_status &= ~IR_RX_STATUS_BUSY_bm;			// holding a finished packet does not make a buffer 'busy'	(HOPE this doesn't cause problems!!!! (TODO verify))
+							if(ir_rx[dir].ir_status & IR_RX_STATUS_TARGETED_bm)
+							{
+								//printf("Targeted, target ID: %04X\r\n",rx_msg_header[dir].target_ID);
+								if(rx_msg_header[dir].target_ID == droplet_ID)
+								{
+									ir_rx[dir].ir_status |= IR_RX_STATUS_PACKET_DONE_bm;	// this is the ONLY! place in the code where this assignment is allowed
+								}
+							}
+							else
+							{
+								ir_rx[dir].ir_status |= IR_RX_STATUS_PACKET_DONE_bm;
+							}
 						}
-
 					}
 				}
 			} 
@@ -876,6 +1020,7 @@ void ir_reset_rx(uint8_t dir)
 {
 	if(rx_allowed[dir] == 0)		// debugging allows to disable receive more permanently
 		return;
+	//printf("Resetting RX\r\n");
 
 	ir_rx[dir].ir_status = 0;
 
@@ -890,6 +1035,7 @@ void ir_reset_rx(uint8_t dir)
 	rx_msg_header[dir].data_crc = 0;		// redundant method to prevent old messages from reappearing as new messages
 	rx_msg_header[dir].msg_data_length = 0; // redundant method to prevent old messages from reappearing as new messages
 	rx_msg_header[dir].sender_ID = 0;
+	rx_msg_header[dir].target_ID = 0;
 
 	channel[dir]->STATUS |= USART_RXCIF_bm;		// writing a 1 to this bit manually clears the RXCIF flag
 }
@@ -942,28 +1088,27 @@ uint8_t check_for_new_messages()
 		}
 		printf("\r\n");
 */		
-		uint8_t buffer_used_for_sample = 255;
+		uint8_t buffer_used_for_sample = 0xFF;
 
-		if(common_message_available_dirs & 1<<0)
+		if(common_message_available_dirs & 0x1)
 			buffer_used_for_sample = 0;
-		else if(common_message_available_dirs & 1<<1)
+		else if(common_message_available_dirs & 0x2)
 			buffer_used_for_sample = 1;
-		else if(common_message_available_dirs & 1<<2)
+		else if(common_message_available_dirs & 0x4)
 			buffer_used_for_sample = 2;
-		else if(common_message_available_dirs & 1<<3)
+		else if(common_message_available_dirs & 0x8)
 			buffer_used_for_sample = 3;
-		else if(common_message_available_dirs & 1<<4)
+		else if(common_message_available_dirs & 0x10)
 			buffer_used_for_sample = 4;
-		else if(common_message_available_dirs & 1<<5)
+		else if(common_message_available_dirs & 0x20)
 			buffer_used_for_sample = 5;
 		else // cant get here
 			printf("CANT GET HERE %%%%\r\n");
 		
 		/* COPY MESSAGE INTO GLOBAL ACCESS BUFFER */		
 		memcpy(	global_rx_buffer.buf,							/* destination pointer */
-				ir_rx[buffer_used_for_sample].buf+HEADER_LEN,	/* source pointer */
-				ir_rx[buffer_used_for_sample].data_len);		/* num bytes to copy */
-
+		ir_rx[buffer_used_for_sample].buf+HEADER_LEN,	/* source pointer */
+		ir_rx[buffer_used_for_sample].data_len);		/* num bytes to copy */
 		global_rx_buffer.receivers_used = common_message_available_dirs;						// set flags of the receiver numbers which successfully received the message
 		global_rx_buffer.data_len = ir_rx[buffer_used_for_sample].data_len;						// to be copied from the header
 		global_rx_buffer.sender_ID = rx_msg_header[buffer_used_for_sample].sender_ID;			// to be copied from the header
@@ -1069,11 +1214,14 @@ uint8_t check_buffers_for_packets()
 		if((ir_rx[dir].ir_status & IR_RX_STATUS_PACKET_DONE_bm)&&(ir_rx[dir].data_len > 0))
 		{
 			/* calculate CRC of the message */
-			
-			computed_crc = ir_rx[dir].buf[HEADER_POS_SENDER_ID];		// include sender ID in crc (init crc with this)
+			//printf("Calculating CRC from Recieved.\r\n");
+			//printf("%04X\r\n",rx_msg_header[dir].sender_ID);
+			computed_crc = (uint8_t)rx_msg_header[dir].sender_ID;	// include low byte of sender ID in crc (init crc with this)
+			//printf("%02X\r\n ",computed_crc);
 			for (uint8_t i = HEADER_LEN; i < ir_rx[dir].data_len+HEADER_LEN; i++)
 			{
 				data = ir_rx[dir].buf[i];
+				//printf("%02X ",data);
 				computed_crc = _crc16_update(computed_crc, data);
 			}
 			
@@ -1096,6 +1244,7 @@ uint8_t check_buffers_for_packets()
 
 			else
 			{
+				printf("CRC fail.\r\n");
 				// CRC fail!
 				// this message, despite all previous attempts at error checking, has an error
 				// it needs to be discarded
@@ -1117,9 +1266,9 @@ uint8_t check_buffers_for_packets()
 				if(get_16bit_time() > ir_rx[dir].expect_complete_time)
 				// don't reset too early, because its possible the message is still incoming, and we don't want to catch just the tail-end of it!
 				{
-					/* this is a good to use debug message
-					printf("resetting ERROR (no msg): %02X; %i {T: %u}\r\n", ir_rx[dir].ir_status, dir, get_16bit_time());
-					*/
+					//this is a good to use debug message
+					//printf("resetting ERROR (no msg): %02X; %i {T: %u}\r\n", ir_rx[dir].ir_status, dir, get_16bit_time());
+					/**/
 
 					ir_reset_rx(dir);
 				}
@@ -1141,9 +1290,9 @@ uint8_t check_buffers_for_packets()
 			// we think resetting this error here will be okay because at least one of the directions got a good message
 			// so likely the transmission is over already
 
-			/* this is a good to use debug message
-			printf("resetting ERROR: %02X; %i\r\n", ir_rx[dir].ir_status, dir);
-			*/
+			/* this is a good to use debug message*/
+			//printf("resetting ERROR: %02X; %i\r\n", ir_rx[dir].ir_status, dir);
+			/**/
 			ir_reset_rx(dir);
 		}
 
@@ -1155,8 +1304,10 @@ uint8_t check_buffers_for_packets()
 			{
 				// redundant check of the crc (messages that 'look complete' with incorrect crc's should be thrown out above)
 				if(rx_msg_header[dir].data_crc == good_crc)
+				{
+					dirs_with_approximate_best_time |= 1<<(dir);								
+				}
 
-					dirs_with_approximate_best_time |= 1<<(dir);
 			}			
 		}	
 	} // end 2nd for
@@ -1233,80 +1384,6 @@ ISR( USARTE1_DRE_vect ) { ir_transmit(4); }
 ISR( USARTF0_RXC_vect ) { ir_receive(5); }
 ISR( USARTF0_TXC_vect ) { ir_transmit_complete(5); }
 ISR( USARTF0_DRE_vect ) { ir_transmit(5); }
-
-
-
-
-// TODO: Refactor ir_send() and ir_broadcast() with better modularity
-uint8_t ir_broadcast(uint8_t *data, uint16_t data_length)
-{
-	uint8_t dir;
-
-	/* CHECK FOR ANY REASONS WHY TRANSMITTING IS A BAD IDEA */
-	if (data_length == 0)								return 3;		// Error 2: zero-length transmission
-	if (data_length+HEADER_LEN > ir_tx[0].size)			return 4;		// Error 3: message too big for transmit buffer
-	for (dir = 0; dir < 6; dir++)
-	{
-		if (ir_tx[dir].ir_status & IR_TX_STATUS_BUSY_bm)	return 1;		// Error 1: transmitter busy
-		if (ir_rx[dir].ir_status & IR_RX_STATUS_BUSY_bm)	return 2;		// Error 2: receiver busy				(TODO, may want to check all the dirs or brightness levels)
-	}		
-
-	for (dir = 0; dir < 6; dir++)
-	{
-		/* DISABLE RECEIVE MESSAGES WHILE TRANSMITTIG */
-		channel[dir]->CTRLB &= ~USART_RXEN_bm;
-
-		/* SET TX STATUS TO BUSY AND BROADCAST IN ALL DIRECTIONS */
-		ir_tx[dir].ir_status |= IR_TX_STATUS_BUSY_bm | IR_TX_STATUS_BROADCAST_bm;
-		
-		/* TURN ON CARRIER WAVES */
-		TCF2.CTRLB |= ir_carrier_bm[dir];
-	}
-	
-	// Broadcast data using TX 0's buffers
-	dir = 0;
-
-	uint8_t byte;
-	uint16_t crc = 0;
-
-	crc = (uint8_t)droplet_ID;	// include sender ID in crc calculation, has to be 8-bit for now
-
-	/* CALCULATE THE CRC OF THE OUTBOUND MESSAGE */
-	for (uint8_t i = 0; i < data_length; i++)
-	{
-		byte = data[i];
-		//printf("byte: %i %02X\r\n", i, byte);
-		crc = _crc16_update(crc, byte);
-	}
-
-	tx_msg_header[dir].msg_data_length = data_length;
-	tx_msg_header[dir].data_crc = (uint8_t)crc;
-	
-	memcpy(ir_tx[dir].buf, &(tx_msg_header[dir]), HEADER_LEN);
-
-	if(IR_RX_DEBUG_MODE >= 2)
-	for(uint8_t header_cursor = 0; header_cursor < HEADER_LEN; header_cursor++)
-	printf("HEADER: %02X, [%i]\r\n", ((uint8_t*)(&tx_msg_header[dir]))[header_cursor], header_cursor);
-
-	ir_tx[dir].data_len = data_length;
-	memcpy(ir_tx[dir].buf+HEADER_LEN, data, data_length);
-	ir_tx[dir].curr_pos = 0;
-	ir_tx[dir].curr_encoded_pos = 0;
-	
-	ir_tx[dir].initial_use_time = get_16bit_time();
-
-	/* Enable DRE interrupt to begin transmission */
-	
-	channel[dir]->CTRLA |= USART_DREINTLVL_MED_gc;			// USARTs are medium-level priority			
-
-	
-	// *** THE WHOLE TX WILL OCCUR HERE VIA INTERRUPTS! *** //
-	// 
-	//					( non blocking )
-
-	return 0;
-}
-
 
 void print_RX_buffer(uint8_t dir)
 {

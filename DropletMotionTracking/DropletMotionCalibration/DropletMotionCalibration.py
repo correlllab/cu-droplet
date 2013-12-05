@@ -69,22 +69,17 @@ def run_opt_phase(port_h, history = 100):
                 # run opt phase
                 print map(np.average, pos_list.transpose())
                 sys.stdout.flush()
-                
                 # reset counter
                 h = 0
 
             else:
-                # gather droplet position data from the serial port
+                # gather droplet position data
                 line_dat = datfile_h.readline()
                 if(line_dat):
                     [obj_id, pos_x, pos_y] = map(int, line_dat.replace('\r\n', '').split(','))
                     pos_list[h] = np.array([pos_x, pos_y])
-
                     # update counter
                     h += 1
-
-                else:
-                    continue
 
     except KeyboardInterrupt:
         print("Optmization phase interrupted by user. Don\'t forget to close the serial port!\n")

@@ -137,3 +137,14 @@ print(pixelDiffs)
   <northwest>BLOB_TRACKING
 </northwest>
 </Display_Variables>
+<Write_Variables disabled>
+  <append>TRUE</append>
+  <colom_delimiter>[comma]</colom_delimiter>
+  <filename>C:\Users\Colab\Desktop\droplet_pos</filename>
+  <file_type>text</file_type>
+  <first_row_names>FALSE</first_row_names>
+  <overwrite>TRUE</overwrite>
+  <row_delimiter>[LF]</row_delimiter>
+  <text_delimiter>[double quote]</text_delimiter>
+  <variables_to_save>BLOB_TRACKING</variables_to_save>
+</Write_Variables>

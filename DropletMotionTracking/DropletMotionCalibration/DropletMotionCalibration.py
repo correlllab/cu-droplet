@@ -1,8 +1,10 @@
 # import rr # for RoboRealm handles
 import serial
+import sys
 import time
 import os
 import platform
+import csv
 import numpy as np
 import LP as lp # For Linear Programming code
 
@@ -19,7 +21,8 @@ def serial_write(port_h, data):
 
 def open_serial_port(port):
     """ Function open_serial_port(port): Opens the serial port supplied as input (e.g. 'COM9') 
-    and tests to make sure it's working.
+    and tests to make sure it's working. WARNING: The caller of this function is resonsible for 
+    closing the serial port connection using <returned_port_handle>.close() when they are done.
     Returns:
     A handle to the serial port
     """
@@ -27,7 +30,7 @@ def open_serial_port(port):
     try:
         port_h = serial.Serial(port, baudrate=baud)
     except serial.SerialException:
-        print('ERROR: Port ' + port + ' is already open!\n')
+        print("ERROR: Port " + port + " is already open!\n")
         return
 
     if(port_h.closed):
@@ -54,22 +57,35 @@ def run_opt_phase(port_h, history = 100):
     """
     try:
         datfile_h = open(dat_file_name,'rb')
-    except:
-        pass
+    except (OSError, IOError) as e:
+        print("ERROR: File not found, or something else went wrong when trying to open the data file.\n")
+        return
 
-    pos_list = [(0.0, 0.0)] * history
+    pos_list = np.zeros((history,2))
     h = 0
-    while(True):
-        if(h == history):
-            # run opt phase
+    try:
+        while(True):
+            if(h == history):
+                # run opt phase
+                print map(np.average, pos_list.transpose())
+                sys.stdout.flush()
+                
+                # reset counter
+                h = 0
 
-            # reset counter
-            h = 0
+            else:
+                # gather droplet position data from the serial port
+                line_dat = datfile_h.readline()
+                if(line_dat):
+                    [obj_id, pos_x, pos_y] = map(int, line_dat.replace('\r\n', '').split(','))
+                    pos_list[h] = np.array([pos_x, pos_y])
 
-        else:
-            # gather droplet position data from the serial port
+                    # update counter
+                    h += 1
 
-            pos_list[h] = (pos_x, pos_y)
+                else:
+                    continue
 
-            # update counter
-            h += 1
+    except KeyboardInterrupt:
+        print("Optmization phase interrupted by user. Don\'t forget to close the serial port!\n")
+        datfile_h.close()

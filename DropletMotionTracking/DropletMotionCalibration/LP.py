@@ -2,7 +2,7 @@ import numpy as np
 import Simplex as sp
 import time
 
-def solve_optimization_phase(P, q, r, enter_id_picker = sp.largest_coeff, vb = True, pivot_vb = False):
+def solve(P, q, r, enter_id_picker = sp.largest_coeff, vb = True, pivot_vb = False):
     """ Function: solve_optimization_phase(P, q, r, enter_id_picker, vb, pivot_vb)
     Solves the optimization problem: (max) r.x subject to P.x <= q, x >=0 using Simplex.
     enter_id_picker = The function used to select the entering variable for each step of Simplex. Refer to Simplex.py for a list of available functions.

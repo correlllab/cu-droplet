@@ -134,16 +134,19 @@ void handle_walk(char* command_args)
 		case '6': direction = 6; break;
 		case '7': direction = 7; break;
 		case 'N':
-	if (token[1] == 'E') { direction = 1; break; }
-else if (token[1] == 'W') { direction = 5; break; }
-			else { direction = 0; break; }
+			if (token[1] == 'E') { direction = 1;}
+			else if (token[1] == 'W') { direction = 5; }
+			else { direction = 0;}
+			break;
 		case 'S':
-			if (token[1] == 'E') { direction = 2; break; }
-			else if (token[1] == 'W') { direction = 4; break; }
-			else { direction = 3; break; }
+			if (token[1] == 'E') { direction = 2; }
+			else if (token[1] == 'W') { direction = 4; }
+			else { direction = 3; }
+			break;
 		case 'C':
-			if (token[1] == 'W') { direction = 6; break; }
-			else { direction = 7; break; }
+			if (token[2] == 'W') { direction = 7; }
+			else { direction = 6; }
+			break;
 				
 		default:
 			successful_read = 0;		
@@ -192,16 +195,19 @@ void handle_set_motor(char* command_args)
 		case '6': direction = 6; break;
 		case '7': direction = 7; break;
 		case 'N':
-	if (token[1] == 'E') { direction = 1; break; }
-else if (token[1] == 'W') { direction = 5; break; }
-			else { direction = 0; break; }
+			if (token[1] == 'E') { direction = 1;}
+			else if (token[1] == 'W') { direction = 5; }
+			else { direction = 0;}
+			break;
 		case 'S':
-			if (token[1] == 'E') { direction = 2; break; }
-			else if (token[1] == 'W') { direction = 4; break; }
-			else { direction = 3; break; }
+			if (token[1] == 'E') { direction = 2; }
+			else if (token[1] == 'W') { direction = 4; }
+			else { direction = 3; }
+			break;
 		case 'C':
-			if (token[1] == 'W') { direction = 6; break; }
-			else { direction = 7; break; }
+			if (token[1] == 'W') { direction = 6; }
+			else { direction = 7; }
+			break;
 				
 		default:
 			successful_read = 0;		

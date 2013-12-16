@@ -9,15 +9,22 @@ import numpy as np
 import LP as lp # For Linear Programming code
 
 baud = 115200
+default_motor_value = 64
 dat_file_name = os.path.expanduser('~')+'\\Desktop\\'+'droplet_pos'
 
 def serial_write(port_h, data):
+    """ Function serial_write(): Appends a newline character and writes <data> to opened serial port <port_h>.
+    """
     if(port_h.closed):
         port_h.open()
 
     out_dat = data + '\n';
     port_h.write(out_dat)
     port_h.flushOutput()
+
+# Just for John! :)
+def serial_writeln(port_h, data):
+    serial_write(port_h, data)
 
 def open_serial_port(port):
     """ Function open_serial_port(port): Opens the serial port supplied as input (e.g. 'COM9') 
@@ -48,7 +55,21 @@ def open_serial_port(port):
 
     return port_h
 
-def run_opt_phase(port_h, history = 100):
+# (N, S, NE, SW, SE, NW, CW, CCW) = (0, 2, 1, 4, 5, )
+
+def init_motor_values(port_h, sleep_dur):
+
+    #motor_values = {'N':'0 64 64', 'S':'0 -64 -64', 'SW':'64 64 0', 'NE':'-64 -64 0', 'SE':'64 0 64', 'NW':'-64 0 -64', 'CW':'-64 64 64', 'CCW':'64 -64 -64'}
+    motor_values = {'0':'0 64 64', '1':'-64 -64 0', '2':'64 0 64', '3':'0 -64 -64', '4':'64 64 0', '5':'-64 0 -64', '6':'64 64 64', '7':'-64 -64 -64'}
+    for i in range(3):
+        for k in motor_values.keys():
+            serial_write(port_h, 'cmd set_motor %s %s'%(k, motor_values[k]))
+           # print('cmd set_motor %s %s'%(k, motor_values[k]))
+           # sys.stdout.flush()
+            time.sleep(sleep_dur)
+
+
+def run_opt_phase(port_h, history = 10):
     """ Function run_opt_phase(port_h): Runs the optimization phase for droplet walking.
     This function runs almost all of it's code in a continuous loop.
     Arguments:

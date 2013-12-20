@@ -2,7 +2,6 @@
 
 extern TrigArray *dropletRelPos; // Welcome to the DAINJA' ZONE!
 std::vector<GPSInfo *> dropletPositions;
-FILE *fh; // TODO: Remove this nonsense later.
 
 DropletSim::DropletSim()
 {
@@ -254,12 +253,6 @@ DS_RESULT DropletSim::Init(const SimSetupData &setupData)
 	// Initialize the time control
 	timer.initTimer(1.0/double(simSetupData->fps));
 
-	// TODO: Remove this nonsense later.
-	char filename[256];
-	memset(filename, 0, 256);
-	sprintf(filename, "DropletSimData%d%d.csv",dropletPositions.size(), time(NULL));
-	fh = fopen(filename, "w");
-
 	return retval;
 }
 
@@ -364,9 +357,6 @@ DS_RESULT DropletSim::Cleanup()
 
 	delete simSetupData;
 	delete goodRand;
-
-	// TODO: Remove this nonsense later.
-	fclose(fh);
 
 	return endPhysics();
 }

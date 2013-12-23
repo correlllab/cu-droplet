@@ -1,0 +1,4 @@
+DropletGUI Project lines of note:
+
+- main.cpp
+[24] setGeometry() - Sets the location of the Qt window control for the sim

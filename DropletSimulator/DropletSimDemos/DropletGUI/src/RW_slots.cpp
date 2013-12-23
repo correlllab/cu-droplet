@@ -9,7 +9,7 @@
 
 void RenderWidget::updateState(simState_t stateInfo)
 {
-		// block while resource is in use, then retain resource
+	// block while resource is in use, then retain resource
 	while(!_simStateLock.testAndSetOrdered(0,1)) {}
 
 	// update shared variable
@@ -27,7 +27,6 @@ void RenderWidget::updateArena(simSetting_t settings)
 	_hudInfo.simStepSize = 1000.0 / _arena.fps;
 	_hudInfo.simStepSize = floor(_hudInfo.simStepSize *100.0 + 0.5) / 100.0;
 	setupRenderStructs();
-	//	setupArena();
 }
 
 // slot that updates the paused status

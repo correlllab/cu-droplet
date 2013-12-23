@@ -21,7 +21,11 @@ int main(int argc, char **argv)
 	int h = size.height();
 	int screen_width = desktop->width();
 	int screen_height = desktop->height();
-	mw.setGeometry(screen_width/2 - w/2, screen_height/2 - h/2, w, h);
+
+	// TODO : Start app in the top left corner of the screen. Account for toolbar area.
+//	mw.setGeometry(screen_width/2 - w/2, screen_height/2 - h/2, w, h);
+	mw.setGeometry(w/8, h/8, w, h);
+
 	// show the main window
 	mw.show();
 

@@ -3,7 +3,6 @@
 *
 * \brief	Implements the MainWindow class.
 */
-
 #include "mainwindow.h"
 #include <QtGui>
 
@@ -11,7 +10,6 @@
 MainWindow::MainWindow(QWidget *parent)
 	: QMainWindow(parent)
 {
-	//ui.setupUi(this);
 	QStringList argsList = qApp->arguments();
 	fileName = QString(DEFAULT_ASSETDIR).append(DEFAULT_SETUPDIR).append(DEFAULT_SETTINGS);
 	if (argsList.count() > 1)
@@ -69,10 +67,7 @@ MainWindow::MainWindow(QWidget *parent)
 
 }
 
-MainWindow::~MainWindow()
-{
-
-}
+MainWindow::~MainWindow() { }
 
 bool MainWindow::eventFilter(QObject *watched, QEvent *event)
 {
@@ -81,13 +76,6 @@ bool MainWindow::eventFilter(QObject *watched, QEvent *event)
 		if (event->type() == QEvent::ApplicationActivate)
 		{
 			qDebug() << "Application gained focus";
-
-
-
-	//		loadProjectionTextures();
-	//		loadFloorFiles();
-	//		loadSetupFiles();
-
 		} else if (event->type() == QEvent::ApplicationDeactivate)
 		{
 			qDebug() << "Application lost focus";
@@ -113,7 +101,6 @@ void MainWindow::launchSimulator()
 		newSettings.numColTiles = numColBox->value();
 		newSettings.numRowTiles = numRowBox->value();
 	}
-	//newSettings.dropletRadius = dropRadBox->value();
 	if (projectorImageCombo->currentText() != QString("None"))
 	{
 		newSettings.projecting = true;
@@ -123,11 +110,6 @@ void MainWindow::launchSimulator()
 
 	newSettings.startingDroplets = _arenaObjects.droplets;
 	newSettings.startingObjects = _arenaObjects.objects;
-
-	
-	//droplets.append(dropProgramsCombo->currentText());
-	//droplets.append(QString("%1").arg(numDropBox->value()));
-	//newSettings.startingDroplets.append(droplets);
 	
 	if(loadSetupFileCombo->currentText() == QString("None"))
 	{
@@ -136,8 +118,6 @@ void MainWindow::launchSimulator()
 		for(int i = 0; i < dropletTableWidget->rowCount(); i++)
 		{
 			QStringList droplets;
-			//QTableWidgetItem * header;
-			//header = dropletTableWidget->verticalHeaderItem(i);
 			qDebug() << "header" << dropletTableWidget->verticalHeaderItem(i)->text();
 			qDebug() << "header row" << dropletTableWidget->verticalHeaderItem(i)->row();
 			qDebug() << "item to text" << dropletTableWidget->item(i,0)->text();
@@ -152,7 +132,6 @@ void MainWindow::launchSimulator()
 			}
 		}
 	}
-	//saveToFile(QString("LastRun.txt"),newSettings);
 	
 	qDebug() << "checkbox: " << logCheckBox->isChecked();
 	if(logCheckBox->isChecked())
@@ -233,9 +212,6 @@ void MainWindow::addLoadSetupFileWidgets()
 {
 	loadSetupFileCombo = new QComboBox;
 	loadSetupFileList = new QListView(loadSetupFileCombo);
-	//loadSetupFileButton = new QPushButton("Refresh Setup File Selection List");
-	//QObject::connect(loadSetupFileButton,SIGNAL(clicked()),this,SLOT(loadSetupFiles()));
-
 
 	loadSetupFileList->setStyleSheet("QListView::item {  \
 									  border-bottom: 5px solid white; margin:3px; } \
@@ -265,28 +241,6 @@ void MainWindow::addLoadSetupFileWidgets()
 
 void MainWindow::addDropletWidgets()
 {
-	/*
-	// Number of Droplets
-	numDropBox = new QSpinBox;
-	numDropBox->setRange(0,1024);
-	numDropBox->setValue(0);
-	numDropLabel = new QLabel(tr("Number of Droplets: "));
-	numDropLabel->setBuddy(numDropBox);
-	numDropLayout = new QHBoxLayout;
-	numDropLayout->addWidget(numDropLabel);
-	numDropLayout->addWidget(numDropBox);
-
-	// Droplet Radius
-	dropRadBox = new QDoubleSpinBox;
-	dropRadBox->setRange(0.5,4);
-	dropRadBox->setValue(DEFAULT_DROPLET_RADIUS);
-	dropRadLabel = new QLabel(tr("Droplet radius: "));
-	dropRadLabel->setBuddy(dropRadBox);
-	dropRadLayout = new QHBoxLayout;
-	dropRadLayout->addWidget(dropRadLabel);
-	dropRadLayout->addWidget(dropRadBox);
-	*/
-
 	dropletTableWidget = new QTableWidget(21,1);
 	QStringList vertHeaders;
 	vertHeaders.append("March");
@@ -314,58 +268,16 @@ void MainWindow::addDropletWidgets()
 	QStringList horHeaders;
 	horHeaders.append("Number");
 	dropletTableWidget->setHorizontalHeaderLabels(horHeaders);
+
 	for(int i = 0; i < dropletTableWidget->rowCount(); i++) 
 	{
 		dropletTableWidget->setItem(i, 0, new QTableWidgetItem("0"));
 		
 	}
 
-	// Droplet Programs (would like to not hardcode)
-	/*dropProgramsCombo = new QComboBox;
-	dropProgramsList = new QListView(dropProgramsCombo);
-	dropProgramsCombo->addItem("March");
-	dropProgramsCombo->addItem("Rainbow");
-	dropProgramsCombo->addItem("RandomWalk");
-	dropProgramsCombo->addItem("RGBSense");
-	dropProgramsCombo->addItem("StickPullers");
-	dropProgramsCombo->addItem("TurnTest");
-	dropProgramsCombo->addItem("CommTest");
-	dropProgramsCombo->addItem("PowerTest");
-	dropProgramsCombo->addItem("Granola");
-	dropProgramsCombo->addItem("StickPullersUpdated");
-	dropProgramsCombo->addItem("Ants");
-	dropProgramsCombo->addItem("CustomOne");
-	dropProgramsCombo->addItem("CustomTwo");
-	dropProgramsCombo->addItem("CustomThree");
-	dropProgramsCombo->addItem("CustomFour");
-	dropProgramsCombo->addItem("CustomFive");
-	dropProgramsCombo->addItem("CustomSix");
-	dropProgramsCombo->addItem("CustomSeven");
-	dropProgramsCombo->addItem("CustomEight");
-	dropProgramsCombo->addItem("CustomNine");
-	dropProgramsCombo->addItem("CustomTen");
-	dropProgramsList->setStyleSheet("QListView::item {  \
-									border-bottom: 5px solid white; margin:3px; } \
-									QListView::item:selected { \
-									border-bottom: 5px solid black; margin:3px; \
-									color:black; \
-									} \
-									");
-	dropProgramsCombo->setCurrentIndex(0);
-	dropProgramsCombo->setView(dropProgramsList);
-	dropProgramsLabel = new QLabel(tr("Droplet Programs"));
-	dropProgramsLabel->setBuddy(dropProgramsCombo);
-	dropProgramsLayout = new QVBoxLayout;
-	dropProgramsLayout->addWidget(dropProgramsLabel);
-	dropProgramsLayout->addWidget(dropProgramsCombo);
-	*/
-
 	dropletParams = new QFrame;
 	dropletParams->setWindowTitle(tr("Droplet Parameters"));
 	QVBoxLayout *dropletParamsLayout = new QVBoxLayout;
-	//dropletParamsLayout->addLayout(numDropLayout);
-	//dropletParamsLayout->addLayout(dropRadLayout);
-	//dropletParamsLayout->addLayout(dropProgramsLayout);
 	dropletParamsLayout->addWidget(dropletTableWidget);
 	dropletParams->setLayout(dropletParamsLayout);
 	dropletParams->setFrameStyle(QFrame::Panel);
@@ -499,7 +411,6 @@ void MainWindow::addButtonWidgets()
 	buttons->setWindowTitle(tr("Launch/Playback Buttons"));
 	QVBoxLayout *buttonsLayout = new QVBoxLayout();
 
-
 	buttonsLayout->addWidget(logCheckBox);
 	buttonsLayout->addWidget(logWidget);
 	logWidget->hide();
@@ -558,7 +469,6 @@ void MainWindow::removeRenderer(QObject *obj)
 			_renderWidgets.removeOne(renderer);
 			qDebug() << QString("Removed RenderWidget");
 		}
-		//delete renderer;
 	}
 
 	if (_renderWidgets.count() == 0)
@@ -658,7 +568,6 @@ void MainWindow::loadSetupFiles(QString path)
 
 void MainWindow::setUI(simSetting_t settings)
 {
-	//dropRadBox->setValue(settings.dropletRadius);
 	numColBox->setValue(settings.numColTiles);
 	numRowBox->setValue(settings.numRowTiles);
 
@@ -670,9 +579,7 @@ void MainWindow::setUI(simSetting_t settings)
 		index = projectorImageCombo->findText(temp,Qt::MatchFixedString);
 		if (index == -1)
 			index = 0;
-	}
-
-	
+	}	
 	projectorImageCombo->setCurrentIndex(index);
 
 	// if an arena was specified set the UI for it
@@ -680,28 +587,10 @@ void MainWindow::setUI(simSetting_t settings)
 	index = arenaSelectionCombo->findText(arenaName,Qt::MatchFixedString);
 	if (index == -1)
 		index = 0;
-	arenaSelectionCombo->setCurrentIndex(index);
 
+	arenaSelectionCombo->setCurrentIndex(index);
 	index = 0;
 	int numDroplets = 0;
-
-
-	// since there is no place to store this info, it simply get stored elsewhere for later
-	/*
-	if (settings.startingDroplets.count() > 0)
-	{
-		QStringList droplets = settings.startingDroplets[0];
-		if (droplets.count() == 2)
-		{
-			numDroplets = droplets[1].toInt();
-			index = dropProgramsCombo->findText(droplets[0],Qt::MatchFixedString);
-			if (index == -1)
-				index = 0;
-		} 
-	}
-	*/
-	//numDropBox->setValue(numDroplets);
-	//dropProgramsCombo->setCurrentIndex(index);
 	foreach(QStringList list, settings.startingDroplets)
 	{
 		int addition;
@@ -820,9 +709,7 @@ void MainWindow::setUI(simSetting_t settings)
 			QString string = QString::number(temp);
 			dropletTableWidget->setItem(20,0,new QTableWidgetItem(string));
 		}
-
 	}
-
 }
 
 bool MainWindow::saveToFile(QString filename, simSetting_t settings)
@@ -865,17 +752,12 @@ bool MainWindow::saveToFile(QString filename, simSetting_t settings)
 
 bool MainWindow::loadFromFile(QString filename, simSetting_t &settings)
 {
-
 	for(int i = 0; i < dropletTableWidget->rowCount(); i++) 
 	{
-		dropletTableWidget->setItem(i, 0, new QTableWidgetItem("0"));
-		
+		dropletTableWidget->setItem(i, 0, new QTableWidgetItem("0"));		
 	}
-
 	QFile file(filename);
-
 	simSetting_t newSettings;
-
 	newSettings = _simInterface.getDefaultSettings();
 
 	if (file.exists())
@@ -967,8 +849,6 @@ bool MainWindow::loadFromFile(QString filename, simSetting_t &settings)
 							{
 								qDebug() << "Error: malformed line" << line;
 							}
-
-
 						} else {
 							// push the comment to the debug console
 							qDebug() << line;
@@ -976,8 +856,6 @@ bool MainWindow::loadFromFile(QString filename, simSetting_t &settings)
 					}
 				}
 			}
-
-
 		} else
 		{
 			qDebug() << "Error: " << file.error();	
@@ -996,31 +874,22 @@ bool MainWindow::loadFromFile(QString filename, simSetting_t &settings)
 
 void MainWindow::showHideLogWidget(int state)
 {
-	if (state == 2) {
+	if (state == 2)
 		logWidget->show();
-	}
-	else {
+	else
 		logWidget->hide();
-	}
 }
-
-
 
 void MainWindow::showHideRowColWidget(const QString & text)
 {
 	if(text.operator==("Default (Rectangle)"))
-	{
 		rowColWidget->show();
-	}
 	else
-	{
 		rowColWidget->hide();
-	}
 }
 
 void MainWindow::updateSetupFile(const QString &file)
 {
-
 	QString fileName = file.section('\\', -1);
 	if (fileName == file)
 		fileName = file.section('/', -1);
@@ -1051,12 +920,7 @@ void MainWindow::updateParams(const QString & text)
 void MainWindow::enableDisableDropletTable(const QString & text)
 {
 	if(text.operator!=("None"))
-	{
 		dropletTableWidget->setEditTriggers(QAbstractItemView::NoEditTriggers);
-	}
 	else
-	{
 		dropletTableWidget->setEditTriggers(QAbstractItemView::AllEditTriggers);
-	}
-
 }

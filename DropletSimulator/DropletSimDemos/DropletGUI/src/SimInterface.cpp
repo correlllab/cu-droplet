@@ -3,7 +3,6 @@
 *
 * \brief	Implements the SimInterface class.
 */
-
 #define SIMPLIFY_COLLISION_SHAPES
 #include "SimInterface.h"
 
@@ -173,14 +172,6 @@ void SimInterface::Init()
 		btScalar(_simSettings.tileLength * _simSettings.numColTiles),
 		btScalar(_simSettings.wallHeight)));
 
-	/*
-	btCollisionShape *dropletShape = new btCylinderShapeZ(btVector3(
-	_simSettings.dropletRadius, 
-	_simSettings.dropletRadius,
-	_simSettings.dropletRadius * 0.8242));
-	*/
-
-
 	_simSettings.dropletOffset = _simStatus.dropletOffset;
 	_simStatus.dropletShape->setLocalScaling(btVector3(
 		_simSettings.dropletRadius,
@@ -192,11 +183,6 @@ void SimInterface::Init()
 	_sim->AddCollisionShape(xWallShape, &_simStatus.btXWallShapeID);
 	_sim->AddCollisionShape(yWallShape, &_simStatus.btYWallShapeID);
 	_sim->AddCollisionShape(_simStatus.dropletShape, &_simStatus.btDropletShapeID);
-
-	// Create the floor and walls
-	//_sim->CreateFloor(_simStatus.btFloorShapeID, _simStatus.btXWallShapeID, _simStatus.btYWallShapeID);
-	// setupSimObjects()
-
 
 	_dropletColors = new std::vector<unsigned char *>();
 	_dropletPos = new std::vector<GPSInfo *>();
@@ -212,24 +198,8 @@ void SimInterface::Init()
 	_simState.staticObjectData.clear();
 	_simState.collisionShapes.clear();
 
-
-	/*
-	if(_simSettings.floorFile.operator==("Default (Rectangle)"))
-	{
-		createArena();
-	}
-	else
-	{
-		// BUG: Reading the arena from a file after initializing the simulator means the arena size inside the arena is wrong
-		QString fileName = QString(DEFAULT_ASSETDIR).append(DEFAULT_FLOORDIR).append(_simSettings.floorFile);
-		createArena(fileName);
-	}*/
 	qDebug() << "floor file" << _simSettings.floorFile;
 	createArena();
-	
-
-
-
 
 	if (_simSettings.startingObjects.count() > 0)
 	{
@@ -280,21 +250,11 @@ void SimInterface::Init()
 						// prevents index out of bound errors
 						int tileIndex = rand()%_tilePositions.size();
 
-						//qDebug() << tileIndex;
-						//float xPos = getRandomf(-posRangeWidth + _simSettings.dropletRadius, posRangeWidth - _simSettings.dropletRadius);
-						//float yPos = getRandomf(-posRangeLength + _simSettings.dropletRadius, posRangeLength - _simSettings.dropletRadius);
-						/*float xPos = getRandomf(_tilePositions->at(tileIndex).x - _simSettings.tileLength/2.0 + _simSettings.dropletRadius,
-						_tilePositions->at(tileIndex).x + _simSettings.tileLength/2.0 - _simSettings.dropletRadius);
-						float yPos = getRandomf(_tilePositions->at(tileIndex).y - _simSettings.tileLength/2.0 + _simSettings.dropletRadius,
-						_tilePositions->at(tileIndex).y + _simSettings.tileLength/2.0 - _simSettings.dropletRadius);
-						*/
-
 						float xPos = getRandomf(_tilePositions[tileIndex].x - _simSettings.tileLength/2.0 + _simSettings.dropletRadius,
 							_tilePositions[tileIndex].x + _simSettings.tileLength/2.0 - _simSettings.dropletRadius);
 						float yPos = getRandomf(_tilePositions[tileIndex].y - _simSettings.tileLength/2.0 + _simSettings.dropletRadius,
 							_tilePositions[tileIndex].y + _simSettings.tileLength/2.0 - _simSettings.dropletRadius);
 
-						//	qDebug() << QString("Added droplet at x: %1 y: %2").arg(xPos).arg(yPos);
 						addObject(oType, xPos,yPos,radius,mass,friction);
 					}
 				}
@@ -327,8 +287,7 @@ void SimInterface::Init()
 					if (list.count() >= 4)
 					{
 						mass = list[3].toFloat();
-					} 
-
+					}
 					if (list.count() >= 5)
 					{
 						friction = list[4].toFloat();
@@ -340,10 +299,7 @@ void SimInterface::Init()
 			}
 		}
 	}
-
 	_sim->Step();
-
-
 
 	emit simulationUpdated(_simState);
 	emit arenaChanged(_simSettings);
@@ -446,23 +402,12 @@ void SimInterface::Init()
 						// prevents index out of bound errors
 						int tileIndex = rand()%_tilePositions.size();
 
-						//qDebug() << tileIndex;
-						//float xPos = getRandomf(-posRangeWidth + _simSettings.dropletRadius, posRangeWidth - _simSettings.dropletRadius);
-						//float yPos = getRandomf(-posRangeLength + _simSettings.dropletRadius, posRangeLength - _simSettings.dropletRadius);
-						/*float xPos = getRandomf(_tilePositions->at(tileIndex).x - _simSettings.tileLength/2.0 + _simSettings.dropletRadius,
-						_tilePositions->at(tileIndex).x + _simSettings.tileLength/2.0 - _simSettings.dropletRadius);
-						float yPos = getRandomf(_tilePositions->at(tileIndex).y - _simSettings.tileLength/2.0 + _simSettings.dropletRadius,
-						_tilePositions->at(tileIndex).y + _simSettings.tileLength/2.0 - _simSettings.dropletRadius);
-						*/
-
 						float xPos = getRandomf(_tilePositions[tileIndex].x - _simSettings.tileLength/2.0 + _simSettings.dropletRadius,
 							_tilePositions[tileIndex].x + _simSettings.tileLength/2.0 - _simSettings.dropletRadius);
 						float yPos = getRandomf(_tilePositions[tileIndex].y - _simSettings.tileLength/2.0 + _simSettings.dropletRadius,
 							_tilePositions[tileIndex].y + _simSettings.tileLength/2.0 - _simSettings.dropletRadius);
 
-						//	qDebug() << QString("Added droplet at x: %1 y: %2").arg(xPos).arg(yPos);
 						addDroplet(xPos,yPos,dType);
-						//qDebug() << "Adding a droplet";
 					}
 				} else if (list.count() == 3) 
 				{
@@ -497,8 +442,6 @@ void SimInterface::loadTilePositions()
 			vec2 currentTile;
 			currentTile.x = ((float)i - (_simSettings.numColTiles-1)/2.0f)* _simSettings.tileLength;
 			currentTile.y = ((float)j - (_simSettings.numRowTiles-1)/2.0f) * _simSettings.tileLength;
-			//currentTile.x = i * _simSettings.tileLength - _simSettings.numColTiles/2.0f;
-			//currentTile.y = j * _simSettings.tileLength -  _simSettings.numRowTiles/2.0f;
 		
 			_tilePositions.push_back(currentTile);
 
@@ -691,7 +634,6 @@ void SimInterface::createArena()
 
 void SimInterface::addDroplet( float x, float y, droplet_t dType, int dropletID )
 {
-	//qDebug() << QString("Added droplet at x: %1 y: %2").arg(x).arg(y);
 	bool isPaused = _simStatus.paused;
 	_simStatus.paused = true;
 	unsigned char *tmp1 = (unsigned char *)malloc(sizeof(unsigned char) * 3);
@@ -713,12 +655,6 @@ void SimInterface::addDroplet( float x, float y, droplet_t dType, int dropletID 
 		droplet.dropletID = dropletID;
 	}
 
-
-	/*droplet.commData.commChannels[j].lastMsgInTimestamp = 0;
-	droplet.commData.commChannels[j].inMsgLength = 0;
-	droplet.commData.commChannels[i].lastMsgOutTimestamp = 0;
-	droplet.commData.commChannels[i].outMsgLength = 0;*/
-
 	vec3 zero = {0.0f,0.0f,0.0f};
 	droplet.color = vec3imake(0,0,0);
 	droplet.origin = vec3make(x,y,0);
@@ -735,12 +671,8 @@ void SimInterface::addDroplet( float x, float y, droplet_t dType, int dropletID 
 	dropletPhyDat->localInertia = btVector3(0.0, 0.0, 0.0);
 	dropletPhyDat->friction = DEFAULT_DROPLET_FRICTION;
 
-
-
-	//IDroplet *newDroplet = new DropletMarch(dropletPhyDat);
 	IDroplet *newDroplet = newDropletOfType(dType,dropletPhyDat);
 
-	//_sim->AddDroplet(newDroplet, std::make_pair(0.0f, 0.0f), 0.0f);
 	_sim->AddDroplet(
 		newDroplet, 
 		std::make_pair(droplet.origin.x, droplet.origin.y),
@@ -849,7 +781,6 @@ void SimInterface::addSphere( float x, float y, int objectID, float radius, floa
 	vec3 scale = {1.0f,1.0f,1.0f};
 	vec4 zero = {0.0f,0.0f,0.0f,0.0f};
 	object.color = vec3imake(rand()%256,rand()%256,rand()%256);
-	//	object.origin.z = 0.5*scale.z;
 	object.origin = vec3make(x,y,radius);
 
 	object.objectRadius = radius;
@@ -865,7 +796,6 @@ void SimInterface::addSphere( float x, float y, int objectID, float radius, floa
 
 	// Set up the simulator/physics model
 	ObjectPhysicsData *objectPhyDat = (ObjectPhysicsData *)malloc(sizeof(ObjectPhysicsData));
-	//objectPhyDat->colShapeIndex = _simStatus.btSphereShapeID;
 	objectPhyDat->colShapeIndex = _simState.collisionShapes[colIndex].collisionID;
 	objectPhyDat->mass = mass;
 	objectPhyDat->localInertia = btVector3(0.0, 0.0, 0.0);
@@ -904,7 +834,6 @@ void SimInterface::addCube( float x, float y, int objectID, vec3 scale, float ma
 
 	vec4 zero = {0,0,0,0};
 	object.color = vec3imake(rand()%256,rand()%256,rand()%256);
-	//	object.origin.z = 0.5*scale.z;
 	object.origin = vec3make(x,y,0.5*scale.z);
 
 	object.objectRadius = 1.0;
@@ -920,7 +849,6 @@ void SimInterface::addCube( float x, float y, int objectID, vec3 scale, float ma
 
 	// Set up the simulator/physics model
 	ObjectPhysicsData *objectPhyDat = (ObjectPhysicsData *)malloc(sizeof(ObjectPhysicsData));
-	//objectPhyDat->colShapeIndex = _simStatus.btCubeShapeID;
 	objectPhyDat->colShapeIndex = _simState.collisionShapes.at(colIndex).collisionID;
 	objectPhyDat->mass = mass;
 	objectPhyDat->localInertia = btVector3(0.0, 0.0, 0.0);
@@ -944,8 +872,6 @@ void SimInterface::addWall( float x, float y, int objectID, vec3 scale)
 
 	bool isPaused = _simStatus.paused;
 	_simStatus.paused = true;
-	//GPSInfo *tmp2 = (GPSInfo *)malloc(sizeof(GPSInfo));
-	//_objectPos->push_back(tmp2);
 	objectStruct_t object;
 
 	if (objectID == 0)
@@ -997,8 +923,6 @@ void SimInterface::addFloor( float x, float y, int objectID, vec3 scale)
 
 	bool isPaused = _simStatus.paused;
 	_simStatus.paused = true;
-	//GPSInfo *tmp2 = (GPSInfo *)malloc(sizeof(GPSInfo));
-	//_objectPos->push_back(tmp2);
 	objectStruct_t object;
 
 	if (objectID == 0)
@@ -1011,7 +935,6 @@ void SimInterface::addFloor( float x, float y, int objectID, vec3 scale)
 	}
 	vec4 zero = {0,0,0,0};
 	object.color = vec3imake(rand()%256,rand()%256,rand()%256);
-	//	object.origin.z = 0.5*scale.z;
 	object.origin = vec3make(x,y,0);
 	object.objectRadius = 1.0;
 	object.scale = scale;
@@ -1551,7 +1474,6 @@ btCollisionShape* SimInterface::makeCollisionShapeFromFile(QString fileName)
 				inLine = in.readLine(0);
 				if(inLine.length() == 0)
 					continue;
-				// qDebug() << inLine;
 
 				QStringList list = inLine.split(" ",QString::SkipEmptyParts);
 

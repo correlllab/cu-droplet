@@ -89,22 +89,19 @@ void RenderWidget::keyPressEvent(QKeyEvent *event)
 			if(event->key() == Qt::Key_H)
 			{
 				_hud = !_hud;
-
-			} else if(event->key() == Qt::Key_R)
+			} 
+			else if(event->key() == Qt::Key_R)
 			{
 				emit restart();
-				// TIMER
-				//_runTime.start();
-
-			} else if(event->key() == Qt::Key_L)
+			} 
+			else if(event->key() == Qt::Key_L)
 			{
 				_renderLock = true;
 				assets.reloadAssets();
 				setupRenderStructs();
-				//				setupArena();
-
 				_renderLock = false;
-			} else if(event->key() == Qt::Key_B)
+			} 
+			else if(event->key() == Qt::Key_B)
 			{
 				if (_renderDebug == 2)
 				{
@@ -176,9 +173,7 @@ void RenderWidget::keyPressEvent(QKeyEvent *event)
 				setupRenderStructs();
 				doneCurrent();
 			}
-
 		}
-
 	}
 
 	if(event->key() == Qt::Key_BracketRight)
@@ -192,7 +187,7 @@ void RenderWidget::keyPressEvent(QKeyEvent *event)
 			emit increaseRate();
 	}
 
-	/* PENDING DELETION */
+	/* TODO : PENDING DELETION */
 	if(event->key() == Qt::Key_Z)
 	{
 		float floorWidth = _arena.tileLength * _arena.numColTiles;
@@ -205,7 +200,7 @@ void RenderWidget::keyPressEvent(QKeyEvent *event)
 
 	}
 
-	/* PENDING DELETION */
+	/* TODO : PENDING DELETION */
 	if(event->key() == Qt::Key_X)
 	{
 		float floorWidth = _arena.tileLength * _arena.numColTiles;
@@ -217,76 +212,10 @@ void RenderWidget::keyPressEvent(QKeyEvent *event)
 		emit requestNewDroplet(xPos,yPos,RGBSense);
 
 	}
-
-
-	/* PENDING DELETION */
-
-	//if(event->key() == Qt::Key_C)
-	//{
-	//	float floorWidth = _arena.tileLength * _arena.numColTiles;
-	//	float floorLength = _arena.tileLength * _arena.numRowTiles;
-	//	float posRangeWidth = floorWidth / 2.0f;
-	//	float posRangeLength = floorLength / 2.0f;
-	//	float xPos = getRandomf(-posRangeWidth + _arena.dropletRadius, posRangeWidth - _arena.dropletRadius);
-	//	float yPos = getRandomf(-posRangeLength + _arena.dropletRadius, posRangeLength - _arena.dropletRadius);
-	//	emit requestNewDroplet(xPos,yPos,March);
-
-	//}
-
-	/* PENDING DELETION */
-	//if(event->key() == Qt::Key_V)
-	//{
-	//	float floorWidth = _arena.tileLength * _arena.numColTiles;
-	//	float floorLength = _arena.tileLength * _arena.numRowTiles;
-	//	float posRangeWidth = floorWidth / 2.0f;
-	//	float posRangeLength = floorLength / 2.0f;
-	//	float xPos = getRandomf(-posRangeWidth + _arena.dropletRadius, posRangeWidth - _arena.dropletRadius);
-	//	float yPos = getRandomf(-posRangeLength + _arena.dropletRadius, posRangeLength - _arena.dropletRadius);
-	//	emit requestNewDroplet(xPos,yPos,RandomWalk);
-
-	//}
-	/* PENDING DELETION */
-	//if(event->key() == Qt::Key_B)
-	//{
-	//	float floorWidth = _arena.tileLength * _arena.numColTiles;
-	//	float floorLength = _arena.tileLength * _arena.numRowTiles;
-	//	float posRangeWidth = floorWidth / 2.0f;
-	//	float posRangeLength = floorLength / 2.0f;
-	//	float xPos = getRandomf(-posRangeWidth + _arena.dropletRadius, posRangeWidth - _arena.dropletRadius);
-	//	float yPos = getRandomf(-posRangeLength + _arena.dropletRadius, posRangeLength - _arena.dropletRadius);
-	//	emit requestNewDroplet(xPos,yPos,Rainbow);
-
-	//}
-	/* PENDING DELETION */
-	//if(event->key() == Qt::Key_N)
-	//{
-	//	float floorWidth = _arena.tileLength * _arena.numColTiles;
-	//	float floorLength = _arena.tileLength * _arena.numRowTiles;
-	//	float posRangeWidth = floorWidth / 2.0f;
-	//	float posRangeLength = floorLength / 2.0f;
-	//	float xPos = getRandomf(-posRangeWidth + _arena.dropletRadius, posRangeWidth - _arena.dropletRadius);
-	//	float yPos = getRandomf(-posRangeLength + _arena.dropletRadius, posRangeLength - _arena.dropletRadius);
-	//	emit requestNewDroplet(xPos,yPos,TurnTest);
-
-	//}
-	/* PENDING DELETION */
-	//if(event->key() == Qt::Key_M)
-	//{
-	//	float floorWidth = _arena.tileLength * _arena.numColTiles;
-	//	float floorLength = _arena.tileLength * _arena.numRowTiles;
-	//	float posRangeWidth = floorWidth / 2.0f;
-	//	float posRangeLength = floorLength / 2.0f;
-	//	float xPos = getRandomf(-posRangeWidth + _arena.dropletRadius, posRangeWidth - _arena.dropletRadius);
-	//	float yPos = getRandomf(-posRangeLength + _arena.dropletRadius, posRangeLength - _arena.dropletRadius);
-	//	emit requestNewDroplet(xPos,yPos,CommTest);
-
-	//}
-
 }
 
 void RenderWidget::keyReleaseEvent(QKeyEvent *event)
 {
-
 	if (!event->isAutoRepeat())
 	{
 		if(!event->modifiers().testFlag(Qt::ControlModifier))
@@ -376,16 +305,12 @@ void RenderWidget::processInput(float timeSinceLastUpdate)
 		}
         if (_keysDown.A && !_keysDown.D)
         {
-            //   _camera.pan += 90  * perFrame;
-
             _camera.x -= cos(_camera.pan * M_PI / 180) * 50 * perFrame;
             _camera.y -= sinf(_camera.pan * M_PI / 180) * 50 * perFrame;
 
 
         } else if (_keysDown.D && !_keysDown.A)
         {
-            //  _camera.pan -= 90 * perFrame;
-
             _camera.x += cos(_camera.pan * M_PI / 180) * 50 * perFrame;
             _camera.y += sinf(_camera.pan * M_PI / 180) * 50 * perFrame;
 

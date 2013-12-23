@@ -288,13 +288,9 @@ uint8_t DropletCustomThree::get_next_id()
 		else
 			return id + circle_layers[layer_num] + (id-1);
 		break;
-	/*case 2:
-		if(corner)
-		{
-			if(counter>0)
-				return id + circle_layers[layer_num];
-		}*/
 	default:
 		break;
 	}
+
+	return counter;
 }

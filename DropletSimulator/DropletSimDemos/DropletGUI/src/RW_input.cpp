@@ -186,32 +186,6 @@ void RenderWidget::keyPressEvent(QKeyEvent *event)
 		if (_simRates.limitRate)
 			emit increaseRate();
 	}
-
-	/* TODO : PENDING DELETION */
-	if(event->key() == Qt::Key_Z)
-	{
-		float floorWidth = _arena.tileLength * _arena.numColTiles;
-		float floorLength = _arena.tileLength * _arena.numRowTiles;
-		float posRangeWidth = floorWidth / 2.0f;
-		float posRangeLength = floorLength / 2.0f;
-		float xPos = getRandomf(-posRangeWidth + _arena.dropletRadius, posRangeWidth - _arena.dropletRadius);
-		float yPos = getRandomf(-posRangeLength + _arena.dropletRadius, posRangeLength - _arena.dropletRadius);
-		emit requestNewDroplet(xPos,yPos,StickPullers);
-
-	}
-
-	/* TODO : PENDING DELETION */
-	if(event->key() == Qt::Key_X)
-	{
-		float floorWidth = _arena.tileLength * _arena.numColTiles;
-		float floorLength = _arena.tileLength * _arena.numRowTiles;
-		float posRangeWidth = floorWidth / 2.0f;
-		float posRangeLength = floorLength / 2.0f;
-		float xPos = getRandomf(-posRangeWidth + _arena.dropletRadius, posRangeWidth - _arena.dropletRadius);
-		float yPos = getRandomf(-posRangeLength + _arena.dropletRadius, posRangeLength - _arena.dropletRadius);
-		emit requestNewDroplet(xPos,yPos,RGBSense);
-
-	}
 }
 
 void RenderWidget::keyReleaseEvent(QKeyEvent *event)

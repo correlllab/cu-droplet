@@ -17,7 +17,7 @@ floor_mesh cube
 
 #tower assets
 tower_shader simple
-tower_texture null
+tower_texture white
 tower_mesh IRTower
 
 #object assets

@@ -1,15 +1,12 @@
+# --- Deprecated options ---
+# fps 60
+# droplet_radius 2.2
+# wall_height 6.0
+# wall_width 0.5
+
 col_tiles 4
 row_tiles 4
 
-fps 60
-droplet_radius 2.2
-#tile_length 25.0
-wall_height 6.0
-wall_width 0.5
-
 projecting none.bmp
 
-#droplets stickpullers 128
-#droplets commtest 20 
-droplets march 128
-#droplets randomwalk 10
+droplets customone 128

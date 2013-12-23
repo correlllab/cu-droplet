@@ -144,7 +144,7 @@ signals:
 		void restart(void);
 
 		/**
-		* \fn	void RenderWidget::requestNewDroplet(float x, float y, droplet_t dType = March,
+		* \fn	void RenderWidget::requestNewDroplet(float x, float y, droplet_t dType = CustomOne,
 		* 		int dropletID = 0);
 		*
 		* \brief	Request new droplet.
@@ -155,7 +155,7 @@ signals:
 		* \param	dropletID	(Optional) identifier for the droplet.
 		*/
 
-		void requestNewDroplet(float x, float y, droplet_t dType = March, int dropletID = 0);
+		void requestNewDroplet(float x, float y, droplet_t dType = CustomOne, int dropletID = 0);
 
 		/**
 		* \fn	void RenderWidget::toggleLimit(void);

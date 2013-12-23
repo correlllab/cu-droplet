@@ -27,17 +27,17 @@
 #include <DropletSimGlobals.h>
 #include <DropletDataStructs.h>
 
-#include <DefaultPrograms/DropletRGBSense/DropletRGBSense.h>
-#include <DefaultPrograms/DropletRandomWalk/DropletRandomWalk.h>
-#include <DefaultPrograms/DropletMarch/DropletMarch.h>
-#include <DefaultPrograms/DropletRainbow/DropletRainbow.h>
-#include <DefaultPrograms/DropletStickPullers/DropletStickPullers.h>
-#include <DefaultPrograms/DropletTurnTest/DropletTurnTest.h>
-#include <DefaultPrograms/DropletCommTest/DropletCommTest.h>
-#include <DefaultPrograms/DropletPowerTest/DropletPowerTest.h>
-#include <DefaultPrograms/DropletGranola/DropletGranola.h>
-#include <DefaultPrograms/DropletStickPullersUpdated/DropletStickPullersUpdated.h>
-#include <DefaultPrograms/DropletAnts/DropletAnts.h>
+//#include <DefaultPrograms/DropletRGBSense/DropletRGBSense.h>
+//#include <DefaultPrograms/DropletRandomWalk/DropletRandomWalk.h>
+//#include <DefaultPrograms/DropletMarch/DropletMarch.h>
+//#include <DefaultPrograms/DropletRainbow/DropletRainbow.h>
+//#include <DefaultPrograms/DropletStickPullers/DropletStickPullers.h>
+//#include <DefaultPrograms/DropletTurnTest/DropletTurnTest.h>
+//#include <DefaultPrograms/DropletCommTest/DropletCommTest.h>
+//#include <DefaultPrograms/DropletPowerTest/DropletPowerTest.h>
+//#include <DefaultPrograms/DropletGranola/DropletGranola.h>
+//#include <DefaultPrograms/DropletStickPullersUpdated/DropletStickPullersUpdated.h>
+//#include <DefaultPrograms/DropletAnts/DropletAnts.h>
 
 #include <CustomPrograms/DropletCustomOne/DropletCustomOne.h>
 #include <CustomPrograms/DropletCustomTwo/DropletCustomTwo.h>
@@ -296,7 +296,7 @@ public slots:
 	void reset(void);
 
 	/**
-	 * \fn	void SimInterface::addDroplet(float x, float y, droplet_t dType = March,
+	 * \fn	void SimInterface::addDroplet(float x, float y, droplet_t dType = CustomOne,
 	 * 		int dropletID = 0);
 	 *
 	 * \brief	Adds a droplet.
@@ -307,7 +307,7 @@ public slots:
 	 * \param	dropletID	(Optional) The Droplet ID. If 0, adds one to the current number of droplets.
 	 */
 
-	void addDroplet(float x, float y, droplet_t dType = March, int dropletID = 0);
+	void addDroplet(float x, float y, droplet_t dType = CustomOne, int dropletID = 0);
 
 	/**
 	 * \fn	int SimInterface::addNewShape(object_t objectType, float radius, vec3 scale);

@@ -241,19 +241,20 @@ void MainWindow::addLoadSetupFileWidgets()
 
 void MainWindow::addDropletWidgets()
 {
-	dropletTableWidget = new QTableWidget(21,1);
+//	dropletTableWidget = new QTableWidget(21,1);
+	dropletTableWidget = new QTableWidget(10,1);
 	QStringList vertHeaders;
-	vertHeaders.append("March");
-	vertHeaders.append("Rainbow");
-	vertHeaders.append("RandomWalk");
-	vertHeaders.append("RGBSense");
-	vertHeaders.append("StickPullers");
-	vertHeaders.append("TurnTest");
-	vertHeaders.append("CommTest");
-	vertHeaders.append("PowerTest");
-	vertHeaders.append("Granola");
-	vertHeaders.append("StickPullersUpdated");
-	vertHeaders.append("Ants");
+	//vertHeaders.append("March");
+	//vertHeaders.append("Rainbow");
+	//vertHeaders.append("RandomWalk");
+	//vertHeaders.append("RGBSense");
+	//vertHeaders.append("StickPullers");
+	//vertHeaders.append("TurnTest");
+	//vertHeaders.append("CommTest");
+	//vertHeaders.append("PowerTest");
+	//vertHeaders.append("Granola");
+	//vertHeaders.append("StickPullersUpdated");
+	//vertHeaders.append("Ants");
 	vertHeaders.append("CustomOne");
 	vertHeaders.append("CustomTwo");
 	vertHeaders.append("CustomThree");
@@ -593,6 +594,7 @@ void MainWindow::setUI(simSetting_t settings)
 	int numDroplets = 0;
 	foreach(QStringList list, settings.startingDroplets)
 	{
+		int program_id = -1;
 		int addition;
 		if(list.count() == 2)
 		{
@@ -603,7 +605,7 @@ void MainWindow::setUI(simSetting_t settings)
 			addition = 1;
 		}
 		QString type = list[0].toLower();
-		if (type == QString("march"))
+/*		if (type == QString("march"))
 		{
 			int temp = dropletTableWidget->item(0,0)->text().toInt()  + addition;
 			QString string = QString::number(temp);
@@ -708,6 +710,45 @@ void MainWindow::setUI(simSetting_t settings)
 			int temp = dropletTableWidget->item(20,0)->text().toInt()  + addition;
 			QString string = QString::number(temp);
 			dropletTableWidget->setItem(20,0,new QTableWidgetItem(string));
+		}*/
+
+		// TODO : If this works put the strings in an array and set program_id by comparing strings in a loop
+		if (type == QString("customone"))
+		{
+			program_id = 0;
+		} else if (type == QString("customtwo"))
+		{
+			program_id = 1;
+		} else if (type == QString("customthree"))
+		{
+			program_id = 2;
+		} else if (type == QString("customfour"))
+		{
+			program_id = 3;
+		} else if (type == QString("customfive"))
+		{
+			program_id = 4;
+		} else if (type == QString("customsix"))
+		{
+			program_id = 5;
+		} else if (type == QString("customseven"))
+		{
+			program_id = 6;
+		} else if (type == QString("customeight"))
+		{
+			program_id = 7;
+		} else if (type == QString("customnine"))
+		{
+			program_id = 8;
+		} else if (type == QString("customten"))
+		{
+			program_id = 9;
+		}
+		if(program_id > -1)
+		{
+			int temp = dropletTableWidget->item(program_id,0)->text().toInt() + addition;
+			QString string = QString::number(temp);
+			dropletTableWidget->setItem(program_id, 0, new QTableWidgetItem(string));
 		}
 	}
 }

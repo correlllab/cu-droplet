@@ -326,7 +326,7 @@ void SimInterface::Init()
 
 				QString iType = list[0].toLower();
 
-				if (iType == QString("march"))
+/*				if (iType == QString("march"))
 				{
 					dType = March;
 				} else if (iType == QString("rainbow"))
@@ -359,7 +359,7 @@ void SimInterface::Init()
 				} else if (iType == QString("ants"))
 				{
 					dType = Ants;
-				} else if (iType == QString("customone"))
+				} else */if (iType == QString("customone"))
 				{
 					dType = CustomOne;
 				} else if (iType == QString("customtwo"))
@@ -1210,39 +1210,39 @@ IDroplet* SimInterface::newDropletOfType(droplet_t dType, ObjectPhysicsData *dro
 
 	switch (dType)
 	{
-	case RGBSense:
-		result = new DropletRGBSense(dropletPhyDat);
-		break;
-	case RandomWalk:
-		result = new DropletRandomWalk(dropletPhyDat);
-		break;
-	case March:
-		result = new DropletMarch(dropletPhyDat);
-		break;
-	case Rainbow:
-		result = new DropletRainbow(dropletPhyDat);
-		break;
-	case StickPullers:
-		result = new DropletStickPullers(dropletPhyDat);
-		break;
-	case TurnTest:
-		result = new DropletTurnTest(dropletPhyDat);
-		break;
-	case CommTest:
-		result = new DropletCommTest(dropletPhyDat);
-		break;
-	case PowerTest:
-		result = new DropletPowerTest(dropletPhyDat);
-		break;
-	case Granola:
-		result = new DropletGranola(dropletPhyDat);
-		break;
-	case StickPullersUpdated:
-		result = new DropletStickPullersUpdated(dropletPhyDat);
-		break;
-	case Ants:
-		result = new DropletAnts(dropletPhyDat);
-		break;
+	//case RGBSense:
+	//	result = new DropletRGBSense(dropletPhyDat);
+	//	break;
+	//case RandomWalk:
+	//	result = new DropletRandomWalk(dropletPhyDat);
+	//	break;
+	//case March:
+	//	result = new DropletMarch(dropletPhyDat);
+	//	break;
+	//case Rainbow:
+	//	result = new DropletRainbow(dropletPhyDat);
+	//	break;
+	//case StickPullers:
+	//	result = new DropletStickPullers(dropletPhyDat);
+	//	break;
+	//case TurnTest:
+	//	result = new DropletTurnTest(dropletPhyDat);
+	//	break;
+	//case CommTest:
+	//	result = new DropletCommTest(dropletPhyDat);
+	//	break;
+	//case PowerTest:
+	//	result = new DropletPowerTest(dropletPhyDat);
+	//	break;
+	//case Granola:
+	//	result = new DropletGranola(dropletPhyDat);
+	//	break;
+	//case StickPullersUpdated:
+	//	result = new DropletStickPullersUpdated(dropletPhyDat);
+	//	break;
+	//case Ants:
+	//	result = new DropletAnts(dropletPhyDat);
+	//	break;
 	case CustomOne:
 		result = new DropletCustomOne(dropletPhyDat);
 		break;
@@ -1274,7 +1274,7 @@ IDroplet* SimInterface::newDropletOfType(droplet_t dType, ObjectPhysicsData *dro
 		result = new DropletCustomTen(dropletPhyDat);
 		break;
 	default:
-		result = new DropletMarch(dropletPhyDat);
+		result = new DropletCustomOne(dropletPhyDat);
 
 	}
 	return result;

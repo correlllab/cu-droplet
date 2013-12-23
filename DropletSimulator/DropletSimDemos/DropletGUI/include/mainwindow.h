@@ -16,7 +16,6 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-//#include "ui_mainwindow.h"
 #include "RenderWidget.h"
 #include "SimInterface.h"
 #include <QFileSystemWatcher>

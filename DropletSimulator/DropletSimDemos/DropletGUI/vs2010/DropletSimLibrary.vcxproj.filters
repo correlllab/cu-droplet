@@ -16,9 +16,6 @@
     <Filter Include="DropletPrograms">
       <UniqueIdentifier>{599d1135-301d-4e61-b0c1-adf583115cd8}</UniqueIdentifier>
     </Filter>
-    <Filter Include="DropletPrograms\DefaultPrograms">
-      <UniqueIdentifier>{e1feb148-d84d-4954-9f2f-4685481bfd12}</UniqueIdentifier>
-    </Filter>
     <Filter Include="DropletPrograms\CustomPrograms">
       <UniqueIdentifier>{5b62a892-758d-41c1-a53e-1a07fc9c549d}</UniqueIdentifier>
     </Filter>
@@ -47,39 +44,6 @@
     </ClCompile>
     <ClCompile Include="..\..\..\DropletSimLibrary\src\DSimPhysicalObject.cpp">
       <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\DropletPrograms\DefaultPrograms\DropletAnts\DropletAnts.cpp">
-      <Filter>DropletPrograms\DefaultPrograms</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\DropletPrograms\DefaultPrograms\DropletCommTest\DropletCommTest.cpp">
-      <Filter>DropletPrograms\DefaultPrograms</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\DropletPrograms\DefaultPrograms\DropletGranola\DropletGranola.cpp">
-      <Filter>DropletPrograms\DefaultPrograms</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\DropletPrograms\DefaultPrograms\DropletMarch\DropletMarch.cpp">
-      <Filter>DropletPrograms\DefaultPrograms</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\DropletPrograms\DefaultPrograms\DropletPowerTest\DropletPowerTest.cpp">
-      <Filter>DropletPrograms\DefaultPrograms</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\DropletPrograms\DefaultPrograms\DropletRainbow\DropletRainbow.cpp">
-      <Filter>DropletPrograms\DefaultPrograms</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\DropletPrograms\DefaultPrograms\DropletRandomWalk\DropletRandomWalk.cpp">
-      <Filter>DropletPrograms\DefaultPrograms</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\DropletPrograms\DefaultPrograms\DropletRGBSense\DropletRGBSense.cpp">
-      <Filter>DropletPrograms\DefaultPrograms</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\DropletPrograms\DefaultPrograms\DropletStickPullersUpdated\DropletStickPullersUpdated.cpp">
-      <Filter>DropletPrograms\DefaultPrograms</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\DropletPrograms\DefaultPrograms\DropletStickPullers\DropletStickPullers.cpp">
-      <Filter>DropletPrograms\DefaultPrograms</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\DropletPrograms\DefaultPrograms\DropletTurnTest\DropletTurnTest.cpp">
-      <Filter>DropletPrograms\DefaultPrograms</Filter>
     </ClCompile>
     <ClCompile Include="..\..\..\DropletPrograms\CustomPrograms\DropletCustomEight\DropletCustomEight.cpp">
       <Filter>DropletPrograms\CustomPrograms</Filter>
@@ -145,39 +109,6 @@
     </ClInclude>
     <ClInclude Include="..\..\..\DropletSimLibrary\include\DropletSimGlobals.h">
       <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\DropletPrograms\DefaultPrograms\DropletAnts\DropletAnts.h">
-      <Filter>DropletPrograms\DefaultPrograms</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\DropletPrograms\DefaultPrograms\DropletCommTest\DropletCommTest.h">
-      <Filter>DropletPrograms\DefaultPrograms</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\DropletPrograms\DefaultPrograms\DropletGranola\DropletGranola.h">
-      <Filter>DropletPrograms\DefaultPrograms</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\DropletPrograms\DefaultPrograms\DropletMarch\DropletMarch.h">
-      <Filter>DropletPrograms\DefaultPrograms</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\DropletPrograms\DefaultPrograms\DropletPowerTest\DropletPowerTest.h">
-      <Filter>DropletPrograms\DefaultPrograms</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\DropletPrograms\DefaultPrograms\DropletRainbow\DropletRainbow.h">
-      <Filter>DropletPrograms\DefaultPrograms</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\DropletPrograms\DefaultPrograms\DropletRandomWalk\DropletRandomWalk.h">
-      <Filter>DropletPrograms\DefaultPrograms</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\DropletPrograms\DefaultPrograms\DropletRGBSense\DropletRGBSense.h">
-      <Filter>DropletPrograms\DefaultPrograms</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\DropletPrograms\DefaultPrograms\DropletStickPullersUpdated\DropletStickPullersUpdated.h">
-      <Filter>DropletPrograms\DefaultPrograms</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\DropletPrograms\DefaultPrograms\DropletStickPullers\DropletStickPullers.h">
-      <Filter>DropletPrograms\DefaultPrograms</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\DropletPrograms\DefaultPrograms\DropletTurnTest\DropletTurnTest.h">
-      <Filter>DropletPrograms\DefaultPrograms</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\DropletPrograms\CustomPrograms\DropletCustomEight\DropletCustomEight.h">
       <Filter>DropletPrograms\CustomPrograms</Filter>

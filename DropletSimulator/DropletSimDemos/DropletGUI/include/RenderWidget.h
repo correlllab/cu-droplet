@@ -21,7 +21,6 @@
 #include <QTimer>
 #include <QGLWidget>
 #include <QGLShaderProgram>
-//#include <QGLFunctions>
 #include <QElapsedTimer>
 #include <QKeyEvent>
 #include <QCoreApplication>
@@ -29,7 +28,6 @@
 
 #include "defaults.h"
 #include "structs.h"
-//#include "SimInterface.h"
 #include "AssetManager.h"
 
 #include <glm/glm.hpp>

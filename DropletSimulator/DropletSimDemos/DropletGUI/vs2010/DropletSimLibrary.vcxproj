@@ -84,7 +84,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>D_SIM_LIB;WIN32;NDEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>..\..\..\DropletSimLibrary\include;..\..\External\bullet-2.81-rev2613\src;..\..\External\EasyBMP_1.06;..\..\..\DropletPrograms</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\..\DropletSimLibrary\include;..\..\External\bullet-2.81-rev2613\src;..\..\External\EasyBMP_1.06;..\..\..\DropletPrograms\include</AdditionalIncludeDirectories>
       <WholeProgramOptimization>true</WholeProgramOptimization>
       <MinimalRebuild>true</MinimalRebuild>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
@@ -114,16 +114,16 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\DropletPrograms\CustomPrograms\DropletCustomEight\DropletCustomEight.cpp" />
-    <ClCompile Include="..\..\..\DropletPrograms\CustomPrograms\DropletCustomFive\DropletCustomFive.cpp" />
-    <ClCompile Include="..\..\..\DropletPrograms\CustomPrograms\DropletCustomFour\DropletCustomFour.cpp" />
-    <ClCompile Include="..\..\..\DropletPrograms\CustomPrograms\DropletCustomNine\DropletCustomNine.cpp" />
-    <ClCompile Include="..\..\..\DropletPrograms\CustomPrograms\DropletCustomOne\DropletCustomOne.cpp" />
-    <ClCompile Include="..\..\..\DropletPrograms\CustomPrograms\DropletCustomSeven\DropletCustomSeven.cpp" />
-    <ClCompile Include="..\..\..\DropletPrograms\CustomPrograms\DropletCustomSix\DropletCustomSix.cpp" />
-    <ClCompile Include="..\..\..\DropletPrograms\CustomPrograms\DropletCustomTen\DropletCustomTen.cpp" />
-    <ClCompile Include="..\..\..\DropletPrograms\CustomPrograms\DropletCustomThree\DropletCustomThree.cpp" />
-    <ClCompile Include="..\..\..\DropletPrograms\CustomPrograms\DropletCustomTwo\DropletCustomTwo.cpp" />
+    <ClCompile Include="..\..\..\DropletPrograms\src\DropletCustomEight.cpp" />
+    <ClCompile Include="..\..\..\DropletPrograms\src\DropletCustomFive.cpp" />
+    <ClCompile Include="..\..\..\DropletPrograms\src\DropletCustomFour.cpp" />
+    <ClCompile Include="..\..\..\DropletPrograms\src\DropletCustomNine.cpp" />
+    <ClCompile Include="..\..\..\DropletPrograms\src\DropletCustomOne.cpp" />
+    <ClCompile Include="..\..\..\DropletPrograms\src\DropletCustomSeven.cpp" />
+    <ClCompile Include="..\..\..\DropletPrograms\src\DropletCustomSix.cpp" />
+    <ClCompile Include="..\..\..\DropletPrograms\src\DropletCustomTen.cpp" />
+    <ClCompile Include="..\..\..\DropletPrograms\src\DropletCustomThree.cpp" />
+    <ClCompile Include="..\..\..\DropletPrograms\src\DropletCustomTwo.cpp" />
     <ClCompile Include="..\..\..\DropletSimLibrary\src\DropletSim.cpp" />
     <ClCompile Include="..\..\..\DropletSimLibrary\src\DropletSimInfo.cpp" />
     <ClCompile Include="..\..\..\DropletSimLibrary\src\DropletTimeControl.cpp" />
@@ -134,16 +134,16 @@
     <ClCompile Include="..\..\..\DropletSimLibrary\src\IDropletSimInterface.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\..\DropletPrograms\CustomPrograms\DropletCustomEight\DropletCustomEight.h" />
-    <ClInclude Include="..\..\..\DropletPrograms\CustomPrograms\DropletCustomFive\DropletCustomFive.h" />
-    <ClInclude Include="..\..\..\DropletPrograms\CustomPrograms\DropletCustomFour\DropletCustomFour.h" />
-    <ClInclude Include="..\..\..\DropletPrograms\CustomPrograms\DropletCustomNine\DropletCustomNine.h" />
-    <ClInclude Include="..\..\..\DropletPrograms\CustomPrograms\DropletCustomOne\DropletCustomOne.h" />
-    <ClInclude Include="..\..\..\DropletPrograms\CustomPrograms\DropletCustomSeven\DropletCustomSeven.h" />
-    <ClInclude Include="..\..\..\DropletPrograms\CustomPrograms\DropletCustomSix\DropletCustomSix.h" />
-    <ClInclude Include="..\..\..\DropletPrograms\CustomPrograms\DropletCustomTen\DropletCustomTen.h" />
-    <ClInclude Include="..\..\..\DropletPrograms\CustomPrograms\DropletCustomThree\DropletCustomThree.h" />
-    <ClInclude Include="..\..\..\DropletPrograms\CustomPrograms\DropletCustomTwo\DropletCustomTwo.h" />
+    <ClInclude Include="..\..\..\DropletPrograms\include\DropletCustomEight.h" />
+    <ClInclude Include="..\..\..\DropletPrograms\include\DropletCustomFive.h" />
+    <ClInclude Include="..\..\..\DropletPrograms\include\DropletCustomFour.h" />
+    <ClInclude Include="..\..\..\DropletPrograms\include\DropletCustomNine.h" />
+    <ClInclude Include="..\..\..\DropletPrograms\include\DropletCustomOne.h" />
+    <ClInclude Include="..\..\..\DropletPrograms\include\DropletCustomSeven.h" />
+    <ClInclude Include="..\..\..\DropletPrograms\include\DropletCustomSix.h" />
+    <ClInclude Include="..\..\..\DropletPrograms\include\DropletCustomTen.h" />
+    <ClInclude Include="..\..\..\DropletPrograms\include\DropletCustomThree.h" />
+    <ClInclude Include="..\..\..\DropletPrograms\include\DropletCustomTwo.h" />
     <ClInclude Include="..\..\..\DropletSimLibrary\include\DropletDataStructs.h" />
     <ClInclude Include="..\..\..\DropletSimLibrary\include\DropletSim.h" />
     <ClInclude Include="..\..\..\DropletSimLibrary\include\DropletSimGlobals.h" />

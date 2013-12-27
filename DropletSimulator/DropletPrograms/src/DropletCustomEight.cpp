@@ -1,4 +1,4 @@
-#include "CustomPrograms/DropletCustomEight/DropletCustomEight.h"
+#include "DropletCustomEight.h"
 
 DropletCustomEight::DropletCustomEight(ObjectPhysicsData *objPhysics) 
 	: IDroplet(objPhysics) 

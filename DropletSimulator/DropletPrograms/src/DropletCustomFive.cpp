@@ -1,4 +1,4 @@
-#include "CustomPrograms/DropletCustomFive/DropletCustomFive.h"
+#include "DropletCustomFive.h"
 
 /* for smaller guitar: */
 const int guitar_rows[] = {

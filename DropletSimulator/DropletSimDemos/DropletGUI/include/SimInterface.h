@@ -27,28 +27,16 @@
 #include <DropletSimGlobals.h>
 #include <DropletDataStructs.h>
 
-//#include <DefaultPrograms/DropletRGBSense/DropletRGBSense.h>
-//#include <DefaultPrograms/DropletRandomWalk/DropletRandomWalk.h>
-//#include <DefaultPrograms/DropletMarch/DropletMarch.h>
-//#include <DefaultPrograms/DropletRainbow/DropletRainbow.h>
-//#include <DefaultPrograms/DropletStickPullers/DropletStickPullers.h>
-//#include <DefaultPrograms/DropletTurnTest/DropletTurnTest.h>
-//#include <DefaultPrograms/DropletCommTest/DropletCommTest.h>
-//#include <DefaultPrograms/DropletPowerTest/DropletPowerTest.h>
-//#include <DefaultPrograms/DropletGranola/DropletGranola.h>
-//#include <DefaultPrograms/DropletStickPullersUpdated/DropletStickPullersUpdated.h>
-//#include <DefaultPrograms/DropletAnts/DropletAnts.h>
-
-#include <CustomPrograms/DropletCustomOne/DropletCustomOne.h>
-#include <CustomPrograms/DropletCustomTwo/DropletCustomTwo.h>
-#include <CustomPrograms/DropletCustomThree/DropletCustomThree.h>
-#include <CustomPrograms/DropletCustomFour/DropletCustomFour.h>
-#include <CustomPrograms/DropletCustomFive/DropletCustomFive.h>
-#include <CustomPrograms/DropletCustomSix/DropletCustomSix.h>
-#include <CustomPrograms/DropletCustomSeven/DropletCustomSeven.h>
-#include <CustomPrograms/DropletCustomEight/DropletCustomEight.h>
-#include <CustomPrograms/DropletCustomNine/DropletCustomNine.h>
-#include <CustomPrograms/DropletCustomTen/DropletCustomTen.h>
+#include <DropletCustomOne.h>
+#include <DropletCustomTwo.h>
+#include <DropletCustomThree.h>
+#include <DropletCustomFour.h>
+#include <DropletCustomFive.h>
+#include <DropletCustomSix.h>
+#include <DropletCustomSeven.h>
+#include <DropletCustomEight.h>
+#include <DropletCustomNine.h>
+#include <DropletCustomTen.h>
 
 #include <limits.h>
 

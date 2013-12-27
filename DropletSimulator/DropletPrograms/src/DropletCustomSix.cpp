@@ -1,4 +1,4 @@
-#include "CustomPrograms/DropletCustomSix/DropletCustomSix.h"
+#include "DropletCustomSix.h"
 
 const int guitar_rows[] =  {
 		/* Body */ 3, 4, 5, 6, 5, 4, 5, 4, 3,

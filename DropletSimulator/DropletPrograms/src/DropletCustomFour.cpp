@@ -1,4 +1,4 @@
-#include "CustomPrograms/DropletCustomFour/DropletCustomFour.h"
+#include "DropletCustomFour.h"
 
 #define NUMBER_OF_ITS 5
 const char got_you = 'x';

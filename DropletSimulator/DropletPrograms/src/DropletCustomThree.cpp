@@ -1,4 +1,4 @@
-#include "CustomPrograms/DropletCustomThree/DropletCustomThree.h"
+#include "DropletCustomThree.h"
 
 const int circle_layers[] = { 1, 6, 12, 18, 24, 30 };
 

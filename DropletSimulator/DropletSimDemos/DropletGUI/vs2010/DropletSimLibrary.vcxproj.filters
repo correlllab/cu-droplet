@@ -16,8 +16,11 @@
     <Filter Include="DropletPrograms">
       <UniqueIdentifier>{599d1135-301d-4e61-b0c1-adf583115cd8}</UniqueIdentifier>
     </Filter>
-    <Filter Include="DropletPrograms\CustomPrograms">
-      <UniqueIdentifier>{5b62a892-758d-41c1-a53e-1a07fc9c549d}</UniqueIdentifier>
+    <Filter Include="DropletPrograms\Header Files">
+      <UniqueIdentifier>{70579dbf-81fa-4e17-9507-6c969dcfc886}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="DropletPrograms\Source Files">
+      <UniqueIdentifier>{45e80ed1-59f8-4866-84d0-e6f859c205e4}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -45,35 +48,35 @@
     <ClCompile Include="..\..\..\DropletSimLibrary\src\DSimPhysicalObject.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\DropletPrograms\CustomPrograms\DropletCustomEight\DropletCustomEight.cpp">
-      <Filter>DropletPrograms\CustomPrograms</Filter>
+    <ClCompile Include="..\..\..\DropletPrograms\src\DropletCustomEight.cpp">
+      <Filter>DropletPrograms\Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\DropletPrograms\CustomPrograms\DropletCustomFive\DropletCustomFive.cpp">
-      <Filter>DropletPrograms\CustomPrograms</Filter>
+    <ClCompile Include="..\..\..\DropletPrograms\src\DropletCustomFive.cpp">
+      <Filter>DropletPrograms\Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\DropletPrograms\CustomPrograms\DropletCustomFour\DropletCustomFour.cpp">
-      <Filter>DropletPrograms\CustomPrograms</Filter>
+    <ClCompile Include="..\..\..\DropletPrograms\src\DropletCustomFour.cpp">
+      <Filter>DropletPrograms\Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\DropletPrograms\CustomPrograms\DropletCustomNine\DropletCustomNine.cpp">
-      <Filter>DropletPrograms\CustomPrograms</Filter>
+    <ClCompile Include="..\..\..\DropletPrograms\src\DropletCustomNine.cpp">
+      <Filter>DropletPrograms\Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\DropletPrograms\CustomPrograms\DropletCustomOne\DropletCustomOne.cpp">
-      <Filter>DropletPrograms\CustomPrograms</Filter>
+    <ClCompile Include="..\..\..\DropletPrograms\src\DropletCustomOne.cpp">
+      <Filter>DropletPrograms\Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\DropletPrograms\CustomPrograms\DropletCustomSeven\DropletCustomSeven.cpp">
-      <Filter>DropletPrograms\CustomPrograms</Filter>
+    <ClCompile Include="..\..\..\DropletPrograms\src\DropletCustomSeven.cpp">
+      <Filter>DropletPrograms\Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\DropletPrograms\CustomPrograms\DropletCustomSix\DropletCustomSix.cpp">
-      <Filter>DropletPrograms\CustomPrograms</Filter>
+    <ClCompile Include="..\..\..\DropletPrograms\src\DropletCustomSix.cpp">
+      <Filter>DropletPrograms\Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\DropletPrograms\CustomPrograms\DropletCustomTen\DropletCustomTen.cpp">
-      <Filter>DropletPrograms\CustomPrograms</Filter>
+    <ClCompile Include="..\..\..\DropletPrograms\src\DropletCustomTen.cpp">
+      <Filter>DropletPrograms\Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\DropletPrograms\CustomPrograms\DropletCustomThree\DropletCustomThree.cpp">
-      <Filter>DropletPrograms\CustomPrograms</Filter>
+    <ClCompile Include="..\..\..\DropletPrograms\src\DropletCustomThree.cpp">
+      <Filter>DropletPrograms\Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\DropletPrograms\CustomPrograms\DropletCustomTwo\DropletCustomTwo.cpp">
-      <Filter>DropletPrograms\CustomPrograms</Filter>
+    <ClCompile Include="..\..\..\DropletPrograms\src\DropletCustomTwo.cpp">
+      <Filter>DropletPrograms\Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -110,35 +113,35 @@
     <ClInclude Include="..\..\..\DropletSimLibrary\include\DropletSimGlobals.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\DropletPrograms\CustomPrograms\DropletCustomEight\DropletCustomEight.h">
-      <Filter>DropletPrograms\CustomPrograms</Filter>
+    <ClInclude Include="..\..\..\DropletPrograms\include\DropletCustomEight.h">
+      <Filter>DropletPrograms\Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\DropletPrograms\CustomPrograms\DropletCustomFive\DropletCustomFive.h">
-      <Filter>DropletPrograms\CustomPrograms</Filter>
+    <ClInclude Include="..\..\..\DropletPrograms\include\DropletCustomFive.h">
+      <Filter>DropletPrograms\Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\DropletPrograms\CustomPrograms\DropletCustomFour\DropletCustomFour.h">
-      <Filter>DropletPrograms\CustomPrograms</Filter>
+    <ClInclude Include="..\..\..\DropletPrograms\include\DropletCustomFour.h">
+      <Filter>DropletPrograms\Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\DropletPrograms\CustomPrograms\DropletCustomNine\DropletCustomNine.h">
-      <Filter>DropletPrograms\CustomPrograms</Filter>
+    <ClInclude Include="..\..\..\DropletPrograms\include\DropletCustomNine.h">
+      <Filter>DropletPrograms\Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\DropletPrograms\CustomPrograms\DropletCustomOne\DropletCustomOne.h">
-      <Filter>DropletPrograms\CustomPrograms</Filter>
+    <ClInclude Include="..\..\..\DropletPrograms\include\DropletCustomOne.h">
+      <Filter>DropletPrograms\Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\DropletPrograms\CustomPrograms\DropletCustomSeven\DropletCustomSeven.h">
-      <Filter>DropletPrograms\CustomPrograms</Filter>
+    <ClInclude Include="..\..\..\DropletPrograms\include\DropletCustomSeven.h">
+      <Filter>DropletPrograms\Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\DropletPrograms\CustomPrograms\DropletCustomSix\DropletCustomSix.h">
-      <Filter>DropletPrograms\CustomPrograms</Filter>
+    <ClInclude Include="..\..\..\DropletPrograms\include\DropletCustomSix.h">
+      <Filter>DropletPrograms\Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\DropletPrograms\CustomPrograms\DropletCustomTen\DropletCustomTen.h">
-      <Filter>DropletPrograms\CustomPrograms</Filter>
+    <ClInclude Include="..\..\..\DropletPrograms\include\DropletCustomTen.h">
+      <Filter>DropletPrograms\Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\DropletPrograms\CustomPrograms\DropletCustomThree\DropletCustomThree.h">
-      <Filter>DropletPrograms\CustomPrograms</Filter>
+    <ClInclude Include="..\..\..\DropletPrograms\include\DropletCustomThree.h">
+      <Filter>DropletPrograms\Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\DropletPrograms\CustomPrograms\DropletCustomTwo\DropletCustomTwo.h">
-      <Filter>DropletPrograms\CustomPrograms</Filter>
+    <ClInclude Include="..\..\..\DropletPrograms\include\DropletCustomTwo.h">
+      <Filter>DropletPrograms\Header Files</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

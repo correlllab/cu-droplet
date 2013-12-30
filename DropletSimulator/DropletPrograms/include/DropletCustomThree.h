@@ -1,8 +1,6 @@
-/* *** CURRENT PROGRAM ***
- * 
- * Shape Prediction.
+/* *** PROGRAM DESCRIPTION ***
+ * Shape Prediction
  */
-
 #pragma once
 
 #ifndef _DROPLET_CUSTOM_THREE

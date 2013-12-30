@@ -12,12 +12,9 @@
  * \brief	A macro that defines mainwindow h.
  *
  */
-
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-#include "RenderWidget.h"
-#include "SimInterface.h"
 #include <QFileSystemWatcher>
 #include <QStringList>
 #include <QString>
@@ -37,8 +34,13 @@
 #include <QMetaObject>
 #include <QThread>
 #include <QTableWidget>
-#include "simInfoLogger.h"
-#include "defaults.h"
+#include <QTextEdit>
+
+#include "RenderWidget.h"
+#include "SimInterface.h"
+#include "SimInfoLogger.h"
+#include "DropletGUIDefaults.h"
+
 /**
 *  @defgroup main Main Window
 *  \brief Items related to the main GUI window.
@@ -240,11 +242,11 @@ private:
 	QThread _simThread;
 
 	/**
-	 * \property simInfoLogger _logger 
+	 * \property SimInfoLogger _logger 
 	 * \brief	 Instance of the logging class, used to log simulation data.
 	 */
 
-	simInfoLogger _logger;
+	SimInfoLogger _logger;
 
 	/**
 	 * \property QString fileName
@@ -284,10 +286,11 @@ private:
 	 * \brief	Qt widgets for selecting the default or a custom floor.
 	 */
 
-	QLabel *loadSetupFileLabel;
 	QComboBox *loadSetupFileCombo;
 	QListView *loadSetupFileList;
-	QVBoxLayout *loadSetupFileLayout;
+	QTextEdit *loadSetupFileDescription;
+	QPushButton *setupFileSaveButton;
+	QHBoxLayout *selectSetupFileLayout;
 
 	/**
 	 * \property QLabel *arenaSelectionLabel, QComboBox *arenaSelectionCombo, QListView *arenaSelectionList, QVBoxLayout *arenaSelectionLayout 
@@ -326,6 +329,7 @@ private:
 	QLabel *dropProgramsLabel;
 	QComboBox *dropProgramsCombo;
 	QListView *dropProgramsList;
+	QTextEdit *dropProgramsDescription;
 	QVBoxLayout *dropProgramsLayout;
 	QTableWidget *dropletTableWidget;
 

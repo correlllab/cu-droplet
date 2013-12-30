@@ -1,5 +1,5 @@
 /**
- * \file	\cu-droplet\DropletSimulator\DropletSimDemos\DropletGUI\include\structs.h
+ * \file	\cu-droplet\DropletSimulator\DropletSimDemos\DropletGUI\include\DropletGUIStructs.h
  *
  * \brief	Declares global structs and types.
  */

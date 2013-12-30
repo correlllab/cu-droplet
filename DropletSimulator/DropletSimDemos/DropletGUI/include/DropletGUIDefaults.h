@@ -1,5 +1,5 @@
 /**
- * \file	cu-droplet\DropletSimulator\DropletSimDemos\DropletGUI\include\defaults.h
+ * \file	cu-droplet\DropletSimulator\DropletSimDemos\DropletGUI\include\DropletGUIDefaults.h
  *
  * \brief	Declares the global defaults.
  */

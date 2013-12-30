@@ -1,8 +1,6 @@
-/* *** CURRENT PROGRAM ***
- * 
- * Inverse Tag.
+/* *** PROGRAM DESCRIPTION ***
+ * Inverse Tag
  */
-
 #pragma once
 
 #ifndef _DROPLET_CUSTOM_ONE

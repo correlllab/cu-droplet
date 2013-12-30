@@ -40,8 +40,8 @@
 
 #include <limits.h>
 
-#include "defaults.h"
-#include "structs.h"
+#include "DropletGUIDefaults.h"
+#include "DropletGUIStructs.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>

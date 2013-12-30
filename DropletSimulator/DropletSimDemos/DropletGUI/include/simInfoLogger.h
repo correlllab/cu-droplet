@@ -1,5 +1,5 @@
 /**
- * \file	cu-droplet\DropletSimulator\DropletSimDemos\DropletGUI\include\simInfoLogger.h
+ * \file	cu-droplet\DropletSimulator\DropletSimDemos\DropletGUI\include\SimInfoLogger.h
  *
  * \brief	Declares the simulation information logger class. This class logs info
  * 			while the simulator is running and prints the info into a specified output
@@ -8,12 +8,12 @@
 
 #include <DropletSimInfo.h>
 #include <SimInterface.h>
-#include <structs.h>
+#include <DropletGUIStructs.h>
 #include <DropletDataStructs.h>
 #include <QGlobal.h>
 #include <QTime>
 #include <stdio.h>
-#include "defaults.h"
+#include "DropletGUIDefaults.h"
 #include <glm/glm.hpp>
 
 /**
@@ -23,22 +23,22 @@
 
 /**
  * @ingroup info 
- * \class	simInfoLogger
+ * \class	SimInfoLogger
  *
  * \brief	Simulation information logger.
  *
  */
 
-class simInfoLogger : public QObject
+class SimInfoLogger : public QObject
 {
 
 	Q_OBJECT
 
 public:
-	simInfoLogger(QObject *parent = 0);
+	SimInfoLogger(QObject *parent = 0);
 
 	/**
-	 * \fn	void simInfoLogger::Init();
+	 * \fn	void SimInfoLogger::Init();
 	 *
 	 * \brief	opens the output file and initializes some vars.
 	 */
@@ -46,7 +46,7 @@ public:
 	void Init();
 
 	/**
-	 * \fn	void simInfoLogger::printDropletData(simState_t stateInfo);
+	 * \fn	void SimInfoLogger::printDropletData(simState_t stateInfo);
 	 *
 	 * \brief	prints out droplet data to a file
 	 *
@@ -57,7 +57,7 @@ public:
 	void printDropletData(simState_t stateInfo);
 
 	/**
-	 * \fn	void simInfoLogger::setPosFlag(bool flag);
+	 * \fn	void SimInfoLogger::setPosFlag(bool flag);
 	 *
 	 * \brief	Sets flag.
 	 *
@@ -70,7 +70,7 @@ public:
 	void setCommSAFlag(bool flag);
 	void setMacroRedFlag(bool flag);
 	void setMacroSAFlag(bool flag);
-	~simInfoLogger();
+	~SimInfoLogger();
 
 private:
 
@@ -124,14 +124,14 @@ private:
 
 public slots:
 	/**
-	 * \fn	void simInfoLogger::close();
+	 * \fn	void SimInfoLogger::close();
 	 *
 	 * \brief	Closes output file.
 	 */
 	void close();
 
 	/**
-	 * \fn	void simInfoLogger::timeCheck(simState_t stateInfo);
+	 * \fn	void SimInfoLogger::timeCheck(simState_t stateInfo);
 	 *
 	 * \brief	Checks to see if enough time has elapsed since last print.
 	 *

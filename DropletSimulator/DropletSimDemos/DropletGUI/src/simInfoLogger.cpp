@@ -1,12 +1,12 @@
 /**
- * \file	cu-droplet\DropletSimulator\DropletSimDemos\DropletGUI\src\simInfoLogger.cpp
+ * \file	cu-droplet\DropletSimulator\DropletSimDemos\DropletGUI\src\SimInfoLogger.cpp
  *
- * \brief	Implements the simInfoLogger class.
+ * \brief	Implements the SimInfoLogger class.
  */
 
-#include "simInfoLogger.h"
+#include "SimInfoLogger.h"
 
-simInfoLogger::simInfoLogger(QObject *parent)
+SimInfoLogger::SimInfoLogger(QObject *parent)
 	: QObject(parent)
 {
 	timeInterval = NULL;
@@ -19,7 +19,7 @@ simInfoLogger::simInfoLogger(QObject *parent)
 	macroSAFlag = NULL;
 	QString newFile = NULL;
 }
-void simInfoLogger::Init()
+void SimInfoLogger::Init()
 {
 	newFile = QString(DEFAULT_ASSETDIR).append("output.txt");
     fp = fopen (newFile.toStdString().c_str(),"w");
@@ -62,12 +62,12 @@ void simInfoLogger::Init()
 	fprintf(fp, "\n\n");
 }
 
-simInfoLogger::~simInfoLogger()
+SimInfoLogger::~SimInfoLogger()
 {
 
 }
 
-void simInfoLogger::close()
+void SimInfoLogger::close()
 {
 	// If newFile == NULL, then Init has not been called.
 	// and thus a file has not been opened.
@@ -78,32 +78,32 @@ void simInfoLogger::close()
 	}
 }
 
-void simInfoLogger::setPosFlag(bool flag)
+void SimInfoLogger::setPosFlag(bool flag)
 {
 	posFlag = flag;
 }
-void simInfoLogger::setColorFlag(bool flag)
+void SimInfoLogger::setColorFlag(bool flag)
 {
 	colorFlag = flag;
 }
-void simInfoLogger::setRotationFlag(bool flag)
+void SimInfoLogger::setRotationFlag(bool flag)
 {
 	rotationFlag = flag;
 }
-void simInfoLogger::setCommSAFlag(bool flag)
+void SimInfoLogger::setCommSAFlag(bool flag)
 {
 	commSAFlag = flag;
 }
-void simInfoLogger::setMacroRedFlag(bool flag)
+void SimInfoLogger::setMacroRedFlag(bool flag)
 {
 	macroRedFlag = flag;
 }
-void simInfoLogger::setMacroSAFlag(bool flag)
+void SimInfoLogger::setMacroSAFlag(bool flag)
 {
 	macroSAFlag = flag;
 }
 
-void simInfoLogger::printDropletData(simState_t stateInfo)
+void SimInfoLogger::printDropletData(simState_t stateInfo)
 {
 	if(macroRedFlag){
 		redTally = 0;
@@ -165,7 +165,7 @@ void simInfoLogger::printDropletData(simState_t stateInfo)
 	fflush(fp);
 }
 
-void simInfoLogger::timeCheck(simState_t stateInfo)
+void SimInfoLogger::timeCheck(simState_t stateInfo)
 {
 	double currentTime;
 	currentTime = stateInfo.simTime;

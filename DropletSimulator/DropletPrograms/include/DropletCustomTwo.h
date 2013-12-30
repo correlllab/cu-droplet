@@ -1,8 +1,6 @@
-/* *** CURRENT PROGRAM ***
+/* *** PROGRAM DESCRIPTION ***
  * 
- * Guitar Construction.
  */
-
 #pragma once
 
 #ifndef _DROPLET_CUSTOM_TWO

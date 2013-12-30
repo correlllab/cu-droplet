@@ -48,8 +48,6 @@ class TrigArray
 private :
 	typedef struct _Relative_Position_Data
 	{
-//		float distance;
-//		float angle;
 		float xDist, yDist, zDist;
 	} RelPosData;
 
@@ -62,8 +60,6 @@ public :
 	
 	TrigArray(unsigned int numDroplets);
 	~TrigArray(void);
-
-//	DS_RESULT AddData(unsigned int d1, unsigned int d2, float dist, float angle);
 	
 	// Data is always signed relative to the lower droplet id (by convention)
 	DS_RESULT AddData(unsigned int d1, unsigned int d2, float xDist, float yDist, float zDist);

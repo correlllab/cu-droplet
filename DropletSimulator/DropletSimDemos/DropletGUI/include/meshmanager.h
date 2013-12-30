@@ -18,7 +18,7 @@
 #include <QVector3D>
 #include <QDebug>
 #include <QGLBuffer>
-#include "structs.h"
+#include "DropletGUIStructs.h"
 
 #define BUFFER_OFFSET(bytes) ((GLubyte*) NULL + (bytes))
 

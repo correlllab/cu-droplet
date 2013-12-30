@@ -26,8 +26,8 @@
 #include <QCoreApplication>
 #include <QAtomicInt>
 
-#include "defaults.h"
-#include "structs.h"
+#include "DropletGUIDefaults.h"
+#include "DropletGUIStructs.h"
 #include "AssetManager.h"
 
 #include <glm/glm.hpp>

@@ -22,6 +22,7 @@ SimInterface::SimInterface(QObject *parent)
 	_timerID = 0;
 	_timeUntilNextUpdate = 0;
 	_simStatus.dropletShape = NULL;
+
 	// TODO - abstract this better
 	makeDropletCollisionShapeFromFile(QString("assets/Models/HQDroplet.obj"));
 	_objectNames.single << "cube" << "sphere";
@@ -114,19 +115,13 @@ void SimInterface::Init()
 		pause();
 
 	teardownSim();
-	// TIMER
 
+	// TIMER
 	updateTiming();
 	_timeUntilNextUpdate = 0;
 
 	QTime time = QTime::currentTime();
 	srand((uint)time.msec());
-
-
-
-	// TIMER
-	//_simStatus.runTimeSubSec = 0;
-	//_simStatus.runTimeSec = 0;
 
 	_sim = new DropletSim();
 	SimSetupData setupData(
@@ -325,41 +320,7 @@ void SimInterface::Init()
 				droplet_t dType;
 
 				QString iType = list[0].toLower();
-
-/*				if (iType == QString("march"))
-				{
-					dType = March;
-				} else if (iType == QString("rainbow"))
-				{
-					dType = Rainbow;
-				} else if (iType == QString("turntest"))
-				{
-					dType = TurnTest;
-				} else if (iType == QString("rgbsense"))
-				{
-					dType = RGBSense;
-				} else if (iType == QString("randomwalk"))
-				{
-					dType = RandomWalk;
-				} else if (iType == QString("stickpullers"))
-				{
-					dType = StickPullers;
-				} else if (iType == QString("commtest"))
-				{
-					dType = CommTest;
-				} else if (iType == QString("powertest"))
-				{
-					dType = PowerTest;
-				} else if (iType == QString("granola"))
-				{
-					dType = Granola;
-				} else if (iType == QString("stickpullersupdated"))
-				{
-					dType = StickPullersUpdated;
-				} else if (iType == QString("ants"))
-				{
-					dType = Ants;
-				} else */if (iType == QString("customone"))
+				if (iType == QString("customone"))
 				{
 					dType = CustomOne;
 				} else if (iType == QString("customtwo"))
@@ -1210,39 +1171,6 @@ IDroplet* SimInterface::newDropletOfType(droplet_t dType, ObjectPhysicsData *dro
 
 	switch (dType)
 	{
-	//case RGBSense:
-	//	result = new DropletRGBSense(dropletPhyDat);
-	//	break;
-	//case RandomWalk:
-	//	result = new DropletRandomWalk(dropletPhyDat);
-	//	break;
-	//case March:
-	//	result = new DropletMarch(dropletPhyDat);
-	//	break;
-	//case Rainbow:
-	//	result = new DropletRainbow(dropletPhyDat);
-	//	break;
-	//case StickPullers:
-	//	result = new DropletStickPullers(dropletPhyDat);
-	//	break;
-	//case TurnTest:
-	//	result = new DropletTurnTest(dropletPhyDat);
-	//	break;
-	//case CommTest:
-	//	result = new DropletCommTest(dropletPhyDat);
-	//	break;
-	//case PowerTest:
-	//	result = new DropletPowerTest(dropletPhyDat);
-	//	break;
-	//case Granola:
-	//	result = new DropletGranola(dropletPhyDat);
-	//	break;
-	//case StickPullersUpdated:
-	//	result = new DropletStickPullersUpdated(dropletPhyDat);
-	//	break;
-	//case Ants:
-	//	result = new DropletAnts(dropletPhyDat);
-	//	break;
 	case CustomOne:
 		result = new DropletCustomOne(dropletPhyDat);
 		break;

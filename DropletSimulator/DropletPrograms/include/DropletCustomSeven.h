@@ -1,3 +1,6 @@
+/* *** PROGRAM DESCRIPTION ***
+ * 
+ */
 #pragma once
 
 #ifndef _DROPLET_CUSTOM_SEVEN

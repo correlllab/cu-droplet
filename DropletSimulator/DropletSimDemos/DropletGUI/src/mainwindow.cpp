@@ -211,8 +211,9 @@ void MainWindow::launchRenderer()
 void MainWindow::addLoadSetupFileWidgets()
 {
 	loadSetupFileCombo = new QComboBox;
-	loadSetupFileList = new QListView(loadSetupFileCombo);
+	loadSetupFileCombo->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
 
+	loadSetupFileList = new QListView(loadSetupFileCombo);
 	loadSetupFileList->setStyleSheet("QListView::item {  \
 									  border-bottom: 5px solid white; margin:3px; } \
 									  QListView::item:selected { \
@@ -221,40 +222,37 @@ void MainWindow::addLoadSetupFileWidgets()
 									  } \
 									  ");
 	loadSetupFileCombo->setView(loadSetupFileList);
-	loadSetupFileLabel = new QLabel(tr("Setup File Selection"));
-	loadSetupFileLabel->setBuddy(loadSetupFileCombo);
-	loadSetupFileLayout = new QVBoxLayout;
-	loadSetupFileLayout->addWidget(loadSetupFileLabel);
-	loadSetupFileLayout->addWidget(loadSetupFileCombo);
+
+	setupFileSaveButton = new QPushButton("Save");
+	setupFileSaveButton->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Preferred);
+
+	loadSetupFileDescription = new QTextEdit;
+	loadSetupFileDescription->setReadOnly(true);
+	loadSetupFileDescription->setPlainText("Setup File Description");
+
+	selectSetupFileLayout = new QHBoxLayout;
+	selectSetupFileLayout->addWidget(loadSetupFileCombo);
+	selectSetupFileLayout->addWidget(setupFileSaveButton);
 	
 	QObject::connect(loadSetupFileCombo, SIGNAL(currentIndexChanged(const QString &)),this,SLOT(updateParams(const QString &)));
 	QObject::connect(loadSetupFileCombo, SIGNAL(currentIndexChanged(const QString &)),this,SLOT(enableDisableDropletTable(const QString &)));
 
 	loadSetupFile = new QFrame();
 	loadSetupFile->setWindowTitle(tr("Load Parameters from Setup File"));
+	
 	QVBoxLayout *setupFileLayout = new QVBoxLayout();
-	setupFileLayout->addLayout(loadSetupFileLayout);
+	setupFileLayout->addLayout(selectSetupFileLayout);
+	setupFileLayout->addWidget(loadSetupFileDescription);
+
 	loadSetupFile->setLayout(setupFileLayout);
-	loadSetupFile->setFrameStyle(QFrame::Panel);
+	loadSetupFile->setFrameStyle(QFrame::StyledPanel);
 	loadSetupFile->setLineWidth(1);
 }
 
 void MainWindow::addDropletWidgets()
 {
-//	dropletTableWidget = new QTableWidget(21,1);
 	dropletTableWidget = new QTableWidget(10,1);
 	QStringList vertHeaders;
-	//vertHeaders.append("March");
-	//vertHeaders.append("Rainbow");
-	//vertHeaders.append("RandomWalk");
-	//vertHeaders.append("RGBSense");
-	//vertHeaders.append("StickPullers");
-	//vertHeaders.append("TurnTest");
-	//vertHeaders.append("CommTest");
-	//vertHeaders.append("PowerTest");
-	//vertHeaders.append("Granola");
-	//vertHeaders.append("StickPullersUpdated");
-	//vertHeaders.append("Ants");
 	vertHeaders.append("CustomOne");
 	vertHeaders.append("CustomTwo");
 	vertHeaders.append("CustomThree");
@@ -271,17 +269,19 @@ void MainWindow::addDropletWidgets()
 	dropletTableWidget->setHorizontalHeaderLabels(horHeaders);
 
 	for(int i = 0; i < dropletTableWidget->rowCount(); i++) 
-	{
-		dropletTableWidget->setItem(i, 0, new QTableWidgetItem("0"));
-		
-	}
+		dropletTableWidget->setItem(i, 0, new QTableWidgetItem("0"));		
+
+	dropProgramsDescription = new QTextEdit;
+	dropProgramsDescription->setReadOnly(true);
+	dropProgramsDescription->insertPlainText("Droplet Program Description");
 
 	dropletParams = new QFrame;
-	dropletParams->setWindowTitle(tr("Droplet Parameters"));
-	QVBoxLayout *dropletParamsLayout = new QVBoxLayout;
+	dropletParams->setWindowTitle(tr("Droplet Programs"));
+	QHBoxLayout *dropletParamsLayout = new QHBoxLayout;
 	dropletParamsLayout->addWidget(dropletTableWidget);
+	dropletParamsLayout->addWidget(dropProgramsDescription);
 	dropletParams->setLayout(dropletParamsLayout);
-	dropletParams->setFrameStyle(QFrame::Panel);
+	dropletParams->setFrameStyle(QFrame::StyledPanel);
 	dropletParams->setLineWidth(1);
 }
 
@@ -605,112 +605,6 @@ void MainWindow::setUI(simSetting_t settings)
 			addition = 1;
 		}
 		QString type = list[0].toLower();
-/*		if (type == QString("march"))
-		{
-			int temp = dropletTableWidget->item(0,0)->text().toInt()  + addition;
-			QString string = QString::number(temp);
-			dropletTableWidget->setItem(0,0,new QTableWidgetItem(string));
-		} else if (type == QString("rainbow"))
-		{
-			int temp = dropletTableWidget->item(1,0)->text().toInt()  + addition;
-			QString string = QString::number(temp);
-			dropletTableWidget->setItem(1,0,new QTableWidgetItem(string));
-		} else if (type == QString("randomwalk"))
-		{
-			int temp = dropletTableWidget->item(2,0)->text().toInt()  + addition;
-			QString string = QString::number(temp);
-			dropletTableWidget->setItem(2,0,new QTableWidgetItem(string));
-		} else if (type == QString("rgbsense"))
-		{
-			int temp = dropletTableWidget->item(3,0)->text().toInt()  + addition;
-			QString string = QString::number(temp);
-			dropletTableWidget->setItem(3,0,new QTableWidgetItem(string));
-		} else if (type == QString("stickpullers"))
-		{
-			int temp = dropletTableWidget->item(4,0)->text().toInt()  + addition;
-			QString string = QString::number(temp);
-			dropletTableWidget->setItem(4,0,new QTableWidgetItem(string));
-		} else if (type == QString("turntest"))
-		{
-			int temp = dropletTableWidget->item(5,0)->text().toInt()  + addition;
-			QString string = QString::number(temp);
-			dropletTableWidget->setItem(5,0,new QTableWidgetItem(string));
-		} else if (type == QString("commtest"))
-		{
-			int temp = dropletTableWidget->item(6,0)->text().toInt()  + addition;
-			QString string = QString::number(temp);
-			dropletTableWidget->setItem(6,0,new QTableWidgetItem(string));
-		} else if (type == QString("powertest"))
-		{
-			int temp = dropletTableWidget->item(7,0)->text().toInt()  + addition;
-			QString string = QString::number(temp);
-			dropletTableWidget->setItem(7,0,new QTableWidgetItem(string));
-		} else if (type == QString("granola"))
-		{
-			int temp = dropletTableWidget->item(8,0)->text().toInt()  + addition;
-			QString string = QString::number(temp);
-			dropletTableWidget->setItem(8,0,new QTableWidgetItem(string));
-		} else if (type == QString("stickpullersupdated"))
-		{
-			int temp = dropletTableWidget->item(9,0)->text().toInt()  + addition;
-			QString string = QString::number(temp);
-			dropletTableWidget->setItem(9,0,new QTableWidgetItem(string));
-		} else if (type == QString("ants"))
-		{
-			int temp = dropletTableWidget->item(10,0)->text().toInt()  + addition;
-			QString string = QString::number(temp);
-			dropletTableWidget->setItem(10,0,new QTableWidgetItem(string));
-		} else if (type == QString("customone"))
-		{
-			int temp = dropletTableWidget->item(11,0)->text().toInt()  + addition;
-			QString string = QString::number(temp);
-			dropletTableWidget->setItem(11,0,new QTableWidgetItem(string));
-		} else if (type == QString("customtwo"))
-		{
-			int temp = dropletTableWidget->item(12,0)->text().toInt()  + addition;
-			QString string = QString::number(temp);
-			dropletTableWidget->setItem(12,0,new QTableWidgetItem(string));
-		} else if (type == QString("customthree"))
-		{
-			int temp = dropletTableWidget->item(13,0)->text().toInt()  + addition;
-			QString string = QString::number(temp);
-			dropletTableWidget->setItem(13,0,new QTableWidgetItem(string));
-		} else if (type == QString("customfour"))
-		{
-			int temp = dropletTableWidget->item(14,0)->text().toInt()  + addition;
-			QString string = QString::number(temp);
-			dropletTableWidget->setItem(14,0,new QTableWidgetItem(string));
-		} else if (type == QString("customfive"))
-		{
-			int temp = dropletTableWidget->item(15,0)->text().toInt()  + addition;
-			QString string = QString::number(temp);
-			dropletTableWidget->setItem(15,0,new QTableWidgetItem(string));
-		} else if (type == QString("customsix"))
-		{
-			int temp = dropletTableWidget->item(16,0)->text().toInt()  + addition;
-			QString string = QString::number(temp);
-			dropletTableWidget->setItem(16,0,new QTableWidgetItem(string));
-		} else if (type == QString("customseven"))
-		{
-			int temp = dropletTableWidget->item(17,0)->text().toInt()  + addition;
-			QString string = QString::number(temp);
-			dropletTableWidget->setItem(17,0,new QTableWidgetItem(string));
-		} else if (type == QString("customeight"))
-		{
-			int temp = dropletTableWidget->item(18,0)->text().toInt()  + addition;
-			QString string = QString::number(temp);
-			dropletTableWidget->setItem(18,0,new QTableWidgetItem(string));
-		} else if (type == QString("customnine"))
-		{
-			int temp = dropletTableWidget->item(19,0)->text().toInt()  + addition;
-			QString string = QString::number(temp);
-			dropletTableWidget->setItem(19,0,new QTableWidgetItem(string));
-		} else if (type == QString("customten"))
-		{
-			int temp = dropletTableWidget->item(20,0)->text().toInt()  + addition;
-			QString string = QString::number(temp);
-			dropletTableWidget->setItem(20,0,new QTableWidgetItem(string));
-		}*/
 
 		// TODO : If this works put the strings in an array and set program_id by comparing strings in a loop
 		if (type == QString("customone"))

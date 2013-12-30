@@ -8,8 +8,8 @@
 #define ASSETMANAGER_H
 
 
-#include "texturemanager.h"
-#include "meshmanager.h"
+#include "TextureManager.h"
+#include "MeshManager.h"
 
 #include <QObject>
 #include <QHash>

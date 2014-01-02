@@ -33,8 +33,6 @@ private :
 	DropletCommData *commData;
 	DropletCompData *compData;
 	DropletTimeData *timeData;
-
-
 	
 	/** \name Simulator backend functions  
 	 *  
@@ -117,6 +115,7 @@ private :
 		*compData = pDroplet->compData;
 	}
 
+
 	friend void AccessTimeData(IDroplet *pDroplet, DropletTimeData **timeData)
 	{
 		*timeData = pDroplet->timeData;
@@ -125,7 +124,12 @@ private :
 	///@}
 protected :
 
-	
+	DropletStatData *statData;
+	friend void AccessStatData(IDroplet *pDroplet, DropletStatData **statData)
+	{
+		*statData = pDroplet->statData;
+	}
+
 /** @name Subsystem setup functions.
  */
 ///@{

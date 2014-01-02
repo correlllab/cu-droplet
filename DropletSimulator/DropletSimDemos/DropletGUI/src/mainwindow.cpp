@@ -302,38 +302,34 @@ void MainWindow::addArenaWidgets()
 	arenaSelectionCombo->setView(arenaSelectionList);
 	arenaSelectionLabel = new QLabel(tr("Arena Selection"));
 	arenaSelectionLabel->setBuddy(arenaSelectionCombo);
-	arenaSelectionLayout = new QVBoxLayout;
+	arenaSelectionLayout = new QHBoxLayout;
 	arenaSelectionLayout->addWidget(arenaSelectionLabel);
 	arenaSelectionLayout->addWidget(arenaSelectionCombo);
 
-	QObject::connect(arenaSelectionCombo, SIGNAL(currentIndexChanged(const QString &)),this,SLOT(showHideRowColWidget(const QString &)));
+	QObject::connect(arenaSelectionCombo, SIGNAL(currentIndexChanged(const QString &)),this,SLOT(enableDisableRowColWidget(const QString &)));
 	QObject::connect(arenaSelectionCombo, SIGNAL(currentIndexChanged(const QString &)),&_simInterface,SLOT(loadTilePositions(const QString &)));
 
-	rowColLayout = new QVBoxLayout;
+	rowColLayout = new QHBoxLayout;
 	rowColWidget = new QWidget;
-
-	// Number of Columns
-	numColBox = new QSpinBox;
-	numColBox->setRange(1,10);
-	numColBox->setValue(DEFAULT_COL_TILES);
-	numColLabel = new QLabel(tr("Number of columns in arena: "));
-	numColLabel->setBuddy(numColBox);
-	numColLayout = new QHBoxLayout;
-	numColLayout->addWidget(numColLabel);
-	numColLayout->addWidget(numColBox);
 
 	// Number of Rows
 	numRowBox = new QSpinBox;
 	numRowBox->setRange(1,10);
 	numRowBox->setValue(DEFAULT_ROW_TILES);
-	numRowLabel = new QLabel(tr("Number of rows in arena: "));
+	numRowLabel = new QLabel(tr("Rows "));
 	numRowLabel->setBuddy(numRowBox);
-	numRowLayout = new QHBoxLayout;
-	numRowLayout->addWidget(numRowLabel);
-	numRowLayout->addWidget(numRowBox);
 
-	rowColLayout->addLayout(numColLayout);
-	rowColLayout->addLayout(numRowLayout);
+	// Number of Columns
+	numColBox = new QSpinBox;
+	numColBox->setRange(1,10);
+	numColBox->setValue(DEFAULT_COL_TILES);
+	numColLabel = new QLabel(tr("x Columns "));
+	numColLabel->setBuddy(numColBox);
+
+	rowColLayout->addWidget(numRowLabel);
+	rowColLayout->addWidget(numRowBox);
+	rowColLayout->addWidget(numColLabel);
+	rowColLayout->addWidget(numColBox);
 	rowColWidget->setLayout(rowColLayout);
 
 	// Projector Images
@@ -351,7 +347,7 @@ void MainWindow::addArenaWidgets()
 	projectorImageCombo->setView(projectorImageList);
 	projectorImageLabel = new QLabel(tr("Projection Images"));
 	projectorImageLabel->setBuddy(projectorImageCombo);
-	projectorImagesLayout = new QVBoxLayout;
+	projectorImagesLayout = new QHBoxLayout;
 	projectorImagesLayout->addWidget(projectorImageLabel);
 	projectorImagesLayout->addWidget(projectorImageCombo);
 
@@ -435,7 +431,7 @@ void MainWindow::setUpGUI()
 	QLabel *loadSetupFileLabel = new QLabel("Load Setup File");
 	mainLayout->addWidget(loadSetupFileLabel);
 	mainLayout->addWidget(loadSetupFile);
-	QLabel *dropletParamsLabel = new QLabel("Droplet Parameters");
+	QLabel *dropletParamsLabel = new QLabel("Droplet Programs");
 	mainLayout->addWidget(dropletParamsLabel);
 	mainLayout->addWidget(dropletParams);
 	QLabel *arenaParamsLabel = new QLabel("Arena Parameters");
@@ -815,12 +811,12 @@ void MainWindow::showHideLogWidget(int state)
 		logWidget->hide();
 }
 
-void MainWindow::showHideRowColWidget(const QString & text)
+void MainWindow::enableDisableRowColWidget(const QString &text)
 {
 	if(text.operator==("Default (Rectangle)"))
-		rowColWidget->show();
+		rowColWidget->setEnabled(true);
 	else
-		rowColWidget->hide();
+		rowColWidget->setEnabled(false);
 }
 
 void MainWindow::updateSetupFile(const QString &file)

@@ -28,6 +28,7 @@ IDroplet::IDroplet(ObjectPhysicsData *objPhysics)
 	commData	= (DropletCommData *)malloc(sizeof(DropletCommData));
 	compData	= (DropletCompData *)malloc(sizeof(DropletCompData));
 	timeData	= (DropletTimeData *)malloc(sizeof(DropletTimeData));
+	statData	= (DropletStatData *)malloc(sizeof(DropletStatData));
 	this->global_rx_buffer.buf = (uint8_t *)malloc(sizeof(uint8_t) * IR_BUFFER_SIZE);
 }
 	
@@ -38,6 +39,7 @@ IDroplet::~IDroplet()
 	free(senseData);
 	free(commData);
 	free(compData);
+	free(statData);
 
 	objPhysics = NULL;
 	actData = NULL;

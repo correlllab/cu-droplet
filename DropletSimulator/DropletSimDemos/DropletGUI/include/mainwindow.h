@@ -160,14 +160,14 @@ public slots:
 	void setUI(simSetting_t settings);
 
 	/**
-	 * \fn	void MainWindow::showHideRowColWidget(const QString & text);
+	 * \fn	void MainWindow::enableDisableRowColWidget(const QString & text);
 	 *
 	 * \brief	Toggles the rowColWidget between show and hide.
 	 *
 	 * \param	text	if 'Default (Rectangle)', widget is shown, otherwise hid.
 	 */
 
-	void showHideRowColWidget(const QString & text);
+	void enableDisableRowColWidget(const QString & text);
 
 	/**
 	 * \fn	void MainWindow::showHideLogWidget(int state);
@@ -264,13 +264,13 @@ private:
 	QHBoxLayout *numDropLayout;
 
 	/**
-	 * \property QSpinBox *numColBox, QLabel *numColLabel, QHBoxLayout *numColLayout
+	 * \property QSpinBox *numColBox, QLabel *numColLabel
 	 * \brief	Qt widgets for selecting the number of arena columns parameter.
 	 */
 
 	QSpinBox *numColBox;
 	QLabel *numColLabel;
-	QHBoxLayout *numColLayout;
+
 
 	/**
 	 * \property QSpinBox *numRowBox, QLabel *numRowLabel, QHBoxLayout *numRowLayout 
@@ -279,7 +279,6 @@ private:
 
 	QSpinBox *numRowBox;
 	QLabel *numRowLabel;
-	QHBoxLayout *numRowLayout;
 
 	/**
 	 * \property QLabel *loadSetupFileLabel, QComboBox *loadSetupFileCombo, QListView *loadSetupFileList, QVBoxLayout *loadSetupFileLayout 
@@ -300,14 +299,14 @@ private:
 	QLabel *arenaSelectionLabel;
 	QComboBox *arenaSelectionCombo;
 	QListView *arenaSelectionList;
-	QVBoxLayout *arenaSelectionLayout;
+	QHBoxLayout *arenaSelectionLayout;
 
 	/**
 	 * \property QVBoxLayout *rowColLayout, QWidget *rowColWidget
 	 * \brief	The row widgets and column widgets are shown or hid, so they are within a single rowColWid.
 	 */
 
-	QVBoxLayout *rowColLayout;
+	QHBoxLayout *rowColLayout;
 	QWidget *rowColWidget;
 
 	
@@ -341,7 +340,7 @@ private:
 	QLabel *projectorImageLabel;
 	QComboBox *projectorImageCombo;
 	QListView *projectorImageList;
-	QVBoxLayout *projectorImagesLayout;
+	QHBoxLayout *projectorImagesLayout;
 
 	/**
 	 * \property QPushButton *launchSimulation, QPushButton *launchRenderWidget 

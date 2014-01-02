@@ -132,4 +132,19 @@ typedef struct _Droplet_Timing_Data
 
 } DropletTimeData;
 
+/**
+ * This is a special structure for user-set state variables to track droplet
+ * behavior over the course of an experiment. It is a convenience struct 
+ * which has handles in the DropletSimInfo class for extracting experimental
+ * data in the middle of simulation. When writing Droplet programs, you may use 
+ * this for tracking and storing useful data.
+ */
+typedef struct _Droplet_Status_Data
+{
+	uint8_t	state_changed,
+			color_changed,
+			msg_sent,
+			msg_recv;
+} DropletStatData;
+
 #endif

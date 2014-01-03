@@ -1000,6 +1000,7 @@ void ir_transmit_complete(uint8_t dir)
 
 	if(IR_RX_DEBUG_MODE >=2 )	printf("LIGHTS OFF %i\r\n", dir);
 	
+	//printf("IRTXFIN %hhu\r\n",dir);
 	TCF2.CTRLB &= ~ir_carrier_bm[dir];
 	ir_reset_tx(dir);
 

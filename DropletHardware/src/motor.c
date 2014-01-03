@@ -125,9 +125,9 @@ int8_t is_rotating(void) // returns 0 if droplet is not rotating, 1 if rotating 
 
 uint8_t is_moving(void) // returns 0 if droplet is not moving, (1-6) if moving
 {
-	if (motor_status & MOTOR_STATUS_ON)
-	if (motor_status & MOTOR_STATUS_DIRECTION < 6)
-	return (motor_status & MOTOR_STATUS_DIRECTION) + 1;
+	if ((motor_status & MOTOR_STATUS_ON) || (motor_status & MOTOR_STATUS_DIRECTION < 6)){
+		return (motor_status & MOTOR_STATUS_DIRECTION) + 1;
+	}	
 	
 	return 0;
 }

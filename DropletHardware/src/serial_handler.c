@@ -380,7 +380,7 @@ void handle_cmd(char* command_args, uint8_t should_broadcast)
 	
 	else
 	{
-		printf("\tIt wasn't OK to send command");
+		printf("\tIt wasn't OK to send command\r\n");
 	}
 }
 

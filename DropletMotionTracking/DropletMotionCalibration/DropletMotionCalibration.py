@@ -1,3 +1,4 @@
+from __future__ import print_function
 import serial
 import sys
 import time
@@ -8,6 +9,7 @@ import numpy as np
 import LP as lp # For Linear Programming code
 import FindCircle as fc
 import SocketConnection as sc
+
 
 baud = 115200
 motor_lower_bound = 30
@@ -24,7 +26,7 @@ def open_serial_port(port):
     """
     # Open the serial port
     try:
-        port_h = serial.Serial(port, baudrate=baud)
+        port_h = serial.Serial(port, baudrate=baud,timeout=5)
     except serial.SerialException:
         print("ERROR: Port " + port + " is already open!\n")
         return
@@ -43,6 +45,14 @@ def open_serial_port(port):
 
     return port_h
 
+def serial_read(port_h=False):
+    if not port_h:
+        port_h = default_port
+
+    dat = port_h.readline()
+    #sys.stdout.write(dat)
+    print(dat, end='')
+
 def serial_write(data, port_h=False):
     """ Function serial_write(): Appends a newline character and writes <data> to opened serial port <port_h>.
     """
@@ -55,8 +65,8 @@ def serial_write(data, port_h=False):
     out_dat = data + '\n';
     port_h.write(out_dat)
     port_h.flushOutput()
-    time.sleep(.25)
-    #time.sleep(0.15)
+    time.sleep(0.5)
+    serial_read(port_h)
 
 def testRR():
     print(rr.GetArrayVariable("BLOB_TRACKING"))
@@ -67,10 +77,10 @@ def init_motor_values(port_h=False):
     if not port_h:
         port_h = default_port
 
-    for i in range(3):
-        for i in range(8):
-            settings = ' '.join(map(str,map(get_raw_motor,current_motor_settings[i])))
-            serial_write('cmd set_motor %d %s'%(i, settings), port_h)
+    #for i in range(3):
+    for i in range(8):
+        settings = ' '.join(map(str,map(get_raw_motor,current_motor_settings[i])))
+        serial_write('cmd set_motor %d %s'%(i, settings), port_h)
            # print('cmd set_motor %s %s'%(k, motor_values[k]))
            # sys.stdout.flush()
 
@@ -78,16 +88,20 @@ def get_default_port():
     return default_port
 
 def get_raw_motor(val):
-    if val is 0:
+    ret_val = int(round(abs(val)*(motor_upper_bound-motor_lower_bound)+motor_lower_bound))
+    if val>0:
+        return ret_val
+    elif val<0:
+        return -ret_val
+    else:
         return 0
-    return int(round(val*(motor_upper_bound-motor_lower_bound)+motor_lower_bound))
 
 def update_motor(dir, port_h=False):
     if not port_h:
         port_h = default_port
     settings = ' '.join(map(str,map(get_raw_motor,current_motor_settings[dir])))
-    print("Setting %d to %s, sending:"%(dir, settings))
-    print('cmd set_motor %d %s'%(dir, settings))
+    #print("Setting %d to %s, sending:"%(dir, settings))
+    #print('cmd set_motor %d %s'%(dir, settings))
     serial_write('cmd set_motor %d %s'%(dir, settings), port_h)
 
 def change_motor(dir, val0, val1, val2, port_h=False):
@@ -96,8 +110,16 @@ def change_motor(dir, val0, val1, val2, port_h=False):
     current_motor_settings[dir][0]+= val0
     current_motor_settings[dir][1]+= val1
     current_motor_settings[dir][2]+= val2 
-    print(current_motor_settings[dir])
+    print("New Values: %s"%(str(current_motor_settings[dir])))
     update_motor(dir)
+
+def blinky_led_party(port_h=False):
+    if not port_h:
+        port_h = default_port
+    serial_write('cmd set_led rgb 0 100 100', port_h)
+    serial_write('cmd set_led rgb 100 0 100', port_h)
+    serial_write('cmd set_led rgb 100 100 0', port_h)
+    serial_write('cmd set_led rgb 0 0 0', port_h)
 
 def run_opt_phase(blob_id, port_h=False, history = 80):
     """ Function run_opt_phase(port_h): Runs the optimization phase for droplet walking.
@@ -123,7 +145,8 @@ def run_opt_phase(blob_id, port_h=False, history = 80):
                 last_pos = pos_list[-1]
                 sign = np.linalg.det(np.array([last_pos-first_pos, center-first_pos]).transpose())
                 serial_write('cmd stop_walk', port_h)
-                serial_write('cmd walk 0 1', port_h) #TODO: Shouldn't have to do this. Fix on Droplet end.
+               # blinky_led_party()
+                #time.sleep(0.5) #We think that this is to make sure it finishes the last step (so it gets to the if cancelled line at top of take_step)
                 if(sign>0):
                     change_motor(0,0,-0.05,0.05, port_h)                    
                     print("center: (%f,%f), rad: %f, residu: %f, left"%(center[0], center[1], radius,residual))
@@ -143,7 +166,6 @@ def run_opt_phase(blob_id, port_h=False, history = 80):
                 except KeyError:
                     print("I lost my droplet friend!!! T_T")
                     serial_write('cmd stop_walk', port_h)
-                    serial_write('cmd walk 0 1', port_h) #Shouldn't have to do this. Fix on Droplet end.
                     break
                 # update counter
                 h += 1
@@ -151,7 +173,6 @@ def run_opt_phase(blob_id, port_h=False, history = 80):
     except KeyboardInterrupt:
         print("Optimization phase interrupted by user. Don\'t forget to close the serial port!\n")
         serial_write('cmd stop_walk', port_h)
-        serial_write('cmd walk 0 1', port_h) #Shouldn't have to do this. Fix on Droplet end.
 
 
 open_serial_port("COM9")

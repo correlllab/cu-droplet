@@ -12,9 +12,11 @@ import SocketConnection as sc
 
 
 baud = 115200
-motor_lower_bound = 30
-motor_upper_bound = 75
-current_motor_settings=[[0, 0.5, 0.5], [-0.5, -0.5, 0], [0.5, 0, 0.5], [0, -0.5, -0.5], [0.5, 0.5, 0], [-0.5, 0, -0.5], [0.5, 0.5, 0.5], [-0.5, -0.5, -0.5]]
+motor_lower_bound = 40
+motor_upper_bound = 76
+change_motor_signs_LEFT = [[0, -0.5, 0.5], [-0.5, 0.5, 0], [0.5, 0, -0.5], [0, 0.5, -0.5], [0.5, -0.5, 0], [-0.5, 0, 0.5]] #TODO: Implement for turning.
+change_motor_signs_RIGHT = [[0, 0.5, -0.5], [0.5, -0.5, 0], [-0.5, 0, 0.5], [0, -0.5, 0.5], [-0.5, 0.5, 0], [0.5, 0, -0.5]] #TODO: Implement for turning.
+current_motor_settings=[[0, 0.666, 0.666], [-0.666, -0.666, 0], [0.666, 0, 0.666], [0, -0.666, -0.666], [0.666, 0.666, 0], [-0.666, 0, -0.666], [0.666, 0.666, 0.666], [-0.666, -0.666, -0.666]]
 #dat_file_name = os.path.expanduser('~')+'\\Desktop\\'+'droplet_pos'
 
 def open_serial_port(port):
@@ -49,9 +51,12 @@ def serial_read(port_h=False):
     if not port_h:
         port_h = default_port
 
-    dat = port_h.readline()
+    while port_h.inWaiting() > 0:
+        dat = port_h.readline()
+        print('\t', end='')
+        print(dat.strip())
     #sys.stdout.write(dat)
-    print(dat, end='')
+
 
 def serial_write(data, port_h=False):
     """ Function serial_write(): Appends a newline character and writes <data> to opened serial port <port_h>.
@@ -104,12 +109,15 @@ def update_motor(dir, port_h=False):
     #print('cmd set_motor %d %s'%(dir, settings))
     serial_write('cmd set_motor %d %s'%(dir, settings), port_h)
 
-def change_motor(dir, val0, val1, val2, port_h=False):
+def change_motor(dir, change_values, port_h=False):
     if not port_h:
         port_h = default_port
-    current_motor_settings[dir][0]+= val0
-    current_motor_settings[dir][1]+= val1
-    current_motor_settings[dir][2]+= val2 
+    for i in range(3):
+        current_motor_settings[dir][i]+= change_values[i]
+        if current_motor_settings[dir][i]>1.0:
+            current_motor_settings[dir][i]=1.0
+        if current_motor_settings[dir][i]<-1.0:
+            current_motor_settings[dir][i]=-1.0
     print("New Values: %s"%(str(current_motor_settings[dir])))
     update_motor(dir)
 
@@ -121,7 +129,19 @@ def blinky_led_party(port_h=False):
     serial_write('cmd set_led rgb 100 100 0', port_h)
     serial_write('cmd set_led rgb 0 0 0', port_h)
 
-def run_opt_phase(blob_id, port_h=False, history = 80):
+def get_prop_control_value(radius):
+    val=5/(radius+20)
+    if val>0.2:
+        val=0.2
+    return val
+
+def get_other_control_value(cross_count):
+    exp = 4-cross_count
+    if exp<0:
+        return 0
+    return (2**exp)/100.0
+
+def run_opt_phase(blob_id, dir, port_h=False, history = 120):
     """ Function run_opt_phase(port_h): Runs the optimization phase for droplet walking.
     This function runs almost all of it's code in a continuous loop.
     Arguments:
@@ -133,8 +153,10 @@ def run_opt_phase(blob_id, port_h=False, history = 80):
 
     pos_list = np.zeros((history,2))
     h = 0
+   #last_side=0 #0 if we haven't set this before, 1 if last side was left, -1 if last side was right. #OTHER CONTROL
+    #cross_count=0 #number of times we've switched from right side to left side. #OTHER CONTROL
     try:
-        serial_write('cmd walk 0 60', port_h)
+        serial_write('cmd walk %d 60'%(dir), port_h)
 
         while(True):
             if(h == history):
@@ -145,22 +167,31 @@ def run_opt_phase(blob_id, port_h=False, history = 80):
                 last_pos = pos_list[-1]
                 sign = np.linalg.det(np.array([last_pos-first_pos, center-first_pos]).transpose())
                 serial_write('cmd stop_walk', port_h)
-               # blinky_led_party()
-                #time.sleep(0.5) #We think that this is to make sure it finishes the last step (so it gets to the if cancelled line at top of take_step)
+                
+                prop=get_prop_control_value(radius) #PROPORTIONAL CONTROL
+                #prop=get_other_control_value(cross_count) #OTHER CONTROL
+                print("center: (%f,%f), rad: %f, residu: %f >> "%(center[0], center[1], radius,residual), end='')
                 if(sign>0):
-                    change_motor(0,0,-0.05,0.05, port_h)                    
-                    print("center: (%f,%f), rad: %f, residu: %f, left"%(center[0], center[1], radius,residual))
+                    print("Left")
+                    #if last_side<0: #OTHER CONTROL
+                    #    cross_count+=1 #OTHER CONTROL
+                    #last_side=1 #OTHER CONTROL
+                    change_values = map(lambda x: x*prop, change_motor_signs_LEFT[dir])
+                    change_motor(dir, change_values, port_h)                    
                     sys.stdout.flush()
                 else:
-                    change_motor(0,0,0.05,-0.05, port_h)  
-                    print("center: (%f,%f), rad: %f, residu: %f, right"%(center[0], center[1], radius,residual))
+                    print("Right")
+                    #if last_side>0: #OTHER CONTROL
+                    #    cross_count+=1 #OTHER CONTROL
+                    #last_side=-1 #OTHER CONTROL
+                    change_values = map(lambda x: x*prop, change_motor_signs_RIGHT[dir])
+                    change_motor(dir, change_values, port_h)  
                     sys.stdout.flush()
-                serial_write('cmd walk 0 60', port_h)
+                serial_write('cmd walk %d 60'%(dir), port_h)
                 h = 0
             else:
                 # gather droplet position data
                 blobs = sc.update_rr_data()
-                #print [pos_x, pos_y]
                 try:
                     pos_list[h] = np.array(blobs[blob_id])
                 except KeyError:

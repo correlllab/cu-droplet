@@ -55,7 +55,7 @@
 <Movement>
   <anti_auto_adjustment>TRUE</anti_auto_adjustment>
   <continuous>FALSE</continuous>
-  <difference>5</difference>
+  <difference> 5</difference>
   <difference_channel>1</difference_channel>
   <freeze_difference>0</freeze_difference>
   <freeze_percent>0</freeze_percent>

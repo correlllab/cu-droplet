@@ -170,7 +170,7 @@ void handle_walk(char* command_args)
 
 void handle_stop_walk()
 {
-	stop();
+	cancel_move();
 }
 
 void handle_set_motor(char* command_args)

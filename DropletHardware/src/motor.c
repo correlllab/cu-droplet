@@ -45,6 +45,8 @@ void stop()
 // Can also be used to rotate, if direction is set as CLOCKWISE or COUNTERCLOCKWISE
 uint8_t move_steps(uint8_t direction, uint16_t num_steps)
 {
+	//stop(); Pretty sure john added this.
+	//cancel_move(); Maybe put this in.
 	if(is_moving()||is_rotating())
 		return 0;
 	

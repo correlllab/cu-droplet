@@ -52,24 +52,6 @@
   <name>Calibrated Source</name>
   <revert_to/>
 </Marker>
-<Python_Program_v2x disabled>
-  <script>import rr
-lineVals = rr.GetArrayVariable("LINE_PROFILE_VALUES");
-
-lineMean = float(sum(lineVals))/len(lineVals)
-print("Length: %d, Mean: %f"%(len(lineVals),lineMean))
-lineMean=int(lineMean)
-diffs = [lineMean-lineVals[i] for i in range(len(lineVals))]
-#print([diffs[i] for i in range(len(diffs)) if diffs[i]&gt;0])
-lowerPixels = [i for i in range(len(lineVals)) if diffs[i] &gt; 10]
-#print(lowerPixels)
-pixelDiffs = [lowerPixels[i+1]-lowerPixels[i] for i in range(len(lowerPixels)-1)]
-pixelDiffs = [pixelDiffs[i] for i in range(len(pixelDiffs)) if (pixelDiffs[i]&gt;20) and (pixelDiffs[i]&lt;70)]
-print(pixelDiffs)
-</script>
-  <source_mode>gui</source_mode>
-  <tab_size_index>1</tab_size_index>
-</Python_Program_v2x>
 <Movement>
   <anti_auto_adjustment>TRUE</anti_auto_adjustment>
   <continuous>FALSE</continuous>
@@ -127,16 +109,10 @@ print(pixelDiffs)
   <track_size>TRUE</track_size>
   <trail_length>5</trail_length>
 </Blob_Tracking>
-<Display_Variables>
-  <border_color>red</border_color>
-  <dim_background>TRUE</dim_background>
-  <display_as_annotation>FALSE</display_as_annotation>
-  <display_value_only>FALSE</display_value_only>
-  <font_color>white</font_color>
-  <font_size>Small (8pt)</font_size>
-  <northwest>BLOB_TRACKING
-</northwest>
-</Display_Variables>
+<Socket_Program>
+  <hostname>localhost</hostname>
+  <port>5050</port>
+</Socket_Program>
 <Write_Variables disabled>
   <append>TRUE</append>
   <colom_delimiter>[comma]</colom_delimiter>

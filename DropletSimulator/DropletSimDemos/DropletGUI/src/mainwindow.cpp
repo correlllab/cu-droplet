@@ -20,6 +20,8 @@ MainWindow::MainWindow(QWidget *parent)
 	if (qApp)
 		qApp->installEventFilter(this);
 
+	setupFileDescriptionLoaded = false;
+	dropProgramDescriptionLoaded = false;
 	setUpGUI();
 
 	simSetting_t settings = _simInterface.getDefaultSettings();
@@ -703,8 +705,23 @@ bool MainWindow::loadFromFile(QString filename, simSetting_t &settings)
 				QString line = in.readLine(0);
 				if (line.count() > 0)
 				{
+					// Parse description
+					if(line.startsWith('#') && !setupFileDescriptionLoaded)
+					{
+						QString descriptionText = line.remove('#');
+						while(!in.atEnd())
+						{
+							line = in.readLine(0);
+							if(!line.startsWith('#'))
+								break;
+							descriptionText.append(line.remove('#'));
+						}
+						loadSetupFileDescription->clear();
+						loadSetupFileDescription->insertPlainText(descriptionText);
+					}
 					if (!line.startsWith("#"))
 					{
+						setupFileDescriptionLoaded = true;
 						QStringList list = line.split(" ",QString::SkipEmptyParts);
 						if (list.count() > 0)
 						{
@@ -834,6 +851,7 @@ void MainWindow::updateParams(const QString & text)
 {
 	fileName = QString(DEFAULT_ASSETDIR).append(DEFAULT_SETUPDIR).append(text).append(".txt");
 	simSetting_t settings = _simInterface.getDefaultSettings();
+	setupFileDescriptionLoaded = false;
 	if (loadFromFile(fileName,settings))
 	{
 		qDebug() << "Loaded settings out of file" << fileName;

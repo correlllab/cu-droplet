@@ -290,6 +290,7 @@ private:
 	QTextEdit *loadSetupFileDescription;
 	QPushButton *setupFileSaveButton;
 	QHBoxLayout *selectSetupFileLayout;
+	bool setupFileDescriptionLoaded;
 
 	/**
 	 * \property QLabel *arenaSelectionLabel, QComboBox *arenaSelectionCombo, QListView *arenaSelectionList, QVBoxLayout *arenaSelectionLayout 
@@ -331,6 +332,7 @@ private:
 	QTextEdit *dropProgramsDescription;
 	QVBoxLayout *dropProgramsLayout;
 	QTableWidget *dropletTableWidget;
+	bool dropProgramDescriptionLoaded;
 
 	/**
 	 * \property QLabel *projectorImageLabel, QComboBox *projectorImageCombo, QListView *projectorImageList, QVBoxLayout *projectorImagesLayout

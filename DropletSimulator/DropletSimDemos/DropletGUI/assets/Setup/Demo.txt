@@ -1,3 +1,6 @@
+# This is a demo file for showing how setup files can
+# be created for loading droplet programs, setting up the floor,
+# and loading an image in the projector.
 # Set up arena size and shape
 # Load custom arena file
 arena Squares.txt

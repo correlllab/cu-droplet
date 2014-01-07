@@ -76,12 +76,17 @@
   <statistics_image>Calibrated Source</statistics_image>
   <threshold>0.210000</threshold>
 </Circles>
+<Marker>
+  <include_graphics>0</include_graphics>
+  <name>Circles</name>
+  <revert_to>Calibrated Source</revert_to>
+</Marker>
 <Blob_Tracking>
   <absent_after_frames>6</absent_after_frames>
   <aspect_weight>1.0</aspect_weight>
-  <blob_image>Current</blob_image>
+  <blob_image>Circles</blob_image>
   <color_weight>10</color_weight>
-  <display_as_annotation>FALSE</display_as_annotation>
+  <display_as_annotation>TRUE</display_as_annotation>
   <display_id>TRUE</display_id>
   <display_trail>TRUE</display_trail>
   <graphic_color_index>6</graphic_color_index>
@@ -107,9 +112,9 @@
   <track_overlap>FALSE</track_overlap>
   <track_shape>FALSE</track_shape>
   <track_size>TRUE</track_size>
-  <trail_length>5</trail_length>
+  <trail_length>12</trail_length>
 </Blob_Tracking>
-<Socket_Program>
+<Socket_Program disabled>
   <hostname>localhost</hostname>
   <port>5050</port>
 </Socket_Program>

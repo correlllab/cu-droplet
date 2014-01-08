@@ -48,43 +48,43 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\include\AssetManager.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\MeshManager.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="GeneratedFiles\ui_mainwindow.h">
+    <ClInclude Include="GeneratedFiles\ui_MainWindow.h">
       <Filter>Generated Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\include\gl_core_3_3.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\SimInfoLogger.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\DropletGUIStructs.h">
+    <ClInclude Include="..\include\AssetManager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\include\DropletGUIDefaults.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\include\DropletGUIStructs.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\gl_core_3_3.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="..\include\MainWindow.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\MeshManager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\RenderWidget.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\SimInfoLogger.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\SimInterface.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\TextureManager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <CustomBuild Include="..\include\TextureManager.h">
-      <Filter>Header Files</Filter>
-    </CustomBuild>
-    <CustomBuild Include="..\include\SimInterface.h">
-      <Filter>Header Files</Filter>
-    </CustomBuild>
-    <CustomBuild Include="..\include\mainwindow.ui">
+    <CustomBuild Include="..\include\MainWindow.ui">
       <Filter>Generated Files\Form Files</Filter>
-    </CustomBuild>
-    <CustomBuild Include="..\include\RenderWidget.h">
-      <Filter>Header Files</Filter>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
@@ -93,21 +93,6 @@
     </ClCompile>
     <ClCompile Include="GeneratedFiles\Release\moc_SimInterface.cpp">
       <Filter>Generated Files\Release</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\AssetManager.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\main.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\MeshManager.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\SimInterface.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\TextureManager.cpp">
-      <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="GeneratedFiles\Debug\moc_SimInterface.cpp">
       <Filter>Generated Files\Debug</Filter>
@@ -133,22 +118,13 @@
     <ClCompile Include="GeneratedFiles\ReleaseTeam\moc_RenderWidget.cpp">
       <Filter>Generated Files\ReleaseTeam</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\RW_input.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\RW_slots.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\RenderWidget.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\ReleaseTeam\moc_mainwindow.cpp">
+    <ClCompile Include="GeneratedFiles\ReleaseTeam\moc_MainWindow.cpp">
       <Filter>Generated Files\ReleaseTeam</Filter>
     </ClCompile>
-    <ClCompile Include="GeneratedFiles\Release\moc_mainwindow.cpp">
+    <ClCompile Include="GeneratedFiles\Release\moc_MainWindow.cpp">
       <Filter>Generated Files\Release</Filter>
     </ClCompile>
-    <ClCompile Include="GeneratedFiles\DebugTeam\moc_mainwindow.cpp">
+    <ClCompile Include="GeneratedFiles\DebugTeam\moc_MainWindow.cpp">
       <Filter>Generated Files\DebugTeam</Filter>
     </ClCompile>
     <ClCompile Include="GeneratedFiles\ReleaseTeam\moc_SimInterface.cpp">
@@ -157,35 +133,56 @@
     <ClCompile Include="GeneratedFiles\DebugTeam\moc_SimInterface.cpp">
       <Filter>Generated Files\DebugTeam</Filter>
     </ClCompile>
-    <ClCompile Include="GeneratedFiles\Debug\moc_mainwindow.cpp">
+    <ClCompile Include="GeneratedFiles\Debug\moc_MainWindow.cpp">
       <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\DebugTeam\moc_SimInfoLogger.cpp">
+      <Filter>Generated Files\DebugTeam</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Debug\moc_SimInfoLogger.cpp">
+      <Filter>Generated Files\Debug</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\ReleaseTeam\moc_SimInfoLogger.cpp">
+      <Filter>Generated Files\ReleaseTeam</Filter>
+    </ClCompile>
+    <ClCompile Include="GeneratedFiles\Release\moc_SimInfoLogger.cpp">
+      <Filter>Generated Files\Release</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\AssetManager.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\src\gl_core_3_3.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="GeneratedFiles\DebugTeam\moc_simInfoLogger.cpp">
-      <Filter>Generated Files\DebugTeam</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Debug\moc_simInfoLogger.cpp">
-      <Filter>Generated Files\Debug</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\ReleaseTeam\moc_simInfoLogger.cpp">
-      <Filter>Generated Files\ReleaseTeam</Filter>
-    </ClCompile>
-    <ClCompile Include="GeneratedFiles\Release\moc_simInfoLogger.cpp">
-      <Filter>Generated Files\Release</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\SimInfoLogger.cpp">
+    <ClCompile Include="..\src\main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\src\MainWindow.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\MeshManager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\RenderWidget.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\RW_input.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\RW_slots.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\SimInfoLogger.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\SimInterface.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\TextureManager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\assets\defaults.txt">
-      <Filter>Resource Files</Filter>
-    </None>
     <None Include="..\assets\manifest.txt">
       <Filter>Resource Files</Filter>
     </None>

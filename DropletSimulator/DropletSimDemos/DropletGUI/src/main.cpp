@@ -5,7 +5,7 @@
  */
 
 #include <QApplication>
-#include "mainwindow.h"
+#include "MainWindow.h"
 
 //! [0]
 int main(int argc, char **argv)

@@ -158,17 +158,6 @@ static inline vec4 vec4make(float x, float y, float z, float w)
  */
 
 enum droplet_t {
-	//RGBSense,
-	//RandomWalk,
-	//March,
-	//Rainbow,
-	//StickPullers,
-	//TurnTest,
-	//CommTest,
-	//PowerTest,
-	//Granola,
-	//StickPullersUpdated,
-	//Ants,
 	CustomOne,
 	CustomTwo,
 	CustomThree,

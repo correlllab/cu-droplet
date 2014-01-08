@@ -15,6 +15,8 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include "RenderWidget.h"
+#include "SimInterface.h"
 #include <QFileSystemWatcher>
 #include <QStringList>
 #include <QString>
@@ -36,8 +38,6 @@
 #include <QTableWidget>
 #include <QTextEdit>
 
-#include "RenderWidget.h"
-#include "SimInterface.h"
 #include "SimInfoLogger.h"
 #include "DropletGUIDefaults.h"
 

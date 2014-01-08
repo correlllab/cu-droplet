@@ -3,7 +3,7 @@
 *
 * \brief	Implements the MainWindow class.
 */
-#include "mainwindow.h"
+#include "MainWindow.h"
 #include <QtGui>
 
 

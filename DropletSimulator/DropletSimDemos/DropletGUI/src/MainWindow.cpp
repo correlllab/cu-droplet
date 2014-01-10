@@ -367,22 +367,22 @@ void MainWindow::addArenaWidgets()
 void MainWindow::addButtonWidgets()
 {
 	// Launch Buttons
-	launchSimulation = new QPushButton(tr("Update Simulator"));
+	launchSimulation = new QPushButton(tr("Update"));
 	connect(launchSimulation,SIGNAL(clicked()),this,SLOT(launchSimulator()));
-	launchRenderWidget = new QPushButton(tr("View Simulation"));
+	launchRenderWidget = new QPushButton(tr("Render"));
 	QObject::connect(launchRenderWidget,SIGNAL(clicked()),this,SLOT(launchRenderer()));
 	QHBoxLayout	*launchButtons = new QHBoxLayout;
 	launchButtons->addWidget(launchSimulation);
 	launchButtons->addWidget(launchRenderWidget);
 
 	// Simulation Interation Buttons
-	pause_button = new QPushButton("Pause");
-	resume_button = new QPushButton("Resume");
-	reset_button = new QPushButton("Reset");
+	pauseButton = new QPushButton("Pause");
+	resumeButton = new QPushButton("Resume");
+	resetButton = new QPushButton("Reset");
 	QHBoxLayout *playbackButtons = new QHBoxLayout;
-	playbackButtons->addWidget(pause_button);
-	playbackButtons->addWidget(resume_button);
-	playbackButtons->addWidget(reset_button);
+	playbackButtons->addWidget(pauseButton);
+	playbackButtons->addWidget(resumeButton);
+	playbackButtons->addWidget(resetButton);
 
 	logCheckBox = new QCheckBox("Log Droplet Infomation");
 	posCheckBox = new QCheckBox("Position");
@@ -406,13 +406,26 @@ void MainWindow::addButtonWidgets()
 	logWidget->setLayout(logLayout);
 	connect(logCheckBox, SIGNAL(stateChanged(int)), this, SLOT(showHideLogWidget(int)));
 
-	buttons = new QFrame();
-	buttons->setWindowTitle(tr("Launch/Playback Buttons"));
-	QVBoxLayout *buttonsLayout = new QVBoxLayout();
+	resetTimerCheckBox = new QCheckBox(tr("Simulation Reset Timer (mins)"));
+	resetTimerCheckBox->setChecked(false);
+	resetTimerValue = new QSpinBox;
+	resetTimerValue->setValue(5);
+	resetTimerValue->setEnabled(false);
+	connect(resetTimerCheckBox, SIGNAL(stateChanged(int)), this, SLOT(enableDisableResetTimerValue(int)));
 
+	resetTimerLayout = new QHBoxLayout;
+	resetTimerLayout->addWidget(resetTimerCheckBox);
+	resetTimerLayout->addWidget(resetTimerValue);
+
+
+	buttons = new QFrame();
+	buttons->setWindowTitle(tr("Playback and Logging Buttons"));
+
+	QVBoxLayout *buttonsLayout = new QVBoxLayout();
 	buttonsLayout->addWidget(logCheckBox);
 	buttonsLayout->addWidget(logWidget);
 	logWidget->hide();
+	buttonsLayout->addLayout(resetTimerLayout);
 	buttonsLayout->addLayout(launchButtons);
 	buttonsLayout->addLayout(playbackButtons);
 	buttons->setLayout(buttonsLayout);
@@ -446,9 +459,9 @@ void MainWindow::setUpGUI()
 	setCentralWidget(window);
 	setWindowTitle(tr("Droplet GUI"));
 
-	connect(pause_button,SIGNAL(released()),&_simInterface,SLOT(pause()));
-	connect(resume_button,SIGNAL(released()),&_simInterface,SLOT(resume()));
-	connect(reset_button,SIGNAL(released()),&_simInterface,SLOT(reset()));
+	connect(pauseButton,SIGNAL(released()),&_simInterface,SLOT(pause()));
+	connect(resumeButton,SIGNAL(released()),&_simInterface,SLOT(resume()));
+	connect(resetButton,SIGNAL(released()),&_simInterface,SLOT(reset()));
 
 	// only load these after the GUI is set up
 	loadSetupFiles(QString(DEFAULT_ASSETDIR).append(DEFAULT_SETUPDIR));
@@ -872,4 +885,12 @@ void MainWindow::enableDisableDropletTable(const QString & text)
 		dropletTableWidget->setEditTriggers(QAbstractItemView::NoEditTriggers);
 	else
 		dropletTableWidget->setEditTriggers(QAbstractItemView::AllEditTriggers);
+}
+
+void MainWindow::enableDisableResetTimerValue(int state)
+{
+	if (state == 2)
+		resetTimerValue->setEnabled(true);
+	else
+		resetTimerValue->setEnabled(false);
 }

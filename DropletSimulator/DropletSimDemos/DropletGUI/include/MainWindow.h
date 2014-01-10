@@ -180,6 +180,8 @@ public slots:
 	void showHideLogWidget(int state);
 
 	void enableDisableDropletTable(const QString &);
+	
+	void enableDisableResetTimerValue(int state);
 
 protected:
 
@@ -310,17 +312,6 @@ private:
 	QHBoxLayout *rowColLayout;
 	QWidget *rowColWidget;
 
-	
-
-	/**
-	 * \property QDoubleSpinBox *dropRadBox, QLabel *dropRadLabel, QHBoxLayout *dropRadLayout
-	 * \brief	Qt widgets for selecting the droplet radius parameter.
-	 */
-
-	QDoubleSpinBox *dropRadBox;
-	QLabel *dropRadLabel;
-	QHBoxLayout *dropRadLayout;
-
 	/**
 	 * \property QLabel *dropProgramsLabel, QComboBox *dropProgramsCombo
 	 * \brief	Qt widgets for selecting the droplet program.
@@ -376,13 +367,23 @@ private:
 	QWidget *logWidget;
 
 	/**
-	 * \property QPushButton *pause_button, QPushButton *resume_button, QPushButton *reset_button
+	 * \property QPushButton *pauseButton, QPushButton *resumeButton, QPushButton *resetButton
 	 * \brief	 Qt buttons for playback options.
 	 */
 
-	QPushButton *pause_button;
-	QPushButton *resume_button;
-	QPushButton *reset_button;
+	QPushButton *pauseButton;
+	QPushButton *resumeButton;
+	QPushButton *resetButton;
+
+	/**
+	* \property QCheckBox *resetTimerCheckBox, QLabel *resetTimerLabel, QSpinBox *resetTimerValue, QHBoxLayout *resetTimerLayout,
+	* \brief Qt control values and buttons for setting simulator reset time.
+	*/
+
+	QCheckBox *resetTimerCheckBox;
+	QSpinBox *resetTimerValue;
+	QHBoxLayout *resetTimerLayout;
+
 
 	/**
 	 * \property QFrame *loadSetupFile, QFrame *dropletParams,	QFrame *arenaParams, QFrame *buttons 

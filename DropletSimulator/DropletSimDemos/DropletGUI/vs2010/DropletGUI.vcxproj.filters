@@ -63,19 +63,7 @@
     <ClInclude Include="..\include\gl_core_3_3.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\include\MainWindow.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\include\MeshManager.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\RenderWidget.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\SimInfoLogger.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\SimInterface.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\include\TextureManager.h">
@@ -85,6 +73,18 @@
   <ItemGroup>
     <CustomBuild Include="..\include\MainWindow.ui">
       <Filter>Generated Files\Form Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\include\SimInterface.h">
+      <Filter>Header Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\include\SimInfoLogger.h">
+      <Filter>Header Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\include\RenderWidget.h">
+      <Filter>Header Files</Filter>
+    </CustomBuild>
+    <CustomBuild Include="..\include\MainWindow.h">
+      <Filter>Header Files</Filter>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>

@@ -412,6 +412,8 @@ void MainWindow::addButtonWidgets()
 	resetTimerValue->setValue(5);
 	resetTimerValue->setEnabled(false);
 	connect(resetTimerCheckBox, SIGNAL(stateChanged(int)), this, SLOT(enableDisableResetTimerValue(int)));
+	connect(resetTimerCheckBox, SIGNAL(stateChanged(int)), &_simInterface, SLOT(useResetTimer(int)));
+	connect(resetTimerValue, SIGNAL(valueChanged(int)), &_simInterface, SLOT(updateResetTimer(int)));
 
 	resetTimerLayout = new QHBoxLayout;
 	resetTimerLayout->addWidget(resetTimerCheckBox);

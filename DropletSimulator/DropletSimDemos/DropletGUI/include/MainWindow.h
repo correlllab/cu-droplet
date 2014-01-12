@@ -214,7 +214,7 @@ private:
 	//Ui::MainWindow ui;
 	
 	/**
-	 * \property SimInterface _simInterface
+	 * \property SimInterface _siminterface
 	 * \brief	 Instance of the simulator interface.
 	 */
 	SimInterface _simInterface;

@@ -957,7 +957,6 @@ void SimInterface::Update(float timeSinceLastUpdate)
 	{
 		if (!_simStatus.paused)
 		{
-			//	float timeInSec = 1.0f/_simSettings.fps;
 			_sim->Step();
 			_simInfo.GetDropletColors(_dropletColors,*_sim);
 			_simInfo.GetDropletPositions(_dropletPos,*_sim);
@@ -967,17 +966,12 @@ void SimInterface::Update(float timeSinceLastUpdate)
 			_simInfo.GetObjectPositions(_objectPos, *_sim);
 
 			_simStatus.runTime = _simInfo.GetTotalST(*_sim);
-
-
 		}
-
-
 
 		std::vector<GPSInfo *>::iterator it;
 		it = _dropletPos->begin();
 		std::vector<DropletCommData *>::iterator commIt;
 		commIt = _dropletComm->begin();
-
 
 		for(int i = 0 ; i < _dropletPos->size(); i++)
 		{
@@ -1126,6 +1120,12 @@ void SimInterface::Update(float timeSinceLastUpdate)
 
 		if (_simState.projTextureChanged)
 			_simState.projTextureChanged = false;
+	}
+
+	// reset the simulation if the reset timer is on
+	if(_simState.useResetTime && (_simState.resetTime <= _simState.simTime))
+	{
+		reset();
 	}
 }
 
@@ -1494,7 +1494,21 @@ void SimInterface::toggleUpdateLimit()
 	emit ratesChanged(_simRates);
 }
 
+void SimInterface::useResetTimer(int buttonState)
+{
+	if (buttonState == 2)
+		_simState.useResetTime = true;
+	else
+		_simState.useResetTime = false;
+}
+
+void SimInterface::updateResetTimer(int resetTime)
+{
+	_simState.resetTime = resetTime * 60.0 * 1000.0;
+}
+
 simRate_t SimInterface::getSimulatorRate()
 {
 	return _simRates;
 }
+

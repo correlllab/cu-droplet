@@ -269,10 +269,10 @@ struct collisionShapeStruct_t {
  */
 
 struct simState_t {
-	//QTime simTime;
-	//QTime realTime;
 	double simTime;
 	double realTime;
+	double resetTime;
+	bool useResetTime;
 	double timeRatio;
 	QImage projTexture;
 	bool projTextureChanged;

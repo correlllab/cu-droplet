@@ -453,6 +453,22 @@ public slots:
 
 	void toggleUpdateLimit(void);
 
+	/**
+	 * \fn void SimInterface::updateResetTimer(int resetTime)
+	 *
+	 * \brief	Toggle reset timer, on/off
+	 */
+	void useResetTimer(int resetTime);
+
+	/**
+	 * \fn void SimInterface::updateResetTimer(int resetTime)
+	 *
+	 * \brief	Update the reset timer, if it is enabled.
+	 */
+	void updateResetTimer(int resetTime);
+
+
+
 protected:
 
 	/**
@@ -522,15 +538,8 @@ private:
 	simSetting_t _simSettings;
 	simRate_t _simRates;
 	
-
-
-
 	struct {
 		bool paused;
-		// TIMER
-		//uint64_t runTimeSec;
-		//double runTimeSubSec;
-		//float runTime;
 		double runTime;
 		btCollisionShape *dropletShape;
 		float dropletOffset;
@@ -538,8 +547,6 @@ private:
 		int btYWallShapeID;
 		int btFloorShapeID;
 		int btDropletShapeID;
-		//int btCubeShapeID;
-		//int btSphereShapeID;
 	} _simStatus;
 
 	/**

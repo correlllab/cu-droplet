@@ -19,7 +19,8 @@
 #include <QFileInfo>
 #include <QTextStream>
 #include <QElapsedTimer>
-
+#include <QValidator>
+#include <QIntValidator>
 #include <IDroplet.h>
 #include <DropletSim.h>
 
@@ -465,7 +466,7 @@ public slots:
 	 *
 	 * \brief	Update the reset timer, if it is enabled.
 	 */
-	void updateResetTimer(int resetTime);
+	void updateResetTimer(const QString &text);
 
 
 

@@ -591,7 +591,7 @@ private:
 	 */
 
 	simState_t _simState;
-		simState_t _renderState;
+	simState_t _renderState;
 
 	/**
 	 * \brief	true to lock, false to unlock the simulation state.

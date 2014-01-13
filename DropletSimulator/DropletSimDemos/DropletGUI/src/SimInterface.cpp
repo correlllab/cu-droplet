@@ -27,6 +27,10 @@ SimInterface::SimInterface(QObject *parent)
 	makeDropletCollisionShapeFromFile(QString("assets/Models/HQDroplet.obj"));
 	_objectNames.single << "cube" << "sphere";
 	_objectNames.multiple << "cubes" << "spheres";
+
+	// Set default reset timer values here
+	_simState.useResetTime = false;
+	_simState.resetTime = DEFAULT_RESET_TIME;
 }
 
 SimInterface::~SimInterface()
@@ -1502,9 +1506,14 @@ void SimInterface::useResetTimer(int buttonState)
 		_simState.useResetTime = false;
 }
 
-void SimInterface::updateResetTimer(int resetTime)
+void SimInterface::updateResetTimer(const QString &text)
 {
-	_simState.resetTime = resetTime * 60.0 * 1000.0;
+	bool ok;
+	_simState.resetTime = text.toDouble(&ok);
+	if(!ok)
+	{
+		_simState.useResetTime = false;
+	}
 }
 
 simRate_t SimInterface::getSimulatorRate()

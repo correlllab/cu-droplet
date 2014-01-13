@@ -406,14 +406,18 @@ void MainWindow::addButtonWidgets()
 	logWidget->setLayout(logLayout);
 	connect(logCheckBox, SIGNAL(stateChanged(int)), this, SLOT(showHideLogWidget(int)));
 
-	resetTimerCheckBox = new QCheckBox(tr("Simulation Reset Timer (mins)"));
-	resetTimerCheckBox->setChecked(false);
-	resetTimerValue = new QSpinBox;
-	resetTimerValue->setValue(5);
-	resetTimerValue->setEnabled(false);
+	resetTimerCheckBox = new QCheckBox(tr("Simulation Reset Timer (ms)"));
+	resetTimerValue = new QLineEdit;
+	QDoubleValidator *v = new QDoubleValidator(this);
+	v->setBottom(1.0);
+	resetTimerValue->setValidator(v);
 	connect(resetTimerCheckBox, SIGNAL(stateChanged(int)), this, SLOT(enableDisableResetTimerValue(int)));
 	connect(resetTimerCheckBox, SIGNAL(stateChanged(int)), &_simInterface, SLOT(useResetTimer(int)));
-	connect(resetTimerValue, SIGNAL(valueChanged(int)), &_simInterface, SLOT(updateResetTimer(int)));
+	connect(resetTimerValue, SIGNAL(textChanged(const QString&)), &_simInterface, SLOT(updateResetTimer(const QString&)));
+
+	resetTimerValue->setText(QString::number(DEFAULT_RESET_TIME));
+	resetTimerValue->setEnabled(false);
+	resetTimerCheckBox->setChecked(false);
 
 	resetTimerLayout = new QHBoxLayout;
 	resetTimerLayout->addWidget(resetTimerCheckBox);

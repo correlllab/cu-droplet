@@ -44,12 +44,13 @@
 #define DEFAULT_OBJECT_FRICTION .25f
 #define DEFAULT_OBJECT_RADIUS 4.0f
 
-#define DEFAULT_WALL_MASS 0.0f // in kg
+#define DEFAULT_WALL_MASS 0.0f // in g
 #define DEFAULT_WALL_FRICTION .5f
 
-#define DEFAULT_FLOOR_MASS 0.0f // in kg
+#define DEFAULT_FLOOR_MASS 0.0f // in g
 #define DEFAULT_FLOOR_FRICTION .5f
 
+#define DEFAULT_RESET_TIME 10.0 // 1 minute in seconds
 
 #define DEBUG_MESH "cube"
 #define DEBUG_DROPLET_MESH "cylinder"

@@ -381,7 +381,7 @@ private:
 	*/
 
 	QCheckBox *resetTimerCheckBox;
-	QSpinBox *resetTimerValue;
+	QLineEdit *resetTimerValue;
 	QHBoxLayout *resetTimerLayout;
 
 

@@ -1510,10 +1510,10 @@ void SimInterface::updateResetTimer(const QString &text)
 {
 	bool ok;
 	_simState.resetTime = text.toDouble(&ok);
-	if(!ok)
-	{
-		_simState.useResetTime = false;
-	}
+	//if(!ok)
+	//{
+	//	_simState.useResetTime = false;
+	//}
 }
 
 simRate_t SimInterface::getSimulatorRate()

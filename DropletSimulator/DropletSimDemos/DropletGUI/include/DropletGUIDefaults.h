@@ -50,7 +50,7 @@
 #define DEFAULT_FLOOR_MASS 0.0f // in g
 #define DEFAULT_FLOOR_FRICTION .5f
 
-#define DEFAULT_RESET_TIME 10.0 // 1 minute in seconds
+#define DEFAULT_RESET_TIME 60.0 // 1 minute in seconds
 
 #define DEBUG_MESH "cube"
 #define DEBUG_DROPLET_MESH "cylinder"

@@ -6,14 +6,14 @@
 #ifndef _DROPLET_CUSTOM_EIGHT
 #define _DROPLET_CUSTOM_EIGHT
 
-#include <IDroplet.h>
-#include <DropletSimGlobals.h>
-#include <DropletDataStructs.h>
+#include <DSimDroplet.h>
+#include <DSimGlobals.h>
+#include <DSimDataStructs.h>
 #include <inttypes.h>
 
 #include <stdlib.h>
 
-class DropletCustomEight : public IDroplet
+class DropletCustomEight : public DSimDroplet
 {
 private :
 

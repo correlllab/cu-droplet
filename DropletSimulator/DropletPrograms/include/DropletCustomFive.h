@@ -8,15 +8,15 @@
 
 #define _USE_MATH_DEFINES
 
-#include <IDroplet.h>
-#include <DropletSimGlobals.h>
-#include <DropletDataStructs.h>
+#include <DSimDroplet.h>
+#include <DSimGlobals.h>
+#include <DSimDataStructs.h>
 #include <inttypes.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
 
-class DropletCustomFive : public IDroplet
+class DropletCustomFive : public DSimDroplet
 {
 private :
 	enum

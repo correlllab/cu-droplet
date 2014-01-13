@@ -6,9 +6,9 @@
 #ifndef _DROPLET_CUSTOM_SIX
 #define _DROPLET_CUSTOM_SIX
 
-#include "IDroplet.h"
-#include "DropletSimGlobals.h"
-#include "DropletDataStructs.h"
+#include "DSimDroplet.h"
+#include "DSimGlobals.h"
+#include "DSimDataStructs.h"
 
 #include <inttypes.h>
 #include <stdlib.h>
@@ -37,7 +37,7 @@
 #define REQUEST_DROPLET	'r'
 #define RESPOND_DROPLET 'p'
 
-class DropletCustomSix : public IDroplet
+class DropletCustomSix : public DSimDroplet
 {
 private :
 

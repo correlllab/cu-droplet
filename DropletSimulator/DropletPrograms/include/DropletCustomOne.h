@@ -6,13 +6,13 @@
 #ifndef _DROPLET_CUSTOM_ONE
 #define _DROPLET_CUSTOM_ONE
 
-#include <IDroplet.h>
-#include <DropletSimGlobals.h>
-#include <DropletDataStructs.h>
+#include <DSimDroplet.h>
+#include <DSimGlobals.h>
+#include <DSimDataStructs.h>
 #include <inttypes.h>
 #include <cmath>
 
-class DropletCustomOne : public IDroplet
+class DropletCustomOne : public DSimDroplet
 {
 private :
 

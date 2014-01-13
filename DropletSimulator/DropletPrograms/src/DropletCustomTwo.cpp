@@ -1,7 +1,7 @@
 #include "DropletCustomTwo.h"
 
 DropletCustomTwo::DropletCustomTwo(ObjectPhysicsData *objPhysics) 
-	: IDroplet(objPhysics) {}
+	: DSimDroplet(objPhysics) {}
 
 DropletCustomTwo::~DropletCustomTwo() {}
 

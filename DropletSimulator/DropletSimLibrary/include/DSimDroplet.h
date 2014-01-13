@@ -10,9 +10,9 @@
 #endif
 
 #include "btBulletDynamicsCommon.h"
-#include "DropletSimGlobals.h"
-#include "DropletDataStructs.h"
-#include "DropletUtil.h"
+#include "DSimGlobals.h"
+#include "DSimDataStructs.h"
+#include "DSimUtil.h"
 
 #include <cstdlib>
 #include <utility>
@@ -20,10 +20,10 @@
 #include <vector>
 
 /**
- * IDroplet models the behavior and state of and individual droplet.
+ * DSimDroplet models the behavior and state of and individual droplet.
  */
 
-class IDroplet
+class DSimDroplet
 {
 private :
 
@@ -37,20 +37,20 @@ private :
 	/** \name Simulator backend functions  
 	 *  
 	 * NOTE : These friend functions are meant for use by the simulator backend ONLY.
-	 * DO NOT USE THESE IN ANY CODE WRITTEN FOR A CLASS DERIVED FROM IDroplet!!!
+	 * DO NOT USE THESE IN ANY CODE WRITTEN FOR A CLASS DERIVED FROM DSimDroplet!!!
 	 */
 	///@{
 	/**
 	 * Access physics data.
 	 *
 	 * NOTE : These friend functions are meant for use by the simulator backend ONLY.
-	 * DO NOT USE THESE IN ANY CODE WRITTEN FOR A CLASS DERIVED FROM IDroplet!!!
+	 * DO NOT USE THESE IN ANY CODE WRITTEN FOR A CLASS DERIVED FROM DSimDroplet!!!
 	 *
 	 * \param [in,out]	pDroplet  	If non-null, the droplet.
 	 * \param [in,out]	objPhysics	If non-null, the object physics.
 	 */
 
-	friend void AccessPhysicsData(IDroplet *pDroplet, ObjectPhysicsData **objPhysics)
+	friend void AccessPhysicsData(DSimDroplet *pDroplet, ObjectPhysicsData **objPhysics)
 	{
 		*objPhysics = pDroplet->objPhysics;
 	}
@@ -59,13 +59,13 @@ private :
 	 * Access actuator data.
 	 *  
 	 * NOTE : These friend functions are meant for use by the simulator backend ONLY.
-	 * DO NOT USE THESE IN ANY CODE WRITTEN FOR A CLASS DERIVED FROM IDroplet!!!
+	 * DO NOT USE THESE IN ANY CODE WRITTEN FOR A CLASS DERIVED FROM DSimDroplet!!!
 	 *
 	 * \param [in,out]	pDroplet	If non-null, the droplet.
 	 * \param [in,out]	actData 	If non-null, information describing the act.
 	 */
 
-	friend void AccessActuatorData(IDroplet *pDroplet, DropletActuatorData **actData)
+	friend void AccessActuatorData(DSimDroplet *pDroplet, DropletActuatorData **actData)
 	{
 		*actData = pDroplet->actData;
 	}
@@ -74,13 +74,13 @@ private :
 	 * Access sensor data.
 	 *
 	 * NOTE : These friend functions are meant for use by the simulator backend ONLY.
-	 * DO NOT USE THESE IN ANY CODE WRITTEN FOR A CLASS DERIVED FROM IDroplet!!!
+	 * DO NOT USE THESE IN ANY CODE WRITTEN FOR A CLASS DERIVED FROM DSimDroplet!!!
 	 * 
 	 * \param [in,out]	pDroplet 	If non-null, the droplet.
 	 * \param [in,out]	senseData	If non-null, information describing the sense.
 	 */
 
-	friend void AccessSensorData(IDroplet *pDroplet, DropletSensorData **senseData)
+	friend void AccessSensorData(DSimDroplet *pDroplet, DropletSensorData **senseData)
 	{
 		*senseData = pDroplet->senseData;
 	}
@@ -89,13 +89,13 @@ private :
 	 * Access communications data.
 	 *
 	 * NOTE : These friend functions are meant for use by the simulator backend ONLY.
-	 * DO NOT USE THESE IN ANY CODE WRITTEN FOR A CLASS DERIVED FROM IDroplet!!!
+	 * DO NOT USE THESE IN ANY CODE WRITTEN FOR A CLASS DERIVED FROM DSimDroplet!!!
 	 * 
 	 * \param [in,out]	pDroplet	If non-null, the droplet.
 	 * \param [in,out]	commData	If non-null, information describing the communications.
 	 */
 
-	friend void AccessCommData(IDroplet *pDroplet, DropletCommData **commData)
+	friend void AccessCommData(DSimDroplet *pDroplet, DropletCommData **commData)
 	{
 		*commData = pDroplet->commData;
 	}
@@ -104,19 +104,19 @@ private :
 	 * Access component data.
 	 *
 	 * NOTE : These friend functions are meant for use by the simulator backend ONLY.
-	 * DO NOT USE THESE IN ANY CODE WRITTEN FOR A CLASS DERIVED FROM IDroplet!!!
+	 * DO NOT USE THESE IN ANY CODE WRITTEN FOR A CLASS DERIVED FROM DSimDroplet!!!
 	 *
 	 * \param [in,out]	pDroplet	If non-null, the droplet.
 	 * \param [in,out]	compData	If non-null, information describing the component.
 	 */
 
-	friend void AccessCompData(IDroplet *pDroplet, DropletCompData **compData)
+	friend void AccessCompData(DSimDroplet *pDroplet, DropletCompData **compData)
 	{
 		*compData = pDroplet->compData;
 	}
 
 
-	friend void AccessTimeData(IDroplet *pDroplet, DropletTimeData **timeData)
+	friend void AccessTimeData(DSimDroplet *pDroplet, DropletTimeData **timeData)
 	{
 		*timeData = pDroplet->timeData;
 	}
@@ -125,7 +125,7 @@ private :
 protected :
 
 	DropletStatData *statData;
-	friend void AccessStatData(IDroplet *pDroplet, DropletStatData **statData)
+	friend void AccessStatData(DSimDroplet *pDroplet, DropletStatData **statData)
 	{
 		*statData = pDroplet->statData;
 	}
@@ -413,7 +413,7 @@ protected :
 
 public :
 
-	msg_order msg_return_order; // See DropletSimGlobals.h NEWEST_MSG_FIRST and OLDEST_MSG_FIRST
+	msg_order msg_return_order; // See DSimGlobals.h NEWEST_MSG_FIRST and OLDEST_MSG_FIRST
 
 	/// The global incoming message buffer for the droplet.
 	struct  
@@ -437,12 +437,12 @@ public :
 	 *
 	 * \param [in,out]	objPhysics	If non-null, the object physics.
 	 */
-	IDroplet(ObjectPhysicsData *objPhysics);
+	DSimDroplet(ObjectPhysicsData *objPhysics);
 
 	/**
 	 * Destructor.
 	 */
-	virtual ~IDroplet();
+	virtual ~DSimDroplet();
 
 	/**
 	 * Initialises the initialise physics.

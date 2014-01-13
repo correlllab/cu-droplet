@@ -6,10 +6,10 @@
  * 			file.
  */
 
-#include <DropletSimInfo.h>
+#include <DSimDataLogger.h>
 #include <SimInterface.h>
 #include <DropletGUIStructs.h>
-#include <DropletDataStructs.h>
+#include <DSimDataStructs.h>
 #include <QGlobal.h>
 #include <QTime>
 #include <stdio.h>

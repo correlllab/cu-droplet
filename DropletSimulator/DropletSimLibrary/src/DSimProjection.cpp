@@ -1,6 +1,6 @@
-#include "IDropletProjector.h"
+#include "DSimProjection.h"
 
-IDropletProjector::IDropletProjector(int projLength, int projWidth)
+DSimProjection::DSimProjection(int projLength, int projWidth)
 {
 	this->projLength = projLength;
 	this->projWidth  = projWidth;
@@ -16,12 +16,12 @@ IDropletProjector::IDropletProjector(int projLength, int projWidth)
 	fileFormat.clear();
 }
 
-IDropletProjector::~IDropletProjector()
+DSimProjection::~DSimProjection()
 {
 	SAFE_DELETE(imgData);
 }
 
-DS_RESULT IDropletProjector::SetDirectory(std::string dirLocation)
+DS_RESULT DSimProjection::SetDirectory(std::string dirLocation)
 {
 	// TODO : Check if directory exists
 	fileDir = dirLocation;
@@ -29,7 +29,7 @@ DS_RESULT IDropletProjector::SetDirectory(std::string dirLocation)
 	return DS_SUCCESS;
 }
 
-DS_RESULT IDropletProjector::LoadFile(std::string fileName)
+DS_RESULT DSimProjection::LoadFile(std::string fileName)
 {
 	this->fileName = fileName;
 	std::string filePath = fileDir;
@@ -64,11 +64,11 @@ DS_RESULT IDropletProjector::LoadFile(std::string fileName)
 	return DS_SUCCESS;
 }
 
-DS_RESULT IDropletProjector::GetPixel(float *xyLoc, uint8_t *rgbaVal)
+DS_RESULT DSimProjection::GetPixel(float *xyLoc, uint8_t *rgbaVal)
 {
 	if(!dataSet)
 	{
-		std::cerr << "[WARNING] No image file loaded. Use IDropletProjector::LoadFile() first." 
+		std::cerr << "[WARNING] No image file loaded. Use DSimProjection::LoadFile() first." 
 			<< std::endl;
 		return DS_WARNING;
 	}
@@ -94,7 +94,7 @@ DS_RESULT IDropletProjector::GetPixel(float *xyLoc, uint8_t *rgbaVal)
 	}
 }
 
-DS_RESULT IDropletProjector::GetPixels(
+DS_RESULT DSimProjection::GetPixels(
 	std::vector<float *> *xyLocs, 
 	std::vector<uint8_t *> *rgbaVals)
 {
@@ -136,7 +136,7 @@ DS_RESULT IDropletProjector::GetPixels(
 	return DS_SUCCESS;
 }
 
-DS_RESULT IDropletProjector::GetPixels(float *xyTopLeft, float *xyBottomRight, uint8_t **rgbaVals)
+DS_RESULT DSimProjection::GetPixels(float *xyTopLeft, float *xyBottomRight, uint8_t **rgbaVals)
 {
 	// TODO : Frank Erdesz's BMP Code goes here
 

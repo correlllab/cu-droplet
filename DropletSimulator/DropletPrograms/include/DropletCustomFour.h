@@ -6,9 +6,9 @@
 #ifndef _DROPLET_CUSTOM_FOUR
 #define _DROPLET_CUSTOM_FOUR
 
-#include "IDroplet.h"
-#include "DropletSimGlobals.h"
-#include "DropletDataStructs.h"
+#include "DSimDroplet.h"
+#include "DSimGlobals.h"
+#include "DSimDataStructs.h"
 
 #include <algorithm>
 #include <map>
@@ -16,7 +16,7 @@
 #include <inttypes.h>
 #include <stdlib.h>
 
-class DropletCustomFour : public IDroplet
+class DropletCustomFour : public DSimDroplet
 {
 private :
 

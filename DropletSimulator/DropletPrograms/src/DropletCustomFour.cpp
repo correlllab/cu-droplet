@@ -4,7 +4,7 @@
 const char got_you = 'x';
 
 DropletCustomFour::DropletCustomFour(ObjectPhysicsData *objPhysics) 
-	: IDroplet(objPhysics) 
+	: DSimDroplet(objPhysics) 
 { return; }
 
 DropletCustomFour::~DropletCustomFour() { return; }

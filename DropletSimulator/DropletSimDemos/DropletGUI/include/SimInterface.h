@@ -21,12 +21,12 @@
 #include <QElapsedTimer>
 #include <QValidator>
 #include <QIntValidator>
-#include <IDroplet.h>
-#include <DropletSim.h>
+#include <DSimDroplet.h>
+#include <DSim.h>
 
-#include <DropletSimInfo.h>
-#include <DropletSimGlobals.h>
-#include <DropletDataStructs.h>
+#include <DSimDataLogger.h>
+#include <DSimGlobals.h>
+#include <DSimDataStructs.h>
 
 #include <DropletCustomOne.h>
 #include <DropletCustomTwo.h>
@@ -268,8 +268,8 @@ public slots:
 	/**
 	 * \fn	void SimInterface::Update(float timeSinceLastUpdate);
 	 *
-	 * \brief	Steps the DropletSim object, and updates the DropletSimInfo object.
-	 * 			Uses the DropletSimInfo object to update droplet and object positions.
+	 * \brief	Steps the DSim object, and updates the DSimDataLogger object.
+	 * 			Uses the DSimDataLogger object to update droplet and object positions.
 	 *
 	 * \param	timeSinceLastUpdate	The time since last update.
 	 */
@@ -485,7 +485,7 @@ protected:
 
 private:
 	/**
-	 * \fn	IDroplet* SimInterface::newDropletOfType(droplet_t dType,
+	 * \fn	DSimDroplet* SimInterface::newDropletOfType(droplet_t dType,
 	 * 		ObjectPhysicsData *dropletPhyDat);
 	 *
 	 * \brief	Creates a new droplet of type.
@@ -496,7 +496,7 @@ private:
 	 * \return	null if it fails, else.
 	 */
 
-	IDroplet* newDropletOfType(droplet_t dType,ObjectPhysicsData *dropletPhyDat);
+	DSimDroplet* newDropletOfType(droplet_t dType,ObjectPhysicsData *dropletPhyDat);
 
 	/**
 	 * \fn	btCollisionShape* SimInterface::makeCollisionShapeFromFile(QString file);
@@ -529,8 +529,8 @@ private:
 	void teardownSim();
 
 	//variables
-	DropletSim *_sim;
-	DropletSimInfo _simInfo;
+	DSim *_sim;
+	DSimDataLogger _simInfo;
 
 	/**
 	 * \brief	The simulation settings.
@@ -578,7 +578,7 @@ private:
 	 */
 
 	std::vector<GPSInfo *> *_objectPos;
-	DropletTimeControl *_timer;
+	DSimTimeControl *_timer;
 
 	/**
 	 * \brief	The tile positions and corresponding wall booleans for each tile.

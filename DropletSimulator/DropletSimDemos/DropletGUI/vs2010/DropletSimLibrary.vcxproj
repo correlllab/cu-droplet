@@ -124,14 +124,14 @@
     <ClCompile Include="..\..\..\DropletPrograms\src\DropletCustomTen.cpp" />
     <ClCompile Include="..\..\..\DropletPrograms\src\DropletCustomThree.cpp" />
     <ClCompile Include="..\..\..\DropletPrograms\src\DropletCustomTwo.cpp" />
-    <ClCompile Include="..\..\..\DropletSimLibrary\src\DropletSim.cpp" />
-    <ClCompile Include="..\..\..\DropletSimLibrary\src\DropletSimInfo.cpp" />
-    <ClCompile Include="..\..\..\DropletSimLibrary\src\DropletTimeControl.cpp" />
-    <ClCompile Include="..\..\..\DropletSimLibrary\src\DropletUtil.cpp" />
+    <ClCompile Include="..\..\..\DropletSimLibrary\src\DSim.cpp" />
+    <ClCompile Include="..\..\..\DropletSimLibrary\src\DSimDataLogger.cpp" />
+    <ClCompile Include="..\..\..\DropletSimLibrary\src\DSimDroplet.cpp" />
+    <ClCompile Include="..\..\..\DropletSimLibrary\src\DSimInterface.cpp" />
     <ClCompile Include="..\..\..\DropletSimLibrary\src\DSimPhysicalObject.cpp" />
-    <ClCompile Include="..\..\..\DropletSimLibrary\src\IDroplet.cpp" />
-    <ClCompile Include="..\..\..\DropletSimLibrary\src\IDropletProjector.cpp" />
-    <ClCompile Include="..\..\..\DropletSimLibrary\src\IDropletSimInterface.cpp" />
+    <ClCompile Include="..\..\..\DropletSimLibrary\src\DSimProjection.cpp" />
+    <ClCompile Include="..\..\..\DropletSimLibrary\src\DSimTimeControl.cpp" />
+    <ClCompile Include="..\..\..\DropletSimLibrary\src\DSimUtil.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\DropletPrograms\include\DropletCustomEight.h" />
@@ -144,16 +144,16 @@
     <ClInclude Include="..\..\..\DropletPrograms\include\DropletCustomTen.h" />
     <ClInclude Include="..\..\..\DropletPrograms\include\DropletCustomThree.h" />
     <ClInclude Include="..\..\..\DropletPrograms\include\DropletCustomTwo.h" />
-    <ClInclude Include="..\..\..\DropletSimLibrary\include\DropletDataStructs.h" />
-    <ClInclude Include="..\..\..\DropletSimLibrary\include\DropletSim.h" />
-    <ClInclude Include="..\..\..\DropletSimLibrary\include\DropletSimGlobals.h" />
-    <ClInclude Include="..\..\..\DropletSimLibrary\include\DropletSimInfo.h" />
-    <ClInclude Include="..\..\..\DropletSimLibrary\include\DropletTimeControl.h" />
-    <ClInclude Include="..\..\..\DropletSimLibrary\include\DropletUtil.h" />
+    <ClInclude Include="..\..\..\DropletSimLibrary\include\DSim.h" />
+    <ClInclude Include="..\..\..\DropletSimLibrary\include\DSimDataLogger.h" />
+    <ClInclude Include="..\..\..\DropletSimLibrary\include\DSimDataStructs.h" />
+    <ClInclude Include="..\..\..\DropletSimLibrary\include\DSimDroplet.h" />
+    <ClInclude Include="..\..\..\DropletSimLibrary\include\DSimGlobals.h" />
+    <ClInclude Include="..\..\..\DropletSimLibrary\include\DSimInterface.h" />
     <ClInclude Include="..\..\..\DropletSimLibrary\include\DSimPhysicalObject.h" />
-    <ClInclude Include="..\..\..\DropletSimLibrary\include\IDroplet.h" />
-    <ClInclude Include="..\..\..\DropletSimLibrary\include\IDropletProjector.h" />
-    <ClInclude Include="..\..\..\DropletSimLibrary\include\IDropletSimInterface.h" />
+    <ClInclude Include="..\..\..\DropletSimLibrary\include\DSimProjection.h" />
+    <ClInclude Include="..\..\..\DropletSimLibrary\include\DSimTimeControl.h" />
+    <ClInclude Include="..\..\..\DropletSimLibrary\include\DSimUtil.h" />
     <ClInclude Include="..\..\..\DropletSimLibrary\include\inttypes.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

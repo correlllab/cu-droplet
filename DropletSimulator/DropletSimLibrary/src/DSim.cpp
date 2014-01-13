@@ -1,9 +1,9 @@
-#include "DropletSim.h"
+#include "DSim.h"
 
 extern TrigArray *dropletRelPos; // Welcome to the DAINJA' ZONE!
 std::vector<GPSInfo *> dropletPositions;
 
-DropletSim::DropletSim()
+DSim::DSim()
 {
 	firstRun = true;
 	projSet  = false;
@@ -17,14 +17,14 @@ DropletSim::DropletSim()
 	dropletRelPos = NULL;
 }
 
-DropletSim::~DropletSim()
+DSim::~DSim()
 {
 	droplets.clear();
 	physicalObjects.clear();
 	dropletPositions.clear();
 }
 
-DS_RESULT DropletSim::AddCollisionShape(btCollisionShape *colShape, int *colShapeIndex)
+DS_RESULT DSim::AddCollisionShape(btCollisionShape *colShape, int *colShapeIndex)
 {
 	simPhysics->collisionShapes->push_back(colShape);
 	*colShapeIndex = simPhysics->_colShapeIDCounter++;
@@ -32,7 +32,7 @@ DS_RESULT DropletSim::AddCollisionShape(btCollisionShape *colShape, int *colShap
 	return DS_SUCCESS;
 }
 
-DS_RESULT DropletSim::CreateFloor(
+DS_RESULT DSim::CreateFloor(
 	int floorShapeIndex,
 	int wallXShapeIndex, 
 	int wallYShapeIndex)
@@ -79,8 +79,8 @@ DS_RESULT DropletSim::CreateFloor(
 	return DS_SUCCESS;
 }
 
-DS_RESULT DropletSim::AddDroplet(		
-	IDroplet *pDroplet, 
+DS_RESULT DSim::AddDroplet(		
+	DSimDroplet *pDroplet, 
 	std::pair<float, float>startPos,
 	float startAngle)
 {
@@ -114,7 +114,7 @@ DS_RESULT DropletSim::AddDroplet(
 	return retval;
 }
 
-DS_RESULT DropletSim::AddPhysicalObject(
+DS_RESULT DSim::AddPhysicalObject(
 		DSimPhysicalObject *pObject,
 		std::pair<float, float> startPos,
 		float startAngle)
@@ -146,7 +146,7 @@ DS_RESULT DropletSim::AddPhysicalObject(
 	return retval;
 }
 
-DS_RESULT DropletSim::AddPhysicalObject(
+DS_RESULT DSim::AddPhysicalObject(
 		DSimPhysicalObject *pObject,
 		std::pair<float, float> startPos,
 		float startHeight,
@@ -179,7 +179,7 @@ DS_RESULT DropletSim::AddPhysicalObject(
 	return retval;
 }
 
-DS_RESULT DropletSim::SetUpProjector(std::string imgDir, std::string imgName)
+DS_RESULT DSim::SetUpProjector(std::string imgDir, std::string imgName)
 {
 	DS_RESULT retval = DS_SUCCESS;
 
@@ -190,7 +190,7 @@ DS_RESULT DropletSim::SetUpProjector(std::string imgDir, std::string imgName)
 		retval = DS_WARNING;
 	}
 
-	projector = new IDropletProjector(
+	projector = new DSimProjection(
 		static_cast<int>(simSetupData->numRowTiles * simSetupData->tileLength),
 		static_cast<int>(simSetupData->numColTiles * simSetupData->tileLength));
 
@@ -203,7 +203,7 @@ DS_RESULT DropletSim::SetUpProjector(std::string imgDir, std::string imgName)
 	return retval;
 }
 
-DS_RESULT DropletSim::SetUpProjector(
+DS_RESULT DSim::SetUpProjector(
 		std::string imgDir, 
 		std::string imgName,
 		int projWidth, 
@@ -218,7 +218,7 @@ DS_RESULT DropletSim::SetUpProjector(
 		retval = DS_WARNING;
 	}
 
-	projector = new IDropletProjector(projWidth, projLength);
+	projector = new DSimProjection(projWidth, projLength);
 	
 	retval = projector->SetDirectory(imgDir);
 	retval = projector->LoadFile(imgName);
@@ -229,7 +229,7 @@ DS_RESULT DropletSim::SetUpProjector(
 	return retval;
 }
 
-DS_RESULT DropletSim::Init(const SimSetupData &setupData)
+DS_RESULT DSim::Init(const SimSetupData &setupData)
 {
 	DS_RESULT retval;
 
@@ -270,10 +270,10 @@ DS_RESULT DropletSim::Init(const SimSetupData &setupData)
  * 6. Step the physics engine
  *
  */
-DS_RESULT DropletSim::Step()
+DS_RESULT DSim::Step()
 {
 	// The following if() statement is just run on the first step of the simulator.
-	std::vector<IDroplet *>::iterator it;
+	std::vector<DSimDroplet *>::iterator it;
 	if(firstRun)
 	{
 		// Step the simulation a few times first
@@ -289,10 +289,10 @@ DS_RESULT DropletSim::Step()
 				int randSteps = static_cast<int>(goodRand->doub() * 100);
 				for(int i = 0; i < randSteps; i++) 
 				{
-					std::vector<IDroplet *>::iterator n_it;
+					std::vector<DSimDroplet *>::iterator n_it;
 					for(n_it = droplets.begin(); n_it <= it; n_it++)
 					{
-						IDroplet *pDroplet = *n_it;
+						DSimDroplet *pDroplet = *n_it;
 						pDroplet->DropletMainLoop();
 					}
 
@@ -313,7 +313,7 @@ DS_RESULT DropletSim::Step()
 
 	for(it = droplets.begin(); it != droplets.end(); it++)
 	{
-		IDroplet *pDroplet = *it;
+		DSimDroplet *pDroplet = *it;
 		pDroplet->DropletMainLoop();
 	}
 
@@ -336,10 +336,10 @@ DS_RESULT DropletSim::Step()
 	return DS_SUCCESS;
 }
 
-DS_RESULT DropletSim::Cleanup()
+DS_RESULT DSim::Cleanup()
 {
 	// Clean up droplet data.
-	std::vector<IDroplet *>::reverse_iterator d_rit;
+	std::vector<DSimDroplet *>::reverse_iterator d_rit;
 	for(d_rit = droplets.rbegin(); d_rit != droplets.rend(); d_rit++)
 		delete *d_rit;
 
@@ -361,7 +361,7 @@ DS_RESULT DropletSim::Cleanup()
 	return endPhysics();
 }
 
-DS_RESULT DropletSim::initPhysics()
+DS_RESULT DSim::initPhysics()
 {
 	simPhysics = (SimPhysicsData *)malloc(sizeof(SimPhysicsData));
 
@@ -397,7 +397,7 @@ DS_RESULT DropletSim::initPhysics()
 	return DS_SUCCESS;
 }
 
-DS_RESULT DropletSim::endPhysics()
+DS_RESULT DSim::endPhysics()
 {
 	// TODO : Delete simPhysics->collisionShapes object array
 	delete simPhysics->dynWorld;
@@ -411,7 +411,7 @@ DS_RESULT DropletSim::endPhysics()
 	return DS_SUCCESS;
 }
 
-DS_RESULT DropletSim::initPhysicsObject(ObjectPhysicsData *objPhysics, btVector3 &origin)
+DS_RESULT DSim::initPhysicsObject(ObjectPhysicsData *objPhysics, btVector3 &origin)
 {
 	btCollisionShape *colShape = simPhysics->collisionShapes->at(objPhysics->colShapeIndex);
 	
@@ -451,17 +451,17 @@ DS_RESULT DropletSim::initPhysicsObject(ObjectPhysicsData *objPhysics, btVector3
 
 // ----- Control and Update Functions ----- //
 
-void DropletSim::gatherPositionsAndCorrect()
+void DSim::gatherPositionsAndCorrect()
 {
 	btCollisionObjectArray objs = simPhysics->dynWorld->getCollisionObjectArray();
-	std::vector<IDroplet *>::iterator d_it;
+	std::vector<DSimDroplet *>::iterator d_it;
 	std::vector<DSimPhysicalObject *>::iterator o_it;
 	std::vector<GPSInfo *>::iterator p_it;
 	p_it = dropletPositions.begin();
 
 	for(d_it = droplets.begin(); d_it != droplets.end(); d_it++)
 	{
-		IDroplet *pDroplet = *d_it;
+		DSimDroplet *pDroplet = *d_it;
 		ObjectPhysicsData *objPhysics;
 		AccessPhysicsData(pDroplet, &objPhysics);
 
@@ -609,15 +609,15 @@ void DropletSim::gatherPositionsAndCorrect()
 	}
 }
 
-void DropletSim::motionController()
+void DSim::motionController()
 {
 	btCollisionObjectArray objs = simPhysics->dynWorld->getCollisionObjectArray();
 
 	std::vector<GPSInfo *>::iterator d_it = dropletPositions.begin();
-	std::vector<IDroplet *>::iterator it;
+	std::vector<DSimDroplet *>::iterator it;
 	for(it = droplets.begin (); it < droplets.end(); it++) 
 	{
-		IDroplet *pDroplet = *it;
+		DSimDroplet *pDroplet = *it;
 		GPSInfo *gpsInfo = *d_it;
 		DropletActuatorData *actData;
 		AccessActuatorData(pDroplet, &actData);
@@ -638,7 +638,7 @@ void DropletSim::motionController()
 
 			/* Add a small error variance to each motor since they are never identical.
 			 * The error variance value can be changed using the MOTOR_ERROR constant in 
-			 * DropletSimGlobals.h */
+			 * DSimGlobals.h */
 			btVector3 motor1CounterClockImpulse =
 				(btScalar(IMPULSE_SCALING * ((goodRand->doub() * MOTOR_ERROR * 2.f) + 
 					(1.f - MOTOR_ERROR))) * 
@@ -774,7 +774,7 @@ void DropletSim::motionController()
 	}
 }
 
-void DropletSim::setLegPower(IDroplet *pDroplet, GPSInfo *gpsInfo)
+void DSim::setLegPower(DSimDroplet *pDroplet, GPSInfo *gpsInfo)
 {
 	DropletCompData *compData;
 	AccessCompData(pDroplet, &compData);
@@ -836,18 +836,18 @@ void DropletSim::setLegPower(IDroplet *pDroplet, GPSInfo *gpsInfo)
 }
 
 
-void DropletSim::sensorController()
+void DSim::sensorController()
 {
 	// RGB Sensing active only when projector is set up.
 	if(projSet)
 	{
-		std::vector<IDroplet *>::iterator d_it;
+		std::vector<DSimDroplet *>::iterator d_it;
 		std::vector<GPSInfo *>::iterator p_it;
 		p_it = dropletPositions.begin();
 
 		for(d_it = droplets.begin(); d_it < droplets.end(); d_it++)
 		{
-			IDroplet *pDroplet = *d_it;
+			DSimDroplet *pDroplet = *d_it;
 			DropletSensorData *senseData;
 			AccessSensorData(pDroplet, &senseData);
 			uint8_t rgbaVal[4];
@@ -868,7 +868,7 @@ void DropletSim::sensorController()
 }
 
 
-void DropletSim::calcRelativePos(unsigned int dID)
+void DSim::calcRelativePos(unsigned int dID)
 {
 	if(dropletRelPos == NULL)
 		dropletRelPos = new TrigArray(dropletPositions.size());
@@ -891,10 +891,10 @@ void DropletSim::calcRelativePos(unsigned int dID)
 	gpsData->movedSinceLastUpdate = false;
 }
 
-void DropletSim::commController()
+void DSim::commController()
 {
 	unsigned int d_id = 0;
-	std::vector<IDroplet *>::iterator it;
+	std::vector<DSimDroplet *>::iterator it;
 
 	for(unsigned int i = 0; i < dropletPositions.size(); i++)
 	{
@@ -909,7 +909,7 @@ void DropletSim::commController()
 
 	for(it = droplets.begin(); it != droplets.end(); it++)
 	{
-		IDroplet *pDroplet = *it;
+		DSimDroplet *pDroplet = *it;
 		DropletCommData *sendCommData;
 		AccessCommData(pDroplet, &sendCommData);
 
@@ -925,7 +925,7 @@ void DropletSim::commController()
 
 				if(dropletRelPos->GetDistance(d_id, i) <= BROADCAST_THRESHOLD)
 				{
-					IDroplet *recvDroplet = droplets[i];
+					DSimDroplet *recvDroplet = droplets[i];
 					DropletCommData *recvCommData;
 					AccessCommData(recvDroplet, &recvCommData);
 
@@ -962,12 +962,12 @@ void DropletSim::commController()
 	}
 }
 
-void DropletSim::timerController()
+void DSim::timerController()
 {
-	std::vector<IDroplet *>::iterator it;
+	std::vector<DSimDroplet *>::iterator it;
 	for(it = droplets.begin(); it != droplets.end(); it++)
 	{
-		IDroplet *pDroplet = *it;
+		DSimDroplet *pDroplet = *it;
 		DropletTimeData *timeData;
 		AccessTimeData(pDroplet, &timeData);
 

@@ -1,5 +1,5 @@
 /**
- * \file	cu-droplet\DropletSimulator\DropletSimLibrary\include\DropletSimGlobals.h
+ * \file	cu-droplet\DropletSimulator\DropletSimLibrary\include\DSimGlobals.h
  *
  * \brief	This file contains global variables.
  */

@@ -6,15 +6,15 @@
 #ifndef _DROPLET_CUSTOM_THREE
 #define _DROPLET_CUSTOM_THREE
 
-#include <IDroplet.h>
-#include <DropletSimGlobals.h>
-#include <DropletDataStructs.h>
+#include <DSimDroplet.h>
+#include <DSimGlobals.h>
+#include <DSimDataStructs.h>
 
 #include <inttypes.h>
 #include <string.h>
 #include <stdlib.h>
 
-class DropletCustomThree : public IDroplet
+class DropletCustomThree : public DSimDroplet
 {
 private :
 

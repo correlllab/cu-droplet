@@ -13,7 +13,7 @@ const int guitar_rows[] = {
 	/* Head  3, 4, 3, 2, 0}; */
 
 DropletCustomFive::DropletCustomFive(ObjectPhysicsData *objPhysics) 
-	: IDroplet(objPhysics) 
+	: DSimDroplet(objPhysics) 
 {   neighbors = (uint8_t*)malloc(sizeof(uint8_t) * 6);
 	return; }
 

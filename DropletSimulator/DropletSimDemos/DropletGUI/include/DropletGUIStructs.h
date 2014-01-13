@@ -12,7 +12,7 @@
 #include <QList>
 #include <QString>
 #include <QImage>
-#include <DropletDataStructs.h>
+#include <DSimDataStructs.h>
 
 /** @defgroup globals Globals
  *  \brief Global types, structures, and functions.

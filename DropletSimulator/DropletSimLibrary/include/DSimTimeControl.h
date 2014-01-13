@@ -3,7 +3,7 @@
  * 
  */
 /**
- * \file	cu-droplet\DropletSimulator\DropletSimLibrary\include\DropletTimeControl.h
+ * \file	cu-droplet\DropletSimulator\DropletSimLibrary\include\DSimTimeControl.h
  *
  * \brief	Declares the droplet time control class that gathers timing info. Times are returned
  *			as doubles in seconds. The UNIX compilation calculates time with microsecond accuracy
@@ -39,13 +39,13 @@
  */
 
 /**
- * \class	DropletTimeControl
+ * \class	DSimTimeControl
  *
  * \brief	class used for calculating timing information for the Droplet Simulator. In order
- *			to access timing information from outside the simulator, use DropletSimInfo.
+ *			to access timing information from outside the simulator, use DSimDataLogger.
  *
  */
-class DropletTimeControl
+class DSimTimeControl
 {
 private :
 
@@ -90,7 +90,7 @@ public :
 	//RT indicates real time, ST indicates simulator time
 
 	/**
-	 * \fn	void DropletTimeControl::initTimer(double sss);
+	 * \fn	void DSimTimeControl::initTimer(double sss);
 	 *
 	 * \brief	initializes the timer with a specified sim step size.
 	 *
@@ -100,7 +100,7 @@ public :
 	void initTimer(double sss);
 
 	/**
-	 * \fn	void DropletTimeControl::updateTimer(double sss);
+	 * \fn	void DSimTimeControl::updateTimer(double sss);
 	 *
 	 * \brief	updates relevant variables and should be called each step. can be used to update the
 	 * 			sim step size.
@@ -112,7 +112,7 @@ public :
 	void updateTimer();
 
 	/**
-	 * \fn	void DropletTimeControl::resetTimer();
+	 * \fn	void DSimTimeControl::resetTimer();
 	 *
 	 * \brief	resets the timer.
 	 */
@@ -120,7 +120,7 @@ public :
 	void resetTimer();
 
 	/**
-	 * \fn	double DropletTimeControl::getTotalRT();
+	 * \fn	double DSimTimeControl::getTotalRT();
 	 *
 	 * \brief	get total real time elapsed since the simulator started.
 	 *
@@ -130,7 +130,7 @@ public :
 	double getTotalRT();
 
 	/**
-	 * \fn	double DropletTimeControl::getTotalST();
+	 * \fn	double DSimTimeControl::getTotalST();
 	 *
 	 * \brief	get total time simulated so far.
 	 *
@@ -140,7 +140,7 @@ public :
 	double getTotalST();
 
 	/**
-	 * \fn	double DropletTimeControl::getStepRT();
+	 * \fn	double DSimTimeControl::getStepRT();
 	 *
 	 * \brief	gets the real time elapsed since the last step.
 	 *
@@ -150,7 +150,7 @@ public :
 	double getStepRT();
 
 	/**
-	 * \fn	double DropletTimeControl::getTotalDiff();
+	 * \fn	double DSimTimeControl::getTotalDiff();
 	 *
 	 * \brief	gets the difference between total real time and sim time.
 	 *
@@ -160,7 +160,7 @@ public :
 	double getTotalDiff();
 
 	/**
-	 * \fn	double DropletTimeControl::getTimeRatio();
+	 * \fn	double DSimTimeControl::getTimeRatio();
 	 *
 	 * \brief	gets the ratio between the time simulated in one step and real time elapsed
 	 *			since the last step.
@@ -171,7 +171,7 @@ public :
 	double getTimeRatio();
 
 	/**
-	 * \fn	void DropletTimeControl::printTotalRT();
+	 * \fn	void DSimTimeControl::printTotalRT();
 	 *
 	 * \brief	prints total real time to the console.
 	 */
@@ -179,7 +179,7 @@ public :
 	void printTotalRT();
 	
 	/**
-	 * \fn	void DropletTimeControl::printTotalST();
+	 * \fn	void DSimTimeControl::printTotalST();
 	 *
 	 * \brief	prints total simulator time to the console.
 	 */
@@ -187,7 +187,7 @@ public :
 	void printTotalST();
 	
 	/**
-	 * \fn	void DropletTimeControl::printStepRT();
+	 * \fn	void DSimTimeControl::printStepRT();
 	 *
 	 * \brief	prints real time elapsed since the last step to the console.
 	 */
@@ -195,7 +195,7 @@ public :
 	void printStepRT();
 	
 	/**
-	 * \fn	void DropletTimeControl::printTotalDiff();
+	 * \fn	void DSimTimeControl::printTotalDiff();
 	 *
 	 * \brief	prints the difference between total real time and simulated time to the console.
 	 */
@@ -203,7 +203,7 @@ public :
 	void printTotalDiff();
 	
 	/**
-	 * \fn	void DropletTimeControl::printTimeRatio();
+	 * \fn	void DSimTimeControl::printTimeRatio();
 	 *
 	 * \brief	prints the ratio between the sim time and real tim of the last step to the console.
 	 */
@@ -212,7 +212,7 @@ public :
 
 	
 	/**
-	 * \fn	void DropletTimeControl::printAll();
+	 * \fn	void DSimTimeControl::printAll();
 	 *
 	 * \brief	prints all calculated time values on a single line to the console.
 	 */
@@ -220,7 +220,7 @@ public :
 	void printAll();
 
 	/**
-	 * \fn	void DropletTimeControl::printVars();
+	 * \fn	void DSimTimeControl::printVars();
 	 *
 	 * \brief	prints the stored timestamps: init time, current time, and time of the last step.
 	 */

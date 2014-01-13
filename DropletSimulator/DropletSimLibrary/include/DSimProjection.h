@@ -3,8 +3,8 @@
 #ifndef _DROPLET_PROJECTOR
 #define _DROPLET_PROJECTOR
 
-#include "DropletDataStructs.h"
-#include "DropletSimGlobals.h"
+#include "DSimDataStructs.h"
+#include "DSimGlobals.h"
 
 
 #ifdef _WIN32
@@ -21,10 +21,10 @@
 #include <iostream>
 
 /**
- * IDropletProjector controls the projector inside the arena.
+ * DSimProjection controls the projector inside the arena.
  */
 
-class IDropletProjector
+class DSimProjection
 {
 protected :
 	
@@ -56,13 +56,13 @@ public :
 	 * \param	projWidth 	Width of the project.
 	 */
 
-	IDropletProjector(int projLength, int projWidth);
+	DSimProjection(int projLength, int projWidth);
 
 	/**
 	 * Destructor.
 	 */
 
-	~IDropletProjector();
+	~DSimProjection();
 
 	/**
 	 * Sets the working directory for bitmap files.

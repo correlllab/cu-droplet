@@ -10,8 +10,8 @@
 #endif
 
 #include "btBulletDynamicsCommon.h"
-#include "DropletSimGlobals.h"
-#include "DropletDataStructs.h"
+#include "DSimGlobals.h"
+#include "DSimDataStructs.h"
 
 #include <cstdlib>
 #include <utility>

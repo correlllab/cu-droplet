@@ -127,7 +127,7 @@ void SimInterface::Init()
 	QTime time = QTime::currentTime();
 	srand((uint)time.msec());
 
-	_sim = new DropletSim();
+	_sim = new DSim();
 	SimSetupData setupData(
 		_simSettings.numRowTiles, 
 		_simSettings.numColTiles, 
@@ -190,7 +190,7 @@ void SimInterface::Init()
 
 	_objectPos = new std::vector<GPSInfo *>();
 
-	_timer = (DropletTimeControl *)malloc(sizeof(DropletTimeControl));
+	_timer = (DSimTimeControl *)malloc(sizeof(DSimTimeControl));
 
 	_simState.dropletData.clear();
 	_simState.dynamicObjectData.clear();
@@ -636,7 +636,7 @@ void SimInterface::addDroplet( float x, float y, droplet_t dType, int dropletID 
 	dropletPhyDat->localInertia = btVector3(0.0, 0.0, 0.0);
 	dropletPhyDat->friction = DEFAULT_DROPLET_FRICTION;
 
-	IDroplet *newDroplet = newDropletOfType(dType,dropletPhyDat);
+	DSimDroplet *newDroplet = newDropletOfType(dType,dropletPhyDat);
 
 	_sim->AddDroplet(
 		newDroplet, 
@@ -1169,9 +1169,9 @@ bool SimInterface::isPaused()
 }
 
 
-IDroplet* SimInterface::newDropletOfType(droplet_t dType, ObjectPhysicsData *dropletPhyDat)
+DSimDroplet* SimInterface::newDropletOfType(droplet_t dType, ObjectPhysicsData *dropletPhyDat)
 {
-	IDroplet* result = NULL;
+	DSimDroplet* result = NULL;
 
 	switch (dType)
 	{

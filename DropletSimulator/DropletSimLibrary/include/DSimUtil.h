@@ -1,5 +1,5 @@
 /*
- * DropletUtil.h - 
+ * DSimUtil.h - 
  *
  * Random number generator from Numerical Recipes, 3rd Edition 
  *
@@ -17,7 +17,7 @@
 
 #include <cmath>
 
-#include "DropletDataStructs.h"
+#include "DSimDataStructs.h"
 
 struct Ran {
 

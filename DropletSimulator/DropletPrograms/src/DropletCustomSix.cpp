@@ -12,7 +12,7 @@ const float theta_clk  = -90.f;
 const float theta_cclk = 90.f; 
 
 DropletCustomSix::DropletCustomSix(ObjectPhysicsData *objPhysics) 
-	: IDroplet(objPhysics) 
+	: DSimDroplet(objPhysics) 
 {	return; }
 
 

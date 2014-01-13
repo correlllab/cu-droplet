@@ -4,7 +4,7 @@ const char *r_talker = "rt";
 const char *d_talker = "dt";
 
 DropletCustomOne::DropletCustomOne(ObjectPhysicsData *objPhysics) 
-	: IDroplet(objPhysics) 
+	: DSimDroplet(objPhysics) 
 { return; }
 
 DropletCustomOne::~DropletCustomOne() { return; }

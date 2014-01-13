@@ -24,30 +24,6 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\DropletSimLibrary\src\DropletSimInfo.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\DropletSimLibrary\src\DropletTimeControl.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\DropletSimLibrary\src\IDroplet.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\DropletSimLibrary\src\IDropletProjector.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\DropletSimLibrary\src\DropletUtil.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\DropletSimLibrary\src\DropletSim.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\DropletSimLibrary\src\IDropletSimInterface.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\DropletSimLibrary\src\DSimPhysicalObject.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\DropletPrograms\src\DropletCustomEight.cpp">
       <Filter>DropletPrograms\Source Files</Filter>
     </ClCompile>
@@ -78,39 +54,33 @@
     <ClCompile Include="..\..\..\DropletPrograms\src\DropletCustomTwo.cpp">
       <Filter>DropletPrograms\Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\DropletSimLibrary\src\DSim.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\DropletSimLibrary\src\DSimDataLogger.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\DropletSimLibrary\src\DSimDroplet.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\DropletSimLibrary\src\DSimInterface.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\DropletSimLibrary\src\DSimPhysicalObject.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\DropletSimLibrary\src\DSimProjection.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\DropletSimLibrary\src\DSimTimeControl.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\DropletSimLibrary\src\DSimUtil.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\..\DropletSimLibrary\include\DropletDataStructs.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\DropletSimLibrary\include\DropletSimInfo.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\DropletSimLibrary\include\DropletTimeControl.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\DropletSimLibrary\include\DropletUtil.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\DropletSimLibrary\include\IDroplet.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\DropletSimLibrary\include\IDropletProjector.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\..\DropletSimLibrary\include\inttypes.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\DropletSimLibrary\include\DropletSim.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\DropletSimLibrary\include\IDropletSimInterface.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\DropletSimLibrary\include\DSimPhysicalObject.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\DropletSimLibrary\include\DropletSimGlobals.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\DropletPrograms\include\DropletCustomEight.h">
@@ -142,6 +112,36 @@
     </ClInclude>
     <ClInclude Include="..\..\..\DropletPrograms\include\DropletCustomTwo.h">
       <Filter>DropletPrograms\Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\DropletSimLibrary\include\DSim.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\DropletSimLibrary\include\DSimDataLogger.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\DropletSimLibrary\include\DSimDataStructs.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\DropletSimLibrary\include\DSimDroplet.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\DropletSimLibrary\include\DSimGlobals.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\DropletSimLibrary\include\DSimInterface.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\DropletSimLibrary\include\DSimPhysicalObject.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\DropletSimLibrary\include\DSimProjection.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\DropletSimLibrary\include\DSimTimeControl.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\DropletSimLibrary\include\DSimUtil.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

@@ -5,12 +5,12 @@
 
 #include <btBulletDynamicsCommon.h>
 
-#include "DropletDataStructs.h"
-#include "DropletSimGlobals.h"
-#include "DropletTimeControl.h"
-#include "IDropletProjector.h"
-#include "DropletUtil.h"
-#include "IDroplet.h"
+#include "DSimDataStructs.h"
+#include "DSimGlobals.h"
+#include "DSimTimeControl.h"
+#include "DSimProjection.h"
+#include "DSimUtil.h"
+#include "DSimDroplet.h"
 #include "DSimPhysicalObject.h"
 
 #include <vector>
@@ -20,14 +20,14 @@
 #include <string>
 #include <math.h>
 
-class SimSetupData;	// Defined after DropletSim
+class SimSetupData;	// Defined after DSim
 
 /**
  * Droplet simulator.
  */
-class DropletSim
+class DSim
 {
-	friend class DropletSimInfo;
+	friend class DSimDataLogger;
 
 private :
 
@@ -82,7 +82,7 @@ private :
 	 * Set Power to droplet legs
 	 */
 
-	void setLegPower(IDroplet *pDroplet, GPSInfo *gpsInfo);
+	void setLegPower(DSimDroplet *pDroplet, GPSInfo *gpsInfo);
 
 	/**
 	 * Sensor controller.
@@ -113,13 +113,13 @@ protected :
 	 * The projector.
 	 */
 
-	IDropletProjector *projector;
+	DSimProjection *projector;
 
 	/**
 	 * Vector containing droplet information.
 	 */
 
-	std::vector<IDroplet *> droplets;
+	std::vector<DSimDroplet *> droplets;
 
 	/**
 	 * Vector containing physical object information (other than droplets).
@@ -140,7 +140,7 @@ protected :
 	std::vector<GPSInfo *> objectPositions;
 	
 	// time info class
-	DropletTimeControl timer;
+	DSimTimeControl timer;
 
 public :
 
@@ -149,13 +149,13 @@ public :
 	 * Default constructor.
 	 */
 
-	DropletSim(void);
+	DSim(void);
 
 	/**
 	 * Destructor.
 	 */
 
-	~DropletSim();
+	~DSim();
 
 	/**
 	 * Adds a collision shape to 'colShapeIndex'.
@@ -195,7 +195,7 @@ public :
 	 */
 
 	DS_RESULT AddDroplet(
-		IDroplet *pDroplet, 
+		DSimDroplet *pDroplet, 
 		std::pair<float, float> startPos,
 		float startAngle);
 
@@ -298,7 +298,7 @@ private :
 	float fps, timestep;
 	bool autoBuildBoundaryWalls, staggeredStart;
 
-	friend class DropletSim;
+	friend class DSim;
 
 public :
 

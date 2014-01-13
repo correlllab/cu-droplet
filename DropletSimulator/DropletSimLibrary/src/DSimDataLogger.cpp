@@ -1,10 +1,10 @@
-#include "DropletSimInfo.h"
-#include "DropletSim.h"
-#include "IDroplet.h"
+#include "DSimDataLogger.h"
+#include "DSim.h"
+#include "DSimDroplet.h"
 
 extern std::vector<GPSInfo *> dropletPositions;
 
-DS_RESULT DropletSimInfo::GetDropletPositions(std::vector<GPSInfo *> *outPosData, DropletSim& simulator)
+DS_RESULT DSimDataLogger::GetDropletPositions(std::vector<GPSInfo *> *outPosData, DSim& simulator)
 {
 
 	std::vector<GPSInfo *>::iterator in_it, p_it;
@@ -30,7 +30,7 @@ DS_RESULT DropletSimInfo::GetDropletPositions(std::vector<GPSInfo *> *outPosData
 	return DS_SUCCESS;
 }
 
-DS_RESULT DropletSimInfo::GetObjectPositions(std::vector<GPSInfo *> *outPosData, DropletSim& simulator)
+DS_RESULT DSimDataLogger::GetObjectPositions(std::vector<GPSInfo *> *outPosData, DSim& simulator)
 {
 
 	std::vector<GPSInfo *>::iterator in_it, p_it;
@@ -56,15 +56,15 @@ DS_RESULT DropletSimInfo::GetObjectPositions(std::vector<GPSInfo *> *outPosData,
 	return DS_SUCCESS;
 }
 
-DS_RESULT DropletSimInfo::GetDropletColors(std::vector<uint8_t *> *colors, DropletSim& simulator)
+DS_RESULT DSimDataLogger::GetDropletColors(std::vector<uint8_t *> *colors, DSim& simulator)
 {
-	std::vector<IDroplet *>::iterator d_it;
+	std::vector<DSimDroplet *>::iterator d_it;
 	std::vector<uint8_t *>::iterator c_it;
 	c_it = colors->begin();
 
 	for(d_it = simulator.droplets.begin(); d_it < simulator.droplets.end(); d_it++)
 	{
-		IDroplet *pDroplet = *d_it;
+		DSimDroplet *pDroplet = *d_it;
 		DropletActuatorData *actData;
 		AccessActuatorData(pDroplet, &actData);
 
@@ -80,15 +80,15 @@ DS_RESULT DropletSimInfo::GetDropletColors(std::vector<uint8_t *> *colors, Dropl
 	return DS_SUCCESS;
 }
 
-DS_RESULT DropletSimInfo::GetRemainingMotionTimes(std::vector<float *> *times, DropletSim& simulator)
+DS_RESULT DSimDataLogger::GetRemainingMotionTimes(std::vector<float *> *times, DSim& simulator)
 {
-	std::vector<IDroplet *>::iterator d_it;
+	std::vector<DSimDroplet *>::iterator d_it;
 	std::vector<float *>::iterator c_it;
 	c_it = times->begin();
 
 	for(d_it = simulator.droplets.begin(); d_it < simulator.droplets.end(); d_it++)
 	{
-		IDroplet *pDroplet = *d_it;
+		DSimDroplet *pDroplet = *d_it;
 		DropletActuatorData *actData;
 		AccessActuatorData(pDroplet, &actData);
 
@@ -103,15 +103,15 @@ DS_RESULT DropletSimInfo::GetRemainingMotionTimes(std::vector<float *> *times, D
 	return DS_SUCCESS;
 }
 
-DS_RESULT DropletSimInfo::GetMotionDirections(std::vector<DirInfo *> *directions, DropletSim& simulator)
+DS_RESULT DSimDataLogger::GetMotionDirections(std::vector<DirInfo *> *directions, DSim& simulator)
 {
-	std::vector<IDroplet *>::iterator d_it;
+	std::vector<DSimDroplet *>::iterator d_it;
 	std::vector<DirInfo *>::iterator c_it;
 	c_it = directions->begin();
 
 	for(d_it = simulator.droplets.begin(); d_it < simulator.droplets.end(); d_it++)
 	{
-		IDroplet *pDroplet = *d_it;
+		DSimDroplet *pDroplet = *d_it;
 		DropletActuatorData *actData;
 		AccessActuatorData(pDroplet, &actData);
 
@@ -126,15 +126,15 @@ DS_RESULT DropletSimInfo::GetMotionDirections(std::vector<DirInfo *> *directions
 	return DS_SUCCESS;
 }
 
-DS_RESULT DropletSimInfo::GetSensorColors(std::vector<uint8_t *> *colors, DropletSim& simulator)
+DS_RESULT DSimDataLogger::GetSensorColors(std::vector<uint8_t *> *colors, DSim& simulator)
 {
-	std::vector<IDroplet *>::iterator d_it;
+	std::vector<DSimDroplet *>::iterator d_it;
 	std::vector<uint8_t *>::iterator c_it;
 	c_it = colors->begin();
 
 	for(d_it = simulator.droplets.begin(); d_it < simulator.droplets.end(); d_it++)
 	{
-		IDroplet *pDroplet = *d_it;
+		DSimDroplet *pDroplet = *d_it;
 		DropletSensorData *senseData;
 		AccessSensorData(pDroplet, &senseData);
 
@@ -150,15 +150,15 @@ DS_RESULT DropletSimInfo::GetSensorColors(std::vector<uint8_t *> *colors, Drople
 	return DS_SUCCESS;
 }
 
-DS_RESULT DropletSimInfo::GetPhysData(std::vector<ObjectPhysicsData *> *phys, DropletSim& simulator)
+DS_RESULT DSimDataLogger::GetPhysData(std::vector<ObjectPhysicsData *> *phys, DSim& simulator)
 {
-	std::vector<IDroplet *>::iterator d_it;
+	std::vector<DSimDroplet *>::iterator d_it;
 	std::vector<ObjectPhysicsData *>::iterator c_it;
 	c_it = phys->begin();
 
 	for(d_it = simulator.droplets.begin(); d_it < simulator.droplets.end(); d_it++)
 	{
-		IDroplet *pDroplet = *d_it;
+		DSimDroplet *pDroplet = *d_it;
 		ObjectPhysicsData *physData;
 		AccessPhysicsData(pDroplet, &physData);
 
@@ -176,15 +176,15 @@ DS_RESULT DropletSimInfo::GetPhysData(std::vector<ObjectPhysicsData *> *phys, Dr
 	return DS_SUCCESS;
 }
 
-DS_RESULT DropletSimInfo::GetCommData(std::vector<DropletCommData *> *comm, DropletSim& simulator)
+DS_RESULT DSimDataLogger::GetCommData(std::vector<DropletCommData *> *comm, DSim& simulator)
 {
-	std::vector<IDroplet *>::iterator d_it;
+	std::vector<DSimDroplet *>::iterator d_it;
 	std::vector<DropletCommData *>::iterator c_it;
 	c_it = comm->begin();
 
 	for(d_it = simulator.droplets.begin(); d_it < simulator.droplets.end(); d_it++)
 	{
-		IDroplet *pDroplet = *d_it;
+		DSimDroplet *pDroplet = *d_it;
 		DropletCommData *commData;
 		AccessCommData(pDroplet, &commData);
 
@@ -213,15 +213,15 @@ DS_RESULT DropletSimInfo::GetCommData(std::vector<DropletCommData *> *comm, Drop
 	return DS_SUCCESS;
 }
 
-DS_RESULT DropletSimInfo::GetCompData(std::vector<DropletCompData *> *comp, DropletSim& simulator)
+DS_RESULT DSimDataLogger::GetCompData(std::vector<DropletCompData *> *comp, DSim& simulator)
 {
-	std::vector<IDroplet *>::iterator d_it;
+	std::vector<DSimDroplet *>::iterator d_it;
 	std::vector<DropletCompData *>::iterator c_it;
 	c_it = comp->begin();
 
 	for(d_it = simulator.droplets.begin(); d_it < simulator.droplets.end(); d_it++)
 	{
-		IDroplet *pDroplet = *d_it;
+		DSimDroplet *pDroplet = *d_it;
 		DropletCompData *compData;
 		AccessCompData(pDroplet, &compData);
 
@@ -239,15 +239,15 @@ DS_RESULT DropletSimInfo::GetCompData(std::vector<DropletCompData *> *comp, Drop
 	return DS_SUCCESS;
 }
 
-DS_RESULT DropletSimInfo::GetActuationData(std::vector<DropletActuatorData *> *act, DropletSim &simulator)
+DS_RESULT DSimDataLogger::GetActuationData(std::vector<DropletActuatorData *> *act, DSim &simulator)
 {
-	std::vector<IDroplet *>::iterator d_it;
+	std::vector<DSimDroplet *>::iterator d_it;
 	std::vector<DropletActuatorData *>::iterator c_it;
 	c_it = act->begin();
 
 	for(d_it = simulator.droplets.begin(); d_it < simulator.droplets.end(); d_it++)
 	{
-		IDroplet *pDroplet = *d_it;
+		DSimDroplet *pDroplet = *d_it;
 		DropletActuatorData *actData;
 		AccessActuatorData(pDroplet, &actData);
 
@@ -267,7 +267,7 @@ DS_RESULT DropletSimInfo::GetActuationData(std::vector<DropletActuatorData *> *a
 	return DS_SUCCESS;
 }
 
-uint64_t DropletSimInfo::GetNumCollisions(DropletSim &simulator)
+uint64_t DSimDataLogger::GetNumCollisions(DSim &simulator)
 {
 	int numManifolds = simulator.simPhysics->dynWorld->getDispatcher()->getNumManifolds();
 	uint64_t numColls = 0;
@@ -297,22 +297,22 @@ uint64_t DropletSimInfo::GetNumCollisions(DropletSim &simulator)
 	return numColls;
 }
 
-double DropletSimInfo::GetTotalRT(DropletSim& simulator) {
+double DSimDataLogger::GetTotalRT(DSim& simulator) {
 	return simulator.timer.getTotalRT();
 }
 
-double DropletSimInfo::GetTotalST(DropletSim& simulator) {
+double DSimDataLogger::GetTotalST(DSim& simulator) {
 	return simulator.timer.getTotalST();
 }
 
-double DropletSimInfo::GetStepRT(DropletSim& simulator) {
+double DSimDataLogger::GetStepRT(DSim& simulator) {
 	return simulator.timer.getStepRT();
 }
 
-double DropletSimInfo::GetTotalDiff(DropletSim& simulator) {
+double DSimDataLogger::GetTotalDiff(DSim& simulator) {
 	return simulator.timer.getTotalDiff();
 }
 
-double DropletSimInfo::GetTimeRatio(DropletSim& simulator) {
+double DSimDataLogger::GetTimeRatio(DSim& simulator) {
 	return simulator.timer.getTimeRatio();
 }

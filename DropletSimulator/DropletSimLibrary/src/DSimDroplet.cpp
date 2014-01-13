@@ -1,9 +1,9 @@
-#include "IDroplet.h"
+#include "DSimDroplet.h"
 
 /* Having access to TrigArray in Droplet code is ONLY for implementing Range and Bearing.
- * This is dangerous bacause DropletSim is where dropletRelPos really gets defined even
- * though the variable is defined in DropletUtil.cpp. Notice that DropletSim.h isn't and
- * cannot be included in IDroplet.h but dropletRelPos is affected by it. 
+ * This is dangerous bacause DSim is where dropletRelPos really gets defined even
+ * though the variable is defined in DSimUtil.cpp. Notice that DSim.h isn't and
+ * cannot be included in DSimDroplet.h but dropletRelPos is affected by it. 
  */
 extern TrigArray *dropletRelPos; // Welcome to the DAINJA' ZONE!
 extern std::vector<GPSInfo *> dropletPositions;
@@ -20,7 +20,7 @@ float prettyAngle(float ang){
 
 
 // Constructors and Destructor
-IDroplet::IDroplet(ObjectPhysicsData *objPhysics)
+DSimDroplet::DSimDroplet(ObjectPhysicsData *objPhysics)
 {
 	this->objPhysics = objPhysics;
 	actData		= (DropletActuatorData *)malloc(sizeof(DropletActuatorData));
@@ -32,7 +32,7 @@ IDroplet::IDroplet(ObjectPhysicsData *objPhysics)
 	this->global_rx_buffer.buf = (uint8_t *)malloc(sizeof(uint8_t) * IR_BUFFER_SIZE);
 }
 	
-IDroplet::~IDroplet()
+DSimDroplet::~DSimDroplet()
 {
 	free(objPhysics);
 	free(actData);
@@ -48,7 +48,7 @@ IDroplet::~IDroplet()
 	compData = NULL;
 }
 
-DS_RESULT IDroplet::_InitPhysics(
+DS_RESULT DSimDroplet::_InitPhysics(
 	SimPhysicsData *simPhysics, 
 	std::pair<float, float> startPosition,
 	float startAngle)
@@ -119,7 +119,7 @@ DS_RESULT IDroplet::_InitPhysics(
 }
 
 // Droplet Subsystems Setup Functions
-void IDroplet::init_all_systems() 
+void DSimDroplet::init_all_systems() 
 {
 	reset_motors();
 	reset_rgb_led();
@@ -139,7 +139,7 @@ void droplet_reboot(void)
 	// TODO
 }
 
-void IDroplet::reset_rgb_led() 
+void DSimDroplet::reset_rgb_led() 
 {
 	actData->rOut = 250;
 	actData->gOut = 250;
@@ -147,7 +147,7 @@ void IDroplet::reset_rgb_led()
 }
 
 
-void IDroplet::reset_ir_sensor(uint8_t sensor_num) 
+void DSimDroplet::reset_ir_sensor(uint8_t sensor_num) 
 {
 	if(sensor_num >= 0 && sensor_num < 7)
 	{
@@ -160,14 +160,14 @@ void IDroplet::reset_ir_sensor(uint8_t sensor_num)
 	}
 }
 
-void IDroplet::reset_rgb_sensor() 
+void DSimDroplet::reset_rgb_sensor() 
 {
 	senseData->rIn = 0;
 	senseData->gIn = 0;
 	senseData->bIn = 0;
 }
 
-void IDroplet::reset_motors() 
+void DSimDroplet::reset_motors() 
 {
 	actData->currMoveDir			= MOVE_OFF;
 	actData->currTurnDir			= TURN_OFF;
@@ -178,7 +178,7 @@ void IDroplet::reset_motors()
 	actData->_oscillator			= true;
 }
 
-void IDroplet::reset_timers()
+void DSimDroplet::reset_timers()
 {
 	for(int i = 0; i < DROPLET_NUM_TIMERS; i++)
 	{
@@ -187,41 +187,41 @@ void IDroplet::reset_timers()
 	}
 }
 
-droplet_id_type IDroplet::get_droplet_id()
+droplet_id_type DSimDroplet::get_droplet_id()
 {
 	return compData->dropletID;
 }
 
-uint8_t IDroplet::rand_byte(void)
+uint8_t DSimDroplet::rand_byte(void)
 {
 	return static_cast<uint8_t>(255 * ((float)rand() / RAND_MAX));
 }
 
 // Droplet Motion Subsystem Functions
-void IDroplet::move_duration(move_direction direction, uint16_t duration)
+void DSimDroplet::move_duration(move_direction direction, uint16_t duration)
 {
 	actData->moveTimeRemaining = static_cast<float>(duration);
 	actData->currMoveDir = direction;
 }
 
-void IDroplet::move_steps(move_direction direction, uint16_t num_steps)
+void DSimDroplet::move_steps(move_direction direction, uint16_t num_steps)
 {
 	actData->moveStepRemaining = static_cast<float>(num_steps * WALK_STEP_TIME);
 	actData->currMoveDir = direction;
 }
-void IDroplet::rotate_duration(turn_direction direction, uint16_t duration)
+void DSimDroplet::rotate_duration(turn_direction direction, uint16_t duration)
 {
 	actData->rotateTimeRemaining = static_cast<float>(duration);
 	actData->currTurnDir = direction;
 }
 
-void IDroplet::rotate_steps(turn_direction direction, uint16_t num_steps)
+void DSimDroplet::rotate_steps(turn_direction direction, uint16_t num_steps)
 {
 	actData->rotateStepRemaining = static_cast<float>(num_steps * WALK_STEP_TIME);
 	actData->currTurnDir = direction;
 }
 
-void IDroplet::rotate_degrees(int16_t deg)
+void DSimDroplet::rotate_degrees(int16_t deg)
 {
 	deg = static_cast<int16_t>(prettyAngle(static_cast<float>(deg)));
 	if(deg > 0)
@@ -234,7 +234,7 @@ void IDroplet::rotate_degrees(int16_t deg)
 	}
 }
 
-uint32_t IDroplet::cancel_move() 
+uint32_t DSimDroplet::cancel_move() 
 {
 	float tmp;
 	if ( actData->moveStepRemaining > 0){
@@ -251,7 +251,7 @@ uint32_t IDroplet::cancel_move()
 	}
 }
 
-uint32_t IDroplet::cancel_rotate() 
+uint32_t DSimDroplet::cancel_rotate() 
 {
 	float tmp;
 	if ( actData->rotateStepRemaining > 0){
@@ -268,7 +268,7 @@ uint32_t IDroplet::cancel_rotate()
 	}
 }
 
-uint8_t IDroplet::is_moving()
+uint8_t DSimDroplet::is_moving()
 {
 	if(actData->moveTimeRemaining <= 0.f && 
 		actData->moveStepRemaining <= 0.f)
@@ -277,8 +277,8 @@ uint8_t IDroplet::is_moving()
 		return actData->currMoveDir;
 }
 
-//uint8_t IDroplet::is_rotating()
-turn_direction IDroplet::is_rotating() 
+//uint8_t DSimDroplet::is_rotating()
+turn_direction DSimDroplet::is_rotating() 
 {
 	if(actData->rotateTimeRemaining <= 0.f &&
 		actData->rotateStepRemaining <= 0.f)
@@ -287,22 +287,22 @@ turn_direction IDroplet::is_rotating()
 		return actData->currTurnDir;
 }
 
-int8_t IDroplet::leg1_status()
+int8_t DSimDroplet::leg1_status()
 {
 	return compData->leg1Status;
 }
 
-int8_t IDroplet::leg2_status()
+int8_t DSimDroplet::leg2_status()
 {
 	return compData->leg2Status;
 }
 
-int8_t IDroplet::leg3_status()
+int8_t DSimDroplet::leg3_status()
 {
 	return compData->leg3Status;
 }
 
-int8_t IDroplet::leg_status(uint8_t leg)
+int8_t DSimDroplet::leg_status(uint8_t leg)
 {
 	switch(leg)
 	{
@@ -324,81 +324,81 @@ int8_t IDroplet::leg_status(uint8_t leg)
 
 	return 2;
 }
-int8_t IDroplet::cap_status(void)
+int8_t DSimDroplet::cap_status(void)
 {
 	return compData->capStatus;
 }
 
-void IDroplet::set_rgb_led(uint8_t r, uint8_t g, uint8_t b)
+void DSimDroplet::set_rgb_led(uint8_t r, uint8_t g, uint8_t b)
 {
 	actData->rOut = r;
 	actData->gOut = g;
 	actData->bOut = b;
 }
 
-void IDroplet::set_red_led(uint8_t saturation)
+void DSimDroplet::set_red_led(uint8_t saturation)
 {
 	actData->rOut = saturation;
 }
 
-void IDroplet::set_green_led(uint8_t saturation)
+void DSimDroplet::set_green_led(uint8_t saturation)
 {
 	actData->gOut = saturation;
 }
 
-void IDroplet::set_blue_led(uint8_t saturation)
+void DSimDroplet::set_blue_led(uint8_t saturation)
 {
 	actData->bOut = saturation;
 }
 
-uint8_t IDroplet::get_red_led(void)
+uint8_t DSimDroplet::get_red_led(void)
 {
 	return actData->rOut;
 }
 
-uint8_t IDroplet::get_green_led(void)
+uint8_t DSimDroplet::get_green_led(void)
 {
 	return actData->gOut;
 }
 
-uint8_t IDroplet::get_blue_led(void)
+uint8_t DSimDroplet::get_blue_led(void)
 {
 	return actData->bOut;
 }
 
-void IDroplet::led_off(void)
+void DSimDroplet::led_off(void)
 {
 	reset_rgb_led();
 }
 
-void IDroplet::get_rgb_sensor(uint8_t *r, uint8_t *g, uint8_t *b)
+void DSimDroplet::get_rgb_sensor(uint8_t *r, uint8_t *g, uint8_t *b)
 {
 	*r = senseData->rIn;
 	*g = senseData->gIn;
 	*b = senseData->bIn;
 }
 
-uint8_t IDroplet::get_red_sensor(void)
+uint8_t DSimDroplet::get_red_sensor(void)
 {
 	return senseData->rIn;
 }
 
-uint8_t IDroplet::get_green_sensor(void)
+uint8_t DSimDroplet::get_green_sensor(void)
 {
 	return senseData->gIn;
 }
 
-uint8_t IDroplet::get_blue_sensor(void)
+uint8_t DSimDroplet::get_blue_sensor(void)
 {
 	return senseData->bIn;
 }
 
-uint8_t IDroplet::ir_broadcast(const char *send_buf, uint8_t length)
+uint8_t DSimDroplet::ir_broadcast(const char *send_buf, uint8_t length)
 {
 	return ir_send(0, send_buf, length);
 }
 
-uint8_t IDroplet::ir_send(uint8_t channel, const char *send_buf, uint8_t length)
+uint8_t DSimDroplet::ir_send(uint8_t channel, const char *send_buf, uint8_t length)
 {
 	// We only have 6 channels, 1 - 6. Channel 0 is reserved for broadcast
 	if(channel > 6)
@@ -423,7 +423,7 @@ uint8_t IDroplet::ir_send(uint8_t channel, const char *send_buf, uint8_t length)
 	return 1;
 }
 
-uint8_t IDroplet::check_for_new_messages(void)
+uint8_t DSimDroplet::check_for_new_messages(void)
 {
 	int newMsgCh = -1;
 	for(int i = 0; i < 7; i++)
@@ -481,7 +481,7 @@ uint8_t IDroplet::check_for_new_messages(void)
 	return (newMsgCh == -1) ? 0 : 1;
 }
 
-uint8_t IDroplet::set_timer(uint16_t time, uint8_t index)
+uint8_t DSimDroplet::set_timer(uint16_t time, uint8_t index)
 {
 	if(index >= DROPLET_NUM_TIMERS) return 0;
 
@@ -491,14 +491,14 @@ uint8_t IDroplet::set_timer(uint16_t time, uint8_t index)
 	return 1;
 }
  
-uint8_t IDroplet::check_timer(uint8_t index)
+uint8_t DSimDroplet::check_timer(uint8_t index)
 {
 	if(index >= DROPLET_NUM_TIMERS) return 0;
 
 	return timeData->trigger[index];
 }
 
-uint8_t IDroplet::range_and_bearing(uint16_t partner_id, float *dist, float *theta, float *phi)
+uint8_t DSimDroplet::range_and_bearing(uint16_t partner_id, float *dist, float *theta, float *phi)
 {
 	float angle;
 	unsigned int partner_world_id = static_cast<unsigned int>(partner_id - DROPLET_ID_START);
@@ -537,5 +537,5 @@ uint8_t IDroplet::range_and_bearing(uint16_t partner_id, float *dist, float *the
 
 
 
-void IDroplet::DropletInit(void) { return; }
-void IDroplet::DropletMainLoop(void) { return; }
+void DSimDroplet::DropletInit(void) { return; }
+void DSimDroplet::DropletMainLoop(void) { return; }

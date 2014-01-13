@@ -1,10 +1,10 @@
 
 /**
- * \file	cu-droplet\DropletSimulator\DropletSimLibrary\include\DropletDataStructs.h
+ * \file	cu-droplet\DropletSimulator\DropletSimLibrary\include\DSimDataStructs.h
  *
  * \brief	This file contains private data structures to be used by the simulator only!
  *			Public data structures used for returning information to an external caller are 
- *			defined in DropletSimInfo.h.
+ *			defined in DSimDataLogger.h.
  */
 #pragma once
 
@@ -17,7 +17,7 @@
 #include <inttypes.h>
 #endif
 
-#include "DropletSimGlobals.h"
+#include "DSimGlobals.h"
 #include "btBulletDynamicsCommon.h"
 
 /**
@@ -135,7 +135,7 @@ typedef struct _Droplet_Timing_Data
 /**
  * This is a special structure for user-set state variables to track droplet
  * behavior over the course of an experiment. It is a convenience struct 
- * which has handles in the DropletSimInfo class for extracting experimental
+ * which has handles in the DSimDataLogger class for extracting experimental
  * data in the middle of simulation. When writing Droplet programs, you may use 
  * this for tracking and storing useful data.
  */

@@ -1,20 +1,20 @@
 /**
- * \file	cu-droplet\DropletSimulator\DropletSimLibrary\include\DropletSimInfo.h
+ * \file	cu-droplet\DropletSimulator\DropletSimLibrary\include\DSimDataLogger.h
  *
  * \brief	Declares the droplet simulation information class that gives access to 
- * 			info stored by the structs declared in DropletDataStructs and timing info
- *			calculated by DropletTimeControl. Detailed info on the data structs can be
+ * 			info stored by the structs declared in DSimDataStructs and timing info
+ *			calculated by DSimTimeControl. Detailed info on the data structs can be
  *			found in:
- *				cu-droplet\DropletSimulator\DropletSimLibrary\include\DropletDataStructs.h
+ *				cu-droplet\DropletSimulator\DropletSimLibrary\include\DSimDataStructs.h
  *			Details on Droplet Simulator return codes (DS_RESULT) can be found in:
- *				cu-droplet\DropletSimulator\DropletSimLibrary\include\DropletSimGlobals.h
+ *				cu-droplet\DropletSimulator\DropletSimLibrary\include\DSimGlobals.h
  */
 
 #pragma once
 
-#include "DropletSimGlobals.h"
-#include "DropletSim.h"
-#include "DropletDataStructs.h"
+#include "DSimGlobals.h"
+#include "DSim.h"
+#include "DSimDataStructs.h"
 #include <vector>
 #include <cstdio>
 #include <cstdlib>
@@ -25,7 +25,7 @@
  *
  * \brief	Defines an alias representing information describing the droplet motion direction.
  *			Details on move_direction and turn_direction can be found in:
- *			cu-droplet\DropletSimulator\DropletSimLibrary\include\DropletSimGlobals.h
+ *			cu-droplet\DropletSimulator\DropletSimLibrary\include\DSimGlobals.h
  */
 
 typedef struct Droplet_Motion_Direction_Data // Droplet move and turn direction Info
@@ -36,21 +36,21 @@ typedef struct Droplet_Motion_Direction_Data // Droplet move and turn direction 
 
 
 /**
- * \class	DropletSimInfo
+ * \class	DSimDataLogger
  *
  * \brief	Helper class used for retrieving information from the simulator. Retrieves any
- *			interesting info stored in DropletDataStructs
+ *			interesting info stored in DSimDataStructs
  *
  */
 
-class DropletSimInfo
+class DSimDataLogger
 {	
-friend class DropletSim;
+friend class DSim;
 public:
 
 	/**
-	 * \fn	DS_RESULT DropletSimInfo::GetDropletPositions(std::vector<GPSInfo *> *outPosData,
-	 * 		DropletSim& simulator);
+	 * \fn	DS_RESULT DSimDataLogger::GetDropletPositions(std::vector<GPSInfo *> *outPosData,
+	 * 		DSim& simulator);
 	 *
 	 * \brief	puts droplet position info into a supplied vector.
 	 *
@@ -60,11 +60,11 @@ public:
 	 * \return	A Droplet Simulator error code.
 	 */
 
-	DS_RESULT GetDropletPositions(std::vector<GPSInfo *> *outPosData, DropletSim& simulator);
+	DS_RESULT GetDropletPositions(std::vector<GPSInfo *> *outPosData, DSim& simulator);
 
 	/**
-	 * \fn	DS_RESULT DropletSimInfo::GetObjectPositions(std::vector<GPSInfo *> *outPosData,
-	 * 		DropletSim& simulator);
+	 * \fn	DS_RESULT DSimDataLogger::GetObjectPositions(std::vector<GPSInfo *> *outPosData,
+	 * 		DSim& simulator);
 	 *
 	 * \brief	puts object position info into a supplied vector.
 	 *
@@ -74,11 +74,11 @@ public:
 	 * \return	A Droplet Simulator error code.
 	 */
 
-	DS_RESULT GetObjectPositions(std::vector<GPSInfo *> *outPosData, DropletSim& simulator);
+	DS_RESULT GetObjectPositions(std::vector<GPSInfo *> *outPosData, DSim& simulator);
 
 	/**
-	 * \fn	DS_RESULT DropletSimInfo::GetDropletColors(std::vector<uint8_t *> *colors,
-	 * 		DropletSim& simulator);
+	 * \fn	DS_RESULT DSimDataLogger::GetDropletColors(std::vector<uint8_t *> *colors,
+	 * 		DSim& simulator);
 	 *
 	 * \brief	puts droplet LED color info into a supplied vector. color data is RGB ranging
 	 *			from 0 to 255
@@ -89,11 +89,11 @@ public:
 	 * \return	A Droplet Simulator error code.
 	 */
 
-	DS_RESULT GetDropletColors(std::vector<uint8_t *> *colors, DropletSim& simulator);
+	DS_RESULT GetDropletColors(std::vector<uint8_t *> *colors, DSim& simulator);
 
 	/**
-	 * \fn	DS_RESULT DropletSimInfo::GetRemainingMotionTimes(std::vector<float *> *times,
-	 * 		DropletSim& simulator);
+	 * \fn	DS_RESULT DSimDataLogger::GetRemainingMotionTimes(std::vector<float *> *times,
+	 * 		DSim& simulator);
 	 *
 	 * \brief	puts remaining droplet motion (move and rotate) time info into a supplied vector.
 	 *
@@ -103,11 +103,11 @@ public:
 	 * \return	A Droplet Simulator error code.
 	 */
 
-	DS_RESULT GetRemainingMotionTimes(std::vector<float *> *times, DropletSim& simulator);
+	DS_RESULT GetRemainingMotionTimes(std::vector<float *> *times, DSim& simulator);
 	
 	/**
-	 * \fn	DS_RESULT DropletSimInfo::GetMotionDirections(std::vector<DirInfo *> *directions,
-	 * 		DropletSim& simulator);
+	 * \fn	DS_RESULT DSimDataLogger::GetMotionDirections(std::vector<DirInfo *> *directions,
+	 * 		DSim& simulator);
 	 *
 	 * \brief	puts droplet motion (move and rotate) direction info into a supplied vector.
 	 *
@@ -117,11 +117,11 @@ public:
 	 * \return	A Droplet Simulator error code.
 	 */
 
-	DS_RESULT GetMotionDirections(std::vector<DirInfo *> *directions, DropletSim& simulator);
+	DS_RESULT GetMotionDirections(std::vector<DirInfo *> *directions, DSim& simulator);
 	
 	/**
-	 * \fn	DS_RESULT DropletSimInfo::GetSensorColors(std::vector<uint8_t *> *colors,
-	 * 		DropletSim& simulator);
+	 * \fn	DS_RESULT DSimDataLogger::GetSensorColors(std::vector<uint8_t *> *colors,
+	 * 		DSim& simulator);
 	 *
 	 * \brief	puts droplet RGB sensor color info into a supplied vector. colors range from
 	 *			0 to 255.
@@ -132,11 +132,11 @@ public:
 	 * \return	A Droplet Simulator error code.
 	 */
 
-	DS_RESULT GetSensorColors(std::vector<uint8_t *> *colors, DropletSim& simulator);
+	DS_RESULT GetSensorColors(std::vector<uint8_t *> *colors, DSim& simulator);
 	
 	/**
-	 * \fn	DS_RESULT DropletSimInfo::GetPhysData(std::vector<ObjectPhysicsData *> *phys,
-	 * 		DropletSim& simulator);
+	 * \fn	DS_RESULT DSimDataLogger::GetPhysData(std::vector<ObjectPhysicsData *> *phys,
+	 * 		DSim& simulator);
 	 *
 	 * \brief	puts object physics info into a supplied vector.
 	 *
@@ -146,11 +146,11 @@ public:
 	 * \return	A Droplet Simulator error code.
 	 */
 
-	DS_RESULT GetPhysData(std::vector<ObjectPhysicsData *> *phys, DropletSim& simulator);
+	DS_RESULT GetPhysData(std::vector<ObjectPhysicsData *> *phys, DSim& simulator);
 	
 	/**
-	 * \fn	DS_RESULT DropletSimInfo::GetCommData(std::vector<DropletCommData *> *comm,
-	 * 		DropletSim& simulator);
+	 * \fn	DS_RESULT DSimDataLogger::GetCommData(std::vector<DropletCommData *> *comm,
+	 * 		DSim& simulator);
 	 *
 	 * \brief	puts droplet communication info into a supplied vector.
 	 *
@@ -160,11 +160,11 @@ public:
 	 * \return	A Droplet Simulator error code.
 	 */
 
-	DS_RESULT GetCommData(std::vector<DropletCommData *> *comm, DropletSim& simulator);
+	DS_RESULT GetCommData(std::vector<DropletCommData *> *comm, DSim& simulator);
 	
 	/**
-	 * \fn	DS_RESULT DropletSimInfo::GetCompData(std::vector<DropletCompData *> *comp,
-	 * 		DropletSim& simulator);
+	 * \fn	DS_RESULT DSimDataLogger::GetCompData(std::vector<DropletCompData *> *comp,
+	 * 		DSim& simulator);
 	 *
 	 * \brief	puts droplet component info into a supplied vector.
 	 *
@@ -174,11 +174,11 @@ public:
 	 * \return	A Droplet Simulator error code.
 	 */
 
-	DS_RESULT GetCompData(std::vector<DropletCompData *> *comp, DropletSim& simulator);
+	DS_RESULT GetCompData(std::vector<DropletCompData *> *comp, DSim& simulator);
 	
 	/**
-	 * \fn	DS_RESULT DropletSimInfo::GetActuationData(std::vector<DropletActuatorData *> *act,
-	 * 		DropletSim& simulator);
+	 * \fn	DS_RESULT DSimDataLogger::GetActuationData(std::vector<DropletActuatorData *> *act,
+	 * 		DSim& simulator);
 	 *
 	 * \brief	puts droplet actuator info into a supplied vector.
 	 *
@@ -188,75 +188,75 @@ public:
 	 * \return	A Droplet Simulator error code.
 	 */
 
-	DS_RESULT GetActuationData(std::vector<DropletActuatorData *> *act, DropletSim &simulator);
+	DS_RESULT GetActuationData(std::vector<DropletActuatorData *> *act, DSim &simulator);
 
 	/* GetNumCollisions() returns the number of objects colliding at any given time.
 	 * To understand the implmenentation of this function refer to the wiki page,
 	 * http://www.bulletphysics.org/mediawiki-1.5.8/index.php?title=Collision_Callbacks_and_Triggers
 	 */
-	uint64_t GetNumCollisions(DropletSim &simulator);
+	uint64_t GetNumCollisions(DSim &simulator);
 
 	/**
-	 * \fn	double DropletSimInfo::GetTotalRT(DropletSim& simulator);
+	 * \fn	double DSimDataLogger::GetTotalRT(DSim& simulator);
 	 *
 	 * \brief	gets the total real time elapsed since the simulator has started from
-	 *			the DropletTimeControl class.
+	 *			the DSimTimeControl class.
 	 *
 	 * \param [in,out]	simulator	The simulator.
 	 *
 	 * \return	The total real time elapsed.
 	 */
 
-	double GetTotalRT(DropletSim& simulator);
+	double GetTotalRT(DSim& simulator);
 	
 	/**
-	 * \fn	double DropletSimInfo::GetTotalST(DropletSim& simulator);
+	 * \fn	double DSimDataLogger::GetTotalST(DSim& simulator);
 	 *
 	 * \brief	gets the total time simulated since the simulator has started from
-	 *			the DropletTimeControl class.
+	 *			the DSimTimeControl class.
 	 *
 	 * \param [in,out]	simulator	The simulator.
 	 *
 	 * \return	The total time simulated.
 	 */
 
-	double GetTotalST(DropletSim& simulator);
+	double GetTotalST(DSim& simulator);
 	
 	/**
-	 * \fn	double DropletSimInfo::GetStepRT(DropletSim& simulator);
+	 * \fn	double DSimDataLogger::GetStepRT(DSim& simulator);
 	 *
 	 * \brief	gets the real time elapsed since the simulator calculated the last step 
-	 *			from the DropletTimeControl class.
+	 *			from the DSimTimeControl class.
 	 *
 	 * \param [in,out]	simulator	The simulator.
 	 *
 	 * \return	The real time since the last step.
 	 */
 
-	double GetStepRT(DropletSim& simulator);
+	double GetStepRT(DSim& simulator);
 	
 	/**
-	 * \fn	double DropletSimInfo::GetTotalDiff(DropletSim& simulator);
+	 * \fn	double DSimDataLogger::GetTotalDiff(DSim& simulator);
 	 *
 	 * \brief	gets the difference between the total real time and simulator time elapsed from
-	 *			the DropletTimeControl class.
+	 *			the DSimTimeControl class.
 	 *
 	 * \param [in,out]	simulator	The simulator.
 	 *
 	 * \return	The difference between total real time and simulator time.
 	 */
 
-	double GetTotalDiff(DropletSim& simulator);
+	double GetTotalDiff(DSim& simulator);
 	
 	/**
-	 * \fn	double DropletSimInfo::GetTimeRatio(DropletSim& simulator);
+	 * \fn	double DSimDataLogger::GetTimeRatio(DSim& simulator);
 	 *
 	 * \brief	gets the ratio of time simulated in one step to real time elapsed since the 
-	 *			last step from the DropletTimeControl class.
+	 *			last step from the DSimTimeControl class.
 	 *
 	 * \param [in,out]	simulator	The simulator.
 	 *
 	 * \return	The total real time elapsed.
 	 */
-	double GetTimeRatio(DropletSim& simulator);
+	double GetTimeRatio(DSim& simulator);
 };

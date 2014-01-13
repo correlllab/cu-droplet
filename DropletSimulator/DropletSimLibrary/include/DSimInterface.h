@@ -3,8 +3,8 @@
 #ifndef _I_DROPLET_SIM_INTERFACE
 #define _I_DROPLET_SIM_INTERFACE
 
-#include "DropletSim.h"
-#include "DropletSimGlobals.h"
+#include "DSim.h"
+#include "DSimGlobals.h"
 
 enum BasicObjectShapes
 {
@@ -15,18 +15,18 @@ enum BasicObjectShapes
 	PLANE
 };
 
-class IDropletSimInterface
+class DSimInterface
 {
 	private :
 
 	protected :
 
-		DropletSim *sim;
+		DSim *sim;
 
 	public :
 
-		IDropletSimInterface(void);
-		virtual ~IDropletSimInterface(void);
+		DSimInterface(void);
+		virtual ~DSimInterface(void);
 
 		DS_RESULT InitializeSim(char *initFilePath);
 		DS_RESULT SetDropletCollisionShape(BasicObjectShapes shape);

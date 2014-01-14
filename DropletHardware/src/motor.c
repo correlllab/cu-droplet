@@ -132,6 +132,17 @@ uint8_t is_moving(void) // returns 0 if droplet is not moving, (1-6) if moving
 	return 0;
 }
 
+uint8_t get_motor_on_time(uint8_t motor_num, uint8_t direction)
+{
+	return motor_on_time[motor_num-1][direction];
+}
+
+void set_motor_on_time(uint8_t motor_num, uint8_t direction, uint8_t on_time)
+{
+	motor_on_time[motor_num-1][direction] = on_time;	
+}
+
+
 int8_t get_motor_duty_cycle(uint8_t motor_num, uint8_t direction)
 {
 	return motor_duty_cycle[motor_num-1][direction];
@@ -144,9 +155,14 @@ void set_motor_duty_cycle(uint8_t motor_num, uint8_t direction, int8_t duty_cycl
 
 void read_motor_settings()
 {
-	for (uint8_t motor_num = 1; motor_num <= 3; motor_num++) 
+	for (uint8_t motor_num = 1; motor_num <= 3; motor_num++)
+	{
 		for (uint8_t direction = 0; direction < 8; direction++)
+		{
 			motor_duty_cycle[motor_num-1][direction] = ((int8_t)SP_ReadUserSignatureByte(0x10 + (motor_num-1) + 3*direction));
+			motor_on_time[motor_num-1][direction] = ((uint8_t)SP_ReadUserSignatureByte(0x28 + (motor_num-1) + 3*direction));
+		}
+	}		
 }
 
 void write_motor_settings()
@@ -156,8 +172,13 @@ void write_motor_settings()
 		page_buffer[i] = SP_ReadUserSignatureByte(i);
 	
 	for (uint8_t motor_num = 1; motor_num <= 3; motor_num++)
+	{
 		for (uint8_t direction = 0; direction < 8; direction++)
+		{
 			page_buffer[(0x10 + (motor_num-1) + 3*direction)] = motor_duty_cycle[motor_num-1][direction];
+			page_buffer[(0x28 + (motor_num-1) + 3*direction)] = motor_on_time[motor_num-1][direction];
+		}
+	}					
 		
 	SP_LoadFlashPage(page_buffer);
 	
@@ -165,9 +186,9 @@ void write_motor_settings()
 	SP_WriteUserSignatureRow();
 }
 
-void print_motor_settings()
+void print_motor_duty_cycles()
 {
-	printf("Motor Settings\r\n");
+	printf("Motor Duty Cycles\r\n");
 	printf("\tN\tm1 %i\tm2 %i\tm3 %i\r\n", motor_duty_cycle[0][0],motor_duty_cycle[1][0],motor_duty_cycle[2][0]);
 	printf("\tNE\tm1 %i\tm2 %i\tm3 %i\r\n", motor_duty_cycle[0][1],motor_duty_cycle[1][1],motor_duty_cycle[2][1]);
 	printf("\tSE\tm1 %i\tm2 %i\tm3 %i\r\n", motor_duty_cycle[0][2],motor_duty_cycle[1][2],motor_duty_cycle[2][2]);
@@ -176,6 +197,19 @@ void print_motor_settings()
 	printf("\tNW\tm1 %i\tm2 %i\tm3 %i\r\n", motor_duty_cycle[0][5],motor_duty_cycle[1][5],motor_duty_cycle[2][5]);
 	printf("\tCW\tm1 %i\tm2 %i\tm3 %i\r\n", motor_duty_cycle[0][6],motor_duty_cycle[1][6],motor_duty_cycle[2][6]);
 	printf("\tCCW\tm1 %i\tm2 %i\tm3 %i\r\n", motor_duty_cycle[0][7],motor_duty_cycle[1][7],motor_duty_cycle[2][7]);
+}
+
+void print_motor_on_times()
+{
+	printf("Motor On Times\r\n");
+	printf("\tN\tm1 %i\tm2 %i\tm3 %i\r\n", motor_on_time[0][0],motor_on_time[1][0],motor_on_time[2][0]);
+	printf("\tNE\tm1 %i\tm2 %i\tm3 %i\r\n", motor_on_time[0][1],motor_on_time[1][1],motor_on_time[2][1]);
+	printf("\tSE\tm1 %i\tm2 %i\tm3 %i\r\n", motor_on_time[0][2],motor_on_time[1][2],motor_on_time[2][2]);
+	printf("\tS\tm1 %i\tm2 %i\tm3 %i\r\n", motor_on_time[0][3],motor_on_time[1][3],motor_on_time[2][3]);
+	printf("\tSW\tm1 %i\tm2 %i\tm3 %i\r\n", motor_on_time[0][4],motor_on_time[1][4],motor_on_time[2][4]);
+	printf("\tNW\tm1 %i\tm2 %i\tm3 %i\r\n", motor_on_time[0][5],motor_on_time[1][5],motor_on_time[2][5]);
+	printf("\tCW\tm1 %i\tm2 %i\tm3 %i\r\n", motor_on_time[0][6],motor_on_time[1][6],motor_on_time[2][6]);
+	printf("\tCCW\tm1 %i\tm2 %i\tm3 %i\r\n", motor_on_time[0][7],motor_on_time[1][7],motor_on_time[2][7]);
 }
 
 // SCHEDULED TASK IN TAKE_STEP
@@ -229,21 +263,21 @@ void take_step(void* arg)
 	{
 		uint16_t step_param = (direction << 8) | 1;
 		schedule_task(step_time, mot_spin_up, step_param); step_time += MOTOR_SPINUP_TIME;
-		schedule_task(step_time, mot_on, step_param); step_time += MOTOR_ON_TIME;
+		schedule_task(step_time, mot_on, step_param); step_time += get_motor_on_time(1, direction);
 		schedule_task(step_time, mot_off, step_param); step_time += MOTOR_OFF_TIME;
 	}
 	if (get_motor_duty_cycle(2, direction) != 0)
 	{
 		uint16_t step_param = (direction << 8) | 2;
 		schedule_task(step_time, mot_spin_up, step_param); step_time += MOTOR_SPINUP_TIME;
-		schedule_task(step_time, mot_on, step_param); step_time += MOTOR_ON_TIME;
+		schedule_task(step_time, mot_on, step_param); step_time += get_motor_on_time(1, direction);
 		schedule_task(step_time, mot_off, step_param); step_time += MOTOR_OFF_TIME;
 	}
 	if (get_motor_duty_cycle(3, direction) != 0)
 	{
 		uint16_t step_param = (direction << 8) | 3;
 		schedule_task(step_time, mot_spin_up, step_param); step_time += MOTOR_SPINUP_TIME;
-		schedule_task(step_time, mot_on, step_param); step_time += MOTOR_ON_TIME;
+		schedule_task(step_time, mot_on, step_param); step_time += get_motor_on_time(1, direction);
 		schedule_task(step_time, mot_off, step_param); step_time += MOTOR_OFF_TIME;
 	}
 	schedule_task(step_time, take_step, NULL);

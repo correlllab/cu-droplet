@@ -26,9 +26,13 @@ void handle_serial_command(char* command, uint16_t command_length)
 		{
 			handle_walk(command_args);
 		}
-		else if(strcmp(command_word,"set_motor")==0)
+		else if(strcmp(command_word,"set_motor_dc")==0)
 		{
-			handle_set_motor(command_args);
+			handle_set_motor_dc(command_args);
+		}
+		else if(strcmp(command_word,"set_motor_ot")==0)
+		{
+			handle_set_motor_ot(command_args);
 		}
 		else if(strcmp(command_word,"stop_walk")==0)
 		{
@@ -88,7 +92,8 @@ void handle_serial_command(char* command, uint16_t command_length)
 		}
 		else if(strcmp(command_word,"print_motor_settings")==0)
 		{
-			print_motor_settings();
+			print_motor_duty_cycles();
+			print_motor_on_times();
 		}
 		else if(strcmp(command_word,"write_motor_settings")==0)
 		{
@@ -173,7 +178,7 @@ void handle_stop_walk()
 	cancel_move();
 }
 
-void handle_set_motor(char* command_args)
+void handle_set_motor_dc(char* command_args)
 {
 	const char delim[2] = " ";
 
@@ -220,10 +225,72 @@ void handle_set_motor(char* command_args)
 	token = strtok(NULL,delim);
 	m[2] = atoi(token);
 
-	printf("Got set_motor command: direction is %u, settings are %i %i %i\r\n", direction, m[0], m[1], m[2]);
+	printf("Got set_motor_dc command: direction is %u, settings are %i %i %i\r\n", direction, m[0], m[1], m[2]);
 	set_motor_duty_cycle(1, direction, m[0]);
 	set_motor_duty_cycle(2, direction, m[1]);
 	set_motor_duty_cycle(3, direction, m[2]);
+
+	if(successful_read!=1)
+	{
+		printf("\tGot command set_motor, but arguments (%s) were invalid. Format should be:\r\n",command_args);
+		printf("\tset_motor direction m1 m2 m3\r\n");
+		printf("\twhere direction is 1-8 or one of N NE SE S SW NW or CW or CCW\r\n");
+		printf("\tand m1, m2, and m3 are ints between -100 and 100 specifying duty cycle percentage\r\n");
+	}
+
+}
+
+void handle_set_motor_ot(char* command_args)
+{
+	const char delim[2] = " ";
+
+	uint8_t direction;
+	int8_t m[3];
+
+	uint8_t successful_read = 1;
+	
+	char* token = strtok(command_args,delim);
+	
+	switch (token[0])
+	{
+		case '0': direction = 0; break;
+		case '1': direction = 1; break;
+		case '2': direction = 2; break;
+		case '3': direction = 3; break;
+		case '4': direction = 4; break;
+		case '5': direction = 5; break;
+		case '6': direction = 6; break;
+		case '7': direction = 7; break;
+		case 'N':
+	if (token[1] == 'E') { direction = 1;}
+else if (token[1] == 'W') { direction = 5; }
+			else { direction = 0;}
+			break;
+		case 'S':
+			if (token[1] == 'E') { direction = 2; }
+			else if (token[1] == 'W') { direction = 4; }
+			else { direction = 3; }
+			break;
+		case 'C':
+			if (token[1] == 'W') { direction = 6; }
+			else { direction = 7; }
+			break;
+				
+		default:
+			successful_read = 0;		
+	}
+	
+	token = strtok(NULL,delim);
+	m[0] = atoi(token);
+	token = strtok(NULL,delim);
+	m[1] = atoi(token);
+	token = strtok(NULL,delim);
+	m[2] = atoi(token);
+
+	printf("Got set_motor_ot command: direction is %u, settings are %i %i %i\r\n", direction, m[0], m[1], m[2]);
+	set_motor_on_time(1, direction, m[0]);
+	set_motor_on_time(2, direction, m[1]);
+	set_motor_on_time(3, direction, m[2]);
 
 	if(successful_read!=1)
 	{

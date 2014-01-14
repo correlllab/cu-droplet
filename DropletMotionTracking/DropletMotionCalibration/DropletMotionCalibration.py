@@ -16,6 +16,12 @@ baud = 115200
 motor_lower_bound = 40
 motor_upper_bound = 76
 
+class MyException(Exception):
+    pass
+
+class PositionException(MyException):
+    pass
+
 def reset_motor_values(dir=-1):
     global current_motor_settings
     if dir<0:
@@ -23,8 +29,8 @@ def reset_motor_values(dir=-1):
     else:
         current_motor_settings[dir]=[0.666*i for i in default_motor_settings[dir]]
 
-change_motor_signs_LEFT = [[0, -0.5, 0.5], [0.5, -0.5, 0], [-0.5, 0, 0.5], [0, -0.5, 0.5], [-0.5, 0.5, 0], [-0.5, 0, 0.5]] #TODO: Implement for turning.
-change_motor_signs_RIGHT = [[0, 0.5, -0.5], [-0.5, 0.5, 0], [0.5, 0, -0.5], [0, 0.5, -0.5], [0.5, -0.5, 0], [0.5, 0, -0.5]] #TODO: Implement for turning.
+change_motor_signs_LEFT = [[0, -0.5, 0.5], [-0.5, 0.5, 0], [-0.5, 0, 0.5], [0, 0.5, -0.5], [0.5, -0.5, 0], [0.5, 0, -0.5]] #TODO: Implement for turning.
+change_motor_signs_RIGHT = [[0, 0.5, -0.5], [0.5, -0.5, 0], [0.5, 0, -0.5], [0, -0.5, 0.5], [-0.5, 0.5, 0], [-0.5, 0, 0.5]] #TODO: Implement for turning.
 motors_involved=[[1,2],[0,1],[0,2],[1,2],[0,1],[0,2]]
 default_motor_settings=[[0, 1, -1], [-1, 1, 0], [-1, 0, 1], [0, -1, 1], [1, -1, 0], [1, 0, -1], [1, 1, 1], [-1, -1, -1]]
 reset_motor_values()
@@ -154,49 +160,84 @@ def set_motor(dir, mot0, mot1, mot2, port_h=False):
         port_h = default_port
     serial_write("cmd set_motor %d %d %d %d"%(dir, mot0, mot1, mot2), port_h)
 
-def calibrate_droplet(blob_id, port_h=False):
+def calibrate_droplet(blob_id, dir=-1, port_h=False):
     if not port_h:
         port_h = default_port
-    global settings_history 
-    settings_history = [Counter() for i in range(6)]
-    for dir in [0,1,2]:
+    if dir<0:
+        directions=[0,1,2]
+    else:
+        directions=[dir]
+    settings_history = {}
+    for dir in directions:
         if pick_sign(blob_id, dir, port_h)<0:
             print("Error in pick_sign")
             return
-        if run_opt_phase(blob_id, dir, port_h)<0:
+        try:
+            settings_history.update(straighten_direction(blob_id, dir, port_h))
+        except TypeError:
             print("Error in run_opt_phase")
             return
-    for dir in range(6):
+    for dir in directions:
         most_freq = settings_history[dir].most_common(1)[0][0]
         current_motor_settings[dir] = [get_motor_value(int(val)) for val in most_freq.split()]
+        most_freq = settings_history[(dir+3)%6].most_common(1)[0][0]
+        current_motor_settings[(dir+3)%6] = [get_motor_value(int(val)) for val in most_freq.split()]
         #np.linalg.solve()
 
-def get_position_data_batch(dir, blob_id, length, port_h=False):
+bad_x_vals = [14,180,345,510,670]
+bad_y_vals = [8,339,659]
+def get_position_data_batch(dir, blob_id, length, port_h=False, escaping=False):
         if not port_h:
             port_h = default_port
+        serial_write("cmd stop_walk", port_h)
         pos_list = np.zeros((length,2))
         h = 0
         try:
-            walk(dir, 60)
+            walk(dir, length/2)
             while(h<length):
                 # gather droplet position data
                 blobs = sc.update_rr_data()
                 try:
-                    pos_list[h] = np.array(blobs[blob_id])
+                    new_pos = np.array(blobs[blob_id])
                 except KeyError:
                     serial_write('cmd stop_walk', port_h)
-                    raise NameError("I lost my droplet friend!!! T_T")
+                    raise MyException("I lost my droplet friend!!! T_T")
+                if not escaping:
+                    for x in bad_x_vals:
+                        if abs(new_pos[0]-x)<=15:
+                            raise PositionException("Blob position (%d, %d) too close to x=%d"%(new_pos[0], new_pos[1], x))
+                    for y in bad_y_vals:
+                        if abs(new_pos[1]-y)<=15:
+                            raise PositionException("Blob position (%d, %d) too close to y=%d"%(new_pos[0], new_pos[1], y))
+                pos_list[h] = new_pos
                 # update counter
                 h += 1
         except KeyboardInterrupt:
             serial_write('cmd stop_walk', port_h)
-            raise NameError("Optimization phase interrupted by user.")
+            raise MyException("Optimization phase interrupted by user.")
         serial_write('cmd stop_walk', port_h)
         return pos_list
+    
+def carefully_get_position_data_batch(dir, blob_id, length, port_h=False):
+    if not port_h:
+        port_h = default_port
+    for attempt in range(1,10):
+        try:
+            pos_list = get_position_data_batch(dir, blob_id, length, port_h)
+        except PositionException as posErr:
+            print(posErr)
+            print("Trying to avoid edge, attempt: %d."%attempt)
+            get_position_data_batch((dir+3)%6, blob_id, attempt*length, port_h, escaping=True)#walk the other way for a bit.
+            continue
+        except MyException as myErr:
+            print(myErr)
+            raise MyException()
+        return pos_list
+    print("Still too close after ten attempts. Giving up.")
+    raise MyException()
 
-
-def pick_sign(blob_id, dir, port_h=False, history = 120):
-    """ Function run_opt_phase(port_h): Runs the optimization phase for droplet walking.
+def pick_sign(blob_id, dir, port_h=False, history = 60):
+    """ Function straighten_direction(port_h): Runs the optimization phase for droplet walking.
     This function runs almost all of it's code in a continuous loop.
     Arguments:
     port_h - The serial port to use when communicating with God Droplet
@@ -217,8 +258,7 @@ def pick_sign(blob_id, dir, port_h=False, history = 120):
         set_motor(dir, *map(get_raw_motor, setting))
         try:
             pos_list = get_position_data_batch(dir, blob_id, history, port_h)
-        except NameError as err:
-            print(err)
+        except MyException:
             return -1
         (center, radius, residual, sign) = fc.lsq(pos_list)
         distance = np.linalg.norm(pos_list[0]-pos_list[-1])
@@ -240,15 +280,13 @@ def pick_sign(blob_id, dir, port_h=False, history = 120):
     set_motor(dir, *map(get_raw_motor, forward))
     try:
         pos_listA = get_position_data_batch(dir, blob_id, history, port_h)
-    except NameError as err:
-        print(err)
+    except MyException:
         return -1
     change_values = map(lambda x: x*0.333, change_motor_signs_LEFT[dir])
     change_motor(dir, change_values, port_h) 
     try:
-        pos_listB = get_position_data_batch(dir, blob_id, history, port_h)
-    except NameError as err:
-        print(err)
+        pos_listB = carefully_get_position_data_batch(dir, blob_id, history, port_h)
+    except MyException:
         return -1
 
     (centerA, radiusA, residualA, signA) = fc.lsq(pos_listA)
@@ -256,13 +294,13 @@ def pick_sign(blob_id, dir, port_h=False, history = 120):
     
     print("radA: %f, signA: %f, radB: %f, signB: %f"%(radiusA, signA, radiusB, signB))
     if signA>0:
-        if radiusA>radiusB:
+        if radiusA>radiusB and signB>0:
             print("Center on left, but radius got smaller. Switching.")
             (forward, backward) = (backward, forward)
         else:
             print("Center on left, and radius got bigger. Should be good.")
     elif signA<0:
-        if radiusA<radiusB:
+        if radiusA<radiusB or signB>0:
             print("Center on right, but radius got bigger. Switching.")
             (forward, backward) = (backward, forward)
         else:
@@ -275,22 +313,24 @@ def pick_sign(blob_id, dir, port_h=False, history = 120):
     return 1 #successful completion
 
 
-def run_opt_phase(blob_id, dir, port_h=False, history = 120):
-    """ Function run_opt_phase(port_h): Runs the optimization phase for droplet walking.
+def straighten_direction(blob_id, dir, port_h=False, history = 120):
+    """ Function straighten_direction(port_h): Runs the optimization phase for droplet walking.
     This function runs almost all of it's code in a continuous loop.
     Arguments:
     port_h - The serial port to use when communicating with God Droplet
     history - Optional argument to control the number of data points to take before running the optimization routine.
     """
+    settings_history = {}
+    settings_history[dir] = Counter()
+    settings_history[(dir+3)%6] = Counter()
     if not port_h:
         port_h = default_port
     init_dir = dir
     while(True):
         try:
-            pos_list = get_position_data_batch(dir, blob_id, history, port_h)
-        except NameError as err:
-            print(err)
-            return -1
+            pos_list = carefully_get_position_data_batch(dir, blob_id, history, port_h)
+        except MyException:
+            return None
         (center, radius, residual, sign) = fc.lsq(pos_list)
         print("center: (%f,%f), rad: %f, residu: %f >> "%(center[0], center[1], radius,residual), end='')
         prop=get_prop_control_value(radius)
@@ -307,7 +347,7 @@ def run_opt_phase(blob_id, dir, port_h=False, history = 120):
             sys.stdout.flush()
         dir = (dir+3)%6
         if dir is init_dir:
-            if settings_history[dir].most_common(1)[0][1]>5 and settings_history[(dir+3)%6].most_common(1)[0][1]>5:
-                return 1 #successful completion
+            if settings_history[dir].most_common(1)[0][1]>4 and settings_history[(dir+3)%6].most_common(1)[0][1]>4:
+                return settings_history #successful completion
 
 open_serial_port("COM9")

@@ -19,7 +19,7 @@
 
 // Timing for taking a step:
 #define MOTOR_SPINUP_TIME		25L
-#define MOTOR_ON_TIME			100L
+//#define MOTOR_ON_TIME			100L
 #define MOTOR_OFF_TIME			25L
 
 #include "droplet_init.h"
@@ -30,6 +30,7 @@ volatile uint16_t motor_num_steps; // total number of steps to take in current w
 volatile uint16_t motor_curr_step; // current step number in current walk command
 
 int8_t motor_duty_cycle[3][8]; // Table that holds the motor settings for moving in different directions
+uint8_t motor_on_time[3][8];
 
 // Sets up the timers for the motors PWM, pins to motor controller, and 
 // reads the motor settings from non-volatile memory (user signature row)
@@ -55,12 +56,15 @@ int8_t is_rotating(void); // returns 0 if droplet is not rotating, 1 if rotating
 uint8_t is_moving(void); // returns 0 if droplet is not moving, otherwise returns the direction of motion (1-6)
 
 // Getter and setter for individual motor settings when moving in direction
+uint8_t get_motor_on_time(uint8_t motor_num, uint8_t direction);
+void	set_motor_on_time(uint8_t motor_num, uint8_t direction, uint8_t on_time);
 int8_t	get_motor_duty_cycle(uint8_t motor_num, uint8_t direction);
 void	set_motor_duty_cycle(uint8_t motor_num, uint8_t direction, int8_t duty_cycle);
 void	read_motor_settings();
-void	write_motor_settings();
+void	print_motor_duty_cycles();
+void	print_motor_on_times();
 
-void print_motor_settings();
+
 
 void motor_set_period(uint8_t dir, uint16_t per);
 void motor_set_duty_cycle(uint8_t dir, float duty_cycle); // Note: 0 <= duty_cycle <= 1

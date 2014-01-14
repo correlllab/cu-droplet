@@ -114,10 +114,29 @@
   <track_size>TRUE</track_size>
   <trail_length>12</trail_length>
 </Blob_Tracking>
+<Display_Variables disabled>
+  <border_color>red</border_color>
+  <dim_background>TRUE</dim_background>
+  <display_as_annotation>FALSE</display_as_annotation>
+  <display_value_only>FALSE</display_value_only>
+  <font_color>white</font_color>
+  <font_size>Normal (10pt)</font_size>
+  <northwest>BLOB_TRACKING_645_X
+</northwest>
+</Display_Variables>
 <Socket_Program disabled>
   <hostname>localhost</hostname>
   <port>5050</port>
 </Socket_Program>
+<Display_Line disabled>
+  <clear_image>FALSE</clear_image>
+  <color_index>5</color_index>
+  <display_as_annotation>FALSE</display_as_annotation>
+  <x_end>181</x_end>
+  <x_start>181</x_start>
+  <y_end>659</y_end>
+  <y_start>0</y_start>
+</Display_Line>
 <Write_Variables disabled>
   <append>TRUE</append>
   <colom_delimiter>[comma]</colom_delimiter>

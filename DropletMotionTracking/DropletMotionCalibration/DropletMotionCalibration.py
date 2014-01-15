@@ -150,15 +150,20 @@ def get_other_control_value(cross_count):
         return 0
     return (2**exp)/100.0
 
-def walk(dir, steps, port_h=False):
+def move_steps(dir, steps, port_h=False):
     if not port_h:
         port_h = default_port
-    serial_write("cmd walk %d %d"%(dir, steps), port_h)
+    serial_write("cmd move_steps %d %d"%(dir, steps), port_h)
 
 def set_motor(dir, mot0, mot1, mot2, port_h=False):
     if not port_h:
         port_h = default_port
     serial_write("cmd set_motor %d %d %d %d"%(dir, mot0, mot1, mot2), port_h)
+
+def set_mm_per_kilostep(direction, mm, port_h=False):
+    if not port_h:
+        port_h = default_port
+    serial_write("cmd set_dist_per_step %d %d"%(direction, mm), port_h)
 
 def calibrate_droplet(blob_id, dir=-1, port_h=False):
     if not port_h:
@@ -193,7 +198,7 @@ def get_position_data_batch(dir, blob_id, length, port_h=False, escaping=False):
         pos_list = np.zeros((length,2))
         h = 0
         try:
-            walk(dir, length/2)
+            move_steps(dir, length/2)
             while(h<length):
                 # gather droplet position data
                 blobs = sc.update_rr_data()

@@ -22,17 +22,25 @@ void handle_serial_command(char* command, uint16_t command_length)
 		{
 			handle_data(command_args);
 		}
+		else if(strcmp(command_word,"move_steps")==0)
+		{
+			handle_move_steps(command_args);
+		}
+		else if(strcmp(command_word,"other_move_steps")==0)
+		{
+			handle_other_move_steps(command_args);
+		}		
 		else if(strcmp(command_word,"walk")==0)
 		{
 			handle_walk(command_args);
 		}
-		else if(strcmp(command_word,"set_motor_dc")==0)
+		else if(strcmp(command_word,"set_motor")==0)
 		{
-			handle_set_motor_dc(command_args);
+			handle_set_motor(command_args);
 		}
-		else if(strcmp(command_word,"set_motor_ot")==0)
+		else if(strcmp(command_word,"set_dist_per_step")==0)
 		{
-			handle_set_motor_ot(command_args);
+			handle_set_mm_per_kilostep(command_args);
 		}
 		else if(strcmp(command_word,"stop_walk")==0)
 		{
@@ -93,7 +101,7 @@ void handle_serial_command(char* command, uint16_t command_length)
 		else if(strcmp(command_word,"print_motor_settings")==0)
 		{
 			print_motor_duty_cycles();
-			print_motor_on_times();
+			print_dist_per_step();
 		}
 		else if(strcmp(command_word,"write_motor_settings")==0)
 		{
@@ -120,7 +128,7 @@ void handle_data(char *command_args)
 	}
 }
 
-void handle_walk(char* command_args)
+void handle_move_steps(char* command_args)
 {
 	const char delim[2] = " ";
 	uint8_t direction, num_steps;
@@ -173,12 +181,122 @@ void handle_walk(char* command_args)
 	}
 }
 
+void handle_other_move_steps(char* command_args)
+{
+	const char delim[2] = " ";
+	uint8_t direction, num_steps;
+	uint8_t successful_read = 1;
+	
+	char* token = strtok(command_args,delim);
+	
+	switch (token[0])
+	{
+		case '0': direction = 0; break;
+		case '1': direction = 1; break;
+		case '2': direction = 2; break;
+		case '3': direction = 3; break;
+		case '4': direction = 4; break;
+		case '5': direction = 5; break;
+		case '6': direction = 6; break;
+		case '7': direction = 7; break;
+		case 'N':
+	if (token[1] == 'E') { direction = 1;}
+else if (token[1] == 'W') { direction = 5; }
+			else { direction = 0;}
+			break;
+		case 'S':
+			if (token[1] == 'E') { direction = 2; }
+			else if (token[1] == 'W') { direction = 4; }
+			else { direction = 3; }
+			break;
+		case 'C':
+			if (token[2] == 'W') { direction = 7; }
+			else { direction = 6; }
+			break;
+				
+		default:
+			successful_read = 0;		
+	}
+
+	token = strtok(NULL,delim);
+	num_steps = (uint8_t)atoi(token);
+	if (num_steps < 1) successful_read = 0;
+
+	token = strtok(NULL, delim);
+	motor_delay_ms = (uint8_t)atoi(token);
+
+	if (successful_read)
+	{
+		other_move_steps(direction, num_steps);
+		printf("walk direction %u, num_steps %u\r\n", direction, num_steps);
+	}		
+	else
+	{
+		printf("\tGot command walk, but arguments (%s) were invalid. Format should be:\r\n",command_args);
+		printf("\t Direction (1-6), followed by number of steps (uint8_t).\r\n");
+	}
+}
+
+void handle_walk(char* command_args)
+{
+	const char delim[2] = " ";
+	uint8_t direction;
+	uint16_t distance_mm;
+	uint8_t successful_read = 1;
+	
+	char* token = strtok(command_args,delim);
+	
+	switch (token[0])
+	{
+		case '0': direction = 0; break;
+		case '1': direction = 1; break;
+		case '2': direction = 2; break;
+		case '3': direction = 3; break;
+		case '4': direction = 4; break;
+		case '5': direction = 5; break;
+		case '6': direction = 6; break;
+		case '7': direction = 7; break;
+		case 'N':
+	if (token[1] == 'E') { direction = 1;}
+else if (token[1] == 'W') { direction = 5; }
+			else { direction = 0;}
+			break;
+		case 'S':
+			if (token[1] == 'E') { direction = 2; }
+			else if (token[1] == 'W') { direction = 4; }
+			else { direction = 3; }
+			break;
+		case 'C':
+			if (token[2] == 'W') { direction = 7; }
+			else { direction = 6; }
+			break;
+				
+		default:
+			successful_read = 0;		
+	}
+
+	token = strtok(NULL,delim);
+	distance_mm = (uint16_t)atoi(token);
+	if (distance_mm < 1) successful_read = 0;
+
+	if (successful_read)
+	{
+		walk(direction, distance_mm);
+		printf("walk direction %u for %u mm.\r\n", direction, distance_mm);
+	}		
+	else
+	{
+		printf("\tGot command walk, but arguments (%s) were invalid. Format should be:\r\n",command_args);
+		printf("\t Direction (1-6), followed by number of steps (uint8_t).\r\n");
+	}
+}
+
 void handle_stop_walk()
 {
 	cancel_move();
 }
 
-void handle_set_motor_dc(char* command_args)
+void handle_set_motor(char* command_args)
 {
 	const char delim[2] = " ";
 
@@ -225,7 +343,7 @@ void handle_set_motor_dc(char* command_args)
 	token = strtok(NULL,delim);
 	m[2] = atoi(token);
 
-	printf("Got set_motor_dc command: direction is %u, settings are %i %i %i\r\n", direction, m[0], m[1], m[2]);
+	printf("Got set_motor command: direction is %u, settings are %i %i %i\r\n", direction, m[0], m[1], m[2]);
 	set_motor_duty_cycle(1, direction, m[0]);
 	set_motor_duty_cycle(2, direction, m[1]);
 	set_motor_duty_cycle(3, direction, m[2]);
@@ -240,7 +358,7 @@ void handle_set_motor_dc(char* command_args)
 
 }
 
-void handle_set_motor_ot(char* command_args)
+void handle_set_mm_per_kilostep(char* command_args)
 {
 	const char delim[2] = " ";
 
@@ -263,7 +381,7 @@ void handle_set_motor_ot(char* command_args)
 		case '7': direction = 7; break;
 		case 'N':
 	if (token[1] == 'E') { direction = 1;}
-else if (token[1] == 'W') { direction = 5; }
+	else if (token[1] == 'W') { direction = 5; }
 			else { direction = 0;}
 			break;
 		case 'S':
@@ -280,24 +398,20 @@ else if (token[1] == 'W') { direction = 5; }
 			successful_read = 0;		
 	}
 	
-	token = strtok(NULL,delim);
-	m[0] = atoi(token);
-	token = strtok(NULL,delim);
-	m[1] = atoi(token);
-	token = strtok(NULL,delim);
-	m[2] = atoi(token);
-
-	printf("Got set_motor_ot command: direction is %u, settings are %i %i %i\r\n", direction, m[0], m[1], m[2]);
-	set_motor_on_time(1, direction, m[0]);
-	set_motor_on_time(2, direction, m[1]);
-	set_motor_on_time(3, direction, m[2]);
-
 	if(successful_read!=1)
 	{
 		printf("\tGot command set_motor, but arguments (%s) were invalid. Format should be:\r\n",command_args);
 		printf("\tset_motor direction m1 m2 m3\r\n");
 		printf("\twhere direction is 1-8 or one of N NE SE S SW NW or CW or CCW\r\n");
 		printf("\tand m1, m2, and m3 are ints between -100 and 100 specifying duty cycle percentage\r\n");
+	}
+	else
+	{
+		token = strtok(NULL,delim);
+		uint16_t mm_per_kilostep = atoi(token);
+
+		printf("Got set_dist_per_step command: direction is %u, mm per kilostep is %u\r\n", direction, mm_per_kilostep);
+		set_mm_per_kilostep(direction, mm_per_kilostep);
 	}
 
 }

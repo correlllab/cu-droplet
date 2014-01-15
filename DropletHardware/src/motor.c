@@ -24,6 +24,8 @@ void motor_init()
 	
 	motor_status = 0;
 	
+	motor_delay_ms = 5;
+	
 	read_motor_settings();
 }
 
@@ -60,6 +62,15 @@ uint8_t move_steps(uint8_t direction, uint16_t num_steps)
 	take_step(NULL);
 	
 	return 1;
+}
+
+walk(uint8_t direction, uint16_t mm)
+{
+	uint16_t mm_per_kilostep = get_mm_per_kilostep(direction);
+	float mm_per_step = (1.0*mm_per_kilostep)/1000.0;
+	float steps = (1.0*mm)/mm_per_step;
+	printf("In order to go in direction %u for %u mm, taking %u steps.\r\n",direction, mm, (uint16_t)steps);
+	move_steps(direction, (uint16_t)steps);
 }
 
 // Walk in specified direction for duration (in milliseconds)
@@ -132,14 +143,14 @@ uint8_t is_moving(void) // returns 0 if droplet is not moving, (1-6) if moving
 	return 0;
 }
 
-uint8_t get_motor_on_time(uint8_t motor_num, uint8_t direction)
+uint16_t get_mm_per_kilostep(uint8_t direction)
 {
-	return motor_on_time[motor_num-1][direction];
+	return mm_per_kilostep[direction];
 }
 
-void set_motor_on_time(uint8_t motor_num, uint8_t direction, uint8_t on_time)
+void set_mm_per_kilostep(uint8_t direction, uint16_t dist)
 {
-	motor_on_time[motor_num-1][direction] = on_time;	
+	mm_per_kilostep[direction] = dist;	
 }
 
 
@@ -155,13 +166,14 @@ void set_motor_duty_cycle(uint8_t motor_num, uint8_t direction, int8_t duty_cycl
 
 void read_motor_settings()
 {
-	for (uint8_t motor_num = 1; motor_num <= 3; motor_num++)
+	for (uint8_t direction = 0; direction < 8; direction++)
 	{
-		for (uint8_t direction = 0; direction < 8; direction++)
+		for (uint8_t motor_num = 1; motor_num <= 3; motor_num++)
 		{
 			motor_duty_cycle[motor_num-1][direction] = ((int8_t)SP_ReadUserSignatureByte(0x10 + (motor_num-1) + 3*direction));
-			motor_on_time[motor_num-1][direction] = ((uint8_t)SP_ReadUserSignatureByte(0x28 + (motor_num-1) + 3*direction));
 		}
+		mm_per_kilostep[direction] =(uint16_t)SP_ReadUserSignatureByte(0x28 + 0 + 2*direction)<<8 |
+									(uint16_t)SP_ReadUserSignatureByte(0x28 + 1 + 2*direction);
 	}		
 }
 
@@ -171,13 +183,15 @@ void write_motor_settings()
 	for (uint16_t i = 0; i < 512; i++)
 		page_buffer[i] = SP_ReadUserSignatureByte(i);
 	
-	for (uint8_t motor_num = 1; motor_num <= 3; motor_num++)
+	for (uint8_t direction = 0; direction < 8; direction++)
 	{
-		for (uint8_t direction = 0; direction < 8; direction++)
+		for (uint8_t motor_num = 1; motor_num <= 3; motor_num++)
 		{
 			page_buffer[(0x10 + (motor_num-1) + 3*direction)] = motor_duty_cycle[motor_num-1][direction];
-			page_buffer[(0x28 + (motor_num-1) + 3*direction)] = motor_on_time[motor_num-1][direction];
 		}
+		uint16_t temp = mm_per_kilostep[direction];
+		page_buffer[(0x28 + 0 + 2*direction)] = (uint8_t)((temp>>8)&0xFF);
+		page_buffer[(0x28 + 1 + 2*direction)] = (uint8_t)(temp&0xFF);
 	}					
 		
 	SP_LoadFlashPage(page_buffer);
@@ -199,17 +213,13 @@ void print_motor_duty_cycles()
 	printf("\tCCW\tm1 %i\tm2 %i\tm3 %i\r\n", motor_duty_cycle[0][7],motor_duty_cycle[1][7],motor_duty_cycle[2][7]);
 }
 
-void print_motor_on_times()
+void print_dist_per_step()
 {
-	printf("Motor On Times\r\n");
-	printf("\tN\tm1 %i\tm2 %i\tm3 %i\r\n", motor_on_time[0][0],motor_on_time[1][0],motor_on_time[2][0]);
-	printf("\tNE\tm1 %i\tm2 %i\tm3 %i\r\n", motor_on_time[0][1],motor_on_time[1][1],motor_on_time[2][1]);
-	printf("\tSE\tm1 %i\tm2 %i\tm3 %i\r\n", motor_on_time[0][2],motor_on_time[1][2],motor_on_time[2][2]);
-	printf("\tS\tm1 %i\tm2 %i\tm3 %i\r\n", motor_on_time[0][3],motor_on_time[1][3],motor_on_time[2][3]);
-	printf("\tSW\tm1 %i\tm2 %i\tm3 %i\r\n", motor_on_time[0][4],motor_on_time[1][4],motor_on_time[2][4]);
-	printf("\tNW\tm1 %i\tm2 %i\tm3 %i\r\n", motor_on_time[0][5],motor_on_time[1][5],motor_on_time[2][5]);
-	printf("\tCW\tm1 %i\tm2 %i\tm3 %i\r\n", motor_on_time[0][6],motor_on_time[1][6],motor_on_time[2][6]);
-	printf("\tCCW\tm1 %i\tm2 %i\tm3 %i\r\n", motor_on_time[0][7],motor_on_time[1][7],motor_on_time[2][7]);
+	printf("Dist (mm) per kilostep\r\n");
+	for(uint8_t direction = 0 ; direction<8; direction++)
+	{
+		printf("\t%i\t%hu\r\n", direction, mm_per_kilostep[direction]);	
+	}
 }
 
 // SCHEDULED TASK IN TAKE_STEP
@@ -229,7 +239,7 @@ void mot_on(void* arg)
 {
 	uint8_t num = (uint8_t)((uint16_t)arg & 0xFF);
 	uint8_t dir = (uint16_t)arg >> 8;
-	motor_set_duty_cycle(num, abs(get_motor_duty_cycle(num,dir))/100.0f);
+	motor_set_duty_cycle(num, abs(get_motor_duty_cycle(num,dir))/127.0f);
 }
 
 // SCHEDULED TASK IN TAKE_STEP
@@ -263,24 +273,81 @@ void take_step(void* arg)
 	{
 		uint16_t step_param = (direction << 8) | 1;
 		schedule_task(step_time, mot_spin_up, step_param); step_time += MOTOR_SPINUP_TIME;
-		schedule_task(step_time, mot_on, step_param); step_time += get_motor_on_time(1, direction);
+		schedule_task(step_time, mot_on, step_param); step_time += MOTOR_ON_TIME;
 		schedule_task(step_time, mot_off, step_param); step_time += MOTOR_OFF_TIME;
 	}
 	if (get_motor_duty_cycle(2, direction) != 0)
 	{
 		uint16_t step_param = (direction << 8) | 2;
 		schedule_task(step_time, mot_spin_up, step_param); step_time += MOTOR_SPINUP_TIME;
-		schedule_task(step_time, mot_on, step_param); step_time += get_motor_on_time(1, direction);
+		schedule_task(step_time, mot_on, step_param); step_time += MOTOR_ON_TIME;
 		schedule_task(step_time, mot_off, step_param); step_time += MOTOR_OFF_TIME;
 	}
 	if (get_motor_duty_cycle(3, direction) != 0)
 	{
 		uint16_t step_param = (direction << 8) | 3;
 		schedule_task(step_time, mot_spin_up, step_param); step_time += MOTOR_SPINUP_TIME;
-		schedule_task(step_time, mot_on, step_param); step_time += get_motor_on_time(1, direction);
+		schedule_task(step_time, mot_on, step_param); step_time += MOTOR_ON_TIME;
 		schedule_task(step_time, mot_off, step_param); step_time += MOTOR_OFF_TIME;
 	}
 	schedule_task(step_time, take_step, NULL);
+}
+
+uint8_t other_move_steps(uint8_t direction, uint16_t num_steps)
+{
+	if(is_moving()||is_rotating())
+	return 0;
+	
+	printf("Other Moving... ");
+	motor_num_steps = 0;
+	motor_status = MOTOR_STATUS_ON | (direction & MOTOR_STATUS_DIRECTION);
+	
+	motor_num_steps = num_steps;
+	motor_curr_step = 0;
+	
+	for(uint8_t motor_num=1 ; motor_num<=3 ; motor_num++)
+	{
+		motor_set_duty_cycle(motor_num, MOTOR_BASE_DUTY_CYCLE);
+		if (get_motor_duty_cycle(motor_num,direction) > 0)
+		{
+			motor_forward(motor_num);
+		}
+		else
+		{
+			motor_backward(motor_num);
+		}		
+	}
+
+			
+	other_take_step(NULL);	
+	return 1;
+}
+
+void other_take_step(void* arg)
+{
+
+	if ((motor_curr_step == motor_num_steps) || (motor_status & MOTOR_STATUS_CANCEL))
+	{
+		stop();
+		motor_curr_step = 0;
+		motor_num_steps = 0;
+		motor_status = 0;
+		return;
+	}
+
+	uint8_t num = (uint8_t)((uint16_t)arg & 0xFF);
+	uint8_t dir = (uint16_t)arg >> 8;
+	motor_set_duty_cycle(num, abs(get_motor_duty_cycle(num,dir))/127.0f);
+	delay_ms(motor_delay_ms);
+	motor_set_duty_cycle(num, MOTOR_BASE_DUTY_CYCLE);
+	
+	uint16_t step_param = (dir << 8) | ((num%3)+1);
+	schedule_task(MOTOR_OFF_TIME, other_take_step, step_param);
+	
+	if(num==1)
+	{
+		motor_curr_step+=1;
+	}
 }
 
 // Low-level control of individual motors

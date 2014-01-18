@@ -17,7 +17,7 @@ void handle_data(char *command_args);
 void handle_move_steps(char* command_args);
 void handle_walk(char* command_args);
 void handle_stop_walk();
-void handle_set_motor(char* command_args);
+void handle_set_motors(char* command_args);
 void handle_set_mm_per_kilostep(char* command_args);
 void handle_set_motor_period(char* command_args);
 void handle_rnb_broadcast();

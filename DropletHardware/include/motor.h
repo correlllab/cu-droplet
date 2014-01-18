@@ -19,13 +19,19 @@
 
 // Timing for taking a step:
 #define MOTOR_ON_TIME			30L
-#define MOTOR_OFF_TIME			25L
+#define MOTOR_OFF_TIME			40L
+
 #include "droplet_init.h"
 #include "scheduler.h"
+
 
 volatile uint8_t motor_status; // [ on, cancel, 0, 0, 0, direction(2-0) ] 
 volatile uint16_t motor_num_steps; // total number of steps to take in current walk command
 volatile uint16_t motor_curr_step; // current step number in current walk command
+volatile int32_t buckets[3];
+
+int8_t motor_strengths[3];
+int8_t motor_signs[8][3];
 
 int8_t motor_duty_cycle[3][8]; // Table that holds the motor settings for moving in different directions
 uint16_t mm_per_kilostep[8];

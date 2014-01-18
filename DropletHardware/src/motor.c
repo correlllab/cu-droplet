@@ -23,6 +23,16 @@ void motor_init()
 	TCE0.CNTL = 0;
 	
 	motor_status = 0;
+	motor_strengths[0]=motor_strengths[1]=motor_strengths[2]=127;
+	
+	motor_signs[0][0]=0;	motor_signs[0][1]=1;	motor_signs[0][2]=-1;  	//Towards motor 0.
+	motor_signs[1][0]=-1;	motor_signs[1][1]=1;	motor_signs[1][2]=0;  	//Away from motor 2.
+	motor_signs[2][0]=-1;	motor_signs[2][1]=0;	motor_signs[2][2]=1;  	//Towards motor 1.
+	motor_signs[3][0]=0;	motor_signs[3][1]=-1;	motor_signs[3][2]=1;  	//Away from motor 0.
+	motor_signs[4][0]=1;	motor_signs[4][1]=-1;	motor_signs[4][2]=0;  	//Towards motor 2.
+	motor_signs[5][0]=1;	motor_signs[5][1]=0;	motor_signs[5][2]=-1;  	//Away from motor 1.
+	motor_signs[6][0]=-1;	motor_signs[6][1]=-1;	motor_signs[6][2]=-1;  	//Clockwise spin.
+	motor_signs[7][0]=1;	motor_signs[7][1]=1;	motor_signs[7][2]=1;  	//Anti-Clockwise spin.
 	
 	read_motor_settings();
 }
@@ -32,44 +42,26 @@ uint8_t move_steps(uint8_t direction, uint16_t num_steps)
 	if(is_moving())
 	return 0;
 	
-	printf("Other Moving... ");
 	motor_num_steps = 0;
 	motor_status = MOTOR_STATUS_ON | (direction & MOTOR_STATUS_DIRECTION);
 	
 	motor_num_steps = num_steps;
 	motor_curr_step = 0;
 	
-	uint16_t step_param = (direction << 8) | 1;
+	printf("For direction %hhu, m0: %hd, m1: %hd, m2: %hd.\r\n",direction, motor_strengths[0]*motor_signs[direction][0],motor_strengths[1]*motor_signs[direction][1],motor_strengths[2]*motor_signs[direction][2]);
+	
+	buckets[0] = buckets[1] = buckets[2] = 0;
+	
+	uint8_t start_motor = 0;
+	if(motor_signs[direction][start_motor]==0) start_motor = (start_motor+1)%3;	
+	uint16_t step_param = (direction << 8) | start_motor;
 	take_step(step_param);
 	return 1;
 }
 
 void take_step(void* arg)
 {
-	uint8_t num = (uint8_t)((uint16_t)arg & 0xFF);
-	uint8_t dir = (uint16_t)arg >> 8;
-	int8_t duty_cycle = motor_duty_cycle[num][dir];
-	
-	if(duty_cycle<0)
-	{
-		motor_backward(num);
-	}
-	else
-	{
-		motor_forward(num);
-	}
-	set_motor_duty_cycle(num, (float)(abs(duty_cycle)/127.0f));
-	delay_ms(MOTOR_ON_TIME);
-	motor_off(num);
-	
-	num=(num+1)%3;
-
-	if(num==0)
-	{
-		motor_curr_step+=1;
-	}
-	
-	if ((motor_curr_step == motor_num_steps) || (motor_status & MOTOR_STATUS_CANCEL))
+	if ((motor_curr_step >= motor_num_steps) || (motor_status & MOTOR_STATUS_CANCEL))
 	{
 		stop();
 		motor_curr_step = 0;
@@ -78,7 +70,37 @@ void take_step(void* arg)
 		return;
 	}
 	
-	uint16_t step_param = (dir << 8) | num;
+	uint8_t motor_num = (uint8_t)((uint16_t)arg & 0xFF);
+	uint8_t dir = (uint16_t)arg >> 8;
+	
+	int8_t motor_sign = motor_signs[dir][motor_num];
+	int8_t motor_strength = motor_strengths[motor_num];
+	
+	if(motor_sign*motor_strength<0) motor_backward(motor_num);
+	else			 motor_forward(motor_num);
+	
+	set_motor_duty_cycle(motor_num, 1.0f);
+	//delay_ms((uint16_t)(MOTOR_ON_TIME*(127.0/abs(motor_strength))));
+	delay_ms(MOTOR_ON_TIME);
+	motor_off(motor_num);
+
+	buckets[motor_num] += abs(motor_strength);
+	
+	int32_t min_val = INT32_MAX;
+	uint8_t next_mot = 0xFF;
+	for(uint8_t mot=0 ; mot<3 ; mot++)
+	{
+		if(motor_signs[dir][mot]==0) continue;
+		if(buckets[mot]<min_val)
+		{
+			min_val = buckets[mot];
+			next_mot = mot;
+		}
+	}
+	if(next_mot>2) printf("ERROR: Invalid next mot from find_min loop.");
+	
+	motor_curr_step+=1;
+	uint16_t step_param = (dir << 8) | 	next_mot;
 	schedule_task(MOTOR_OFF_TIME, take_step, step_param);
 }
 

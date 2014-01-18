@@ -34,9 +34,9 @@ void handle_serial_command(char* command, uint16_t command_length)
 		{
 			handle_stop_walk();
 		}		
-		else if(strcmp(command_word,"set_motor")==0)
+		else if(strcmp(command_word,"set_motors")==0)
 		{
-			handle_set_motor(command_args);
+			handle_set_motors(command_args);
 		}
 		else if(strcmp(command_word,"set_dist_per_step")==0)
 		{
@@ -135,8 +135,9 @@ void handle_move_steps(char* command_args)
 	uint16_t num_steps = (uint16_t)atoi(token);
 	if (num_steps > 0)
 	{
+		printf("walk direction %u, num_steps %u\r\n", direction, num_steps);		
 		move_steps(direction, num_steps);
-		printf("walk direction %u, num_steps %u\r\n", direction, num_steps);
+
 	}		
 }	
 
@@ -158,23 +159,23 @@ void handle_stop_walk()
 	cancel_move();
 }
 
-void handle_set_motor(char* command_args)
+void handle_set_motors(char* command_args)
 {
 	
 	const char delim[2] = " ";
 	
 	char* token = strtok(command_args,delim);
-	uint8_t direction = token[0]-'0';
+	motor_strengths[0] = atoi(token);
 	
 	token = strtok(NULL,delim);
-	motor_duty_cycle[0][direction] = atoi(token);
+	motor_strengths[1] = atoi(token);
+	
 	token = strtok(NULL,delim);
-	motor_duty_cycle[1][direction] = atoi(token);
-	token = strtok(NULL,delim);
-	motor_duty_cycle[2][direction] = atoi(token);
+	motor_strengths[2] = atoi(token);
+	
+	//There should always be at least one motor with strength 1.0. It(they) must be the strongest motor(s).
 
-	printf("Got set_motor command: direction is %u, settings are %i %i %i\r\n", direction, motor_duty_cycle[0][direction], motor_duty_cycle[1][direction], motor_duty_cycle[2][direction]);
-
+	printf("Got set_motors command: settings are %i %i %i\r\n", motor_strengths[0], motor_strengths[1], motor_strengths[2]);
 }
 
 void handle_set_mm_per_kilostep(char* command_args)

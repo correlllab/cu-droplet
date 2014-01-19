@@ -26,11 +26,18 @@
 
 
 volatile uint8_t motor_status; // [ on, cancel, 0, 0, 0, direction(2-0) ] 
-volatile uint16_t motor_num_steps; // total number of steps to take in current walk command
-volatile uint16_t motor_curr_step; // current step number in current walk command
-volatile int32_t buckets[3];
 
-int8_t motor_strengths[3];
+uint8_t motor_flipped;
+
+#define MOTOR_0_FLIPPED_bm	0x01	// 0000 0001
+#define MOTOR_1_FLIPPED_bm	0x02
+#define MOTOR_2_FLIPPED_bm	0x04
+
+/*
+ * motor_adjusts[mot][backward] is how much we adjust motor mot by when going 0: forward, 1: backward.
+ * changing motor_adjusts[mot][backward] by 1 will cause the motor to spin for an extra 32 microseconds. Wooo.
+ */
+uint16_t motor_adjusts[3][2]; 
 int8_t motor_signs[8][3];
 
 int8_t motor_duty_cycle[3][8]; // Table that holds the motor settings for moving in different directions
@@ -45,14 +52,12 @@ void	motor_init();
 // direction (0-7, see #defines above for which direction maps to what number)
 uint8_t	move_steps(uint8_t direction, uint16_t num_steps);
 
-void	take_step(void* arg);
+//void	take_step(void* arg);
 
 void walk(uint8_t direction, uint16_t mm);
 
 // Stops all motors
 void stop();
-
-uint16_t cancel_move(void); // returns the number of steps taken (1 step = 2 sub-steps)
 
 uint8_t is_moving(void); // returns 0 if droplet is not moving, otherwise returns the direction of motion (1-6)
 
@@ -66,12 +71,8 @@ void		print_dist_per_step();
 
 void motor_forward(uint8_t num);
 void motor_backward(uint8_t num);
-void motor_off(uint8_t num);
 
 uint16_t get_mm_per_kilostep(uint8_t direction);
 void set_mm_per_kilostep(uint8_t direction, uint16_t dist);
-
-void motor_set_period(uint8_t dir, uint16_t per);
-void set_motor_duty_cycle(uint8_t dir, float duty_cycle); // Note: 0 <= duty_cycle <= 1
 
 #endif

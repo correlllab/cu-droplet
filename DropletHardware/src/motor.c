@@ -6,24 +6,20 @@ void motor_init()
 	PORTC.DIRSET = PIN0_bm | PIN1_bm | PIN4_bm | PIN5_bm;
 	PORTE.DIRSET = PIN0_bm | PIN1_bm;
 
-	TCC0.CTRLA |= TC_CLKSEL_DIV1024_gc;
+	TCC0.CTRLA = TC_CLKSEL_DIV1024_gc;
 	TCC0.CTRLB = TC_WGMODE_SS_gc;
-	TCC0.PER = 32;
+	//TCC0.PER = 32; This needs to be set for each move_step, now.
     
-	TCC1.CTRLA |= TC_CLKSEL_DIV1024_gc;
+	TCC1.CTRLA = TC_CLKSEL_DIV1024_gc;
 	TCC1.CTRLB = TC_WGMODE_SS_gc;
-	TCC1.PER = 32;
+	//TCC0.PER = 32; This needs to be set for each move_step, now.
 
-	TCE0.CTRLA |= TC_CLKSEL_DIV1024_gc;
+	TCE0.CTRLA = TC_CLKSEL_DIV1024_gc;
 	TCE0.CTRLB = TC_WGMODE_SS_gc;
-	TCE0.PER = 32;
-	
-	TCC0.CNTL = 0;
-	TCC1.CNTL = 0;
-	TCE0.CNTL = 0;
+	//TCC0.PER = 32; This needs to be set for each move_step, now.
 	
 	motor_status = 0;
-	motor_strengths[0]=motor_strengths[1]=motor_strengths[2]=127;
+	motor_adjusts[0][0]=motor_adjusts[0][1]=motor_adjusts[1][0]=motor_adjusts[1][1]=motor_adjusts[2][0]=motor_adjusts[2][1]=0;
 	
 	motor_signs[0][0]=0;	motor_signs[0][1]=1;	motor_signs[0][2]=-1;  	//Towards motor 0.
 	motor_signs[1][0]=-1;	motor_signs[1][1]=1;	motor_signs[1][2]=0;  	//Away from motor 2.
@@ -39,71 +35,65 @@ void motor_init()
 
 uint8_t move_steps(uint8_t direction, uint16_t num_steps)
 {
-	if(is_moving())
-	return 0;
-	
-	motor_num_steps = 0;
+	if(is_moving()) return 0;
 	motor_status = MOTOR_STATUS_ON | (direction & MOTOR_STATUS_DIRECTION);
 	
-	motor_num_steps = num_steps;
-	motor_curr_step = 0;
+	uint16_t mot_durs[3]; //This is how long we want each motor to be on for.
+	uint16_t total_time = 0; //This is the total length of a step, and will be the period of the PWM generation.
+	/*
+	 * The factors of 32 sprinkled below are to convert from time units of ms to the semi-understood "units" of the waveform generator.
+	 * Given a prescalar of 1024 and single slope waveform generation, a factor of 32 converts the units to/from ms.
+	 */	
 	
-	printf("For direction %hhu, m0: %hd, m1: %hd, m2: %hd.\r\n",direction, motor_strengths[0]*motor_signs[direction][0],motor_strengths[1]*motor_signs[direction][1],motor_strengths[2]*motor_signs[direction][2]);
-	
-	buckets[0] = buckets[1] = buckets[2] = 0;
-	
-	uint8_t start_motor = 0;
-	if(motor_signs[direction][start_motor]==0) start_motor = (start_motor+1)%3;	
-	uint16_t step_param = (direction << 8) | start_motor;
-	take_step(step_param);
-	return 1;
-}
-
-void take_step(void* arg)
-{
-	if ((motor_curr_step >= motor_num_steps) || (motor_status & MOTOR_STATUS_CANCEL))
+	uint8_t motor_backward_q[3]; //for each motor, this arrays is 0 if the motor is going to spin forard and 1 if the motor is going to spin backward
+	int8_t sign_flip;
+	for(uint8_t mot=0 ; mot<3 ; mot++) //populating the motor_backward_q array.
 	{
-		stop();
-		motor_curr_step = 0;
-		motor_num_steps = 0;
-		motor_status = 0;
-		return;
+		sign_flip = ((((int8_t)((motor_flipped>>mot)&0x1))*-2)+1); //converting the bit mask to a 1 or -1 as needed.
+		motor_backward_q[mot] = sign_flip*motor_signs[direction][mot]<0;
 	}
+	//printf("\r\nMotor backward? (%hhu, %hhu, %hhu).\r\n",motor_backward_q[0], motor_backward_q[1], motor_backward_q[2]);
 	
-	uint8_t motor_num = (uint8_t)((uint16_t)arg & 0xFF);
-	uint8_t dir = (uint16_t)arg >> 8;
-	
-	int8_t motor_sign = motor_signs[dir][motor_num];
-	int8_t motor_strength = motor_strengths[motor_num];
-	
-	if(motor_sign*motor_strength<0) motor_backward(motor_num);
-	else			 motor_forward(motor_num);
-	
-	set_motor_duty_cycle(motor_num, 1.0f);
-	//delay_ms((uint16_t)(MOTOR_ON_TIME*(127.0/abs(motor_strength))));
-	delay_ms(MOTOR_ON_TIME);
-	motor_off(motor_num);
-
-	buckets[motor_num] += abs(motor_strength);
-	
-	int32_t min_val = INT32_MAX;
-	uint8_t next_mot = 0xFF;
 	for(uint8_t mot=0 ; mot<3 ; mot++)
-	{
-		if(motor_signs[dir][mot]==0) continue;
-		if(buckets[mot]<min_val)
-		{
-			min_val = buckets[mot];
-			next_mot = mot;
-		}
+	{		
+		if(motor_signs[direction][mot]==0){ mot_durs[mot]=0; continue;}
+		mot_durs[mot] = 32*MOTOR_ON_TIME + motor_adjusts[mot][motor_backward_q[mot]];
+		total_time += mot_durs[mot] + 32*MOTOR_OFF_TIME + motor_adjusts[mot][motor_backward_q[mot]];//If we left the motor on for longer to compensate, we should wait a little longer before starting again.
 	}
-	if(next_mot>2) printf("ERROR: Invalid next mot from find_min loop.");
-	
-	motor_curr_step+=1;
-	uint16_t step_param = (dir << 8) | 	next_mot;
-	schedule_task(MOTOR_OFF_TIME, take_step, step_param);
-}
+	//printf("Moving in dir: %hhu for %hu steps. Mot_durs: {%hu, %hu, %hu}. Total_time: %hu.\r\n",direction, num_steps, mot_durs[0], mot_durs[1], mot_durs[2], total_time);
 
+	TCC0.PER = TCC1.PER = TCE0.PER = total_time;
+	TCC0.CCA = TCC0.CCB = mot_durs[0]; //motor 0
+	TCC1.CCA = TCC1.CCB = mot_durs[1]; //motor 1
+	TCE0.CCA = TCE0.CCB = mot_durs[2]; //motor 2
+	
+	uint16_t current_offset = 0;
+	
+	for(uint8_t mot=0 ; mot<3 ; mot++) //This loops sets up the offsets correctly, so that (for example) the 30 ms that motor 1 is on won't start until 40ms after motor 0 turns off.
+	{
+		if(mot_durs[mot]==0) continue;
+		switch(mot)
+		{
+			case 0: TCC0.CNT = ((total_time - current_offset)%total_time); break;
+			case 1: TCC1.CNT = ((total_time - current_offset)%total_time); break;
+			case 2: TCE0.CNT = ((total_time - current_offset)%total_time); break;
+		}
+		current_offset += mot_durs[mot] + 32*MOTOR_OFF_TIME + motor_adjusts[mot][motor_backward_q[mot]];//If we left the motor on for longer to compensate, we should wait a little longer before starting again.
+	}
+	//printf("Offsets are: (%hu, %hu, %hu)\r\n",TCC0.CNT, TCC1.CNT, TCE0.CNT);
+	if(current_offset != total_time) printf("ERROR (I think): current_offset: %hu and total_time: %hu not equal!\r\n", current_offset, total_time);
+	
+	
+	for(uint8_t mot=0 ; mot<3 ; mot++) 	//Now we just need to tell the motors to go!
+	{
+		if(mot_durs[mot]==0) continue;
+		if(motor_backward_q[mot]) motor_backward(mot);
+		else motor_forward(mot);
+	}
+	uint32_t total_movement_duration = ((uint32_t)total_time)*((uint32_t)num_steps)/32;
+	//printf("Total duration: %u ms.\r\n\n",total_movement_duration);
+	schedule_task(total_movement_duration, stop, NULL);
+}
 
 void walk(uint8_t direction, uint16_t mm)
 {
@@ -118,6 +108,7 @@ void walk(uint8_t direction, uint16_t mm)
 // from turning the motors back on
 void stop()
 {
+	//printf("Stopping.\r\n");	
 	motor_status = MOTOR_STATUS_CANCEL;
 	TCC0.CTRLB = TC_WGMODE_SS_gc;
 	TCC1.CTRLB = TC_WGMODE_SS_gc;
@@ -127,11 +118,6 @@ void stop()
 	PORTE.OUTCLR = PIN0_bm | PIN1_bm;
 }
 
-uint16_t cancel_move(void) // returns the number of steps taken
-{
-	motor_status |= MOTOR_STATUS_CANCEL;
-	return motor_num_steps;
-}
 
 uint8_t is_moving(void) // returns 0 if droplet is not moving, (1-6) if moving
 {
@@ -229,53 +215,5 @@ void motor_backward(uint8_t num)
 		case 0: TCC0.CTRLB = TC0_CCBEN_bm | TC_WGMODE_SS_gc; break;
 		case 1: TCC1.CTRLB = TC1_CCBEN_bm | TC_WGMODE_SS_gc; break;
 		case 2: TCE0.CTRLB = TC0_CCBEN_bm | TC_WGMODE_SS_gc; break;
-	}
-}
-
-// Low-level control of individual motors
-void motor_off(uint8_t num)
-{
-	switch (num)
-	{
-		case 0:		TCC0.CTRLB = TC_WGMODE_SS_gc; break;
-		case 1:		TCC1.CTRLB = TC_WGMODE_SS_gc; break;
-		case 2:		TCE0.CTRLB = TC_WGMODE_SS_gc; break;
-	}
-}
-
-// Sets the hardware period of the PWM
-void motor_set_period(uint8_t num, uint16_t per)
-{
-	float duty_cycle_0 = (float)(TCC0.CCA)/(float)(TCC0.PER);
-	float duty_cycle_1 = (float)(TCC1.CCA)/(float)(TCC1.PER);
-	float duty_cycle_2 = (float)(TCE0.CCA)/(float)(TCE0.PER);
-	
-	switch (num)
-	{
-		case 0: TCC0.PER = per; break;
-		case 1: TCC1.PER = per; break;
-		case 2: TCE0.PER = per; break;
-		default: TCC0.PER = TCC1.PER = TCE0.PER = per;
-	}
-	
-	TCC0.CCA = TCC0.CCB = (uint16_t)(duty_cycle_0 * TCC0.PER);
-	TCC1.CCA = TCC1.CCB = (uint16_t)(duty_cycle_1 * TCC1.PER);
-	TCE0.CCA =TCE0.CCB = (uint16_t)(duty_cycle_2 * TCE0.PER);
-}
-
-// Sets the hardware duty cycle of the PWM
-void set_motor_duty_cycle(uint8_t num, float duty_cycle)
-{
-	if (duty_cycle > 1 || duty_cycle < 0) return;
-
-	switch (num)
-	{
-		case 0: TCC0.CCA = TCC0.CCB = (uint16_t)(duty_cycle * TCC0.PER); break;
-		case 1: TCC1.CCA = TCC1.CCB = (uint16_t)(duty_cycle * TCC1.PER); break;
-		case 2: TCE0.CCA = TCE0.CCB = (uint16_t)(duty_cycle * TCE0.PER); break;
-		default: 
-			 TCC0.CCA = TCC0.CCB = duty_cycle * TCC0.PER;
-			 TCC1.CCA = TCC1.CCB = duty_cycle * TCC1.PER;
-			 TCE0.CCA = TCE0.CCB = duty_cycle * TCE0.PER; 
 	}
 }

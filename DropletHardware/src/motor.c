@@ -19,7 +19,6 @@ void motor_init()
 	//TCC0.PER = 32; This needs to be set for each move_step, now.
 	
 	motor_status = 0;
-	motor_adjusts[0][0]=motor_adjusts[0][1]=motor_adjusts[1][0]=motor_adjusts[1][1]=motor_adjusts[2][0]=motor_adjusts[2][1]=0;
 	
 	motor_signs[0][0]=0;	motor_signs[0][1]=1;	motor_signs[0][2]=-1;  	//Towards motor 0.
 	motor_signs[1][0]=-1;	motor_signs[1][1]=1;	motor_signs[1][2]=0;  	//Away from motor 2.
@@ -29,6 +28,9 @@ void motor_init()
 	motor_signs[5][0]=1;	motor_signs[5][1]=0;	motor_signs[5][2]=-1;  	//Away from motor 1.
 	motor_signs[6][0]=-1;	motor_signs[6][1]=-1;	motor_signs[6][2]=-1;  	//Clockwise spin.
 	motor_signs[7][0]=1;	motor_signs[7][1]=1;	motor_signs[7][2]=1;  	//Anti-Clockwise spin.
+	
+	motor_on_time = MOTOR_ON_TIME;
+	motor_off_time = MOTOR_OFF_TIME;
 	
 	read_motor_settings();
 }
@@ -57,8 +59,8 @@ uint8_t move_steps(uint8_t direction, uint16_t num_steps)
 	for(uint8_t mot=0 ; mot<3 ; mot++)
 	{		
 		if(motor_signs[direction][mot]==0){ mot_durs[mot]=0; continue;}
-		mot_durs[mot] = 32*MOTOR_ON_TIME + motor_adjusts[mot][motor_backward_q[mot]];
-		total_time += mot_durs[mot] + 32*MOTOR_OFF_TIME + motor_adjusts[mot][motor_backward_q[mot]];//If we left the motor on for longer to compensate, we should wait a little longer before starting again.
+		mot_durs[mot] = 32*motor_on_time + motor_adjusts[mot][motor_backward_q[mot]];
+		total_time += mot_durs[mot] + 32*motor_off_time + motor_adjusts[mot][motor_backward_q[mot]];//If we left the motor on for longer to compensate, we should wait a little longer before starting again.
 	}
 	//printf("Moving in dir: %hhu for %hu steps. Mot_durs: {%hu, %hu, %hu}. Total_time: %hu.\r\n",direction, num_steps, mot_durs[0], mot_durs[1], mot_durs[2], total_time);
 
@@ -78,7 +80,7 @@ uint8_t move_steps(uint8_t direction, uint16_t num_steps)
 			case 1: TCC1.CNT = ((total_time - current_offset)%total_time); break;
 			case 2: TCE0.CNT = ((total_time - current_offset)%total_time); break;
 		}
-		current_offset += mot_durs[mot] + 32*MOTOR_OFF_TIME + motor_adjusts[mot][motor_backward_q[mot]];//If we left the motor on for longer to compensate, we should wait a little longer before starting again.
+		current_offset += mot_durs[mot] + 32*motor_off_time + motor_adjusts[mot][motor_backward_q[mot]];//If we left the motor on for longer to compensate, we should wait a little longer before starting again.
 	}
 	//printf("Offsets are: (%hu, %hu, %hu)\r\n",TCC0.CNT, TCC1.CNT, TCE0.CNT);
 	if(current_offset != total_time) printf("ERROR (I think): current_offset: %hu and total_time: %hu not equal!\r\n", current_offset, total_time);
@@ -92,7 +94,7 @@ uint8_t move_steps(uint8_t direction, uint16_t num_steps)
 	}
 	uint32_t total_movement_duration = ((uint32_t)total_time)*((uint32_t)num_steps)/32;
 	//printf("Total duration: %u ms.\r\n\n",total_movement_duration);
-	schedule_task(total_movement_duration, stop, NULL);
+	current_motor_task = schedule_task(total_movement_duration, stop, NULL);
 }
 
 void walk(uint8_t direction, uint16_t mm)
@@ -110,6 +112,7 @@ void stop()
 {
 	//printf("Stopping.\r\n");	
 	motor_status = MOTOR_STATUS_CANCEL;
+	remove_task(current_motor_task);
 	TCC0.CTRLB = TC_WGMODE_SS_gc;
 	TCC1.CTRLB = TC_WGMODE_SS_gc;
 	TCE0.CTRLB = TC_WGMODE_SS_gc;
@@ -140,15 +143,20 @@ void set_mm_per_kilostep(uint8_t direction, uint16_t dist)
 
 void read_motor_settings()
 {
-	for (uint8_t direction = 0; direction < 8; direction++)
+	for (uint8_t motor_num = 0; motor_num < 3; motor_num++)
 	{
-		for (uint8_t motor_num = 0; motor_num < 3; motor_num++)
+		for (uint8_t cw_q = 0; cw_q < 2 ; cw_q++)
 		{
-			motor_duty_cycle[motor_num][direction] = ((int8_t)SP_ReadUserSignatureByte(0x10 + (motor_num) + 3*direction));
+			motor_adjusts[motor_num][cw_q] = ((((int16_t)SP_ReadUserSignatureByte(0x10 + 4*motor_num + 2*cw_q + 0))<<8) | ((int16_t)SP_ReadUserSignatureByte(0x10 + 4*motor_num + 2*cw_q + 1)));
 		}
-		mm_per_kilostep[direction] =(uint16_t)SP_ReadUserSignatureByte(0x28 + 0 + 2*direction)<<8 |
-									(uint16_t)SP_ReadUserSignatureByte(0x28 + 1 + 2*direction);
+
+	}
+	for (uint8_t direction = 0; direction < 8 ; direction++)
+	{
+		mm_per_kilostep[direction] =(uint16_t)SP_ReadUserSignatureByte(0x1c + 2*direction + 0)<<8 |
+		(uint16_t)SP_ReadUserSignatureByte(0x1c + 2*direction + 1);
 	}		
+	motor_flipped = SP_ReadUserSignatureByte(0x2c);
 }
 
 void write_motor_settings()
@@ -156,17 +164,25 @@ void write_motor_settings()
 	uint8_t page_buffer[512];
 	for (uint16_t i = 0; i < 512; i++)
 		page_buffer[i] = SP_ReadUserSignatureByte(i);
+		
+	for (uint8_t motor_num = 0; motor_num < 3; motor_num++)
+	{
+		for (uint8_t cw_q = 0; cw_q < 2 ; cw_q++)
+		{
+			int16_t temp = motor_adjusts[motor_num][cw_q];
+			page_buffer[(0x10 + 4*motor_num + 2*cw_q + 0)] = (uint8_t)((temp>>8)&0xFF);
+			page_buffer[(0x10 + 4*motor_num + 2*cw_q + 1)] = (uint8_t)(temp&0xFF);
+		}		
+	}
 	
 	for (uint8_t direction = 0; direction < 8; direction++)
 	{
-		for (uint8_t motor_num = 0; motor_num < 3; motor_num++)
-		{
-			page_buffer[(0x10 + (motor_num) + 3*direction)] = motor_duty_cycle[motor_num][direction];
-		}
 		uint16_t temp = mm_per_kilostep[direction];
-		page_buffer[(0x28 + 0 + 2*direction)] = (uint8_t)((temp>>8)&0xFF);
-		page_buffer[(0x28 + 1 + 2*direction)] = (uint8_t)(temp&0xFF);
+		page_buffer[(0x1c + 2*direction + 0)] = (uint8_t)((temp>>8)&0xFF);
+		page_buffer[(0x1c + 2*direction + 1)] = (uint8_t)(temp&0xFF);
 	}					
+		
+	page_buffer[0x2c] = motor_flipped;		
 		
 	SP_LoadFlashPage(page_buffer);
 	
@@ -174,17 +190,12 @@ void write_motor_settings()
 	SP_WriteUserSignatureRow();
 }
 
-void print_motor_duty_cycles()
+void print_motor_adjusts()
 {
-	printf("Motor Duty Cycles\r\n");
-	printf("\tN\tm1 %i\tm2 %i\tm3 %i\r\n", motor_duty_cycle[0][0],motor_duty_cycle[1][0],motor_duty_cycle[2][0]);
-	printf("\tNE\tm1 %i\tm2 %i\tm3 %i\r\n", motor_duty_cycle[0][1],motor_duty_cycle[1][1],motor_duty_cycle[2][1]);
-	printf("\tSE\tm1 %i\tm2 %i\tm3 %i\r\n", motor_duty_cycle[0][2],motor_duty_cycle[1][2],motor_duty_cycle[2][2]);
-	printf("\tS\tm1 %i\tm2 %i\tm3 %i\r\n", motor_duty_cycle[0][3],motor_duty_cycle[1][3],motor_duty_cycle[2][3]);
-	printf("\tSW\tm1 %i\tm2 %i\tm3 %i\r\n", motor_duty_cycle[0][4],motor_duty_cycle[1][4],motor_duty_cycle[2][4]);
-	printf("\tNW\tm1 %i\tm2 %i\tm3 %i\r\n", motor_duty_cycle[0][5],motor_duty_cycle[1][5],motor_duty_cycle[2][5]);
-	printf("\tCW\tm1 %i\tm2 %i\tm3 %i\r\n", motor_duty_cycle[0][6],motor_duty_cycle[1][6],motor_duty_cycle[2][6]);
-	printf("\tCCW\tm1 %i\tm2 %i\tm3 %i\r\n", motor_duty_cycle[0][7],motor_duty_cycle[1][7],motor_duty_cycle[2][7]);
+	printf("Motor Adjustments:\r\n");
+	printf("\tmotor 0:\tccw: %hd, cw: %hd, flipped: %hhu\r\n",motor_adjusts[0][0],motor_adjusts[0][1], !!(motor_flipped&MOTOR_0_FLIPPED_bm));
+	printf("\tmotor 1:\tccw: %hd, cw: %hd, flipped: %hhu\r\n",motor_adjusts[1][0],motor_adjusts[1][1], !!(motor_flipped&MOTOR_1_FLIPPED_bm));
+	printf("\tmotor 2:\tccw: %hd, cw: %hd, flipped: %hhu\r\n",motor_adjusts[2][0],motor_adjusts[2][1], !!(motor_flipped&MOTOR_2_FLIPPED_bm));		
 }
 
 void print_dist_per_step()

@@ -45,12 +45,12 @@ void print_task_queue()
 	{
 		Task_t* cur_task = task_list;
 	
-		printf("\r\n%u tasks, %u executing:\r\n", num_tasks, num_executing_tasks);
+		printf("Task Queue (%u tasks, %u executing):\r\n", num_tasks, num_executing_tasks);
 	
 		// Iterate through the list of tasks, printing name, function, and scheduled time of each
 		while (cur_task != NULL)
 		{
-			printf("Task %p (%p) scheduled at %s, %s current\r\n", cur_task, cur_task->task_function, ltoa(cur_task->scheduled_time, s1, 10), ltoa(get_32bit_time(), s2, 10));
+			printf("\tTask %p (%p) scheduled at %s, %s current\r\n", cur_task, cur_task->task_function, ltoa(cur_task->scheduled_time, s1, 10), ltoa(get_32bit_time(), s2, 10));
 			cur_task = cur_task->next;
 		}		
 	}		
@@ -109,8 +109,7 @@ Task_t* schedule_task(volatile uint32_t time, void (*function)(void*), void* arg
 
 
 		num_tasks++;
-	}		
-	
+	}
 
 	return new_task;
 }	
@@ -118,19 +117,18 @@ Task_t* schedule_task(volatile uint32_t time, void (*function)(void*), void* arg
 // Remove a task from the task queue
 void remove_task(Task_t* task)
 {
-
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 	{
 		Task_t* tmp_task = task_list;
-		while (tmp_task != NULL && tmp_task->next != task) tmp_task = tmp_task->next;
-		if (tmp_task != NULL && task != NULL)
+		while (tmp_task != NULL && tmp_task != task) tmp_task = tmp_task->next;
+		if (tmp_task != NULL)
 		{
 			tmp_task->next = task->next;
 			free(task);
 			task = NULL;
 			num_tasks--;
 		}			
-	}		
+	}
 
 }
 

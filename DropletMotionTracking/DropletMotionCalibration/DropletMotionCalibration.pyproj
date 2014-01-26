@@ -23,7 +23,9 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="DropletMotionCalibration.py" />
-    <Compile Include="FindCircle.py" />
+    <Compile Include="DropletMotionCalibration2.py" />
+    <Compile Include="CustomMaths.py" />
+    <Compile Include="MySerialWrapper.py" />
     <Compile Include="Simplex.py" />
     <Compile Include="LP.py" />
     <Compile Include="SocketConnection.py" />

@@ -112,13 +112,13 @@ void stop()
 {
 	//printf("Stopping.\r\n");	
 	motor_status = MOTOR_STATUS_CANCEL;
-	remove_task(current_motor_task);
 	TCC0.CTRLB = TC_WGMODE_SS_gc;
 	TCC1.CTRLB = TC_WGMODE_SS_gc;
 	TCE0.CTRLB = TC_WGMODE_SS_gc;
 	
 	PORTC.OUTCLR = PIN0_bm | PIN1_bm | PIN4_bm | PIN5_bm;
 	PORTE.OUTCLR = PIN0_bm | PIN1_bm;
+	remove_task(current_motor_task);	
 }
 
 

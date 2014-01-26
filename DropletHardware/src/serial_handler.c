@@ -310,7 +310,7 @@ void handle_set_motors_flipped(char* command_args)
 	token = strtok(NULL,delim);	
 	motor_flipped |= atoi(token) ? MOTOR_2_FLIPPED_bm : 0;
 	
-	printf("motor_flipped changed to: %d.\r\n", motor_flipped);
+	//printf("motor_flipped changed to: %d.\r\n", motor_flipped);
 }
 
 

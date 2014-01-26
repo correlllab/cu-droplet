@@ -81,7 +81,7 @@
   <name>Circles</name>
   <revert_to>Calibrated Source</revert_to>
 </Marker>
-<Blob_Tracking>
+<Blob_Tracking disabled>
   <absent_after_frames>6</absent_after_frames>
   <aspect_weight>1.0</aspect_weight>
   <blob_image>Circles</blob_image>
@@ -97,7 +97,7 @@
   <match_threshold>1</match_threshold>
   <orientation_weight>1.0</orientation_weight>
   <overlap_weight>100</overlap_weight>
-  <present_after_frames>2</present_after_frames>
+  <present_after_frames>1</present_after_frames>
   <present_after_pixels>0</present_after_pixels>
   <raw_image>Calibrated Source</raw_image>
   <remove_untracked_blobs>FALSE</remove_untracked_blobs>
@@ -132,19 +132,8 @@
   <clear_image>FALSE</clear_image>
   <color_index>5</color_index>
   <display_as_annotation>FALSE</display_as_annotation>
-  <x_end>181</x_end>
-  <x_start>181</x_start>
-  <y_end>659</y_end>
-  <y_start>0</y_start>
+  <x_end>679</x_end>
+  <x_start>0</x_start>
+  <y_end>508</y_end>
+  <y_start>508</y_start>
 </Display_Line>
-<Write_Variables disabled>
-  <append>TRUE</append>
-  <colom_delimiter>[comma]</colom_delimiter>
-  <filename>C:\Users\Colab\Desktop\droplet_pos</filename>
-  <file_type>text</file_type>
-  <first_row_names>FALSE</first_row_names>
-  <overwrite>TRUE</overwrite>
-  <row_delimiter>[LF]</row_delimiter>
-  <text_delimiter>[double quote]</text_delimiter>
-  <variables_to_save>BLOB_TRACKING</variables_to_save>
-</Write_Variables>

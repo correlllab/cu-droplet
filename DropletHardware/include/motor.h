@@ -18,8 +18,8 @@
 #define COUNTERCLOCKWISE	7
 
 // Timing for taking a step:
-#define MOTOR_ON_TIME			20
-#define MOTOR_OFF_TIME			30
+#define MOTOR_ON_TIME			30
+#define MOTOR_OFF_TIME			40
 
 #include "droplet_init.h"
 #include "scheduler.h"
@@ -68,7 +68,9 @@ void		set_mm_per_kilostep(uint8_t direction, uint16_t dist);
 void		read_motor_settings();
 void		write_motor_settings();
 void		print_motor_adjusts();
+void		broadcast_motor_adjusts();
 void		print_dist_per_step();
+void		broadcast_dist_per_step();
 
 void motor_forward(uint8_t num);
 void motor_backward(uint8_t num);

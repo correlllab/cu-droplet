@@ -115,6 +115,11 @@ void handle_serial_command(char* command, uint16_t command_length)
 			print_motor_adjusts();
 			print_dist_per_step();
 		}
+		else if(strcmp(command_word,"broadcast_motor_settings")==0)
+		{
+			broadcast_motor_adjusts();
+			//broadcast_dist_per_step();
+		}		
 		else if(strcmp(command_word,"write_motor_settings")==0)
 		{
 			write_motor_settings();

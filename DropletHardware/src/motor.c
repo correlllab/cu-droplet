@@ -198,6 +198,20 @@ void print_motor_adjusts()
 	printf("\tmotor 2:\tccw: %hd, cw: %hd, flipped: %hhu\r\n",motor_adjusts[2][0],motor_adjusts[2][1], !!(motor_flipped&MOTOR_2_FLIPPED_bm));		
 }
 
+void broadcast_motor_adjusts()
+{
+	char buffer[128];
+	uint16_t data_len = sprintf(buffer, "ccw0: %hd, cw0: %hd, f0: %hhu, ccw1: %hd, cw1: %hd, f1: %hhu, ccw2: %hd, cw2: %hd, f2: %hhu", 
+					motor_adjusts[0][0], motor_adjusts[0][1], !!(motor_flipped&MOTOR_0_FLIPPED_bm),
+					motor_adjusts[1][0], motor_adjusts[1][1], !!(motor_flipped&MOTOR_1_FLIPPED_bm),
+					motor_adjusts[2][0], motor_adjusts[2][1], !!(motor_flipped&MOTOR_2_FLIPPED_bm));
+					
+	ir_broadcast(buffer, data_len);
+	//printf("\tmotor 0:\tccw: %hd, cw: %hd, flipped: %hhu\r\n",motor_adjusts[0][0],motor_adjusts[0][1], !!(motor_flipped&MOTOR_0_FLIPPED_bm));
+	//printf("\tmotor 1:\tccw: %hd, cw: %hd, flipped: %hhu\r\n",motor_adjusts[1][0],motor_adjusts[1][1], !!(motor_flipped&MOTOR_1_FLIPPED_bm));
+	//printf("\tmotor 2:\tccw: %hd, cw: %hd, flipped: %hhu\r\n",motor_adjusts[2][0],motor_adjusts[2][1], !!(motor_flipped&MOTOR_2_FLIPPED_bm));
+}
+
 void print_dist_per_step()
 {
 	printf("Dist (mm) per kilostep\r\n");

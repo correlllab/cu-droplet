@@ -17,6 +17,7 @@ void DropletCustomTwo::DropletInit()
 {
 	init_all_systems();	
 	
+	collaborators = 0;
 	group_size = 1;
 	i_am_leader = 0;
 	repeat_discover_msg = 3;
@@ -91,11 +92,16 @@ void DropletCustomTwo::discovering_group()
 
 void DropletCustomTwo::leading_group()
 {
-	uint8_t collaborators = 0;
+	if(check_timer(1))
+	{
+		set_timer(1000, 1);
+		collaborators = 0;
+	}
+
 	if(run_sigmoid())
 		collaborators++;
 
-	if(check_for_new_messages())
+	while(check_for_new_messages())
 	{
 		// Make sure the msg originated from the same collaboration site.
 		if(strncmp((char *)&(global_rx_buffer.buf[1]), (char *)color_msg, 3) == 0)
@@ -118,7 +124,20 @@ void DropletCustomTwo::leading_group()
 				break;
 
 			case RQST_UPDATE_COLLAB:
+				collaborators++;
 
+				// If half or more decide to collaborate in a single time-step
+				// then send the collaborate msg to everyone at the site.
+				if(collaborators > 1 && collaborators >= (group_size / 2.0))
+				{
+					char msg[5];
+					msg[0] = (uint8_t)RSP_START_COLLAB;
+					memcpy(&msg[1], color_msg, 3);
+					msg[4] = group_size;
+					ir_broadcast(msg, 4);
+					state = COLLABORATE;
+					set_state_led();
+				}
 				break;
 			}
 		}
@@ -139,6 +158,8 @@ void DropletCustomTwo::collaborating()
 uint8_t DropletCustomTwo::run_sigmoid()
 {
 	double exp_val = pow(M_E, sigmoid_slope * (rqst_group_size - group_size));
+	double sig_val = pow(1. + exp_val, -1);
+	return (double)rand() <= (sig_val * RAND_MAX);
 }
 
 

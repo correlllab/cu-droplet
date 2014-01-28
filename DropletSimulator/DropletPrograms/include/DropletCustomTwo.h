@@ -14,7 +14,7 @@
 #include <vector>
 #include <algorithm>
 #include <random>
-#include <chrono>
+#include <ctime>
 
 #define _USE_MATH_DEFINES // For math constants
 #include <math.h>
@@ -43,6 +43,7 @@ private :
 		RQST_DISCOVER_GROUP,
 		RSP_DISCOVER_GROUP,
 		RQST_UPDATE_COLLAB,
+		RSP_START_COLLAB
 	} msg_type;
 
 	uint8_t color_msg[3];

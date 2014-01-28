@@ -47,7 +47,7 @@ private :
 	} msg_type;
 
 	uint8_t color_msg[3];
-	uint8_t group_size, i_am_leader, repeat_discover_msg;
+	uint8_t group_size, i_am_leader, repeat_discover_msg, collaborators;
 	static const uint8_t led_state_colors[NUM_STATES][3];
 	std::vector<droplet_id_type> unique_ids;
 

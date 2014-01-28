@@ -448,7 +448,7 @@ public :
 			uint8_t receivers_used;	/* set flags of the receiver numbers which 
 									 * successfully received the message */
 
-			uint8_t data_len;	// to be copied from the header
+			uint16_t data_len;	// to be copied from the header
 			droplet_id_type sender_ID;	// to be copied from the header
 
 			uint16_t message_time;

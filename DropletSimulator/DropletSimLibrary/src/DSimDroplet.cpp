@@ -453,7 +453,7 @@ uint8_t DSimDroplet::check_for_new_messages(void)
 	// If there is indeed a new message then we should copy it into the global_rx_buffer
 	if(newMsgCh != -1)
 	{
-		/* Note : Here global_rx_buffer.size, global_rx_buffer.data_len & 
+		/* TODO : Here global_rx_buffer.size, global_rx_buffer.data_len & 
 		   DropletCommChannelData::inMsgLength are being used to store the same value,
 		   the length of the actual body of the message and not the whole message (including
 		   header). It is a bit confusing, fix it later.

@@ -24,6 +24,10 @@
 #define BLUE  2
 
 #define RED_THRESHOLD 220
+#define RQST_GROUP_SIZE 4
+#define SIGMOID_SLOPE 0.0
+#define TASK_TIME 10.0
+#define REPEAT_DISCOVER_MSG 3
 
 class DropletCustomTwo : public DSimDroplet
 {
@@ -51,7 +55,8 @@ private :
 	static const uint8_t led_state_colors[NUM_STATES][3];
 	std::vector<droplet_id_type> unique_ids;
 
-	uint8_t rqst_group_size, sigmoid_slope;
+	uint8_t rqst_group_size;
+	double task_time, sigmoid_slope;
 
 	void init_leader(void);
 	void set_state_led(void);
@@ -62,7 +67,7 @@ private :
 	void leading_group(void);
 	void waiting_at_object(void);
 	void collaborating(void);
-	
+	void reset_values(void);
 
 public :
 	DropletCustomTwo(ObjectPhysicsData *objPhysics);

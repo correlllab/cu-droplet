@@ -400,23 +400,33 @@ uint8_t DSimDroplet::ir_broadcast(const char *send_buf, uint8_t length)
 
 uint8_t DSimDroplet::ir_send(uint8_t channel, const char *send_buf, uint8_t length)
 {
-	// We only have 6 channels, 1 - 6. Channel 0 is reserved for broadcast
-	if(channel > 6)
+	// Channel 0 is reserved for broadcast
+	if(channel >= NUM_COMM_CHANNELS)
 		return 0;
 
+	/* TODO : This section of code finds an empty channel to fill the send buffer in.
+	 * Once directed communication is implemented, this block of code should be removed 
+	 * and the channel input parameter should be used instead.
+	 */
+	unsigned int sendChannel;
+	for(sendChannel = 0; sendChannel < NUM_COMM_CHANNELS; sendChannel++)
+	{
+		if(commData->commChannels[sendChannel].outMsgLength == 0)
+			break;
+	}
+
 	// Reset the out comm buffer
-	memset(commData->commChannels[channel].outBuf, 0, IR_BUFFER_SIZE);
-	commData->commChannels[channel].outMsgLength = 0;
+	memset(commData->commChannels[sendChannel].outBuf, 0, IR_BUFFER_SIZE);
+	//commData->commChannels[sendChannel].outMsgLength = 0;
 
 	// Store the sending droplet's id as part of the message header
-	memcpy(commData->commChannels[channel].outBuf, &(compData->dropletID), sizeof(droplet_id_type));
-	
+	memcpy(commData->commChannels[sendChannel].outBuf, &(compData->dropletID), sizeof(droplet_id_type));
 
 	// Store the rest of the message header, then body
 	uint8_t msgLength = length < IR_MAX_DATA_SIZE ? length : IR_MAX_DATA_SIZE;
-	memcpy(&commData->commChannels[channel].outBuf[sizeof(droplet_id_type)], &msgLength, sizeof(uint8_t));
-	memcpy(&commData->commChannels[channel].outBuf[IR_MSG_HEADER], send_buf, msgLength);
-	commData->commChannels[channel].outMsgLength = msgLength + IR_MSG_HEADER;
+	memcpy(&commData->commChannels[sendChannel].outBuf[sizeof(droplet_id_type)], &msgLength, sizeof(uint8_t));
+	memcpy(&commData->commChannels[sendChannel].outBuf[IR_MSG_HEADER], send_buf, msgLength);
+	commData->commChannels[sendChannel].outMsgLength = msgLength + IR_MSG_HEADER;
 
 	// Set Send to active
 	commData->sendActive = true;

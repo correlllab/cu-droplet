@@ -100,10 +100,8 @@ typedef struct _Droplet_Sensor_Data
  */
 typedef struct _Droplet_Sim_Comm_Channel_Data
 {
-	std::vector<unsigned char *> *inBuf;
-	std::vector<unsigned char *> *outBuf;
-	//unsigned char inBuf[IR_BUFFER_SIZE];
-	//unsigned char outBuf[IR_BUFFER_SIZE];
+	unsigned char inBuf[IR_BUFFER_SIZE];
+	unsigned char outBuf[IR_BUFFER_SIZE];
 	uint16_t lastMsgOutTimestamp, lastMsgInTimestamp;
 	uint16_t outMsgLength, inMsgLength;
 } DropletCommChannelData;
@@ -114,7 +112,7 @@ typedef struct _Droplet_Sim_Comm_Channel_Data
 typedef struct _Droplet_Communication_Data
 {
 	bool sendActive;
-	DropletCommChannelData commChannels[7];
+	DropletCommChannelData commChannels[NUM_COMM_CHANNELS];
 
 } DropletCommData;
 

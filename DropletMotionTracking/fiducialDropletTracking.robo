@@ -1,0 +1,190 @@
+<head><version>2.57.7</version></head>
+<Perspective>
+  <resample_mode>1</resample_mode>
+  <scale>1.0</scale>
+  <stretch_x>1.0</stretch_x>
+  <stretch_y>1.0</stretch_y>
+  <tilt>0.0000</tilt>
+  <transform_x>TRUE</transform_x>
+  <transform_y>TRUE</transform_y>
+</Perspective>
+<Rotate>
+  <custom_degree>0.88</custom_degree>
+  <sizing>1</sizing>
+</Rotate>
+<Crop>
+  <auto_crop>FALSE</auto_crop>
+  <max_auto_crop>20</max_auto_crop>
+  <tolerance>1</tolerance>
+  <x_end>1070</x_end>
+  <x_start>350</x_start>
+  <y_end>710</y_end>
+  <y_start>20</y_start>
+  <zoom>8</zoom>
+</Crop>
+<Spherical_Unwarp disabled>
+  <crop_border>TRUE</crop_border>
+  <curvature>4</curvature>
+  <scale>0.93</scale>
+  <x_center>0</x_center>
+  <y_center>0</y_center>
+  <z_rotation>0</z_rotation>
+</Spherical_Unwarp>
+<Fisheye_Transform disabled>
+  <center_x>0.91</center_x>
+  <center_y>0.99</center_y>
+  <inner_fov>1</inner_fov>
+  <maintain_fov_aspect>TRUE</maintain_fov_aspect>
+  <maintain_zoom_aspect>TRUE</maintain_zoom_aspect>
+  <outer_fov>1</outer_fov>
+  <radius>92</radius>
+  <sample_mode>1</sample_mode>
+  <scale_x>1.02</scale_x>
+  <scale_y>1.04</scale_y>
+  <transform_type>2</transform_type>
+  <x_trans>-0.01</x_trans>
+  <x_zoom>1</x_zoom>
+  <y_trans>0</y_trans>
+  <y_zoom>1</y_zoom>
+</Fisheye_Transform>
+<Fiducial>
+  <adaptive_threshold>10</adaptive_threshold>
+  <base_folder>C:\Program Files (x86)\RoboRealm\FiducialsSubset\</base_folder>
+  <create_shape_array>FALSE</create_shape_array>
+  <display_confidence>TRUE</display_confidence>
+  <display_contrast>FALSE</display_contrast>
+  <display_coord>TRUE</display_coord>
+  <display_distance>FALSE</display_distance>
+  <display_filename>FALSE</display_filename>
+  <display_orientation>TRUE</display_orientation>
+  <display_rx>FALSE</display_rx>
+  <display_ry>FALSE</display_ry>
+  <display_scale>FALSE</display_scale>
+  <display_tx>FALSE</display_tx>
+  <display_ty>FALSE</display_ty>
+  <fiducial_height>1</fiducial_height>
+  <fiducial_width>1</fiducial_width>
+  <field_of_view>61</field_of_view>
+  <focal_length>250</focal_length>
+  <font_size_index>2</font_size_index>
+  <matched_color_index>3</matched_color_index>
+  <max_angle>360</max_angle>
+  <max_confidence>100</max_confidence>
+  <max_contrast>100</max_contrast>
+  <max_size>1000</max_size>
+  <max_x_angle>360</max_x_angle>
+  <max_y_angle>360</max_y_angle>
+  <min_angle>0</min_angle>
+  <min_confidence>5</min_confidence>
+  <min_contrast>20</min_contrast>
+  <min_size>0</min_size>
+  <min_x_angle>0</min_x_angle>
+  <min_y_angle>0</min_y_angle>
+  <monitor_folder>FALSE</monitor_folder>
+  <occurrence_threshold>1</occurrence_threshold>
+  <select_top_blobs>5</select_top_blobs>
+  <sort_array_on_x>FALSE</sort_array_on_x>
+  <sort_array_on_y>FALSE</sort_array_on_y>
+</Fiducial>
+<Marker>
+  <include_graphics>0</include_graphics>
+  <name>Calibrated Source</name>
+  <revert_to/>
+</Marker>
+<Movement disabled>
+  <anti_auto_adjustment>FALSE</anti_auto_adjustment>
+  <continuous>FALSE</continuous>
+  <difference>10</difference>
+  <difference_channel>6</difference_channel>
+  <freeze_difference>0</freeze_difference>
+  <freeze_percent>0</freeze_percent>
+  <low_difference>10</low_difference>
+  <movement_mode>1</movement_mode>
+  <reference_frame>Previous 250 Frames</reference_frame>
+  <remove_global_movement>FALSE</remove_global_movement>
+  <rgb_precent_threshold>20</rgb_precent_threshold>
+  <set_still_black>1</set_still_black>
+  <window_size>5</window_size>
+</Movement>
+<Blob_Recognition disabled>
+  <adaptive_blue_max>244</adaptive_blue_max>
+  <adaptive_blue_min>12</adaptive_blue_min>
+  <adaptive_green_max>240</adaptive_green_max>
+  <adaptive_green_min>17</adaptive_green_min>
+  <adaptive_hysteresis>5</adaptive_hysteresis>
+  <adaptive_inverted>0</adaptive_inverted>
+  <adaptive_offset>-4</adaptive_offset>
+  <adaptive_red_max>236</adaptive_red_max>
+  <adaptive_red_min>1</adaptive_red_min>
+  <adaptive_size>15</adaptive_size>
+  <automatic_threshold>501</automatic_threshold>
+  <check_area>0</check_area>
+  <check_area_bounding_box_ratio>0</check_area_bounding_box_ratio>
+  <check_average_radius>1</check_average_radius>
+  <check_axis_ratio>1</check_axis_ratio>
+  <check_bounding_box_aspect>1</check_bounding_box_aspect>
+  <check_center_high>0</check_center_high>
+  <check_center_low>0</check_center_low>
+  <check_center_mean>1</check_center_mean>
+  <check_center_offset>0</check_center_offset>
+  <check_circularity>0</check_circularity>
+  <check_circularity2>0</check_circularity2>
+  <check_circularity3>0</check_circularity3>
+  <check_contrast>1</check_contrast>
+  <check_eccentricity>1</check_eccentricity>
+  <check_edge_histogram>0</check_edge_histogram>
+  <check_gradient_angle>0</check_gradient_angle>
+  <check_gradient_histogram>1</check_gradient_histogram>
+  <check_high_low_distance>0</check_high_low_distance>
+  <check_high_low_intensity_ratio>0</check_high_low_intensity_ratio>
+  <check_intensity_histogram>1</check_intensity_histogram>
+  <check_mean>0</check_mean>
+  <check_min_max_radius_angle>0</check_min_max_radius_angle>
+  <check_min_max_radius_ratio>1</check_min_max_radius_ratio>
+  <check_min_radius_area_ratio>0</check_min_radius_area_ratio>
+  <check_perimeter_area_ratio>1</check_perimeter_area_ratio>
+  <check_perimeter_length>0</check_perimeter_length>
+  <check_saturation>0</check_saturation>
+  <check_smoothness>0</check_smoothness>
+  <check_variance>0</check_variance>
+  <mask_image_id>mask.jpg</mask_image_id>
+  <min_blob_size>10</min_blob_size>
+  <mophological_open_count>0</mophological_open_count>
+  <raw_image_id>raw.jpg</raw_image_id>
+  <result_type_index>3</result_type_index>
+  <show_confidence>0</show_confidence>
+  <threshold>50</threshold>
+  <threshold_enable>1</threshold_enable>
+  <training_folder>C:\Program Files (x86)\RoboRealm\Blobs\</training_folder>
+</Blob_Recognition>
+<Python_Program_v2x disabled>
+  <script>import rr
+
+testXCoord = rr.GetVariable('FIDUCIAL_X_COORD')
+testYCoord = rr.GetVariable('FIDUCIAL_Y_COORD')
+testOrient = rr.GetVariable('FIDUCIAL_ORIENTATION')
+
+rr.SetVariable("MOUSE_CLICK_X", testXCoord)
+rr.SetVariable("MOUSE_CLICK_Y", testYCoord)
+rr.SetVariable("MOUSE_CLICK_TIME", testOrient)
+
+</script>
+  <source_mode>gui</source_mode>
+  <tab_size_index>1</tab_size_index>
+</Python_Program_v2x>
+<Display_Variables disabled>
+  <border_color>red</border_color>
+  <dim_background>TRUE</dim_background>
+  <display_as_annotation>FALSE</display_as_annotation>
+  <display_value_only>TRUE</display_value_only>
+  <font_color>white</font_color>
+  <font_size>Normal (10pt)</font_size>
+  <northwest>FIDUCIAL_Y_COORD
+FIDUCIAL_X_COORD
+FIDUCIAL_ORIENTATION
+</northwest>
+</Display_Variables>
+<Socket_Program disabled>
+  <hostname>localhost</hostname>
+  <port>5050</port>
+</Socket_Program>

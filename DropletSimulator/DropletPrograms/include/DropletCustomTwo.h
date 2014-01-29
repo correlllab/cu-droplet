@@ -24,6 +24,10 @@
 #define BLUE  2
 
 #define RED_THRESHOLD 220
+#define GREEN_THRESHOLD 220
+#define BLUE_THRESHOLD 220
+
+
 #define RQST_GROUP_SIZE 4
 #define SIGMOID_SLOPE 0.0
 #define TASK_TIME 10.0

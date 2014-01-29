@@ -1,11 +1,11 @@
 #include "DropletCustomTwo.h"
 
 const uint8_t DropletCustomTwo::led_state_colors[NUM_STATES][3] = {
-	{ 0,  0, 50},
-	{50,  0, 50},
-	{50,  0,  0},
-	{ 0, 50, 50},
-	{ 0, 50,  0},
+	{  0,   0, 200},
+	{200,   0, 200},
+	{200,   0,   0},
+	{  0, 200, 200},
+	{  0, 200,   0},
 };
 
 DropletCustomTwo::DropletCustomTwo(ObjectPhysicsData *objPhysics) 
@@ -47,14 +47,22 @@ void DropletCustomTwo::DropletMainLoop()
 
 void DropletCustomTwo::searching()
 {
-	color_msg[RED] = get_red_sensor();
-	if(color_msg[RED] >= RED_THRESHOLD)
+	if(!is_moving())
 	{
-		color_msg[GREEN] = get_green_sensor();
-		color_msg[BLUE] = get_blue_sensor();
-		state = DISCOVER_GROUP;
-		set_state_led();
-		cancel_move();
+		move_steps((rand_byte() % 6) + 1, 500);
+	}
+
+	if(check_timer(2))
+	{
+		get_rgb_sensor(&color_msg[RED], &color_msg[GREEN], &color_msg[BLUE]);
+		if(color_msg[RED] >= RED_THRESHOLD 
+			|| color_msg[GREEN] >= GREEN_THRESHOLD
+			|| color_msg[BLUE] >= BLUE_THRESHOLD)
+		{
+			state = DISCOVER_GROUP;
+			set_state_led();
+			cancel_move();
+		}
 	}
 }
 
@@ -74,12 +82,12 @@ void DropletCustomTwo::discovering_group()
 		msg[0] = (uint8_t)RQST_DISCOVER_GROUP;
 		memcpy(&msg[1], color_msg, 3);
 		msg[4] = group_size;
-		ir_broadcast(msg, 4);
+		ir_broadcast(msg, 5);
 	}
 
-	if(check_for_new_messages())
+	while(check_for_new_messages())
 	{
-		if(global_rx_buffer.buf[0] == RSP_DISCOVER_GROUP 
+		if(global_rx_buffer.buf[0] == (uint8_t)RSP_DISCOVER_GROUP 
 			&& strncmp((char *)&(global_rx_buffer.buf[1]), (char *)color_msg, 3) == 0)
 				group_size = global_rx_buffer.buf[4];
 		global_rx_buffer.read = 1;
@@ -114,7 +122,7 @@ void DropletCustomTwo::leading_group()
 				msg[0] = (uint8_t)RSP_DISCOVER_GROUP;
 				memcpy(&msg[1], color_msg, 3);
 				msg[4] = group_size;
-				ir_broadcast(msg, 4);
+				ir_broadcast(msg, 5);
 				break;
 
 			case RQST_UPDATE_COLLAB:
@@ -128,7 +136,7 @@ void DropletCustomTwo::leading_group()
 					msg[0] = (uint8_t)RSP_START_COLLAB;
 					memcpy(&msg[1], color_msg, 3);
 					msg[4] = group_size;
-					ir_broadcast(msg, 4);
+					ir_broadcast(msg, 5);
 					state = COLLABORATE;
 					set_state_led();
 				}
@@ -162,7 +170,7 @@ void DropletCustomTwo::waiting_at_object()
 		msg[0] = (uint8_t)RQST_UPDATE_COLLAB;
 		memcpy(&msg[1], color_msg, 3);
 		msg[4] = group_size;
-		ir_broadcast(msg, 4);
+		ir_broadcast(msg, 5);
 	}
 }
 
@@ -203,6 +211,8 @@ void DropletCustomTwo::reset_values()
 	i_am_leader = 0;
 	repeat_discover_msg = REPEAT_DISCOVER_MSG;
 	memset(color_msg, 0, 3);
+
+	set_timer(3000, 2);
 }
 
 void DropletCustomTwo::set_state_led()

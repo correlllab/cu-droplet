@@ -125,7 +125,7 @@ void DSimDroplet::init_all_systems()
 	reset_rgb_led();
 	reset_rgb_sensor();
 	reset_timers();
-	for(uint8_t i = 0; i < 7; i++)
+	for(uint8_t i = 0; i < NUM_COMM_CHANNELS; i++)
 		reset_ir_sensor(i);
 
 	// Initialize variables
@@ -149,7 +149,7 @@ void DSimDroplet::reset_rgb_led()
 
 void DSimDroplet::reset_ir_sensor(uint8_t sensor_num) 
 {
-	if(sensor_num >= 0 && sensor_num < 7)
+	if(sensor_num >= 0 && sensor_num < NUM_COMM_CHANNELS)
 	{
 		memset(commData->commChannels[sensor_num].inBuf, 0, IR_BUFFER_SIZE);
 		memset(commData->commChannels[sensor_num].outBuf, 0, IR_BUFFER_SIZE);
@@ -436,7 +436,7 @@ uint8_t DSimDroplet::ir_send(uint8_t channel, const char *send_buf, uint8_t leng
 uint8_t DSimDroplet::check_for_new_messages(void)
 {
 	int newMsgCh = -1;
-	for(int i = 0; i < 7; i++)
+	for(int i = 0; i < NUM_COMM_CHANNELS; i++)
 	{
 		if(commData->commChannels[i].inMsgLength > 0)
 		{

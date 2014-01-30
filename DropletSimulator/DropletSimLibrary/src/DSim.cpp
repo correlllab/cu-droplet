@@ -5,6 +5,9 @@ std::vector<GPSInfo *> dropletPositions;
 
 DSim::DSim()
 {
+	// TODO: Remove this later
+	fh = NULL;
+
 	firstRun = true;
 	projSet  = false;
 
@@ -231,6 +234,9 @@ DS_RESULT DSim::SetUpProjector(
 
 DS_RESULT DSim::Init(const SimSetupData &setupData)
 {
+	// TODO: Remove this later
+	fh = fopen("SimMsgDat.txt","w");
+
 	DS_RESULT retval;
 
 	// Set up simulator init parameters
@@ -338,6 +344,10 @@ DS_RESULT DSim::Step()
 
 DS_RESULT DSim::Cleanup()
 {
+	// TODO: Remove this later
+	if(fh != NULL)
+		fclose(fh);
+
 	// Clean up droplet data.
 	std::vector<DSimDroplet *>::reverse_iterator d_rit;
 	for(d_rit = droplets.rbegin(); d_rit != droplets.rend(); d_rit++)
@@ -909,9 +919,9 @@ void DSim::commController()
 
 	for(it = droplets.begin(); it != droplets.end(); it++)
 	{
-		DSimDroplet *pDroplet = *it;
+		DSimDroplet *sendDroplet = *it;
 		DropletCommData *sendCommData;
-		AccessCommData(pDroplet, &sendCommData);
+		AccessCommData(sendDroplet, &sendCommData);
 
 		// Check if this droplet wants to send a message
 		if(sendCommData->sendActive)
@@ -938,37 +948,51 @@ void DSim::commController()
 								droplet range and bearing. By default we put the new
 								message in channel 0 if all other channels are full.
 							*/
-							unsigned int recvMsgChannel = 0;
-							for(int c = 0; c < NUM_COMM_CHANNELS; c++)
+							unsigned int recvChannel = 0;
+							for(unsigned int c = 0; c < NUM_COMM_CHANNELS; c++)
 							{
 								if(recvCommData->commChannels[c].inMsgLength == 0)
 								{
-									recvMsgChannel = c;
+									recvChannel = c;
 									break;
 								}
 							}
 
-							recvCommData->commChannels[recvMsgChannel].inMsgLength = 
+							recvCommData->commChannels[recvChannel].inMsgLength = 
 								sendCommData->commChannels[sendChannel].outMsgLength;
-							memcpy(recvCommData->commChannels[recvMsgChannel].inBuf,
+							memcpy(recvCommData->commChannels[recvChannel].inBuf,
 								sendCommData->commChannels[sendChannel].outBuf,
 								IR_BUFFER_SIZE);
 
-							recvCommData->commChannels[recvMsgChannel].lastMsgInTimestamp = 
+							recvCommData->commChannels[recvChannel].lastMsgInTimestamp = 
 								sendCommData->commChannels[sendChannel].lastMsgOutTimestamp = 
 								static_cast<uint16_t>(timer.getTotalST() * 1000);
 
-							// Clear the send message buffer on the sender droplet
-							memset(
-								sendCommData->commChannels[sendChannel].outBuf, 
-								0, 
-								IR_BUFFER_SIZE);
-							sendCommData->commChannels[sendChannel].outMsgLength = 0;
+							if(fh != NULL)
+							{
+								DropletCompData *sendDat, *recvDat;
+								AccessCompData(sendDroplet, &sendDat);
+								AccessCompData(recvDroplet, &recvDat);
+								fprintf(fh, "Sent a msg from %u ---> %u\n", 
+									sendDat->dropletID,
+									recvDat->dropletID);
+							}
 						}
 					}
 				}
 			}
 			sendCommData->sendActive = false;
+
+			// Clear out-going message buffers
+			for(unsigned int sendChannel = 0; sendChannel < NUM_COMM_CHANNELS; sendChannel++)
+			{
+				// Clear the send message buffer on the sender droplet
+				memset(
+					sendCommData->commChannels[sendChannel].outBuf, 
+					0, 
+					IR_BUFFER_SIZE);
+				sendCommData->commChannels[sendChannel].outMsgLength = 0;
+			}
 		}
 		d_id++;
 	}

@@ -443,12 +443,12 @@ public :
 	struct  
 	{
 			uint8_t *buf;
-			uint16_t size;                                  
+			uint16_t size;       // Stores size of msg + header                           
 
 			uint8_t receivers_used;	/* set flags of the receiver numbers which 
 									 * successfully received the message */
 
-			uint16_t data_len;	// to be copied from the header
+			uint16_t data_len;	// Stores size of data in buf, i.e. just msg size
 			droplet_id_type sender_ID;	// to be copied from the header
 
 			uint16_t message_time;

@@ -440,45 +440,38 @@ uint8_t DSimDroplet::check_for_new_messages(void)
 	{
 		if(commData->commChannels[i].inMsgLength > 0)
 		{
-			if(newMsgCh == -1)
-				newMsgCh = i;
-
-			else
-			{
-				if(commData->commChannels[i].lastMsgInTimestamp <
-					commData->commChannels[newMsgCh].lastMsgInTimestamp)
-				{
-					if(msg_return_order == OLDEST_MSG_FIRST)
-						newMsgCh = i;
-				}
-				else
-				{
-					if(msg_return_order == NEWEST_MSG_FIRST)
-						newMsgCh = i;
-				}
-			}
+			newMsgCh = i;
+			break;
+			//if(newMsgCh == -1)
+			//	newMsgCh = i;
+			//else
+			//{
+			//	if(commData->commChannels[i].lastMsgInTimestamp <
+			//		commData->commChannels[newMsgCh].lastMsgInTimestamp)
+			//	{
+			//		if(msg_return_order == OLDEST_MSG_FIRST)
+			//			newMsgCh = i;
+			//	}
+			//	else
+			//	{
+			//		if(msg_return_order == NEWEST_MSG_FIRST)
+			//			newMsgCh = i;
+			//	}
+			//}
 		}
 	}
 
 	// If there is indeed a new message then we should copy it into the global_rx_buffer
 	if(newMsgCh != -1)
 	{
-		/* TODO : Here global_rx_buffer.size, global_rx_buffer.data_len & 
-		   DropletCommChannelData::inMsgLength are being used to store the same value,
-		   the length of the actual body of the message and not the whole message (including
-		   header). It is a bit confusing, fix it later.
-		*/
 		global_rx_buffer.size = commData->commChannels[newMsgCh].inMsgLength;
+		global_rx_buffer.data_len = global_rx_buffer.size - IR_MSG_HEADER;
 		global_rx_buffer.message_time = commData->commChannels[newMsgCh].lastMsgInTimestamp;
 		memset(global_rx_buffer.buf, 0, IR_BUFFER_SIZE);
 		memcpy( 
 			global_rx_buffer.buf,
 			&commData->commChannels[newMsgCh].inBuf[IR_MSG_HEADER],
-			global_rx_buffer.size);
-		memcpy(
-			&global_rx_buffer.data_len,
-			&commData->commChannels[newMsgCh].inBuf[sizeof(droplet_id_type)],
-			sizeof(uint8_t));
+			global_rx_buffer.data_len);
 		memcpy(
 			&global_rx_buffer.sender_ID,
 			commData->commChannels[newMsgCh].inBuf,

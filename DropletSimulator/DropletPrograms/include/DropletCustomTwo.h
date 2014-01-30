@@ -11,6 +11,7 @@
 #include <DSimDataStructs.h>
 #include <inttypes.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <vector>
 #include <algorithm>
 #include <random>
@@ -48,10 +49,10 @@ private :
 
 	enum MSG_TYPE
 	{
-		RQST_DISCOVER_GROUP,
-		RSP_DISCOVER_GROUP,
-		RQST_UPDATE_COLLAB,
-		RSP_START_COLLAB
+		RQST_DISCOVER_GROUP = 1,
+		RSP_DISCOVER_GROUP = 2,
+		RQST_UPDATE_COLLAB = 3,
+		RSP_START_COLLAB = 4
 	} msg_type;
 
 	uint8_t color_msg[3];
@@ -61,6 +62,10 @@ private :
 
 	uint8_t rqst_group_size;
 	double task_time, sigmoid_slope;
+
+	FILE *fh;
+
+	void log_msg(void);
 
 	void init_leader(void);
 	void set_state_led(void);

@@ -30,7 +30,7 @@
 
 
 #define RQST_GROUP_SIZE 4
-#define SIGMOID_SLOPE 0.0
+#define SIGMOID_SLOPE 5.0
 #define TASK_TIME 10.0
 #define REPEAT_DISCOVER_MSG 3
 

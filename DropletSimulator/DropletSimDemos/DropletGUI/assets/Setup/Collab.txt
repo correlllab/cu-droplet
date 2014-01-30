@@ -1,7 +1,7 @@
 # Setup file for droplet collaboration experiment. Creates 100 customtwo droplets and projects a scaled 4x4 arena with 3 objects.
-col_tiles 2
-row_tiles 2
+col_tiles 4
+row_tiles 4
 
 projecting ScaledArena_3Object.bmp
 
-droplets customtwo 10
+droplets customtwo 100

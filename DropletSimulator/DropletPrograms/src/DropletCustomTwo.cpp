@@ -21,10 +21,11 @@ void DropletCustomTwo::DropletInit()
 	task_time = TASK_TIME;
 	sigmoid_slope = SIGMOID_SLOPE;
 
-	char filename[256];
-	memset(filename, 0, 256);
-	sprintf(filename, "Droplet_%u_msg_buffer.txt", get_droplet_id());
-	fh = fopen(filename, "w");
+	// TODO: Remove this later
+	//char filename[256];
+	//memset(filename, 0, 256);
+	//sprintf(filename, "Droplet_%u_msg_buffer.txt", get_droplet_id());
+	//fh = fopen(filename, "w");
 
 	reset_values();
 }
@@ -92,7 +93,7 @@ void DropletCustomTwo::discovering_group()
 
 	while(check_for_new_messages())
 	{
-		log_msg();
+		//log_msg();
 		if(global_rx_buffer.buf[0] == (uint8_t)RSP_DISCOVER_GROUP 
 			&& strncmp((char *)&(global_rx_buffer.buf[1]), (char *)color_msg, 3) == 0)
 		{
@@ -118,7 +119,7 @@ void DropletCustomTwo::leading_group()
 	uint8_t state_changed = 0;
 	while(check_for_new_messages())
 	{
-		log_msg();
+		//log_msg();
 		// Make sure the msg originated from the same collaboration site.
 		if(strncmp((char *)&(global_rx_buffer.buf[1]), (char *)color_msg, 3) == 0)
 		{
@@ -167,7 +168,7 @@ void DropletCustomTwo::waiting_at_object()
 {
 	while(check_for_new_messages())
 	{
-		log_msg();
+		//log_msg();
 		switch(global_rx_buffer.buf[0])
 		{
 		case RSP_START_COLLAB:
@@ -226,7 +227,7 @@ void DropletCustomTwo::reset_values()
 	collaborators = 0;
 	group_size = 1;
 	i_am_leader = 0;
-	repeat_discover_msg = REPEAT_DISCOVER_MSG;
+	repeat_discover_msg = (rand_byte() % 10) + 2;
 	memset(color_msg, 0, 3);
 
 	// Reset the message buffers

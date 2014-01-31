@@ -16,6 +16,16 @@ def f_2(x, y):
         return Ri - Ri.mean()
     return f2_helper;
 
+def get_lengths_array(points):
+    size = len(points)
+    lengths = []
+    for i in range(size):
+        for j in range(size):
+            if i==j:
+                continue
+            lengths.append(np.linalg.norm(points[i]-points[j]))
+    return np.array(lengths)
+
 '''
 Function below from 3D line intersection algorithm from the article "Intersection of two lines in three-space" by Ronald Goldman. Via Stack Overflow.
 '''

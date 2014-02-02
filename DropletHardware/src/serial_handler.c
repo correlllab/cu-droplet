@@ -26,6 +26,14 @@ void handle_serial_command(char* command, uint16_t command_length)
 		{
 			handle_move_steps(command_args);
 		}
+		else if(strcmp(command_word, "take_steps")==0)
+		{
+			handle_take_steps(command_args);
+		}
+		else if(strcmp(command_word, "take_steps_two")==0)
+		{
+			handle_take_steps_two(command_args);
+		}		
 		else if(strcmp(command_word,"walk")==0)
 		{
 			handle_walk(command_args);
@@ -162,6 +170,37 @@ void handle_move_steps(char* command_args)
 	}		
 }	
 
+void handle_take_steps(char* command_args)
+{
+	const char delim[2] = " ";
+	
+	char* token = strtok(command_args,delim);
+	uint8_t motor_num = token[0]-'0';
+
+	token = strtok(NULL,delim);
+	int16_t num_steps = (int16_t)atoi(token);
+	printf("Taking %hu steps with motor %hhu, forwards: %hhu\r\n",abs(num_steps), motor_num, !(num_steps>>15));
+	take_steps(motor_num, num_steps);
+	
+}
+
+void handle_take_steps_two(char* command_args)
+{
+	const char delim[2] = " ";
+	
+	char* token = strtok(command_args,delim);
+	uint8_t motor_num = token[0]-'0';
+
+	token = strtok(NULL, delim);
+	int8_t duty_cycle = atoi(token);
+
+	token = strtok(NULL,delim);
+	int16_t num_steps = (int16_t)atoi(token);
+	printf("XXX Taking %hu steps with motor %hhu, forwards: %hhu\r\n",abs(num_steps), motor_num, !(num_steps>>15));
+	take_steps_two(motor_num, duty_cycle, num_steps);
+	
+}
+
 void handle_walk(char* command_args)
 {	
 	const char delim[2] = " ";
@@ -296,7 +335,7 @@ void handle_set_motors_on_off(char* command_args)
 	char* token = strtok(command_args, delim);
 	motor_on_time = atoi(token);
 	
-	token = strtok(command_args, delim);
+	token = strtok(NULL, delim);
 	motor_off_time = atoi(token);
 	
 	printf("motor_on_time: %d, motor_off_time: %d.\r\n",motor_on_time, motor_off_time);

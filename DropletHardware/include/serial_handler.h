@@ -15,6 +15,8 @@ uint32_t last_serial_command_time;
 void handle_serial_command(char* command, uint16_t command_length);
 void handle_data(char *command_args);
 void handle_move_steps(char* command_args);
+void handle_take_steps(char* command_args);
+void handle_take_steps_two(char* command_args);
 void handle_walk(char* command_args);
 void handle_stop_walk();
 void handle_run_motor(char* command_args);

@@ -10,6 +10,7 @@
 
 [Dd]ebug/
 [Rr]elease/
+[Dd]ata/
 x64/
 build/
 [Bb]in/
@@ -22,6 +23,7 @@ build/
 [Tt]est[Rr]esult*/
 [Bb]uild[Ll]og.*
 
+*.csv
 *_i.c
 *_p.c
 *.ilk

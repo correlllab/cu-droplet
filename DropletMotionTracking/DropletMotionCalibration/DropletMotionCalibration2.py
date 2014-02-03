@@ -190,10 +190,11 @@ class Calibrator:
         settings_history_file.write('mot0set, mot1set, mot2set, radius, mean delta orient, total delta orient\n')
 
         simplex_history_file = open(simplex_history_fName,'w')
-        simplex_history_file.write('spx00, spx01, spx02, spx10, spx11, spx12, spx20, spx21, spx22, spx30, spx31, spx32, radius, mean delta orient, mean length\n')
+        simplex_history_file.write('spx00, spx01, spx02, spx10, spx11, spx12, spx20, spx21, spx22, spx30, spx31, spx32\n')
 
         def fun(x):
-            return self.test_spin_settings(x, cw_q, settings_history_file)[0]
+            (radius, mean_delta_orient) =self.test_spin_settings(x, cw_q, settings_history_file)
+            return radius + -4*abs(mean_delta_orient)
         def full_fun(x):
             return self.test_spin_settings(x, cw_q, settings_history_file)
         try:
@@ -227,8 +228,12 @@ class Calibrator:
                 lengths = maths.get_lengths_array(spx)
 
                 output_array = spx.flatten().tolist()
-                output_array.extend([lengths])
+                #output_array.extend([lengths])
+                radii = [self.spin_settings_history[cw_q][str(point)][0] for point in spx]
+
+
                 simplex_history_file.write(",".join(map(str, output_array))+"\n")
+
                 print("Mean edge length in simplex: %f"%(np.mean(lengths)))
                 if np.mean(lengths)<10:
                     (radius, delta_orient) = full_fun(spx[0]);

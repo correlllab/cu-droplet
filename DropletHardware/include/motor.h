@@ -41,8 +41,6 @@ int16_t motor_off_time;
 * This should be set by whatever function causes the motors to run.
 */
 int8_t current_motor_direction[3];
-volatile uint8_t current_motor_num; //The motor currently spinning, if any.
-volatile uint16_t current_step_num; //total number of steps taken.
 
 /*
  * motor_adjusts[mot][backward] is how much we adjust motor mot by when going 0: forward, 1: backward.
@@ -58,12 +56,9 @@ uint16_t mm_per_kilostep[8];
 // reads the motor settings from non-volatile memory (user signature row)
 void	motor_init();
 
-uint8_t take_steps_two(uint8_t motor_num, uint16_t duty_cycle, int16_t num_steps);
-
 // Walk in specified direction for specified number of steps
 // direction (0-7, see #defines above for which direction maps to what number)
 uint8_t	move_steps(uint8_t direction, uint16_t num_steps);
-uint8_t move_steps_two(uint8_t direction, uint16_t num_steps);
 uint8_t take_steps(uint8_t motor_num, int16_t num_steps);
 //void	take_step(void* arg);
 

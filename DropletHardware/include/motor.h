@@ -19,7 +19,7 @@
 
 // Timing for taking a step:
 #define MOTOR_ON_TIME			30
-#define MOTOR_OFF_TIME			20
+#define MOTOR_OFF_TIME			40
 
 #include "droplet_init.h"
 #include "scheduler.h"

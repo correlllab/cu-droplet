@@ -129,9 +129,9 @@ class Calibrator:
         #then calibrate directions 0, 2, and 4 (or 1, 3, and 5)
         timestamp = time.strftime('%m-%d_%H%M')
         fileName = "data\\dmc_calib_" + timestamp
-        self.calibrate_droplet_spin(True, fName=fileName)
-        self.calibrate_droplet_straight(fName=fileName)
-        for i in range(4):
+        cw_q = self.calibrate_droplet_spin(True, fName=fileName) #We're going to try and spin cw, but this will return false if we ended up spinning ccw. Should be okay, just let the next function know.
+        self.calibrate_droplet_straight(cw_q, fName=fileName)
+        for i in range(2):
             serial.write("cmd write_motor_settings")
         print("Done calibrating!")
 
@@ -154,16 +154,15 @@ class Calibrator:
         print("mean delta orient: %f"%(np.mean(np.gradient(orient_list))))
         if num_good_points<0.8*self.data_points_for_straighten:
             print("Not enough good data.")
-            return
+            return self.test_spin_settings(motor_values, cw_q, output_stream)
         (center, radius, residual, sign) = maths.lsq(pos_list)
         direction_of_spin = np.mean(np.gradient(orient_list))
-        if ((direction_of_spin<0) and (cw_q is 0)) or ((direction_of_spin>0) and (cw_q) is 1):
-            radius = (radius + 1000.) #Don't want to be spinning the wrong way!
-        print(radius)
-        self.spin_settings_history[cw_q][str(motor_values)] = radius
+        print("Radius: %f"%(radius))
+        self.spin_settings_history[cw_q][str(motor_values)] = (radius, direction_of_spin)
         #print("settings_history%s = %f"%(str(motor_values), radius))
         #print("settings_history: %s"%(str(self.settings_history)))
-        output_stream.write("%f, %f, %f, %f\n"%(motor_values[0], motor_values[1], motor_values[2], radius))
+        orient_changed = orient_list[-1]-orient_list[0]
+        output_stream.write("%f, %f, %f, %f, %f, %f\n"%(motor_values[0], motor_values[1], motor_values[2], radius, direction_of_spin, orient_changed))
         return self.test_spin_settings(motor_values, cw_q, output_stream)
 
     def calibrate_droplet_spin(self, cw_q, fName=None):
@@ -176,20 +175,27 @@ class Calibrator:
 
         x_0 = np.array([0, 0, 0])
         x_1 = np.array([128, 0, 0])
-        x_2 = np.array([0, 128, 0,])
+        x_2 = np.array([0, 128, 0])
         x_3 = np.array([0, 0, 128])
         spx = np.array([x_0, x_1, x_2, x_3])
 
         if fName is None:
-            fName = 'dmc_nm_data_spin_%s.csv'%("cw" if cw_q else "ccw")
+            settings_history_fName = 'dmc_nm_data_spin_all_%s.csv'%("cw" if cw_q else "ccw")
+            simplex_history_fName = 'dmc_nm_data_spin_spx_%s.csv'%("cw" if cw_q else "ccw")
         else:
-            fName = fName + "_spin.csv"
+            settings_history_fName = fName + "_hist_spin.csv"
+            simplex_history_fName = fName + "_spx_spin.csv"
 
-        output_file = open(fName,'w')
-        output_file.write('mot0set, mot1set, mot2set, radius\n')
+        settings_history_file = open(settings_history_fName,'w')
+        settings_history_file.write('mot0set, mot1set, mot2set, radius, mean delta orient, total delta orient\n')
+
+        simplex_history_file = open(simplex_history_fName,'w')
+        simplex_history_file.write('spx00, spx01, spx02, spx10, spx11, spx12, spx20, spx21, spx22, spx30, spx31, spx32, radius, mean delta orient, mean length\n')
 
         def fun(x):
-            return self.test_spin_settings(x, cw_q, output_file)
+            return self.test_spin_settings(x, cw_q, settings_history_file)[0]
+        def full_fun(x):
+            return self.test_spin_settings(x, cw_q, settings_history_file)
         try:
             while(True):
                 spx = np.array(sorted(spx, key=fun))
@@ -217,21 +223,35 @@ class Calibrator:
                     else:
                         for i in range(1,4):
                             spx[i] = (spx[0] + sigma*(spx[i]-spx[0])).astype(int)
+
                 lengths = maths.get_lengths_array(spx)
+
+                output_array = spx.flatten().tolist()
+                output_array.extend([lengths])
+                simplex_history_file.write(",".join(map(str, output_array))+"\n")
                 print("Mean edge length in simplex: %f"%(np.mean(lengths)))
                 if np.mean(lengths)<10:
+                    (radius, delta_orient) = full_fun(spx[0]);
+                    if delta_orient<0:
+                        cw_q=True
+                    else:
+                        cw_q=False
+                        set_motors_flipped(*[spx[0][i]>0 for i in range(3)])#flipping the motors back
                     for i in range(3):
                         self.current_motor_settings[i][cw_q] = spx[0][i]
                         set_motor(i, self.current_motor_settings[i][0], self.current_motor_settings[i][1])
                     for i in range(4):
                         serial.write("cmd write_motor_settings")
                     print("We're done with spinning!")
-                    break
+                    settings_history_file.close()
+                    simplex_history_file.close()
+                    return cw_q
         except KeyboardInterrupt:
             print("Calibration interrupted by user.")
-            output_file.close()
+            settings_history_file.close()
+            simplex_history_file.close()
 
-    def spin_for_safe_straight(self, dir):
+    def spin_for_safe_straight(self, dir, cw_q):
         pos = self.get_rr_pos()
 
         i=1
@@ -263,7 +283,7 @@ class Calibrator:
         print("dir: %d, temp_pos: (%f, %f), Desired orientation: %f"%(dir, temp_x, temp_y, desired_orientation))
 
         while(True):
-            move_steps(6, 2000) #change 6 to 7 if we calibrate for anticlockwise spin in first step.
+            move_steps(7-cw_q, 2000)
             last_orient = 0
             count=0
             while count<200: #timeout of ~2 seconds of no movement.
@@ -280,16 +300,16 @@ class Calibrator:
             print("Droplet not moving? Trying again.")
 
 
-    def test_straight_settings(self, mot_val, mot_num, output_stream):
+    def test_straight_settings(self, mot_val, mot_num, cw_q, output_stream):
         try:
             return self.straight_settings_history[mot_num][mot_val]
         except KeyError:
             '''We haven't done that one before.'''
-        self.current_motor_settings[mot_num][0] = mot_val
+        self.current_motor_settings[mot_num][1-cw_q] = mot_val
         set_motor(mot_num, self.current_motor_settings[mot_num][0], self.current_motor_settings[mot_num][1])
         try:
             dir = ((2*(mot_num+2))%6)
-            self.spin_for_safe_straight(dir)
+            self.spin_for_safe_straight(dir, cw_q)
             (pos_list, orient_list, num_good_points) = self.get_position_data_batch(dir, self.data_points_for_straighten)
         except MyException:
             return
@@ -297,49 +317,62 @@ class Calibrator:
             print("Not enough good data.")
             return
         (center, radius, residual, sign) = maths.lsq(pos_list)
-        self.straight_settings_history[mot_num][mot_val] = (radius, sign)
+        distance_traveled = np.linalg.norm(pos_list[-1]-pos_list[0])
+        self.straight_settings_history[mot_num][mot_val] = (radius, sign, distance_traveled)
         #print("settings_history%s = %f"%(str(motor_values), radius))
         #print("settings_history: %s"%(str(self.settings_history)))
-        output_stream.write("%d, %d, %f, %f\n"%(mot_num, mot_val, radius, sign))
-        return self.test_straight_settings(mot_val, mot_num, output_stream)
+        output_stream.write("%d, %d, %f, %f, %f\n"%(mot_num, mot_val, radius, sign, distance_traveled))
+        return self.test_straight_settings(mot_val, mot_num, cw_q, output_stream)
+
+    def get_proportional_control(self, radius):
+        if radius>80:
+            return 1
+        elif radius>40:
+            return 2
+        elif radius>35:
+            return 4
+        elif radius>25:
+            return 8
+        else:
+            return 16
 
 
-    def calibrate_droplet_straight(self, fName=None):
+    def calibrate_droplet_straight(self, cw_q, fName=None):
         try:
             if fName is None:
                 fName = 'dmc_nm_data_mot.csv'
             else:
                 fName = fName + "_straight.csv"
             output_file = open(fName,'w')
-            output_file.write('mot_num,mot_val,radius,sign\n')
+            output_file.write('mot_num,mot_val,radius,sign,dist\n')
             try:
                 for mot_num in range(3):
                     def fun(x):
                         while(True):
-                            val = self.test_straight_settings(x, mot_num, output_file)
+                            val = self.test_straight_settings(x, mot_num, cw_q, output_file)
                             if val is not None:
                                 return val
                             print("Failed to get good data. Trying again?")
 
-                    minVal = 0
-                    maxVal = 256
-                    newVal = 0
-                    (radius, sign) = fun(newVal)
-                    if sign > 0:
+                    val = 0
+                    lastVal = 0
+                    lastSign = 0
+                    (radius, sign, dist) = fun(val)
+                    if sign*(2*cw_q-1) > 0:
                         print("It should be smaller, but we can't. Hopefully radius is big enough? Radius: %f"%(radius))
                         continue
-                    while(fun(maxVal)[1] < 0): #while maxVal isn't big enough, keep increasing maxVal
-                        (minVal, maxVal) = (maxVal, maxVal*2)
-
-                    while(abs(newVal - (maxVal+minVal)/2) > 1): #while newVal is actually changing...
-                        newVal = int((maxVal+minVal)/2)
-                        print("mot_num: %d, newVal: %d, radius: %f, sign: %f"%(mot_num, newVal, fun(newVal)[0], fun(newVal)[1]))
-                        if fun(newVal)[1] > 0: #center on left, so it needs to be smaller (ONLY IF WE SPAN CW)
-                            maxVal = newVal
-                        elif fun(newVal)[1] < 0: #center on right, so it needs to be bigger (ONLY IF WE SPAN CW)
-                            minVal = newVal
+                    while (abs(lastVal-val)>1) and (lastSign*sign<0): #while newVal is actually changing...
+                        lastVal = val
+                        lastSign = sign
+                        print("mot_num: %d, newVal: %d, radius: %f, sign: %f"%(mot_num, val, fun(val)[0], fun(val)[1]))
+                        if fun(val)[1]*(2*cw_q-1) > 0: #center on left, so it needs to be smaller (ONLY IF WE SPAN CW)
+                            val = val - self.get_proportional_control(fun(val)[0])
+                        elif fun(val)[1]*(2*cw_q-1) < 0: #center on right, so it needs to be bigger (ONLY IF WE SPAN CW)
+                            val = val + self.get_proportional_control(fun(val)[0])
                         else:
                             print('''I think this means the radius was perfectly straight?''')
+                        sign = fun(val)[1]
+
                     sorted_settings = sorted(self.straight_settings_history[mot_num].iteritems(), key=lambda x: x[1], reverse=True)
                     print("Best radius was %f, for setting %d."%(sorted_settings[0][1][0], sorted_settings[0][0]))
                     self.current_motor_settings[mot_num][0] = sorted_settings[0][0]

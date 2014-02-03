@@ -6,15 +6,15 @@ void motor_init()
 	PORTC.DIRSET = PIN0_bm | PIN1_bm | PIN4_bm | PIN5_bm;
 	PORTE.DIRSET = PIN0_bm | PIN1_bm;
 
-	TCC0.CTRLA = TC_CLKSEL_DIV1024_gc;
+	TCC0.CTRLA = TC_CLKSEL_DIV8_gc;
 	TCC0.CTRLB = TC_WGMODE_SS_gc;
 	//TCC0.PER = 32; This needs to be set for each move_step, now.
     
-	TCC1.CTRLA = TC_CLKSEL_DIV1024_gc;
+	TCC1.CTRLA = TC_CLKSEL_DIV8_gc;
 	TCC1.CTRLB = TC_WGMODE_SS_gc;
 	//TCC0.PER = 32; This needs to be set for each move_step, now.
 
-	TCE0.CTRLA = TC_CLKSEL_DIV1024_gc;
+	TCE0.CTRLA = TC_CLKSEL_DIV8_gc;
 	TCE0.CTRLB = TC_WGMODE_SS_gc;
 	//TCC0.PER = 32; This needs to be set for each move_step, now.
 	
@@ -38,39 +38,83 @@ void motor_init()
 	read_motor_settings();
 }
 
-uint8_t take_steps_two(uint8_t motor_num, int8_t duty_cycle, int16_t num_steps)
+uint8_t take_steps_two(uint8_t motor_num, uint16_t duty_cycle, int16_t num_steps)
 {
 	if(is_moving()) return 0;
 	motor_status = MOTOR_STATUS_ON | (1 & MOTOR_STATUS_DIRECTION); //I AM LYING ABOUT THE DIRECTION.
 
 	uint16_t actual_num_steps = (uint16_t)num_steps;
 	
+	current_motor_direction[0] = 0; current_motor_direction[1] = 0; current_motor_direction[2] = 0;
 	int8_t sign_flip = ((((int8_t)((motor_flipped>>motor_num)&0x1))*-2)+1);
-	uint8_t motor_backward_q = (sign_flip*((num_steps>>15)*2+1))<0;
+	current_motor_direction[motor_num] = (sign_flip*((num_steps>>15)*2+1));
 	
-	uint16_t motor_duration = 32*motor_on_time + motor_adjusts[motor_num][motor_backward_q];
-	uint16_t total_time = motor_duration + 32*motor_off_time + motor_adjusts[motor_num][motor_backward_q];
+	uint16_t motor_duration = 32*motor_on_time;
+	uint16_t total_time = motor_duration + 32*motor_off_time;
 	
-	float actual_duty_cycle = duty_cycle*0.01;
-	uint16_t mot_comp_val = (uint16_t)(actual_duty_cycle*32.0);
+	uint16_t mot_comp_val = duty_cycle%1001;
 	
 	switch(motor_num)
 	{
-		case 0: TCC0.PER = 32; TCC0.CCA = TCC0.CCB = mot_comp_val; TCC0.CNT=0; break;
-		case 1: TCC1.PER = 32; TCC1.CCA = TCC1.CCB = mot_comp_val; TCC1.CNT=0; break;
-		case 2: TCE0.PER = 32; TCE0.CCA = TCE0.CCB = mot_comp_val; TCE0.CNT=0; break;
+		case 0: TCC0.PER = 1000; TCC0.CCA = TCC0.CCB = mot_comp_val; TCC0.CNT=0; break;
+		case 1: TCC1.PER = 1000; TCC1.CCA = TCC1.CCB = mot_comp_val; TCC1.CNT=0; break;
+		case 2: TCE0.PER = 1000; TCE0.CCA = TCE0.CCB = mot_comp_val; TCE0.CNT=0; break;
 	}
 	
 	TCD0.INTCTRLB = 0x5;
 	TCD0.PER = total_time; TCD0.CCA = motor_duration; TCD0.CCB = total_time;
 	TCD0.CTRLB = TC0_CCAEN_bm | TC0_CCBEN_bm | TC_WGMODE_SS_gc;
-	if(motor_backward_q) motor_backward(motor_num);
-	else motor_forward(motor_num);
+	if(current_motor_direction[motor_num]<0) motor_backward(motor_num);
+	else if(current_motor_direction[motor_num]>0) motor_forward(motor_num);
+	else printf("Current_motor_direction should always be non-zero, here.\r\n");
 	
-	uint32_t total_movement_duration = (((uint32_t)total_time)*((uint32_t)abs(num_steps)))/32;
+	current_motor_num = motor_num;
+	current_step_num = abs(num_steps);
+	
+	//uint32_t total_movement_duration = (((uint32_t)total_time)*((uint32_t)abs(num_steps)))/32;
+	////printf("Total duration: %u ms.\r\n\n",total_movement_duration);
+	//current_motor_task = schedule_task(total_movement_duration, stop, NULL);	
+	
+}
+
+uint8_t move_steps_two(uint8_t direction, uint16_t num_steps)
+{
+	if(is_moving()) return 0;
+	motor_status = MOTOR_STATUS_ON | (direction & MOTOR_STATUS_DIRECTION);
+	
+	for(uint8_t motor_num=0 ; motor_num <3 ; motor_num++)
+	{
+		int8_t sign_flip = ((((int8_t)((motor_flipped>>motor_num)&0x1))*-2)+1);
+		current_motor_direction[motor_num] = sign_flip*motor_signs[direction][motor_num];
+	}
+	printf("In move_steps_two, current motor directions: (%hhd, %hhd, %hhd).\r\n",current_motor_direction[0],current_motor_direction[1],current_motor_direction[2]);
+	
+	TCC0.PER = TCC1.PER = TCE0.PER = 1000;	
+	TCC0.CNT = TCC1.CNT = TCE0.CNT = 0;
+	
+	TCC0.CCA = (motor_adjusts[0][0]%1001);
+	TCC0.CCB = (motor_adjusts[0][1]%1001);
+	TCC1.CCA = (motor_adjusts[1][0]%1001);
+	TCC1.CCB = (motor_adjusts[1][1]%1001);
+	TCE0.CCA = (motor_adjusts[2][0]%1001);
+	TCE0.CCB = (motor_adjusts[2][1]%1001);
+	
+	current_motor_num=0;
+	while(!current_motor_direction[current_motor_num]) current_motor_num = ((current_motor_num+1)%3);
+	
+	TCD0.CNT = 0;
+	TCD0.PER = 2*32*(motor_on_time+motor_off_time); TCD0.CCA = 32*motor_on_time; TCD0.CCB = 32*(motor_on_time+motor_off_time);
+	TCD0.INTCTRLB = 0x5;
+	TCD0.CTRLB = TC0_CCAEN_bm | TC0_CCBEN_bm | TC_WGMODE_SS_gc;	
+	if(current_motor_direction[current_motor_num]<0) motor_backward(current_motor_num);
+	else if(current_motor_direction[current_motor_num]>0) motor_forward(current_motor_num);
+	else printf("Current_motor_direction should always be non-zero, here in move_steps_two.\r\n");
+	
+	current_step_num = num_steps;
+	
+	//uint32_t total_movement_duration = (((uint32_t)(32*(motor_on_time+motor_off_time)))*((uint32_t)abs(num_steps)))/32 + 16;
 	//printf("Total duration: %u ms.\r\n\n",total_movement_duration);
-	current_motor_task = schedule_task(total_movement_duration, stop, NULL);	
-	
+	//current_motor_task = schedule_task(total_movement_duration, stop, NULL);
 }
 
 ISR( TCD0_CCA_vect )
@@ -82,9 +126,15 @@ ISR( TCD0_CCA_vect )
 
 ISR( TCD0_CCB_vect )
 {
-	motor_forward(0);
-	motor_forward(1);
-	motor_forward(2);
+	current_step_num--;
+	if(current_step_num<=0){ stop(); return;}
+	
+	do
+	{
+		current_motor_num = ((current_motor_num+1)%3);		
+	}while(!current_motor_direction[current_motor_num]);
+	
+	(current_motor_direction[current_motor_num]<0) ? motor_backward(current_motor_num) : motor_forward(current_motor_num);
 	TCD0.CNT=0;
 }
 
@@ -95,11 +145,13 @@ uint8_t take_steps(uint8_t motor_num, int16_t num_steps)
 	
 	uint16_t actual_num_steps = (uint16_t)num_steps;
 	
-	int8_t sign_flip = ((((int8_t)((motor_flipped>>motor_num)&0x1))*-2)+1);
-	uint8_t motor_backward_q = (sign_flip*((num_steps>>15)*2+1))<0;
+	current_motor_direction[0] = 0; current_motor_direction[1]=0; current_motor_direction[2]=0;
 	
-	uint16_t motor_duration = 32*motor_on_time + motor_adjusts[motor_num][motor_backward_q];
-	uint16_t total_time = motor_duration + 32*motor_off_time + motor_adjusts[motor_num][motor_backward_q];
+	int8_t sign_flip = ((((int8_t)((motor_flipped>>motor_num)&0x1))*-2)+1);
+	current_motor_direction[motor_num] = (sign_flip*((num_steps>>15)*2+1));
+	
+	uint16_t motor_duration = 32*motor_on_time + motor_adjusts[motor_num][current_motor_direction[motor_num]<0];
+	uint16_t total_time = motor_duration + 32*motor_off_time + motor_adjusts[motor_num][current_motor_direction[motor_num]<0];
 	
 	switch(motor_num)
 	{
@@ -108,8 +160,9 @@ uint8_t take_steps(uint8_t motor_num, int16_t num_steps)
 		case 2: TCE0.PER = total_time; TCE0.CCA = TCE0.CCB = motor_duration; TCE0.CNT=0; break;
 	}
 	
-	if(motor_backward_q) motor_backward(motor_num);
-	else motor_forward(motor_num);
+	if(current_motor_direction[motor_num] <0) motor_backward(motor_num);
+	else if(current_motor_direction[motor_num] > 0) motor_forward(motor_num);
+	else printf("Shouldn't get here - we set current_motor_direction to be non-zero!\r\n");
 	
 	uint32_t total_movement_duration = (((uint32_t)total_time)*((uint32_t)abs(num_steps)))/32;
 	//printf("Total duration: %u ms.\r\n\n",total_movement_duration);
@@ -127,21 +180,20 @@ uint8_t move_steps(uint8_t direction, uint16_t num_steps)
 	 * The factors of 32 sprinkled below are to convert from time units of ms to the semi-understood "units" of the waveform generator.
 	 * Given a prescalar of 1024 and single slope waveform generation, a factor of 32 converts the units to/from ms.
 	 */	
-	
-	uint8_t motor_backward_q[3]; //for each motor, this arrays is 0 if the motor is going to spin forard and 1 if the motor is going to spin backward
+	//for each motor, this arrays is 0 if the motor is going to spin forard and 1 if the motor is going to spin backward
 	int8_t sign_flip;
-	for(uint8_t mot=0 ; mot<3 ; mot++) //populating the motor_backward_q array.
+	for(uint8_t mot=0 ; mot<3 ; mot++) //populating the current_motor_direction array.
 	{
 		sign_flip = ((((int8_t)((motor_flipped>>mot)&0x1))*-2)+1); //converting the bit mask to a 1 or -1 as needed.
-		motor_backward_q[mot] = sign_flip*motor_signs[direction][mot]<0;
+		current_motor_direction[mot] = sign_flip*motor_signs[direction][mot];
 	}
 	//printf("\r\nMotor backward? (%hhu, %hhu, %hhu).\r\n",motor_backward_q[0], motor_backward_q[1], motor_backward_q[2]);
 	
 	for(uint8_t mot=0 ; mot<3 ; mot++)
 	{		
 		if(motor_signs[direction][mot]==0){ mot_durs[mot]=0; continue;}
-		mot_durs[mot] = 32*motor_on_time + motor_adjusts[mot][motor_backward_q[mot]];
-		total_time += mot_durs[mot] + 32*motor_off_time + motor_adjusts[mot][motor_backward_q[mot]];//If we left the motor on for longer to compensate, we should wait a little longer before starting again.
+		mot_durs[mot] = 32*motor_on_time + motor_adjusts[mot][current_motor_direction[mot]<0];
+		total_time += mot_durs[mot] + 32*motor_off_time + motor_adjusts[mot][current_motor_direction[mot]<0];//If we left the motor on for longer to compensate, we should wait a little longer before starting again.
 	}
 	//printf("Moving in dir: %hhu for %hu steps. Mot_durs: {%hu, %hu, %hu}. Total_time: %hu.\r\n",direction, num_steps, mot_durs[0], mot_durs[1], mot_durs[2], total_time);
 
@@ -161,7 +213,7 @@ uint8_t move_steps(uint8_t direction, uint16_t num_steps)
 			case 1: TCC1.CNT = ((total_time - current_offset)%total_time); break;
 			case 2: TCE0.CNT = ((total_time - current_offset)%total_time); break;
 		}
-		current_offset += mot_durs[mot] + 32*motor_off_time + motor_adjusts[mot][motor_backward_q[mot]];//If we left the motor on for longer to compensate, we should wait a little longer before starting again.
+		current_offset += mot_durs[mot] + 32*motor_off_time + motor_adjusts[mot][current_motor_direction[mot]<0];//If we left the motor on for longer to compensate, we should wait a little longer before starting again.
 	}
 	//printf("Offsets are: (%hu, %hu, %hu)\r\n",TCC0.CNT, TCC1.CNT, TCE0.CNT);
 	if(current_offset != total_time) printf("ERROR (I think): current_offset: %hu and total_time: %hu not equal!\r\n", current_offset, total_time);
@@ -170,8 +222,9 @@ uint8_t move_steps(uint8_t direction, uint16_t num_steps)
 	for(uint8_t mot=0 ; mot<3 ; mot++) 	//Now we just need to tell the motors to go!
 	{
 		if(mot_durs[mot]==0) continue;
-		if(motor_backward_q[mot]) motor_backward(mot);
-		else motor_forward(mot);
+		if(current_motor_direction[mot]<0) motor_backward(mot);
+		else if(current_motor_direction[mot]>0) motor_forward(mot);
+		else printf("Shouldn't get here - if current_motor_direction was 0, mot_durs should be 0.\r\n");
 	}
 	uint32_t total_movement_duration = ((uint32_t)total_time)*((uint32_t)num_steps)/32;
 	//printf("Total duration: %u ms.\r\n\n",total_movement_duration);
@@ -200,6 +253,8 @@ void stop()
 	PORTC.OUTCLR = PIN0_bm | PIN1_bm | PIN4_bm | PIN5_bm;
 	PORTE.OUTCLR = PIN0_bm | PIN1_bm;
 	
+	
+	TCD0.CTRLB = TC_WGMODE_SS_gc;		
 	TCD0.INTCTRLB = 0x0;
 	
 	remove_task(current_motor_task);	
@@ -306,23 +361,23 @@ void print_dist_per_step()
 }
 
 // Low-level control of individual motors
-void motor_forward(uint8_t num)
-{
-	switch (num)
-	{
-		case 0: TCC0.CTRLB = TC0_CCAEN_bm | TC_WGMODE_SS_gc; break;
-		case 1:	TCC1.CTRLB = TC1_CCAEN_bm | TC_WGMODE_SS_gc; break;
-		case 2: TCE0.CTRLB = TC0_CCAEN_bm | TC_WGMODE_SS_gc; break;
-	}
-}
+//void motor_forward(uint8_t num)
+//{
+	//switch (num)
+	//{
+		//case 0: TCC0.CTRLB = TC0_CCAEN_bm | TC_WGMODE_SS_gc; break;
+		//case 1:	TCC1.CTRLB = TC1_CCAEN_bm | TC_WGMODE_SS_gc; break;
+		//case 2: TCE0.CTRLB = TC0_CCAEN_bm | TC_WGMODE_SS_gc; break;
+	//}
+//}
 
 // Low-level control of individual motors
-void motor_backward(uint8_t num)
-{
-	switch (num)
-	{
-		case 0: TCC0.CTRLB = TC0_CCBEN_bm | TC_WGMODE_SS_gc; break;
-		case 1: TCC1.CTRLB = TC1_CCBEN_bm | TC_WGMODE_SS_gc; break;
-		case 2: TCE0.CTRLB = TC0_CCBEN_bm | TC_WGMODE_SS_gc; break;
-	}
-}
+//void motor_backward(uint8_t num)
+//{
+	//switch (num)
+	//{
+		//case 0: TCC0.CTRLB = TC0_CCBEN_bm | TC_WGMODE_SS_gc; break;
+		//case 1: TCC1.CTRLB = TC1_CCBEN_bm | TC_WGMODE_SS_gc; break;
+		//case 2: TCE0.CTRLB = TC0_CCBEN_bm | TC_WGMODE_SS_gc; break;
+	//}
+//}

@@ -163,6 +163,7 @@ class Calibrator:
         #print("settings_history: %s"%(str(self.settings_history)))
         orient_changed = orient_list[-1]-orient_list[0]
         output_stream.write("%f, %f, %f, %f, %f, %f\n"%(motor_values[0], motor_values[1], motor_values[2], radius, direction_of_spin, orient_changed))
+        output_stream.flush()
         return self.test_spin_settings(motor_values, cw_q, output_stream)
 
     def calibrate_droplet_spin(self, cw_q, fName=None):
@@ -190,7 +191,7 @@ class Calibrator:
         settings_history_file.write('mot0set, mot1set, mot2set, radius, mean delta orient, total delta orient\n')
 
         simplex_history_file = open(simplex_history_fName,'w')
-        simplex_history_file.write('spx00, spx01, spx02, spx10, spx11, spx12, spx20, spx21, spx22, spx30, spx31, spx32\n')
+        simplex_history_file.write('spx00, spx01, spx02, rad0, spx10, spx11, spx12, rad1, spx20, spx21, spx22, rad2, spx30, spx31, spx32, rad3\n')
 
         def fun(x):
             (radius, mean_delta_orient) =self.test_spin_settings(x, cw_q, settings_history_file)
@@ -200,6 +201,12 @@ class Calibrator:
         try:
             while(True):
                 spx = np.array(sorted(spx, key=fun))
+
+                radii = [full_fun(point)[0] for point in spx]
+                output_array = np.array(map(lambda spx_point, radius: np.append(spx_point, radius), spx, radii)).flatten().tolist()
+                simplex_history_file.write(",".join(map(str, output_array))+"\n")
+                simplex_history_file.flush()
+
                 print("spx: %s"%(str(spx)))
                 x_o = np.mean(spx[:-1],0).astype(int)
                 x_r = (x_o + alpha*(x_o - spx[-1])).astype(int)
@@ -226,14 +233,6 @@ class Calibrator:
                             spx[i] = (spx[0] + sigma*(spx[i]-spx[0])).astype(int)
 
                 lengths = maths.get_lengths_array(spx)
-
-                output_array = spx.flatten().tolist()
-                #output_array.extend([lengths])
-                radii = [self.spin_settings_history[cw_q][str(point)][0] for point in spx]
-
-
-                simplex_history_file.write(",".join(map(str, output_array))+"\n")
-
                 print("Mean edge length in simplex: %f"%(np.mean(lengths)))
                 if np.mean(lengths)<10:
                     (radius, delta_orient) = full_fun(spx[0]);
@@ -243,7 +242,7 @@ class Calibrator:
                         cw_q=False
                         set_motors_flipped(*[spx[0][i]>0 for i in range(3)])#flipping the motors back
                     for i in range(3):
-                        self.current_motor_settings[i][cw_q] = spx[0][i]
+                        self.current_motor_settings[i][cw_q] = abs(spx[0][i])
                         set_motor(i, self.current_motor_settings[i][0], self.current_motor_settings[i][1])
                     for i in range(4):
                         serial.write("cmd write_motor_settings")
@@ -327,6 +326,7 @@ class Calibrator:
         #print("settings_history%s = %f"%(str(motor_values), radius))
         #print("settings_history: %s"%(str(self.settings_history)))
         output_stream.write("%d, %d, %f, %f, %f\n"%(mot_num, mot_val, radius, sign, distance_traveled))
+        output_stream.flush()
         return self.test_straight_settings(mot_val, mot_num, cw_q, output_stream)
 
     def get_proportional_control(self, radius):
@@ -363,9 +363,6 @@ class Calibrator:
                     lastVal = 0
                     lastSign = 0
                     (radius, sign, dist) = fun(val)
-                    if sign*(2*cw_q-1) > 0:
-                        print("It should be smaller, but we can't. Hopefully radius is big enough? Radius: %f"%(radius))
-                        continue
                     while (abs(lastVal-val)>1) and (lastSign*sign<0): #while newVal is actually changing...
                         lastVal = val
                         lastSign = sign
@@ -380,7 +377,7 @@ class Calibrator:
 
                     sorted_settings = sorted(self.straight_settings_history[mot_num].iteritems(), key=lambda x: x[1], reverse=True)
                     print("Best radius was %f, for setting %d."%(sorted_settings[0][1][0], sorted_settings[0][0]))
-                    self.current_motor_settings[mot_num][0] = sorted_settings[0][0]
+                    self.current_motor_settings[mot_num][1-cw_q] = sorted_settings[0][0]
                     set_motor(mot_num, self.current_motor_settings[mot_num][0], self.current_motor_settings[mot_num][1])
                     print("Finishe mot %d."%(mot_num))
                 print("Finished straight.")

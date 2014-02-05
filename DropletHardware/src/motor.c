@@ -48,7 +48,7 @@ uint8_t take_steps(uint8_t motor_num, int16_t num_steps)
 	current_motor_direction[motor_num] = (sign_flip*((num_steps>>15)*2+1));
 	
 	uint16_t motor_duration = 32*motor_on_time + motor_adjusts[motor_num][current_motor_direction[motor_num]<0];
-	uint16_t total_time = motor_duration + 32*motor_off_time + motor_adjusts[motor_num][current_motor_direction[motor_num]<0];
+	uint16_t total_time = motor_duration + 32*motor_off_time;
 	
 	switch(motor_num)
 	{
@@ -65,6 +65,72 @@ uint8_t take_steps(uint8_t motor_num, int16_t num_steps)
 	//printf("Total duration: %u ms.\r\n\n",total_movement_duration);
 	current_motor_task = schedule_task(total_movement_duration, stop, NULL);	
 }
+
+uint8_t move_steps_two(uint8_t direction, uint16_t num_steps)
+{
+	if(is_moving()) return 0;
+	motor_status = MOTOR_STATUS_ON | (direction & MOTOR_STATUS_DIRECTION);
+	
+	uint16_t mot_durs[3]; //This is how long we want each motor to be on for.
+	uint16_t total_time = 0; //This is the total length of a step, and will be the period of the PWM generation.
+	/*
+	 * The factors of 32 sprinkled below are to convert from time units of ms to the semi-understood "units" of the waveform generator.
+	 * Given a prescalar of 1024 and single slope waveform generation, a factor of 32 converts the units to/from ms.
+	 */	
+	//for each motor, this arrays is 0 if the motor is going to spin forard and 1 if the motor is going to spin backward
+	int8_t sign_flip;
+	for(uint8_t mot=0 ; mot<3 ; mot++) //populating the current_motor_direction array.
+	{
+		sign_flip = ((((int8_t)((motor_flipped>>mot)&0x1))*-2)+1); //converting the bit mask to a 1 or -1 as needed.
+		current_motor_direction[mot] = sign_flip*motor_signs[direction][mot];
+	}
+	//printf("\r\nMotor backward? (%hhu, %hhu, %hhu).\r\n",motor_backward_q[0], motor_backward_q[1], motor_backward_q[2]);
+	
+	for(uint8_t mot=0 ; mot<3 ; mot++)
+	{		
+		if(motor_signs[direction][mot]==0){ mot_durs[mot]=0; continue;}
+		mot_durs[mot] = 32*motor_on_time + motor_adjusts[mot][current_motor_direction[mot]<0];
+		total_time += mot_durs[mot] + 32*motor_off_time;//If we left the motor on for longer to compensate, we should wait a little longer before starting again.
+	}
+	//printf("Moving in dir: %hhu for %hu steps. Mot_durs: {%hu, %hu, %hu}. Total_time: %hu.\r\n",direction, num_steps, mot_durs[0], mot_durs[1], mot_durs[2], total_time);
+
+	TCC0.PER = TCC1.PER = TCE0.PER = total_time;
+	TCC0.CCA = TCC0.CCB = mot_durs[0]; //motor 0
+	TCC1.CCA = TCC1.CCB = mot_durs[1]; //motor 1
+	TCE0.CCA = TCE0.CCB = mot_durs[2]; //motor 2
+	
+	uint16_t current_offset = 0;
+	
+	for(uint8_t mot=0 ; mot<3 ; mot++) //This loops sets up the offsets correctly, so that (for example) the 30 ms that motor 1 is on won't start until 40ms after motor 0 turns off.
+	{
+		if(mot_durs[mot]==0) continue;
+		switch(mot)
+		{
+			case 0: TCC0.CNT = ((total_time - current_offset)%total_time); break;
+			case 1: TCC1.CNT = ((total_time - current_offset)%total_time); break;
+			case 2: TCE0.CNT = ((total_time - current_offset)%total_time); break;
+		}
+		current_offset += mot_durs[mot] + 32*motor_off_time;//If we left the motor on for longer to compensate, we should wait a little longer before starting again.
+	}
+	//printf("Offsets are: (%hu, %hu, %hu)\r\n",TCC0.CNT, TCC1.CNT, TCE0.CNT);
+	if(current_offset != total_time) printf("ERROR (I think): current_offset: %hu and total_time: %hu not equal!\r\n", current_offset, total_time);
+	for(uint8_t mot=0 ; mot<3 ; mot++) 	//Now we just need to tell the motors to go!
+	{
+		if(mot_durs[mot]==0) continue;
+		if(current_motor_direction[mot]<0){ 
+			motor_backward_two(mot); 
+		}
+		else if(current_motor_direction[mot]>0)
+		{		
+			motor_forward_two(mot); 
+		}
+		else printf("Shouldn't get here - if current_motor_direction was 0, mot_durs should be 0.\r\n");
+	}
+	uint32_t total_movement_duration = ((uint32_t)total_time)*((uint32_t)num_steps)/32;
+	//printf("Total duration: %u ms.\r\n\n",total_movement_duration);
+	current_motor_task = schedule_task(total_movement_duration, stop, NULL);
+}
+
 
 uint8_t move_steps(uint8_t direction, uint16_t num_steps)
 {
@@ -90,7 +156,7 @@ uint8_t move_steps(uint8_t direction, uint16_t num_steps)
 	{		
 		if(motor_signs[direction][mot]==0){ mot_durs[mot]=0; continue;}
 		mot_durs[mot] = 32*motor_on_time + motor_adjusts[mot][current_motor_direction[mot]<0];
-		total_time += mot_durs[mot] + 32*motor_off_time + motor_adjusts[mot][current_motor_direction[mot]<0];//If we left the motor on for longer to compensate, we should wait a little longer before starting again.
+		total_time += mot_durs[mot] + 32*motor_off_time;//If we left the motor on for longer to compensate, we should wait a little longer before starting again.
 	}
 	//printf("Moving in dir: %hhu for %hu steps. Mot_durs: {%hu, %hu, %hu}. Total_time: %hu.\r\n",direction, num_steps, mot_durs[0], mot_durs[1], mot_durs[2], total_time);
 
@@ -110,7 +176,7 @@ uint8_t move_steps(uint8_t direction, uint16_t num_steps)
 			case 1: TCC1.CNT = ((total_time - current_offset)%total_time); break;
 			case 2: TCE0.CNT = ((total_time - current_offset)%total_time); break;
 		}
-		current_offset += mot_durs[mot] + 32*motor_off_time + motor_adjusts[mot][current_motor_direction[mot]<0];//If we left the motor on for longer to compensate, we should wait a little longer before starting again.
+		current_offset += mot_durs[mot] + 32*motor_off_time;//If we left the motor on for longer to compensate, we should wait a little longer before starting again.
 	}
 	//printf("Offsets are: (%hu, %hu, %hu)\r\n",TCC0.CNT, TCC1.CNT, TCE0.CNT);
 	if(current_offset != total_time) printf("ERROR (I think): current_offset: %hu and total_time: %hu not equal!\r\n", current_offset, total_time);
@@ -150,11 +216,29 @@ void stop()
 	PORTC.OUTCLR = PIN0_bm | PIN1_bm | PIN4_bm | PIN5_bm;
 	PORTE.OUTCLR = PIN0_bm | PIN1_bm;
 	
+	PORTC.PIN0CTRL = 0;
+	PORTC.PIN1CTRL = 0;
+	PORTC.PIN4CTRL = 0;
+	PORTC.PIN5CTRL = 0;
+	PORTE.PIN0CTRL = 0;
+	PORTE.PIN1CTRL = 0;
+	
 	
 	TCD0.CTRLB = TC_WGMODE_SS_gc;		
 	TCD0.INTCTRLB = 0x0;
 	
 	remove_task(current_motor_task);	
+}
+
+void brake(uint8_t num)
+{
+
+	switch(num)
+	{
+		case 0: TCC0.CTRLB = TC_WGMODE_SS_gc; PORTC.OUTSET |= PIN0_bm | PIN1_bm; break;
+		case 1: TCC1.CTRLB = TC_WGMODE_SS_gc; PORTC.OUTSET |= PIN4_bm | PIN5_bm; break;
+		case 2: TCE0.CTRLB = TC_WGMODE_SS_gc; PORTE.OUTSET |= PIN0_bm | PIN1_bm; break;
+	}
 }
 
 

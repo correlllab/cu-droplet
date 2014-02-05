@@ -101,8 +101,12 @@ def pick_direction(pos, theta, bases, x_boundaries, y_boundaries):
                 max_dir = dir
     return max_dir
 
-def lsq(positions):
-    x, y = positions.transpose()
+def get_sign(pos, orient, center):
+    dirVector = np.array([np.cos(np.deg2rad(orient)),np.sign(np.deg2rad(orient))])
+    return np.linalg.det(np.array([dirVector, center-pos]).transpose())
+
+def lsq(pos_list, orient_list):
+    x, y = pos_list.transpose()
     x_m = x.mean()
     y_m = y.mean()
     center_estimate = x_m, y_m
@@ -114,10 +118,8 @@ def lsq(positions):
     residual   = np.sum((calc_Ri - radius)**2)
 
     center=np.array(calc_center)
-
-    first_pos = positions[0]
-    last_pos = positions[-1]
-    sign = np.linalg.det(np.array([last_pos-first_pos, center-first_pos]).transpose())
+    
+    sign = get_sign(pos_list[-1], orient_list[-1], center)
  
 #   print("center: (%f,%f), rad: %f, residu: %f"%(ccX,ccY,radius,residual))
     return (center, radius, residual, sign)

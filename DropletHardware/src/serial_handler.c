@@ -25,6 +25,10 @@ void handle_serial_command(char* command, uint16_t command_length)
 		else if(strcmp(command_word,"move_steps")==0)
 		{
 			handle_move_steps(command_args);
+		}		
+		else if(strcmp(command_word,"move_steps_two")==0)
+		{
+			handle_move_steps_two(command_args);
 		}
 		else if(strcmp(command_word, "take_steps")==0)
 		{
@@ -37,6 +41,10 @@ void handle_serial_command(char* command, uint16_t command_length)
 		else if(strcmp(command_word,"stop_walk")==0)
 		{
 			handle_stop_walk();
+		}
+		else if(strcmp(command_word,"brake")==0)
+		{
+			handle_brake(command_args);
 		}
 		else if(strcmp(command_word,"run_motor")==0)
 		{
@@ -165,6 +173,23 @@ void handle_move_steps(char* command_args)
 
 	}		
 }	
+
+void handle_move_steps_two(char* command_args)
+{
+	const char delim[2] = " ";
+	
+	char* token = strtok(command_args,delim);
+	uint8_t direction = token[0]-'0';
+
+	token = strtok(NULL,delim);
+	uint16_t num_steps = (uint16_t)atoi(token);
+	if (num_steps > 0)
+	{
+		printf("Two: walk direction %u, num_steps %u\r\n", direction, num_steps);
+		move_steps_two(direction, num_steps);
+
+	}
+}
 
 void handle_take_steps(char* command_args)
 {
@@ -374,6 +399,17 @@ void handle_set_mm_per_kilostep(char* command_args)
 	uint16_t mm_per_kilostep = atoi(token);
 
 	set_mm_per_kilostep(direction, mm_per_kilostep);
+	
+}
+
+void handle_brake(char* command_args)
+{
+	const char delim[2] = " ";
+	
+	char* token = strtok(command_args,delim);
+	uint8_t mot_num = token[0]-'0';
+
+	brake(mot_num);
 	
 }
 

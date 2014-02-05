@@ -28,7 +28,7 @@ def set_motors_flipped(mot0, mot1, mot2):
    # serial.write("cmd set_motors_flipped %d %d %d"%(mot0, mot1, mot2))
 
 def move_steps(dir, num_steps):
-    serial.write("cmd move_steps %d %d"%(dir, num_steps))
+    serial.write("cmd move_steps_two %d %d"%(dir, num_steps))
     #Once more, just to be sure.
  #   serial.write("cmd move_steps %d %d"%(dir, num_steps))
 
@@ -155,7 +155,7 @@ class Calibrator:
         if num_good_points<0.8*self.data_points_for_straighten:
             print("Not enough good data.")
             return self.test_spin_settings(motor_values, cw_q, output_stream)
-        (center, radius, residual, sign) = maths.lsq(pos_list)
+        (center, radius, residual, sign) = maths.lsq(pos_list, orient_list)
         direction_of_spin = np.mean(np.gradient(orient_list))
         print("Radius: %f"%(radius))
         self.spin_settings_history[cw_q][str(motor_values)] = (radius, direction_of_spin)
@@ -179,6 +179,7 @@ class Calibrator:
         x_2 = np.array([0, 128, 0])
         x_3 = np.array([0, 0, 128])
         spx = np.array([x_0, x_1, x_2, x_3])
+        old_spx = np.zeros((4,3))
 
         if fName is None:
             settings_history_fName = 'dmc_nm_data_spin_all_%s.csv'%("cw" if cw_q else "ccw")
@@ -193,6 +194,7 @@ class Calibrator:
         simplex_history_file = open(simplex_history_fName,'w')
         simplex_history_file.write('spx00, spx01, spx02, rad0, spx10, spx11, spx12, rad1, spx20, spx21, spx22, rad2, spx30, spx31, spx32, rad3\n')
 
+        finished = False
         def fun(x):
             (radius, mean_delta_orient) =self.test_spin_settings(x, cw_q, settings_history_file)
             return radius + -4*abs(mean_delta_orient)
@@ -201,11 +203,16 @@ class Calibrator:
         try:
             while(True):
                 spx = np.array(sorted(spx, key=fun))
+                if str(spx) == str(old_spx):
+                    finished = True
+                old_spx = copy.deepcopy(spx)
 
                 radii = [full_fun(point)[0] for point in spx]
                 output_array = np.array(map(lambda spx_point, radius: np.append(spx_point, radius), spx, radii)).flatten().tolist()
                 simplex_history_file.write(",".join(map(str, output_array))+"\n")
                 simplex_history_file.flush()
+
+
 
                 print("spx: %s"%(str(spx)))
                 x_o = np.mean(spx[:-1],0).astype(int)
@@ -232,15 +239,12 @@ class Calibrator:
                         for i in range(1,4):
                             spx[i] = (spx[0] + sigma*(spx[i]-spx[0])).astype(int)
 
-                lengths = maths.get_lengths_array(spx)
-                print("Mean edge length in simplex: %f"%(np.mean(lengths)))
-                if np.mean(lengths)<10:
+                if (full_fun(spx[0])[0]<1.5) or finished:
                     (radius, delta_orient) = full_fun(spx[0]);
                     if delta_orient<0:
                         cw_q=True
                     else:
                         cw_q=False
-                        set_motors_flipped(*[spx[0][i]>0 for i in range(3)])#flipping the motors back
                     for i in range(3):
                         self.current_motor_settings[i][cw_q] = abs(spx[0][i])
                         set_motor(i, self.current_motor_settings[i][0], self.current_motor_settings[i][1])
@@ -272,19 +276,19 @@ class Calibrator:
             
         if temp_x<(x_bound/2):
             if temp_y<(y_bound/2): #bottom left quadrant of our square
-                desired_orientation = -45
+                desired_orientationInit = -45
             else: #top left quadrant of our square
-                desired_orientation = -135
+                desired_orientationInit = -135
         else:
             if temp_y<(y_bound/2): #bottom right quadrant of our square
-                desired_orientation = 45
+                desired_orientationInit = 45
             else: #top right quadrant of our square
-                desired_orientation = 135
+                desired_orientationInit = 135
 
-        desired_orientation = desired_orientation + dir*60
+        desired_orientation = desired_orientationInit + dir*60
         desired_orientation = np.mod(desired_orientation+180,360) - 180
         
-        print("dir: %d, temp_pos: (%f, %f), Desired orientation: %f"%(dir, temp_x, temp_y, desired_orientation))
+        print("dir: %d, temp_pos: (%f, %f), Desired Orientation: %f, Desired orientation, adjusted: %f"%(dir, temp_x, temp_y, desired_orientationInit, desired_orientation))
 
         while(True):
             move_steps(7-cw_q, 2000)
@@ -312,7 +316,7 @@ class Calibrator:
         self.current_motor_settings[mot_num][1-cw_q] = mot_val
         set_motor(mot_num, self.current_motor_settings[mot_num][0], self.current_motor_settings[mot_num][1])
         try:
-            dir = ((2*(mot_num+2))%6)
+            dir = ((2*(mot_num+1+cw_q))%6)
             self.spin_for_safe_straight(dir, cw_q)
             (pos_list, orient_list, num_good_points) = self.get_position_data_batch(dir, self.data_points_for_straighten)
         except MyException:
@@ -320,7 +324,7 @@ class Calibrator:
         if num_good_points<0.8*self.data_points_for_straighten:
             print("Not enough good data.")
             return
-        (center, radius, residual, sign) = maths.lsq(pos_list)
+        (center, radius, residual, sign) = maths.lsq(pos_list, orient_list)
         distance_traveled = np.linalg.norm(pos_list[-1]-pos_list[0])
         self.straight_settings_history[mot_num][mot_val] = (radius, sign, distance_traveled)
         #print("settings_history%s = %f"%(str(motor_values), radius))
@@ -329,17 +333,20 @@ class Calibrator:
         output_stream.flush()
         return self.test_straight_settings(mot_val, mot_num, cw_q, output_stream)
 
-    def get_proportional_control(self, radius):
-        if radius>80:
-            return 1
-        elif radius>40:
-            return 2
-        elif radius>35:
-            return 4
-        elif radius>25:
-            return 8
-        else:
-            return 16
+    def get_proportional_control(self, radius, signSwapped):
+        return int(20./(radius)+1)
+        #if signSwapped:
+        #    return 1
+        #elif radius>80:
+        #    return 10
+        #elif radius>40:
+        #    return 20
+        #elif radius>35:
+        #    return 40
+        #elif radius>25:
+        #    return 80
+        #else:
+        #    return 160
 
 
     def calibrate_droplet_straight(self, cw_q, fName=None):
@@ -360,17 +367,23 @@ class Calibrator:
                             print("Failed to get good data. Trying again?")
 
                     val = 0
-                    lastVal = 0
+                    lastVal = val+60 # a.k.a NOT 0
                     lastSign = 0
                     (radius, sign, dist) = fun(val)
-                    while (abs(lastVal-val)>1) and (lastSign*sign<0): #while newVal is actually changing...
+                    while (abs(lastVal-val)>1) or not (lastSign*sign<0): #while newVal is actually changing...
                         lastVal = val
                         lastSign = sign
                         print("mot_num: %d, newVal: %d, radius: %f, sign: %f"%(mot_num, val, fun(val)[0], fun(val)[1]))
-                        if fun(val)[1]*(2*cw_q-1) > 0: #center on left, so it needs to be smaller (ONLY IF WE SPAN CW)
-                            val = val - self.get_proportional_control(fun(val)[0])
-                        elif fun(val)[1]*(2*cw_q-1) < 0: #center on right, so it needs to be bigger (ONLY IF WE SPAN CW)
-                            val = val + self.get_proportional_control(fun(val)[0])
+                        if fun(val)[1] < 0: #center on right,
+                            if cw_q: #
+                                val = val + self.get_proportional_control(fun(val)[0],(fun(val)[1]*lastSign)<0)
+                            else: #
+                                val = val - self.get_proportional_control(fun(val)[0],(fun(val)[1]*lastSign)<0)
+                        elif fun(val)[1] > 0: #center on left, so it needs to be bigger (ONLY IF WE SPAN CW)
+                            if cw_q: #
+                                val = val - self.get_proportional_control(fun(val)[0],(fun(val)[1]*lastSign)<0)
+                            else: #
+                                val = val + self.get_proportional_control(fun(val)[0],(fun(val)[1]*lastSign)<0)
                         else:
                             print('''I think this means the radius was perfectly straight?''')
                         sign = fun(val)[1]
@@ -384,13 +397,62 @@ class Calibrator:
 
             except KeyboardInterrupt:
                 print("Calibration interrupted by user.")
+                stop_walk()
                 output_file.close()
         except:
             output_file.close()
             serial.cleanup()
             self.rr.close()
             raise
-                        
+    
+    def calibrate_degrees_per_step(self, cw_q, num_steps = 50, num_runs = 5, fName = None):
+        """
+        Calibrates the number of degrees per kilostep of droplet motion rotation
+        """
+        orient_buf = np.array([0] * 100)
+        rot_angle = np.array([0] * num_runs)
+
+        if fName is None:
+            fName = 'data\\dmc_data_deg_per_kilostep.csv'
+        else:
+            fName = fName + "_deg_per_kilostep.csv"
+        try:
+            fh = open(fName, 'w')
+            for r in range(num_runs):            
+                start_orient = self.get_rr_orient()
+                move_steps(7 - cw_q, num_steps)
+
+                while(True):
+                    for i in range(100):
+                        orient_buf[i] = self.get_rr_orient()
+                        self.rr.WaitImage(10)
+
+                    if(abs(orient_buf[-1]-orient_buf[0])<0.01):
+                        #print("Breaking, orient_buf: %s"%orient_buf)
+                        print("Breaking.")
+                        time.sleep(2)
+                        #This condition is firing prematurely.
+                        break
+            
+                stop_orient = self.get_rr_orient()
+                rot_angle[r] = stop_orient - start_orient
+                if(cw_q):
+                    rot_angle[r]=rot_angle[r]*-1
+                if(rot_angle[r] < 0):
+                    rot_angle[r] += 360
+            
+                print("[Run %d] Rotation Angle: %d (deg)\n"%(r, rot_angle[r]))
+                fh.write("%d, %d\n"%(r, rot_angle[r]))
+
+            deg_per_kilostep = int(np.mean(rot_angle) * 1000. / num_steps)
+            print("Degrees per kilostep: %d\n"%deg_per_kilostep)
+            fh.write("%d\n"%deg_per_kilostep)
+            fh.close()
+        except KeyboardInterrupt:
+            print("Calibration interrupted by user.")
+            stop_walk()
+            fh.close()
+                            
     def __del__(self):
         serial.cleanup()
         self.rr.close()

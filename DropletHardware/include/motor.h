@@ -59,6 +59,7 @@ void	motor_init();
 // Walk in specified direction for specified number of steps
 // direction (0-7, see #defines above for which direction maps to what number)
 uint8_t	move_steps(uint8_t direction, uint16_t num_steps);
+uint8_t	move_steps_two(uint8_t direction, uint16_t num_steps);
 uint8_t take_steps(uint8_t motor_num, int16_t num_steps);
 //void	take_step(void* arg);
 
@@ -88,13 +89,35 @@ static inline void motor_forward(uint16_t num)
 	((*(TC0_t *) val)).CTRLB = TC_WGMODE_SS_gc | TC0_CCAEN_bm;
 }
 
+static inline void motor_forward_two(uint8_t num) //kinda same as motor_backward
+{
+	switch(num)
+	{
+		case 0: TCC0.CTRLB = TC_WGMODE_SS_gc | TC0_CCBEN_bm; PORTC.PIN1CTRL = PORT_INVEN_bm; PORTC.OUTSET |= PIN0_bm; break;
+		case 1: TCC1.CTRLB = TC_WGMODE_SS_gc | TC1_CCBEN_bm; PORTC.PIN5CTRL = PORT_INVEN_bm; PORTC.OUTSET |= PIN4_bm; break;
+		case 2: TCE0.CTRLB = TC_WGMODE_SS_gc | TC0_CCBEN_bm; PORTE.PIN1CTRL = PORT_INVEN_bm; PORTE.OUTSET |= PIN0_bm; break;
+	}
+}
+
 static inline void motor_backward(uint16_t num)
 {
 	uint16_t val = (0x0800+((0x1&num)<<6)+((0x2&num)<<8));
 	(*(TC0_t *) val).CTRLB = TC_WGMODE_SS_gc | TC0_CCBEN_bm;
 }
 
+static inline void motor_backward_two(uint8_t num) //kinda same as motor_forward
+{
+	switch(num)
+	{
+		case 0: TCC0.CTRLB = TC_WGMODE_SS_gc | TC0_CCAEN_bm; PORTC.PIN0CTRL = PORT_INVEN_bm; PORTC.OUTSET |= PIN1_bm; break;
+		case 1: TCC1.CTRLB = TC_WGMODE_SS_gc | TC1_CCAEN_bm; PORTC.PIN4CTRL = PORT_INVEN_bm; PORTC.OUTSET |= PIN5_bm; break;
+		case 2: TCE0.CTRLB = TC_WGMODE_SS_gc | TC0_CCAEN_bm; PORTE.PIN0CTRL = PORT_INVEN_bm; PORTE.OUTSET |= PIN1_bm; break;
+	}
+}
+
 uint16_t get_mm_per_kilostep(uint8_t direction);
 void set_mm_per_kilostep(uint8_t direction, uint16_t dist);
+
+void brake(uint8_t num);
 
 #endif

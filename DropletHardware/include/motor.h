@@ -59,7 +59,6 @@ void	motor_init();
 // Walk in specified direction for specified number of steps
 // direction (0-7, see #defines above for which direction maps to what number)
 uint8_t	move_steps(uint8_t direction, uint16_t num_steps);
-uint8_t	move_steps_two(uint8_t direction, uint16_t num_steps);
 uint8_t take_steps(uint8_t motor_num, int16_t num_steps);
 //void	take_step(void* arg);
 

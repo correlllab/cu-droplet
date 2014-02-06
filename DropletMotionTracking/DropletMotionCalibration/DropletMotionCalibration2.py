@@ -28,7 +28,7 @@ def set_motors_flipped(mot0, mot1, mot2):
    # serial.write("cmd set_motors_flipped %d %d %d"%(mot0, mot1, mot2))
 
 def move_steps(dir, num_steps):
-    serial.write("cmd move_steps_two %d %d"%(dir, num_steps))
+    serial.write("cmd move_steps %d %d"%(dir, num_steps))
     #Once more, just to be sure.
  #   serial.write("cmd move_steps %d %d"%(dir, num_steps))
 
@@ -239,7 +239,7 @@ class Calibrator:
                         for i in range(1,4):
                             spx[i] = (spx[0] + sigma*(spx[i]-spx[0])).astype(int)
 
-                if (full_fun(spx[0])[0]<1.5) or finished:
+                if fun(spx[0])<1 or finished:
                     (radius, delta_orient) = full_fun(spx[0]);
                     if delta_orient<0:
                         cw_q=True

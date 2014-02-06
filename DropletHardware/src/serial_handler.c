@@ -26,10 +26,6 @@ void handle_serial_command(char* command, uint16_t command_length)
 		{
 			handle_move_steps(command_args);
 		}		
-		else if(strcmp(command_word,"move_steps_two")==0)
-		{
-			handle_move_steps_two(command_args);
-		}
 		else if(strcmp(command_word, "take_steps")==0)
 		{
 			handle_take_steps(command_args);
@@ -170,26 +166,8 @@ void handle_move_steps(char* command_args)
 	{
 		printf("walk direction %u, num_steps %u\r\n", direction, num_steps);		
 		move_steps(direction, num_steps);
-
 	}		
 }	
-
-void handle_move_steps_two(char* command_args)
-{
-	const char delim[2] = " ";
-	
-	char* token = strtok(command_args,delim);
-	uint8_t direction = token[0]-'0';
-
-	token = strtok(NULL,delim);
-	uint16_t num_steps = (uint16_t)atoi(token);
-	if (num_steps > 0)
-	{
-		printf("Two: walk direction %u, num_steps %u\r\n", direction, num_steps);
-		move_steps_two(direction, num_steps);
-
-	}
-}
 
 void handle_take_steps(char* command_args)
 {

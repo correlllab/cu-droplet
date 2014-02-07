@@ -273,6 +273,10 @@ class Calibrator:
             j+=1
         temp_y = pos[1] - self.y_boundaries[j-1]
         y_bound = self.y_boundaries[j]-self.y_boundaries[j-1]
+
+        if (temp_x>(x_bound/3)) and (temp_x<((2*x_bound)/3)) and (temp_y>(y_bound/3)) and (temp_y<((2*y_bound)/3)):
+            print("We're basically in the middle. Should be fine.")
+            return
             
         if temp_x<(x_bound/2):
             if temp_y<(y_bound/2): #bottom left quadrant of our square
@@ -284,6 +288,7 @@ class Calibrator:
                 desired_orientationInit = 45
             else: #top right quadrant of our square
                 desired_orientationInit = 135
+
 
         desired_orientation = desired_orientationInit + dir*60
         desired_orientation = np.mod(desired_orientation+180,360) - 180
@@ -334,7 +339,7 @@ class Calibrator:
         return self.test_straight_settings(mot_val, mot_num, cw_q, output_stream)
 
     def get_proportional_control(self, radius, signSwapped):
-        return int(20./(radius)+1)
+        return (int(round(40./radius))+1)
         #if signSwapped:
         #    return 1
         #elif radius>80:
@@ -348,6 +353,19 @@ class Calibrator:
         #else:
         #    return 160
 
+    def get_change_direction(self, sign, cw_q):
+        if sign < 0: #center on right,
+            if cw_q: #
+                return 1
+            else: #
+                return -1
+        elif sign > 0: #center on left, so it needs to be bigger (ONLY IF WE SPAN CW)
+            if cw_q: #
+                return -1
+            else: #
+                return 1
+        else:
+            print("Should never see this. Droplet moved perfectly straight?")
 
     def calibrate_droplet_straight(self, cw_q, fName=None):
         try:
@@ -366,27 +384,37 @@ class Calibrator:
                                 return val
                             print("Failed to get good data. Trying again?")
 
-                    val = 0
-                    lastVal = val+60 # a.k.a NOT 0
-                    lastSign = 0
-                    (radius, sign, dist) = fun(val)
-                    while (abs(lastVal-val)>1) or not (lastSign*sign<0): #while newVal is actually changing...
-                        lastVal = val
-                        lastSign = sign
-                        print("mot_num: %d, newVal: %d, radius: %f, sign: %f"%(mot_num, val, fun(val)[0], fun(val)[1]))
-                        if fun(val)[1] < 0: #center on right,
-                            if cw_q: #
-                                val = val + self.get_proportional_control(fun(val)[0],(fun(val)[1]*lastSign)<0)
-                            else: #
-                                val = val - self.get_proportional_control(fun(val)[0],(fun(val)[1]*lastSign)<0)
-                        elif fun(val)[1] > 0: #center on left, so it needs to be bigger (ONLY IF WE SPAN CW)
-                            if cw_q: #
-                                val = val - self.get_proportional_control(fun(val)[0],(fun(val)[1]*lastSign)<0)
-                            else: #
-                                val = val + self.get_proportional_control(fun(val)[0],(fun(val)[1]*lastSign)<0)
+
+
+                    baseVal = 0
+                    change = self.get_change_direction(fun(baseVal)[1], cw_q)
+                    if change<0:
+                        extremaVal = -128
+                    else:
+                        extremaVal = 128
+
+                    while self.get_change_direction(fun(baseVal)[1],cw_q) == self.get_change_direction(fun(extremaVal)[1],cw_q):
+                        extremaVal = extremaVal*2
+
+                    if extremaVal<baseVal:
+                        minVal = extremaVal
+                        maxVal = baseVal
+                    else:
+                        minVal = baseVal
+                        maxVal = extremaVal
+
+                    #Code above is setting bounds for the binary search
+
+                    curVal = int((minVal+maxVal)/2)
+
+                    while (abs(minVal-maxVal)>1): #while newVal is actually changing...
+                        print("mot_num: %d, newVal: %d, radius: %f, sign: %f, dist: %f"%(mot_num, curVal, fun(curVal)[0], fun(curVal)[1], fun(curVal)[2]))
+                        if self.get_change_direction(fun(curVal)[1],cw_q)<0:
+                            maxVal = curVal
+                            curVal = int((minVal+maxVal)/2)
                         else:
-                            print('''I think this means the radius was perfectly straight?''')
-                        sign = fun(val)[1]
+                            minVal = curVal
+                            curVal = int((minVal+maxVal)/2)
 
                     sorted_settings = sorted(self.straight_settings_history[mot_num].iteritems(), key=lambda x: x[1], reverse=True)
                     print("Best radius was %f, for setting %d."%(sorted_settings[0][1][0], sorted_settings[0][0]))
@@ -452,6 +480,36 @@ class Calibrator:
             print("Calibration interrupted by user.")
             stop_walk()
             fh.close()
+
+    def calibrate_dist_per_step(self, dir, num_steps = 100, fName = None):
+        """
+        Calibrates the number of degrees per kilostep of droplet motion rotation
+        """
+        pos_buf = np.zeros((100,2))
+
+        if fName is None:
+            fName = 'data\\dmc_data_deg_per_kilostep.csv'
+        else:
+            fName = fName + "_deg_per_kilostep.csv"
+        try:   
+            start_pos = np.array(self.get_rr_pos())
+            move_steps(dir, num_steps)
+
+            while(True):
+                for i in range(100):
+                    pos_buf[i] = np.array(self.get_rr_pos())
+                    self.rr.WaitImage(10)
+                if np.linalg.norm(pos_buf[0]-pos_buf[-1])<1:
+                    break
+                
+            stop_pos = np.array(self.get_rr_pos())
+
+            dist = np.linalg.norm(start_pos-stop_pos)
+            mm_per_kilostep = int(dist/.69 * 1000. / num_steps)
+            print("dist: %f, mm per kilostep: %d\n"%(dist,mm_per_kilostep))
+        except KeyboardInterrupt:
+            print("Calibration interrupted by user.")
+            stop_walk()
                             
     def __del__(self):
         serial.cleanup()

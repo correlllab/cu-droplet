@@ -63,9 +63,6 @@
     <ClCompile Include="..\..\..\DropletSimLibrary\src\DSimDroplet.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\DropletSimLibrary\src\DSimInterface.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\DropletSimLibrary\src\DSimPhysicalObject.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -126,9 +123,6 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\DropletSimLibrary\include\DSimGlobals.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\DropletSimLibrary\include\DSimInterface.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\..\..\DropletSimLibrary\include\DSimPhysicalObject.h">

@@ -94,6 +94,8 @@ typedef uint16_t droplet_id_type;
 #define NEWEST_MSG_FIRST 1
 typedef uint8_t msg_order;
 
+#define NUM_COMM_CHANNELS 100
+
 #define DROPLET_REL_POS_UPDATE_TIME .1f // seconds
 #define BROADCAST_THRESHOLD	100.f // cm
 

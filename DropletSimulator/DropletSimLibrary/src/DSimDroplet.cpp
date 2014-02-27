@@ -125,7 +125,7 @@ void DSimDroplet::init_all_systems()
 	reset_rgb_led();
 	reset_rgb_sensor();
 	reset_timers();
-	for(uint8_t i = 0; i < 7; i++)
+	for(uint8_t i = 0; i < NUM_COMM_CHANNELS; i++)
 		reset_ir_sensor(i);
 
 	// Initialize variables
@@ -149,7 +149,7 @@ void DSimDroplet::reset_rgb_led()
 
 void DSimDroplet::reset_ir_sensor(uint8_t sensor_num) 
 {
-	if(sensor_num >= 0 && sensor_num < 7)
+	if(sensor_num >= 0 && sensor_num < NUM_COMM_CHANNELS)
 	{
 		memset(commData->commChannels[sensor_num].inBuf, 0, IR_BUFFER_SIZE);
 		memset(commData->commChannels[sensor_num].outBuf, 0, IR_BUFFER_SIZE);
@@ -400,23 +400,33 @@ uint8_t DSimDroplet::ir_broadcast(const char *send_buf, uint8_t length)
 
 uint8_t DSimDroplet::ir_send(uint8_t channel, const char *send_buf, uint8_t length)
 {
-	// We only have 6 channels, 1 - 6. Channel 0 is reserved for broadcast
-	if(channel > 6)
+	// Channel 0 is reserved for broadcast
+	if(channel >= NUM_COMM_CHANNELS)
 		return 0;
 
+	/* TODO : This section of code finds an empty channel to fill the send buffer in.
+	 * Once directed communication is implemented, this block of code should be removed 
+	 * and the channel input parameter should be used instead.
+	 */
+	unsigned int sendChannel;
+	for(sendChannel = 0; sendChannel < NUM_COMM_CHANNELS; sendChannel++)
+	{
+		if(commData->commChannels[sendChannel].outMsgLength == 0)
+			break;
+	}
+
 	// Reset the out comm buffer
-	memset(commData->commChannels[channel].outBuf, 0, IR_BUFFER_SIZE);
-	commData->commChannels[channel].outMsgLength = 0;
+	memset(commData->commChannels[sendChannel].outBuf, 0, IR_BUFFER_SIZE);
+	//commData->commChannels[sendChannel].outMsgLength = 0;
 
 	// Store the sending droplet's id as part of the message header
-	memcpy(commData->commChannels[channel].outBuf, &(compData->dropletID), sizeof(droplet_id_type));
-	
+	memcpy(commData->commChannels[sendChannel].outBuf, &(compData->dropletID), sizeof(droplet_id_type));
 
 	// Store the rest of the message header, then body
 	uint8_t msgLength = length < IR_MAX_DATA_SIZE ? length : IR_MAX_DATA_SIZE;
-	memcpy(&commData->commChannels[channel].outBuf[sizeof(droplet_id_type)], &msgLength, sizeof(uint8_t));
-	memcpy(&commData->commChannels[channel].outBuf[IR_MSG_HEADER], send_buf, msgLength);
-	commData->commChannels[channel].outMsgLength = msgLength + IR_MSG_HEADER;
+	memcpy(&commData->commChannels[sendChannel].outBuf[sizeof(droplet_id_type)], &msgLength, sizeof(uint8_t));
+	memcpy(&commData->commChannels[sendChannel].outBuf[IR_MSG_HEADER], send_buf, msgLength);
+	commData->commChannels[sendChannel].outMsgLength = msgLength + IR_MSG_HEADER;
 
 	// Set Send to active
 	commData->sendActive = true;
@@ -426,49 +436,42 @@ uint8_t DSimDroplet::ir_send(uint8_t channel, const char *send_buf, uint8_t leng
 uint8_t DSimDroplet::check_for_new_messages(void)
 {
 	int newMsgCh = -1;
-	for(int i = 0; i < 7; i++)
+	for(int i = 0; i < NUM_COMM_CHANNELS; i++)
 	{
 		if(commData->commChannels[i].inMsgLength > 0)
 		{
-			if(newMsgCh == -1)
-				newMsgCh = i;
-
-			else
-			{
-				if(commData->commChannels[i].lastMsgInTimestamp <
-					commData->commChannels[newMsgCh].lastMsgInTimestamp)
-				{
-					if(msg_return_order == OLDEST_MSG_FIRST)
-						newMsgCh = i;
-				}
-				else
-				{
-					if(msg_return_order == NEWEST_MSG_FIRST)
-						newMsgCh = i;
-				}
-			}
+			newMsgCh = i;
+			break;
+			//if(newMsgCh == -1)
+			//	newMsgCh = i;
+			//else
+			//{
+			//	if(commData->commChannels[i].lastMsgInTimestamp <
+			//		commData->commChannels[newMsgCh].lastMsgInTimestamp)
+			//	{
+			//		if(msg_return_order == OLDEST_MSG_FIRST)
+			//			newMsgCh = i;
+			//	}
+			//	else
+			//	{
+			//		if(msg_return_order == NEWEST_MSG_FIRST)
+			//			newMsgCh = i;
+			//	}
+			//}
 		}
 	}
 
 	// If there is indeed a new message then we should copy it into the global_rx_buffer
 	if(newMsgCh != -1)
 	{
-		/* Note : Here global_rx_buffer.size, global_rx_buffer.data_len & 
-		   DropletCommChannelData::inMsgLength are being used to store the same value,
-		   the length of the actual body of the message and not the whole message (including
-		   header). It is a bit confusing, fix it later.
-		*/
 		global_rx_buffer.size = commData->commChannels[newMsgCh].inMsgLength;
+		global_rx_buffer.data_len = global_rx_buffer.size - IR_MSG_HEADER;
 		global_rx_buffer.message_time = commData->commChannels[newMsgCh].lastMsgInTimestamp;
 		memset(global_rx_buffer.buf, 0, IR_BUFFER_SIZE);
 		memcpy( 
 			global_rx_buffer.buf,
 			&commData->commChannels[newMsgCh].inBuf[IR_MSG_HEADER],
-			global_rx_buffer.size);
-		memcpy(
-			&global_rx_buffer.data_len,
-			&commData->commChannels[newMsgCh].inBuf[sizeof(droplet_id_type)],
-			sizeof(uint8_t));
+			global_rx_buffer.data_len);
 		memcpy(
 			&global_rx_buffer.sender_ID,
 			commData->commChannels[newMsgCh].inBuf,

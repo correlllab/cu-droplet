@@ -31,6 +31,10 @@ class DSim
 
 private :
 
+	// TODO : Remove this later
+	FILE *fh;
+
+
 	SimPhysicsData *simPhysics;
 	SimSetupData *simSetupData;
 

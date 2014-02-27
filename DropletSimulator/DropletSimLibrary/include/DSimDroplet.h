@@ -121,7 +121,6 @@ private :
 		*timeData = pDroplet->timeData;
 	}
 
-	///@}
 protected :
 
 	DropletStatData *statData;
@@ -129,7 +128,7 @@ protected :
 	{
 		*statData = pDroplet->statData;
 	}
-
+///@}
 /** @name Subsystem setup functions.
  */
 ///@{
@@ -183,13 +182,9 @@ protected :
 	uint8_t rand_byte(void);
 
 ///@}
-
-	
 /** @name Actuator subsystem functions.
  */
 ///@{
-
-
 	/**
 	 * Rotate duration.
 	 *
@@ -262,6 +257,10 @@ protected :
 	 */
 	uint32_t cancel_rotate(void);
 
+///@}
+/** @name RGB LED subsystem functions.
+ */
+///@{
 	/**
 	 * Sets a RGB value.
 	 *
@@ -318,6 +317,10 @@ protected :
 	 */
 	void led_off(void);
 
+///@}
+/** @name Power monitoring subsystem functions.
+ */
+///@{
 	/**
 	 * /deprecated Use leg_status(uint8_t leg) instead. 
 	 * Returns droplet leg 1 status.
@@ -367,6 +370,10 @@ protected :
 	 */
 	int8_t cap_status(void);
 
+///@}
+/** @name RGB sensing subsystem functions.
+ */
+///@{
 	/**
 	 * Returns rgb values.
 	 * 
@@ -392,8 +399,10 @@ protected :
 	 */
 	uint8_t get_blue_sensor(void);
 
-// Droplet Communication Subsystem Functions
-
+///@}
+/** @name Communication subsystem functions.
+ */
+///@{
 	uint8_t ir_send(uint8_t channel, const char *send_buf, uint8_t length);
 	
 	uint8_t ir_broadcast(const char *send_buf, uint8_t length);
@@ -402,13 +411,23 @@ protected :
 
 	uint8_t range_and_bearing(uint16_t partner_id, float *dist, float *theta, float *phi);
 
-// Droplet Timing Functions
-
+///@}
+/** @name Timer subsystem functions.
+ */
+///@{
+	/**
+	 * Set one of the 5 available timers.
+	 * /param time the time to fire in ms
+	 * /param index 0 to 4, for one of the available timers.
+	 */
 	uint8_t set_timer(uint16_t time, uint8_t index); // time in ms
 
-	// 1 when timer is on, 0 when timer is off
+	/**
+	 * Check the status of available timers.
+	 * /return 0 when the timer is on and hasn't fired yet. 1 if the
+	 * timer is off or has fired after being set.
+	 */
 	uint8_t check_timer(uint8_t index);
-
 ///@}
 
 public :
@@ -416,15 +435,20 @@ public :
 	msg_order msg_return_order; // See DSimGlobals.h NEWEST_MSG_FIRST and OLDEST_MSG_FIRST
 
 	/// The global incoming message buffer for the droplet.
+	/* TODO : Here global_rx_buffer.size, global_rx_buffer.data_len are 
+	 * being used to store the same value, the length of the actual
+	 * body of the message and not the whole message (including
+	 * header). It is a bit confusing, fix it later.
+	*/
 	struct  
 	{
 			uint8_t *buf;
-			uint16_t size;                                  
+			uint16_t size;       // Stores size of msg + header                           
 
 			uint8_t receivers_used;	/* set flags of the receiver numbers which 
 									 * successfully received the message */
 
-			uint8_t data_len;	// to be copied from the header
+			uint16_t data_len;	// Stores size of data in buf, i.e. just msg size
 			droplet_id_type sender_ID;	// to be copied from the header
 
 			uint16_t message_time;

@@ -11,20 +11,77 @@
 #include <DSimDataStructs.h>
 #include <inttypes.h>
 #include <stdlib.h>
+#include <stdio.h>
+#include <vector>
+#include <algorithm>
+#include <random>
+#include <ctime>
+
+#define _USE_MATH_DEFINES // For math constants
+#include <math.h>
+
+#define RED   0
+#define GREEN 1
+#define BLUE  2
+
+#define RED_THRESHOLD 220
+#define GREEN_THRESHOLD 220
+#define BLUE_THRESHOLD 220
+
+
+#define RQST_GROUP_SIZE 4
+#define SIGMOID_SLOPE 5.0
+#define TASK_TIME 10.0
+#define REPEAT_DISCOVER_MSG 3
 
 class DropletCustomTwo : public DSimDroplet
 {
 private :
-	
+	enum STATE
+	{
+		SEARCH,
+		DISCOVER_GROUP,
+		LEAD_GROUP,
+		WAIT,
+		COLLABORATE,
+		NUM_STATES
+	} state;
+
+	enum MSG_TYPE
+	{
+		RQST_DISCOVER_GROUP = 1,
+		RSP_DISCOVER_GROUP = 2,
+		RQST_UPDATE_COLLAB = 3,
+		RSP_START_COLLAB = 4
+	} msg_type;
+
+	uint8_t color_msg[3];
+	uint8_t group_size, i_am_leader, repeat_discover_msg, collaborators;
+	static const uint8_t led_state_colors[NUM_STATES][3];
+	std::vector<droplet_id_type> unique_ids;
+
+	uint8_t rqst_group_size;
+	double task_time, sigmoid_slope;
+
+	FILE *fh;
+
+	void log_msg(void);
+
+	void init_leader(void);
+	void set_state_led(void);
+	uint8_t run_sigmoid(void);
+
+	void searching(void);
+	void discovering_group(void);
+	void leading_group(void);
+	void waiting_at_object(void);
+	void collaborating(void);
+	void reset_values(void);
 
 public :
 	DropletCustomTwo(ObjectPhysicsData *objPhysics);
 	~DropletCustomTwo(void);
 
-	void searching();
-	void waiting_at_object();
-	void collaborating();
-	
 	void DropletInit(void);
 	void DropletMainLoop(void);
 };

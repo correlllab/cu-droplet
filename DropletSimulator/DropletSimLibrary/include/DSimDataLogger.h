@@ -47,7 +47,7 @@ class DSimDataLogger
 {	
 friend class DSim;
 public:
-
+	
 	/**
 	 * \fn	DS_RESULT DSimDataLogger::GetDropletPositions(std::vector<GPSInfo *> *outPosData,
 	 * 		DSim& simulator);

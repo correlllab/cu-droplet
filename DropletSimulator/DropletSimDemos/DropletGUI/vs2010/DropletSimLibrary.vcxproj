@@ -58,7 +58,7 @@
       <Optimization>Disabled</Optimization>
       <PreprocessorDefinitions>D_SIM_LIB;WIN32;_DEBUG;_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>..\..\..\DropletSimLibrary\include;..\..\External\bullet-2.81-rev2613\src;..\..\External\EasyBMP_1.06;..\..\..\DropletPrograms</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\..\..\DropletSimLibrary\include;..\..\External\bullet-2.81-rev2613\src;..\..\External\EasyBMP_1.06;..\..\..\DropletPrograms\include</AdditionalIncludeDirectories>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <BrowseInformation>true</BrowseInformation>
       <CompileAsManaged>false</CompileAsManaged>
@@ -127,7 +127,6 @@
     <ClCompile Include="..\..\..\DropletSimLibrary\src\DSim.cpp" />
     <ClCompile Include="..\..\..\DropletSimLibrary\src\DSimDataLogger.cpp" />
     <ClCompile Include="..\..\..\DropletSimLibrary\src\DSimDroplet.cpp" />
-    <ClCompile Include="..\..\..\DropletSimLibrary\src\DSimInterface.cpp" />
     <ClCompile Include="..\..\..\DropletSimLibrary\src\DSimPhysicalObject.cpp" />
     <ClCompile Include="..\..\..\DropletSimLibrary\src\DSimProjection.cpp" />
     <ClCompile Include="..\..\..\DropletSimLibrary\src\DSimTimeControl.cpp" />
@@ -149,7 +148,6 @@
     <ClInclude Include="..\..\..\DropletSimLibrary\include\DSimDataStructs.h" />
     <ClInclude Include="..\..\..\DropletSimLibrary\include\DSimDroplet.h" />
     <ClInclude Include="..\..\..\DropletSimLibrary\include\DSimGlobals.h" />
-    <ClInclude Include="..\..\..\DropletSimLibrary\include\DSimInterface.h" />
     <ClInclude Include="..\..\..\DropletSimLibrary\include\DSimPhysicalObject.h" />
     <ClInclude Include="..\..\..\DropletSimLibrary\include\DSimProjection.h" />
     <ClInclude Include="..\..\..\DropletSimLibrary\include\DSimTimeControl.h" />

@@ -59,7 +59,6 @@ public:
 	 *
 	 * \return	A Droplet Simulator error code.
 	 */
-
 	DS_RESULT GetDropletPositions(std::vector<GPSInfo *> *outPosData, DSim& simulator);
 
 	/**
@@ -73,7 +72,6 @@ public:
 	 *
 	 * \return	A Droplet Simulator error code.
 	 */
-
 	DS_RESULT GetObjectPositions(std::vector<GPSInfo *> *outPosData, DSim& simulator);
 
 	/**
@@ -88,7 +86,6 @@ public:
 	 *
 	 * \return	A Droplet Simulator error code.
 	 */
-
 	DS_RESULT GetDropletColors(std::vector<uint8_t *> *colors, DSim& simulator);
 
 	/**
@@ -102,7 +99,6 @@ public:
 	 *
 	 * \return	A Droplet Simulator error code.
 	 */
-
 	DS_RESULT GetRemainingMotionTimes(std::vector<float *> *times, DSim& simulator);
 	
 	/**
@@ -116,7 +112,6 @@ public:
 	 *
 	 * \return	A Droplet Simulator error code.
 	 */
-
 	DS_RESULT GetMotionDirections(std::vector<DirInfo *> *directions, DSim& simulator);
 	
 	/**
@@ -131,7 +126,6 @@ public:
 	 *
 	 * \return	A Droplet Simulator error code.
 	 */
-
 	DS_RESULT GetSensorColors(std::vector<uint8_t *> *colors, DSim& simulator);
 	
 	/**
@@ -145,7 +139,6 @@ public:
 	 *
 	 * \return	A Droplet Simulator error code.
 	 */
-
 	DS_RESULT GetPhysData(std::vector<ObjectPhysicsData *> *phys, DSim& simulator);
 	
 	/**
@@ -159,7 +152,6 @@ public:
 	 *
 	 * \return	A Droplet Simulator error code.
 	 */
-
 	DS_RESULT GetCommData(std::vector<DropletCommData *> *comm, DSim& simulator);
 	
 	/**
@@ -173,7 +165,6 @@ public:
 	 *
 	 * \return	A Droplet Simulator error code.
 	 */
-
 	DS_RESULT GetCompData(std::vector<DropletCompData *> *comp, DSim& simulator);
 	
 	/**
@@ -187,7 +178,6 @@ public:
 	 *
 	 * \return	A Droplet Simulator error code.
 	 */
-
 	DS_RESULT GetActuationData(std::vector<DropletActuatorData *> *act, DSim &simulator);
 
 	/* GetNumCollisions() returns the number of objects colliding at any given time.
@@ -206,7 +196,6 @@ public:
 	 *
 	 * \return	The total real time elapsed.
 	 */
-
 	double GetTotalRT(DSim& simulator);
 	
 	/**
@@ -219,7 +208,6 @@ public:
 	 *
 	 * \return	The total time simulated.
 	 */
-
 	double GetTotalST(DSim& simulator);
 	
 	/**
@@ -232,7 +220,6 @@ public:
 	 *
 	 * \return	The real time since the last step.
 	 */
-
 	double GetStepRT(DSim& simulator);
 	
 	/**
@@ -245,7 +232,6 @@ public:
 	 *
 	 * \return	The difference between total real time and simulator time.
 	 */
-
 	double GetTotalDiff(DSim& simulator);
 	
 	/**

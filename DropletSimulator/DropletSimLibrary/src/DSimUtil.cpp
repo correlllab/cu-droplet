@@ -11,8 +11,6 @@ TrigArray::TrigArray(unsigned int numDroplets)
 	for(unsigned int i = 0; i < l; i++)
 	{
 		data[i] = (RelPosData *)malloc(sizeof(RelPosData));
-		//data[i]->distance = 0.f;
-		//data[i]->angle = 0.f;
 		data[i]->xDist = 0.f;
 		data[i]->yDist = 0.f;
 		data[i]->zDist = 0.f;
@@ -24,19 +22,6 @@ TrigArray::~TrigArray(void)
 	for(int i = l - 1; i >= 0; i--)
 	{	free(data[i]); data[i] = NULL; }
 }
-
-//DS_RESULT TrigArray::AddData(unsigned int d1, unsigned int d2, float dist, float angle)
-//{
-//	if(d1 >= n || d2 >= n) return DS_ERROR;
-//
-//	unsigned int i = computeIndex(d1, d2);
-//	if(i == -1) return DS_ERROR;
-//
-//	data[i]->distance = dist;
-//	data[i]->angle = angle;
-//
-//	return DS_SUCCESS;
-//}
 
 DS_RESULT TrigArray::AddData(unsigned int d1, unsigned int d2, float xDist, float yDist, float zDist)
 {

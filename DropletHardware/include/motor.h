@@ -26,7 +26,6 @@
 
 volatile uint8_t motor_status; // [ on, cancel, 0, 0, 0, direction(2-0) ] 
 volatile Task_t* current_motor_task;
-uint8_t motor_flipped;
 
 #define MOTOR_0_FLIPPED_bm	0x01	// 0000 0001
 #define MOTOR_1_FLIPPED_bm	0x02
@@ -35,21 +34,13 @@ uint8_t motor_flipped;
 int16_t motor_on_time;
 int16_t motor_off_time;
 
-
-/*
-* <0 if motor is going backwards, =0 if motor isn't spinning, >0 if motor is going forwards
-* This should be set by whatever function causes the motors to run.
-*/
-int8_t current_motor_direction[3];
-
 /*
  * motor_adjusts[mot][backward] is how much we adjust motor mot by when going 0: forward, 1: backward.
  * changing motor_adjusts[mot][backward] by 1 will cause the motor to spin for an extra 32 microseconds. Wooo.
  */
-int16_t motor_adjusts[3][2]; 
-int8_t motor_signs[8][3];
+int16_t motor_values[8][3]; 
 
-uint16_t mm_per_kilostep[8];
+uint16_t mm_per_kilostep[8]; //For the spin directions, this is degrees per kilostep.
 
 
 // Sets up the timers for the motors PWM, pins to motor controller, and 
@@ -59,7 +50,7 @@ void	motor_init();
 // Walk in specified direction for specified number of steps
 // direction (0-7, see #defines above for which direction maps to what number)
 uint8_t	move_steps(uint8_t direction, uint16_t num_steps);
-uint8_t take_steps(uint8_t motor_num, int16_t num_steps);
+//uint8_t take_steps(uint8_t motor_num, int16_t num_steps);
 //void	take_step(void* arg);
 
 void walk(uint8_t direction, uint16_t mm);
@@ -74,7 +65,7 @@ uint16_t	get_mm_per_kilostep(uint8_t direction);
 void		set_mm_per_kilostep(uint8_t direction, uint16_t dist);
 void		read_motor_settings();
 void		write_motor_settings();
-void		print_motor_adjusts();
+void		print_motor_values();
 void		broadcast_motor_adjusts();
 void		print_dist_per_step();
 void		broadcast_dist_per_step();

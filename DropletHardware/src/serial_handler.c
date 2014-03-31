@@ -26,10 +26,10 @@ void handle_serial_command(char* command, uint16_t command_length)
 		{
 			handle_move_steps(command_args);
 		}		
-		else if(strcmp(command_word, "take_steps")==0)
-		{
-			handle_take_steps(command_args);
-		}		
+		//else if(strcmp(command_word, "take_steps")==0)
+		//{
+			////handle_take_steps(command_args);
+		//}		
 		else if(strcmp(command_word,"walk")==0)
 		{
 			handle_walk(command_args);
@@ -54,13 +54,9 @@ void handle_serial_command(char* command, uint16_t command_length)
 		{
 			handle_set_motors_on_off(command_args);	
 		}
-		else if(strcmp(command_word, "set_motors_flipped")==0)
+		else if(strcmp(command_word,"set_motors")==0)
 		{
-			handle_set_motors_flipped(command_args);	
-		}
-		else if(strcmp(command_word,"set_motor")==0)
-		{
-			handle_set_motor(command_args);
+			handle_set_motors(command_args);
 		}
 		else if(strcmp(command_word,"set_dist_per_step")==0)
 		{
@@ -120,7 +116,7 @@ void handle_serial_command(char* command, uint16_t command_length)
 		}
 		else if(strcmp(command_word,"print_motor_settings")==0)
 		{
-			print_motor_adjusts();
+			print_motor_values();
 			print_dist_per_step();
 		}
 		else if(strcmp(command_word,"broadcast_motor_settings")==0)
@@ -169,19 +165,19 @@ void handle_move_steps(char* command_args)
 	}		
 }	
 
-void handle_take_steps(char* command_args)
-{
-	const char delim[2] = " ";
-	
-	char* token = strtok(command_args,delim);
-	uint8_t motor_num = token[0]-'0';
-
-	token = strtok(NULL,delim);
-	int16_t num_steps = (int16_t)atoi(token);
-	printf("Taking %hu steps with motor %hhu, forwards: %hhu\r\n",abs(num_steps), motor_num, !(num_steps>>15));
-	take_steps(motor_num, num_steps);
-	
-}
+//void handle_take_steps(char* command_args)
+//{
+	//const char delim[2] = " ";
+	//
+	//char* token = strtok(command_args,delim);
+	//uint8_t motor_num = token[0]-'0';
+//
+	//token = strtok(NULL,delim);
+	//int16_t num_steps = (int16_t)atoi(token);
+	//printf("Taking %hu steps with motor %hhu, forwards: %hhu\r\n",abs(num_steps), motor_num, !(num_steps>>15));
+	//take_steps(motor_num, num_steps);
+	//
+//}
 
 void handle_walk(char* command_args)
 {	
@@ -323,47 +319,31 @@ void handle_set_motors_on_off(char* command_args)
 	printf("motor_on_time: %d, motor_off_time: %d.\r\n",motor_on_time, motor_off_time);
 }
 
-void handle_set_motors_flipped(char* command_args)
-{
-	const char delim[2] = " ";
-	
-	char* token = strtok(command_args,delim);
-	motor_flipped = atoi(token) ? MOTOR_0_FLIPPED_bm : 0;
-	
-	token = strtok(NULL,delim);	
-	motor_flipped |= atoi(token) ? MOTOR_1_FLIPPED_bm : 0;
-	
-	token = strtok(NULL,delim);	
-	motor_flipped |= atoi(token) ? MOTOR_2_FLIPPED_bm : 0;
-	
-	//printf("motor_flipped changed to: %d.\r\n", motor_flipped);
-}
-
-
-void handle_set_motor(char* command_args)
+void handle_set_motors(char* command_args)
 {
 	
 	const char delim[2] = " ";
 	
 	char* token = strtok(command_args,delim);
-	if(token==NULL){ printf("strtok returned NULL on motor_num.\r\n"); return;}
-	uint8_t motor_num = atoi(token);
-	if(motor_num> 2){ printf("Bad motor_num. Got: %hhu.\r\n", motor_num); return;}
+	if(token==NULL){ printf("strtok returned NULL on direction.\r\n"); return;}
+	uint8_t direction = atoi(token);
+	if(direction> 7){ printf("Bad direction. Got: %hhu.\r\n", direction); return;}
 
 	token = strtok(NULL,delim);
-	if(token==NULL){ printf("strtok returned NULL on ccw adjust.\r\n"); return;}	
-	motor_adjusts[motor_num][0] = atoi(token);
-	if(motor_adjusts[motor_num][0]<(motor_on_time*-32)){ printf("Can't adjust by %d when motor is only on for %d.",motor_adjusts[motor_num][0], motor_on_time*32); }
+	if(token==NULL){ printf("strtok returned NULL on first val.\r\n"); return;}	
+	motor_values[direction][0] = atoi(token);
 	
 	token = strtok(NULL,delim);
-	if(token==NULL){ printf("strtok returned NULL on cw adjust.\r\n"); return;}	
-	motor_adjusts[motor_num][1] = atoi(token);
-	if(motor_adjusts[motor_num][1]<(motor_on_time*-32)){ printf("Can't adjust by %d when motor is only on for %d.",motor_adjusts[motor_num][1], motor_on_time*32); }
+	if(token==NULL){ printf("strtok returned NULL on second val.\r\n"); return;}
+	motor_values[direction][1] = atoi(token);
 	
+	token = strtok(NULL,delim);
+	if(token==NULL){ printf("strtok returned NULL on third val.\r\n"); return;}
+	motor_values[direction][2] = atoi(token);	
 	
 	//There should always be at least one motor with strength 1.0. It(they) must be the strongest motor(s).
 
-	printf("Got set_motors command. motor_num: %hhu, ccw_adjust: %d, cw_adjust: %d.\r\n", motor_num, motor_adjusts[motor_num][0], motor_adjusts[motor_num][1]);
+	printf("Got set_motors command. direction: %hhu, vals: (%d, %d, %d)\r\n", direction, motor_values[direction][0], motor_values[direction][1], motor_values[direction][2]);
 }
 
 void handle_set_mm_per_kilostep(char* command_args)

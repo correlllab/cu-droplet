@@ -19,7 +19,16 @@ void motor_init()
 	//TCC0.PER = 32; This needs to be set for each move_step, now.
 
 	motor_status = 0;
-	
+
+	motor_signs[0][0]=0;	motor_signs[0][1]=1;	motor_signs[0][2]=-1;  	//Towards motor 0.
+	motor_signs[1][0]=-1;	motor_signs[1][1]=1;	motor_signs[1][2]=0;  	//Away from motor 2.
+	motor_signs[2][0]=-1;	motor_signs[2][1]=0;	motor_signs[2][2]=1;  	//Towards motor 1.
+	motor_signs[3][0]=0;	motor_signs[3][1]=-1;	motor_signs[3][2]=1;  	//Away from motor 0.
+	motor_signs[4][0]=1;	motor_signs[4][1]=-1;	motor_signs[4][2]=0;  	//Towards motor 2.
+	motor_signs[5][0]=1;	motor_signs[5][1]=0;	motor_signs[5][2]=-1;  	//Away from motor 1.
+	motor_signs[6][0]=-1;	motor_signs[6][1]=-1;	motor_signs[6][2]=-1;  	//Clockwise spin.
+	motor_signs[7][0]=1;	motor_signs[7][1]=1;	motor_signs[7][2]=1;  	//Anti-Clockwise spin.
+
 	motor_on_time = MOTOR_ON_TIME;
 	motor_off_time = MOTOR_OFF_TIME;
 	
@@ -63,13 +72,20 @@ uint8_t move_steps(uint8_t direction, uint16_t num_steps)
 	motor_status = MOTOR_STATUS_ON | (direction & MOTOR_STATUS_DIRECTION);
 	
 	uint16_t mot_durs[3]; //This is how long we want each motor to be on for.
+	uint8_t mot_dirs[3]; //This is what direction we want each motor to spin in. 1: CCW, -1: CW, 0: No spin.
 	uint16_t total_time = 0; //This is the total length of a step, and will be the period of the PWM generation.
 	
+	int8_t sign_flip;
 	for(uint8_t mot=0 ; mot<3 ; mot++)
 	{		
-		mot_durs[mot] = abs(motor_values[direction][mot]);
+		mot_durs[mot] = 32*motor_on_time + motor_values[direction][mot];
+		
+		sign_flip = ((((int8_t)((motor_flipped>>mot)&0x1))*-2)+1);
+		mot_dirs[mot] = sign_flip*motor_signs[direction][mot];
+		
 		if(mot_durs[mot]==0) continue;
-		total_time += mot_durs[mot] + 32*motor_off_time;//If we left the motor on for longer to compensate, we should wait a little longer before starting again.
+		
+		total_time += mot_durs[mot] + 32*motor_off_time;
 	}
 	//printf("Moving in dir: %hhu for %hu steps. Mot_durs: {%hu, %hu, %hu}. Total_time: %hu.\r\n",direction, num_steps, mot_durs[0], mot_durs[1], mot_durs[2], total_time);
 
@@ -95,15 +111,8 @@ uint8_t move_steps(uint8_t direction, uint16_t num_steps)
 	if(current_offset != total_time) printf("ERROR (I think): current_offset: %hu and total_time: %hu not equal!\r\n", current_offset, total_time);
 	for(uint8_t mot=0 ; mot<3 ; mot++) 	//Now we just need to tell the motors to go!
 	{
-		if(mot_durs[mot]==0) continue;
-		if(motor_values[direction][mot]<0){ 
-			motor_backward_two(mot); 
-		}
-		else if(motor_values[direction][mot]>0)
-		{		
-			motor_forward_two(mot); 
-		}
-		else printf("Shouldn't get here - if current_motor_direction was 0, mot_durs should be 0.\r\n");
+		if(mot_dirs[mot]<0) motor_backward_two(mot); 
+		else if(motor_values[direction][mot]>0)	motor_forward_two(mot);
 	}
 	uint32_t total_movement_duration = ((uint32_t)total_time)*((uint32_t)num_steps)/32;
 	//printf("Total duration: %u ms.\r\n\n",total_movement_duration);
@@ -191,7 +200,8 @@ void read_motor_settings()
 	{
 		mm_per_kilostep[direction] =(uint16_t)SP_ReadUserSignatureByte(0x40 + 2*direction + 0)<<8 |
 		(uint16_t)SP_ReadUserSignatureByte(0x40 + 2*direction + 1);
-	}		
+	}
+	motor_flipped = SP_ReadUserSignatureByte(0x50);
 }
 
 void write_motor_settings()
@@ -216,6 +226,8 @@ void write_motor_settings()
 		page_buffer[(0x40 + 2*direction + 0)] = (uint8_t)((temp>>8)&0xFF);
 		page_buffer[(0x40 + 2*direction + 1)] = (uint8_t)(temp&0xFF);
 	}					
+	
+	page_buffer[0x50] = motor_flipped;
 	
 	SP_LoadFlashPage(page_buffer);
 	

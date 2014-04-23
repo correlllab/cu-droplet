@@ -33,12 +33,14 @@ volatile Task_t* current_motor_task;
 
 int16_t motor_on_time;
 int16_t motor_off_time;
+uint8_t motor_flipped;
 
 /*
  * motor_adjusts[mot][backward] is how much we adjust motor mot by when going 0: forward, 1: backward.
  * changing motor_adjusts[mot][backward] by 1 will cause the motor to spin for an extra 32 microseconds. Wooo.
  */
-int16_t motor_values[8][3]; 
+int16_t motor_values[8][3];
+int8_t motor_signs[8][3];
 
 uint16_t mm_per_kilostep[8]; //For the spin directions, this is degrees per kilostep.
 

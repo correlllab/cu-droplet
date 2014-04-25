@@ -100,6 +100,8 @@ class Calibrator:
             vals=(float(self.rr.GetVariable("FIDUCIAL_X_COORD")), float(self.rr.GetVariable("FIDUCIAL_Y_COORD")))
         except ValueError:
             print("RR didn't have the fiducial.")
+            time.sleep(1)
+            return self.get_rr_pos(self)
             return
         return vals
     
@@ -108,6 +110,8 @@ class Calibrator:
             val = float(self.rr.GetVariable("FIDUCIAL_ORIENTATION"))
         except ValueError:
             print("RR didn't have the fiducial.")
+            time.sleep(1)
+            return self.get_rr_orient(self)
             return
         val = np.mod(val+180.,360.)-180.
         return val
@@ -117,14 +121,19 @@ class Calibrator:
         #then calibrate directions 0, 2, and 4 (or 1, 3, and 5)
         timestamp = time.strftime('%m-%d_%H%M')
         fileName = "data\\dmc_calib_" + timestamp
-        self.calibrate_droplet_spin(True, fName=fileName) #CW
-        self.calibrate_droplet_spin(False, fName=fileName) #CCW
-        for direction in range(6):
-            self.calibrate_droplet_straight(direction, fName=fileName)
-        for i in range(4):
+        self.calibrate_both_spins(fileName)
+        self.calibrate_all_straight(fileName)
+        for i in range(2):
             serial.write("cmd write_motor_settings")
         print("!!!\nDone calibrating!\n!!!")
 
+    def calibrate_both_spins(self, fileName):
+        self.calibrate_droplet_spin(True, fName=fileName) #CW
+        self.calibrate_droplet_spin(False, fName=fileName) #CCW
+
+    def calibrate_all_straight(self, fileName):
+        for direction in range(6):
+            self.calibrate_droplet_straight(direction, fName=fileName)
 
     def test_spin_settings(self, motor_values, cw_q, output_stream):
         try:
@@ -294,7 +303,7 @@ class Calibrator:
             count=0
             while count<200: #timeout of ~2 seconds of no movement.
                 orient = self.get_rr_orient()
-                print("Orient: %f"%(orient))
+                #print("Orient: %f"%(orient))
                 if abs(orient-last_orient)>0.5:
                     count=0
                 self.rr.WaitImage(10)

@@ -38,10 +38,6 @@ void handle_serial_command(char* command, uint16_t command_length)
 		{
 			handle_stop_walk();
 		}
-		else if(strcmp(command_word,"brake")==0)
-		{
-			handle_brake(command_args);
-		}
 		else if(strcmp(command_word,"run_motor")==0)
 		{
 			handle_run_motor(command_args);	
@@ -160,9 +156,11 @@ void handle_move_steps(char* command_args)
 	uint16_t num_steps = (uint16_t)atoi(token);
 	if (num_steps > 0)
 	{
-		printf("walk direction %u, num_steps %u\r\n", direction, num_steps);		
+		set_rgb(0,0,200);		
+		printf("walk direction %u, num_steps %u\r\n", direction, num_steps);	
 		move_steps(direction, num_steps);
-	}		
+		set_rgb(0,0,0);
+	}	
 }	
 
 //void handle_take_steps(char* command_args)
@@ -194,7 +192,9 @@ void handle_walk(char* command_args)
 
 void handle_stop_walk()
 {
+	set_rgb(180,0,0);
 	stop();
+	set_rgb(0,0,0);
 }
 
 void handle_run_motor(char* command_args)
@@ -240,7 +240,7 @@ void handle_run_motor(char* command_args)
 	TCC0.CTRLB = TC0_CCBEN_bm | wg_mode;
 	
 	uint16_t dur=0;
-	while((dur<(duration)) && !(motor_status & MOTOR_STATUS_CANCEL))
+	while((dur<(duration)) && motor_status)
 	{
 		delay_ms(5);
 		dur+=5;
@@ -297,7 +297,7 @@ void handle_run_motors(char* command_args)
 	TCC1.CTRLB = TC1_CCAEN_bm | TC_WGMODE_SS_gc;
 	
 	uint16_t dur=0;
-	while((dur<(duration)) && !(motor_status & MOTOR_STATUS_CANCEL))
+	while((dur<(duration)) && motor_status)
 	{
 		delay_ms(5);
 		dur+=5;
@@ -356,17 +356,6 @@ void handle_set_mm_per_kilostep(char* command_args)
 	uint16_t mm_per_kilostep = atoi(token);
 
 	set_mm_per_kilostep(direction, mm_per_kilostep);
-	
-}
-
-void handle_brake(char* command_args)
-{
-	const char delim[2] = " ";
-	
-	char* token = strtok(command_args,delim);
-	uint8_t mot_num = token[0]-'0';
-
-	brake(mot_num);
 	
 }
 

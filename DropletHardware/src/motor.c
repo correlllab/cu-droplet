@@ -8,63 +8,29 @@ void motor_init()
 
 	TCC0.CTRLA = TC_CLKSEL_DIV1024_gc;
 	TCC0.CTRLB = TC_WGMODE_SS_gc;
-	//TCC0.PER = 32; This needs to be set for each move_step, now.
     
 	TCC1.CTRLA = TC_CLKSEL_DIV1024_gc;
 	TCC1.CTRLB = TC_WGMODE_SS_gc;
-	//TCC0.PER = 32; This needs to be set for each move_step, now.
 
 	TCE0.CTRLA = TC_CLKSEL_DIV1024_gc;
 	TCE0.CTRLB = TC_WGMODE_SS_gc;
-	//TCC0.PER = 32; This needs to be set for each move_step, now.
 
 	motor_status = 0;
 
-	motor_signs[0][0]=0;	motor_signs[0][1]=1;	motor_signs[0][2]=-1;  	//Towards motor 0.
-	motor_signs[1][0]=-1;	motor_signs[1][1]=1;	motor_signs[1][2]=0;  	//Away from motor 2.
-	motor_signs[2][0]=-1;	motor_signs[2][1]=0;	motor_signs[2][2]=1;  	//Towards motor 1.
-	motor_signs[3][0]=0;	motor_signs[3][1]=-1;	motor_signs[3][2]=1;  	//Away from motor 0.
-	motor_signs[4][0]=1;	motor_signs[4][1]=-1;	motor_signs[4][2]=0;  	//Towards motor 2.
-	motor_signs[5][0]=1;	motor_signs[5][1]=0;	motor_signs[5][2]=-1;  	//Away from motor 1.
-	motor_signs[6][0]=-1;	motor_signs[6][1]=-1;	motor_signs[6][2]=-1;  	//Clockwise spin.
-	motor_signs[7][0]=1;	motor_signs[7][1]=1;	motor_signs[7][2]=1;  	//Anti-Clockwise spin.
+	//motor_signs[0][0]=0;	motor_signs[0][1]=1;	motor_signs[0][2]=-1;  	//Towards motor 0.
+	//motor_signs[1][0]=-1;	motor_signs[1][1]=1;	motor_signs[1][2]=0;  	//Away from motor 2.
+	//motor_signs[2][0]=-1;	motor_signs[2][1]=0;	motor_signs[2][2]=1;  	//Towards motor 1.
+	//motor_signs[3][0]=0;	motor_signs[3][1]=-1;	motor_signs[3][2]=1;  	//Away from motor 0.
+	//motor_signs[4][0]=1;	motor_signs[4][1]=-1;	motor_signs[4][2]=0;  	//Towards motor 2.
+	//motor_signs[5][0]=1;	motor_signs[5][1]=0;	motor_signs[5][2]=-1;  	//Away from motor 1.
+	//motor_signs[6][0]=-1;	motor_signs[6][1]=-1;	motor_signs[6][2]=-1;  	//Clockwise spin.
+	//motor_signs[7][0]=1;	motor_signs[7][1]=1;	motor_signs[7][2]=1;  	//Anti-Clockwise spin.
 
 	motor_on_time = MOTOR_ON_TIME;
 	motor_off_time = MOTOR_OFF_TIME;
 	
 	read_motor_settings();
 }
-
-//uint8_t take_steps(uint8_t motor_num, int16_t num_steps)
-//{
-	//if(is_moving()) return 0;
-	//motor_status = MOTOR_STATUS_ON | (1 & MOTOR_STATUS_DIRECTION); //I AM LYING ABOUT THE DIRECTION.
-	//
-	//uint16_t actual_num_steps = (uint16_t)num_steps;
-	//
-	//current_motor_direction[0] = 0; current_motor_direction[1]=0; current_motor_direction[2]=0;
-	//
-	//int8_t sign_flip = ((((int8_t)((motor_flipped>>motor_num)&0x1))*-2)+1);
-	//current_motor_direction[motor_num] = (sign_flip*((num_steps>>15)*2+1));
-	//
-	//uint16_t motor_duration = 32*motor_on_time + motor_adjusts[motor_num][current_motor_direction[motor_num]<0];
-	//uint16_t total_time = motor_duration + 32*motor_off_time;
-	//
-	//switch(motor_num)
-	//{
-		//case 0: TCC0.PER = total_time; TCC0.CCA = TCC0.CCB = motor_duration; TCC0.CNT=0; break;
-		//case 1: TCC1.PER = total_time; TCC1.CCA = TCC1.CCB = motor_duration; TCC1.CNT=0; break;
-		//case 2: TCE0.PER = total_time; TCE0.CCA = TCE0.CCB = motor_duration; TCE0.CNT=0; break;
-	//}
-	//
-	//if(current_motor_direction[motor_num] <0) motor_backward(motor_num);
-	//else if(current_motor_direction[motor_num] > 0) motor_forward(motor_num);
-	//else printf("Shouldn't get here - we set current_motor_direction to be non-zero!\r\n");
-	//
-	//uint32_t total_movement_duration = (((uint32_t)total_time)*((uint32_t)abs(num_steps)))/32;
-	////printf("Total duration: %u ms.\r\n\n",total_movement_duration);
-	//current_motor_task = schedule_task(total_movement_duration, stop, NULL);	
-//}
 
 uint8_t move_steps(uint8_t direction, uint16_t num_steps)
 {
@@ -80,7 +46,7 @@ uint8_t move_steps(uint8_t direction, uint16_t num_steps)
 	{		
 		mot_durs[mot] = 32*motor_on_time + abs(motor_adjusts[direction][mot]);
 		
-		mot_dirs[mot] = ((((motor_adjusts[direction][mot]>>15)&0x1)*-2)+1)*motor_signs[direction][mot];
+		mot_dirs[mot] = ((((motor_adjusts[direction][mot]>>15)&0x1)*-2)+1)/**motor_signs[direction][mot]*/;
 		
 		if(mot_durs[mot]==0) continue;
 		
@@ -110,8 +76,8 @@ uint8_t move_steps(uint8_t direction, uint16_t num_steps)
 	if(current_offset != total_time) printf("ERROR (I think): current_offset: %hu and total_time: %hu not equal!\r\n", current_offset, total_time);
 	for(uint8_t mot=0 ; mot<3 ; mot++) 	//Now we just need to tell the motors to go!
 	{
-		if(mot_dirs[mot]<0) motor_backward_two(mot); 
-		else if(mot_dirs[mot]>0)	motor_forward_two(mot);
+		if(mot_dirs[mot]<0) motor_backward(mot); 
+		else if(mot_dirs[mot]>0)	motor_forward(mot);
 	}
 	uint32_t total_movement_duration = ((uint32_t)total_time)*((uint32_t)num_steps)/32;
 	//printf("Total duration: %u ms.\r\n\n",total_movement_duration);
@@ -127,12 +93,10 @@ void walk(uint8_t direction, uint16_t mm)
 	move_steps(direction, (uint16_t)steps);
 }
 
-// Turn all motors off, set status to cancel to prevent any currently scheduled tasks
-// from turning the motors back on
 void stop()
 {
-	//printf("Stopping.\r\n");	
-	motor_status = MOTOR_STATUS_CANCEL;
+	//printf("Stopping.\r\n");
+
 	TCC0.CTRLB = TC_WGMODE_SS_gc;
 	TCC1.CTRLB = TC_WGMODE_SS_gc;
 	TCE0.CTRLB = TC_WGMODE_SS_gc;
@@ -147,28 +111,16 @@ void stop()
 	PORTE.PIN0CTRL = 0;
 	PORTE.PIN1CTRL = 0;
 	
-	
 	TCD0.CTRLB = TC_WGMODE_SS_gc;		
 	TCD0.INTCTRLB = 0x0;
-	
-	remove_task(current_motor_task);	
+
+	motor_status = 0;
+	remove_task(current_motor_task);
 }
-
-void brake(uint8_t num)
-{
-
-	switch(num)
-	{
-		case 0: TCC0.CTRLB = TC_WGMODE_SS_gc; PORTC.OUTSET |= PIN0_bm | PIN1_bm; break;
-		case 1: TCC1.CTRLB = TC_WGMODE_SS_gc; PORTC.OUTSET |= PIN4_bm | PIN5_bm; break;
-		case 2: TCE0.CTRLB = TC_WGMODE_SS_gc; PORTE.OUTSET |= PIN0_bm | PIN1_bm; break;
-	}
-}
-
 
 uint8_t is_moving(void) // returns 0 if droplet is not moving, (1-6) if moving
 {
-	if ((motor_status & MOTOR_STATUS_ON) || (motor_status & MOTOR_STATUS_DIRECTION < 8)){
+	if (motor_status & MOTOR_STATUS_ON){
 		return (motor_status & MOTOR_STATUS_DIRECTION) + 1;
 	}	
 	
@@ -276,25 +228,3 @@ void print_dist_per_step()
 		printf("\t%i\t%hu\r\n", direction, mm_per_kilostep[direction]);	
 	}
 }
-
-// Low-level control of individual motors
-//void motor_forward(uint8_t num)
-//{
-	//switch (num)
-	//{
-		//case 0: TCC0.CTRLB = TC0_CCAEN_bm | TC_WGMODE_SS_gc; break;
-		//case 1:	TCC1.CTRLB = TC1_CCAEN_bm | TC_WGMODE_SS_gc; break;
-		//case 2: TCE0.CTRLB = TC0_CCAEN_bm | TC_WGMODE_SS_gc; break;
-	//}
-//}
-
-// Low-level control of individual motors
-//void motor_backward(uint8_t num)
-//{
-	//switch (num)
-	//{
-		//case 0: TCC0.CTRLB = TC0_CCBEN_bm | TC_WGMODE_SS_gc; break;
-		//case 1: TCC1.CTRLB = TC1_CCBEN_bm | TC_WGMODE_SS_gc; break;
-		//case 2: TCE0.CTRLB = TC0_CCBEN_bm | TC_WGMODE_SS_gc; break;
-	//}
-//}

@@ -18,7 +18,6 @@ void handle_move_steps(char* command_args);
 //void handle_take_steps(char* command_args);
 void handle_walk(char* command_args);
 void handle_stop_walk();
-void handle_brake(char* command_args);
 void handle_run_motor(char* command_args);
 void handle_run_motors(char* command_args);
 void handle_set_motors_on_off(char* command_args);

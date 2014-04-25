@@ -101,6 +101,22 @@ def pick_direction(pos, theta, bases, x_boundaries, y_boundaries):
                 max_dir = dir
     return max_dir
 
+#get_travel_dir just returns 1 if the droplet traveled more in the correct direction
+# than the incorrect direction, and -1 otherwise.
+def get_travel_dir(start_pos, end_pos, start_orient, goal_angle):
+    start_orient = np.deg2rad(start_orient+90)
+    goal_angle = np.deg2rad(goal_angle+90)
+    travel_vec = np.array(end_pos)-np.array(start_pos)
+    goal_travel_vec = np.array([np.cos(goal_angle+start_orient-np.pi/2),np.sin(goal_angle+start_orient-np.pi/2)])
+    #print([start_orient, goal_angle])
+    #print(goal_travel_vec)
+    return np.sign(travel_vec.dot(goal_travel_vec))
+
+def get_radial_velocity(orient_list):
+    orient_grad = np.gradient(orient_list)
+    orient_grad[np.abs(orient_grad)>90]=0
+    return np.mean(orient_grad)
+
 def get_sign(pos, orient, center):
     dirVector = np.array([np.cos(np.deg2rad(orient)),np.sign(np.deg2rad(orient))])
     return np.linalg.det(np.array([dirVector, center-pos]).transpose())

@@ -320,8 +320,7 @@ void handle_set_motors_on_off(char* command_args)
 }
 
 void handle_set_motors(char* command_args)
-{
-	
+{	
 	const char delim[2] = " ";
 	
 	char* token = strtok(command_args,delim);
@@ -331,19 +330,19 @@ void handle_set_motors(char* command_args)
 
 	token = strtok(NULL,delim);
 	if(token==NULL){ printf("strtok returned NULL on first val.\r\n"); return;}	
-	motor_values[direction][0] = atoi(token);
+	motor_adjusts[direction][0] = atoi(token);
 	
 	token = strtok(NULL,delim);
 	if(token==NULL){ printf("strtok returned NULL on second val.\r\n"); return;}
-	motor_values[direction][1] = atoi(token);
+	motor_adjusts[direction][1] = atoi(token);
 	
 	token = strtok(NULL,delim);
 	if(token==NULL){ printf("strtok returned NULL on third val.\r\n"); return;}
-	motor_values[direction][2] = atoi(token);	
+	motor_adjusts[direction][2] = atoi(token);	
 	
 	//There should always be at least one motor with strength 1.0. It(they) must be the strongest motor(s).
 
-	printf("Got set_motors command. direction: %hhu, vals: (%d, %d, %d)\r\n", direction, motor_values[direction][0], motor_values[direction][1], motor_values[direction][2]);
+	printf("Got set_motors command. direction: %hhu, vals: (%d, %d, %d)\r\n", direction, motor_adjusts[direction][0], motor_adjusts[direction][1], motor_adjusts[direction][2]);
 }
 
 void handle_set_mm_per_kilostep(char* command_args)

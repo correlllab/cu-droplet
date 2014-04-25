@@ -16,20 +16,36 @@ class MyException(Exception):
 def set_led(r, g, b):
     serial.write("cmd set_led rgb %d %d %d"%(r, g, b))
 
-def set_motors(dir, mot0val, mot1val, mot2val):
-    serial.write("cmd set_motors %d %d %d %d"%(dir, mot0val, mot1val, mot2val))
+def set_motors(direction, mot0val, mot1val, mot2val):
+    serial.write("cmd set_motors %d %d %d %d"%(direction, mot0val, mot1val, mot2val))
     #Once more, just to be sure.
-    serial.write("cmd set_motors %d %d %d %d"%(dir, mot0val, mot1val, mot2val))
+    serial.write("cmd set_motors %d %d %d %d"%(direction, mot0val, mot1val, mot2val))
 
-def move_steps(dir, num_steps):
-    serial.write("cmd move_steps %d %d"%(dir, num_steps))
+def move_steps(direction, num_steps):
+    serial.write("cmd move_steps %d %d"%(direction, num_steps))
     #Once more, just to be sure.
- #   serial.write("cmd move_steps %d %d"%(dir, num_steps))
+ #   serial.write("cmd move_steps %d %d"%(direction, num_steps))
 
 def stop_walk():
     serial.write("cmd stop_walk")
     #Once more, just to be sure.
   #  serial.write("cmd stop_walk")
+
+def get_motor_vals_for_dir(x, direction):
+    if direction is 0:
+        return [0, x[0], x[1]]
+    elif direction is 1:
+        return [x[0], x[1], 0]
+    elif direction is 2:
+        return [x[0], 0, x[1]]
+    elif direction is 3:
+        return [0, x[0], x[1]]
+    elif direction is 4:
+        return [x[0], x[1], 0]
+    elif direction is 5:
+        return [x[0], 0, x[1]]
+    else:
+        print("Invalid direction request")
 
 class Calibrator:
     
@@ -53,7 +69,7 @@ class Calibrator:
         port_h = serial.open_serial_port("COM9")
         serial.set_global_port(port_h)
 
-    def get_position_data_batch(self, dir, length):
+    def get_position_data_batch(self, direction, length):
         stop_walk()
         pos_list = np.zeros((length,2))
         orient_list = np.zeros(length)
@@ -61,7 +77,7 @@ class Calibrator:
         early_abort = False
         new_blobs = 0
         blobs= 0
-        move_steps(dir, length)
+        move_steps(direction, length)
         while (h<length) and not early_abort:
             pos_list[h] = np.array(self.get_rr_pos())
             orient_list[h] = self.get_rr_orient()
@@ -78,11 +94,6 @@ class Calibrator:
             h += 1 #update counter            
         stop_walk()
         return (pos_list, orient_list, h)
-
-    def initialize_motor_settings(self):
-        set_motor(0,0,0)
-        set_motor(1,0,0)
-        set_motor(2,0,0)
 
     def get_rr_pos(self):
         try:
@@ -108,8 +119,8 @@ class Calibrator:
         fileName = "data\\dmc_calib_" + timestamp
         self.calibrate_droplet_spin(True, fName=fileName) #CW
         self.calibrate_droplet_spin(False, fName=fileName) #CCW
-        for dir in range(6):
-            self.calibrate_droplet_straight(dir, fName=fileName)
+        for direction in range(6):
+            self.calibrate_droplet_straight(direction, fName=fileName)
         for i in range(4):
             serial.write("cmd write_motor_settings")
         print("!!!\nDone calibrating!\n!!!")
@@ -127,18 +138,24 @@ class Calibrator:
             (pos_list, orient_list, num_good_points) = self.get_position_data_batch(7-cw_q, self.data_points_for_straighten)
         except MyException:
             return
-        print("mean delta orient: %f"%(np.mean(np.gradient(orient_list))))
         if num_good_points<0.8*self.data_points_for_straighten:
             print("Not enough good data.")
             return self.test_spin_settings(motor_values, cw_q, output_stream)
         (center, radius, residual, sign) = maths.lsq(pos_list, orient_list)
-        direction_of_spin = np.mean(np.gradient(orient_list))
+        radial_velocity = maths.get_radial_velocity(orient_list)
+        print("mean delta orient: %f"%(radial_velocity))
+
+        #print("Dump")
+        #print(orient_list)
+        #print(np.gradient(orient_list))
+        #print(radial_velocity)
+
         print("Radius: %f"%(radius))
-        self.spin_settings_history[cw_q][str(motor_values)] = (radius, direction_of_spin)
+        self.spin_settings_history[cw_q][str(motor_values)] = (radius, radial_velocity)
         #print("settings_history%s = %f"%(str(motor_values), radius))
         #print("settings_history: %s"%(str(self.settings_history)))
         orient_changed = orient_list[-1]-orient_list[0]
-        output_stream.write("%f, %f, %f, %f, %f, %f\n"%(motor_values[0], motor_values[1], motor_values[2], radius, direction_of_spin, orient_changed))
+        output_stream.write("%f, %f, %f, %f, %f, %f\n"%(motor_values[0], motor_values[1], motor_values[2], radius, radial_velocity, orient_changed))
         output_stream.flush()
         return self.test_spin_settings(motor_values, cw_q, output_stream)
 
@@ -148,10 +165,10 @@ class Calibrator:
         rho = -0.5  #contraction coefficient
         sigma = 0.5 #shrink coefficient
 
-        x_0 = np.array([1000, 1000, 1000])
-        x_1 = np.array([1000, -1000, -1000])
-        x_2 = np.array([-1000, 1000, -1000])
-        x_3 = np.array([-1000, -1000, 1000])
+        x_0 = np.array([0, 0, 0])
+        x_1 = np.array([-200, 200, 200])
+        x_2 = np.array([200, -200, 200])
+        x_3 = np.array([200, 200, -200])
         spx = np.array([x_0, x_1, x_2, x_3])
         old_spx = np.zeros((4,3))
 
@@ -170,8 +187,12 @@ class Calibrator:
 
         finished = False
         def fun(x):
-            (radius, mean_delta_orient) =self.test_spin_settings(x, cw_q, settings_history_file)
-            return radius + (1 if cw_q else -1)*20*mean_delta_orient
+            (radius, radial_velocity) =self.test_spin_settings(x, cw_q, settings_history_file)
+            desired_spin_dir = -1 if cw_q else 1
+            if desired_spin_dir*radial_velocity>0:
+                return radius - 10*abs(radial_velocity) #if we're spinning in the right direction
+            else:
+                return radius + 100*abs(radial_velocity) #if we're spinning in the wrong direction
         def full_fun(x):
             return self.test_spin_settings(x, cw_q, settings_history_file)
         try:
@@ -226,7 +247,7 @@ class Calibrator:
             settings_history_file.close()
             simplex_history_file.close()
 
-    def spin_for_safe_straight(self, dir):
+    def spin_for_safe_straight(self, direction):
         pos = self.get_rr_pos()
 
         i=1
@@ -257,10 +278,10 @@ class Calibrator:
                 desired_orientationInit = 135
 
 
-        desired_orientation = desired_orientationInit + dir*60
-        desired_orientation = np.mod(desired_orientation,360)
+        desired_orientation = desired_orientationInit + direction*60
+        desired_orientation = np.mod(desired_orientation+180,360)-180
         
-        print("dir: %d, temp_pos: (%f, %f), Desired Orientation: %f, Desired orientation, adjusted: %f"%(dir, temp_x, temp_y, desired_orientationInit, desired_orientation))
+        print("direction: %d, temp_pos: (%f, %f), Desired Orientation: %f, Desired orientation, adjusted: %f"%(direction, temp_x, temp_y, desired_orientationInit, desired_orientation))
 
         while(True):
             last_orient = self.get_rr_orient()
@@ -273,11 +294,12 @@ class Calibrator:
             count=0
             while count<200: #timeout of ~2 seconds of no movement.
                 orient = self.get_rr_orient()
+                print("Orient: %f"%(orient))
                 if abs(orient-last_orient)>0.5:
                     count=0
                 self.rr.WaitImage(10)
                 orient = np.mod(orient+180,360)-180
-                if abs(desired_orientation-orient)<1:
+                if abs(desired_orientation-orient)<10:
                     print("Spin complete.")
                     return
                 last_orient=orient
@@ -285,7 +307,8 @@ class Calibrator:
             print("Droplet not moving? Trying again.")
 
 
-    def test_straight_settings(self, mot_vals, direction, output_stream):
+    def test_straight_settings(self, x, direction, output_stream):
+        mot_vals = get_motor_vals_for_dir(x, direction)
         try:
             return self.straight_settings_history[direction][str(mot_vals)]
         except KeyError:
@@ -293,40 +316,40 @@ class Calibrator:
         set_motors(direction,*mot_vals)
         try:
             self.spin_for_safe_straight(direction)
-            (pos_list, orient_list, num_good_points) = self.get_position_data_batch(dir, self.data_points_for_straighten)
+            (pos_list, orient_list, num_good_points) = self.get_position_data_batch(direction, self.data_points_for_straighten)
         except MyException:
             return
         if num_good_points<0.8*self.data_points_for_straighten:
             print("Not enough good data.")
-            return
+            return self.test_straight_settings(mot_vals, direction, output_stream)
         (center, radius, residual, sign) = maths.lsq(pos_list, orient_list)
         distance_traveled = np.linalg.norm(pos_list[-1]-pos_list[0])
-        self.straight_settings_history[direction][str(mot_vals)] = (radius, sign, distance_traveled)
+        travel_dir = maths.get_travel_dir(pos_list[0],pos_list[-1],orient_list[0],self.expected_travel_dirs[direction])
+        self.straight_settings_history[direction][str(mot_vals)] = (radius, travel_dir, distance_traveled,)
         #print("settings_history%s = %f"%(str(motor_values), radius))
         #print("settings_history: %s"%(str(self.settings_history)))
-        output_stream.write("%d, %d, %d, %d, %f, %f, %f\n"%(mot_vals[0], mot_vals[1], mot_vals[2], radius, sign, distance_traveled))
+        output_stream.write("%d, %d, %d, %f, %f, %f\n"%(mot_vals[0], mot_vals[1], mot_vals[2], radius, sign, distance_traveled))
         output_stream.flush()
         return self.test_straight_settings(mot_vals, direction, output_stream)
 
-    def calibrate_droplet_straight(self, dir, fName=None):
+    def calibrate_droplet_straight(self, direction, fName=None):
         alpha = 1.  #reflection coefficient
         gamma = 2.  #expansion coefficient
         rho = -0.5  #contraction coefficient
         sigma = 0.5 #shrink coefficient
 
-        x_0 = np.array([1000, 1000, 0])
-        x_1 = np.array([0, 1000, 1000])
-        x_2 = np.array([1000, 0, -1000])
-        x_3 = np.array([-1000, 0, 1000])
-        spx = np.array([x_0, x_1, x_2, x_3])
-        old_spx = np.zeros((4,3))
+        x_0 = np.array([0,0])
+        x_1 = np.array([100,-100])
+        x_2 = np.array([-100,100])
+        spx = np.array([x_0, x_1, x_2])
+        old_spx = np.zeros((3,2))
 
         if fName is None:
             settings_history_fName = 'dmc_data_%s.csv'%("cw" if cw_q else "ccw")
             simplex_history_fName = 'dmc_data_%s.csv'%("cw" if cw_q else "ccw")
         else:
-            settings_history_fName = fName + "_%s_hist.csv"%(dir)
-            simplex_history_fName = fName + "_%s_spx.csv"%(dir)
+            settings_history_fName = fName + "_%s_hist.csv"%(direction)
+            simplex_history_fName = fName + "_%s_spx.csv"%(direction)
 
         settings_history_file = open(settings_history_fName,'w')
         settings_history_file.write('mot0set, mot1set, mot2set, radius, sign, distance_traveled\n')
@@ -336,8 +359,8 @@ class Calibrator:
 
         finished = False
         def fun(x):
-            (radius, sign, dist_traveled) =self.test_straight_settings(x, dir, settings_history_file)
-            return -radius - dist_traveled
+            (radius, travel_dir, dist_traveled) =self.test_straight_settings(x, direction, settings_history_file)
+            return -radius - travel_dir*dist_traveled
         try:
             while(True):
                 spx = np.array(sorted(spx, key=fun))
@@ -374,7 +397,7 @@ class Calibrator:
                         print("Contracting.")
                         spx[-1] = x_c
                     else:
-                        for i in range(1,4):
+                        for i in range(1,3):
                             spx[i] = (spx[0] + sigma*(spx[i]-spx[0])).astype(int)
 
                 if finished:
@@ -437,7 +460,7 @@ class Calibrator:
             stop_walk()
             fh.close()
 
-    def calibrate_dist_per_step(self, dir, num_steps = 100, fName = None):
+    def calibrate_dist_per_step(self, direction, num_steps = 100, fName = None):
         """
         Calibrates the number of degrees per kilostep of droplet motion rotation
         """
@@ -449,7 +472,7 @@ class Calibrator:
             fName = fName + "_deg_per_kilostep.csv"
         try:   
             start_pos = np.array(self.get_rr_pos())
-            move_steps(dir, num_steps)
+            move_steps(direction, num_steps)
 
             while(True):
                 for i in range(100):

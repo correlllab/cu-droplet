@@ -72,16 +72,15 @@ uint8_t move_steps(uint8_t direction, uint16_t num_steps)
 	motor_status = MOTOR_STATUS_ON | (direction & MOTOR_STATUS_DIRECTION);
 	
 	uint16_t mot_durs[3]; //This is how long we want each motor to be on for.
-	uint8_t mot_dirs[3]; //This is what direction we want each motor to spin in. 1: CCW, -1: CW, 0: No spin.
+	int8_t mot_dirs[3]; //This is what direction we want each motor to spin in. 1: CCW, -1: CW, 0: No spin.
 	uint16_t total_time = 0; //This is the total length of a step, and will be the period of the PWM generation.
 	
 	int8_t sign_flip;
 	for(uint8_t mot=0 ; mot<3 ; mot++)
 	{		
-		mot_durs[mot] = 32*motor_on_time + motor_values[direction][mot];
+		mot_durs[mot] = 32*motor_on_time + abs(motor_adjusts[direction][mot]);
 		
-		sign_flip = ((((int8_t)((motor_flipped>>mot)&0x1))*-2)+1);
-		mot_dirs[mot] = sign_flip*motor_signs[direction][mot];
+		mot_dirs[mot] = ((((motor_adjusts[direction][mot]>>15)&0x1)*-2)+1)*motor_signs[direction][mot];
 		
 		if(mot_durs[mot]==0) continue;
 		
@@ -112,7 +111,7 @@ uint8_t move_steps(uint8_t direction, uint16_t num_steps)
 	for(uint8_t mot=0 ; mot<3 ; mot++) 	//Now we just need to tell the motors to go!
 	{
 		if(mot_dirs[mot]<0) motor_backward_two(mot); 
-		else if(motor_values[direction][mot]>0)	motor_forward_two(mot);
+		else if(mot_dirs[mot]>0)	motor_forward_two(mot);
 	}
 	uint32_t total_movement_duration = ((uint32_t)total_time)*((uint32_t)num_steps)/32;
 	//printf("Total duration: %u ms.\r\n\n",total_movement_duration);
@@ -192,7 +191,7 @@ void read_motor_settings()
 	{
 		for (uint8_t motor_num = 0; motor_num < 3 ; motor_num++)
 		{
-			motor_values[direction][motor_num] = ((((int16_t)SP_ReadUserSignatureByte(0x10 + 6*direction + 2*motor_num + 0))<<8) | ((int16_t)SP_ReadUserSignatureByte(0x10 + 6*direction + 2*motor_num + 1)));
+			motor_adjusts[direction][motor_num] = ((((int16_t)SP_ReadUserSignatureByte(0x10 + 6*direction + 2*motor_num + 0))<<8) | ((int16_t)SP_ReadUserSignatureByte(0x10 + 6*direction + 2*motor_num + 1)));
 		}
 
 	}
@@ -201,7 +200,6 @@ void read_motor_settings()
 		mm_per_kilostep[direction] =(uint16_t)SP_ReadUserSignatureByte(0x40 + 2*direction + 0)<<8 |
 		(uint16_t)SP_ReadUserSignatureByte(0x40 + 2*direction + 1);
 	}
-	motor_flipped = SP_ReadUserSignatureByte(0x50);
 }
 
 void write_motor_settings()
@@ -214,7 +212,7 @@ void write_motor_settings()
 	{
 		for (uint8_t motor_num = 0; motor_num < 3 ; motor_num++)
 		{
-			int16_t temp = motor_values[direction][motor_num];
+			int16_t temp = motor_adjusts[direction][motor_num];
 			page_buffer[(0x10 + 6*direction + 2*motor_num + 0)] = (uint8_t)((temp>>8)&0xFF);
 			page_buffer[(0x10 + 6*direction + 2*motor_num + 1)] = (uint8_t)(temp&0xFF);
 		}		
@@ -226,8 +224,6 @@ void write_motor_settings()
 		page_buffer[(0x40 + 2*direction + 0)] = (uint8_t)((temp>>8)&0xFF);
 		page_buffer[(0x40 + 2*direction + 1)] = (uint8_t)(temp&0xFF);
 	}					
-	
-	page_buffer[0x50] = motor_flipped;
 	
 	SP_LoadFlashPage(page_buffer);
 	
@@ -252,7 +248,7 @@ void print_motor_values()
 		printf("\tdir: %d\t",direction);
 		for(uint8_t motor=0;motor<3;motor++)
 		{
-			printf("%d\t", motor_values[direction][motor]);
+			printf("%d\t", motor_adjusts[direction][motor]);
 		}
 		printf("\r\n");
 	}

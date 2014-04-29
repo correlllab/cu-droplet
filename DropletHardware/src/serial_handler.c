@@ -26,10 +26,6 @@ void handle_serial_command(char* command, uint16_t command_length)
 		{
 			handle_move_steps(command_args);
 		}		
-		//else if(strcmp(command_word, "take_steps")==0)
-		//{
-			////handle_take_steps(command_args);
-		//}		
 		else if(strcmp(command_word,"walk")==0)
 		{
 			handle_walk(command_args);
@@ -37,18 +33,6 @@ void handle_serial_command(char* command, uint16_t command_length)
 		else if(strcmp(command_word,"stop_walk")==0)
 		{
 			handle_stop_walk();
-		}
-		else if(strcmp(command_word,"run_motor")==0)
-		{
-			handle_run_motor(command_args);	
-		}
-		else if(strcmp(command_word, "run_motors")==0)
-		{
-			handle_run_motors(command_args);
-		}
-		else if(strcmp(command_word, "set_motors_on_off")==0)
-		{
-			handle_set_motors_on_off(command_args);	
 		}
 		else if(strcmp(command_word,"set_motors")==0)
 		{
@@ -114,12 +98,7 @@ void handle_serial_command(char* command, uint16_t command_length)
 		{
 			print_motor_values();
 			print_dist_per_step();
-		}
-		else if(strcmp(command_word,"broadcast_motor_settings")==0)
-		{
-			broadcast_motor_adjusts();
-			//broadcast_dist_per_step();
-		}		
+		}	
 		else if(strcmp(command_word,"write_motor_settings")==0)
 		{
 			write_motor_settings();
@@ -163,20 +142,6 @@ void handle_move_steps(char* command_args)
 	}	
 }	
 
-//void handle_take_steps(char* command_args)
-//{
-	//const char delim[2] = " ";
-	//
-	//char* token = strtok(command_args,delim);
-	//uint8_t motor_num = token[0]-'0';
-//
-	//token = strtok(NULL,delim);
-	//int16_t num_steps = (int16_t)atoi(token);
-	//printf("Taking %hu steps with motor %hhu, forwards: %hhu\r\n",abs(num_steps), motor_num, !(num_steps>>15));
-	//take_steps(motor_num, num_steps);
-	//
-//}
-
 void handle_walk(char* command_args)
 {	
 	const char delim[2] = " ";
@@ -195,128 +160,6 @@ void handle_stop_walk()
 	set_rgb(180,0,0);
 	stop();
 	set_rgb(0,0,0);
-}
-
-void handle_run_motor(char* command_args)
-{
-	uint8_t prescalar, wg_mode;
-	uint16_t period, offset, duty_cycle, duration;
-	
-	char* token;
-	const char delim[2] = " ";
-	
-	token = strtok(command_args, delim);
-	if(token==NULL){ printf("strtok returned NULL on clk_sel.\r\n"); return;}
-	prescalar = atoi(token); //1: 1, 2: 2, 3: 4, 4: 8, 5: 64, 6: 256, 7: 1024
-	if((prescalar<1)||(prescalar>7)){ printf("Bad clk_sel value, got: %hhu\r\n",prescalar); return;}
-		
-	token = strtok(NULL, delim);
-	if(token==NULL){ printf("strtok returned NULL on wg_mode.\r\n"); return;}	
-	wg_mode = atoi(token); //0: normal, 1: frequency, 3: singleslope, 5-7: dualslope.
-	if((wg_mode>7)){ printf("Bad wg_mode value, got: %hhu\r\n",wg_mode); return;}
-	
-	token = strtok(NULL, delim);
-	if(token==NULL){ printf("strtok returned NULL on period.\r\n"); return;}	
-	period = atoi(token);
-	
-	token = strtok(NULL, delim);
-	if(token==NULL){ printf("strtok returned NULL on offset.\r\n"); return;}
-	offset = atoi(token);
-	
-	token = strtok(NULL, delim);
-	if(token==NULL){ printf("strtok returned NULL on duty_cycle.\r\n"); return;}
-	duty_cycle = atoi(token);
-	if(duty_cycle> period){ printf("Bad duty_cycle. Got: %hu. Must be less than period.\r\n"); return;}
-		
-	token = strtok(NULL, delim);
-	if(token==NULL){printf("strtok returned NULL on duration.\r\n"); return;}
-	duration = atoi(token);
-	
-	//Strictly going to do motor 3?
-	TCC0.CTRLA |= prescalar;
-	TCC0.PER = period;
-	TCC0.CCA = TCC0.CCB = duty_cycle;
-	TCC0.CNTL=offset;//If two motors have different values here, their waves will be offset from eachother.
-	TCC0.CTRLB = TC0_CCBEN_bm | wg_mode;
-	
-	uint16_t dur=0;
-	while((dur<(duration)) && motor_status)
-	{
-		delay_ms(5);
-		dur+=5;
-	}
-	TCC0.CTRLB = wg_mode;
-}
-
-void handle_run_motors(char* command_args)
-{
-	uint16_t period, offset0, offset1, duty_cycle0, duty_cycle1, duration;
-	
-	char* token;
-	const char delim[2] = " ";
-	
-	token = strtok(command_args, delim);
-	if(token==NULL){ printf("strtok returned NULL on period0.\r\n"); return;}	
-	period = atoi(token);
-	
-	token = strtok(NULL, delim);
-	if(token==NULL){ printf("strtok returned NULL on offset0.\r\n"); return;}
-	offset0 = atoi(token);
-	
-	token = strtok(NULL, delim);
-	if(token==NULL){ printf("strtok returned NULL on offset1.\r\n"); return;}
-	offset1 = atoi(token);
-	
-	token = strtok(NULL, delim);
-	if(token==NULL){ printf("strtok returned NULL on duty_cycle0.\r\n"); return;}
-	duty_cycle0 = atoi(token);
-	if(duty_cycle0> period){ printf("Bad duty_cycle0. Got: %hu. Must be less than period.\r\n"); return;}
-		
-	token = strtok(NULL, delim);
-	if(token==NULL){ printf("strtok returned NULL on duty_cycle1.\r\n"); return;}
-	duty_cycle1 = atoi(token);
-	if(duty_cycle1> period){ printf("Bad duty_cycle1. Got: %hu. Must be less than period.\r\n"); return;}		
-		
-	token = strtok(NULL, delim);
-	if(token==NULL){printf("strtok returned NULL on duration.\r\n"); return;}
-	duration = atoi(token);
-	
-	//Strictly going to do motor 3?
-	TCC0.CTRLA = TC_CLKSEL_DIV1024_gc;
-	TCC1.CTRLA = TC_CLKSEL_DIV1024_gc;
-	TCC0.PER = period;
-	TCC1.PER = period;
-	
-	TCC0.CCA = TCC0.CCB = duty_cycle0;
-	TCC1.CCA = TCC1.CCB = duty_cycle1;
-	
-	TCC0.CNT=offset0;
-	TCC1.CNT=offset1;
-	
-	TCC0.CTRLB = TC0_CCBEN_bm | TC_WGMODE_SS_gc;
-	TCC1.CTRLB = TC1_CCAEN_bm | TC_WGMODE_SS_gc;
-	
-	uint16_t dur=0;
-	while((dur<(duration)) && motor_status)
-	{
-		delay_ms(5);
-		dur+=5;
-	}
-	TCC0.CTRLB = TC_WGMODE_SS_gc;
-	TCC1.CTRLB = TC_WGMODE_SS_gc;
-}
-
-void handle_set_motors_on_off(char* command_args)
-{
-	const char delim[2] = " ";
-	
-	char* token = strtok(command_args, delim);
-	motor_on_time = atoi(token);
-	
-	token = strtok(NULL, delim);
-	motor_off_time = atoi(token);
-	
-	printf("motor_on_time: %d, motor_off_time: %d.\r\n",motor_on_time, motor_off_time);
 }
 
 void handle_set_motors(char* command_args)

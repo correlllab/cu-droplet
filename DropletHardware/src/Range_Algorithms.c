@@ -63,7 +63,7 @@ void collect_rnb_data(void* arg)
 			return;
 		}
 
-		ir_broadcast_command(cmd, 7);
+		ir_broadcast_cmd(cmd, 7);
 		while(ir_tx[5].ir_status & IR_TX_STATUS_BUSY_bm);
 		get_IR_range_readings();
 		error = pack_measurements_into_matrix(brightness_matrix);
@@ -93,7 +93,7 @@ void collect_rnb_data(void* arg)
 void broadcast_rnb_data()
 {
 	uint16_t power = 257;
-	ir_broadcast_command("rnb_r",5);
+	ir_broadcast_cmd("rnb_r",5);
 	while(ir_tx[5].ir_status & IR_TX_STATUS_BUSY_bm);
 	IR_range_blast(power);
 }
@@ -127,6 +127,7 @@ void use_rnb_data(uint8_t power)
 	last_good_rnb.bearing = bearing;
 	last_good_rnb.heading = heading;
 	last_good_rnb.brightness_matrix_ptr = brightness_matrix;
+	last_good_rnb.id_number = last_command_source_id;
 	rnb_updated=1;
 }
 

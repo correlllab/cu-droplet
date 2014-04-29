@@ -36,5 +36,7 @@ uint8_t get_blue_led();
 void force_set_blue_led(uint8_t saturation);
 void led_off();
 void set_rgb(uint8_t r, uint8_t g, uint8_t b);
+void set_hsv(uint16_t h, uint8_t s, uint8_t v);
+void hsv_to_rgb(uint16_t h, uint8_t s, uint8_t v, uint8_t* r, uint8_t* g, uint8_t* b);
 
 #endif

@@ -22,13 +22,41 @@ void handle_serial_command(char* command, uint16_t command_length)
 		{
 			handle_data(command_args);
 		}
+		else if(strcmp(command_word,"move_steps")==0)
+		{
+			handle_move_steps(command_args);
+		}		
+		//else if(strcmp(command_word, "take_steps")==0)
+		//{
+			////handle_take_steps(command_args);
+		//}		
 		else if(strcmp(command_word,"walk")==0)
 		{
 			handle_walk(command_args);
 		}
-		else if(strcmp(command_word,"set_motor")==0)
+		else if(strcmp(command_word,"stop_walk")==0)
 		{
-			handle_set_motor(command_args);
+			handle_stop_walk();
+		}
+		else if(strcmp(command_word,"run_motor")==0)
+		{
+			handle_run_motor(command_args);	
+		}
+		else if(strcmp(command_word, "run_motors")==0)
+		{
+			handle_run_motors(command_args);
+		}
+		else if(strcmp(command_word, "set_motors_on_off")==0)
+		{
+			handle_set_motors_on_off(command_args);	
+		}
+		else if(strcmp(command_word,"set_motors")==0)
+		{
+			handle_set_motors(command_args);
+		}
+		else if(strcmp(command_word,"set_dist_per_step")==0)
+		{
+			handle_set_mm_per_kilostep(command_args);
 		}
 		else if(strcmp(command_word,"rnb_b")==0)
 		{
@@ -50,18 +78,48 @@ void handle_serial_command(char* command, uint16_t command_length)
 		{
 			handle_set_led(command_args);
 		}
+		else if(strcmp(command_word,"get_id")==0)
+		{
+			handle_get_id();
+		}
+		else if(strcmp(command_word,"broadcast_id")==0)
+		{
+			handle_broadcast_id();
+		}
 		else if(strcmp(command_word,"cmd")==0)
 		{
 			handle_cmd(command_args, 1);
+		}
+		else if(strcmp(command_word,"tgt_cmd")==0)
+		{
+			handle_targeted_cmd(command_args);
 		}
 		else if(strcmp(command_word,"tasks")==0)
 		{
 			print_task_queue();
 		}
+		else if(strcmp(command_word,"msg")==0)
+		{
+			handle_shout(command_args);
+		}	
+		else if(strcmp(command_word,"tgt")==0)
+		{
+			handle_target(command_args);
+		}
+		else if(strcmp(command_word,"reset")==0)
+		{
+			handle_reset();
+		}
 		else if(strcmp(command_word,"print_motor_settings")==0)
 		{
-			print_motor_settings();
+			print_motor_values();
+			print_dist_per_step();
 		}
+		else if(strcmp(command_word,"broadcast_motor_settings")==0)
+		{
+			broadcast_motor_adjusts();
+			//broadcast_dist_per_step();
+		}		
 		else if(strcmp(command_word,"write_motor_settings")==0)
 		{
 			write_motor_settings();
@@ -87,113 +145,218 @@ void handle_data(char *command_args)
 	}
 }
 
-void handle_walk(char* command_args)
+void handle_move_steps(char* command_args)
 {
 	const char delim[2] = " ";
-	uint8_t direction, num_steps;
-	uint8_t successful_read = 1;
 	
 	char* token = strtok(command_args,delim);
-	
-	switch (token[0])
-	{
-		case '0': direction = 0; break;
-		case '1': direction = 1; break;
-		case '2': direction = 2; break;
-		case '3': direction = 3; break;
-		case '4': direction = 4; break;
-		case '5': direction = 5; break;
-		case '6': direction = 6; break;
-		case '7': direction = 7; break;
-		case 'N':
-	if (token[1] == 'E') { direction = 1; break; }
-else if (token[1] == 'W') { direction = 5; break; }
-			else { direction = 0; break; }
-		case 'S':
-			if (token[1] == 'E') { direction = 2; break; }
-			else if (token[1] == 'W') { direction = 4; break; }
-			else { direction = 3; break; }
-		case 'C':
-			if (token[1] == 'W') { direction = 6; break; }
-			else { direction = 7; break; }
-				
-		default:
-			successful_read = 0;		
-	}
+	uint8_t direction = token[0]-'0';
 
 	token = strtok(NULL,delim);
-	num_steps = (uint8_t)atoi(token);
-	if (num_steps < 1) successful_read = 0;
-
-	if (successful_read)
+	uint16_t num_steps = (uint16_t)atoi(token);
+	if (num_steps > 0)
 	{
+		set_rgb(0,0,200);		
+		printf("walk direction %u, num_steps %u\r\n", direction, num_steps);	
 		move_steps(direction, num_steps);
-		printf("walk direction %u, num_steps %u\r\n", direction, num_steps);
-	}		
-	else
-	{
-		printf("\tGot command walk, but arguments (%s) were invalid. Format should be:\r\n",command_args);
-		printf("\t Direction (1-6), followed by number of steps (uint8_t).\r\n");
-	}
+		set_rgb(0,0,0);
+	}	
+}	
+
+//void handle_take_steps(char* command_args)
+//{
+	//const char delim[2] = " ";
+	//
+	//char* token = strtok(command_args,delim);
+	//uint8_t motor_num = token[0]-'0';
+//
+	//token = strtok(NULL,delim);
+	//int16_t num_steps = (int16_t)atoi(token);
+	//printf("Taking %hu steps with motor %hhu, forwards: %hhu\r\n",abs(num_steps), motor_num, !(num_steps>>15));
+	//take_steps(motor_num, num_steps);
+	//
+//}
+
+void handle_walk(char* command_args)
+{	
+	const char delim[2] = " ";
+	
+	char* token = strtok(command_args,delim);
+	uint8_t direction = token[0]-'0';
+	
+	token = strtok(NULL,delim);
+	uint16_t distance_mm = (uint16_t)atoi(token);
+	
+	walk(direction, distance_mm);
 }
 
-void handle_set_motor(char* command_args)
+void handle_stop_walk()
+{
+	set_rgb(180,0,0);
+	stop();
+	set_rgb(0,0,0);
+}
+
+void handle_run_motor(char* command_args)
+{
+	uint8_t prescalar, wg_mode;
+	uint16_t period, offset, duty_cycle, duration;
+	
+	char* token;
+	const char delim[2] = " ";
+	
+	token = strtok(command_args, delim);
+	if(token==NULL){ printf("strtok returned NULL on clk_sel.\r\n"); return;}
+	prescalar = atoi(token); //1: 1, 2: 2, 3: 4, 4: 8, 5: 64, 6: 256, 7: 1024
+	if((prescalar<1)||(prescalar>7)){ printf("Bad clk_sel value, got: %hhu\r\n",prescalar); return;}
+		
+	token = strtok(NULL, delim);
+	if(token==NULL){ printf("strtok returned NULL on wg_mode.\r\n"); return;}	
+	wg_mode = atoi(token); //0: normal, 1: frequency, 3: singleslope, 5-7: dualslope.
+	if((wg_mode>7)){ printf("Bad wg_mode value, got: %hhu\r\n",wg_mode); return;}
+	
+	token = strtok(NULL, delim);
+	if(token==NULL){ printf("strtok returned NULL on period.\r\n"); return;}	
+	period = atoi(token);
+	
+	token = strtok(NULL, delim);
+	if(token==NULL){ printf("strtok returned NULL on offset.\r\n"); return;}
+	offset = atoi(token);
+	
+	token = strtok(NULL, delim);
+	if(token==NULL){ printf("strtok returned NULL on duty_cycle.\r\n"); return;}
+	duty_cycle = atoi(token);
+	if(duty_cycle> period){ printf("Bad duty_cycle. Got: %hu. Must be less than period.\r\n"); return;}
+		
+	token = strtok(NULL, delim);
+	if(token==NULL){printf("strtok returned NULL on duration.\r\n"); return;}
+	duration = atoi(token);
+	
+	//Strictly going to do motor 3?
+	TCC0.CTRLA |= prescalar;
+	TCC0.PER = period;
+	TCC0.CCA = TCC0.CCB = duty_cycle;
+	TCC0.CNTL=offset;//If two motors have different values here, their waves will be offset from eachother.
+	TCC0.CTRLB = TC0_CCBEN_bm | wg_mode;
+	
+	uint16_t dur=0;
+	while((dur<(duration)) && motor_status)
+	{
+		delay_ms(5);
+		dur+=5;
+	}
+	TCC0.CTRLB = wg_mode;
+}
+
+void handle_run_motors(char* command_args)
+{
+	uint16_t period, offset0, offset1, duty_cycle0, duty_cycle1, duration;
+	
+	char* token;
+	const char delim[2] = " ";
+	
+	token = strtok(command_args, delim);
+	if(token==NULL){ printf("strtok returned NULL on period0.\r\n"); return;}	
+	period = atoi(token);
+	
+	token = strtok(NULL, delim);
+	if(token==NULL){ printf("strtok returned NULL on offset0.\r\n"); return;}
+	offset0 = atoi(token);
+	
+	token = strtok(NULL, delim);
+	if(token==NULL){ printf("strtok returned NULL on offset1.\r\n"); return;}
+	offset1 = atoi(token);
+	
+	token = strtok(NULL, delim);
+	if(token==NULL){ printf("strtok returned NULL on duty_cycle0.\r\n"); return;}
+	duty_cycle0 = atoi(token);
+	if(duty_cycle0> period){ printf("Bad duty_cycle0. Got: %hu. Must be less than period.\r\n"); return;}
+		
+	token = strtok(NULL, delim);
+	if(token==NULL){ printf("strtok returned NULL on duty_cycle1.\r\n"); return;}
+	duty_cycle1 = atoi(token);
+	if(duty_cycle1> period){ printf("Bad duty_cycle1. Got: %hu. Must be less than period.\r\n"); return;}		
+		
+	token = strtok(NULL, delim);
+	if(token==NULL){printf("strtok returned NULL on duration.\r\n"); return;}
+	duration = atoi(token);
+	
+	//Strictly going to do motor 3?
+	TCC0.CTRLA = TC_CLKSEL_DIV1024_gc;
+	TCC1.CTRLA = TC_CLKSEL_DIV1024_gc;
+	TCC0.PER = period;
+	TCC1.PER = period;
+	
+	TCC0.CCA = TCC0.CCB = duty_cycle0;
+	TCC1.CCA = TCC1.CCB = duty_cycle1;
+	
+	TCC0.CNT=offset0;
+	TCC1.CNT=offset1;
+	
+	TCC0.CTRLB = TC0_CCBEN_bm | TC_WGMODE_SS_gc;
+	TCC1.CTRLB = TC1_CCAEN_bm | TC_WGMODE_SS_gc;
+	
+	uint16_t dur=0;
+	while((dur<(duration)) && motor_status)
+	{
+		delay_ms(5);
+		dur+=5;
+	}
+	TCC0.CTRLB = TC_WGMODE_SS_gc;
+	TCC1.CTRLB = TC_WGMODE_SS_gc;
+}
+
+void handle_set_motors_on_off(char* command_args)
 {
 	const char delim[2] = " ";
+	
+	char* token = strtok(command_args, delim);
+	motor_on_time = atoi(token);
+	
+	token = strtok(NULL, delim);
+	motor_off_time = atoi(token);
+	
+	printf("motor_on_time: %d, motor_off_time: %d.\r\n",motor_on_time, motor_off_time);
+}
 
-	uint8_t direction;
-	int8_t m[3];
-
-	uint8_t successful_read = 1;
+void handle_set_motors(char* command_args)
+{	
+	const char delim[2] = " ";
 	
 	char* token = strtok(command_args,delim);
-	
-	switch (token[0])
-	{
-		case '0': direction = 0; break;
-		case '1': direction = 1; break;
-		case '2': direction = 2; break;
-		case '3': direction = 3; break;
-		case '4': direction = 4; break;
-		case '5': direction = 5; break;
-		case '6': direction = 6; break;
-		case '7': direction = 7; break;
-		case 'N':
-	if (token[1] == 'E') { direction = 1; break; }
-else if (token[1] == 'W') { direction = 5; break; }
-			else { direction = 0; break; }
-		case 'S':
-			if (token[1] == 'E') { direction = 2; break; }
-			else if (token[1] == 'W') { direction = 4; break; }
-			else { direction = 3; break; }
-		case 'C':
-			if (token[1] == 'W') { direction = 6; break; }
-			else { direction = 7; break; }
-				
-		default:
-			successful_read = 0;		
-	}
+	if(token==NULL){ printf("strtok returned NULL on direction.\r\n"); return;}
+	uint8_t direction = atoi(token);
+	if(direction> 7){ printf("Bad direction. Got: %hhu.\r\n", direction); return;}
+
+	token = strtok(NULL,delim);
+	if(token==NULL){ printf("strtok returned NULL on first val.\r\n"); return;}	
+	motor_adjusts[direction][0] = atoi(token);
 	
 	token = strtok(NULL,delim);
-	m[0] = atoi(token);
+	if(token==NULL){ printf("strtok returned NULL on second val.\r\n"); return;}
+	motor_adjusts[direction][1] = atoi(token);
+	
 	token = strtok(NULL,delim);
-	m[1] = atoi(token);
+	if(token==NULL){ printf("strtok returned NULL on third val.\r\n"); return;}
+	motor_adjusts[direction][2] = atoi(token);	
+	
+	//There should always be at least one motor with strength 1.0. It(they) must be the strongest motor(s).
+
+	printf("Got set_motors command. direction: %hhu, vals: (%d, %d, %d)\r\n", direction, motor_adjusts[direction][0], motor_adjusts[direction][1], motor_adjusts[direction][2]);
+}
+
+void handle_set_mm_per_kilostep(char* command_args)
+{
+	const char delim[2] = " ";
+	
+	char* token = strtok(command_args,delim);
+	uint8_t direction = token[0]-'0';
+	
 	token = strtok(NULL,delim);
-	m[2] = atoi(token);
+	uint16_t mm_per_kilostep = atoi(token);
 
-	printf("Got set_motor command: direction is %u, settings are %i %i %i\r\n", direction, m[0], m[1], m[2]);
-	set_motor_duty_cycle(1, direction, m[0]);
-	set_motor_duty_cycle(2, direction, m[1]);
-	set_motor_duty_cycle(3, direction, m[2]);
-
-	if(successful_read!=1)
-	{
-		printf("\tGot command set_motor, but arguments (%s) were invalid. Format should be:\r\n",command_args);
-		printf("\tset_motor direction m1 m2 m3\r\n");
-		printf("\twhere direction is 1-8 or one of N NE SE S SW NW or CW or CCW\r\n");
-		printf("\tand m1, m2, and m3 are ints between -100 and 100 specifying duty cycle percentage\r\n");
-	}
-
+	set_mm_per_kilostep(direction, mm_per_kilostep);
+	
 }
 
 /* This tells the droplet that it should tell other droplets nearby their rnb to it.
@@ -233,34 +396,6 @@ void handle_rnb_receive()
 	last_good_rnb.id_number = (uint16_t)last_command_source_id;
 }
 
-void handle_cmd(char* command_args, uint8_t should_broadcast)
-{
-	if(OK_to_send())
-	{
-		
-		if(should_broadcast)
-		{
-			//printf("Broadcasting command: \"%s\", of length %i.\r\n",(uint8_t*)command_args, strlen(command_args));
-			ir_broadcast_command((uint8_t*)command_args,strlen(command_args));
-		}
-		else
-		{
-			//printf("Transmitting command: \"%s\", of length %i.\r\n",(uint8_t*)command_args, strlen(command_args));
-			ir_send_command(1,(uint8_t*)command_args,strlen(command_args));
-		}
-
-		//if(0==ir_send_command(0,(uint8_t*)command_args,strlen(command_args)))
-		//printf("\tSent command \"%s\", of length %i\r\n",command_args,strlen(command_args));
-		//else
-		//printf("\tFailed to send \"%s\", of length %i\r\n",command_args,strlen(command_args));
-	}
-	
-	else
-	{
-		printf("\tIt wasn't OK to send command");
-	}
-}
-
 void handle_set_led(char* command_args)
 {
 	const char delim[2] = " ";
@@ -275,17 +410,15 @@ void handle_set_led(char* command_args)
 	if(strcmp(colors,"hsv")==0)
 	{
 		uint16_t hVal;
-		uint8_t sVal, vVal, rVal, gVal, bVal;
+		uint8_t sVal, vVal;
 		token = strtok(NULL,delim);
 		hVal = atoi(token);
 		token = strtok(NULL,delim);
 		sVal = atoi(token);
-		token = strtok(NULL,delim);
+		token = strtok(NULL,delim);	
 		vVal = atoi(token);
-		//hsv_to_rgb(hVal,sVal,vVal,&rVal,&gVal,&bVal);
-		//set_rgb(rVal,gVal,bVal);
+		set_hsv(hVal,sVal,vVal);
 		successful_read=1;
-		printf("This is currently unimplemented.\r\n");
 	}
 	else
 	{
@@ -323,6 +456,108 @@ void handle_set_led(char* command_args)
 		printf("\t \"set_led bgr 5 30 0\" gives a bluish green.\r\n");
 	}
 }
+void handle_broadcast_id()
+{
+	schedule_task(5,send_id, NULL);
+}
+
+void handle_get_id()
+{
+	printf("My ID is: %X\r\n",droplet_ID);
+}
+
+void send_id()
+{
+	if(OK_to_send())
+	{
+		set_rgb(50,50,0);
+		uint8_t data[2];
+		data[0] = 0xFF & (droplet_ID>>8);
+		data[1] = 0xFF & droplet_ID;
+		ir_broadcast(data, 2);
+		delay_ms(100);
+		set_rgb(0,0,0);
+	}
+}
+
+void handle_cmd(char* command_args, uint8_t should_broadcast)
+{
+	if(OK_to_send())
+	{
+		
+		if(should_broadcast)
+		{
+			//printf("Broadcasting command: \"%s\", of length %i.\r\n",(uint8_t*)command_args, strlen(command_args));
+			ir_broadcast_cmd((uint8_t*)command_args,strlen(command_args));
+		}
+		else
+		{
+			//printf("Transmitting command: \"%s\", of length %i.\r\n",(uint8_t*)command_args, strlen(command_args));
+			ir_send_cmd(1,(uint8_t*)command_args,strlen(command_args));
+		}
+
+		//if(0==ir_send_command(0,(uint8_t*)command_args,strlen(command_args)))
+		//printf("\tSent command \"%s\", of length %i\r\n",command_args,strlen(command_args));
+		//else
+		//printf("\tFailed to send \"%s\", of length %i\r\n",command_args,strlen(command_args));
+	}
+	
+	else
+	{
+		printf("\tIt wasn't OK to send command\r\n");
+	}
+}
+
+void handle_targeted_cmd(char* command_args)
+{
+	uint8_t loc = strcspn(command_args, " ");
+	char targetString[5];
+	char cmdString[32];
+	
+	strncpy(targetString, command_args, loc);
+	strcpy(cmdString, command_args+loc+1);
+	
+	uint16_t target = strtoul(targetString, NULL, 16);
+	printf("command string: %s, length: %d\r\n",cmdString, strlen(cmdString));
+	if(OK_to_send())
+	{
+		ir_targeted_broadcasted_cmd(cmdString,strlen(cmdString), target);
+	}
+}
+
+void handle_shout(char* command_args)
+{
+	if(strlen(command_args)==0)
+	{
+		command_args = "Hello over there.";
+	}
+	
+	if(OK_to_send())
+	{
+		ir_broadcast(command_args,strlen(command_args));
+	}
+}
+
+void handle_target(char* command_args)
+{
+	uint8_t loc = strcspn(command_args, " ");
+	char targetString[5];
+	char msgString[32];
+	
+	strncpy(targetString, command_args, loc);
+	strcpy(msgString, command_args+loc);
+	
+	
+	uint16_t target = strtoul(targetString, NULL, 16);
+	
+	//printf("Target: %04X\r\n",target);
+	
+	if(OK_to_send())
+	{
+		ir_targeted_broadcast(msgString,strlen(msgString), target);
+	}
+} 
+
 
 void get_command_word_and_args(char* command, uint16_t command_length, char* command_word, char* command_args)
 {
@@ -364,111 +599,7 @@ void get_command_word_and_args(char* command, uint16_t command_length, char* com
 	}
 }
 
-//TODO: MOVE THIS TO RGB_LED.c and fix it.
-//Adapted from wikipedia page "en.wikipedia.org/wiki/HSL_and_HSV#Converting_to_RGB"
-void hsv_to_rgb(float hue, float saturation, float val, uint8_t* rgb){
-	float c = (val*saturation);
-	float hPrime = (hue/(M_PI/3.0f));
-	float x = (c*(1-fabs((((uint8_t)hPrime)%2)-1)));
-	
-	int SCALING_FACTOR = 100; //equations want to output r,g,b from 0 to 1; this is used to convert them to uint8_t's with maxVal of the scaling factor.
-	
-	uint8_t intC = (uint8_t)(SCALING_FACTOR*c);
-	uint8_t intX = (uint8_t)(SCALING_FACTOR*x);
-
-	if(0<=hPrime && hPrime < 1)
-	{
-		rgb[0]=intC;
-		rgb[1]=intX;
-		rgb[2]=0;
-	}
-	else if(1<=hPrime && hPrime <2)
-	{
-		rgb[0]=intX;
-		rgb[1]=intC;
-		rgb[2]=0;
-	}
-	else if(2<=hPrime && hPrime <3)
-	{
-		rgb[0]=0;
-		rgb[1]=intC;
-		rgb[2]=intX;
-	}
-	else if(3<=hPrime && hPrime <4)
-	{
-		rgb[0]=0;
-		rgb[1]=intX;
-		rgb[2]=intC;
-	}
-	else if(4<=hPrime && hPrime <5)
-	{
-		rgb[0]=intX;
-		rgb[1]=0;
-		rgb[2]=intC;
-	}
-	else if(5<=hPrime && hPrime <6)
-	{
-		rgb[0]=intC;
-		rgb[1]=0;
-		rgb[2]=intX;
-	}
-	else
-	{
-		rgb[0]=0;
-		rgb[1]=0;
-		rgb[2]=0;
-	}
-	
-	float m = val-c;
-	uint8_t intM = (uint8_t)(SCALING_FACTOR*m);
-	
-	for(uint8_t i=0; i<3 ; i++)
-	{
-		rgb[i]+=m;
-	}
-
-	return rgb;
+void handle_reset()
+{
+	droplet_reboot();
 }
-
-
-//void hsv_to_rgb(uint16_t h, uint8_t s, uint8_t v, uint8_t *r, uint8_t *g, uint8_t *b)
-//{
-	//printf("hsv to rgb with h: %hu, s: %hhu, and v: %hhu.\r\n",h,s,v);
-	//if(h>360) h=360;
-	//uint8_t i = h/60;	
-	//
-	//float h_f = h/60. - i; //We only want the fractional part.
-	//float s_f = s/255.;
-	//uint8_t p, q, t;
-	//
-	//p = (uint8_t)(v * (255 - s_f));
-	//q = (uint8_t)(v * (1 - (s_f * h_f)));
-	//t = (uint8_t)(v * (1 - (s_f * (1 - h_f))));
-	//
-	//switch(i)
-	//{
-		//case 0:
-			//*r = v; *g = t; *b = p;
-			//break;
-		//case 1:
-			//*r = q; *g = v; *b = p;
-			//break;
-		//case 2:
-			//*r = p; *g = v; *b = t;
-			//break;
-		//case 3:
-			//*r = p; *g = q; *b = v;
-			//break;
-		//case 4:
-			//*r = t; *g = p; *b = v;
-			//break;
-		//case 5: 
-			//*r = v; *g = p; *b = q;
-			//break;
-		//default:
-			//printf("Error in hsv_to_rgb: default not reached.");
-			//break;
-	//}
-	//
-	//printf("Calculated r: %hhu, g: %hhu, b: %hhu.\r\n",*r,*g,*b);
-//}

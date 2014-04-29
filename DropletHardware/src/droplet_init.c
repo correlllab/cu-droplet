@@ -38,6 +38,8 @@ void init_all_systems()
 {
 	Config32MHzClock();
 	
+	calculate_id_number();
+	
 	pc_com_init();
 	if(INIT_DEBUG_MODE >= 1)	printf("\r\n\nPC COM INIT\r\n");
 
@@ -76,6 +78,8 @@ void init_all_systems()
 	
 	range_algorithms_init();
 	if(INIT_DEBUG_MODE >= 1)	printf("RANGE ALGORITHMS INIT\r\n");
+
+
 	
 	last_serial_command_time = get_32bit_time();
 
@@ -130,15 +134,7 @@ void delay_ms(uint16_t ms)
 	}
 }
 
-uint16_t calculate_id_number()
-{
-	if(INIT_DEBUG_MODE >= 1)	printf("calculate id number\r\n");
-	//return 13;
-	return 0;
-}
-
-
-uint16_t get_id_number()
+void calculate_id_number()
 {
 	if(INIT_DEBUG_MODE >= 1)	printf("get id number\r\n");
 
@@ -222,6 +218,11 @@ uint16_t get_id_number()
 */
 
 	droplet_ID = crc;	// this is a globally available field
+}
 
-	return crc;
+/*
+DEPRECATED
+*/
+uint16_t get_droplet_id(){
+	return droplet_ID;
 }

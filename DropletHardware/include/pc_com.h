@@ -11,7 +11,7 @@
 
 #define PC_PORT PORTD
 #define PC_USART USARTD1
-#define BUFFER_SIZE 32
+#define BUFFER_SIZE 64
 
 void pc_com_init();
 

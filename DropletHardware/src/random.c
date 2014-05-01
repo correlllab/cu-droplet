@@ -1,5 +1,8 @@
 #include "random.h"
 
+uint8_t r_position;
+uint8_t r_round;
+
 void random_init()
 {
 	// Advanced Encryption Standard (AES) crypto module [one of two Onboard Crypto Engines]

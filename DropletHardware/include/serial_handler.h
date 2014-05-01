@@ -3,11 +3,11 @@
 
 #include <string.h>
 #include <stdlib.h>
-#include <math.h>
+//#include <math.h>
 
 #include "pc_com.h"
 #include "RGB_LED.h"
-#include "motor.h"
+//#include "motor.h"
 #include "Range_Algorithms.h"
 #include "main.h"
 

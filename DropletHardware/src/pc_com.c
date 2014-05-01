@@ -1,12 +1,8 @@
-//#include <stdio.h>
-
 #include "pc_com.h"
-#include "util/delay.h"
 
-//static FILE mystdout = FDEV_SETUP_STREAM (pc_com_putchar, pc_com_getchar, _FDEV_SETUP_RW);
 static FILE mystdout = FDEV_SETUP_STREAM (pc_com_putchar,NULL,_FDEV_SETUP_WRITE);
-//static FILE mystdin = FDEV_SETUP_STREAM (NULL,pc_com_getchar,_FDEV_SETUP_READ);
-//extern USART_t* channel[];
+
+ISR( USARTD1_RXC_vect ) { handle_serial_input(); }
 
 void pc_com_init()
 {
@@ -25,17 +21,12 @@ void pc_com_init()
 
 	PC_USART.CTRLB |= USART_RXEN_bm;
 	PC_USART.CTRLB |= USART_TXEN_bm;
-	
-	pc_com_to_ir_buffer = 0;
 
 	stdout = &mystdout;
-	//stdin = &mystdin;
 	serial_in_index = 0;
 	
 	PC_USART.CTRLA = (uint8_t) USART_RXCINTLVL_MED_gc;
 }
-
-ISR( USARTD1_RXC_vect ) { handle_serial_input(); }
 
 void handle_serial_input()
 {
@@ -60,7 +51,7 @@ void handle_serial_input()
 	{
 		printf("\r\n");
 		serial_in_buffer[serial_in_index]='\0';
-		handle_serial_command(serial_in_buffer,serial_in_index);
+		//handle_serial_command(serial_in_buffer,serial_in_index);
 		serial_in_index = 0;
 	}
 	else if(data == '\b') //We got the backspace character.
@@ -114,8 +105,8 @@ int pc_com_getchar(FILE *stream)
 
 char get_char_nonblocking()
 {
-		if (PC_USART.STATUS & USART_RXCIF_bm)
-			return PC_USART.DATA;
-		else
-			return 0;
+	if (PC_USART.STATUS & USART_RXCIF_bm)
+	return PC_USART.DATA;
+	else
+	return 0;
 }

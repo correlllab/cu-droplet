@@ -2,10 +2,14 @@
 #define SCHEDULER_H
 
 #include <avr/io.h>
+#include <avr/interrupt.h>
+#include <util/atomic.h>
+#include <stdlib.h>
+#include <stdio.h>
 
-// Get the current 32-bit time, as measured in ms from the last reset
-inline volatile extern uint32_t get_32bit_time() __attribute__((OS_task));
+#include "RGB_LED.h"
 
+static uint8_t SCHEDULER_DEBUG_MODE = 0;
 volatile uint16_t rtc_epoch;
 
 // A task is a function, possibly with an argument, to be called at a specific time
@@ -25,6 +29,10 @@ typedef struct task
 // Global task list
 // Linked list of tasks, sorted by time until execution
 Task_t *task_list;
+
+
+// Get the current 32-bit time, as measured in ms from the last reset
+inline volatile extern uint32_t get_32bit_time() __attribute__((OS_task));
 
 // The total number of tasks in the queue and the number of tasks that are currently executing
 volatile uint8_t num_tasks, num_executing_tasks;

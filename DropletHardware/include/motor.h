@@ -1,7 +1,8 @@
-#include <avr/io.h>
-
 #ifndef motor_h
 #define motor_h
+
+#include <avr/io.h>
+#include <sp_driver.h>
 
 #define MOTOR_STATUS_DIRECTION		0x07
 #define MOTOR_STATUS_ON				0x80

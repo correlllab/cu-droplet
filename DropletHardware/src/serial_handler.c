@@ -1,6 +1,6 @@
 #include "serial_handler.h"
 
-extern rnb last_good_rnb;
+//extern rnb last_good_rnb;
 
 void handle_serial_command(char* command, uint16_t command_length)
 {
@@ -29,7 +29,7 @@ void handle_serial_command(char* command, uint16_t command_length)
 		else if(strcmp(command_word,"move_steps")==0)
 		{
 			handle_move_steps(command_args);
-		}		
+		}
 		else if(strcmp(command_word,"walk")==0)
 		{
 			handle_walk(command_args);
@@ -60,7 +60,7 @@ void handle_serial_command(char* command, uint16_t command_length)
 		}
 		else if(strcmp(command_word,"rnb_r")==0)
 		{
-			handle_rnb_receive();	
+			handle_rnb_receive();
 		}
 		else if(strcmp(command_word,"set_led")==0)
 		{

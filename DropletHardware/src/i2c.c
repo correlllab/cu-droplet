@@ -1,12 +1,5 @@
 #include "i2c.h"
 
-#ifndef F_CPU
-#define F_CPU 32000000UL
-#endif
-
-#include <util/delay.h>
-
-
 void i2c_init()
 {
 	PORTD.DIRSET = PIN0_bm | PIN1_bm;

@@ -1,7 +1,8 @@
 #ifndef I2C_H
 #define I2C_H
-
+#define F_CPU 32000000UL
 #include <avr/io.h>
+#include <util/delay.h>
 
 void i2c_init();
 

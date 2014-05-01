@@ -1,6 +1,4 @@
 // RGB_LED.c
-
-#include <avr/io.h>
 #include "RGB_LED.h"
 
 void RGB_LED_init()
@@ -34,24 +32,19 @@ void RGB_LED_init()
 	LED_B_TC.CTRLB |= TC1_CCAEN_bm;				// enable waveform output on OCnA (setting WGM operation overrides the port output register for this output pin)
 }
 
+void led_off()
+{ 
+	LED_B_TC.CCABUF = 0;
+	LED_G_TC.CCABUF = 0;
+	LED_R_TC.CCBBUF = 0; 
+}
 
-uint8_t get_red_led() { return LED_R_TC.CCB; }
-void set_red_led(uint8_t saturation) { /*if (!(pc_command & COMMAND_DARK_bm))*/ LED_R_TC.CCBBUF = saturation; }
-void force_set_red_led(uint8_t saturation) { LED_R_TC.CCBBUF = saturation; }
-
-// Get and set intensity for green LED
-uint8_t get_green_led() { return LED_G_TC.CCA; }
-void set_green_led(uint8_t saturation) { /*if (!(pc_command & COMMAND_DARK_bm))*/ LED_G_TC.CCABUF = saturation; }
-void force_set_green_led(uint8_t saturation) { LED_G_TC.CCABUF = saturation; }
-
-// Get and set intensity for blue LED
-uint8_t get_blue_led() { return LED_B_TC.CCA; }
-void set_blue_led(uint8_t saturation) {/* if (!(pc_command & COMMAND_DARK_bm))*/ LED_B_TC.CCABUF = saturation; }
-void force_set_blue_led(uint8_t saturation) { LED_B_TC.CCABUF = saturation; }
-
-void led_off() { LED_B_TC.CCABUF = LED_G_TC.CCABUF = LED_R_TC.CCBBUF = 0; }
-void set_rgb(uint8_t r, uint8_t g, uint8_t b) { set_red_led(r); set_green_led(g); set_blue_led(b); }
-
+void set_rgb(uint8_t r, uint8_t g, uint8_t b) 
+{ 
+	set_red_led(r); 
+	set_green_led(g); 
+	set_blue_led(b);
+}
 /*
 Hue should be between 0 and 360 (though it gets modulo'd with 360, so should be okay)
 Saturation and value can be between 0 and 255, where 255 is brightest/most saturated,

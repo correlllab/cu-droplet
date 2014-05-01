@@ -1,13 +1,4 @@
-#include <avr/io.h>
-#include <avr/interrupt.h>
-#include <util/atomic.h>
-#include <stdlib.h>
-#include <stdio.h>
 #include "scheduler.h"
-
-#include "RGB_LED.h"
-
-static uint8_t SCHEDULER_DEBUG_MODE = 0;
 
 void scheduler_init()
 {

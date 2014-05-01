@@ -7,12 +7,13 @@
 #include <math.h>
 
 #include "droplet_init.h"
+#include "droplet_time.h"
 //#include "pc_com.h"
 //#include "motor.h"
 //#include "IRcom.h"
 
 #define GROUP_MEMBERSHIP_TIMEOUT 200
-#define HEART_RATE 100
+#define HEART_RATE 1000
 
 struct GROUP_LIST_ITEM
 {
@@ -34,16 +35,16 @@ volatile double a;
 
 void print_shit();
 
-//uint8_t roll_that_sigmoid(int16_t group_size);
-//void check_votes();
-inline void collaborative_task(){;}
-//void reset_experiment();
-//void broadcast_heartbeat();
-//uint16_t update_group_size();
-//void add_group_member(uint16_t senderID);
-inline void set_tau(int16_t t){;}
-inline void set_theta(double th){;}
-//void check_messages();
-//void color_cycle();
+uint8_t roll_that_sigmoid(int16_t group_size);
+void check_votes();
+void collaborative_task();
+void reset_experiment();
+void broadcast_heartbeat();
+uint16_t update_group_size();
+void add_group_member(uint16_t senderID);
+inline void set_tau(int16_t t){ tau = t; }
+inline void set_theta(double th){ theta = th; }
+void check_messages();
+void color_cycle();
 
 #endif

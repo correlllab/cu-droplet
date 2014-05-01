@@ -2,7 +2,7 @@
 #define I2C_H
 #define F_CPU 32000000UL
 #include <avr/io.h>
-#include <util/delay.h>
+#include <droplet_time.h>
 
 void i2c_init();
 

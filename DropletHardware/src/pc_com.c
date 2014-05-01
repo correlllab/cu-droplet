@@ -51,7 +51,7 @@ void handle_serial_input()
 	{
 		printf("\r\n");
 		serial_in_buffer[serial_in_index]='\0';
-		//handle_serial_command(serial_in_buffer,serial_in_index);
+		handle_serial_command(serial_in_buffer,serial_in_index);
 		serial_in_index = 0;
 	}
 	else if(data == '\b') //We got the backspace character.

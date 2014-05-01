@@ -3,9 +3,8 @@
 #define F_CPU 32000000UL
 
 #include <avr/io.h>
-#include <util/delay.h>
 #include <stdio.h>
-#include "sp_driver.h"
+//#include "sp_driver.h"
 #include "stddef.h"				// required to use "offsetof(_,_)" for production row access
 #include "RGB_LED.h"			// currently uses some color flashes for debugging
 //#include "IRcom.h"

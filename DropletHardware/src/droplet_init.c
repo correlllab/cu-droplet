@@ -1,6 +1,3 @@
-//TODO: cut back on the number of calls to get_id_number()
-//		reverse the roles of calculate_id_number and get_id_number	(TODO)
-
 #include "droplet_init.h"
 
 static uint8_t INIT_DEBUG_MODE = 0;
@@ -44,32 +41,24 @@ void init_all_systems()
 	i2c_init();
 	if(INIT_DEBUG_MODE >= 1)	printf("I2C INIT\r\n");
 
-//
-	//motor_init();
-	//if(INIT_DEBUG_MODE >= 1)	printf("MOTOR INIT\r\n");
+	motor_init();
+	if(INIT_DEBUG_MODE >= 1)	printf("MOTOR INIT\r\n");
+	
+	range_algorithms_init();
+	if(INIT_DEBUG_MODE >= 1)	printf("RANGE ALGORITHMS INIT\r\n");
 
+	last_serial_command_time = get_32bit_time();
 
-
-
-
-
-
-	//
-	//range_algorithms_init();
-	//if(INIT_DEBUG_MODE >= 1)	printf("RANGE ALGORITHMS INIT\r\n");
-
-	//last_serial_command_time = get_32bit_time();
-
-	//for(uint8_t i = 0 ; i< 6 ;i++)
-	//{
-		//set_ir_power(i,256);
-	//}
+	for(uint8_t i = 0 ; i< 6 ;i++)
+	{
+		set_ir_power(i,256);
+	}
 //
 	//rnb_updated = 0; //The user code can check this flag to see if we have new rnb_data in last_good_rnb
 
-	//set_rgb(100,0,0); delay_ms(100); set_rgb(0,100,0); delay_ms(100); set_rgb(0,0,100); delay_ms(100); led_off();
-	//set_rgb(100,0,0); delay_ms(100); set_rgb(0,100,0); delay_ms(100); set_rgb(0,0,100); delay_ms(100); led_off();
-	//set_rgb(100,0,0); delay_ms(100); set_rgb(0,100,0); delay_ms(100); set_rgb(0,0,100); delay_ms(100); led_off();
+	set_rgb(100,0,0); delay_ms(100); set_rgb(0,100,0); delay_ms(100); set_rgb(0,0,100); delay_ms(100); led_off();
+	set_rgb(100,0,0); delay_ms(100); set_rgb(0,100,0); delay_ms(100); set_rgb(0,0,100); delay_ms(100); led_off();
+	set_rgb(100,0,0); delay_ms(100); set_rgb(0,100,0); delay_ms(100); set_rgb(0,0,100); delay_ms(100); led_off();
 	
 	PMIC.CTRL |= PMIC_LOLVLEN_bm;	// enable low level interrupts
 	PMIC.CTRL |= PMIC_MEDLVLEN_bm;	// enable medium level interrupts	(e.g. TXCIF)

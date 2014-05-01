@@ -48,6 +48,6 @@ void delay_ms(uint16_t ms)
 			return;
 		}
 		sei();
-		_delay_us(10);
+		delay_us(10);
 	}
 }

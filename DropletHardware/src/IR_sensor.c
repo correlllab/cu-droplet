@@ -1,7 +1,7 @@
 #include "IR_sensor.h"
-
-uint8_t ADCAcalibration0, ADCAcalibration1; //(for ADCA, the legs and the color sensors)
-uint8_t ADCBcalibration0, ADCBcalibration1;
+//
+//uint8_t ADCAcalibration0, ADCAcalibration1; //(for ADCA, the legs and the color sensors)
+//uint8_t ADCBcalibration0, ADCBcalibration1;
 
 int8_t ADC_offset[6];		// this value will typically be about -72 if using 1.00 V reference and ADCB0 as VINN
 

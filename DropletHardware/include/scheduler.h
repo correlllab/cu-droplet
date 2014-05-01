@@ -9,6 +9,9 @@
 
 #include "RGB_LED.h"
 
+// Get the current 32-bit time, as measured in ms from the last reset
+inline volatile extern uint32_t get_32bit_time() __attribute__((OS_task));
+
 static uint8_t SCHEDULER_DEBUG_MODE = 0;
 volatile uint16_t rtc_epoch;
 
@@ -31,8 +34,6 @@ typedef struct task
 Task_t *task_list;
 
 
-// Get the current 32-bit time, as measured in ms from the last reset
-inline volatile extern uint32_t get_32bit_time() __attribute__((OS_task));
 
 // The total number of tasks in the queue and the number of tasks that are currently executing
 volatile uint8_t num_tasks, num_executing_tasks;

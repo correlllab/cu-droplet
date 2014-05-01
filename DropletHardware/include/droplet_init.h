@@ -2,7 +2,6 @@
 #define DROPLET_INIT_H
 
 #include <avr/io.h>
-#include <util/delay.h>
 #include <util/crc16.h>
 #include <avr/interrupt.h>
 #include <avr/pgmspace.h>

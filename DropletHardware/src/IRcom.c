@@ -931,7 +931,7 @@ void ir_receive(uint8_t dir)
 							last_command_source_id = rx_msg_header[dir].sender_ID;
 							memcpy(command,ir_rx[dir].buf+HEADER_LEN,ir_rx[dir].data_len);
 							//printf("Got command \"%s\" over IR.\r\n", command);
-							//handle_serial_command(command,ir_rx[dir].data_len);
+							handle_serial_command(command,ir_rx[dir].data_len);
 							ir_reset_rx(dir);
 							ir_reset_tx(dir);
 							return;

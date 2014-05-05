@@ -3,6 +3,8 @@ cu-droplet
 
 Droplets: The Correll Lab Swarm Robotics Platform
 
+<blink>Please help us to make a 1000 droplets by supporting and sharing our <a href="http://www.colorado.edu/crowdfunding/?cfpage=project&project_id=10341">crowdfunding campaign</a>.</blink>
+
 The platform is envisioned to be a scalable robotics experimentation environment. It consists of three major components, the hardware, the embedded software and the software simulation environment.
 
 <table><tr>

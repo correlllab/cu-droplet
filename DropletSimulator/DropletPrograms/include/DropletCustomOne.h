@@ -1,5 +1,5 @@
 /* *** PROGRAM DESCRIPTION ***
- * Inverse Tag
+ * Yay!
  */
 #pragma once
 

@@ -19,6 +19,7 @@ void DropletCustomOne::DropletInit()
 	target_set_rgb = false;
 	walker_set_rgb = false;
 	toggle = true;
+	set_rgb_led(50, 50, 0);
 	set_timer(3000, 0);
 }
 

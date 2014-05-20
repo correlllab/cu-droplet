@@ -15,7 +15,7 @@ void scheduler_init()
 		}
 		task_list = NULL;
 		num_tasks = 0; num_executing_tasks = 0;
-	
+		
 		// Set up real-time clock
 		rtc_epoch = 0;
 		CLK.RTCCTRL = CLK_RTCSRC_RCOSC_gc | CLK_RTCEN_bm;
@@ -26,7 +26,7 @@ void scheduler_init()
 		RTC.CTRL = RTC_PRESCALER_DIV1_gc;
 		while (RTC.STATUS & RTC_SYNCBUSY_bm);
 		RTC.CNT = 0;
-	}		
+	}
 }
 
 void print_task_queue()
@@ -35,16 +35,16 @@ void print_task_queue()
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)  // Disable interrupts during printing
 	{
 		Task_t* cur_task = task_list;
-	
+		
 		printf("Task Queue (%u tasks, %u executing):\r\n", num_tasks, num_executing_tasks);
-	
+		
 		// Iterate through the list of tasks, printing name, function, and scheduled time of each
 		while (cur_task != NULL)
 		{
 			printf("\tTask %p (%p) scheduled at %s, %s current\r\n", cur_task, cur_task->task_function, ltoa(cur_task->scheduled_time, s1, 10), ltoa(get_32bit_time(), s2, 10));
 			cur_task = cur_task->next;
-		}		
-	}		
+		}
+	}
 }
 
 // Adds a new task to the task queue
@@ -67,7 +67,7 @@ Task_t* schedule_task(volatile uint32_t time, void (*function)(void*), void* arg
 		// Find the new task's proper spot in the list of tasks
 		// task_list is a linked list sorted by scheduled_time, smallest first
 		new_task->next = task_list;
-	
+		
 		// If the new task is the next to be executed, put it at the front of the list
 		if (task_list == NULL || new_task->scheduled_time <= task_list->scheduled_time)
 
@@ -87,7 +87,7 @@ Task_t* schedule_task(volatile uint32_t time, void (*function)(void*), void* arg
 		}
 		// If the new task is not the next to be executed, iterate through the task_list,
 		// find its position in the linked list, and insert it there.
-		else 
+		else
 		{
 			Task_t* tmp_task_ptr = task_list;
 			while (tmp_task_ptr->next != NULL && new_task->scheduled_time > tmp_task_ptr->next->scheduled_time)
@@ -103,7 +103,7 @@ Task_t* schedule_task(volatile uint32_t time, void (*function)(void*), void* arg
 	}
 
 	return new_task;
-}	
+}
 
 // Remove a task from the task queue
 void remove_task(Task_t* task)
@@ -118,7 +118,7 @@ void remove_task(Task_t* task)
 			free(task);
 			task = NULL;
 			num_tasks--;
-		}			
+		}
 	}
 
 }
@@ -155,7 +155,7 @@ void run_tasks()
 		{
 			RTC.INTCTRL &= ~RTC_COMPINTLVL_LO_gc;
 		}
-	}	
+	}
 	
 	// Jump to the code that restores the registers to the state they were in
 	// before the RTC interrupt.  Program control will return to where it was before the interrupt
@@ -171,17 +171,17 @@ ISR( RTC_OVF_vect )
 	{
 		rtc_epoch++;
 		char s2[12];
-		if (SCHEDULER_DEBUG_MODE >= 1) 
+		if (SCHEDULER_DEBUG_MODE >= 1)
 		{
 			printf("RTC Overflow. Current time %s\n", ltoa(get_32bit_time(), s2, 10));
 			print_task_queue();
-		}			
+		}
 
 
 		// If the next task to run is in the current epoch, update the RTC compare value and interrupt
 		if (task_list != NULL && task_list->scheduled_time < ((((uint32_t)rtc_epoch) << 16) | (uint32_t)RTC.PER))
 		{
-			// updating RTC.COMP takes 2 RTC clock cycles, so only update the compare value and 
+			// updating RTC.COMP takes 2 RTC clock cycles, so only update the compare value and
 			// interrupt if the scheduled_time is more than 2ms away
 			if (task_list->scheduled_time > get_32bit_time() + 2)
 			{
@@ -192,12 +192,12 @@ ISR( RTC_OVF_vect )
 			}
 			// If we get here, that means there's a task to execute in less than 2ms.  Jump to the ISR
 			// to handle that.
-			else 
+			else
 			{
 				//RTC.INTFLAGS |= RTC_COMPIF_bm;
 				asm("jmp rtc_compare_isr"); // must include scheduler_asm.S in the project
 				return;
-			}				
+			}
 		}
 	}
 }

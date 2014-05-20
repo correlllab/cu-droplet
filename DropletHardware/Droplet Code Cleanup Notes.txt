@@ -1,0 +1,4 @@
+Droplets Code Cleanup Notes:
+
+    Completed:
+        RGB_sensor.c, RGB_sensor.h

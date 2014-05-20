@@ -37,7 +37,7 @@ Task_t *task_list;
 
 // The total number of tasks in the queue and the number of tasks that are currently executing
 volatile uint8_t num_tasks, num_executing_tasks;
-
+void print_task_queue();
 void scheduler_init();
 
 // Adds a new task to the task queue

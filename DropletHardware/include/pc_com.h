@@ -8,7 +8,7 @@
 
 //#include "motor.h"
 //#include "IRcom.h"
-//#include "serial_handler.h"
+#include "serial_handler.h"
 
 #define PC_PORT PORTD
 #define PC_USART USARTD1

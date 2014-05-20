@@ -2,6 +2,8 @@
 #define __RGB_LED_H__
 
 #include <avr/io.h>
+#include "stdio.h"
+#include "stdlib.h"
 
 #define LED_R_PORT 				PORTE		// rationale: RED LED is on portE
 #define LED_R_PIN_bm			PIN5_bm		// rationale: RED LED is on pin5

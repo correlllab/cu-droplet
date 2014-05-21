@@ -1,5 +1,12 @@
 #include "power.h"
 
+void power_init()
+{
+	cap_monitor_init();
+	leg_monitor_init();
+}
+
+
 void cap_monitor_init()
 {
 	PORTB.DIRCLR = PIN0_bm | PIN1_bm;
@@ -59,8 +66,6 @@ int8_t leg1_status()
 	ACA.AC0MUXCTRL = AC_MUXNEG_PIN0_gc | AC_MUXPOS_PIN2_gc;
 	ACA.AC1MUXCTRL = AC_MUXNEG_PIN1_gc | AC_MUXPOS_PIN2_gc;
 	
-	//delay_ms(1);
-	
 	uint8_t status = ACA.STATUS;
 	
 	if ((status & AC_WSTATE_gm) == AC_WSTATE_ABOVE_gc) { return 1; }
@@ -73,8 +78,6 @@ int8_t leg2_status()
 {
 	ACA.AC0MUXCTRL = AC_MUXNEG_PIN0_gc | AC_MUXPOS_PIN3_gc;
 	ACA.AC1MUXCTRL = AC_MUXNEG_PIN1_gc | AC_MUXPOS_PIN3_gc;
-
-	//delay_ms(1);
 	
 	uint8_t status = ACA.STATUS;
 	
@@ -89,8 +92,6 @@ int8_t leg3_status()
 	ACA.AC0MUXCTRL = AC_MUXNEG_PIN0_gc | AC_MUXPOS_PIN4_gc;
 	ACA.AC1MUXCTRL = AC_MUXNEG_PIN1_gc | AC_MUXPOS_PIN4_gc;
 
-	//delay_ms(1);
-	
 	uint8_t status = ACA.STATUS;
 	
 	if ((status & AC_WSTATE_gm) == AC_WSTATE_ABOVE_gc) { return 1; }

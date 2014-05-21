@@ -1,7 +1,5 @@
 #include "serial_handler.h"
 
-//extern rnb last_good_rnb;
-
 void handle_serial_command(char* command, uint16_t command_length)
 {
 	uint32_t command_time = get_32bit_time();

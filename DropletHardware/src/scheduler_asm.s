@@ -121,4 +121,3 @@ get_32bit_time:
 	lds		r25, rtc_epoch+1
 	out		_SFR_IO_ADDR(SREG), r0		; Restore status register (including re-enabling interrupts if necessary)
 	ret
-

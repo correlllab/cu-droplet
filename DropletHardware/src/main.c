@@ -3,17 +3,16 @@
 int main(void)
 {
 	init_all_systems();
-
+	//uint8_t ir_sense_vals[6];
 	printf("Initialized.\r\n");
-	// Set theta and tau initially
-	rgb_sensor_enable();
 	while (1)
 	{	
-		int16_t red = get_red_sensor();
-		int16_t green = get_green_sensor();
-		int16_t blue = get_blue_sensor();
-		printf("R: %hd, G: %hd, B: %hd\r\n",red,green,blue);
-		delay_ms(100);
+		//printf("Test print message.\r\n");
+		//for(uint8_t i=0; i<6; i++) ir_sense_vals[i] = get_IR_sensor(i);
+		printf("ir0: %hhu", get_IR_sensor(0));
+		for(uint8_t i=1; i<6; i++) printf(", ir%hhu: %hhu", i, get_IR_sensor(i));
+		printf("\r\n");
+		delay_ms(200);
 		check_messages();	
 	}
 }

@@ -10,7 +10,7 @@
 //#include <stdlib.h>
 //#include <string.h>
 #include "droplet_init.h"
-#include "droplet_time.h"
+#include "scheduler.h"
 //#include "i2c.h"
 #include "ecc.h"
 
@@ -129,7 +129,7 @@ uint8_t last_command_source_id;
 
 /* GENERAL IR RELATED ROUTINES */
 
-void ir_com_init(uint16_t buffer_size);
+void ir_com_init();
 
 void set_ir_power(uint8_t dir, uint16_t power);
 // Sets intensity of IR transmitters

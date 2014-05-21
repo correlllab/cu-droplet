@@ -1,8 +1,7 @@
 #ifndef I2C_H
 #define I2C_H
-#define F_CPU 32000000UL
 #include <avr/io.h>
-#include <droplet_time.h>
+#include "scheduler.h"
 
 void i2c_init();
 

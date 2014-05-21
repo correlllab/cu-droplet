@@ -56,10 +56,11 @@ uint8_t ir_carrier_bm[] = { PIN0_bm, PIN1_bm, PIN4_bm, PIN5_bm, PIN6_bm, PIN7_bm
 // comment: there is no start bit nor parity bits included in a byte transmission
 // XMEGA hardware supports up to 2 parity bits & start, giving up to 11 bits per byte possible
 
-void ir_com_init(uint16_t buffersize)
+void ir_com_init()
 {
-	/* Initialize carrier waves */
+	uint16_t buffersize = IR_BUFFER_SIZE + HEADER_LEN; 
 	
+	/* Initialize carrier waves */
 	uint8_t carrier_pins = PIN0_bm | PIN1_bm | PIN4_bm | PIN5_bm | PIN6_bm | PIN7_bm;
 	PORTF.DIRSET = carrier_pins;
 	
@@ -76,8 +77,7 @@ void ir_com_init(uint16_t buffersize)
 	
 	if(!buffer_memory_allocated)
 	{
-		buffersize = IR_BUFFER_SIZE + HEADER_LEN; 
-	
+		
 		for (uint8_t i = 0; i < 6; i++)
 		{
 			// QUESTIONS: 
@@ -116,9 +116,10 @@ void ir_com_init(uint16_t buffersize)
 											// so check_for_new_messages() returns "no new messages"
 		buffer_memory_allocated = 1;
 	}
-
 	else
+	{
 		printf("IR buffer memory preallocated\r\n");
+	}
 
 	/* Initialize UARTs */
 	
@@ -153,7 +154,10 @@ void ir_com_init(uint16_t buffersize)
 		if(rx_allowed[i])
 			channel[i]->CTRLB |= USART_RXEN_bm;		// Enable communication
 		channel[i]->CTRLB |= USART_TXEN_bm;
+		
+		set_ir_power(i,256); //Default to max brightness for communication.	
 	}
+	
 }
 
 void set_ir_power(uint8_t dir, uint16_t power)
@@ -1455,7 +1459,7 @@ uint8_t OK_to_send()
 					ir_reset_rx(busy_dir);
 				}
 
-				_delay_ms(10);					// TEN (milliseconds) <-  chosen arbitrarily, this is a hard-coded varaible
+				delay_ms(10);					// TEN (milliseconds) <-  chosen arbitrarily, this is a hard-coded varaible
 				if(busy_count > 20)				// TWENTY (count) <-  chosen arbitrarily, this is a hard-coded varaible
 				{
 					/* this is a good to use debug message

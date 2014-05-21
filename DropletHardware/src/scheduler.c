@@ -29,21 +29,55 @@ void scheduler_init()
 	}
 }
 
-void print_task_queue()
+void Config32MHzClock(void)
 {
-	char s1[12], s2[12]; // Temp strings for ltoa, to printf 32-bit timestamps
-	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)  // Disable interrupts during printing
+	// Set system clock to 32 MHz
+	CCP = CCP_IOREG_gc;
+	OSC.CTRL = OSC_RC32MEN_bm;
+	while(!(OSC.STATUS & OSC_RC32MRDY_bm));
+	CCP = CCP_IOREG_gc;
+	CLK.CTRL = 0x01;
+	
+	// Set up real-time clock
+	CLK.RTCCTRL = CLK_RTCSRC_RCOSC_gc | CLK_RTCEN_bm;	// per Dustin: RTCSRC is a 1 kHz oscillator, needs to be verified
+	//RTC.INTCTRL = RTC_OVFINTLVL_LO_gc;
+	while (RTC.STATUS & RTC_SYNCBUSY_bm);	// wait for SYNCBUSY to clear
+	
+	RTC.PER = 0xFFFF;		//	0xFFFF == 0b1111111111111111 = (2^16)-1
+	// (2^16)-1 milliseconds is 65.535 seconds
+
+	RTC.CTRL = RTC_PRESCALER_DIV1_gc;
+
+	// reset RTC to 0, important for after a reboot:
+	while(RTC.STATUS & RTC_SYNCBUSY_bm);	// wait for SYNCBUSY to clear
+	
+	RTC.CNT = 0;
+}
+
+void set_current_time(uint16_t count)
+{
+	while(RTC.STATUS & RTC_SYNCBUSY_bm);	// wait for SYNCBUSY to clear
+	
+	RTC.CNT = count;
+}
+
+// Delay ms milliseconds
+// (the built-in _delay_ms only takes constant arguments, not variables)
+void delay_ms(uint16_t ms)
+{
+	uint32_t cur_time, end_time;
+	cli(); cur_time = get_32bit_time(); sei();
+	end_time = cur_time + ms;
+	while (1)
 	{
-		Task_t* cur_task = task_list;
-		
-		printf("Task Queue (%u tasks, %u executing):\r\n", num_tasks, num_executing_tasks);
-		
-		// Iterate through the list of tasks, printing name, function, and scheduled time of each
-		while (cur_task != NULL)
+		cli();
+		if (get_32bit_time() >= end_time)
 		{
-			printf("\tTask %p (%p) scheduled at %s, %s current\r\n", cur_task, cur_task->task_function, ltoa(cur_task->scheduled_time, s1, 10), ltoa(get_32bit_time(), s2, 10));
-			cur_task = cur_task->next;
+			sei();
+			return;
 		}
+		sei();
+		delay_us(10);
 	}
 }
 
@@ -121,6 +155,24 @@ void remove_task(Task_t* task)
 		}
 	}
 
+}
+
+void print_task_queue()
+{
+	char s1[12], s2[12]; // Temp strings for ltoa, to printf 32-bit timestamps
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)  // Disable interrupts during printing
+	{
+		Task_t* cur_task = task_list;
+		
+		printf("Task Queue (%u tasks, %u executing):\r\n", num_tasks, num_executing_tasks);
+		
+		// Iterate through the list of tasks, printing name, function, and scheduled time of each
+		while (cur_task != NULL)
+		{
+			printf("\tTask %p (%p) scheduled at %s, %s current\r\n", cur_task, cur_task->task_function, ltoa(cur_task->scheduled_time, s1, 10), ltoa(get_32bit_time(), s2, 10));
+			cur_task = cur_task->next;
+		}
+	}
 }
 
 // TO BE CALLED FROM INTERRUPT HANDLER ONLY

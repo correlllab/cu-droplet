@@ -2,11 +2,9 @@
 #define power_h
 
 #include <avr/io.h>
-//#include <util/delay.h>
 #include "RGB_LED.h"
-//#include "motor.h"
-//#define F_CPU 32000000UL
 
+void power_init(); //just calls cap_monitor and leg_monitor init
 void cap_monitor_init();
 void leg_monitor_init();
 
@@ -23,7 +21,5 @@ int8_t leg3_status();			//         -1 if leg is on ground
 int8_t legs_powered();
 
 uint8_t light_if_unpowered(uint8_t r, uint8_t g, uint8_t b);
-
-
 
 #endif

@@ -1,9 +1,8 @@
 #ifndef __RGB_LED_H__
 #define __RGB_LED_H__
 
-#include <avr/io.h>
-#include "stdio.h"
-#include "stdlib.h"
+#include "avr/io.h" //includes stdlib
+#include "math.h"
 
 #define LED_R_PORT 				PORTE		// rationale: RED LED is on portE
 #define LED_R_PIN_bm			PIN5_bm		// rationale: RED LED is on pin5
@@ -17,9 +16,9 @@
 #define LED_B_PIN_bm			PIN4_bm		// rationale: BLUE LED is on pin4
 #define LED_B_TC				TCD1		// rationale: BLUE LED is on OC1x pins
 
-// Set RGB LED pins as output & initialize timers for PWM
-void RGB_LED_init(void);
+void RGB_LED_init(void); // Set RGB LED pins as output & initialize timers for PWM
 
+// Get and set intensity for red LED
 inline uint8_t get_red_led() { return LED_R_TC.CCB; }
 inline void set_red_led(uint8_t saturation) { LED_R_TC.CCBBUF = saturation; }
 inline void force_set_red_led(uint8_t saturation) { LED_R_TC.CCBBUF = saturation; }

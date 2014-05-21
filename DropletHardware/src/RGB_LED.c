@@ -1,4 +1,3 @@
-// RGB_LED.c
 #include "RGB_LED.h"
 
 void RGB_LED_init()
@@ -45,6 +44,7 @@ void set_rgb(uint8_t r, uint8_t g, uint8_t b)
 	set_green_led(g); 
 	set_blue_led(b);
 }
+
 /*
 Hue should be between 0 and 360 (though it gets modulo'd with 360, so should be okay)
 Saturation and value can be between 0 and 255, where 255 is brightest/most saturated,
@@ -58,7 +58,8 @@ void set_hsv(uint16_t h, uint8_t s, uint8_t v)
 }
 
 //Adapted from cs.rit.edu/~ncs/color/t_convert.html
-void hsv_to_rgb(uint16_t hue, uint8_t saturation, uint8_t val, uint8_t* red, uint8_t* green, uint8_t* blue){
+void hsv_to_rgb(uint16_t hue, uint8_t saturation, uint8_t val, uint8_t* red, uint8_t* green, uint8_t* blue)
+{
 	float h = (hue%360)*1.0;
 	float s = saturation/255.0;
 	float v = val/255.0;
@@ -72,7 +73,7 @@ void hsv_to_rgb(uint16_t hue, uint8_t saturation, uint8_t val, uint8_t* red, uin
 	h = h / 60.0;
 	uint8_t i = (uint8_t)h;
 	f = h - i;
-	//printf("f:%hhu\r\n",(uint8_t)(f*100));
+	
 	p = v*(1-s);
 	q = v*(1-s*f);
 	t = v*(1-s*(1-f));
@@ -110,7 +111,7 @@ void hsv_to_rgb(uint16_t hue, uint8_t saturation, uint8_t val, uint8_t* red, uin
 			b = q;
 			break;
 		default:
-			printf("SHOULD NEVER SEE THIS. i: %hhu",i);
+			//printf("SHOULD NEVER SEE THIS. i: %hhu",i);
 			break;
 	}
 	

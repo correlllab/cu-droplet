@@ -1,16 +1,12 @@
 #ifndef _SERIAL_HANDER
 #define _SERIAL_HANDER
 
+#include "avr/io.h"
 #include <string.h>
-#include <stdlib.h>
-//#include <math.h>
-
 #include "pc_com.h"
 #include "RGB_LED.h"
-//#include "motor.h"
 #include "Range_Algorithms.h"
 #include "scheduler.h"
-#include "main.h"
 
 uint32_t last_serial_command_time;
 

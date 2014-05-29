@@ -143,13 +143,13 @@ void read_motor_settings()
 	{
 		for (uint8_t motor_num = 0; motor_num < 3 ; motor_num++)
 		{
-			//motor_adjusts[direction][motor_num] = ((((int16_t)SP_ReadUserSignatureByte(0x10 + 6*direction + 2*motor_num + 0))<<8) | ((int16_t)SP_ReadUserSignatureByte(0x10 + 6*direction + 2*motor_num + 1)));
+			motor_adjusts[direction][motor_num] = ((((int16_t)read_user_signature_byte(0x10 + 6*direction + 2*motor_num + 0))<<8) | ((int16_t)read_user_signature_byte(0x10 + 6*direction + 2*motor_num + 1)));
 		}
 
 	}
 	for (uint8_t direction = 0; direction < 8 ; direction++)
 	{
-		//mm_per_kilostep[direction] =(uint16_t)SP_ReadUserSignatureByte(0x40 + 2*direction + 0)<<8 | (uint16_t)SP_ReadUserSignatureByte(0x40 + 2*direction + 1);
+		mm_per_kilostep[direction] =(uint16_t)read_user_signature_byte(0x40 + 2*direction + 0)<<8 | (uint16_t)read_user_signature_byte(0x40 + 2*direction + 1);
 	}
 }
 
@@ -157,7 +157,7 @@ void write_motor_settings()
 {
 	uint8_t page_buffer[512];
 	for (uint16_t i = 0; i < 512; i++)
-		//page_buffer[i] = SP_ReadUserSignatureByte(i);
+		page_buffer[i] = read_user_signature_byte(i);
 		
 	for (uint8_t direction = 0; direction < 8; direction++)
 	{
@@ -176,10 +176,7 @@ void write_motor_settings()
 		page_buffer[(0x40 + 2*direction + 1)] = (uint8_t)(temp&0xFF);
 	}					
 	
-	//SP_LoadFlashPage(page_buffer);
-	//
-	//SP_EraseUserSignatureRow();
-	//SP_WriteUserSignatureRow();
+	write_user_signature_row(page_buffer);
 }
 
 //void print_motor_adjusts()

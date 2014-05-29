@@ -1,6 +1,8 @@
 #ifndef SCHEDULER_H
 #define SCHEDULER_H
 
+#define F_CPU 32000000UL
+
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <util/atomic.h>
@@ -9,7 +11,7 @@
 #include <stdio.h>
 #include "RGB_LED.h"
 
-#define F_CPU 32000000UL
+
 
 // A task is a function, possibly with an argument, to be called at a specific time
 // scheduled_time is the 32-bit global time when the function should be called

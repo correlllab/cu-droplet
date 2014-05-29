@@ -2,7 +2,6 @@
 #define motor_h
 
 #include <avr/io.h>
-#include <sp_driver.h>
 
 #define MOTOR_STATUS_DIRECTION		0x07
 #define MOTOR_STATUS_ON				0x80
@@ -23,6 +22,7 @@
 
 #include "droplet_init.h"
 #include "scheduler.h"
+#include "flash_api.h"
 
 volatile uint8_t motor_status; // [ on, cancel, 0, 0, 0, direction(2-0) ] 
 volatile Task_t* current_motor_task;

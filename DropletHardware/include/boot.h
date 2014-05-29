@@ -1,6 +1,5 @@
-
 #include <avr/io.h>
-#include "sp_driver.h"
+#include "flash_api.h"
 
 #define BOOTLOADER __attribute__((section(".BOOT")))
 
@@ -20,16 +19,16 @@
 } flash_pages[6];
 */
 
-uint8_t page_buffer[512];
+//uint8_t page_buffer[512];
 
-void bootloader_init();
+//void bootloader_init();
 
-uint8_t command_program(uint8_t dir);
+//uint8_t command_program(uint8_t dir);
 
 void write_to_flash(uint8_t* data, uint32_t address);
 
 void move_flash_and_reset() BOOTLOADER;
 
-uint32_t crc_flash();
+//uint32_t crc_flash();
 
  

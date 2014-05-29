@@ -36,6 +36,19 @@ void leg_monitor_init()
 	ACA.WINCTRL = AC_WEN_bm;					// Enable window mode
 }
 
+void programming_mode_init()
+{
+	PORTA.DIRCLR = PIN0_bm | PIN1_bm | PIN2_bm | PIN3_bm | PIN4_bm;		//sets pins as inputs 
+	PORTA.INT0MASK = PIN2_bm;	//set the pin for leg so an interrupt is generated
+	PORTA.PIN2CTRL = AC_INTMODE_BOTHEDGES_gc;			//to trigger on any edge (rising or falling)
+	PORTA.INTCTRL = PORT_INT0LVL_MED_gc;			//interrupt control is set to medium level 
+}
+
+ISR(PORTA_INT0_vect)
+{
+	printf("^\n");
+}
+
 uint8_t cap_status()
 {
 	switch (ACB.STATUS & AC_WSTATE_gm)

@@ -3,7 +3,8 @@
 void power_init()
 {
 	cap_monitor_init();
-	leg_monitor_init();
+	//leg_monitor_init();
+	programming_mode_init();
 }
 
 
@@ -39,14 +40,40 @@ void leg_monitor_init()
 void programming_mode_init()
 {
 	PORTA.DIRCLR = PIN0_bm | PIN1_bm | PIN2_bm | PIN3_bm | PIN4_bm;		//sets pins as inputs 
-	PORTA.INT0MASK = PIN2_bm;	//set the pin for leg so an interrupt is generated
-	PORTA.PIN2CTRL = AC_INTMODE_BOTHEDGES_gc;			//to trigger on any edge (rising or falling)
-	PORTA.INTCTRL = PORT_INT0LVL_MED_gc;			//interrupt control is set to medium level 
+	
+	PORTA.INT0MASK = PIN2_bm | PIN3_bm | PIN4_bm;	//set the pin for leg so an interrupt is generated
+	PORTA.PIN2CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_BOTHEDGES_gc;			//edge detection settings, leg 1
+	PORTA.PIN3CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_BOTHEDGES_gc;			//edge detection settings, leg 2
+	PORTA.PIN4CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_BOTHEDGES_gc;			//edge detection settings, leg 3
+	PORTA.INTCTRL = PORT_INT0LVL_LO_gc;			//interrupt control is set to medium level 
 }
+
+volatile uint16_t last_event;
+
+volatile uint8_t test;
 
 ISR(PORTA_INT0_vect)
 {
-	printf("^\n");
+	//PORTA.INTCTRL = PORT_INT0LVL_OFF_gc;
+	set_blue_led(10);
+	delay_us(HALF_BIT_DURATION);
+	unsigned char byte = 0x0;
+	for(uint8_t i=0;i<8;i++)
+	{
+		if(!PORTA.IN)
+		{
+			byte|=0x1;
+		}
+		else
+		{
+			byte|=0x0;
+		}
+		byte<<=1;
+		delay_us(FULL_BIT_DURATION);
+	}
+	printf("%hhu\r\n",test);
+	set_blue_led(0);
+	//PORTA.INTCTRL = PORT_INT0LVL_LO_gc;
 }
 
 uint8_t cap_status()

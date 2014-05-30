@@ -10,6 +10,7 @@ int main(void)
 	printf("Initialized.\r\n");
 	while (1)
 	{	
+		//printf("1: %hhu, 2: %hhu, 3: %hhu\r\n",leg1_status(), leg2_status(), leg3_status());
 		//printf("Test print message.\r\n");
 		//for(uint8_t i=0; i<6; i++) ir_sense_vals[i] = get_IR_sensor(i);
 		//printf("ir0: %hhu", get_IR_sensor(0));
@@ -17,14 +18,14 @@ int main(void)
 		//printf("\r\n");
 		//printf("Beep.\r\n");
 		
-		blah = 1.0/blah;
-		//blah = cos(blah);
-		//printf("A float: %f\r\n",blah);
-		set_green_led(10);
-		delay_ms(500);
-		set_green_led(0);
-		delay_ms(500);
-		check_messages();	
+		//blah = 1.0/blah;
+		////blah = cos(blah);
+		////printf("A float: %f\r\n",blah);
+		//set_green_led(10);
+		//delay_ms(500);
+		//set_green_led(0);
+		//delay_ms(500);
+		////check_messages();	
 	
 		//if(leg1_status()==1) set_red_led(15);
 		//else set_red_led(0);

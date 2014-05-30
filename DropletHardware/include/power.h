@@ -2,11 +2,18 @@
 #define power_h
 
 #include <avr/io.h>
+#include <avr/interrupt.h>
 #include "RGB_LED.h"
+#include "scheduler.h"
+
+#define FULL_BIT_DURATION 104 //duration of a bit at 9600 baud, us.
+#define HALF_BIT_DURATION 52 //half duration of a bit at 9600 baud, us.
+
 
 void power_init(); //just calls cap_monitor and leg_monitor init
 void cap_monitor_init();
 void leg_monitor_init();
+void programming_mode_init();
 
 uint8_t cap_status();			// Returns 0 if cap is within normal range ( 2.8V -- 5V ),
 								//         1 if cap voltage is dangerously high ( > 5V )

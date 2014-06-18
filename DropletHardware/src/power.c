@@ -45,7 +45,7 @@ void programming_mode_init()
 	PORTA.PIN2CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_BOTHEDGES_gc;			//edge detection settings, leg 1
 	PORTA.PIN3CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_BOTHEDGES_gc;			//edge detection settings, leg 2
 	PORTA.PIN4CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_BOTHEDGES_gc;			//edge detection settings, leg 3
-	PORTA.INTCTRL = PORT_INT0LVL_LO_gc;			//interrupt control is set to medium level 
+	PORTA.INTCTRL = PORT_INT0LVL_LO_gc;			//interrupt control is set to low level 
 }
 
 volatile uint16_t last_event;
@@ -71,7 +71,7 @@ ISR(PORTA_INT0_vect)
 		byte<<=1;
 		delay_us(FULL_BIT_DURATION);
 	}
-	printf("%hhu\r\n",test);
+	printf("%hhu\r\n",byte);
 	set_blue_led(0);
 	//PORTA.INTCTRL = PORT_INT0LVL_LO_gc;
 }

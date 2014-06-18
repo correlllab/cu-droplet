@@ -126,7 +126,7 @@ SP_ReadByte:
 	out	RAMPZ, r24      ; Load RAMPZ with the MSB of the address.
 	movw	ZL, r22         ; Move the low bytes to the Z pointer
 	elpm	r24, Z          ; Extended load byte from address pointed to by Z.
-	out	RAMPZ, r19      ; Restore RAMPZ register.
+	out	RAMPZ, r19      ; Restore RAMPZ register.c
 	ret
 
 

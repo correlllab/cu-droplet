@@ -57,7 +57,7 @@ ISR(PORTA_INT0_vect)
 	
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 	{
-		//set_blue_led(10);
+		set_blue_led(10);
 		//delay_us(HALF_BIT_DURATION);
 		//start_loop_time = get_16bit_time();
 		for(uint8_t i=0;i<8;i++)
@@ -70,10 +70,10 @@ ISR(PORTA_INT0_vect)
 			{
 				in_byte|=(0x0<<i);
 			}
-			delay_us(FULL_BIT_DURATION);
+			//delay_us(FULL_BIT_DURATION);
 			//loop_times[i]=get_16bit_time();
 		}
-		//set_blue_led(0);
+		set_blue_led(0);
 	}
 	printf("%hhu\r\n",in_byte);
 	//

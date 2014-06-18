@@ -6,8 +6,8 @@
 #include "RGB_LED.h"
 #include "scheduler.h"
 
-#define FULL_BIT_DURATION 104 //duration of a bit at 9600 baud, us.
-#define HALF_BIT_DURATION 52 //half duration of a bit at 9600 baud, us.
+#define FULL_BIT_DURATION 3333 //duration of a bit at 9600 baud, us.
+#define HALF_BIT_DURATION 1667 //half duration of a bit at 9600 baud, us.
 
 
 void power_init(); //just calls cap_monitor and leg_monitor init

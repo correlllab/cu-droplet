@@ -97,6 +97,16 @@ void handle_serial_command(char* command, uint16_t command_length)
 		{
 			write_motor_settings();
 		}
+		else if(strcmp(command_word,"read_motor_settings")==0)//just for testing.
+		{
+			read_motor_settings();
+			printf("\t");
+			for(uint8_t i=0; i<24 ; i++)
+			{
+				printf("%x ", read_user_signature_byte(i));
+				if(i && (i%8)==7) printf("\r\n\t");
+			}
+		}
 		else
 		{
 			printf("\tCommand ( %s ) not recognized.\r\n",command_word);

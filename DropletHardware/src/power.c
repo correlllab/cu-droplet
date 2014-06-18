@@ -48,32 +48,38 @@ void programming_mode_init()
 	PORTA.INTCTRL = PORT_INT0LVL_LO_gc;			//interrupt control is set to low level 
 }
 
-volatile uint16_t last_event;
-
-volatile uint8_t test;
-
 ISR(PORTA_INT0_vect)
 {
-	//PORTA.INTCTRL = PORT_INT0LVL_OFF_gc;
-	set_blue_led(10);
-	delay_us(HALF_BIT_DURATION);
-	unsigned char byte = 0x0;
-	for(uint8_t i=0;i<8;i++)
+	//uint16_t start_ISR_time = get_16bit_time();
+	//uint16_t start_loop_time;
+	//uint16_t loop_times[8];
+	unsigned char in_byte;
+	
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 	{
-		if(!PORTA.IN)
+		set_blue_led(10);
+		//delay_us(HALF_BIT_DURATION);
+		//start_loop_time = get_16bit_time();
+		for(uint8_t i=0;i<8;i++)
 		{
-			byte|=0x1;
+			if(!((PORTA.IN>>3)&0x1))
+			{
+				in_byte|=(0x1<<i);
+			}
+			else
+			{
+				in_byte|=(0x0<<i);
+			}
+			//delay_us(FULL_BIT_DURATION);
+			//loop_times[i]=get_16bit_time();
 		}
-		else
-		{
-			byte|=0x0;
-		}
-		byte<<=1;
-		delay_us(FULL_BIT_DURATION);
+		set_blue_led(0);
 	}
+
 	printf("%hhu\r\n",byte);
 	set_blue_led(0);
 	//PORTA.INTCTRL = PORT_INT0LVL_LO_gc;
+
 }
 
 uint8_t cap_status()

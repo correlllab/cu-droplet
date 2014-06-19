@@ -92,6 +92,7 @@ void handle_serial_command(char* command, uint16_t command_length)
 		{
 			print_motor_values();
 			print_dist_per_step();
+			printf("x\r\n");
 		}	
 		else if(strcmp(command_word,"write_motor_settings")==0)
 		{

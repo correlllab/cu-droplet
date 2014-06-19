@@ -1,5 +1,6 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
+#include <util/atomic.h>
 #include "sp_driver.h"
 //This file largely derived from xboot project, on git
 

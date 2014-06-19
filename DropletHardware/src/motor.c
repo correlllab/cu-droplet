@@ -155,8 +155,8 @@ void read_motor_settings()
 
 void write_motor_settings()
 {
-	uint8_t page_buffer[512];
-	for (uint16_t i = 0; i < 512; i++)
+	uint8_t page_buffer[USER_SIGNATURES_SIZE];
+	for (uint16_t i = 0; i < USER_SIGNATURES_SIZE; i++)
 		page_buffer[i] = read_user_signature_byte(i);
 		
 	for (uint8_t direction = 0; direction < 8; direction++)

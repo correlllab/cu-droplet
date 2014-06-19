@@ -76,7 +76,7 @@ ISR(PORTA_INT0_vect)
 		set_blue_led(0);
 	}
 
-	printf("%hhu\r\n",byte);
+	printf("%hhu\r\n",in_byte);
 	set_blue_led(0);
 	//PORTA.INTCTRL = PORT_INT0LVL_LO_gc;
 

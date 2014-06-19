@@ -91,8 +91,7 @@ void handle_serial_command(char* command, uint16_t command_length)
 		else if(strcmp(command_word,"print_motor_settings")==0)
 		{
 			print_motor_values();
-			print_dist_per_step();
-			printf("x\r\n");
+			print_dist_per_step(); 
 		}	
 		else if(strcmp(command_word,"write_motor_settings")==0)
 		{
@@ -101,12 +100,6 @@ void handle_serial_command(char* command, uint16_t command_length)
 		else if(strcmp(command_word,"read_motor_settings")==0)//just for testing.
 		{
 			read_motor_settings();
-			printf("\t");
-			for(uint8_t i=0; i<24 ; i++)
-			{
-				printf("%x ", read_user_signature_byte(i));
-				if(i && (i%8)==7) printf("\r\n\t");
-			}
 		}
 		else
 		{

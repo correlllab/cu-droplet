@@ -4,6 +4,7 @@
 #include <avr/interrupt.h>
 #include <util/atomic.h>
 #include "sp_driver.h"
+#include "eeprom_driver.h"
 //This file largely derived from xboot project, on git
 
 /******************************************************New Code for write/read on flash********************************/

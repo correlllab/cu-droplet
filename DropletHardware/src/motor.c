@@ -143,42 +143,64 @@ void read_motor_settings()
 	{
 		for (uint8_t motor_num = 0; motor_num < 3 ; motor_num++)
 		{
-			motor_adjusts[direction][motor_num] = ((((int16_t)read_user_signature_byte(0x10 + 6*direction + 2*motor_num + 0))<<8) | ((int16_t)read_user_signature_byte(0x10 + 6*direction + 2*motor_num + 1)));
+			motor_adjusts[direction][motor_num] = ((((int16_t)EEPROM_read_byte(0x10 + 6*direction + 2*motor_num + 0))<<8) | ((int16_t)EEPROM_read_byte(0x10 + 6*direction + 2*motor_num + 1)));
 		}
 
 	}
 	for (uint8_t direction = 0; direction < 8 ; direction++)
 	{
-		mm_per_kilostep[direction] =(uint16_t)read_user_signature_byte(0x40 + 2*direction + 0)<<8 | (uint16_t)read_user_signature_byte(0x40 + 2*direction + 1);
+		mm_per_kilostep[direction] =(uint16_t)EEPROM_read_byte(0x40 + 2*direction + 0)<<8 | (uint16_t)EEPROM_read_byte(0x40 + 2*direction + 1);
 	}
 }
 
+//void write_motor_settings()
+//{
+	//uint8_t page_buffer[USER_SIGNATURES_SIZE];
+	//for (uint16_t i = 0; i < USER_SIGNATURES_SIZE; i++)
+		//page_buffer[i] = read_user_signature_byte(i);
+		//
+	//for (uint8_t direction = 0; direction < 8; direction++)
+	//{
+		//for (uint8_t motor_num = 0; motor_num < 3 ; motor_num++)
+		//{
+			//int16_t temp = motor_adjusts[direction][motor_num];
+			//page_buffer[(0x10 + 6*direction + 2*motor_num + 0)] = (uint8_t)((temp>>8)&0xFF);
+			//page_buffer[(0x10 + 6*direction + 2*motor_num + 1)] = (uint8_t)(temp&0xFF);
+		//}		
+	//}
+	//
+	//for (uint8_t direction = 0; direction < 8; direction++)
+	//{
+		//uint16_t temp = mm_per_kilostep[direction];
+		//page_buffer[(0x40 + 2*direction + 0)] = (uint8_t)((temp>>8)&0xFF);
+		//page_buffer[(0x40 + 2*direction + 1)] = (uint8_t)(temp&0xFF);
+	//}					
+	//
+	//write_user_signature_row(page_buffer);
+//}
+
 void write_motor_settings()
 {
-	uint8_t page_buffer[USER_SIGNATURES_SIZE];
-	for (uint16_t i = 0; i < USER_SIGNATURES_SIZE; i++)
-		page_buffer[i] = read_user_signature_byte(i);
-		
 	for (uint8_t direction = 0; direction < 8; direction++)
 	{
 		for (uint8_t motor_num = 0; motor_num < 3 ; motor_num++)
 		{
 			int16_t temp = motor_adjusts[direction][motor_num];
-			page_buffer[(0x10 + 6*direction + 2*motor_num + 0)] = (uint8_t)((temp>>8)&0xFF);
-			page_buffer[(0x10 + 6*direction + 2*motor_num + 1)] = (uint8_t)(temp&0xFF);
-		}		
+			EEPROM_write_byte(0x10 + 6*direction + 2*motor_num + 0, (uint8_t)((temp>>8)&0xFF));
+			EEPROM_write_byte(0x10 + 6*direction + 2*motor_num + 1, (uint8_t)(temp&0xFF));
+		}
 	}
 	
 	for (uint8_t direction = 0; direction < 8; direction++)
 	{
 		uint16_t temp = mm_per_kilostep[direction];
-		page_buffer[(0x40 + 2*direction + 0)] = (uint8_t)((temp>>8)&0xFF);
-		page_buffer[(0x40 + 2*direction + 1)] = (uint8_t)(temp&0xFF);
-	}					
-	
-	write_user_signature_row(page_buffer);
+		EEPROM_write_byte(0x40 + 2*direction + 0, (uint8_t)((temp>>8)&0xFF));
+		EEPROM_write_byte(0x40 + 2*direction + 1, (uint8_t)(temp&0xFF));
+	}
 }
 
+
+//
 //void print_motor_adjusts()
 //{
 	//printf("Motor Adjustments:\r\n");

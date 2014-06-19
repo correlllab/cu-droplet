@@ -176,7 +176,7 @@ void load_flash_page_buffer(uint8_t *data)
 uint8_t write_user_signature_row(uint8_t *data)
 {
 	//uint8_t saved_status = SREG;
-	FLASH_LoadFlashPageBuffer(data);
+	load_flash_page(data);
 	SP_EraseUserSignatureRow();
 	SP_WriteUserSignatureRow();
 	NVM_CMD = NVM_CMD_NO_OPERATION_gc;

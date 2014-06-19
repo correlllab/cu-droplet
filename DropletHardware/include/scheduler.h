@@ -12,7 +12,6 @@
 #include "RGB_LED.h"
 
 
-
 // A task is a function, possibly with an argument, to be called at a specific time
 // scheduled_time is the 32-bit global time when the function should be called
 // task_function is the function to call. Its prototype must be "void foo(void *arg)"

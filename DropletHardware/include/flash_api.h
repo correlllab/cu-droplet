@@ -1,3 +1,5 @@
+#ifndef FLASH_API_H
+#define FLASH_API_H
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <util/atomic.h>
@@ -48,7 +50,6 @@ void FLASH_ReadFlashPage(uint8_t *, uint32_t);
 
 /******************************************************End of New Code*******************************************************/
 
-
 // status codes
 #define XB_SUCCESS 0
 #define XB_ERR_NO_API 1
@@ -63,3 +64,5 @@ void erase_write_application_page(uint32_t address);
 void erase_flash_buffer();
 void read_flash_page(const uint8_t * data, uint32_t address);
 void erase_application_page(uint32_t address);
+
+#endif

@@ -40,48 +40,48 @@ void leg_monitor_init()
 void programming_mode_init()
 {
 	PORTA.DIRCLR = PIN0_bm | PIN1_bm | PIN2_bm | PIN3_bm | PIN4_bm;		//sets pins as inputs 
-	
-	PORTA.INT0MASK = PIN2_bm | PIN3_bm | PIN4_bm;	//set the pin for leg so an interrupt is generated
-	PORTA.PIN2CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_BOTHEDGES_gc;			//edge detection settings, leg 1
-	PORTA.PIN3CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_BOTHEDGES_gc;			//edge detection settings, leg 2
-	PORTA.PIN4CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_BOTHEDGES_gc;			//edge detection settings, leg 3
-	PORTA.INTCTRL = PORT_INT0LVL_LO_gc;			//interrupt control is set to low level 
+	//
+	//PORTA.INT0MASK = PIN2_bm | PIN3_bm | PIN4_bm;	//set the pin for leg so an interrupt is generated
+	//PORTA.PIN2CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_BOTHEDGES_gc;			//edge detection settings, leg 1
+	//PORTA.PIN3CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_BOTHEDGES_gc;			//edge detection settings, leg 2
+	//PORTA.PIN4CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_BOTHEDGES_gc;			//edge detection settings, leg 3
+	//PORTA.INTCTRL = PORT_INT0LVL_LO_gc;			//interrupt control is set to low level 
 }
-
-ISR(PORTA_INT0_vect)
-{
-	//uint16_t start_ISR_time = get_16bit_time();
-	//uint16_t start_loop_time;
-	//uint16_t loop_times[8];
-	unsigned char in_byte;
-	
-	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
-	{
-		set_blue_led(10);
-		//delay_us(HALF_BIT_DURATION);
-		//start_loop_time = get_16bit_time();
-		for(uint8_t i=0;i<8;i++)
-		{
-			if(!((PORTA.IN>>3)&0x1))
-			{
-				in_byte|=(0x1<<i);
-			}
-			else
-			{
-				in_byte|=(0x0<<i);
-			}
-			//delay_us(FULL_BIT_DURATION);
-			//loop_times[i]=get_16bit_time();
-		}
-		set_blue_led(0);
-	}
-
-	printf("%hhu\r\n",in_byte);
-	set_blue_led(0);
-	//PORTA.INTCTRL = PORT_INT0LVL_LO_gc;
-
-}
-
+//
+//ISR(PORTA_INT0_vect)
+//{
+	////uint16_t start_ISR_time = get_16bit_time();
+	////uint16_t start_loop_time;
+	////uint16_t loop_times[8];
+	//unsigned char in_byte;
+	//
+	//ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+	//{
+		//set_blue_led(10);
+		////delay_us(HALF_BIT_DURATION);
+		////start_loop_time = get_16bit_time();
+		//for(uint8_t i=0;i<8;i++)
+		//{
+			//if(!((PORTA.IN>>3)&0x1))
+			//{
+				//in_byte|=(0x1<<i);
+			//}
+			//else
+			//{
+				//in_byte|=(0x0<<i);
+			//}
+			////delay_us(FULL_BIT_DURATION);
+			////loop_times[i]=get_16bit_time();
+		//}
+		//set_blue_led(0);
+	//}
+//
+	//printf("%hhu\r\n",in_byte);
+	//set_blue_led(0);
+	////PORTA.INTCTRL = PORT_INT0LVL_LO_gc;
+//
+//}
+//
 uint8_t cap_status()
 {
 	switch (ACB.STATUS & AC_WSTATE_gm)

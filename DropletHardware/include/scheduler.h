@@ -7,9 +7,7 @@
 #include <avr/interrupt.h>
 #include <util/atomic.h>
 #include <util/delay.h>
-//#include <stdlib.h>
 #include <stdio.h>
-#include "RGB_LED.h"
 
 
 // A task is a function, possibly with an argument, to be called at a specific time

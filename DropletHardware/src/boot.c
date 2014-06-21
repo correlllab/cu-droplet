@@ -1,7 +1,5 @@
 #include "boot.h"
 //#include "IRcom.h"
-//#define F_CPU 32000000UL
-//#include <util/delay.h>
 //#include <stdio.h>
 //
 //uint8_t command_program(uint8_t dir)
@@ -89,32 +87,32 @@
 	//return 4; // length error
 //}
 //
-void write_to_flash(uint8_t* data, uint32_t address)
-{
-	load_flash_page(data);
-	erase_write_application_page(address + 0x10000);
-	erase_flash_buffer();
-	for (int16_t j = 0; j < APP_SECTION_PAGE_SIZE; j++)
-	data[j] = 0xFF;
-}
-//
-void move_flash_and_reset()
-{
-	uint8_t data[APP_SECTION_PAGE_SIZE];
-	for (uint8_t page = 0; page < 128; page++)
-	{
-		//while(NVM.STATUS & NVM_FBUSY_bm);
-		erase_flash_buffer();
-		//while(NVM.STATUS & NVM_FBUSY_bm);
-		read_flash_page(data, (uint32_t)page * APP_SECTION_PAGE_SIZE + 0x10000);
-		//while(NVM.STATUS & NVM_FBUSY_bm);
-		load_flash_page(data);
-		//while(NVM.STATUS & NVM_FBUSY_bm);
-		erase_write_application_page(page * APP_SECTION_PAGE_SIZE);
-	}
-	CCP = CCP_IOREG_gc;
-	RST.CTRL = RST_SWRST_bm;
-}
+//void write_to_flash(uint8_t* data, uint32_t address)
+//{
+	//load_flash_page(data);
+	//erase_write_application_page(address + 0x10000);
+	//erase_flash_buffer();
+	//for (int16_t j = 0; j < APP_SECTION_PAGE_SIZE; j++)
+	//data[j] = 0xFF;
+//}
+////
+//void move_flash_and_reset()
+//{
+	//uint8_t data[APP_SECTION_PAGE_SIZE];
+	//for (uint8_t page = 0; page < 128; page++)
+	//{
+		////while(NVM.STATUS & NVM_FBUSY_bm);
+		//erase_flash_buffer();
+		////while(NVM.STATUS & NVM_FBUSY_bm);
+		//read_flash_page(data, (uint32_t)page * APP_SECTION_PAGE_SIZE + 0x10000);
+		////while(NVM.STATUS & NVM_FBUSY_bm);
+		//load_flash_page(data);
+		////while(NVM.STATUS & NVM_FBUSY_bm);
+		//erase_write_application_page(page * APP_SECTION_PAGE_SIZE);
+	//}
+	//CCP = CCP_IOREG_gc;
+	//RST.CTRL = RST_SWRST_bm;
+//}
 //
 //uint32_t crc_flash()
 //{

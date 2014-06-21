@@ -72,10 +72,6 @@ void handle_serial_command(char* command, uint16_t command_length)
 		{
 			handle_targeted_cmd(command_args);
 		}
-		else if(strcmp(command_word,"tasks")==0)
-		{
-			print_task_queue();
-		}
 		else if(strcmp(command_word,"msg")==0)
 		{
 			handle_shout(command_args);
@@ -84,6 +80,10 @@ void handle_serial_command(char* command, uint16_t command_length)
 		{
 			handle_target(command_args);
 		}
+		else if(strcmp(command_word,"tasks")==0)
+		{
+			print_task_queue();
+		}		
 		else if(strcmp(command_word,"reset")==0)
 		{
 			handle_reset();
@@ -96,10 +96,6 @@ void handle_serial_command(char* command, uint16_t command_length)
 		else if(strcmp(command_word,"write_motor_settings")==0)
 		{
 			write_motor_settings();
-		}
-		else if(strcmp(command_word,"read_motor_settings")==0)//just for testing.
-		{
-			read_motor_settings();
 		}
 		else
 		{
@@ -220,7 +216,7 @@ void handle_rnb_receive()
 {
 	receive_rnb_data();
 	rnb_updated = 0;
-	last_good_rnb.id_number = (uint16_t)last_command_source_id;
+	//last_good_rnb.id_number = (uint16_t)last_command_source_id; TODO: re-add this.
 }
 
 void handle_set_led(char* command_args)
@@ -290,49 +286,45 @@ void handle_broadcast_id()
 
 void handle_get_id()
 {
-	printf("My ID is: %X\r\n",droplet_ID);
+	printf("My ID is: %X\r\n",get_droplet_id());
 }
 
 void send_id()
 {
-	if(OK_to_send())
-	{
-		set_rgb(50,50,0);
-		uint8_t data[2];
-		data[0] = 0xFF & (droplet_ID>>8);
-		data[1] = 0xFF & droplet_ID;
-		ir_broadcast(data, 2);
-		delay_ms(100);
-		set_rgb(0,0,0);
-	}
+	//if(OK_to_send())
+	//{
+		//set_rgb(50,50,0);
+		//uint8_t data[2];
+		//data[0] = 0xFF & (droplet_ID>>8);
+		//data[1] = 0xFF & droplet_ID;
+		//ir_broadcast(data, 2);
+		//delay_ms(100);
+		//set_rgb(0,0,0);
+	//}
 }
 
 void handle_cmd(char* command_args, uint8_t should_broadcast)
 {
-	if(OK_to_send())
+	if(should_broadcast)
 	{
-		
-		if(should_broadcast)
-		{
-			//printf("Broadcasting command: \"%s\", of length %i.\r\n",(uint8_t*)command_args, strlen(command_args));
-			ir_broadcast_cmd((uint8_t*)command_args,strlen(command_args));
-		}
-		else
-		{
-			//printf("Transmitting command: \"%s\", of length %i.\r\n",(uint8_t*)command_args, strlen(command_args));
-			ir_send_cmd(1,(uint8_t*)command_args,strlen(command_args));
-		}
-
-		//if(0==ir_send_command(0,(uint8_t*)command_args,strlen(command_args)))
-		//printf("\tSent command \"%s\", of length %i\r\n",command_args,strlen(command_args));
-		//else
-		//printf("\tFailed to send \"%s\", of length %i\r\n",command_args,strlen(command_args));
+		//printf("Broadcasting command: \"%s\", of length %i.\r\n",(uint8_t*)command_args, strlen(command_args));
+		ir_cmd(IR_ALL_DIRS, (uint8_t*)command_args,strlen(command_args));
 	}
-	
 	else
 	{
-		printf("\tIt wasn't OK to send command\r\n");
+		//printf("Transmitting command: \"%s\", of length %i.\r\n",(uint8_t*)command_args, strlen(command_args));
+		ir_cmd(1,(uint8_t*)command_args,strlen(command_args));
 	}
+
+	//if(0==ir_send_command(0,(uint8_t*)command_args,strlen(command_args)))
+	//printf("\tSent command \"%s\", of length %i\r\n",command_args,strlen(command_args));
+	//else
+	//printf("\tFailed to send \"%s\", of length %i\r\n",command_args,strlen(command_args));
+	//
+	//else
+	//{
+		//printf("\tIt wasn't OK to send command\r\n");
+	//}
 }
 
 void handle_targeted_cmd(char* command_args)
@@ -346,10 +338,7 @@ void handle_targeted_cmd(char* command_args)
 	
 	uint16_t target = strtoul(targetString, NULL, 16);
 	printf("command string: %s, length: %d\r\n",cmdString, strlen(cmdString));
-	if(OK_to_send())
-	{
-		ir_targeted_broadcasted_cmd(cmdString,strlen(cmdString), target);
-	}
+	ir_targeted_cmd(IR_ALL_DIRS, cmdString,strlen(cmdString), target);
 }
 
 void handle_shout(char* command_args)
@@ -358,11 +347,8 @@ void handle_shout(char* command_args)
 	{
 		command_args = "Hello over there.";
 	}
-	
-	if(OK_to_send())
-	{
-		ir_broadcast(command_args,strlen(command_args));
-	}
+	wait_for_ir(1<<2);
+	ir_send(1<<2, command_args, strlen(command_args));
 }
 
 void handle_target(char* command_args)
@@ -377,12 +363,8 @@ void handle_target(char* command_args)
 	
 	uint16_t target = strtoul(targetString, NULL, 16);
 	
-	//printf("Target: %04X\r\n",target);
-	
-	if(OK_to_send())
-	{
-		ir_targeted_broadcast(msgString,strlen(msgString), target);
-	}
+	//printf("Target: %04X\r\n",target);	
+	ir_targeted_send(IR_ALL_DIRS, msgString,strlen(msgString), target);
 } 
 
 

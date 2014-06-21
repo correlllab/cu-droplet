@@ -1,8 +1,9 @@
 #ifndef _SERIAL_HANDER
 #define _SERIAL_HANDER
 
-#include "avr/io.h"
+#include <avr/io.h>
 #include <string.h>
+#include "droplet_init.h"
 #include "pc_com.h"
 #include "RGB_LED.h"
 #include "Range_Algorithms.h"

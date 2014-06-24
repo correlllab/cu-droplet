@@ -57,12 +57,47 @@ void ir_com_init()
 		channel[i]->CTRLA = (uint8_t) USART_RXCINTLVL_MED_gc | USART_TXCINTLVL_MED_gc;		// Set USART as med-level interrupts
 		channel[i]->CTRLC = (uint8_t) USART_CHSIZE_8BIT_gc | USART_PMODE_DISABLED_gc;		// 8 bits, no parity
 		
-		channel[i]->BAUDCTRLA = 0;					// 2400 baud
-		channel[i]->BAUDCTRLB =  0b11101101; 		// BSCALE = ?, BSEL = ?
+		#ifdef IR_2400_BAUD
+		channel[i]->BAUDCTRLA = 0b00000000; channel[i]->BAUDCTRLB = 0b11101101; // 2400 baud
+		#elif IR_9600_BAUD
+		channel[i]->BAUDCTRLA = 0b11001111; channel[i]->BAUDCTRLB = 0b00000000; // 9600 baud
+		#elif IR_57600_BAUD
+		channel[i]->BAUDCTRLA = 0b00110111; channel[i]->BAUDCTRLB = 0b10110100; // 57600 baud
+		#elif IR_115200_BAUD
+		channel[i]->BAUDCTRLA = 0b00101110; channel[i]->BAUDCTRLB = 0b10011000; // 115200 baud
+		#endif
 		
 		channel[i]->CTRLB |= USART_RXEN_bm;		// Enable communication
 		channel[i]->CTRLB |= USART_TXEN_bm;
 	}
+	schedule_task(1000/IR_UPKEEP_FREQUENCY, perform_ir_upkeep, NULL);
+}
+
+void perform_ir_upkeep()
+{
+	uint32_t now = get_32bit_time();
+	for(uint8_t dir=0; dir<6; dir++)
+	{
+		if((ir_rxtx[dir].status&IR_STATUS_COMPLETE_bm))
+		{
+			printf("Message Received!\r\n");
+			printf("\tCHN: %hhu, FRM: %hx,  TO: %hx, LEN: %hhu\r\n\t", dir, ir_rxtx[dir].sender_ID, ir_rxtx[dir].target_ID, ir_rxtx[dir].data_length);
+			uint16_t crc = 0;
+			for(uint8_t i=0; i<(DATA_LEN_VAL_bm & ir_rxtx[dir].data_length); i++) crc = _crc16_update(crc, ir_rxtx[dir].buf[i]); //Calculate CRC of inbound message.
+			for(uint8_t i=0; i<ir_rxtx[dir].data_length; i++)
+			{
+				printf("%c",ir_rxtx[dir].buf[i]);
+			}
+			printf("\r\n\tTX_CRC: %hx | RX_CRC: %hx\r\n", ir_rxtx[dir].data_crc, crc);
+			ir_rxtx[dir].status = 0;
+			ir_rxtx[dir].data_length = 0;
+			ir_rxtx[dir].curr_pos = 0;
+			ir_rxtx[dir].target_ID = 0;
+			ir_rxtx[dir].sender_ID = 0;
+			channel[dir]->CTRLB |= USART_RXEN_bm;	// this enables receive on the USART
+		}
+	}
+	schedule_task(1000/IR_UPKEEP_FREQUENCY, perform_ir_upkeep, NULL);
 }
 
 void set_ir_power(uint8_t dir, uint16_t power)
@@ -99,36 +134,28 @@ void set_ir_power(uint8_t dir, uint16_t power)
 	i2c_stopbit();
 }
 
-uint8_t ir_targeted_cmd(uint8_t dirs, char *data, uint16_t data_length, uint16_t target)
+void ir_targeted_cmd(uint8_t dirs, char *data, uint16_t data_length, uint16_t target)
 {
-	for(uint8_t dir=0 ; dir < 6 ; dir++) ir_rxtx[dir].target_ID = target;
-	data_length |= DATA_LEN_TGT_bm;
+	for(uint8_t dir=0 ; dir < 6 ; dir++) if(dirs&(1<<dir)) ir_rxtx[dir].target_ID=target;
 	data_length |= DATA_LEN_CMD_bm;
 	ir_send(dirs, data, data_length);
-	return 0;
 }
 
-uint8_t ir_cmd(uint8_t dirs, char *data, uint16_t data_length)
-{
+void ir_cmd(uint8_t dirs, char *data, uint16_t data_length)
+{	
 	data_length |= DATA_LEN_CMD_bm;
 	ir_send(dirs, data, data_length);
-	return 0;
 }
 
-uint8_t ir_targeted_send(uint8_t dirs, char *data, uint16_t data_length, uint16_t target)
+void ir_targeted_send(uint8_t dirs, char *data, uint16_t data_length, uint16_t target)
 {
-	for(uint8_t dir=0 ; dir < 6 ; dir++) ir_rxtx[dir].target_ID = target;
-	data_length |= DATA_LEN_TGT_bm;
+	for(uint8_t dir=0 ; dir < 6 ; dir++) if(dirs&(1<<dir)) ir_rxtx[dir].target_ID=target;
 	ir_send(dirs, data, data_length);
-	return 0;
 }
 
-volatile uint8_t dirs;
-
-uint8_t ir_send(uint8_t local_dirs, char *data, uint8_t data_length)
+void  ir_send(uint8_t local_dirs, char *data, uint8_t data_length)
 {
-	dirs = local_dirs;
-	if (data_length == 0) return 1;
+	uint8_t dirs = local_dirs;
 		
 	for(uint8_t dir=0; dir<6; dir++) 
 	{
@@ -150,16 +177,15 @@ uint8_t ir_send(uint8_t local_dirs, char *data, uint8_t data_length)
 			ir_rxtx[dir].data_length = data_length;
 			ir_rxtx[dir].data_crc = crc;
 			ir_rxtx[dir].curr_pos = 0;
-			ir_rxtx[dir].sender_ID = get_droplet_id();
-			if(!(DATA_LEN_TGT_bm & ir_rxtx[dir].data_length)) ir_rxtx[dir].target_ID=0;			
-			memcpy(ir_rxtx[dir].buf, data, DATA_LEN_VAL_bm & data_length); 
+			ir_rxtx[dir].sender_ID = get_droplet_id();		
+			memcpy(ir_rxtx[dir].buf, data, (DATA_LEN_VAL_bm & data_length)); 
 			TCF2.CTRLB |= ir_carrier_bm[dir];		// Turn on carrier wave on port dir
 		}
 	}
 	
 	for(uint8_t dir=0; dir<6; dir++)
 	{
-		 if(dirs&(1<<dir)) ir_rxtx[dir].initial_use_time = get_32bit_time();
+		 if(dirs&(1<<dir)) ir_rxtx[dir].last_byte = 0;
 	}
 	for(uint8_t dir=0; dir<6; dir++)
 	{
@@ -167,17 +193,18 @@ uint8_t ir_send(uint8_t local_dirs, char *data, uint8_t data_length)
 	}
 
 	/* The whole transmission will now occur in interrupts. */
-	
-	return 0;
 }
 
-volatile uint8_t in_byte;
 // To be called from interrupt handler only. Do not call.
 void ir_receive(uint8_t dir)
 {
-	in_byte = channel[dir]->DATA;				// Some data just came in
-	//printf("%02X ",in_data); //Used for debugging - prints raw bytes as we get them.
+	uint8_t in_byte = channel[dir]->DATA;				// Some data just came in
+	//printf("%02X ",in_byte); //Used for debugging - prints raw bytes as we get them.	
 
+	uint32_t now = get_32bit_time();
+	if(now-ir_rxtx[dir].last_byte > IR_MSG_TIMEOUT) ir_rxtx[dir].curr_pos = 0;
+	ir_rxtx[dir].last_byte = get_32bit_time();
+	
 	switch(ir_rxtx[dir].curr_pos)
 	{
 		case HEADER_POS_MSG_LENGTH:		ir_rxtx[dir].data_length	= in_byte; break;
@@ -190,25 +217,13 @@ void ir_receive(uint8_t dir)
 		default: ir_rxtx[dir].buf[ir_rxtx[dir].curr_pos-HEADER_LEN] = in_byte;
 	}
 	ir_rxtx[dir].curr_pos++;
-	if((ir_rxtx[dir].curr_pos-HEADER_LEN)==ir_rxtx[dir].data_length)
-	{
-		schedule_task(5, print_received_message, (void*)dir);
-	}
+	if(ir_rxtx[dir].curr_pos>=((DATA_LEN_VAL_bm & ir_rxtx[dir].data_length)+HEADER_LEN))
+	{	
+		ir_rxtx[dir].status |= IR_STATUS_COMPLETE_bm;
+		channel[dir]->CTRLB &= ~USART_RXEN_bm; //Disable receiving messages on this channel until the message has been processed.
+		//schedule_task(5, print_received_message, (void*)dir);
 }
 
-void print_received_message(void* dir_star)
-{
-	uint8_t dir = (uint8_t)dir_star;
-	printf("Message Received!\r\n");
-	printf("\tCHN: %hhu, FRM: %hx,  TO: %hx, LEN: %hhu\r\n\t", dir, ir_rxtx[dir].sender_ID, ir_rxtx[dir].target_ID, ir_rxtx[dir].data_length);
-	uint16_t crc = 0;
-	for(uint8_t i=0; i<(DATA_LEN_VAL_bm & ir_rxtx[dir].data_length); i++) crc = _crc16_update(crc, ir_rxtx[dir].buf[i]); //Calculate CRC of outbound message.	
-	for(uint8_t i=0; i<ir_rxtx[dir].data_length; i++)
-	{
-		printf("%c",ir_rxtx[dir].buf[i]);
-	}
-	printf("\r\n\tTX_CRC: %hx | RX_CRC: %hx\r\n", ir_rxtx[dir].data_crc, crc);
-	ir_reset_rx(dir); //This should be moved to ir_receive when done debugging.
 }
 
 // TO BE CALLED FROM INTERRUPT HANDLER ONLY
@@ -228,14 +243,14 @@ void ir_transmit(uint8_t dir)
 		case HEADER_POS_TARGET_ID_HIGH: next_byte  = (uint8_t)((ir_rxtx[dir].target_ID>>8)&0xFF); break;
 		default: next_byte = ir_rxtx[dir].buf[ir_rxtx[dir].curr_pos - HEADER_LEN];
 	}
-	channel[dir]->DATA = next_byte;	
-	printf("%hhu ",next_byte);
+	//printf("%02X ", next_byte);	
+	channel[dir]->DATA = next_byte;
 	ir_rxtx[dir].curr_pos++;
 	/* CHECK TO SEE IF MESSAGE IS COMPLETE */
-	if((ir_rxtx[dir].curr_pos-HEADER_LEN) >= ir_rxtx[dir].data_length)
+	if(ir_rxtx[dir].curr_pos >= ((DATA_LEN_VAL_bm & ir_rxtx[dir].data_length)+HEADER_LEN))
 	{
-		channel[dir]->CTRLA &= ~USART_DREINTLVL_gm;
-		return;	// this message is over, do not send any more
+		//printf("\r\n");
+		channel[dir]->CTRLA &= ~USART_DREINTLVL_gm; //Turn off interrupt things.
 	}
 
 }
@@ -251,7 +266,7 @@ void ir_transmit_complete(uint8_t dir)
 	//	complete interrupt vector is executed. The flag can also be cleared by writing a one to its bit location.
 	//	To do: this suggests we don't really need to do this a byte at a time? Need to check.
 	//  Calling this code signals the end of the transmit process
-
+	//printf("\r\n");
 	TCF2.CTRLB &= ~ir_carrier_bm[dir]; //Turn off the carrier wave.
 
 	ir_rxtx[dir].status = 0;

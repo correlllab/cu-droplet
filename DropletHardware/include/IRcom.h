@@ -13,7 +13,14 @@
 //		2 KB EEPROM	(permanent variables)
 //		8 KB SRAM (temporary variables)
 
-#define IR_BUFFER_SIZE			63
+#define IR_BUFFER_SIZE			63 //bytes
+#define IR_UPKEEP_FREQUENCY		10 //Hz
+#define IR_MSG_TIMEOUT			10 //ms
+/* Only one of the baud rates following should be uncommented. */
+#define IR_2400_BAUD
+//#define IR_9600_BAUD
+//#define IR_57600_BAUD
+//#define IR_115200_BAUD
 
 #define IR_STATUS_BUSY_bm				0x01	// 0000 0001				
 #define IR_STATUS_COMPLETE_bm			0x02	// 0000 0010
@@ -22,8 +29,7 @@
 #define IR_STATUS_TARGETED_bm			0x10	// 0001 0000
 
 
-#define DATA_LEN_VAL_bm		0x3F
-#define DATA_LEN_TGT_bm		0x40
+#define DATA_LEN_VAL_bm		0x7F
 #define DATA_LEN_CMD_bm		0x80
 
 #define IR_ALL_DIRS 0x3F
@@ -39,7 +45,7 @@
 
 struct
 {	
-	uint32_t initial_use_time;		// TX time or RX time of first byte	
+	uint32_t last_byte;		// TX time or RX time of last received byte	
 	char* buf;					// Transmit / receive buffer	
 	uint16_t data_crc;
 	uint16_t sender_ID;
@@ -60,11 +66,11 @@ void ir_com_init();
  * Note: this function is blocking and will take approx 300us to complete
  */
 void set_ir_power(uint8_t dir, uint16_t power);
-
-uint8_t ir_targeted_cmd(uint8_t dirs, char *data, uint16_t data_length, uint16_t target);
-uint8_t ir_cmd(uint8_t dirs, char *data, uint16_t data_length);
-uint8_t ir_targeted_send(uint8_t dirs, char *data, uint16_t data_length, uint16_t target);
-uint8_t ir_send(uint8_t dirs, char *data, uint8_t data_length);
+void perform_ir_upkeep();
+void ir_targeted_cmd(uint8_t dirs, char *data, uint16_t data_length, uint16_t target);
+void ir_cmd(uint8_t dirs, char *data, uint16_t data_length);
+void ir_targeted_send(uint8_t dirs, char *data, uint16_t data_length, uint16_t target);
+void ir_send(uint8_t dirs, char *data, uint8_t data_length);
 void ir_receive(uint8_t dir); //Called by Interrupt Handler Only
 void ir_transmit(uint8_t dir);
 void ir_transmit_complete(uint8_t dir);

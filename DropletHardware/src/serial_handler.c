@@ -345,9 +345,11 @@ void handle_shout(char* command_args)
 {
 	if(strlen(command_args)==0)
 	{
-		command_args = "Hello over there.";
+		command_args = "The quick brown fox jumped over the lazy dog. Unique New";
 	}
 	wait_for_ir(1<<2);
+	printf("%u\r\n",strlen(command_args));
+	delay_ms(200);
 	ir_send(1<<2, command_args, strlen(command_args));
 }
 

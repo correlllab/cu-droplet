@@ -52,32 +52,18 @@ ISR(PORTA_INT0_vect)
 {
 	//uint16_t start_ISR_time = get_16bit_time();
 	//uint16_t start_loop_time;
-	//uint16_t loop_times[8];
 	unsigned char in_byte;
-	
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 	{
-		set_blue_led(10);
-		//delay_us(HALF_BIT_DURATION);
-		//start_loop_time = get_16bit_time();
+		delay_us(HALF_BIT_DURATION);
 		for(uint8_t i=0;i<8;i++)
 		{
-			if(!((PORTA.IN>>3)&0x1))
-			{
-				in_byte|=(0x1<<i);
-			}
-			else
-			{
-				in_byte|=(0x0<<i);
-			}
-			//delay_us(FULL_BIT_DURATION);
-			//loop_times[i]=get_16bit_time();
+			delay_us(FULL_BIT_DURATION);
+			if((((PORTA.IN>>2)|(PORTA.IN>>3)|(PORTA.IN>>4))&0x1)) in_byte |= (0x1<<i);
+			else												   in_byte |= (0x0<<i);
 		}
-		set_blue_led(0);
 	}
-
-	printf("%hhu\r\n",in_byte);
-	set_blue_led(0);
+	printf("%hhx\r\n",in_byte);
 	//PORTA.INTCTRL = PORT_INT0LVL_LO_gc;
 
 }

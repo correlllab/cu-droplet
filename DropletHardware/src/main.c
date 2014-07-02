@@ -5,9 +5,8 @@ volatile float blah;
 int main(void)
 {
 	init_all_systems();
-	//uint8_t ir_sense_vals[6];
-	blah = 1.6180339887;
 	printf("Initialized.\r\n");
+	
 	while (1)
 	{	
 		//printf("1: %hhu, 2: %hhu, 3: %hhu\r\n",leg1_status(), leg2_status(), leg3_status());

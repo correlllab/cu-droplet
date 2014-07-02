@@ -1,8 +1,13 @@
 #ifndef RANGE_ALGORITHMS_H
 #define RANGE_ALGORITHMS_H
 
-#include "IR_sensor.h"
+#include <avr/io.h>
+#include <math.h>
+
 #include "droplet_init.h"
+#include "scheduler.h"
+#include "IR_sensor.h"
+#include "RGB_LED.h"
 #include "IRcom.h"
 
 

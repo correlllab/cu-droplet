@@ -4,6 +4,7 @@
 #include <avr/interrupt.h>
 #include <util/atomic.h>
 #include "sp_driver.h"
+#include "eeprom_driver.h"
 //This file largely derived from xboot project, on git
 
 /******************************************************New Code for write/read on flash********************************/
@@ -21,20 +22,20 @@
  *        protection byte in the CCP register. 
  */ 
 #ifndef NVM_EXEC 
-#define NVM_EXEC()  asm("push r30"      "\n\t"  \ 
-                        "push r31"      "\n\t"  \ 
-                        "push r16"      "\n\t"  \ 
-                        "push r18"      "\n\t"  \ 
-                        "ldi r30, 0xCB" "\n\t"  \ 
-                        "ldi r31, 0x01" "\n\t"  \ 
-                        "ldi r16, 0xD8" "\n\t"  \ 
-                        "ldi r18, 0x01" "\n\t"  \ 
-                        "out 0x34, r16" "\n\t"  \ 
-                        "st Z, r18"     "\n\t"  \ 
-                        "pop r18"       "\n\t"  \ 
-                        "pop r16"       "\n\t"  \ 
-                        "pop r31"       "\n\t"  \ 
-                        "pop r30"       "\n\t"  \ 
+#define NVM_EXEC()  asm("push r30"      "\n\t"  \
+                        "push r31"      "\n\t"  \
+                        "push r16"      "\n\t"  \
+                        "push r18"      "\n\t"  \
+                        "ldi r30, 0xCB" "\n\t"  \
+                        "ldi r31, 0x01" "\n\t"  \
+                        "ldi r16, 0xD8" "\n\t"  \
+                        "ldi r18, 0x01" "\n\t"  \
+                        "out 0x34, r16" "\n\t"  \
+                        "st Z, r18"     "\n\t"  \
+                        "pop r18"       "\n\t"  \
+                        "pop r16"       "\n\t"  \
+                        "pop r31"       "\n\t"  \
+                        "pop r30"       "\n\t"  \
                        ) 
 #endif // NVM_EXEC 
 

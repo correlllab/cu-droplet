@@ -1,3 +1,6 @@
+#ifndef ECC_H
+#define ECC_H
+
 #include <avr/io.h>
 
 // Encodes 8 bit data to 16 bit Manchester encoding
@@ -39,3 +42,5 @@ uint8_t golay_verify(uint32_t cw);
 // Returns 1 if parity error
 // Returns 2 if syndrome error
 uint8_t golay_find_errors(uint32_t cw);
+
+#endif

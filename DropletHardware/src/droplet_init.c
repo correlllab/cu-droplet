@@ -71,5 +71,5 @@ void startup_light_sequence()
 void droplet_reboot()
 {
 	CPU_CCP=CCP_IOREG_gc;
-	RST.CTRL = 0b00000001;
+	RST.CTRL = 0x1;
 }

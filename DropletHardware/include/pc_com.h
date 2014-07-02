@@ -4,8 +4,9 @@
 #include <stdio.h> //Needed for 'FILE' type
 #include <avr/io.h>
 #include <avr/interrupt.h>
+#include "scheduler.h"
 #include "serial_handler.h"
-#include "util/delay.h"
+
 
 #define PC_PORT PORTD
 #define PC_USART USARTD1

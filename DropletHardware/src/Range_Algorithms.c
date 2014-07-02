@@ -10,12 +10,6 @@
 *		}
 *	There were previous inconsistencies in this code.
 */
-
-#include <avr/io.h>
-#include <math.h>
-#include <stdio.h> 
-#include <avr/delay.h>
-
 #include "Range_Algorithms.h"
 
 float basis[6][2] = {	{0.866025 , -0.5}, 
@@ -57,14 +51,8 @@ void collect_rnb_data(void* arg)
 	while(error && (number_of_tries < 5))
 	{
 		if(number_of_tries > 0) delay_ms(1000);
-		if(!OK_to_send())
-		{
-			printf("ERROR: RNB request failed. Not ok to send.");
-			return;
-		}
-
-		ir_broadcast_cmd(cmd, 7);
-		while(ir_tx[5].ir_status & IR_TX_STATUS_BUSY_bm);
+		ir_cmd(IR_ALL_DIRS, cmd, 7);
+		wait_for_ir(IR_ALL_DIRS);
 		get_IR_range_readings();
 		error = pack_measurements_into_matrix(brightness_matrix);
 		number_of_tries++;
@@ -93,8 +81,8 @@ void collect_rnb_data(void* arg)
 void broadcast_rnb_data()
 {
 	uint16_t power = 257;
-	ir_broadcast_cmd("rnb_r",5);
-	while(ir_tx[5].ir_status & IR_TX_STATUS_BUSY_bm);
+	ir_cmd(IR_ALL_DIRS, "rnb_r", 5);
+	wait_for_ir(IR_ALL_DIRS);
 	IR_range_blast(power);
 }
 
@@ -127,7 +115,7 @@ void use_rnb_data(uint8_t power)
 	last_good_rnb.bearing = bearing;
 	last_good_rnb.heading = heading;
 	last_good_rnb.brightness_matrix_ptr = brightness_matrix;
-	last_good_rnb.id_number = last_command_source_id;
+	//last_good_rnb.id_number = last_command_source_id; TODO: re-add this.
 	rnb_updated=1;
 }
 

@@ -14,20 +14,15 @@
 //		8 KB SRAM (temporary variables)
 
 #define IR_BUFFER_SIZE			63 //bytes
-#define IR_UPKEEP_FREQUENCY		10 //Hz
+#define IR_UPKEEP_FREQUENCY		20 //Hz
 #define IR_MSG_TIMEOUT			10 //ms
-/* Only one of the baud rates following should be uncommented. */
-#define IR_2400_BAUD
-//#define IR_9600_BAUD
-//#define IR_57600_BAUD
-//#define IR_115200_BAUD
 
 #define IR_STATUS_BUSY_bm				0x01	// 0000 0001				
 #define IR_STATUS_COMPLETE_bm			0x02	// 0000 0010
 #define IR_STATUS_ERROR_bm				0x04	// 0000 0100
 #define IR_STATUS_COMMAND_bm			0x08	// 0000 1000
 #define IR_STATUS_TARGETED_bm			0x10	// 0001 0000
-
+#define IR_STATUS_UNAVAILABLE_bm		0x03	// Complete or Busy
 
 #define DATA_LEN_VAL_bm		0x7F
 #define DATA_LEN_CMD_bm		0x80
@@ -46,7 +41,7 @@
 struct
 {	
 	uint32_t last_byte;		// TX time or RX time of last received byte	
-	char* buf;					// Transmit / receive buffer	
+	char buf[IR_BUFFER_SIZE];					// Transmit / receive buffer	
 	uint16_t data_crc;
 	uint16_t sender_ID;
 	uint16_t target_ID;
@@ -54,6 +49,17 @@ struct
 	uint8_t  data_length;
 	volatile uint8_t status;		// Transmit:
 } ir_rxtx[6];
+
+typedef struct node
+{
+	char* msg;
+	uint32_t arrival_time;
+	uint16_t sender_ID;
+	uint8_t msg_length;
+	struct node* prev;
+} msg_node;
+
+msg_node* last_ir_msg;
 
 /* GENERAL IR RELATED ROUTINES */
 
@@ -67,6 +73,7 @@ void ir_com_init();
  */
 void set_ir_power(uint8_t dir, uint16_t power);
 void perform_ir_upkeep();
+inline void clear_ir_buffer(uint8_t dir);
 void ir_targeted_cmd(uint8_t dirs, char *data, uint16_t data_length, uint16_t target);
 void ir_cmd(uint8_t dirs, char *data, uint16_t data_length);
 void ir_targeted_send(uint8_t dirs, char *data, uint16_t data_length, uint16_t target);

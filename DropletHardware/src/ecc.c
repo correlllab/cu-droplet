@@ -1,7 +1,4 @@
 #include "ecc.h"
-#include "IRcom.h"
-
-#include <stdint.h>
 
 
 uint16_t manchester_encode( uint8_t data )

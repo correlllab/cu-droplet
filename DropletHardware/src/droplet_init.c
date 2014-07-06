@@ -22,8 +22,6 @@ void init_all_systems()
 	motor_init();				if(INIT_DEBUG_MODE) printf("MOTOR INIT\r\n");
 	range_algorithms_init();	if(INIT_DEBUG_MODE) printf("RANGE ALGORITHMS INIT\r\n");
 
-	last_serial_command_time = get_32bit_time();
-
 	enable_interrupts();
 	startup_light_sequence();
 

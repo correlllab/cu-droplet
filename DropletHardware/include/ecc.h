@@ -2,6 +2,8 @@
 #define ECC_H
 
 #include <avr/io.h>
+#include <stdint.h>
+#include "IRcom.h"
 
 // Encodes 8 bit data to 16 bit Manchester encoding
 uint16_t manchester_encode( uint8_t data );

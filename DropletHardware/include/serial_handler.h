@@ -9,8 +9,6 @@
 #include "Range_Algorithms.h"
 #include "scheduler.h"
 
-uint32_t last_serial_command_time;
-
 void handle_serial_command(char* command, uint16_t command_length);
 void handle_move_steps(char* command_args);
 void handle_walk(char* command_args);

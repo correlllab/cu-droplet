@@ -2,13 +2,7 @@
 
 void handle_serial_command(char* command, uint16_t command_length)
 {
-	uint32_t command_time = get_32bit_time();
-	if((command_time - last_serial_command_time) < 5)
-	{
-		//printf("Ignoring a command: %s.\r\n",command);
-		return;
-	}
-	last_serial_command_time = command_time;
+	//last_serial_command_time = command_time;
 	//printf("Got command \"%s\".\r\n",command);
 	//printf("command_time: %lu | last_command_time: %lu\r\n", command_time, last_serial_command_time);
 	if(command[0]!='\0') //Not much to handle if we get an empty string.
@@ -343,14 +337,15 @@ void handle_targeted_cmd(char* command_args)
 
 void handle_shout(char* command_args)
 {
-	if(strlen(command_args)==0)
-	{
-		command_args = "The quick brown fox jumped over the lazy dog. Unique New";
+	if(strlen(command_args)==0) command_args = "The quick brown fox jumped over the lazy dog. Unique New York.";
+	else if(strlen(command_args)>IR_BUFFER_SIZE)
+	{ 
+		printf("Message length was %d chars, which exceeds the maximum of %d", strlen(command_args), IR_BUFFER_SIZE);
+		return;
 	}
-	wait_for_ir(1<<2);
-	printf("%u\r\n",strlen(command_args));
-	delay_ms(200);
-	ir_send(1<<2, command_args, strlen(command_args));
+	
+	wait_for_ir(IR_ALL_DIRS);	
+	ir_send(IR_ALL_DIRS, command_args, strlen(command_args));
 }
 
 void handle_target(char* command_args)

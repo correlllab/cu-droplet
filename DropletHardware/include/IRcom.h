@@ -38,7 +38,7 @@
 #define HEADER_POS_TARGET_ID_HIGH 6
 #define HEADER_LEN 7
 
-struct
+volatile struct
 {	
 	uint32_t last_byte;		// TX time or RX time of last received byte	
 	char buf[IR_BUFFER_SIZE];					// Transmit / receive buffer	
@@ -59,7 +59,7 @@ typedef struct node
 	struct node* prev;
 } msg_node;
 
-msg_node* last_ir_msg;
+volatile msg_node* last_ir_msg;
 
 /* GENERAL IR RELATED ROUTINES */
 

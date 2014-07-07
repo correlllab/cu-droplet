@@ -3,7 +3,7 @@
 void handle_serial_command(char* command, uint16_t command_length)
 {
 	//last_serial_command_time = command_time;
-	//printf("Got command \"%s\".\r\n",command);
+	printf("Got command \"%s\".\r\n",command);
 	//printf("command_time: %lu | last_command_time: %lu\r\n", command_time, last_serial_command_time);
 	if(command[0]!='\0') //Not much to handle if we get an empty string.
 	{
@@ -301,12 +301,14 @@ void handle_cmd(char* command_args, uint8_t should_broadcast)
 {
 	if(should_broadcast)
 	{
-		//printf("Broadcasting command: \"%s\", of length %i.\r\n",(uint8_t*)command_args, strlen(command_args));
+		printf("Broadcasting command: \"%s\", of length %i.\r\n",(uint8_t*)command_args, strlen(command_args));
+		wait_for_ir(IR_ALL_DIRS);
 		ir_cmd(IR_ALL_DIRS, (uint8_t*)command_args,strlen(command_args));
 	}
 	else
 	{
 		//printf("Transmitting command: \"%s\", of length %i.\r\n",(uint8_t*)command_args, strlen(command_args));
+		wait_for_ir(IR_ALL_DIRS);
 		ir_cmd(1,(uint8_t*)command_args,strlen(command_args));
 	}
 

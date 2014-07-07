@@ -10,13 +10,13 @@ int main(void)
 	while (1)
 	{	
 		check_messages();
-		delay_ms(2000);
+		delay_ms(200);
 	}
 }
 
 void check_messages()
 {
-	printf("Checking messages...\r\n");
+	uint8_t num_msgs = 0;
 	while(last_ir_msg!=NULL)
 	{
 		printf("\tGot: \"");
@@ -24,13 +24,14 @@ void check_messages()
 		{
 			printf("%c",last_ir_msg->msg[i]);
 		}
-		printf("\" from %hx %ums ago.\r\n",last_ir_msg->sender_ID, get_32bit_time()-last_ir_msg->arrival_time);
+		printf("\"\r\n\tfrom %hx %ums ago.\r\n",last_ir_msg->sender_ID, get_32bit_time()-last_ir_msg->arrival_time);
 		msg_node* temp = last_ir_msg;
 		last_ir_msg = last_ir_msg->prev;
 		free(temp->msg);
 		free(temp);
+		num_msgs++;
 	}
-	printf("End of messages.\r\n");
+	if(num_msgs>0) printf("Got %hhu messages.\r\n",num_msgs);
 }
 
 void color_cycle()

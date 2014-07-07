@@ -70,52 +70,52 @@ void ir_com_init()
 
 void perform_ir_upkeep()
 {
-	uint8_t got_msg = 0; //For now, can only get one new message per call to this function.
-	for(uint8_t dir=0; dir<6; dir++)
+	//For now, can only get one message per call to this function.
+	int8_t msg_chan = -1; //This value is negative if we don't have a message, and otherwise holds the value of the chanel which received the message.
+	for(uint8_t dir=0; dir<6; dir++) //This first loop looks for a channel on which we got a good message.
 	{
-		if(ir_rxtx[dir].status&IR_STATUS_COMPLETE_bm)
+		if(!(ir_rxtx[dir].status&IR_STATUS_COMPLETE_bm)) continue; //ignore a channel if it isn't done yet.
+		if(ir_rxtx[dir].target_ID) if(ir_rxtx[dir].target_ID != get_droplet_id()) continue;//Is this message targeted, to this droplet?
+		uint16_t crc = 0;
+		for(uint8_t i=0; i<ir_rxtx[dir].data_length; i++) crc = _crc16_update(crc, ir_rxtx[dir].buf[i]); //Calculate CRC of inbound message.
+		if(ir_rxtx[dir].data_crc == crc) //crc check passed, hurray!
 		{
-			if(ir_rxtx[dir].target_ID!=0) //Is this message is targeted?
-			{
-				if(ir_rxtx[dir].target_ID!=get_droplet_id()) //But not targeted to this droplet.
-				{					
-					clear_ir_buffer(dir);
-					continue;
-				}
-			}
-			if(got_msg) //we already got a message this time.
-			{
-				clear_ir_buffer(dir);	
-				continue;
-			}
-			uint16_t crc = 0;
-			for(uint8_t i=0; i<ir_rxtx[dir].data_length; i++) crc = _crc16_update(crc, ir_rxtx[dir].buf[i]); //Calculate CRC of inbound message.
-			if(ir_rxtx[dir].data_crc == crc) //crc check passed, hurray!
-			{
-				got_msg = 1;
-				if(ir_rxtx[dir].status & IR_STATUS_COMMAND_bm) //It's a command, so handle appropriately.
-				{
-					char msg[ir_rxtx[dir].data_length];
-					memcpy(ir_rxtx[dir].buf, msg, ir_rxtx[dir].data_length);
-					handle_serial_command(msg, ir_rxtx[dir].data_length);
-				}
-				else //Normal message, so add to msg queue
-				{
-					msg_node* new_node = (msg_node*)malloc(sizeof(msg_node));
-					new_node->msg = (char*)malloc(ir_rxtx[dir].data_length);
-					memcpy(ir_rxtx[dir].buf, new_node->msg, ir_rxtx[dir].data_length);
-					new_node->arrival_time = ir_rxtx[dir].last_byte;
-					new_node->sender_ID = ir_rxtx[dir].sender_ID;
-					new_node->msg_length = ir_rxtx[dir].data_length;
-					new_node->prev = last_ir_msg;
-					last_ir_msg = new_node;
-				}
-			}
-			else //crc check failed.
-			{
-				//TODO: Try and recover message if received by multiple receivers.
-			}
-			clear_ir_buffer(dir);
+			msg_chan = dir;
+			break;
+		}
+		else //crc check failed.
+		{
+			//TODO: Try and recover message if received by multiple receivers.
+		}
+	}
+	for(uint8_t dir=0;dir<6;dir++) //free up the ir buffers for all the channels we don't need.
+	{
+		if(dir!=msg_chan) clear_ir_buffer(dir);
+	}
+	if(msg_chan>0) //If we got a good message.
+	{
+		if(ir_rxtx[msg_chan].status & IR_STATUS_COMMAND_bm) //If the message is a command.
+		{
+			char msg[ir_rxtx[msg_chan].data_length+1];
+			memcpy(msg, ir_rxtx[msg_chan].buf, ir_rxtx[msg_chan].data_length);
+			msg[ir_rxtx[msg_chan].data_length]='\0';
+			uint8_t cmd_length = ir_rxtx[msg_chan].data_length;
+			clear_ir_buffer(msg_chan);
+			handle_serial_command(msg, cmd_length);
+		}
+		else //Normal message, so add to msg queue
+		{
+			msg_node* new_node = (msg_node*)malloc(sizeof(msg_node));
+			char* tmp = (char*)malloc(ir_rxtx[msg_chan].data_length+1);
+			new_node->msg = tmp;
+			memcpy(new_node->msg, ir_rxtx[msg_chan].buf, ir_rxtx[msg_chan].data_length);
+			new_node->msg[ir_rxtx[msg_chan].data_length]='\0';
+			new_node->arrival_time = ir_rxtx[msg_chan].last_byte;
+			new_node->sender_ID = ir_rxtx[msg_chan].sender_ID;
+			new_node->msg_length = ir_rxtx[msg_chan].data_length;
+			new_node->prev = last_ir_msg;
+			last_ir_msg = new_node;
+			clear_ir_buffer(msg_chan);
 		}
 	}
 	schedule_task(1000/IR_UPKEEP_FREQUENCY, perform_ir_upkeep, NULL);

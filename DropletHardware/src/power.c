@@ -52,11 +52,11 @@ ISR(PORTA_INT0_vect)
 {
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 	{	
-		unsigned char in_byte;
-		delay_us(HALF_BIT_DURATION);
+		unsigned char in_byte=0;
+		busy_delay_us(HALF_BIT_DURATION);
 		for(uint8_t i=0;i<8;i++)
 		{
-			delay_us(FULL_BIT_DURATION);
+			busy_delay_us(FULL_BIT_DURATION);
 			if((PORTA.IN>>2)&0x1) in_byte |= (0x1<<i);
 			//if((((PORTA.IN>>2)|(PORTA.IN>>3)|(PORTA.IN>>4))&0x1)) in_byte |= (0x1<<i);
 			else												  in_byte |= (0x0<<i);

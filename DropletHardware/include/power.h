@@ -5,9 +5,11 @@
 #include <avr/interrupt.h>
 #include "RGB_LED.h"
 #include "scheduler.h"
+#include "delay_x.h"
 
-#define FULL_BIT_DURATION 3333 //duration of a bit at 300 baud, us.(increase delay by 6%)
-#define HALF_BIT_DURATION 1667 //half duration of a bit at 300 baud, us.
+
+#define FULL_BIT_DURATION 208 //duration of a bit at 300 baud, us.(increase delay by 6%)
+#define HALF_BIT_DURATION 104 //half duration of a bit at 300 baud, us.
 
 
 void power_init(); //just calls cap_monitor and leg_monitor init

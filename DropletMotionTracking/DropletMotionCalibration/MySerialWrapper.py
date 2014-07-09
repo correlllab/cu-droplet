@@ -37,5 +37,4 @@ def write(data):
     out_dat = data + '\n';
     global_port.write(out_dat)
     global_port.flushOutput()
-    time.sleep(0.5)
     read()

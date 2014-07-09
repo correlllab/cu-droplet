@@ -53,8 +53,26 @@ void programming_mode_init()
 
 void print_prog_buffer()
 {
-	for(uint8_t i=0; i<prog_num_chars; i++) printf("%c",prog_in_buffer[i]);
-	if(prog_num_chars) printf("\r\n");
+	uint8_t checksum = 0;
+	uint8_t checksum_tgt = 0;
+	uint8_t data_bytes_in_line = 0;
+	for(uint8_t i=0; i<prog_num_chars; i++)
+	{
+		if(i==0) data_bytes_in_line = prog_in_buffer[i];
+		printf("%hhx",prog_in_buffer[i]);		
+		if(i==data_bytes_in_line+4)
+		{
+			checksum_tgt = prog_in_buffer[i];
+			break;
+		}
+		checksum+=prog_in_buffer[i];
+	}
+	checksum = (~checksum)+1;
+	if(prog_num_chars)
+	{
+		printf("\r\n");
+		if(checksum!=checksum_tgt) printf("checksum error. got: %hhx, should be: %hhx\r\n",checksum, checksum_tgt);		
+	}
 	prog_num_chars = 0;
 	schedule_task(1000/PROG_BUFFER_CHECK_FREQ, print_prog_buffer, NULL);
 }

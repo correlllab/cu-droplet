@@ -11,7 +11,7 @@
 #define FULL_BIT_DURATION 208 //duration of a bit at 300 baud, us.(increase delay by 6%)
 #define HALF_BIT_DURATION 104 //half duration of a bit at 300 baud, us.
 #define PROG_BUFFER_SIZE 64
-#define PROG_BUFFER_CHECK_FREQ 10
+#define PROG_BUFFER_CHECK_FREQ 5
 
 volatile uint8_t prog_num_chars;
 volatile char* prog_in_buffer;

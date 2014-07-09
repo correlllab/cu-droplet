@@ -3,7 +3,7 @@
 void handle_serial_command(char* command, uint16_t command_length)
 {
 	//last_serial_command_time = command_time;
-	printf("Got command \"%s\".\r\n",command);
+	//printf("Got command \"%s\".\r\n",command);
 	//printf("command_time: %lu | last_command_time: %lu\r\n", command_time, last_serial_command_time);
 	if(command[0]!='\0') //Not much to handle if we get an empty string.
 	{

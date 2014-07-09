@@ -1,5 +1,4 @@
 #include "motor.h"
-#include <stdlib.h>
 
 void motor_init()
 {

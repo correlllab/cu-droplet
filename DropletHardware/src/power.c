@@ -39,13 +39,24 @@ void leg_monitor_init()
 
 void programming_mode_init()
 {
+	prog_in_buffer = (char*)malloc(PROG_BUFFER_SIZE);
+	prog_num_chars = 0;
 	PORTA.DIRCLR = PIN0_bm | PIN1_bm | PIN2_bm | PIN3_bm | PIN4_bm;		//sets pins as inputs 
 	//PORTA.INT0MASK = PIN2_bm | PIN3_bm | PIN4_bm;	//set the pin for leg so an interrupt is generated
 	PORTA.INT0MASK = PIN2_bm;
 	PORTA.PIN2CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_FALLING_gc;			//edge detection settings, leg 1
 	//PORTA.PIN3CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_FALLING_gc;			//edge detection settings, leg 2
 	//PORTA.PIN4CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_FALLING_gc;			//edge detection settings, leg 3
-	PORTA.INTCTRL = PORT_INT0LVL_LO_gc;			//interrupt control is set to low level 
+	PORTA.INTCTRL = PORT_INT0LVL_LO_gc;			//interrupt control is set to low level
+	schedule_task(1000/PROG_BUFFER_CHECK_FREQ, print_prog_buffer, NULL);
+}
+
+void print_prog_buffer()
+{
+	for(uint8_t i=0; i<prog_num_chars; i++) printf("%c",prog_in_buffer[i]);
+	if(prog_num_chars) printf("\r\n");
+	prog_num_chars = 0;
+	schedule_task(1000/PROG_BUFFER_CHECK_FREQ, print_prog_buffer, NULL);
 }
 
 ISR(PORTA_INT0_vect)
@@ -61,7 +72,9 @@ ISR(PORTA_INT0_vect)
 			//if((((PORTA.IN>>2)|(PORTA.IN>>3)|(PORTA.IN>>4))&0x1)) in_byte |= (0x1<<i);
 			else												  in_byte |= (0x0<<i);
 		}
-		printf("%hhx\r\n",in_byte);
+		prog_in_buffer[prog_num_chars] = in_byte;
+		prog_num_chars++;
+		//printf("%hhx\r\n",in_byte);
 	}
 	PORTA.INTFLAGS = PORT_INT0IF_bm; //clear any interrupts that happened while we were reading the byte.
 }

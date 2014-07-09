@@ -10,12 +10,17 @@
 
 #define FULL_BIT_DURATION 208 //duration of a bit at 300 baud, us.(increase delay by 6%)
 #define HALF_BIT_DURATION 104 //half duration of a bit at 300 baud, us.
+#define PROG_BUFFER_SIZE 64
+#define PROG_BUFFER_CHECK_FREQ 10
 
+volatile uint8_t prog_num_chars;
+volatile char* prog_in_buffer;
 
 void power_init(); //just calls cap_monitor and leg_monitor init
 void cap_monitor_init();
 void leg_monitor_init();
 void programming_mode_init();
+void print_prog_buffer();
 
 uint8_t cap_status();			// Returns 0 if cap is within normal range ( 2.8V -- 5V ),
 								//         1 if cap voltage is dangerously high ( > 5V )

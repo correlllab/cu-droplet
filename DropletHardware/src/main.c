@@ -9,8 +9,8 @@ int main(void)
 	
 	while (1)
 	{	
-		check_messages();
-		delay_ms(200);
+		//check_messages();
+		delay_ms(100);
 	}
 }
 

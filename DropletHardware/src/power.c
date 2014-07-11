@@ -3,8 +3,8 @@
 void power_init()
 {
 	cap_monitor_init();
-	//leg_monitor_init();
-	programming_mode_init();
+	leg_monitor_init();
+	//programming_mode_init();
 }
 
 

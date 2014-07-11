@@ -63,19 +63,68 @@ void ir_com_init()
 		channel[i]->CTRLB |= USART_RXEN_bm;		// Enable communication
 		channel[i]->CTRLB |= USART_TXEN_bm;
 	}
-	for(uint8_t dir=0; dir<6; dir++) set_ir_power(dir, 255);
+	for(uint8_t dir=0; dir<6; dir++)
+	{
+		set_ir_power(dir, 255);
+		clear_ir_buffer(dir); //this initializes the buffer's values to 0.
+	}
 	last_ir_msg = NULL;
 	schedule_task(1000/IR_UPKEEP_FREQUENCY, perform_ir_upkeep, NULL);
+}
+
+int8_t recover_msg(uint8_t dirs)
+{
+	//for now, we assume the header information all got through okay. If it didn't, we won't be able to recover the message.
+	//even more temporarily, this assumes that we have exactly two channels with bad_crcs.
+	int8_t dirA = -1;
+	int8_t dirB = -1;
+	for(uint8_t dir=0; dir<6; dir++)
+	{
+		if(!(dirs&(1<<dir)) continue; //if a channel wasn't marked as having a bad crc, skip it.
+		if(dirA<0) dirA = (1<<dir);
+		else if(dirB<8) dirB = (1<<dir);
+		else return; //too many channels with bad crc
+	}	
+	if(dirA<0 || dirB<0) return -1; //not enough channels with bad crc.
+	
+	uint16_t crcA = 0;
+	uint16_t crcB = 0;
+	
+	for(uint8_t i=0;i<IR_BUFFER_SIZE;i++)
+	{
+		crcA = _crc16_update(crcA, ir_rxtx[dirA].buf[i]);
+		crcB = _crc16_update(crcB, ir_rxtx[dirB].buf[i]);
+		
+	}
+}
+
+int8_t recover_msg_recur(uint8_t dirs, uint16_t crc, uint8_t pos)
+{
+	uint8_t seen[6];
+	for(uint8_t dir=0;dir<6;dir++)
+	{
+		if(!(dirs&(1<<dir))) continue;
+		if(pos>=ir_rxtx[dir].data_length)
+		{
+			if(ir_rxtx[dir].data_crc = crc) return true;//good match found!
+			else return false;
+		}
+		for(uint8_t prev_dir=(dir-1);prev_dir<dir; prev_dir++) if(seen[prev_dir]=ir_rxtx[dir].buf[pos]) continue;
+		if(recover_msg_recur(dirs, _crc16_update(crc, ir_rxtx[dir].buf[pos]), pos++)) printf("%c", ir_rxtx[dir].buf[pos]);
+		else seen[dir]=ir_rxtx[dir].buf[pos];
+	}
 }
 
 void perform_ir_upkeep()
 {
 	//For now, can only get one message per call to this function.
 	int8_t msg_chan = -1; //This value is negative if we don't have a message, and otherwise holds the value of the chanel which received the message.
-	for(uint8_t dir=0; dir<6; dir++) //This first loop looks for a channel on which we got a good message.
+	uint8_t bad_crc_dirs = 0;
+	for(int8_t dir=0; dir<6; dir++) //This first loop looks for a channel on which we got a good message.
 	{
 		if(!(ir_rxtx[dir].status&IR_STATUS_COMPLETE_bm)) continue; //ignore a channel if it isn't done yet.
-		if(ir_rxtx[dir].target_ID) if(ir_rxtx[dir].target_ID != get_droplet_id()) continue;//Is this message targeted, to this droplet?
+		if(ir_rxtx[dir].target_ID) if(ir_rxtx[dir].target_ID != get_droplet_id()) continue;//Is this message targeted, to this droplet?	
+
 		uint16_t crc = 0;
 		for(uint8_t i=0; i<ir_rxtx[dir].data_length; i++) crc = _crc16_update(crc, ir_rxtx[dir].buf[i]); //Calculate CRC of inbound message.
 		if(ir_rxtx[dir].data_crc == crc) //crc check passed, hurray!
@@ -84,13 +133,16 @@ void perform_ir_upkeep()
 			break;
 		}
 		else //crc check failed.
-		{
-			//TODO: Try and recover message if received by multiple receivers.
+		{	
+			//for(uint8_t i=0;i<ir_rxtx[dir].data_length; i++) printf("%c",ir_rxtx[dir].buf[i]);
+			//printf("\r\n");
+			bad_crc_dirs |= (0x1<<dir);
 		}
 	}
-	for(uint8_t dir=0;dir<6;dir++) //free up the ir buffers for all the channels we don't need.
+	if(msg_chan<0 && bad_crc_dirs>0) msg_chan = recover_msg(bad_crc_dirs);
+	for(int8_t dir=0;dir<6;dir++) //free up the ir buffers for all the channels we don't need.
 	{
-		if(dir!=msg_chan) clear_ir_buffer(dir);
+		if(ir_rxtx[dir].status&IR_STATUS_COMPLETE_bm) if(dir!=msg_chan) clear_ir_buffer(dir);
 	}
 	if(msg_chan>0) //If we got a good message.
 	{
@@ -184,7 +236,7 @@ void ir_targeted_send(uint8_t dirs, char *data, uint16_t data_length, uint16_t t
 	ir_send(dirs, data, data_length);
 }
 
-void  ir_send(uint8_t local_dirs, char *data, uint8_t data_length)
+void ir_send(uint8_t local_dirs, char *data, uint8_t data_length)
 {
 	uint8_t dirs = local_dirs;
 		
@@ -252,7 +304,7 @@ void ir_receive(uint8_t dir)
 	{	
 		ir_rxtx[dir].status |= IR_STATUS_COMPLETE_bm;
 		channel[dir]->CTRLB &= ~USART_RXEN_bm; //Disable receiving messages on this channel until the message has been processed.
-		//schedule_task(5, print_received_message, (void*)dir);
+		//schedule_task(5, print_completed_msg, (void*)dir);
 }
 
 }

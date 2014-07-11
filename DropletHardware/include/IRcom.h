@@ -29,11 +29,11 @@
 
 #define IR_ALL_DIRS 0x3F
 
-#define HEADER_POS_MSG_LENGTH 0
-#define HEADER_POS_CRC_LOW 1
-#define HEADER_POS_CRC_HIGH 2
-#define HEADER_POS_SENDER_ID_LOW 3
-#define HEADER_POS_SENDER_ID_HIGH 4
+#define HEADER_POS_SENDER_ID_LOW 0
+#define HEADER_POS_SENDER_ID_HIGH 1
+#define HEADER_POS_MSG_LENGTH 2
+#define HEADER_POS_CRC_LOW 3
+#define HEADER_POS_CRC_HIGH 4
 #define HEADER_POS_TARGET_ID_LOW 5
 #define HEADER_POS_TARGET_ID_HIGH 6
 #define HEADER_LEN 7
@@ -50,7 +50,7 @@ volatile struct
 	volatile uint8_t status;		// Transmit:
 } ir_rxtx[6];
 
-typedef struct node
+typedef volatile struct node
 {
 	char* msg;
 	uint32_t arrival_time;

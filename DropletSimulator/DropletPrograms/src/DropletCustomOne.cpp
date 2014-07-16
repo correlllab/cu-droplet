@@ -12,9 +12,8 @@ DropletCustomOne::~DropletCustomOne() { return; }
 void DropletCustomOne::DropletInit()
 {
 	init_all_systems();
-
+	state=TARGET;
 	target = get_droplet_id();
-	state = TARGET;
 	ack = 1;
 	target_set_rgb = false;
 	walker_set_rgb = false;
@@ -76,7 +75,7 @@ void DropletCustomOne::DropletMainLoop()
 				}
 				if(!is_rotating() && abs(theta) > 2.5f)
 				{
-					rotate_degrees(theta);
+					rotate_degrees((int16_t)((theta*180)/M_PI));
 				}
 				else if(!is_rotating() && abs(theta) <= 2.5f)
 				{

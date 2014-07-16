@@ -291,7 +291,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <PreprocessorDefinitions>D_SIM_LIB;UNICODE;WIN32;QT_LARGEFILE_SUPPORT;QT_DLL;QT_CORE_LIB;QT_GUI_LIB;QT_OPENGL_LIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>.\..\..\..\DropletSimLibrary\include;.\..\..\External\bullet-2.81-rev2613\src;.\..\..\External\EasyBMP_1.06;.\..\..\..\DropletPrograms;.\..\..\External\glm-0.9.4.1;.\GeneratedFiles;.\..\include;$(QTDIR)\include;.\GeneratedFiles\$(ConfigurationName);$(QTDIR)\include\QtCore;$(QTDIR)\include\QtGui;$(QTDIR)\include\QtOpenGL;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>.\..\..\..\DropletSimLibrary\include;C:\Qt\4.8.4\include;.\..\..\External\bullet-2.81-rev2613\src;.\..\..\External\EasyBMP_1.06;.\..\..\..\DropletPrograms;.\..\..\External\glm-0.9.4.1;.\GeneratedFiles;.\..\include;$(QTDIR)\include;.\GeneratedFiles\$(ConfigurationName);$(QTDIR)\include\QtCore;$(QTDIR)\include\QtGui;$(QTDIR)\include\QtOpenGL;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <Optimization>MaxSpeed</Optimization>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>

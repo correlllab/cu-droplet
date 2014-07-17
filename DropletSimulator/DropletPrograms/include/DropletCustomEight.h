@@ -50,9 +50,9 @@
 #define START_INDICATOR_BYTE (uint8_t)0x3c
 #define IN_ASSEMBLY_INDICATOR_BYTE (uint8_t)0x55
 #define NOT_IN_ASSEMBLY_INDICATOR_BYTE (uint8_t)0xaa
-#define DELAY_BEFORE_DECIDING_MS 3000
-#define DELAY_BEFORE_MOVING_MS 3000
-#define START_DELAY_MS 3000
+#define DELAY_BEFORE_DECIDING_MS 2000
+#define DELAY_BEFORE_MOVING_MS 2000
+#define START_DELAY_MS 2000
 #define START_DELAY_TIMER 0
 #define DECIDING_DELAY_TIMER 1
 #define MOVING_DELAY_TIMER 2
@@ -75,12 +75,20 @@ struct recruitingRobot{
 	float heading;
 };
 
+struct favTgtMsg{
+	uint8_t type;
+	uint8_t dir;
+	float dist;
+	droplet_id_type id;
+};
+
+
 class DropletCustomEight : public DSimDroplet
 {
 private :
-	std::map<droplet_id_type, recruitingRobot> recruiting_robots;
+	std::map<droplet_id_type, recruitingRobot*> recruiting_robots;
 	uint8_t state;
-	//FILE *file_handle;
+	FILE *file_handle;
 	float closestDist;
 	droplet_id_type closestID;
 	uint8_t closestDir;
@@ -105,6 +113,11 @@ private :
 	float getAngleFromDirMask(uint8_t dir_mask);
 	void get_relative_neighbor_position(uint8_t dir_mask, float neighbor_r, float neighbor_theta, float neighbor_phi, float* target_r, float* target_theta);
 	void add_polar_vec(float r1, float th1, float r2, float th2, float* rs, float* ths);
+	void remove_dir_from_spots_map(uint8_t dir, droplet_id_type id);
+	void print_msg();
+
+	float inline deg2rad(float deg);
+	float inline rad2deg(float rad);
 
 public :
 	DropletCustomEight(ObjectPhysicsData *objPhysics);

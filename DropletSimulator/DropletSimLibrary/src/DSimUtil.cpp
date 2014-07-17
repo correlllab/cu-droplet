@@ -85,10 +85,14 @@ float TrigArray::GetDistance(unsigned int d1, unsigned int d2)
 	unsigned int i = computeIndex(d1, d2);
 	if(i == -1) return 0.f;
 
-	return sqrtf(
+	float dist=sqrtf(
 		powf(data[i]->xDist, 2) +
 		powf(data[i]->yDist, 2) +
 		powf(data[i]->zDist, 2));
+
+	printf("dist: %f\n", dist);
+
+	return dist;
 }
 
 float TrigArray::GetAngle(unsigned int d1, unsigned int d2)

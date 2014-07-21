@@ -54,7 +54,7 @@ void DropletCustomEight::DropletMainLoop()
 	}
 }
 
-void DropletCustomEight::handle_start_broadcast(){
+void DropletCustomEight::handle_start_broadcast(){	
 	if(check_timer(START_DELAY_TIMER)){
 		//I'm the seed, hurray!
 		my_spots_to_fill = 0xFF; //want all spots filled.
@@ -97,6 +97,13 @@ void DropletCustomEight::check_ready_to_move(){
 }
 
 void DropletCustomEight::awaiting_confirmation(){
+	if(rand_byte()<4){
+		char msg[4];
+		msg[0] = NOT_IN_ASSEMBLY_INDICATOR_BYTE;
+		*((droplet_id_type*)(msg+1)) = move_target;
+		msg[3] = move_target_dir;
+		ir_broadcast(msg, 4);
+	}
 	while(check_for_new_messages()){
 		if((global_rx_buffer.buf[0]==IN_ASSEMBLY_INDICATOR_BYTE)&&((global_rx_buffer.data_len-2 /*JOHN: data_len has a bug?*/)==3)){
 			droplet_id_type ack_tgt = *((droplet_id_type*)(global_rx_buffer.buf+1));
@@ -165,21 +172,14 @@ void DropletCustomEight::move(){
 		//fflush(file_handle);
 		float move_target_dist, move_target_theta, move_target_phi;
 		range_and_bearing(move_target, &move_target_dist, &move_target_theta, &move_target_phi);
-		//fprintf(file_handle, "\ttgt_dist: %f, tgt_theta: %f, tgt_phi: %f\n",move_target_dist, move_target_theta, move_target_phi);
-		//fflush(file_handle);
 		float adj_move_target_dist, adj_move_target_theta;
 		get_relative_neighbor_position(1<<move_target_dir, move_target_dist, move_target_theta, move_target_phi, &adj_move_target_dist, &adj_move_target_theta);
-		//fprintf(file_handle, "\tadj_tgt_dist: %f, adj_tgt_theta: %f\n", adj_move_target_dist, adj_move_target_theta);
-		//fflush(file_handle);
+		fprintf(file_handle, "\ttgt_dist: %f, tgt_theta: %f, tgt_phi: %f, tgt_dir: %hhu, adj_tgt_dist: %f, adj_tgt_theta: %f\n", move_target_dist, move_target_theta, move_target_phi, move_target_dir, adj_move_target_dist, adj_move_target_theta);
+		fflush(file_handle);
 		if(adj_move_target_dist<PROXIMITY_THRESHOLD){ //we're done moving!
 			//fprintf(file_handle, "\tDone moving!\n");
 			//fflush(file_handle);
 			state = STATE_AWAITING_CONFIRMATION;
-			char msg[4];
-			msg[0] = NOT_IN_ASSEMBLY_INDICATOR_BYTE;
-			*((droplet_id_type*)(msg+1)) = move_target;
-			msg[3] = move_target_dir;
-			ir_broadcast(msg, 4);
 		}else{
 			//fprintf(file_handle, "\tMoving some steps.\n");
 			//fflush(file_handle);
@@ -362,7 +362,7 @@ void DropletCustomEight::calculate_distance_to_target_positions(){
 			}
 		}
 	}
-	//fprintf(file_handle, "Closest: {ID: %04hx, DIR: %02hhx, DIST: %f\n",closestID, closestDir, closestDist);
+	fprintf(file_handle, "Closest: {ID: %04hx, DIR: %02hhx, DIST: %f\n",closestID, closestDir, closestDist);
 }
 
 float DropletCustomEight::getAngleFromDirMask(uint8_t dir_mask){

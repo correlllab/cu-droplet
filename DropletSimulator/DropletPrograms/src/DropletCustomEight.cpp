@@ -14,12 +14,15 @@ void DropletCustomEight::DropletInit()
 	file_handle = fopen (buffer,"w");
 	set_rgb_led(0,0,0);
 	srand(time(NULL));
-	my_spots_to_fill=0;
 	printf("Droplet Initialized.\r\n");
 	state = STATE_START;
+	my_type = TYPE__;
+	my_filled_spots = 0;
 	set_timer(START_DELAY_MS,START_DELAY_TIMER);
 	last_move_dist=std::numeric_limits<float>::infinity();
 	last_goal_r=std::numeric_limits<float>::infinity();
+	recruiting_robots.clear();
+	other_bots.clear();
 }
 
 void DropletCustomEight::DropletMainLoop()
@@ -27,32 +30,34 @@ void DropletCustomEight::DropletMainLoop()
 	if(state&STATE_START){
 		handle_start_broadcast();
 	}else if(state&STATE_IN_ASSEMBLY){
-		set_rgb_led(0,0,250);
-		if(state&STATE_AWAITING_CONFIRMATION){
+		if(state==STATE_AWAITING_CONFIRMATION){
 			set_rgb_led(0,250,250);
 			awaiting_confirmation();
-		}else if(state&STATE_ADJ_SPOTS_TO_BE_FILLED){
+		}else if(state==STATE_ADJ_SPOTS_TO_BE_FILLED){
 			set_rgb_led(250,250,250);
 			adj_spots_to_fill();
-		}else if(state&STATE_MOVING_TO_CENTER){
+		}else if(state==STATE_MOVING_TO_CENTER){
 			set_rgb_led(0,250,0);
 			handle_move_to_center();
-		}else{
+		}else if(state==STATE_ALL_ADJ_SPOTS_FILLED){
 			//no spots to fill.
 			set_rgb_led(0,0,0);
 		}
 	}else{ //not in assembly
-		if(state&STATE_MOVING_TO_SPOT){
+		if(state==STATE_MOVING_TO_SPOT){
 			set_rgb_led(250,0,250);
 			handle_move_to_spot();
-		}else if(state&STATE_DECIDING_SHOULD_MOVE){
+		}else if(state==STATE_DECIDING_SHOULD_MOVE){
 			set_rgb_led(250,250,0);
 			if(check_timer(MOVING_DELAY_TIMER)){
 				check_ready_to_move();
 			}else{
 				decide_if_should_move();
 			}
-		}else{ //essentially just waiting around for a message?
+		}else if(state==STATE_ADJUSTING_PHI){
+			set_rgb_led(0,0,250);
+			handle_adjusting_phi();
+		}else if (state==STATE_WAITING_FOR_MSGS){ //essentially just waiting around for a message?
 			set_rgb_led(250,0,0);
 			waiting_for_message();
 		}
@@ -62,7 +67,7 @@ void DropletCustomEight::DropletMainLoop()
 void DropletCustomEight::handle_start_broadcast(){	
 	if(check_timer(START_DELAY_TIMER)){
 		//I'm the seed, hurray!
-		my_spots_to_fill = 0x55; //want 4-neighborhood filled
+		my_type=TYPE_S;
 		state=STATE_MOVING_TO_CENTER;
 	}else{
 		if(rand_byte()<64){
@@ -73,7 +78,7 @@ void DropletCustomEight::handle_start_broadcast(){
 			if(((global_rx_buffer.data_len-2 /*JOHN: data_len has a bug?*/)==1)&&(global_rx_buffer.buf[0]==START_INDICATOR_BYTE)){
 				if(global_rx_buffer.sender_ID<get_droplet_id()){
 					//I'm not the smallest, so I may as well stop broadcasting.
-					state=0;
+					state=STATE_WAITING_FOR_MSGS;
 					//set_timer(0,START_DELAY_TIMER);
 					for(std::vector<botPos*>::iterator it=other_bots.begin(); it!=other_bots.end();it++){
 						delete (*it);
@@ -94,8 +99,6 @@ void DropletCustomEight::handle_start_broadcast(){
 
 void DropletCustomEight::handle_move_to_center(){
 	if(is_moving()){
-		fprintf(file_handle, "Already moving.\n");
-		fflush(file_handle);
 		//do nothing.
 	}else{
 		float dx=0, dy=0, phi;
@@ -115,6 +118,7 @@ void DropletCustomEight::handle_move_to_center(){
 			}
 			other_bots.clear();
 			state=STATE_ADJ_SPOTS_TO_BE_FILLED;
+			call_for_neighbors();
 		}else if(fabs(goal_r-last_goal_r)<STUCK_DIST_THRESHOLD){ //we barely moved at all! probably stuck.
 			//perform anti-stuck maneuvers!
 			//fprintf(file_handle, "cur_goal: %f, prev goal: %f\n",goal_r, last_goal_r);
@@ -138,10 +142,14 @@ void DropletCustomEight::check_ready_to_move(){
 	if((recruiting_robots.find(closestID) == recruiting_robots.end())||!((recruiting_robots[closestID]->desiredNeighbors)&(1<<closestDir))){ //our closest isn't in the dictionary anymore, so we need to pick a closest, broadcast, and reset countdown
 		//fprintf(file_handle, "\tClosest match not found, so we have to start over and pick a new spot.\n");
 		//fflush(file_handle);
-		calculate_distance_to_target_positions();
-		//fprintf(file_handle, "\tJust calculated all of my distances.\n");
-		//fflush(file_handle);
-		set_timer(DELAY_BEFORE_MOVING_MS,MOVING_DELAY_TIMER);
+		if(recruiting_robots.size()==0){ //If the recruiting_robots dictionary is empty, then all the spots have been taken and we should just go back to waiting for messages.
+			state = 0;
+		}else{
+			calculate_distance_to_target_positions();
+			//fprintf(file_handle, "\tJust calculated all of my distances.\n");
+			//fflush(file_handle);
+			set_timer(DELAY_BEFORE_MOVING_MS,MOVING_DELAY_TIMER);
+		}
 	}else{
 		state = STATE_MOVING_TO_SPOT;
 		move_target = closestID;
@@ -152,25 +160,32 @@ void DropletCustomEight::check_ready_to_move(){
 }
 
 void DropletCustomEight::awaiting_confirmation(){
-	if(rand_byte()<16){
-		char msg[4];
-		msg[0] = NOT_IN_ASSEMBLY_INDICATOR_BYTE;
-		*((droplet_id_type*)(msg+1)) = move_target;
-		msg[3] = move_target_dir;
-		ir_broadcast(msg, 4);
+	if(my_type==TYPE__){ //if we haven't gotten a type yet.
+		if(rand_byte()<64){
+			char msg[4];
+			msg[0] = NOT_IN_ASSEMBLY_INDICATOR_BYTE;
+			*((droplet_id_type*)(msg+1)) = move_target;
+			msg[3] = move_target_dir;
+			ir_broadcast(msg, 4);
+		}
+	}else{
+		set_rgb_led(250, 250, 250);
 	}
 	while(check_for_new_messages()){
-		if((global_rx_buffer.buf[0]==IN_ASSEMBLY_INDICATOR_BYTE)&&((global_rx_buffer.data_len-2 /*JOHN: data_len has a bug?*/)==3)){
-			droplet_id_type ack_tgt = *((droplet_id_type*)(global_rx_buffer.buf+1));
-			if(ack_tgt==get_droplet_id()){
-				//this message is for me, and the other droplet has confirmed that I am in the right spot. this droplet will no longer move.
-				//need to add code for this droplet to start recruiting more droplets.
-				my_spots_to_fill = get_spots_from_pos(1<<move_target_dir);
-				state=STATE_ADJ_SPOTS_TO_BE_FILLED;
-				char msg[2];
-				msg[0] = IN_ASSEMBLY_INDICATOR_BYTE;
-				msg[1] = my_spots_to_fill;
-				ir_broadcast(msg, 2);
+		if(my_type==TYPE__){ //if we haven't gotten a type yet.
+			if((global_rx_buffer.buf[0]==IN_ASSEMBLY_INDICATOR_BYTE)&&((global_rx_buffer.data_len-2 /*JOHN: data_len has a bug?*/)==4)){
+				droplet_id_type ack_tgt = *((droplet_id_type*)(global_rx_buffer.buf+1));
+				if(ack_tgt==get_droplet_id()){
+					//this message is for me, and the other droplet has confirmed that I am in the right spot. this droplet will no longer move.
+					//need to add code for this droplet to start recruiting more droplets.
+					my_type = *((uint8_t*)(global_rx_buffer.buf+3));
+				}
+			}
+		}else{ //then we're waiting for the word to go.
+			if((global_rx_buffer.buf[0]==GO_INDICATOR_BYTE)&&(global_rx_buffer.sender_ID==move_target)){
+					state=STATE_ADJ_SPOTS_TO_BE_FILLED;
+					call_for_neighbors();
+					break;
 			}
 		}
 		global_rx_buffer.read=1;
@@ -178,11 +193,11 @@ void DropletCustomEight::awaiting_confirmation(){
 }
 
 void DropletCustomEight::adj_spots_to_fill(){
-	if(rand_byte()<8){
-		char msg[2];
-		msg[0] = IN_ASSEMBLY_INDICATOR_BYTE;
-		msg[1] = my_spots_to_fill;
-		ir_broadcast(msg, 2);
+	if(rand_byte()<8){	//can't put this here because if there are more than one messages, the new batch of bots doesn't know the old batch has stuff claimed.
+		//char msg[2];
+		//msg[0] = IN_ASSEMBLY_INDICATOR_BYTE;
+		//msg[1] = my_spots_to_fill;
+		//ir_broadcast(msg, 2);
 	}
 	while(check_for_new_messages()){
 		//fprintf(file_handle,"In adjacent spots to fill..\n");
@@ -196,26 +211,37 @@ void DropletCustomEight::adj_spots_to_fill(){
 				float rOther, thetaOther, phiOther;
 				range_and_bearing(global_rx_buffer.sender_ID, &rOther, &thetaOther, &phiOther);
 
-				float desiredR=2.*DROPLET_RADIUS;
+				float desiredR=(2.*DROPLET_RADIUS+FORMATION_GAP);
 				float desiredTh=getAngleFromDirMask(1<<dir);
 				float dist = get_distance(rOther, thetaOther, desiredR, desiredTh);
 
-				if(dist<=FORMATION_GAP){
+				if(dist<=PROXIMITY_THRESHOLD){
 					//close enough! send confirmation message.
 					char msg[3];
 					msg[0] = IN_ASSEMBLY_INDICATOR_BYTE;
 					*((droplet_id_type*)(msg+1)) = global_rx_buffer.sender_ID;
-					ir_broadcast(msg, 3);
-					my_spots_to_fill &= ~(1<<dir); //mark that spot as done.
+					msg[3] = get_neighbor_type(my_type, (1<<dir));
+					ir_broadcast(msg, 4);
+					my_filled_spots |= (1<<dir); //mark that spot as done.
+					fprintf(file_handle, "Just confirmed a bot in dir: %hhx. filled_spots now: %02hhx.\r\n", dir, my_filled_spots);
+					fflush(file_handle);
 				}else{
+					fprintf(file_handle, "Not close enough. Dist: %f\n", dist);
+					fflush(file_handle);
 					//Not close enough. Need to do something?
 				}
 			}
 		}
 		global_rx_buffer.read=1;
 	}
-	if(my_spots_to_fill==0){
+	
+	if((get_spots_from_type(my_type)-my_filled_spots)==0){
+		fprintf(file_handle,"ALL NEIGHBORS FULL.\n");
+		fflush(file_handle);
 		state = STATE_ALL_ADJ_SPOTS_FILLED;
+		char msg[1];
+		msg[0] = GO_INDICATOR_BYTE;
+		ir_broadcast(msg, 1);
 	}
 }
 
@@ -229,12 +255,12 @@ void DropletCustomEight::handle_move_to_spot(){
 		range_and_bearing(move_target, &move_target_dist, &move_target_theta, &move_target_phi);
 		float adj_move_target_dist, adj_move_target_theta;
 		get_relative_neighbor_position(1<<move_target_dir, move_target_dist, move_target_theta, move_target_phi, &adj_move_target_dist, &adj_move_target_theta);
-		fprintf(file_handle, "\ttgt_dist: %f, tgt_theta: %f, tgt_phi: %f, tgt_dir: %hhu, adj_tgt_dist: %f, adj_tgt_theta: %f\n", move_target_dist, move_target_theta, move_target_phi, move_target_dir, adj_move_target_dist, adj_move_target_theta);
-		fflush(file_handle);
-		if(adj_move_target_dist<(PROXIMITY_THRESHOLD/2)){ //we're done moving!
+		//fprintf(file_handle, "\ttgt_dist: %f, tgt_theta: %f, tgt_phi: %f, tgt_dir: %hhu, adj_tgt_dist: %f, adj_tgt_theta: %f\n", move_target_dist, move_target_theta, move_target_phi, move_target_dir, adj_move_target_dist, adj_move_target_theta);
+		//fflush(file_handle);
+		if(adj_move_target_dist<(PROXIMITY_THRESHOLD/10.0)){ //we're done moving!
 			//fprintf(file_handle, "\tDone moving!\n");
 			//fflush(file_handle);
-			state = STATE_AWAITING_CONFIRMATION;
+			state = STATE_ADJUSTING_PHI;
 			last_move_dist=std::numeric_limits<float>::infinity();
 		}else if(fabs(adj_move_target_dist-last_move_dist)<STUCK_DIST_THRESHOLD){ //we barely moved at all! probably stuck.
 			//perform anti-stuck maneuvers!
@@ -250,28 +276,35 @@ void DropletCustomEight::handle_move_to_spot(){
 }
 
 void DropletCustomEight::print_msg(){
-	//fprintf(file_handle,"\t");
+	fprintf(file_handle,"Received: {");
 	for(uint8_t i=0;i<global_rx_buffer.data_len;i++){
-		//fprintf(file_handle,"%02hhx ", global_rx_buffer.buf[i]);
+		fprintf(file_handle," %02hhx,", global_rx_buffer.buf[i]);
 	}
-	//fprintf(file_handle,"\n");
-	//fflush(file_handle);
+	fprintf(file_handle,"}\n");
+	fflush(file_handle);
 }
 
 void DropletCustomEight::decide_if_should_move(){
 	if(rand_byte()<64){
-		broadcast_favorite_target();
+		std::map<droplet_id_type, recruitingRobot*>::iterator iter;
+		iter = recruiting_robots.find(closestID);
+		if(iter!=recruiting_robots.end()){ //if our target of choice hasn't already been completely claimed.
+			if(iter->second->desiredNeighbors & (1<<closestDir)){ //and if our direction of choice hasn't been claimed.
+				broadcast_favorite_target();
+			}
+		}
 	}
 	while(check_for_new_messages()){
 		//fprintf(file_handle, "In deciding if should move.\n");
 		//fflush(file_handle);
 		if(((global_rx_buffer.data_len-2 /*JOHN: data_len has a bug?*/)==sizeof(favTgtMsg))){
-			print_msg();
+			//print_msg();
 			favTgtMsg* msg = (favTgtMsg*)global_rx_buffer.buf;
 			if(msg->type != NOT_IN_ASSEMBLY_INDICATOR_BYTE){
 				//fprintf(file_handle, "Unexpected message type?\n");
 			}
-			//fprintf(file_handle,"\t\ttargetID: %hx, dir: %hhx, dist: %f\n",msg->id, msg->dir, msg->dist);
+			//print_msg();
+			//fprintf(file_handle,"targetID: %hx, dir: %hhx, dist: %f\n",msg->id, msg->dir, msg->dist);
 			//fflush(file_handle);
 			std::map<droplet_id_type, recruitingRobot*>::iterator iter;
 			iter = recruiting_robots.find(msg->id);
@@ -280,7 +313,7 @@ void DropletCustomEight::decide_if_should_move(){
 			}else{
 				//fprintf(file_handle,"\t\tThat targetID is in our map! Desired neighbors: %hhx\n", recruiting_robots[msg->id]->desiredNeighbors);
 				//fflush(file_handle);
-				if(msg->id==closestID){ //if we both want the same one,
+				if((msg->id==closestID)&&(msg->dir==closestDir)){ //if we both want the same one,
 					if(iter->second->toNeighborDist[msg->dir]>=msg->dist){ //if my dist is as far or farther.
 						if(iter->second->toNeighborDist[msg->dir]==msg->dist){ //if there was a tie.
 							if(get_droplet_id()<global_rx_buffer.sender_ID){
@@ -310,6 +343,26 @@ void DropletCustomEight::decide_if_should_move(){
 	}
 }
 
+void DropletCustomEight::handle_adjusting_phi(){
+	if(is_moving()){
+		//Do nothing.
+	}else{
+		float r, theta, phi;
+		range_and_bearing(move_target, &r, &theta, &phi);
+		float delta_phi = phi + getAngleFromDirMask((1<<move_target_dir)); //this is how much we need to change our phi by.
+		delta_phi = rad2deg(atan2(sin(deg2rad(delta_phi)),cos(deg2rad(delta_phi))));
+		if(fabs(delta_phi)<ORIENT_THRESHOLD_DEG){ //Are we done?
+			state = STATE_AWAITING_CONFIRMATION;
+		}else{
+			if(delta_phi<0){
+				rotate_steps(TURN_CLOCKWISE, ROTATE_STEPS_AMOUNT);
+			}else{
+				rotate_steps(TURN_COUNTERCLOCKWISE, ROTATE_STEPS_AMOUNT);
+			}
+		}
+	}
+}
+
 void DropletCustomEight::waiting_for_message(){
 	//fprintf(file_handle, "In waiting for messages.\n");
 	//fflush(file_handle);
@@ -329,8 +382,8 @@ void DropletCustomEight::waiting_for_message(){
 				//fflush(file_handle);
 				float r, theta, phi;
 				range_and_bearing(target_droplet, &r, &theta, &phi);
-				fprintf(file_handle, "myID: %04hx, tgtID: %04hx, r: %f, theta: %f, phi: %f\n", get_droplet_id(), target_droplet, r,theta,phi);
-				fflush(file_handle);
+				//fprintf(file_handle, "myID: %04hx, tgtID: %04hx, r: %f, theta: %f, phi: %f\n", get_droplet_id(), target_droplet, r,theta,phi);
+				//fflush(file_handle);
 				recruitingRobot* target = new recruitingRobot;
 				target->desiredNeighbors = desired_dirs;
 				target->range = r;
@@ -354,6 +407,55 @@ void DropletCustomEight::waiting_for_message(){
 	}
 }
 
+void DropletCustomEight::call_for_neighbors(){
+	char msg[2];
+	msg[0] = IN_ASSEMBLY_INDICATOR_BYTE;
+	msg[1] = get_spots_from_type(my_type);
+	ir_broadcast(msg, 2);
+}
+
+uint8_t DropletCustomEight::get_spots_from_type(uint8_t type){
+	if(type==TYPE_A){
+		return (DIR_MASK_N | DIR_MASK_W | DIR_MASK_E);
+	}else if(type==TYPE_B){
+		return (DIR_MASK_N);
+	}else if(type==TYPE_S){
+		return (DIR_MASK_N | DIR_MASK_E | DIR_MASK_S | DIR_MASK_W);
+	}else if(type==TYPE__){
+		return 0;
+	}else{
+		fprintf(file_handle, "\n\n\nERROR IN SPOTS FROM TYPE; UNEXPECTED TYPE: %hhx\n\n\n", type);
+		fflush(file_handle);
+	}
+}
+
+uint8_t DropletCustomEight::get_neighbor_type(uint8_t type, uint8_t dir){
+	switch(type){
+		case TYPE_S:
+			switch(dir){
+				case DIR_MASK_N: return TYPE_A;
+				case DIR_MASK_E: return TYPE_B;
+				case DIR_MASK_W: return TYPE_B;
+				case DIR_MASK_S: return TYPE_A;
+			}
+			break;
+		case TYPE_A:
+			switch(dir){
+				case DIR_MASK_N: return TYPE_A;
+				case DIR_MASK_E: return TYPE_B;
+				case DIR_MASK_W: return TYPE_B;
+			}
+			break;
+		case TYPE_B:
+			switch(dir){
+				case DIR_MASK_N: return TYPE_B;
+			}
+			break;
+	}
+	//should only reach here if there was an error.
+	fprintf(file_handle, "\n\n\nERROR UNEXPECTED TYPE/DIR COMBO T:%hhx D:%hhx\n\n\n", type, dir);
+	fflush(file_handle);
+}
 void DropletCustomEight::broadcast_favorite_target(){
 	favTgtMsg* msg = new favTgtMsg;
 	msg->type = NOT_IN_ASSEMBLY_INDICATOR_BYTE;
@@ -387,6 +489,7 @@ uint8_t DropletCustomEight::get_spots_from_pos(uint8_t dir_pos){
 }
 
 move_direction DropletCustomEight::get_best_move_dir(float theta){
+	theta = rad2deg(atan2(sin(deg2rad(theta)),cos(deg2rad(theta))));
 	if((-30<=theta)&&(theta<30)){
 		return 1;
 	}else if((-90<=theta)&&(theta<-30)){
@@ -401,7 +504,7 @@ move_direction DropletCustomEight::get_best_move_dir(float theta){
 		return 6;
 	}else{
 		//error. probably need to modulus theta first.
-		fprintf(file_handle,"\n\n\n\n\nERROR ERROR UNEXPECTED DIRECTION ERROR ERROR \n\n\n\n\n");
+		fprintf(file_handle,"\n\n\n\n\nERROR ERROR UNEXPECTED DIRECTION FOR THETA: %f ERROR ERROR \n\n\n\n\n",theta);
 		fflush(file_handle);
 		return 7;
 	}
@@ -425,7 +528,7 @@ void DropletCustomEight::calculate_distance_to_target_positions(){
 			}
 		}
 	}
-	fprintf(file_handle, "Closest: {ID: %04hx, DIR: %02hhx, DIST: %f}\n",closestID, closestDir, closestDist);
+	//fprintf(file_handle, "Closest: {ID: %04hx, DIR: %02hhx, DIST: %f}\n",closestID, closestDir, closestDist);
 }
 
 float DropletCustomEight::getAngleFromDirMask(uint8_t dir_mask){
@@ -462,11 +565,15 @@ void DropletCustomEight::add_polar_vec(float r1, float th1, float r2, float th2,
 }
 
 void DropletCustomEight::remove_dir_from_spots_map(uint8_t dir, droplet_id_type id){
+	//fprintf(file_handle, "want neighb.: %hhx; ", recruiting_robots[id]->desiredNeighbors);
 	recruiting_robots[id]->desiredNeighbors &= ~((1<<dir));
-	if(!recruiting_robots[id]->desiredNeighbors){ //if no neighbors left, remove this robot from our list.
+	//fprintf(file_handle, " removed %hhu; now want neighb: %hhx\n", dir, recruiting_robots[id]->desiredNeighbors);
+	if((recruiting_robots[id]->desiredNeighbors)==0){ //if no neighbors left, remove this robot from our list.
+		//fprintf(file_handle, "\tNo neighbors left!\n");
 		delete recruiting_robots[id];
 		recruiting_robots.erase(recruiting_robots.find(id));
 	}
+	fflush(file_handle);
 }
 
 float DropletCustomEight::deg2rad(float deg){

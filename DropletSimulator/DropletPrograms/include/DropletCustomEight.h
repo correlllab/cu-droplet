@@ -44,28 +44,38 @@
 #define DIR_MASK_NW		0x80
 
 #define DROPLET_RADIUS (float)2.2 //assuming units are cm
-#define FORMATION_GAP (float)0.4 //still assuming unist are cm
-#define PROXIMITY_THRESHOLD (float)0.1
+#define FORMATION_GAP (float)0.2 //still assuming units are cm
+#define PROXIMITY_THRESHOLD (float)0.5
 #define STUCK_DIST_THRESHOLD (float)0.01
-
+#define ORIENT_THRESHOLD_DEG (float)5.0
 #define MOVE_STEPS_AMOUNT 15
+#define ROTATE_STEPS_AMOUNT 5
+
 #define START_INDICATOR_BYTE (uint8_t)0x3c
 #define IN_ASSEMBLY_INDICATOR_BYTE (uint8_t)0x55
 #define NOT_IN_ASSEMBLY_INDICATOR_BYTE (uint8_t)0xaa
-#define DELAY_BEFORE_DECIDING_MS 5000
-#define DELAY_BEFORE_MOVING_MS 5000
+#define GO_INDICATOR_BYTE (uint8_t)0xc3
+#define DELAY_BEFORE_DECIDING_MS 2000
+#define DELAY_BEFORE_MOVING_MS 6000
 #define START_DELAY_MS 2000
 #define START_DELAY_TIMER 0
 #define DECIDING_DELAY_TIMER 1
 #define MOVING_DELAY_TIMER 2
 
-#define STATE_ADJ_SPOTS_TO_BE_FILLED	0x01
-#define STATE_ALL_ADJ_SPOTS_FILLED		0x02
-#define STATE_AWAITING_CONFIRMATION		0x04
-#define STATE_MOVING_TO_CENTER			0x08
-#define STATE_MOVING_TO_SPOT			0x10
-#define STATE_DECIDING_SHOULD_MOVE		0x20
-#define STATE_START						0x40
+#define TYPE__	0x00
+#define TYPE_A	0x01
+#define TYPE_B	0x02
+#define TYPE_S	0x04
+
+#define STATE_WAITING_FOR_MSGS			0x00 //r__ (red)
+#define STATE_ADJ_SPOTS_TO_BE_FILLED	0x01 //rgb (white)
+#define STATE_ALL_ADJ_SPOTS_FILLED		0x02 //___ (off)
+#define STATE_AWAITING_CONFIRMATION		0x04 //_gb (cyan)
+#define STATE_MOVING_TO_CENTER			0x08 //_g_ (green)
+#define STATE_MOVING_TO_SPOT			0x10 //r_b (pink)
+#define STATE_DECIDING_SHOULD_MOVE		0x20 //rg_ (yellow)
+#define STATE_START						0x40 //___ (off)
+#define STATE_ADJUSTING_PHI				0x80 //__b (blue)
 
 #define STATE_IN_ASSEMBLY				0x0f
 
@@ -106,7 +116,8 @@ private :
 	uint8_t closestDir;
 	droplet_id_type move_target;
 	uint8_t move_target_dir;
-	uint8_t my_spots_to_fill;
+	uint8_t my_type;
+	uint8_t my_filled_spots;
 
 	void handle_start_broadcast();
 	void handle_move_to_center();
@@ -116,8 +127,12 @@ private :
 	void adj_spots_to_fill();
 	void handle_move_to_spot();
 	void decide_if_should_move();
+	void handle_adjusting_phi();
 	void waiting_for_message();
 
+	void call_for_neighbors();
+	uint8_t get_spots_from_type(uint8_t type);
+	uint8_t get_neighbor_type(uint8_t type, uint8_t dir);
 	void broadcast_favorite_target();
 	float get_distance(float rA, float thetaA, float rB, float thetaB);
 	uint8_t get_spots_from_pos(uint8_t dir_pos);

@@ -44,14 +44,16 @@
 #define DIR_MASK_NW		0x80
 
 #define DROPLET_RADIUS (float)2.2 //assuming units are cm
-#define FORMATION_GAP (float)0.2 //still assuming unist are cm
+#define FORMATION_GAP (float)0.4 //still assuming unist are cm
 #define PROXIMITY_THRESHOLD (float)0.1
+#define STUCK_DIST_THRESHOLD (float)0.01
 
+#define MOVE_STEPS_AMOUNT 15
 #define START_INDICATOR_BYTE (uint8_t)0x3c
 #define IN_ASSEMBLY_INDICATOR_BYTE (uint8_t)0x55
 #define NOT_IN_ASSEMBLY_INDICATOR_BYTE (uint8_t)0xaa
-#define DELAY_BEFORE_DECIDING_MS 2000
-#define DELAY_BEFORE_MOVING_MS 2000
+#define DELAY_BEFORE_DECIDING_MS 5000
+#define DELAY_BEFORE_MOVING_MS 5000
 #define START_DELAY_MS 2000
 #define START_DELAY_TIMER 0
 #define DECIDING_DELAY_TIMER 1
@@ -60,11 +62,12 @@
 #define STATE_ADJ_SPOTS_TO_BE_FILLED	0x01
 #define STATE_ALL_ADJ_SPOTS_FILLED		0x02
 #define STATE_AWAITING_CONFIRMATION		0x04
-#define STATE_MOVING_TO_SPOT			0x08
-#define STATE_DECIDING_SHOULD_MOVE		0x10
-#define STATE_START						0x20
+#define STATE_MOVING_TO_CENTER			0x08
+#define STATE_MOVING_TO_SPOT			0x10
+#define STATE_DECIDING_SHOULD_MOVE		0x20
+#define STATE_START						0x40
 
-#define STATE_IN_ASSEMBLY				0x07
+#define STATE_IN_ASSEMBLY				0x0f
 
 struct recruitingRobot{
 	uint8_t desiredNeighbors;
@@ -82,14 +85,23 @@ struct favTgtMsg{
 	droplet_id_type id;
 };
 
+struct botPos{
+	float r;
+	float theta;
+	droplet_id_type id;
+};
+
 
 class DropletCustomEight : public DSimDroplet
 {
 private :
 	std::map<droplet_id_type, recruitingRobot*> recruiting_robots;
+	std::vector<botPos*> other_bots;
 	uint8_t state;
 	FILE *file_handle;
 	float closestDist;
+	float last_move_dist;
+	float last_goal_r;
 	droplet_id_type closestID;
 	uint8_t closestDir;
 	droplet_id_type move_target;
@@ -97,11 +109,12 @@ private :
 	uint8_t my_spots_to_fill;
 
 	void handle_start_broadcast();
+	void handle_move_to_center();
 	void handle_done_deciding();
 	void check_ready_to_move();
 	void awaiting_confirmation();
 	void adj_spots_to_fill();
-	void move();
+	void handle_move_to_spot();
 	void decide_if_should_move();
 	void waiting_for_message();
 

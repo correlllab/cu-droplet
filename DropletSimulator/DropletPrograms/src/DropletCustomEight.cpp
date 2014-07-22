@@ -18,6 +18,8 @@ void DropletCustomEight::DropletInit()
 	printf("Droplet Initialized.\r\n");
 	state = STATE_START;
 	set_timer(START_DELAY_MS,START_DELAY_TIMER);
+	last_move_dist=std::numeric_limits<float>::infinity();
+	last_goal_r=std::numeric_limits<float>::infinity();
 }
 
 void DropletCustomEight::DropletMainLoop()
@@ -32,6 +34,9 @@ void DropletCustomEight::DropletMainLoop()
 		}else if(state&STATE_ADJ_SPOTS_TO_BE_FILLED){
 			set_rgb_led(250,250,250);
 			adj_spots_to_fill();
+		}else if(state&STATE_MOVING_TO_CENTER){
+			set_rgb_led(0,250,0);
+			handle_move_to_center();
 		}else{
 			//no spots to fill.
 			set_rgb_led(0,0,0);
@@ -39,7 +44,7 @@ void DropletCustomEight::DropletMainLoop()
 	}else{ //not in assembly
 		if(state&STATE_MOVING_TO_SPOT){
 			set_rgb_led(250,0,250);
-			move();
+			handle_move_to_spot();
 		}else if(state&STATE_DECIDING_SHOULD_MOVE){
 			set_rgb_led(250,250,0);
 			if(check_timer(MOVING_DELAY_TIMER)){
@@ -57,8 +62,8 @@ void DropletCustomEight::DropletMainLoop()
 void DropletCustomEight::handle_start_broadcast(){	
 	if(check_timer(START_DELAY_TIMER)){
 		//I'm the seed, hurray!
-		my_spots_to_fill = 0xFF; //want all spots filled.
-		state=STATE_ADJ_SPOTS_TO_BE_FILLED;
+		my_spots_to_fill = 0x55; //want 4-neighborhood filled
+		state=STATE_MOVING_TO_CENTER;
 	}else{
 		if(rand_byte()<64){
 			char id_msg=START_INDICATOR_BYTE;
@@ -69,11 +74,61 @@ void DropletCustomEight::handle_start_broadcast(){
 				if(global_rx_buffer.sender_ID<get_droplet_id()){
 					//I'm not the smallest, so I may as well stop broadcasting.
 					state=0;
-					set_timer(0,START_DELAY_TIMER);
+					//set_timer(0,START_DELAY_TIMER);
+					for(std::vector<botPos*>::iterator it=other_bots.begin(); it!=other_bots.end();it++){
+						delete (*it);
+					}
+					other_bots.clear();
+				}else{
+					botPos* bot = new botPos;
+					bot->id = global_rx_buffer.sender_ID;
+					float phi;
+					range_and_bearing(bot->id, &(bot->r), &(bot->theta), &phi);
+					other_bots.push_back(bot);
 				}
 			}
 			global_rx_buffer.read=1;
 		}
+	}
+}
+
+void DropletCustomEight::handle_move_to_center(){
+	if(is_moving()){
+		fprintf(file_handle, "Already moving.\n");
+		fflush(file_handle);
+		//do nothing.
+	}else{
+		float dx=0, dy=0, phi;
+		for(std::vector<botPos*>::iterator it=other_bots.begin(); it!=other_bots.end();it++){
+			range_and_bearing((*it)->id,&((*it)->r), &((*it)->theta), &phi);
+			dx+=(*it)->r*cos(deg2rad((*it)->theta));
+			dy+=(*it)->r*sin(deg2rad((*it)->theta));
+		}
+		dx/=other_bots.size();
+		dy/=other_bots.size();
+		float goal_r = sqrt(dx*dx+dy*dy);
+		float goal_theta = rad2deg(atan2(dy, dx));
+
+		if(goal_r<DROPLET_RADIUS*2){
+			for(std::vector<botPos*>::iterator it=other_bots.begin(); it!=other_bots.end();it++){
+				delete (*it);
+			}
+			other_bots.clear();
+			state=STATE_ADJ_SPOTS_TO_BE_FILLED;
+		}else if(fabs(goal_r-last_goal_r)<STUCK_DIST_THRESHOLD){ //we barely moved at all! probably stuck.
+			//perform anti-stuck maneuvers!
+			//fprintf(file_handle, "cur_goal: %f, prev goal: %f\n",goal_r, last_goal_r);
+			//fflush(file_handle);
+			move_steps(get_best_move_dir(goal_theta+(((rand_byte()&0x2)-1)*90.0)), 16*MOVE_STEPS_AMOUNT);
+			last_goal_r=std::numeric_limits<float>::infinity();
+		}else{
+			//fprintf(file_handle, "moving in dir: %hhu, goal_theta: %f, for steps: %u\n",get_best_move_dir(goal_theta), goal_theta, MOVE_STEPS_AMOUNT);
+			//fflush(file_handle);
+			move_steps(get_best_move_dir(goal_theta), MOVE_STEPS_AMOUNT);
+		}
+
+		//fprintf(file_handle, "goal_r:%f, goal_theta:%f, move_dir: %hhu\n",goal_r, goal_theta, get_best_move_dir(goal_theta));
+
 	}
 }
 
@@ -97,7 +152,7 @@ void DropletCustomEight::check_ready_to_move(){
 }
 
 void DropletCustomEight::awaiting_confirmation(){
-	if(rand_byte()<4){
+	if(rand_byte()<16){
 		char msg[4];
 		msg[0] = NOT_IN_ASSEMBLY_INDICATOR_BYTE;
 		*((droplet_id_type*)(msg+1)) = move_target;
@@ -164,7 +219,7 @@ void DropletCustomEight::adj_spots_to_fill(){
 	}
 }
 
-void DropletCustomEight::move(){
+void DropletCustomEight::handle_move_to_spot(){
 	if(is_moving()){
 		//already moving, great.
 	}else{
@@ -176,14 +231,20 @@ void DropletCustomEight::move(){
 		get_relative_neighbor_position(1<<move_target_dir, move_target_dist, move_target_theta, move_target_phi, &adj_move_target_dist, &adj_move_target_theta);
 		fprintf(file_handle, "\ttgt_dist: %f, tgt_theta: %f, tgt_phi: %f, tgt_dir: %hhu, adj_tgt_dist: %f, adj_tgt_theta: %f\n", move_target_dist, move_target_theta, move_target_phi, move_target_dir, adj_move_target_dist, adj_move_target_theta);
 		fflush(file_handle);
-		if(adj_move_target_dist<PROXIMITY_THRESHOLD){ //we're done moving!
+		if(adj_move_target_dist<(PROXIMITY_THRESHOLD/2)){ //we're done moving!
 			//fprintf(file_handle, "\tDone moving!\n");
 			//fflush(file_handle);
 			state = STATE_AWAITING_CONFIRMATION;
+			last_move_dist=std::numeric_limits<float>::infinity();
+		}else if(fabs(adj_move_target_dist-last_move_dist)<STUCK_DIST_THRESHOLD){ //we barely moved at all! probably stuck.
+			//perform anti-stuck maneuvers!
+			move_steps(get_best_move_dir(adj_move_target_theta+(((rand_byte()&0x2)-1)*90.0)), 16*MOVE_STEPS_AMOUNT);
+			last_move_dist=std::numeric_limits<float>::infinity();
 		}else{
 			//fprintf(file_handle, "\tMoving some steps.\n");
 			//fflush(file_handle);
-			move_steps(get_best_move_dir(adj_move_target_theta), 30);
+			move_steps(get_best_move_dir(adj_move_target_theta), MOVE_STEPS_AMOUNT);
+			last_move_dist = adj_move_target_dist;
 		}
 	}
 }
@@ -326,20 +387,22 @@ uint8_t DropletCustomEight::get_spots_from_pos(uint8_t dir_pos){
 }
 
 move_direction DropletCustomEight::get_best_move_dir(float theta){
-	if((60<=theta)&&(theta<120)){
-		return 0;
-	}else if((120<=theta)&&(theta<=180)){
-		return 5;
-	}else if((-180<=theta)&&(theta<-120)){
-		return 4;
-	}else if((-120<=theta)&&(theta<=-60)){
-		return 3;
-	}else if((-60<=theta)&&(theta<0)){
-		return 2;
-	}else if((0<=theta)&&(theta<60)){
+	if((-30<=theta)&&(theta<30)){
 		return 1;
+	}else if((-90<=theta)&&(theta<-30)){
+		return 2;
+	}else if((-150<=theta)&&(theta<-90)){
+		return 3;
+	}else if(((-180<=theta)&&(theta<-150))||((150<=theta)&&(theta<=180))){
+		return 4;
+	}else if((90<=theta)&&(theta<150)){
+		return 5;
+	}else if((30<=theta)&&(theta<90)){
+		return 6;
 	}else{
 		//error. probably need to modulus theta first.
+		fprintf(file_handle,"\n\n\n\n\nERROR ERROR UNEXPECTED DIRECTION ERROR ERROR \n\n\n\n\n");
+		fflush(file_handle);
 		return 7;
 	}
 }
@@ -362,7 +425,7 @@ void DropletCustomEight::calculate_distance_to_target_positions(){
 			}
 		}
 	}
-	fprintf(file_handle, "Closest: {ID: %04hx, DIR: %02hhx, DIST: %f\n",closestID, closestDir, closestDist);
+	fprintf(file_handle, "Closest: {ID: %04hx, DIR: %02hhx, DIST: %f}\n",closestID, closestDir, closestDist);
 }
 
 float DropletCustomEight::getAngleFromDirMask(uint8_t dir_mask){

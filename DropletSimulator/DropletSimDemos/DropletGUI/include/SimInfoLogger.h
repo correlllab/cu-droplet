@@ -31,7 +31,6 @@
 
 class SimInfoLogger : public QObject
 {
-
 	Q_OBJECT
 
 public:

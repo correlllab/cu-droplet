@@ -1,14 +1,17 @@
 /* *** PROGRAM DESCRIPTION ***
- * Inverse Tag
+ * Yay!
  */
 #pragma once
 
 #ifndef _DROPLET_CUSTOM_ONE
 #define _DROPLET_CUSTOM_ONE
 
+#define _USE_MATH_DEFINES
+
 #include <DSimDroplet.h>
 #include <DSimGlobals.h>
 #include <DSimDataStructs.h>
+#include <math.h>
 #include <inttypes.h>
 #include <cmath>
 

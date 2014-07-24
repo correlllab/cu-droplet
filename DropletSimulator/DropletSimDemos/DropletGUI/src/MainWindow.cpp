@@ -316,14 +316,14 @@ void MainWindow::addArenaWidgets()
 
 	// Number of Rows
 	numRowBox = new QSpinBox;
-	numRowBox->setRange(1,10);
+	numRowBox->setRange(1,10000);
 	numRowBox->setValue(DEFAULT_ROW_TILES);
 	numRowLabel = new QLabel(tr("Rows "));
 	numRowLabel->setBuddy(numRowBox);
 
 	// Number of Columns
 	numColBox = new QSpinBox;
-	numColBox->setRange(1,10);
+	numColBox->setRange(1,10000);
 	numColBox->setValue(DEFAULT_COL_TILES);
 	numColLabel = new QLabel(tr("x Columns "));
 	numColLabel->setBuddy(numColBox);

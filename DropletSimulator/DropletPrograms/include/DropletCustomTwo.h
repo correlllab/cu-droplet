@@ -24,10 +24,12 @@
 #define GREEN 1
 #define BLUE  2
 
-#define RED_THRESHOLD 220
-#define GREEN_THRESHOLD 220
-#define BLUE_THRESHOLD 220
-
+//#define RED_THRESHOLD 220
+//#define GREEN_THRESHOLD 220
+//#define BLUE_THRESHOLD 220
+#define RED_THRESHOLD 40
+#define GREEN_THRESHOLD 40
+#define BLUE_THRESHOLD 40
 
 #define RQST_GROUP_SIZE 4
 #define SIGMOID_SLOPE 5.0
@@ -39,6 +41,7 @@ class DropletCustomTwo : public DSimDroplet
 private :
 	enum STATE
 	{
+		IDLE,
 		SEARCH,
 		DISCOVER_GROUP,
 		LEAD_GROUP,

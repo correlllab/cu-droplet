@@ -28,12 +28,17 @@ void DropletCustomTwo::DropletInit()
 	//fh = fopen(filename, "w");
 
 	reset_values();
+	state = IDLE;
 }
 
 void DropletCustomTwo::DropletMainLoop()
 {
 	switch(state)
 	{
+	case IDLE:
+		if(rand_byte() < 1)
+			state = SEARCH;
+		break;
 	case SEARCH:
 		searching();
 		break;
@@ -61,9 +66,10 @@ void DropletCustomTwo::searching()
 	if(check_timer(2))
 	{
 		get_rgb_sensor(&color_msg[RED], &color_msg[GREEN], &color_msg[BLUE]);
-		if(color_msg[RED] >= RED_THRESHOLD)
-			//|| color_msg[GREEN] >= GREEN_THRESHOLD
-			//|| color_msg[BLUE] >= BLUE_THRESHOLD)
+		
+		if(color_msg[RED] < RED_THRESHOLD
+			&& color_msg[GREEN] < GREEN_THRESHOLD
+			&& color_msg[BLUE] < BLUE_THRESHOLD)
 		{
 			state = DISCOVER_GROUP;
 			set_state_led();

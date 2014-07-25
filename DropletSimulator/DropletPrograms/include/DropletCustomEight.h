@@ -50,7 +50,7 @@
 #define MOVE_STEPS_AMOUNT 15
 #define ROTATE_STEPS_AMOUNT 5
 #define BIG_NUMBER 10000
-#define SEED_TYPE_VALUE 4
+#define SEED_TYPE_VALUE 7
 
 #define START_INDICATOR_BYTE (uint8_t)0x3c
 #define IN_ASSEMBLY_INDICATOR_BYTE (uint8_t)0x55
@@ -60,17 +60,17 @@
 #define DELAY_BEFORE_DECIDING_MS 4000
 #define DELAY_BEFORE_MOVING_MS 10000
 #define START_DELAY_MS 2000
-#define SIDESTEPPING_DELAY_MS 20000
-#define RANDOM_WALK_DELAY_MS 10000
+#define SIDESTEPPING_DELAY_MS 5000
+#define RANDOM_WALK_DELAY_MS 30000
 #define START_DELAY_TIMER 0
 #define DECIDING_DELAY_TIMER 1
 #define MOVING_DELAY_TIMER 2
 #define SIDESTEP_TIMER 3
 #define RANDOM_WALK_TIMER 5
 #define BACK_UP_TIMER 6
-#define BACK_UP_TIMER_DELAY_MS 60000
+#define BACK_UP_TIMER_DELAY_MS 30000
 #define NEIGHBOR_CALL_TIMEOUT_TIMER 4
-#define NEIGHBOR_CALL_TIMEOUT_TIMER_DELAY_MS 20000
+#define NEIGHBOR_CALL_TIMEOUT_TIMER_DELAY_MS 300000
 
 #define TYPE__	0x00
 #define TYPE_A	0x01
@@ -134,6 +134,7 @@ private :
 	float last_move_theta;
 	float last_goal_r;
 	float last_move_dist;
+	float side_step_angle;
 	droplet_id_type closestID;
 	uint8_t closestDir;
 	droplet_id_type move_target;
@@ -151,11 +152,11 @@ private :
 	void handle_start_broadcast();
 	void handle_move_to_center();
 	void check_ready_to_move();
+	void decide_if_should_move();
 	void awaiting_confirmation();
 	void adj_spots_to_fill();
 	void handle_move_to_spot();
 	void handle_adjusting_phi();
-	void decide_if_should_move();
 	void waiting_for_message();
 
 	//functions to edit to change the shape you get. (also edit SEED_TYPE_VALUE)
@@ -164,6 +165,7 @@ private :
 	uint8_t get_spots_from_type(uint8_t type);
 
 	//helper/utility functions.
+	void reset_before_waiting_for_msgs();
 	void handle_rotate_to_straight(float theta);
 	void call_for_neighbors();
 	bool check_if_stuck(float delta, float last_delta);

@@ -10,28 +10,31 @@ void DropletCustomEight::DropletInit()
 {
 	init_all_systems();
 	char buffer[64];
-	sprintf(buffer,"C:\\Users\\Colab\\Desktop\\dropletSimDumps\\%04hxdat.txt",get_droplet_id());
-	file_handle = fopen (buffer,"w");
+	//sprintf(buffer,"C:\\Users\\Colab\\Desktop\\dropletSimDumps\\%04hxdat.txt",get_droplet_id());
+	//file_handle = fopen (buffer,"w");
 	set_rgb_led(0,0,0);
-	//srand(time(NULL));
-	printf("Droplet Initialized.\r\n");
+	//printf("Droplet Initialized.\r\n");
+
 	state = STATE_START;
-	my_type = TYPE__;
-	move_target = NULL;
-	move_target_dir = NULL;
-	min_id = get_droplet_id();
-	my_filled_spots = 0;
 	moving_state=MOVING_NORMAL;
-	set_timer(START_DELAY_MS,START_DELAY_TIMER);
-	last_move_r=0;
+
+	min_id = get_droplet_id();
+
+	my_type = TYPE__;
 	my_type_value=0;
+	my_filled_spots=0;
+
+	last_move_r=0;
 	last_move_theta=0;
 	last_move_dist=0;
+	last_goal_r=BIG_NUMBER;
+
+	other_bots.clear();
+
 	got_go_from_parent=false;
 	smallest_master_value= 0xFF;
-	last_goal_r=BIG_NUMBER;
-	recruiting_robots.clear();
-	other_bots.clear();
+	reset_before_waiting_for_msgs();
+	set_timer(START_DELAY_MS,START_DELAY_TIMER);
 }
 
 void DropletCustomEight::DropletMainLoop()
@@ -84,10 +87,13 @@ void DropletCustomEight::DropletMainLoop()
 void DropletCustomEight::handle_start_broadcast(){	
 	if(check_timer(START_DELAY_TIMER)){
 		if(min_id == get_droplet_id()){ //I'm the seed, hurray!
+			//fprintf(file_handle, "I AM THE SEED. My id: %hx.\n", get_droplet_id());
+			//fflush(file_handle);
 			my_type=TYPE_S;
 			my_type_value=SEED_TYPE_VALUE;
 			state=STATE_MOVING_TO_CENTER;
 		}else{
+			reset_before_waiting_for_msgs();
 			state=STATE_WAITING_FOR_MSGS;
 			set_timer(RANDOM_WALK_DELAY_MS, RANDOM_WALK_TIMER);
 		}
@@ -175,13 +181,15 @@ void DropletCustomEight::handle_move_to_center(){
 }
 
 void DropletCustomEight::check_ready_to_move(){
-	if((recruiting_robots.find(closestID) == recruiting_robots.end())||!((recruiting_robots[closestID]->desiredNeighbors)&(1<<closestDir))){ //our closest isn't in the dictionary anymore, so we need to pick a closest, broadcast, and reset countdown
+	//fprintf(file_handle, "In check_ready_to_move, ");
+	bool id_not_in_map = (recruiting_robots.find(closestID) == recruiting_robots.end());
+	if(id_not_in_map||(!(recruiting_robots[closestID]->desiredNeighbors)&(1<<closestDir))){ //our closest isn't in the dictionary anymore, so we need to pick a closest, broadcast, and reset countdown
 		if(recruiting_robots.size()==0){ //If the recruiting_robots dictionary is empty, then all the spots have been taken and we should just go back to waiting for messages.
+			//fprintf(file_handle, "back to waiting for messages.\n");
+			reset_before_waiting_for_msgs();
 			state = STATE_WAITING_FOR_MSGS;
-			move_target = NULL;
-			move_target_dir = 0;
-			recruiting_robots.clear();
 		}else{
+			//fprintf(file_handle, "MOVING_DELAY_TIMER_SET.\n");
 			calculate_distance_to_target_positions();
 			set_timer(DELAY_BEFORE_MOVING_MS,MOVING_DELAY_TIMER);
 		}
@@ -189,7 +197,66 @@ void DropletCustomEight::check_ready_to_move(){
 		state = STATE_MOVING_TO_SPOT;
 		move_target = closestID;
 		move_target_dir = closestDir;
+		//fprintf(file_handle, "moving to our spot! Spot: %hhu of %hx.\n", move_target_dir, move_target);
 	}
+	//fflush(file_handle);
+}
+
+void DropletCustomEight::decide_if_should_move(){
+	//fprintf(file_handle, "In decide_if_should_move. My id: %hx\n", get_droplet_id());
+	if(rand_byte()<64){
+		//fprintf(file_handle, "\tWe may send a favTgtMsg, ");
+		std::map<droplet_id_type, recruitingRobot*>::iterator iter;
+		iter = recruiting_robots.find(closestID);
+		if(iter!=recruiting_robots.end()){ //if our target of choice hasn't already been completely claimed.
+			if(iter->second->desiredNeighbors & (1<<closestDir)){ //and if our direction of choice hasn't been claimed.
+				broadcast_favorite_target();
+				//fprintf(file_handle, "and did! ID: %hx, DIR: %hhu, DIST: %f\n", closestID, closestDir, closestDist);
+			}else{
+				//fprintf(file_handle, "but didn't. Direction was claimed.\n");
+			}
+		}else{
+			//fprintf(file_handle, "but didn't. All directions claimed.\n");
+		}
+	}
+
+	while(check_for_new_messages()){
+		if(((global_rx_buffer.data_len-2 /*JOHN: data_len has a bug?*/)==sizeof(favTgtMsg))){
+			favTgtMsg* msg = (favTgtMsg*)global_rx_buffer.buf;
+			std::map<droplet_id_type, recruitingRobot*>::iterator iter;
+			iter = recruiting_robots.find(msg->id);
+			//fprintf(file_handle, "\tGot a favTgtMsg. ID: %hx, DIR: %hhu, DIST: %f\n", msg->id, msg->dir, msg->dist);
+			if(iter == recruiting_robots.end()){
+				//fprintf(file_handle, "\t\tID not in our map, so ignoring it.\n");
+				//the key isn't in our map, so we can ignore it.
+			}else{
+				if((msg->id==closestID)&&(msg->dir==closestDir)){ //if we both want the same one,
+					if(iter->second->toNeighborDist[msg->dir]>=msg->dist){ //if my dist is as far or farther.
+						if(iter->second->toNeighborDist[msg->dir]==msg->dist){ //if there was a tie.
+							//fprintf(file_handle, "\t\tThere was a tie!");
+							if(get_droplet_id()<global_rx_buffer.sender_ID){ //my id is lower, so keep it in the list.
+								//fprintf(file_handle, " I have the lower ID.\n");
+							}else{ //their id is lower, so we need to remove the dir from our list.
+								remove_dir_from_spots_map(msg->dir, msg->id);
+								//fprintf(file_handle, " I have the higher ID. Removing.\n");
+							}
+						}else{ //no tie, we're just worse, so remove.
+							remove_dir_from_spots_map(msg->dir, msg->id);
+							//fprintf(file_handle, "\t\tI'm farther. Removing.\n");
+						}
+					}else{
+						//fprintf(file_handle, "\t\tI'm closer to target.\n");
+						//We're closer, so keep that in the list.
+					}
+				}else{ //else, remove the dir from our list.
+					remove_dir_from_spots_map(msg->dir, msg->id);
+					//fprintf(file_handle, "\t\tThey wanted a different spot. Removing.\n");
+				}
+			}
+		}
+		global_rx_buffer.read = 1;
+	}
+	//fflush(file_handle);
 }
 
 void DropletCustomEight::awaiting_confirmation(){
@@ -293,24 +360,10 @@ void DropletCustomEight::adj_spots_to_fill(){
 	}
 }
 
-void DropletCustomEight::do_back_up(){
-	if(check_timer(BACK_UP_TIMER)){
-		//set_rgb_led(0,0,128);
-		move_steps(((rand_byte()%5+1)), 16*MOVE_STEPS_AMOUNT);	
-		
-	}
-	else{
-		state=STATE_WAITING_FOR_MSGS;
-	}
-}
-
-
 void DropletCustomEight::handle_move_to_spot(){
 	if(is_moving()){
 		//already moving, great.
 	}else{
-		fprintf(file_handle, "moving to: %hx, side: %hhx\n", move_target, move_target_dir);
-		fflush(file_handle);
 		float move_target_dist, move_target_theta, move_target_phi;
 		range_and_bearing(move_target, &move_target_dist, &move_target_theta, &move_target_phi);
 		float adj_move_target_dist, adj_move_target_theta;
@@ -347,8 +400,18 @@ void DropletCustomEight::handle_move_to_spot(){
 			}
 		}else if(moving_state==MOVING_BACKING_UP){
 			if(adj_move_target_dist>=(1.5*avoid_target) || check_timer(BACK_UP_TIMER)){
+				
 				moving_state = MOVING_SIDESTEPPING;
-				set_timer(SIDESTEPPING_DELAY_MS, SIDESTEP_TIMER);
+				side_step_angle = 60.0*(((rand_byte()&0x1) ? -1.0 : 1.0)*((rand_byte()&0x1) ? 2.0 : 18.0));
+
+				uint32_t backup_duration; 
+				//fprintf(file_handle, "About to call get_timer_time_remaining.\n");
+				//fflush(file_handle);
+				if(!check_timer(BACK_UP_TIMER)) backup_duration = BACK_UP_TIMER_DELAY_MS - get_timer_time_remaining(BACK_UP_TIMER);
+				else backup_duration = BACK_UP_TIMER_DELAY_MS;	
+				//fprintf(file_handle, "Called it.\n");
+				//fflush(file_handle);
+				set_timer(backup_duration, SIDESTEP_TIMER);
 			}else{
 				move_steps(get_best_move_dir(adj_move_target_theta+180), MOVE_STEPS_AMOUNT);
 			}
@@ -356,7 +419,7 @@ void DropletCustomEight::handle_move_to_spot(){
 			if(check_timer(SIDESTEP_TIMER)){
 				moving_state=MOVING_NORMAL;
 			}else{
-				move_steps(get_best_move_dir(adj_move_target_theta-90), 5);
+				move_steps(get_best_move_dir(adj_move_target_theta+side_step_angle), MOVE_STEPS_AMOUNT);
 			}
 		}
 		while(check_for_new_messages()){
@@ -367,14 +430,9 @@ void DropletCustomEight::handle_move_to_spot(){
 					if((move_target==msg->parent_id)&&(move_target_dir==msg->dir)){
 						//someone has already claimed the spot I was going to! I should just stop moving.
 						//(Something went wrong and I didn't hear when someone else was claiming that spot.)
-						move_target = NULL;
-						move_target_dir = 0;
-						recruiting_robots.clear();
+						reset_before_waiting_for_msgs();
 						state = STATE_WAITING_FOR_MSGS;
-						cancel_move();
 						move_steps(get_best_move_dir(adj_move_target_theta+180), 5000);
-						//TO DO: BACK UP SO YOU DON'T SIT DEAD IN THE WATER RIGHT NEXT TO THE SHAPE.
-						//state=STATE_WAITING_FOR_MSGS;
 					
 					}
 				}
@@ -401,46 +459,6 @@ void DropletCustomEight::handle_adjusting_phi(){
 				rotate_steps(TURN_COUNTERCLOCKWISE, ROTATE_STEPS_AMOUNT);
 			}
 		}
-	}
-}
-
-void DropletCustomEight::decide_if_should_move(){
-	if(rand_byte()<64){
-		std::map<droplet_id_type, recruitingRobot*>::iterator iter;
-		iter = recruiting_robots.find(closestID);
-		if(iter!=recruiting_robots.end()){ //if our target of choice hasn't already been completely claimed.
-			if(iter->second->desiredNeighbors & (1<<closestDir)){ //and if our direction of choice hasn't been claimed.
-				broadcast_favorite_target();
-			}
-		}
-	}
-	while(check_for_new_messages()){
-		if(((global_rx_buffer.data_len-2 /*JOHN: data_len has a bug?*/)==sizeof(favTgtMsg))){
-			favTgtMsg* msg = (favTgtMsg*)global_rx_buffer.buf;
-			std::map<droplet_id_type, recruitingRobot*>::iterator iter;
-			iter = recruiting_robots.find(msg->id);
-			if(iter == recruiting_robots.end()){
-				//the key isn't in our map, so we can ignore it.
-			}else{
-				if((msg->id==closestID)&&(msg->dir==closestDir)){ //if we both want the same one,
-					if(iter->second->toNeighborDist[msg->dir]>=msg->dist){ //if my dist is as far or farther.
-						if(iter->second->toNeighborDist[msg->dir]==msg->dist){ //if there was a tie.
-							if(get_droplet_id()<global_rx_buffer.sender_ID){ //my id is lower, so keep it in the list.
-							}else{ //their id is lower, so we need to remove the dir from our list.
-								remove_dir_from_spots_map(msg->dir, msg->id);
-							}
-						}else{ //no tie, we're just worse, so remove.
-							remove_dir_from_spots_map(msg->dir, msg->id);
-						}
-					}else{
-						//We're closer, so keep that in the list.
-					}
-				}else{ //else, remove the dir from our list.
-					remove_dir_from_spots_map(msg->dir, msg->id);
-				}
-			}
-		}
-		global_rx_buffer.read = 1;
 	}
 }
 
@@ -531,6 +549,16 @@ uint8_t DropletCustomEight::get_spots_from_type(uint8_t type){
 	}
 }
 
+void DropletCustomEight::reset_before_waiting_for_msgs(){
+	set_timer(RANDOM_WALK_DELAY_MS, RANDOM_WALK_TIMER);
+	move_target = NULL;
+	move_target_dir = 0;
+	closestDir=0;
+	closestID=0;
+	closestDist=0;
+	recruiting_robots.clear();
+}
+
 void DropletCustomEight::handle_rotate_to_straight(float theta){
 	if((-30<=theta)&&(theta<30)){
 		//do nothing
@@ -552,8 +580,8 @@ void DropletCustomEight::handle_rotate_to_straight(float theta){
 
 
 void DropletCustomEight::call_for_neighbors(){
-	fprintf(file_handle, "\tCalling for neighbors.\n");
-	fflush(file_handle);
+	//fprintf(file_handle, "\tCalling for neighbors.\n");
+	//fflush(file_handle);
 	char msg[2];
 	msg[0] = IN_ASSEMBLY_INDICATOR_BYTE;
 	msg[1] = get_spots_from_type(my_type)-my_filled_spots;

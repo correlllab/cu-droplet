@@ -484,7 +484,7 @@ uint8_t DSimDroplet::check_for_new_messages(void)
 	return (newMsgCh == -1) ? 0 : 1;
 }
 
-uint8_t DSimDroplet::set_timer(uint16_t time, uint8_t index)
+uint8_t DSimDroplet::set_timer(uint32_t time, uint8_t index)
 {
 	if(index >= DROPLET_NUM_TIMERS) return 0;
 
@@ -492,6 +492,16 @@ uint8_t DSimDroplet::set_timer(uint16_t time, uint8_t index)
 	timeData->trigger[index] = 0;
 
 	return 1;
+}
+
+uint32_t DSimDroplet::get_timer_time_remaining(uint8_t index)
+{
+	if(index >= DROPLET_NUM_TIMERS) return 0;
+
+	float current_status = timeData->timer[index];
+
+
+	return static_cast<uint32_t>(timeData->timer[index]);
 }
  
 uint8_t DSimDroplet::check_timer(uint8_t index)

@@ -15,7 +15,7 @@
 //#include "stdafx.h"
 #include <sstream>
 #include <stdio.h>
-#include <math.h>
+//#include <math.h>
 #include <string>
 #include <iostream>
 #include <time.h>
@@ -28,7 +28,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <conio.h>
-#include <math.h>
 #include <stdlib.h>
 
 //#define env				10
@@ -44,22 +43,22 @@
 #define DIR_MASK_NW		0x80
 
 #define DROPLET_RADIUS (float)2.2 //assuming units are cm
-#define FORMATION_GAP (float)0.2 //still assuming units are cm
+#define FORMATION_GAP (float)0.25 //still assuming units are cm
 #define PROXIMITY_THRESHOLD (float)0.5
 #define STUCK_DIST_THRESHOLD (float)0.01
-#define ORIENT_THRESHOLD_DEG (float)5.0
+#define ORIENT_THRESHOLD_DEG (float)3.0
 #define MOVE_STEPS_AMOUNT 15
 #define ROTATE_STEPS_AMOUNT 5
 #define BIG_NUMBER 10000
-#define SEED_TYPE_VALUE 255
+#define SEED_TYPE_VALUE 4
 
 #define START_INDICATOR_BYTE (uint8_t)0x3c
 #define IN_ASSEMBLY_INDICATOR_BYTE (uint8_t)0x55
 #define CLAIM_MSG_TYPE (uint8_t)0xf0
 #define NOT_IN_ASSEMBLY_INDICATOR_BYTE (uint8_t)0xaa
 #define GO_INDICATOR_BYTE (uint8_t)0xc3
-#define DELAY_BEFORE_DECIDING_MS 2000
-#define DELAY_BEFORE_MOVING_MS 6000
+#define DELAY_BEFORE_DECIDING_MS 4000
+#define DELAY_BEFORE_MOVING_MS 10000
 #define START_DELAY_MS 2000
 #define SIDESTEPPING_DELAY_MS 20000
 #define RANDOM_WALK_DELAY_MS 10000
@@ -68,6 +67,10 @@
 #define MOVING_DELAY_TIMER 2
 #define SIDESTEP_TIMER 3
 #define RANDOM_WALK_TIMER 5
+#define BACK_UP_TIMER 6
+#define BACK_UP_TIMER_DELAY_MS 60000
+#define NEIGHBOR_CALL_TIMEOUT_TIMER 4
+#define NEIGHBOR_CALL_TIMEOUT_TIMER_DELAY_MS 20000
 
 #define TYPE__	0x00
 #define TYPE_A	0x01
@@ -82,8 +85,7 @@
 #define STATE_MOVING_TO_SPOT			0x10 //r_b (pink)
 #define STATE_DECIDING_SHOULD_MOVE		0x20 //rg_ (yellow)
 #define STATE_START						0x40 //___ (off)
-#define STATE_ADJUSTING_PHI				0x80 //__b (blue)
-//#define STATE_DECIDE_RANDOM_MOVE		0x00
+#define STATE_ADJUSTING_PHI				0x80 //__b (blue)				
 
 #define MOVING_NORMAL					0x00
 #define MOVING_BACKING_UP				0x01
@@ -162,6 +164,7 @@ private :
 	uint8_t get_spots_from_type(uint8_t type);
 
 	//helper/utility functions.
+	void handle_rotate_to_straight(float theta);
 	void call_for_neighbors();
 	bool check_if_stuck(float delta, float last_delta);
 	void maintain_position(droplet_id_type bot, uint8_t dir);
@@ -175,6 +178,7 @@ private :
 	void add_polar_vec(float r1, float th1, float r2, float th2, float* rs, float* ths);
 	float sub_polar_vec_mag(float r1, float th1, float r2, float th2);
 	void remove_dir_from_spots_map(uint8_t dir, droplet_id_type id);
+	void do_back_up();
 
 	//quick math functions.
 	float inline deg2rad(float deg);

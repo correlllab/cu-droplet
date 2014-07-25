@@ -146,7 +146,7 @@ void DropletCustomEight::handle_move_to_center(){
 				state=STATE_ADJ_SPOTS_TO_BE_FILLED;
 				call_for_neighbors();
 			}
-			else if(fabs(last_move_dist-goal_r)<STUCK_DIST_THRESHOLD){ //we barely moved at all! probably stuck.
+			else if(fabs(last_move_r-goal_r)<STUCK_DIST_THRESHOLD){ //we barely moved at all! probably stuck.
 				moving_state = MOVING_BACKING_UP;
 				avoid_target = goal_r;
 				last_move_r=BIG_NUMBER;
@@ -177,7 +177,10 @@ void DropletCustomEight::handle_move_to_center(){
 void DropletCustomEight::check_ready_to_move(){
 	if((recruiting_robots.find(closestID) == recruiting_robots.end())||!((recruiting_robots[closestID]->desiredNeighbors)&(1<<closestDir))){ //our closest isn't in the dictionary anymore, so we need to pick a closest, broadcast, and reset countdown
 		if(recruiting_robots.size()==0){ //If the recruiting_robots dictionary is empty, then all the spots have been taken and we should just go back to waiting for messages.
-			state = 0;
+			state = STATE_WAITING_FOR_MSGS;
+			move_target = NULL;
+			move_target_dir = 0;
+			recruiting_robots.clear();
 		}else{
 			calculate_distance_to_target_positions();
 			set_timer(DELAY_BEFORE_MOVING_MS,MOVING_DELAY_TIMER);
@@ -283,33 +286,31 @@ void DropletCustomEight::adj_spots_to_fill(){
 		char msg[1];
 		msg[0] = GO_INDICATOR_BYTE;
 		ir_broadcast(msg, 1);
+	}else{
+		if(check_timer(NEIGHBOR_CALL_TIMEOUT_TIMER)){
+			call_for_neighbors();
+		}
 	}
 }
 
-void DropletCustomEight::handle_move_to_spot(){
-	while(check_for_new_messages()){
-		if((global_rx_buffer.data_len-2 /*JOHN: data_len has a bug?*/)==sizeof(claimMsg)){
-			//got a message from someone claiming a spot.
-			claimMsg* msg = (claimMsg*)global_rx_buffer.buf;
-			if(msg->type == CLAIM_MSG_TYPE){
-				if((move_target==msg->parent_id)&&(move_target_dir==msg->dir)){
-					//someone has already claimed the spot I was going to! I should just stop moving.
-					//(Something went wrong and I didn't hear when someone else was claiming that spot.)
-					move_target = NULL;
-					move_target_dir = 0;
-					recruiting_robots.clear();
-					state=STATE_WAITING_FOR_MSGS;
-					global_rx_buffer.read=1;
-					cancel_move();
-					return;
-				}
-			}
-		}
-		global_rx_buffer.read=1;
+void DropletCustomEight::do_back_up(){
+	if(check_timer(BACK_UP_TIMER)){
+		//set_rgb_led(0,0,128);
+		move_steps(((rand_byte()%5+1)), 16*MOVE_STEPS_AMOUNT);	
+		
 	}
+	else{
+		state=STATE_WAITING_FOR_MSGS;
+	}
+}
+
+
+void DropletCustomEight::handle_move_to_spot(){
 	if(is_moving()){
 		//already moving, great.
 	}else{
+		fprintf(file_handle, "moving to: %hx, side: %hhx\n", move_target, move_target_dir);
+		fflush(file_handle);
 		float move_target_dist, move_target_theta, move_target_phi;
 		range_and_bearing(move_target, &move_target_dist, &move_target_theta, &move_target_phi);
 		float adj_move_target_dist, adj_move_target_theta;
@@ -318,27 +319,34 @@ void DropletCustomEight::handle_move_to_spot(){
 			float this_move_dist=sub_polar_vec_mag(adj_move_target_dist, adj_move_target_theta, last_move_r, last_move_theta);
 			//fprintf(file_handle, "this_move_dist: %f\n", this_move_dist);
 			//fflush(file_handle);
-			if(adj_move_target_dist<(PROXIMITY_THRESHOLD/10.0)){ //we're done moving!
+			if(adj_move_target_dist<(PROXIMITY_THRESHOLD/2.0)){ //we're done moving!
 				////fprintf(file_handle, "\tDone moving!\n");
 				////fflush(file_handle);
 				state = STATE_ADJUSTING_PHI;
 				last_move_r=0;
 				last_move_dist=0;
-			}
-			if(fabs(last_move_dist- adj_move_target_dist)<STUCK_DIST_THRESHOLD){ //we started slowing down
+			}else if((fabs(last_move_r- adj_move_target_dist))<STUCK_DIST_THRESHOLD){ //we started slowing down
 				moving_state = MOVING_BACKING_UP;
 				avoid_target = adj_move_target_dist;
+				rotate_steps(TURN_COUNTERCLOCKWISE, ROTATE_STEPS_AMOUNT);
 				last_move_r=0;
 				last_move_dist=0;
+				set_timer(BACK_UP_TIMER_DELAY_MS, BACK_UP_TIMER);
+			}else if(adj_move_target_dist<DROPLET_RADIUS){ //we're almost done moving. Take smaller steps.
+				move_steps(get_best_move_dir(adj_move_target_theta), 5);
+				last_move_r = adj_move_target_dist;
+				last_move_dist = this_move_dist;
+				last_move_theta = adj_move_target_theta;
 			}
 			else{
+				handle_rotate_to_straight(adj_move_target_theta);
 				move_steps(get_best_move_dir(adj_move_target_theta), MOVE_STEPS_AMOUNT);
 				last_move_r = adj_move_target_dist;
 				last_move_dist = this_move_dist;
 				last_move_theta = adj_move_target_theta;
 			}
 		}else if(moving_state==MOVING_BACKING_UP){
-			if(adj_move_target_dist>=(1.5*avoid_target)){
+			if(adj_move_target_dist>=(1.5*avoid_target) || check_timer(BACK_UP_TIMER)){
 				moving_state = MOVING_SIDESTEPPING;
 				set_timer(SIDESTEPPING_DELAY_MS, SIDESTEP_TIMER);
 			}else{
@@ -348,8 +356,30 @@ void DropletCustomEight::handle_move_to_spot(){
 			if(check_timer(SIDESTEP_TIMER)){
 				moving_state=MOVING_NORMAL;
 			}else{
-				move_steps(get_best_move_dir(adj_move_target_theta-90), MOVE_STEPS_AMOUNT);
+				move_steps(get_best_move_dir(adj_move_target_theta-90), 5);
 			}
+		}
+		while(check_for_new_messages()){
+			if((global_rx_buffer.data_len-2 /*JOHN: data_len has a bug?*/)==sizeof(claimMsg)){
+				//got a message from someone claiming a spot.
+				claimMsg* msg = (claimMsg*)global_rx_buffer.buf;
+				if(msg->type == CLAIM_MSG_TYPE){
+					if((move_target==msg->parent_id)&&(move_target_dir==msg->dir)){
+						//someone has already claimed the spot I was going to! I should just stop moving.
+						//(Something went wrong and I didn't hear when someone else was claiming that spot.)
+						move_target = NULL;
+						move_target_dir = 0;
+						recruiting_robots.clear();
+						state = STATE_WAITING_FOR_MSGS;
+						cancel_move();
+						move_steps(get_best_move_dir(adj_move_target_theta+180), 5000);
+						//TO DO: BACK UP SO YOU DON'T SIT DEAD IN THE WATER RIGHT NEXT TO THE SHAPE.
+						//state=STATE_WAITING_FOR_MSGS;
+					
+					}
+				}
+			}
+			global_rx_buffer.read=1;
 		}
 	}
 }
@@ -444,6 +474,7 @@ void DropletCustomEight::waiting_for_message(){
 			if (!is_moving()) move_steps(((rand_byte()%5+1)), MOVE_STEPS_AMOUNT);	
 		}
 	}else{
+		cancel_move(); //in case we were moving from backing up after our spot was claimed.
 		state=STATE_DECIDING_SHOULD_MOVE;
 	}
 }
@@ -500,11 +531,34 @@ uint8_t DropletCustomEight::get_spots_from_type(uint8_t type){
 	}
 }
 
+void DropletCustomEight::handle_rotate_to_straight(float theta){
+	if((-30<=theta)&&(theta<30)){
+		//do nothing
+	}else if((-90<=theta)&&(theta<-30)){
+		theta+=60.0;
+	}else if((-150<=theta)&&(theta<-90)){
+		theta+=120.0;
+	}else if(((-180<=theta)&&(theta<-150))||((150<=theta)&&(theta<=180))){
+		if(theta<0) theta+=180.0;
+		else theta-=180.0;
+	}else if((90<=theta)&&(theta<150)){
+		theta-=120;
+	}else if((30<=theta)&&(theta<90)){
+		theta-=60;
+	}
+	if(theta<(ORIENT_THRESHOLD_DEG/2.)) rotate_steps(TURN_CLOCKWISE, ROTATE_STEPS_AMOUNT);
+	else if(theta>(ORIENT_THRESHOLD_DEG/2.)) rotate_steps(TURN_COUNTERCLOCKWISE, ROTATE_STEPS_AMOUNT);
+}
+
+
 void DropletCustomEight::call_for_neighbors(){
+	fprintf(file_handle, "\tCalling for neighbors.\n");
+	fflush(file_handle);
 	char msg[2];
 	msg[0] = IN_ASSEMBLY_INDICATOR_BYTE;
-	msg[1] = get_spots_from_type(my_type);
+	msg[1] = get_spots_from_type(my_type)-my_filled_spots;
 	ir_broadcast(msg, 2);
+	set_timer(NEIGHBOR_CALL_TIMEOUT_TIMER_DELAY_MS, NEIGHBOR_CALL_TIMEOUT_TIMER);
 }
 
 bool DropletCustomEight::check_if_stuck(float delta, float last_delta){

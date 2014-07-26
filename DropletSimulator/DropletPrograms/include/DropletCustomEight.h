@@ -41,12 +41,13 @@
 #define DIR_MASK_SW		0x20
 #define DIR_MASK_W		0x40
 #define DIR_MASK_NW		0x80
+#define ANGLED_DIR (DIR_MASK_NE|DIR_MASK_SE|DIR_MASK_NW|DIR_MASK_SW)
 
 #define DROPLET_RADIUS (float)2.2 //assuming units are cm
 #define FORMATION_GAP (float)0.25 //still assuming units are cm
 #define PROXIMITY_THRESHOLD (float)0.5
 #define STUCK_DIST_THRESHOLD (float)0.01
-#define ORIENT_THRESHOLD_DEG (float)3.0
+#define ORIENT_THRESHOLD_DEG (float)1.0
 #define MOVE_STEPS_AMOUNT 15
 #define ROTATE_STEPS_AMOUNT 5
 #define BIG_NUMBER 10000
@@ -72,10 +73,19 @@
 #define NEIGHBOR_CALL_TIMEOUT_TIMER 4
 #define NEIGHBOR_CALL_TIMEOUT_TIMER_DELAY_MS 300000
 
-#define TYPE__	0x00
-#define TYPE_A	0x01
-#define TYPE_B	0x02
-#define TYPE_S	0x04
+#define TYPE__			0x0000
+#define TYPE_E			0x0001
+#define TYPE_W			0x0002
+#define TYPE_N			0x0004
+#define TYPE_S			0x0008
+#define TYPE_NE			0x0010
+#define TYPE_SE			0x0020
+#define TYPE_SW			0x0040
+#define	TYPE_NW			0x0080
+#define TYPE_SEED		0x0100
+
+#define SLAVE_TYPES		0x000F
+#define MASTER_TYPES	0x00F0
 
 #define STATE_WAITING_FOR_MSGS			0x00 //r__ (red)
 #define STATE_ADJ_SPOTS_TO_BE_FILLED	0x01 //rgb (white)
@@ -139,8 +149,8 @@ private :
 	uint8_t closestDir;
 	droplet_id_type move_target;
 	uint8_t move_target_dir;
-	uint8_t my_type;
-	uint8_t my_type_value;
+	uint16_t my_type;
+	int8_t my_type_value;
 	uint8_t smallest_master_value;
 	uint8_t my_filled_spots;
 	uint8_t moving_state;
@@ -160,9 +170,9 @@ private :
 	void waiting_for_message();
 
 	//functions to edit to change the shape you get. (also edit SEED_TYPE_VALUE)
-	bool check_if_slave(uint8_t slave_q, uint8_t master_q);
-	void get_neighbor_type(uint8_t type, uint8_t value, uint8_t dir, uint8_t* neighbor_type, uint8_t* neighbor_value);
-	uint8_t get_spots_from_type(uint8_t type);
+	bool check_if_slave(uint16_t slave_q, uint16_t master_q);
+	void get_neighbor_type(uint16_t type, int8_t value, uint8_t dir, uint16_t* neighbor_type, int8_t* neighbor_value);
+	uint8_t get_spots_from_type(uint16_t type);
 
 	//helper/utility functions.
 	void reset_before_waiting_for_msgs();

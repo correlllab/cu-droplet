@@ -420,7 +420,7 @@ protected :
 	 * /param time the time to fire in ms
 	 * /param index 0 to 4, for one of the available timers.
 	 */
-	uint8_t set_timer(uint16_t time, uint8_t index); // time in ms
+	uint8_t set_timer(uint32_t time, uint8_t index); // time in ms
 
 	/**
 	 * Check the status of available timers.
@@ -428,6 +428,8 @@ protected :
 	 * timer is off or has fired after being set.
 	 */
 	uint8_t check_timer(uint8_t index);
+
+	uint32_t get_timer_time_remaining(uint8_t index);
 ///@}
 
 public :

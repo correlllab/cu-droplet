@@ -29,6 +29,7 @@ void DropletCustomEight::DropletInit()
 	last_goal_r=BIG_NUMBER;
 
 	other_bots.clear();
+	heard_the_assembly=false;
 
 	got_go_from_parent=false;
 	smallest_master_value= 0xFF;
@@ -143,12 +144,14 @@ void DropletCustomEight::handle_move_to_center(){
 		
 		if(moving_state==MOVING_NORMAL){
 			float this_move_dist=sub_polar_vec_mag(goal_r, goal_theta, last_move_r, last_move_theta);
-			if(goal_r<DROPLET_RADIUS*2){
+			if(goal_r<(PROXIMITY_THRESHOLD)){
 				for(std::vector<botPos*>::iterator it=other_bots.begin(); it!=other_bots.end();it++){
 					delete (*it);
 				}
 				other_bots.clear();
 				state=STATE_ADJ_SPOTS_TO_BE_FILLED;
+				last_move_r=0;
+				last_move_dist=0;
 				call_for_neighbors();
 			}
 			else if(fabs(last_move_r-goal_r)<STUCK_DIST_THRESHOLD){ //we barely moved at all! probably stuck.
@@ -156,7 +159,13 @@ void DropletCustomEight::handle_move_to_center(){
 				avoid_target = goal_r;
 				last_move_r=BIG_NUMBER;
 				last_move_dist=0;
-			}else{
+			}else if(goal_r<DROPLET_RADIUS){ //we're almost done moving. Take smaller steps.
+				move_steps(get_best_move_dir(goal_theta), 5);
+				last_move_r = goal_r;
+				last_move_dist = this_move_dist;
+				last_move_theta = goal_theta;
+			}
+			else{
 				move_steps(get_best_move_dir(goal_theta), MOVE_STEPS_AMOUNT);
 				last_move_r = goal_r;
 				last_move_theta = goal_theta;
@@ -193,6 +202,7 @@ void DropletCustomEight::check_ready_to_move(){
 		state = STATE_MOVING_TO_SPOT;
 		move_target = closestID;
 		move_target_dir = closestDir;
+		set_timer(NEIGHBOR_CALL_TIMEOUT_TIMER_DELAY_MS, MOVE_TIMEOUT_TIMER);
 	}
 }
 
@@ -310,11 +320,11 @@ void DropletCustomEight::adj_spots_to_fill(){
 
 				if(dist<=2.0*PROXIMITY_THRESHOLD){
 					//close enough! send confirmation message.
-					uint8_t msg[6];
+					char msg[6];
 					msg[0] = IN_ASSEMBLY_INDICATOR_BYTE;
 					*((droplet_id_type*)(msg+1)) = global_rx_buffer.sender_ID;
 					get_neighbor_type(my_type, my_type_value, (1<<dir), (uint16_t*)(msg+3), (int8_t*)(msg+5));
-					ir_broadcast((char*)msg, 6);
+					ir_broadcast(msg, 6);
 					my_filled_spots |= (1<<dir); //mark that spot as done.
 					////fprintf(file_handle, "Just confirmed a bot in dir: %hhx. filled_spots now: %02hhx.\r\n", dir, my_filled_spots);
 					////fflush(file_handle);
@@ -344,11 +354,29 @@ void DropletCustomEight::adj_spots_to_fill(){
 void DropletCustomEight::handle_move_to_spot(){
 	if(is_moving()){
 		//already moving, great.
+		float move_target_dist, move_target_theta, move_target_phi;
+		range_and_bearing(move_target, &move_target_dist, &move_target_theta, &move_target_phi);
+		float adj_move_target_dist, adj_move_target_theta;
+		get_relative_neighbor_position(1<<move_target_dir, move_target_dist, move_target_theta, move_target_phi, &adj_move_target_dist, &adj_move_target_theta);
+		if(check_timer(MOVE_TIMEOUT_TIMER)){
+			//call_for_neighbors();
+			reset_before_waiting_for_msgs();
+			state = STATE_WAITING_FOR_MSGS;
+			cancel_move();
+			cancel_rotate();
+			move_steps(get_best_move_dir(adj_move_target_theta+180), 2000);
+		}
 	}else{
 		float move_target_dist, move_target_theta, move_target_phi;
 		range_and_bearing(move_target, &move_target_dist, &move_target_theta, &move_target_phi);
 		float adj_move_target_dist, adj_move_target_theta;
 		get_relative_neighbor_position(1<<move_target_dir, move_target_dist, move_target_theta, move_target_phi, &adj_move_target_dist, &adj_move_target_theta);
+		if(check_timer(MOVE_TIMEOUT_TIMER)){
+			//call_for_neighbors();
+			reset_before_waiting_for_msgs();
+			state = STATE_WAITING_FOR_MSGS;
+			move_steps(get_best_move_dir(adj_move_target_theta+180), 2000);
+		}
 		if(moving_state==MOVING_NORMAL){
 			float this_move_dist=sub_polar_vec_mag(adj_move_target_dist, adj_move_target_theta, last_move_r, last_move_theta);
 			//fprintf(file_handle, "this_move_dist: %f\n", this_move_dist);
@@ -356,6 +384,8 @@ void DropletCustomEight::handle_move_to_spot(){
 			if(adj_move_target_dist<(PROXIMITY_THRESHOLD)){ //we're done moving!
 				////fprintf(file_handle, "\tDone moving!\n");
 				////fflush(file_handle);
+				//cancel_move();
+				//cancel_rotate();
 				state = STATE_ADJUSTING_PHI;
 				last_move_r=0;
 				last_move_dist=0;
@@ -383,13 +413,14 @@ void DropletCustomEight::handle_move_to_spot(){
 			if(adj_move_target_dist>=(1.5*avoid_target) || check_timer(BACK_UP_TIMER)){
 				
 				moving_state = MOVING_SIDESTEPPING;
-				side_step_angle = 60.0*(((rand_byte()&0x1) ? -1.0 : 1.0)*((rand_byte()&0x1) ? 2.0 : 18.0));
+				side_step_angle = 60.0*(((rand_byte()&0x1) ? -1.0 : 1.0)*((rand_byte()&0x1) ? 2.0 : 1.0));
 
 				uint32_t backup_duration; 
 				//fprintf(file_handle, "About to call get_timer_time_remaining.\n");
 				//fflush(file_handle);
 				if(!check_timer(BACK_UP_TIMER)) backup_duration = BACK_UP_TIMER_DELAY_MS - get_timer_time_remaining(BACK_UP_TIMER);
-				else backup_duration = BACK_UP_TIMER_DELAY_MS;	
+				//backup_duration = backup_duration/2;
+				if(backup_duration>SIDESTEPPING_DELAY_MS) backup_duration = SIDESTEPPING_DELAY_MS;
 				//fprintf(file_handle, "Called it.\n");
 				//fflush(file_handle);
 				set_timer(backup_duration, SIDESTEP_TIMER);
@@ -401,6 +432,7 @@ void DropletCustomEight::handle_move_to_spot(){
 				moving_state=MOVING_NORMAL;
 			}else{
 				move_steps(get_best_move_dir(adj_move_target_theta+side_step_angle), MOVE_STEPS_AMOUNT);
+				//move_steps(get_best_move_dir(adj_move_target_theta+90), MOVE_STEPS_AMOUNT);
 			}
 		}
 		while(check_for_new_messages()){
@@ -413,7 +445,7 @@ void DropletCustomEight::handle_move_to_spot(){
 						//(Something went wrong and I didn't hear when someone else was claiming that spot.)
 						reset_before_waiting_for_msgs();
 						state = STATE_WAITING_FOR_MSGS;
-						move_steps(get_best_move_dir(adj_move_target_theta+180), 5000);
+						move_steps(get_best_move_dir(adj_move_target_theta+180), 2000);
 					
 					}
 				}
@@ -448,7 +480,11 @@ void DropletCustomEight::waiting_for_message(){
 	if((!check_timer(DECIDING_DELAY_TIMER)) || recruiting_robots.empty()){
 		while(check_for_new_messages()){
 			set_timer(RANDOM_WALK_DELAY_MS, RANDOM_WALK_TIMER); //if we got a message, reset timer for random_walk.
+			if((((claimMsg*)global_rx_buffer.buf)->type==CLAIM_MSG_TYPE)||(global_rx_buffer.buf[0] == IN_ASSEMBLY_INDICATOR_BYTE)){
+				heard_the_assembly=true;
+			}
 			if(((global_rx_buffer.data_len-2 /*JOHN: data_len has a bug?*/)==2) && (global_rx_buffer.buf[0] == IN_ASSEMBLY_INDICATOR_BYTE)){ //the talking bot is in the assembly. We want to be in the assembly. Lets listen! 
+				
 				//We add that bot to our list of recruiting droplets and wait TO_DECIDING_COUNTDOWN passes for other potential recruiters to make themselves known.
 				uint8_t desired_dirs = global_rx_buffer.buf[1];
 				droplet_id_type target_droplet = global_rx_buffer.sender_ID;
@@ -467,6 +503,12 @@ void DropletCustomEight::waiting_for_message(){
 			}else{ //The talking bot is not in the assembly. Who cares?
 				//do nothing.
 			}
+			if(!(heard_the_assembly||is_moving())){ //if we haven't gotten a call for neighbors.
+				float r, theta, phi;
+				range_and_bearing(global_rx_buffer.sender_ID, &r, &theta, &phi);
+				handle_rotate_to_straight(theta);
+				move_steps(get_best_move_dir(theta), MOVE_STEPS_AMOUNT);
+			}
 			global_rx_buffer.read = 1;
 		}
 		if(check_timer(RANDOM_WALK_TIMER)){
@@ -478,13 +520,81 @@ void DropletCustomEight::waiting_for_message(){
 	}
 }
 
+//bool DropletCustomNine::check_if_slave(uint16_t slave_q, uint16_t master_q){
+//	//note that, since NULL==TYPE__, nothing should ever be slave to TYPE__ (the null type).
+//	if(master_q==NULL){ //then the function should return if slave_q type is slave to ANY type.
+//		if(slave_q==TYPE_W||slave_q==TYPE_E) return true;
+//	}else{ //the function should return if slave_q type is slave to master_q type
+//		if((slave_q==TYPE_W||slave_q==TYPE_E)&&(master_q==TYPE_N||master_q==TYPE_S)) return true;
+//	}
+//	return false;
+//}
+//
+//void DropletCustomNine::get_neighbor_type(uint16_t type, int8_t value, uint8_t dir, uint16_t* neighbor_type, int8_t* neighbor_value){
+//	switch(type){
+//		case TYPE_SEED:
+//			switch(dir){
+//				case DIR_MASK_N: *neighbor_type=TYPE_N; *neighbor_value=value-1; break;
+//				case DIR_MASK_E: *neighbor_type=TYPE_E; *neighbor_value=value-1; break;
+//				case DIR_MASK_W: *neighbor_type=TYPE_W; *neighbor_value=value-1; break;
+//				case DIR_MASK_S: *neighbor_type=TYPE_S; *neighbor_value=value-1; break;
+//			}
+//			break;
+//		case TYPE_N:
+//			switch(dir){
+//				case DIR_MASK_N: *neighbor_type=TYPE_N; *neighbor_value=value-1; break;
+//				case DIR_MASK_E: *neighbor_type=TYPE_E; *neighbor_value=value-1; break;
+//				case DIR_MASK_W: *neighbor_type=TYPE_W; *neighbor_value=value-1; break;
+//			}
+//			break;
+//		case TYPE_S:
+//			switch(dir){
+//				case DIR_MASK_S: *neighbor_type=TYPE_S; *neighbor_value=value-1; break;
+//				case DIR_MASK_E: *neighbor_type=TYPE_E; *neighbor_value=value-1; break;
+//				case DIR_MASK_W: *neighbor_type=TYPE_W; *neighbor_value=value-1; break;
+//			}
+//			break;
+//		case TYPE_E:
+//			switch(dir){
+//				case DIR_MASK_E: *neighbor_type=TYPE_E; *neighbor_value=value-1; break;
+//			}
+//			break;
+//		case TYPE_W:
+//			switch(dir){
+//				case DIR_MASK_W: *neighbor_type=TYPE_W; *neighbor_value=value-1; break;
+//			}
+//			break;
+//	}
+//	//fprintf(file_handle, "\n\n\nERROR UNEXPECTED TYPE/DIR COMBO T:%hhx D:%hhx\n\n\n", type, dir);
+//	//fflush(file_handle);
+//}
+//
+//uint8_t DropletCustomNine::get_spots_from_type(uint16_t type){
+//	if(type==TYPE_N){
+//		return (DIR_MASK_N | DIR_MASK_W | DIR_MASK_E);
+//	}else if(type==TYPE_S){
+//		return (DIR_MASK_S | DIR_MASK_W | DIR_MASK_E);
+//	}else if(type==TYPE_E){
+//		return DIR_MASK_E;
+//	}else if(type==TYPE_W){
+//		return DIR_MASK_W;
+//	}else if(type==TYPE_SEED){
+//		return (DIR_MASK_N | DIR_MASK_E | DIR_MASK_S | DIR_MASK_W);
+//	}else if(type==TYPE__){
+//		return 0;
+//	}else{
+//		//fprintf(file_handle, "\n\n\nERROR IN SPOTS FROM TYPE; UNEXPECTED TYPE: %hhx\n\n\n", type);
+//		//fflush(file_handle);
+//	}
+//}
+
 bool DropletCustomEight::check_if_slave(uint16_t slave_q, uint16_t master_q){
 	//note that, since NULL==TYPE__, nothing should ever be slave to TYPE__ (the null type).
-	if(master_q==NULL){ //then the function should return if slave_q type is slave to ANY type.
-		if(slave_q&SLAVE_TYPES) return true;
-	}else{ //the function should return if slave_q type is slave to master_q type
-		if((slave_q&SLAVE_TYPES)&&(master_q&MASTER_TYPES)) return true;
-	}
+	//if(master_q==NULL){ //then the function should return if slave_q type is slave to ANY type.
+	//	if(slave_q&SLAVE_TYPES) return true;
+	//}else{ //the function should return if slave_q type is slave to master_q type
+	//	if((slave_q&SLAVE_TYPES)&&(master_q&MASTER_TYPES)) return true;
+	//}
 	return false;
 }
 
@@ -496,10 +606,10 @@ void DropletCustomEight::get_neighbor_type(uint16_t type, int8_t value, uint8_t 
 				case DIR_MASK_E:	*neighbor_type=TYPE_E;	*neighbor_value=value-1; break;
 				case DIR_MASK_W:	*neighbor_type=TYPE_W;	*neighbor_value=value-1; break;
 				case DIR_MASK_S:	*neighbor_type=TYPE_S;	*neighbor_value=value-1; break;
-				case DIR_MASK_NE:	*neighbor_type=TYPE_NE;	*neighbor_value=value-2; break;
-				case DIR_MASK_NW:	*neighbor_type=TYPE_NW;	*neighbor_value=value-2; break;
-				case DIR_MASK_SE:	*neighbor_type=TYPE_SE;	*neighbor_value=value-2; break;
-				case DIR_MASK_SW:	*neighbor_type=TYPE_SW;	*neighbor_value=value-2; break; 
+				case DIR_MASK_NE:	*neighbor_type=TYPE_NE;	*neighbor_value=value-1; break;
+				case DIR_MASK_NW:	*neighbor_type=TYPE_NW;	*neighbor_value=value-1; break;
+				case DIR_MASK_SE:	*neighbor_type=TYPE_SE;	*neighbor_value=value-1; break;
+				case DIR_MASK_SW:	*neighbor_type=TYPE_SW;	*neighbor_value=value-1; break; 
 			}
 			break;
 		case TYPE_N:
@@ -525,28 +635,28 @@ void DropletCustomEight::get_neighbor_type(uint16_t type, int8_t value, uint8_t 
 		case TYPE_NE:
 			switch(dir){ 
 				case DIR_MASK_N:  *neighbor_type=TYPE_N; *neighbor_value=value-1; break;
-				case DIR_MASK_NE: *neighbor_type=TYPE_NE; *neighbor_value=value-2; break;
+				case DIR_MASK_NE: *neighbor_type=TYPE_NE; *neighbor_value=value-1; break;
 				case DIR_MASK_E:  *neighbor_type=TYPE_E; *neighbor_value=value-1; break;
 			}
 			break;
 		case TYPE_NW:
 			switch(dir){
 				case DIR_MASK_N:  *neighbor_type=TYPE_N; *neighbor_value=value-1; break;
-				case DIR_MASK_NW: *neighbor_type=TYPE_NW; *neighbor_value=value-2; break;
+				case DIR_MASK_NW: *neighbor_type=TYPE_NW; *neighbor_value=value-1; break;
 				case DIR_MASK_W:  *neighbor_type=TYPE_W; *neighbor_value=value-1; break;
 			}
 			break;
 		case TYPE_SE:
 			switch(dir){
 				case DIR_MASK_S:  *neighbor_type=TYPE_S; *neighbor_value=value-1; break;
-				case DIR_MASK_SE: *neighbor_type=TYPE_SE; *neighbor_value=value-2; break;
+				case DIR_MASK_SE: *neighbor_type=TYPE_SE; *neighbor_value=value-1; break;
 				case DIR_MASK_E:  *neighbor_type=TYPE_E; *neighbor_value=value-1; break;
 			}
 			break;
 		case TYPE_SW:
 			switch(dir){
 				case DIR_MASK_S:  *neighbor_type=TYPE_S; *neighbor_value=value-1; break;
-				case DIR_MASK_SW: *neighbor_type=TYPE_SW; *neighbor_value=value-2; break;
+				case DIR_MASK_SW: *neighbor_type=TYPE_SW; *neighbor_value=value-1; break;
 				case DIR_MASK_W:  *neighbor_type=TYPE_W; *neighbor_value=value-1; break;
 			}
 			break;

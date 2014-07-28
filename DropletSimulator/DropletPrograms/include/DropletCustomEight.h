@@ -51,7 +51,7 @@
 #define MOVE_STEPS_AMOUNT 15
 #define ROTATE_STEPS_AMOUNT 5
 #define BIG_NUMBER 10000
-#define SEED_TYPE_VALUE 7
+#define SEED_TYPE_VALUE 6
 
 #define START_INDICATOR_BYTE (uint8_t)0x3c
 #define IN_ASSEMBLY_INDICATOR_BYTE (uint8_t)0x55
@@ -61,7 +61,7 @@
 #define DELAY_BEFORE_DECIDING_MS 4000
 #define DELAY_BEFORE_MOVING_MS 10000
 #define START_DELAY_MS 2000
-#define SIDESTEPPING_DELAY_MS 5000
+#define SIDESTEPPING_DELAY_MS 10000
 #define RANDOM_WALK_DELAY_MS 30000
 #define START_DELAY_TIMER 0
 #define DECIDING_DELAY_TIMER 1
@@ -71,7 +71,9 @@
 #define BACK_UP_TIMER 6
 #define BACK_UP_TIMER_DELAY_MS 30000
 #define NEIGHBOR_CALL_TIMEOUT_TIMER 4
-#define NEIGHBOR_CALL_TIMEOUT_TIMER_DELAY_MS 300000
+#define NEIGHBOR_CALL_TIMEOUT_TIMER_DELAY_MS 400000
+#define MOVE_TIMEOUT_TIMER 7
+
 
 #define TYPE__			0x0000
 #define TYPE_E			0x0001
@@ -155,6 +157,7 @@ private :
 	uint8_t my_filled_spots;
 	uint8_t moving_state;
 	bool got_go_from_parent;
+	bool heard_the_assembly;
 	float avoid_target;
 	droplet_id_type min_id;
 

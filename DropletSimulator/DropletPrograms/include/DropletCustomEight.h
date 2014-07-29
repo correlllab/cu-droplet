@@ -51,7 +51,7 @@
 #define MOVE_STEPS_AMOUNT 15
 #define ROTATE_STEPS_AMOUNT 5
 #define BIG_NUMBER 10000
-#define SEED_TYPE_VALUE 6
+#define SEED_TYPE_VALUE 4
 
 #define START_INDICATOR_BYTE (uint8_t)0x3c
 #define IN_ASSEMBLY_INDICATOR_BYTE (uint8_t)0x55
@@ -71,8 +71,7 @@
 #define BACK_UP_TIMER 6
 #define BACK_UP_TIMER_DELAY_MS 30000
 #define NEIGHBOR_CALL_TIMEOUT_TIMER 4
-#define NEIGHBOR_CALL_TIMEOUT_TIMER_DELAY_MS 400000
-#define MOVE_TIMEOUT_TIMER 7
+#define NEIGHBOR_CALL_TIMEOUT_TIMER_DELAY_MS 300000
 
 
 #define TYPE__			0x0000
@@ -125,6 +124,8 @@ struct claimMsg{
 	uint8_t type;
 	droplet_id_type parent_id;
 	uint8_t dir;
+	uint8_t bot_type;
+	int8_t bot_type_value;
 };
 
 struct botPos{
@@ -153,13 +154,15 @@ private :
 	uint8_t move_target_dir;
 	uint16_t my_type;
 	int8_t my_type_value;
-	uint8_t smallest_master_value;
+	uint8_t smallest_claimed_value;
 	uint8_t my_filled_spots;
 	uint8_t moving_state;
 	bool got_go_from_parent;
 	bool heard_the_assembly;
 	float avoid_target;
 	droplet_id_type min_id;
+	bool stopping_move;
+	uint32_t last_greater_val_time;
 
 	//state functions
 	void handle_start_broadcast();
@@ -173,7 +176,6 @@ private :
 	void waiting_for_message();
 
 	//functions to edit to change the shape you get. (also edit SEED_TYPE_VALUE)
-	bool check_if_slave(uint16_t slave_q, uint16_t master_q);
 	void get_neighbor_type(uint16_t type, int8_t value, uint8_t dir, uint16_t* neighbor_type, int8_t* neighbor_value);
 	uint8_t get_spots_from_type(uint16_t type);
 

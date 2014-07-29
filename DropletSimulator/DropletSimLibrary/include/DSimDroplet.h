@@ -430,6 +430,8 @@ protected :
 	uint8_t check_timer(uint8_t index);
 
 	uint32_t get_timer_time_remaining(uint8_t index);
+
+	uint32_t get_32bit_time(void);
 ///@}
 
 public :

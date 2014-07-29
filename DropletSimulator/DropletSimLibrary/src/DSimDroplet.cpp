@@ -185,6 +185,8 @@ void DSimDroplet::reset_timers()
 		timeData->timer[i] = 0;
 		timeData->trigger[i] = 1;
 	}
+
+	timeData->time_since_start = 0;
 }
 
 droplet_id_type DSimDroplet::get_droplet_id()
@@ -504,6 +506,11 @@ uint32_t DSimDroplet::get_timer_time_remaining(uint8_t index)
 	return static_cast<uint32_t>(timeData->timer[index]);
 }
  
+uint32_t DSimDroplet::get_32bit_time()
+{
+	return static_cast<uint32_t>(timeData->time_since_start);
+}
+
 uint8_t DSimDroplet::check_timer(uint8_t index)
 {
 	if(index >= DROPLET_NUM_TIMERS) return 0;

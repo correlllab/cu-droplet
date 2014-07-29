@@ -1008,6 +1008,9 @@ void DSim::timerController()
 		DropletTimeData *timeData;
 		AccessTimeData(pDroplet, &timeData);
 
+		// Update 32-bit timer
+		timeData->time_since_start += simSetupData->timestep;
+
 		for(int i = 0; i < DROPLET_NUM_TIMERS; i++)
 		{
 			if(timeData->trigger[i] == 0)

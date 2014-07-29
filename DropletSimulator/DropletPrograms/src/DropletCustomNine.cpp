@@ -144,12 +144,14 @@ void DropletCustomNine::handle_move_to_center(){
 		
 		if(moving_state==MOVING_NORMAL){
 			float this_move_dist=sub_polar_vec_mag(goal_r, goal_theta, last_move_r, last_move_theta);
-			if(goal_r<DROPLET_RADIUS*2){
+			if(goal_r<(PROXIMITY_THRESHOLD)){
 				for(std::vector<botPos*>::iterator it=other_bots.begin(); it!=other_bots.end();it++){
 					delete (*it);
 				}
 				other_bots.clear();
 				state=STATE_ADJ_SPOTS_TO_BE_FILLED;
+				last_move_r=0;
+				last_move_dist=0;
 				call_for_neighbors();
 			}
 			else if(fabs(last_move_r-goal_r)<STUCK_DIST_THRESHOLD){ //we barely moved at all! probably stuck.
@@ -157,7 +159,13 @@ void DropletCustomNine::handle_move_to_center(){
 				avoid_target = goal_r;
 				last_move_r=BIG_NUMBER;
 				last_move_dist=0;
-			}else{
+			}else if(goal_r<DROPLET_RADIUS){ //we're almost done moving. Take smaller steps.
+				move_steps(get_best_move_dir(goal_theta), 5);
+				last_move_r = goal_r;
+				last_move_dist = this_move_dist;
+				last_move_theta = goal_theta;
+			}
+			else{
 				move_steps(get_best_move_dir(goal_theta), MOVE_STEPS_AMOUNT);
 				last_move_r = goal_r;
 				last_move_theta = goal_theta;
@@ -179,6 +187,7 @@ void DropletCustomNine::handle_move_to_center(){
 		}
 	}
 }
+
 
 void DropletCustomNine::check_ready_to_move(){
 	//fprintf(file_handle, "In check_ready_to_move, ");

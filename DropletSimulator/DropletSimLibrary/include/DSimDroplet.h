@@ -18,6 +18,7 @@
 #include <utility>
 #include <time.h>
 #include <vector>
+#include <random>
 
 /**
  * DSimDroplet models the behavior and state of and individual droplet.
@@ -33,6 +34,8 @@ private :
 	DropletCommData *commData;
 	DropletCompData *compData;
 	DropletTimeData *timeData;
+
+	std::default_random_engine generator;
 	
 	/** \name Simulator backend functions  
 	 *  

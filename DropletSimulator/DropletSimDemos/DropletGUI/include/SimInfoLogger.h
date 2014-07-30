@@ -82,6 +82,8 @@ private:
 
 	bool posFlag,colorFlag,rotationFlag,commSAFlag, macroRedFlag, macroSAFlag;
 
+	bool firstTime;
+
 	/**
 	 * \property	int redTally, SATally
 	 *

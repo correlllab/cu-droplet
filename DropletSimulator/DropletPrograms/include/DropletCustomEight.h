@@ -72,7 +72,7 @@
 #define BACK_UP_TIMER_DELAY_MS 30000
 #define NEIGHBOR_CALL_TIMEOUT_TIMER 4
 #define NEIGHBOR_CALL_TIMEOUT_TIMER_DELAY_MS 300000
-
+#define WAIT_FOR_LAYER_DELAY 30000
 
 #define TYPE__			0x0000
 #define TYPE_E			0x0001
@@ -154,7 +154,6 @@ private :
 	uint8_t move_target_dir;
 	uint16_t my_type;
 	int8_t my_type_value;
-	uint8_t smallest_claimed_value;
 	uint8_t my_filled_spots;
 	uint8_t moving_state;
 	bool got_go_from_parent;

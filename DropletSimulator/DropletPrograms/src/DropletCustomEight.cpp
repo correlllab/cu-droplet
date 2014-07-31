@@ -418,8 +418,8 @@ void DropletCustomEight::handle_move_to_spot(){
 			if(check_timer(SIDESTEP_TIMER)){
 				moving_state=MOVING_NORMAL;
 			}else{
-				move_steps(get_best_move_dir(adj_move_target_theta+side_step_angle), MOVE_STEPS_AMOUNT);
-				//move_steps(get_best_move_dir(adj_move_target_theta+90), MOVE_STEPS_AMOUNT);
+				//move_steps(get_best_move_dir(adj_move_target_theta+side_step_angle), MOVE_STEPS_AMOUNT);
+				move_steps(get_best_move_dir(adj_move_target_theta+90), MOVE_STEPS_AMOUNT);
 			}
 		}
 	}

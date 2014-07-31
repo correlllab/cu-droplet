@@ -48,12 +48,8 @@ void DropletCustomEight::DropletMainLoop()
 			//no spots to fill.
 			set_rgb_led(0,0,0);
 		}
-		if(move_target!=NULL){
-			if(state!=STATE_ALL_ADJ_SPOTS_FILLED){ //if this bot is in the outer layer.
-				if(rand_byte()<4) broadcast_claim_msg(move_target, move_target_dir);
-			}
-			maintain_position(move_target, move_target_dir);
-		}
+		if((state!=STATE_ALL_ADJ_SPOTS_FILLED) && rand_byte()<4) broadcast_claim_msg(move_target, move_target_dir);
+		if(move_target!=NULL) maintain_position(move_target, move_target_dir);
 	}else{ //not in assembly
 		if(state==STATE_MOVING_TO_SPOT){
 			set_rgb_led(250,0,250);
@@ -171,11 +167,13 @@ void DropletCustomEight::awaiting_confirmation(){
 		}
 		global_rx_buffer.read=1;
 	}
-	if(my_type_value<=0){
-		state=STATE_ALL_ADJ_SPOTS_FILLED;
-	}else if((get_32bit_time()-last_greater_val_time)>WAIT_FOR_LAYER_DELAY){
-		state=STATE_ADJ_SPOTS_TO_BE_FILLED;
-		call_for_neighbors();
+	if(my_type!=TYPE__){
+		if(my_type_value<=0){
+			state=STATE_ALL_ADJ_SPOTS_FILLED;
+		}else if((get_32bit_time()-last_greater_val_time)>WAIT_FOR_LAYER_DELAY){
+			state=STATE_ADJ_SPOTS_TO_BE_FILLED;
+			call_for_neighbors();
+		}
 	}
 }
 
@@ -356,7 +354,7 @@ void DropletCustomEight::waiting_for_message(){
 				state=STATE_ADJ_SPOTS_TO_BE_FILLED;
 				call_for_neighbors();
 			}else if(!is_moving()){
-				move_steps(((rand_byte()%5+1)), MOVE_STEPS_AMOUNT);
+				move_steps(((rand_byte()%5+1)), 5*MOVE_STEPS_AMOUNT);
 			}
 		}
 	}else{

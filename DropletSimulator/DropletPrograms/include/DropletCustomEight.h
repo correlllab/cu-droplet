@@ -53,17 +53,13 @@
 #define BIG_NUMBER 10000
 #define SEED_TYPE_VALUE 4
 
-#define START_INDICATOR_BYTE (uint8_t)0x3c
 #define IN_ASSEMBLY_INDICATOR_BYTE (uint8_t)0x55
 #define CLAIM_MSG_TYPE (uint8_t)0xf0
 #define NOT_IN_ASSEMBLY_INDICATOR_BYTE (uint8_t)0xaa
-#define GO_INDICATOR_BYTE (uint8_t)0xc3
 #define DELAY_BEFORE_DECIDING_MS 4000
 #define DELAY_BEFORE_MOVING_MS 10000
-#define START_DELAY_MS 2000
 #define SIDESTEPPING_DELAY_MS 10000
 #define RANDOM_WALK_DELAY_MS 30000
-#define START_DELAY_TIMER 0
 #define DECIDING_DELAY_TIMER 1
 #define MOVING_DELAY_TIMER 2
 #define SIDESTEP_TIMER 3
@@ -85,17 +81,13 @@
 #define	TYPE_NW			0x0080
 #define TYPE_SEED		0x0100
 
-#define SLAVE_TYPES		0x000F
-#define MASTER_TYPES	0x00F0
-
 #define STATE_WAITING_FOR_MSGS			0x00 //r__ (red)
 #define STATE_ADJ_SPOTS_TO_BE_FILLED	0x01 //rgb (white)
 #define STATE_ALL_ADJ_SPOTS_FILLED		0x02 //___ (off)
 #define STATE_AWAITING_CONFIRMATION		0x04 //_gb (cyan)
-#define STATE_MOVING_TO_CENTER			0x08 //_g_ (green)
+
 #define STATE_MOVING_TO_SPOT			0x10 //r_b (pink)
 #define STATE_DECIDING_SHOULD_MOVE		0x20 //rg_ (yellow)
-#define STATE_START						0x40 //___ (off)
 #define STATE_ADJUSTING_PHI				0x80 //__b (blue)				
 
 #define MOVING_NORMAL					0x00
@@ -139,33 +131,26 @@ class DropletCustomEight : public DSimDroplet
 {
 private :
 	std::map<droplet_id_type, recruitingRobot*> recruiting_robots;
-	std::vector<botPos*> other_bots;
 	uint8_t state;
 	FILE *file_handle;
 	float closestDist;
-	float last_move_r;
-	float last_move_theta;
-	float last_goal_r;
-	float last_move_dist;
+	float last_move_r, last_move_theta, last_goal_r, last_move_dist;
 	float side_step_angle;
 	droplet_id_type closestID;
-	uint8_t closestDir;
 	droplet_id_type move_target;
+	uint8_t closestDir;
+
 	uint8_t move_target_dir;
 	uint16_t my_type;
 	int8_t my_type_value;
 	uint8_t my_filled_spots;
 	uint8_t moving_state;
-	bool got_go_from_parent;
 	bool heard_the_assembly;
 	float avoid_target;
-	droplet_id_type min_id;
 	bool stopping_move;
 	uint32_t last_greater_val_time;
 
 	//state functions
-	void handle_start_broadcast();
-	void handle_move_to_center();
 	void check_ready_to_move();
 	void decide_if_should_move();
 	void awaiting_confirmation();

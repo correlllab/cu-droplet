@@ -85,7 +85,7 @@
 #define STATE_ADJ_SPOTS_TO_BE_FILLED	0x01 //rgb (white)
 #define STATE_ALL_ADJ_SPOTS_FILLED		0x02 //___ (off)
 #define STATE_AWAITING_CONFIRMATION		0x04 //_gb (cyan)
-
+#define STATE_PRE_ASSEMBLY				0x08 //_g_ (green)
 #define STATE_MOVING_TO_SPOT			0x10 //r_b (pink)
 #define STATE_DECIDING_SHOULD_MOVE		0x20 //rg_ (yellow)
 #define STATE_ADJUSTING_PHI				0x80 //__b (blue)				
@@ -94,7 +94,7 @@
 #define MOVING_BACKING_UP				0x01
 #define MOVING_SIDESTEPPING				0x02
 
-#define STATE_IN_ASSEMBLY				0x0f
+#define STATE_IN_ASSEMBLY				0x07
 
 struct recruitingRobot{
 	uint8_t desiredNeighbors;
@@ -145,7 +145,6 @@ private :
 	int8_t my_type_value;
 	uint8_t my_filled_spots;
 	uint8_t moving_state;
-	bool heard_the_assembly;
 	float avoid_target;
 	bool stopping_move;
 	uint32_t last_greater_val_time;
@@ -157,6 +156,7 @@ private :
 	void adj_spots_to_fill();
 	void handle_move_to_spot();
 	void handle_adjusting_phi();
+	void handle_pre_assembly();
 	void waiting_for_message();
 
 	//functions to edit to change the shape you get. (also edit SEED_TYPE_VALUE)
@@ -164,6 +164,7 @@ private :
 	uint8_t get_spots_from_type(uint16_t type);
 
 	//helper/utility functions.
+	void add_recruiting_robot(droplet_id_type id, uint8_t dirs);
 	void reset_before_waiting_for_msgs();
 	void handle_rotate_to_straight(float theta);
 	void call_for_neighbors();

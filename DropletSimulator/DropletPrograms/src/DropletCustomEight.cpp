@@ -14,9 +14,8 @@ void DropletCustomEight::DropletInit()
 	//file_handle = fopen (buffer,"w");
 	set_rgb_led(0,0,0);
 
-	state = STATE_WAITING_FOR_MSGS;
+	state = STATE_PRE_ASSEMBLY;
 	moving_state=MOVING_NORMAL;
-
 
 	my_type = TYPE__;
 	my_type_value=0;
@@ -28,8 +27,6 @@ void DropletCustomEight::DropletInit()
 	last_goal_r=BIG_NUMBER;
 
 	last_greater_val_time = 0;
-
-	heard_the_assembly=false;
 
 	stopping_move = false;
 	reset_before_waiting_for_msgs();
@@ -65,9 +62,12 @@ void DropletCustomEight::DropletMainLoop()
 		}else if(state==STATE_ADJUSTING_PHI){
 			set_rgb_led(0,0,250);
 			handle_adjusting_phi();
+		}else if(state==STATE_PRE_ASSEMBLY){
+			set_rgb_led(0,250,0);
+			handle_pre_assembly();
 		}else if (state==STATE_WAITING_FOR_MSGS){ //essentially just waiting around for a message?
-				waiting_for_message();
-				set_rgb_led(250,0,0);
+			waiting_for_message();
+			set_rgb_led(250,0,0);
 		}
 			
 	}
@@ -314,48 +314,57 @@ void DropletCustomEight::handle_adjusting_phi(){
 	}
 }
 
+void DropletCustomEight::handle_pre_assembly(){
+	if(get_red_sensor()>10){
+		my_type=TYPE_SEED;
+		my_type_value=SEED_TYPE_VALUE;
+		state=STATE_ADJ_SPOTS_TO_BE_FILLED;
+		call_for_neighbors();
+		return;
+	}
+	while(check_for_new_messages()){
+		if((((claimMsg*)global_rx_buffer.buf)->type==CLAIM_MSG_TYPE)||(global_rx_buffer.buf[0] == IN_ASSEMBLY_INDICATOR_BYTE)){
+			state=STATE_WAITING_FOR_MSGS;
+			char msg=NOT_IN_ASSEMBLY_INDICATOR_BYTE;
+			ir_broadcast(&msg, 1); //a little chirp to call other wandering bots in.
+			if(((global_rx_buffer.data_len-2 /*JOHN: data_len has a bug?*/)==2) && (global_rx_buffer.buf[0] == IN_ASSEMBLY_INDICATOR_BYTE)){
+				//if this was specifically a call for neighbors, need to add that here.
+				add_recruiting_robot(global_rx_buffer.sender_ID, global_rx_buffer.buf[1]);
+			}
+		}else if(!is_moving()){
+			float r, theta, phi;
+			range_and_bearing(global_rx_buffer.sender_ID, &r, &theta, &phi);
+			handle_rotate_to_straight(theta);
+			move_steps(get_best_move_dir(theta), 3*MOVE_STEPS_AMOUNT);
+		}
+		global_rx_buffer.read=1;
+	}
+	if(!is_moving()){
+		move_steps(((rand_byte()%5+1)), 5*MOVE_STEPS_AMOUNT);
+	}
+}
+
+void DropletCustomEight::add_recruiting_robot(droplet_id_type id, uint8_t dirs){
+	//Once we've added a recruiter, other recruiters have DELAY_BEFORE_DECIDING_MS to make themselves known.
+	if(recruiting_robots.empty()) set_timer(DELAY_BEFORE_DECIDING_MS,DECIDING_DELAY_TIMER);
+	float r, theta, phi;
+	range_and_bearing(id, &r, &theta, &phi);
+
+	recruitingRobot* target = new recruitingRobot;
+	target->desiredNeighbors = dirs;
+	target->range = r;
+	target->bearing = theta;
+	target->heading = phi;
+	recruiting_robots[id] = target;
+}
+
 void DropletCustomEight::waiting_for_message(){
 	if((!check_timer(DECIDING_DELAY_TIMER)) || recruiting_robots.empty()){
 		while(check_for_new_messages()){
-			if((((claimMsg*)global_rx_buffer.buf)->type==CLAIM_MSG_TYPE)||(global_rx_buffer.buf[0] == IN_ASSEMBLY_INDICATOR_BYTE)){
-				heard_the_assembly=true;
-			}
 			if(((global_rx_buffer.data_len-2 /*JOHN: data_len has a bug?*/)==2) && (global_rx_buffer.buf[0] == IN_ASSEMBLY_INDICATOR_BYTE)){ //the talking bot is in the assembly. We want to be in the assembly. Lets listen! 
-				//We add that bot to our list of recruiting droplets and wait TO_DECIDING_COUNTDOWN passes for other potential recruiters to make themselves known.
-				uint8_t desired_dirs = global_rx_buffer.buf[1];
-				droplet_id_type target_droplet = global_rx_buffer.sender_ID;
-				float r, theta, phi;
-				range_and_bearing(target_droplet, &r, &theta, &phi);
-
-				recruitingRobot* target = new recruitingRobot;
-				target->desiredNeighbors = desired_dirs;
-				target->range = r;
-				target->bearing = theta;
-				target->heading = phi;
-				if(recruiting_robots.empty()){
-					set_timer(DELAY_BEFORE_DECIDING_MS,DECIDING_DELAY_TIMER);
-				}
-				recruiting_robots[target_droplet] = target;
-			}else{ //The talking bot is not in the assembly. Who cares?
-				//do nothing.
-			}
-			if(!(heard_the_assembly||is_moving())){ //if we haven't gotten a call for neighbors.
-				float r, theta, phi;
-				range_and_bearing(global_rx_buffer.sender_ID, &r, &theta, &phi);
-				handle_rotate_to_straight(theta);
-				move_steps(get_best_move_dir(theta), 3*MOVE_STEPS_AMOUNT);
+				add_recruiting_robot(global_rx_buffer.sender_ID, global_rx_buffer.buf[1]);
 			}
 			global_rx_buffer.read = 1;
-		}
-		if(!heard_the_assembly){
-			if(get_red_sensor()>10){
-				my_type=TYPE_SEED;
-				my_type_value=SEED_TYPE_VALUE;
-				state=STATE_ADJ_SPOTS_TO_BE_FILLED;
-				call_for_neighbors();
-			}else if(!is_moving()){
-				move_steps(((rand_byte()%5+1)), 5*MOVE_STEPS_AMOUNT);
-			}
 		}
 	}else{
 		cancel_move(); //in case we were moving from backing up after our spot was claimed.

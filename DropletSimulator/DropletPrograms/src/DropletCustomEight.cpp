@@ -45,7 +45,7 @@ void DropletCustomEight::DropletMainLoop()
 			//no spots to fill.
 			set_rgb_led(0,0,0);
 		}
-		if((state!=STATE_ALL_ADJ_SPOTS_FILLED) && rand_byte()<8) broadcast_claim_msg(move_target, move_target_dir);
+		if(((state!=STATE_ALL_ADJ_SPOTS_FILLED) || (my_type_value<=0)) && rand_byte()<8) broadcast_claim_msg(move_target, move_target_dir);
 		if(move_target!=NULL) maintain_position(move_target, move_target_dir);
 	}else{ //not in assembly
 		if(state==STATE_MOVING_TO_SPOT){

@@ -56,8 +56,8 @@
 #define IN_ASSEMBLY_INDICATOR_BYTE (uint8_t)0x55
 #define CLAIM_MSG_TYPE (uint8_t)0xf0
 #define NOT_IN_ASSEMBLY_INDICATOR_BYTE (uint8_t)0xaa
-#define DELAY_BEFORE_DECIDING_MS 4000
-#define DELAY_BEFORE_MOVING_MS 10000
+#define DELAY_BEFORE_DECIDING_MS 5000
+#define DELAY_BEFORE_MOVING_MS 5000
 #define SIDESTEPPING_DELAY_MS 10000
 #define RANDOM_WALK_DELAY_MS 30000
 #define DECIDING_DELAY_TIMER 1
@@ -146,7 +146,6 @@ private :
 	uint8_t my_filled_spots;
 	uint8_t moving_state;
 	float avoid_target;
-	bool stopping_move;
 	uint32_t last_greater_val_time;
 
 	//state functions
@@ -161,9 +160,13 @@ private :
 
 	//functions to edit to change the shape you get. (also edit SEED_TYPE_VALUE)
 	void get_neighbor_type(uint16_t type, int8_t value, uint8_t dir, uint16_t* neighbor_type, int8_t* neighbor_value);
+	uint8_t get_soft_spots_from_type(uint16_t type);	
 	uint8_t get_spots_from_type(uint16_t type);
 
-	//helper/utility functions.
+	//helper/utility functions
+	void handle_soft_confirm(droplet_id_type sender);
+	void handle_hard_confirm(droplet_id_type sender, uint8_t dir);
+	void get_dir_string_from_dir(uint8_t dir, char* dirStr);
 	void add_recruiting_robot(droplet_id_type id, uint8_t dirs);
 	void reset_before_waiting_for_msgs();
 	void handle_rotate_to_straight(float theta);
@@ -172,13 +175,13 @@ private :
 	void maintain_position(droplet_id_type bot, uint8_t dir);
 	void broadcast_favorite_target();
 	void broadcast_claim_msg(droplet_id_type parent, uint8_t dir);
-	float get_distance(float rA, float thetaA, float rB, float thetaB);
+	uint8_t getDirMaskFromAngle(float theta);
 	move_direction get_best_move_dir(float theta);
 	void calculate_distance_to_target_positions();
 	float getAngleFromDirMask(uint8_t dir_mask);
 	void get_relative_neighbor_position(uint8_t dir_mask, float neighbor_r, float neighbor_theta, float neighbor_phi, float* target_r, float* target_theta);
 	void add_polar_vec(float r1, float th1, float r2, float th2, float* rs, float* ths);
-	float sub_polar_vec_mag(float r1, float th1, float r2, float th2);
+	void sub_polar_vec(float r1, float th1, float r2, float th2, float* rs, float* ths);
 	void remove_dir_from_spots_map(uint8_t dir, droplet_id_type id);
 	void do_back_up();
 

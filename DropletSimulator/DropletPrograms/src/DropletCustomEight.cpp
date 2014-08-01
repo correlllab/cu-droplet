@@ -10,8 +10,9 @@ void DropletCustomEight::DropletInit()
 {
 	init_all_systems();
 	char buffer[64];
+	sprintf(buffer,"C:\\Users\\Colab\\Desktop\\dropletSimDumps\\%04hxdat.txt",get_droplet_id());
 	//sprintf(buffer,"C:\\Users\\Colab\\Desktop\\dropletSimDumps\\%04hxdat.txt",get_droplet_id());
-	//file_handle = fopen (buffer,"w");
+	file_handle = fopen (buffer,"w");
 	set_rgb_led(0,0,0);
 
 	state = STATE_PRE_ASSEMBLY;
@@ -28,7 +29,6 @@ void DropletCustomEight::DropletInit()
 
 	last_greater_val_time = 0;
 
-	stopping_move = false;
 	reset_before_waiting_for_msgs();
 }
 
@@ -159,15 +159,17 @@ void DropletCustomEight::awaiting_confirmation(){
 			int8_t type_val_from_msg = *((int8_t*)(global_rx_buffer.buf+5));
 			if((my_type==TYPE__)&&(ack_tgt==get_droplet_id())){
 				//the message is for me, and I don't have a type yet. So I get a type, and confirmation that I'm in the right spot.
-				my_type = type_from_msg;
-				my_type_value = type_val_from_msg;
+				if(global_rx_buffer.sender_ID==move_target) my_type_value = type_val_from_msg; //this is a hard confirmation
+				if(my_type==TYPE__) my_type=type_from_msg;
+				else my_type&=type_from_msg;
+				if(my_type==TYPE__); //ERROR: mutually exclusive types given!
 			}
 		}else if((msg=(claimMsg*)global_rx_buffer.buf)->type==CLAIM_MSG_TYPE){
 			if(msg->bot_type_value>my_type_value) last_greater_val_time = get_32bit_time();
 		}
 		global_rx_buffer.read=1;
 	}
-	if(my_type!=TYPE__){
+	if(my_type && !(my_type & (my_type - 1))){//ie. exactly one bit is set.
 		if(my_type_value<=0){
 			state=STATE_ALL_ADJ_SPOTS_FILLED;
 		}else if((get_32bit_time()-last_greater_val_time)>WAIT_FOR_LAYER_DELAY){
@@ -181,27 +183,10 @@ void DropletCustomEight::adj_spots_to_fill(){
 	while(check_for_new_messages()){
 		if((global_rx_buffer.buf[0]==NOT_IN_ASSEMBLY_INDICATOR_BYTE)&&((global_rx_buffer.data_len-2 /*JOHN: data_len has a bug?*/)==4)){
 			droplet_id_type ack_tgt = *((droplet_id_type*)(global_rx_buffer.buf+1));
-			uint8_t dir = global_rx_buffer.buf[3];
 			if(ack_tgt==get_droplet_id()){
-				float rOther, thetaOther, phiOther;
-				range_and_bearing(global_rx_buffer.sender_ID, &rOther, &thetaOther, &phiOther);
-
-				float desiredR = 2.*DROPLET_RADIUS+FORMATION_GAP;
-				if(ANGLED_DIR&(1<<dir)) desiredR*=M_SQRT2; //the angled sides should be farther away.
-				float desiredTh=getAngleFromDirMask(1<<dir);
-				float dist = get_distance(rOther, thetaOther, desiredR, desiredTh);
-
-				if(dist<=2.0*PROXIMITY_THRESHOLD){
-					//close enough! send confirmation message.
-					char msg[6];
-					msg[0] = IN_ASSEMBLY_INDICATOR_BYTE;
-					*((droplet_id_type*)(msg+1)) = global_rx_buffer.sender_ID;
-					get_neighbor_type(my_type, my_type_value, (1<<dir), (uint16_t*)(msg+3), (int8_t*)(msg+5));
-					ir_broadcast(msg, 6);
-					my_filled_spots |= (1<<dir); //mark that spot as done.
-				}else{
-					//Not close enough. Need to do something?
-				}
+				handle_hard_confirm(global_rx_buffer.sender_ID, global_rx_buffer.buf[3]);
+			}else{
+				handle_soft_confirm(global_rx_buffer.sender_ID);
 			}
 		}
 		global_rx_buffer.read=1;
@@ -225,7 +210,8 @@ void DropletCustomEight::handle_move_to_spot(){
 		float adj_move_target_dist, adj_move_target_theta;
 		get_relative_neighbor_position(1<<move_target_dir, move_target_dist, move_target_theta, move_target_phi, &adj_move_target_dist, &adj_move_target_theta);
 		if(moving_state==MOVING_NORMAL){
-			float this_move_dist=sub_polar_vec_mag(adj_move_target_dist, adj_move_target_theta, last_move_r, last_move_theta);
+			float this_move_dist, this_move_theta;
+			sub_polar_vec(adj_move_target_dist, adj_move_target_theta, last_move_r, last_move_theta, &this_move_dist, &this_move_theta);
 			if(adj_move_target_dist<(PROXIMITY_THRESHOLD)){ //we're done moving!
 				state = STATE_ADJUSTING_PHI;
 				last_move_r=0;
@@ -242,8 +228,7 @@ void DropletCustomEight::handle_move_to_spot(){
 				last_move_r = adj_move_target_dist;
 				last_move_dist = this_move_dist;
 				last_move_theta = adj_move_target_theta;
-			}
-			else{
+			}else{
 				handle_rotate_to_straight(adj_move_target_theta);
 				move_steps(get_best_move_dir(adj_move_target_theta), MOVE_STEPS_AMOUNT);
 				last_move_r = adj_move_target_dist;
@@ -272,6 +257,7 @@ void DropletCustomEight::handle_move_to_spot(){
 			}
 		}
 	}
+	bool stopping_move=false;
 	while(check_for_new_messages()){
 		if((global_rx_buffer.data_len-2 /*JOHN: data_len has a bug?*/)==sizeof(claimMsg)){
 			//got a message from someone claiming a spot.
@@ -287,7 +273,6 @@ void DropletCustomEight::handle_move_to_spot(){
 		global_rx_buffer.read=1;
 	}
 	if(stopping_move){
-		stopping_move=false;
 		reset_before_waiting_for_msgs();
 		state = STATE_WAITING_FOR_MSGS;
 		move_steps(get_best_move_dir(last_move_theta+180), 1000);
@@ -342,20 +327,6 @@ void DropletCustomEight::handle_pre_assembly(){
 	if(!is_moving()){
 		move_steps(((rand_byte()%5+1)), 5*MOVE_STEPS_AMOUNT);
 	}
-}
-
-void DropletCustomEight::add_recruiting_robot(droplet_id_type id, uint8_t dirs){
-	//Once we've added a recruiter, other recruiters have DELAY_BEFORE_DECIDING_MS to make themselves known.
-	if(recruiting_robots.empty()) set_timer(DELAY_BEFORE_DECIDING_MS,DECIDING_DELAY_TIMER);
-	float r, theta, phi;
-	range_and_bearing(id, &r, &theta, &phi);
-
-	recruitingRobot* target = new recruitingRobot;
-	target->desiredNeighbors = dirs;
-	target->range = r;
-	target->bearing = theta;
-	target->heading = phi;
-	recruiting_robots[id] = target;
 }
 
 void DropletCustomEight::waiting_for_message(){
@@ -498,6 +469,14 @@ void DropletCustomEight::get_neighbor_type(uint16_t type, int8_t value, uint8_t 
 	//fflush(file_handle);
 }
 
+//A 'soft' spot is a neighbor position about which you care what type goes there, 
+//but aren't going to be directly responsible for recruiting robots to that spot.
+uint8_t DropletCustomEight::get_soft_spots_from_type(uint16_t type){
+	switch(type){
+		default: return 0; //unexpected type, so no spots returned.
+	}	
+}
+
 uint8_t DropletCustomEight::get_spots_from_type(uint16_t type){
 	switch(type){
 		case TYPE_N:	return DIR_MASK_N;
@@ -511,6 +490,71 @@ uint8_t DropletCustomEight::get_spots_from_type(uint16_t type){
 		case TYPE_SEED: return 0xFF; //all dirs
 		default: return 0; //unexpected type, so no spots returned.
 	}	
+}
+
+void DropletCustomEight::handle_soft_confirm(droplet_id_type sender){
+	float rOther, thetaOther, phiOther;
+	range_and_bearing(sender, &rOther, &thetaOther, &phiOther);
+	if(rOther<7){ //close enough to be an immediate neighbor.
+		uint8_t dirFromMe = getDirMaskFromAngle(thetaOther);
+		if(get_soft_spots_from_type(my_type)&dirFromMe){
+			//this means we care about this direction, even if it isn't our child directly.
+			char msg[6];
+			msg[0] = IN_ASSEMBLY_INDICATOR_BYTE;
+			*((droplet_id_type*)(msg+1)) = sender;
+			get_neighbor_type(my_type, my_type_value, (1<<dirFromMe), (uint16_t*)(msg+3), (int8_t*)(msg+5));
+			ir_broadcast(msg, 6);
+		}
+	}
+}
+
+void DropletCustomEight::handle_hard_confirm(droplet_id_type sender, uint8_t dir){
+	float rOther, thetaOther, phiOther;
+	range_and_bearing(sender, &rOther, &thetaOther, &phiOther);
+	float desiredR = 2.*DROPLET_RADIUS+FORMATION_GAP;
+	if(ANGLED_DIR&(1<<dir)) desiredR*=M_SQRT2; //the angled sides should be farther away.
+	float desiredTh=getAngleFromDirMask(1<<dir);
+	float dist, th;
+	sub_polar_vec(rOther, thetaOther, desiredR, desiredTh, &dist, &th);
+	if(dist<=2.0*PROXIMITY_THRESHOLD){
+		//close enough! send confirmation message.
+		char msg[6];
+		msg[0] = IN_ASSEMBLY_INDICATOR_BYTE;
+		*((droplet_id_type*)(msg+1)) = sender;
+		get_neighbor_type(my_type, my_type_value, (1<<dir), (uint16_t*)(msg+3), (int8_t*)(msg+5));
+		ir_broadcast(msg, 6);
+		my_filled_spots |= (1<<dir); //mark that spot as done.
+	}else{
+		//Not close enough. Need to do something?
+	}
+}
+
+void DropletCustomEight::get_dir_string_from_dir(uint8_t dir_mask, char* dirStr){
+	dirStr[1] = ' ';
+	switch(dir_mask){
+		case DIR_MASK_N:	dirStr[0]='N';	return;
+		case DIR_MASK_NE:	dirStr[0]='N';dirStr[1]='E';	return;
+		case DIR_MASK_E:	dirStr[0]='E';	return;
+		case DIR_MASK_SE:	dirStr[0]='S';dirStr[1]='E';	return;
+		case DIR_MASK_S:	dirStr[0]='S';	return;
+		case DIR_MASK_SW:	dirStr[0]='S';dirStr[1]='W';	return;
+		case DIR_MASK_W:	dirStr[0]='W';	return;
+		case DIR_MASK_NW:	dirStr[0]='N';dirStr[1]='W';	return;
+	}
+}
+
+void DropletCustomEight::add_recruiting_robot(droplet_id_type id, uint8_t dirs){
+	//Once we've added a recruiter, other recruiters have DELAY_BEFORE_DECIDING_MS to make themselves known.
+	if(recruiting_robots.empty()) set_timer(DELAY_BEFORE_DECIDING_MS,DECIDING_DELAY_TIMER);
+	float r, theta, phi;
+	range_and_bearing(id, &r, &theta, &phi);
+
+	recruitingRobot* target = new recruitingRobot;
+	target->desiredNeighbors = dirs;
+	target->range = r;
+	target->bearing = theta;
+	target->heading = phi;
+	recruiting_robots[id] = target;
 }
 
 void DropletCustomEight::reset_before_waiting_for_msgs(){
@@ -607,15 +651,6 @@ void DropletCustomEight::broadcast_claim_msg(droplet_id_type parent, uint8_t dir
 	ir_broadcast((char*)msg, sizeof(claimMsg));
 }
 
-float DropletCustomEight::get_distance(float rA, float thetaA, float rB, float thetaB){
-	float xA = rA*cos(deg2rad(thetaA));
-	float yA = rA*sin(deg2rad(thetaA));
-	float xB = rB*cos(deg2rad(thetaB));
-	float yB = rB*sin(deg2rad(thetaB));
-	float dist = sqrt((xA-xB)*(xA-xB)+(yA-yB)*(yA-yB));
-	return dist;
-}
-
 move_direction DropletCustomEight::get_best_move_dir(float theta){
 	theta = quick_and_dirty_mod(theta);
 	if((-30<=theta)&&(theta<30)){
@@ -640,6 +675,41 @@ void DropletCustomEight::calculate_distance_to_target_positions(){
 	closestDist = BIG_NUMBER;
 	closestDir = 0;
 	closestID = 0;
+	//need to convert from a list of bots and desired directions to a list of positions.
+	//fprintf(file_handle, "Vectors from me:\n");
+	//for(std::map<droplet_id_type, recruitingRobot*>::iterator iter=recruiting_robots.begin() ; iter!=recruiting_robots.end(); iter++){
+	//	fprintf(file_handle, "\t%hx: %f, %f\n", iter->first, iter->second->range, iter->second->bearing);
+	//}
+	//fprintf(file_handle, "Dists:\n      ");
+	//for(std::map<droplet_id_type, recruitingRobot*>::reverse_iterator iter=recruiting_robots.rbegin() ; iter!=recruiting_robots.rend(); iter++){
+	//	fprintf(file_handle, "     %hx     | ", iter->first);
+	//}
+	//fprintf(file_handle, "\n");
+	//for(std::map<droplet_id_type, recruitingRobot*>::iterator iterA=recruiting_robots.begin() ; iterA!=recruiting_robots.end(); iterA++){
+	//	fprintf(file_handle, "%hx  ", iterA->first);
+	//	for(std::map<droplet_id_type, recruitingRobot*>::reverse_iterator iterB=recruiting_robots.rbegin() ; iterB->first!=iterA->first; iterB++){
+	//		float r, th;
+	//		sub_polar_vec(iterB->second->range, iterB->second->bearing, iterA->second->range, iterA->second->bearing, &r, &th);
+	//		//gives a vector pointing from a to b.
+	//		fprintf(file_handle, "%+3.2f,%+3.2f | ", r, th);
+	//	}
+	//	fprintf(file_handle, "\n");
+	//}
+	//fprintf(file_handle, "\n");
+	//for(std::map<droplet_id_type, recruitingRobot*>::iterator iterA=recruiting_robots.begin() ; iterA!=recruiting_robots.end(); iterA++){
+	//	for(std::map<droplet_id_type, recruitingRobot*>::reverse_iterator iterB=recruiting_robots.rbegin() ; iterB->first!=iterA->first; iterB++){
+	//		float r, th;
+	//		sub_polar_vec(iterB->second->range, iterB->second->bearing, iterA->second->range, iterA->second->bearing, &r, &th);
+	//		if(r<=7){ //these two bots are neighbors.
+	//			char dirStr[2];
+	//			get_dir_string_from_dir(getDirMaskFromAngle(th), dirStr);
+	//			fprintf(file_handle, "%hx is %c%c of %hx\n", iterA->first, dirStr[0], dirStr[1], iterB->first);
+	//			fflush(file_handle);
+	//		}
+	//	}
+	//}
+	//fflush(file_handle);
+
 	for(std::map<droplet_id_type, recruitingRobot*>::iterator iter=recruiting_robots.begin() ; iter!=recruiting_robots.end(); iter++){
 		for(uint8_t dir=0; dir<8; dir++){
 			if(iter->second->desiredNeighbors & (0x1<<dir)){
@@ -672,6 +742,18 @@ float DropletCustomEight::getAngleFromDirMask(uint8_t dir_mask){
 	return angle;
 }
 
+uint8_t DropletCustomEight::getDirMaskFromAngle(float theta){
+	//theta = quick_and_dirty_mod(theta);
+	if((-22.5<=theta)&&(theta<22.5)) return DIR_MASK_N;
+	else if((-67.5<=theta)&&(theta<-22.5)) return DIR_MASK_NW;
+	else if((-112.5<=theta)&&(theta<-67.5)) return DIR_MASK_W;
+	else if((-157.5<=theta)&&(theta<-112.5)) return DIR_MASK_SW;
+	else if(((-180.<=theta)&&(theta<-157.5))||((157.5<=theta)&&(theta<=180.))) return DIR_MASK_S;
+	else if((112.5<=theta)&&(theta<157.5)) return DIR_MASK_SE;
+	else if((67.5<=theta)&&(theta<112.5)) return DIR_MASK_E;
+	else if((22.5<=theta)&&(theta<67.5)) return DIR_MASK_NE;
+	else		return 0xFF;
+}
 
 void DropletCustomEight::get_relative_neighbor_position(uint8_t dir_mask, float neighbor_r, float neighbor_theta, float neighbor_phi, float* target_r, float* target_theta){
 	float delta_r=DROPLET_RADIUS*2+FORMATION_GAP;
@@ -691,14 +773,15 @@ void DropletCustomEight::add_polar_vec(float r1, float th1, float r2, float th2,
 	*ths = rad2deg(atan2(ys,xs));
 }
 
-float DropletCustomEight::sub_polar_vec_mag(float r1, float th1, float r2, float th2){
+void DropletCustomEight::sub_polar_vec(float r1, float th1, float r2, float th2, float* rs, float* ths){
 	float x1=r1*cos(deg2rad(th1));
 	float y1=r1*sin(deg2rad(th1));
 	float x2=r2*cos(deg2rad(th2));
 	float y2=r2*sin(deg2rad(th2));
 	float xs=x1-x2;
 	float ys=y1-y2;
-	return sqrt(xs*xs+ys*ys);
+	*rs = sqrt(xs*xs+ys*ys);
+	*ths = rad2deg(atan2(ys,xs));
 }
 
 void DropletCustomEight::remove_dir_from_spots_map(uint8_t dir, droplet_id_type id){

@@ -45,7 +45,7 @@ void DropletCustomEight::DropletMainLoop()
 			//no spots to fill.
 			set_rgb_led(0,0,0);
 		}
-		if((state!=STATE_ALL_ADJ_SPOTS_FILLED) && rand_byte()<4) broadcast_claim_msg(move_target, move_target_dir);
+		if((state!=STATE_ALL_ADJ_SPOTS_FILLED) && rand_byte()<8) broadcast_claim_msg(move_target, move_target_dir);
 		if(move_target!=NULL) maintain_position(move_target, move_target_dir);
 	}else{ //not in assembly
 		if(state==STATE_MOVING_TO_SPOT){
@@ -252,8 +252,13 @@ void DropletCustomEight::handle_move_to_spot(){
 			if(check_timer(SIDESTEP_TIMER)){
 				moving_state=MOVING_NORMAL;
 			}else{
-				//move_steps(get_best_move_dir(adj_move_target_theta+side_step_angle), MOVE_STEPS_AMOUNT);
-				move_steps(get_best_move_dir(adj_move_target_theta+90), MOVE_STEPS_AMOUNT);
+				if(adj_move_target_dist<3*DROPLET_RADIUS){
+					move_steps(get_best_move_dir(side_step_angle), MOVE_STEPS_AMOUNT);
+				}
+				else{
+					move_steps(get_best_move_dir(adj_move_target_theta+90), MOVE_STEPS_AMOUNT);
+				}
+				
 			}
 		}
 	}

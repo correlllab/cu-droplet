@@ -5,6 +5,7 @@
  */
 
 #include "SimInfoLogger.h"
+#include <ctime>
 
 SimInfoLogger::SimInfoLogger(QObject *parent)
 	: QObject(parent)
@@ -20,8 +21,20 @@ SimInfoLogger::SimInfoLogger(QObject *parent)
 	QString newFile = NULL;
 }
 void SimInfoLogger::Init()
-{
-	newFile = QString(DEFAULT_ASSETDIR).append("output.txt");
+{	
+	char sdate[9];
+    char stime[9];
+	_strdate_s(sdate);
+    _strtime_s(stime);
+	newFile = QString(DEFAULT_ASSETDIR).append("output_");
+	newFile.append(stime);
+    newFile.append("_");
+    newFile.append(sdate);
+    newFile.append(".txt");
+    for(int i = 10; i<newFile.length(); ++i){
+        if (newFile[i] == '/' || newFile[i] == ':')
+            newFile[i] = '-';
+    }
     fp = fopen (newFile.toStdString().c_str(),"w");
 	if (fp==NULL)
 	{

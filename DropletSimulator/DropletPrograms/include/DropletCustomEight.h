@@ -45,13 +45,13 @@
 
 #define DROPLET_RADIUS (float)2.2 //assuming units are cm
 #define FORMATION_GAP (float)0.25 //still assuming units are cm
-#define PROXIMITY_THRESHOLD (float)0.5
+#define PROXIMITY_THRESHOLD (float)(DROPLET_RADIUS/2.)
 #define STUCK_DIST_THRESHOLD (float)0.01
 #define ORIENT_THRESHOLD_DEG (float)1.0
 #define MOVE_STEPS_AMOUNT 15
 #define ROTATE_STEPS_AMOUNT 5
 #define BIG_NUMBER 10000
-#define SEED_TYPE_VALUE 4
+#define SEED_TYPE_VALUE 7
 
 #define IN_ASSEMBLY_INDICATOR_BYTE (uint8_t)0x55
 #define CLAIM_MSG_TYPE (uint8_t)0xf0

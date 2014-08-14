@@ -12,6 +12,13 @@
 #define FLASH_PAGE_SIZE                     256 
 #define FLASH_FWORD_SIZE                    9 
 #define FRAZIONI_DI_PAGINA_FLASH            4 
+#define MAX_PAGE_NUMBER						256
+#define MIN_PAGE_NUMBER						0
+#define IMX_MAX								20
+
+//status of page numbers if it contains all FFs or not
+#define PAGE_TRUE 1
+#define PAGE_FALSE 0
 
 /*! \brief Non-Volatile Memory Execute Command 
  * 
@@ -48,6 +55,9 @@ uint32_t FLASH_ApplicationCRC(void);
 uint32_t FLASH_RangeCRC(uint32_t, uint32_t); 
 void FLASH_WaitForNVM(void); 
 void FLASH_ReadFlashPage(uint8_t *, uint32_t); 
+uint16_t binary_search(uint16_t, uint16_t);
+uint16_t flash_compare(uint32_t);
+uint16_t midpoint(uint16_t, uint16_t);
 
 /******************************************************End of New Code*******************************************************/
 

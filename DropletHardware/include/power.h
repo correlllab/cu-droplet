@@ -12,9 +12,26 @@
 #define HALF_BIT_DURATION 104 //half duration of a bit at 300 baud, us.
 #define PROG_BUFFER_SIZE 64
 #define PROG_BUFFER_CHECK_FREQ 5
+#define POS_BYTE_COUNT 1 
+#define POS_ADDR_LOW 2
+#define POS_ADDR_HIGH 3
+#define POS_RECORD_TYPE 4
+#define POS_DATA 5
 
+volatile uint32_t time_new,time_old,time_diff;
 volatile uint8_t prog_num_chars;
 volatile char* prog_in_buffer;
+volatile char* prog_temp_buffer;
+volatile uint8_t data_length,pwr_curr_pos;
+volatile uint8_t byte_addr_low,byte_addr_high;
+volatile uint8_t rec_type,byte_addr;
+volatile uint8_t crc;
+volatile uint8_t POS_CRC;
+//volatile uint8_t prog_num_chars;
+//volatile char* prog_in_buffer;
+//volatile uint8_t data_length,curr_pos;
+//volatile uint8_t addr_low, addr_high;
+
 
 void power_init(); //just calls cap_monitor and leg_monitor init
 void cap_monitor_init();

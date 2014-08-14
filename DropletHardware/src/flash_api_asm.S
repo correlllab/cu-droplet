@@ -10,3 +10,8 @@ LoadR0:
 LoadZ:
   movw  r30, r16    ; Load R17:R16 into Z. 
   ret 
+
+  .global ReadELPM
+  ReadELPM:
+  elpm r16, Z
+  ret 

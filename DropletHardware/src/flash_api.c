@@ -82,7 +82,7 @@ void FLASH_EraseWriteApplicationPage(uint16_t page_number)
     CPU_RAMPZ = (uint8_t)(page_number >> (16 - FLASH_FWORD_SIZE)); 
     LoadZ((uint32_t)page_number << FLASH_FWORD_SIZE); 
 
-    // Write the "safety code" to the CCP regiter 
+    // Write the "safety code" to the CCP register 
     // FLASH write has to be executed within 4 cycles 
     NVM.CMD = NVM_CMD_ERASE_WRITE_APP_PAGE_gc; 
     CPU_CCP = CCP_SPM_gc; 
@@ -107,14 +107,14 @@ void FLASH_EraseWriteApplicationPage(uint16_t page_number)
 /*uint8_t FLASH_ReadByte(uint32_t flash_address) 
 { 
     uint8_t flash_data; 
-
+	uint32_t page_address = (uint8_t)((flash_address >> 10) & 0xFF); 
     CPU_RAMPZ = (uint8_t)(page_address >> 16); 
     LoadZ(flash_address); 
     flash_data = ReadELPM(); 
 
     return flash_data; 
-}   // FLASH_ReadByte 
-*/
+}   // FLASH_ReadByte */
+
 /*! \brief Wait for any NVM access to finish, including FLASH. 
  * 
  *  This function is blocking and waits for any NVM access to finish, 
@@ -228,4 +228,114 @@ void read_flash_page(const uint8_t * data, uint32_t address)
 	SP_ReadFlashPage(data, address);
 	SP_WaitForSPM();
 	NVM_CMD = NVM_CMD_NO_OPERATION_gc;
+}
+
+uint8_t FLASH_ReadByte(uint32_t flash_address)
+{
+	uint8_t val = SP_ReadByte(flash_address);
+	SP_WaitForSPM();
+	NVM_CMD = NVM_CMD_NO_OPERATION_gc;
+	return val;
+}
+
+void FLASH_ReadFlashPage(uint8_t *ram_buffer, uint32_t page_number)
+{
+	uint32_t base_address = page_number << FLASH_FWORD_SIZE;
+	//printf("\n\rbase_address=%x",base_address);
+	SP_ReadFlashPage(ram_buffer,base_address);
+	SP_WaitForSPM();
+	NVM_CMD = NVM_CMD_NO_OPERATION_gc;
+	
+}
+
+uint16_t binary_search(uint16_t imin, uint16_t imax)
+{
+	
+	while(imax>=imin)
+	{
+		uint16_t idx = 0,page_status = PAGE_FALSE,imx=0;
+		uint32_t new_page_number;
+		uint32_t page_number = midpoint(imin,imax);
+		uint16_t checked_pages[20];
+		page_status = flash_compare(page_number);
+		checked_pages[imx] = page_number;	
+		
+		if(page_status == PAGE_TRUE)
+		{
+			imax = page_number;
+			page_number = midpoint(imin,imax);
+			page_status = flash_compare(page_number);
+			imx=imx+1;
+			checked_pages[imx] = page_number;
+			for(uint16_t i=0;i<IMX_MAX;i++)
+			{
+				if(checked_pages[i] == page_number)
+				{
+					new_page_number = page_number-1;
+					return new_page_number;
+					break;
+				}
+				else
+					break;
+			}
+		}
+		if(page_status == PAGE_FALSE)
+		{
+			imin = page_number;
+			page_number = midpoint(imin,imax);
+			page_status = flash_compare(page_number);
+			imx=imx+1;
+			checked_pages[imx] = page_number;
+			for(uint16_t i=0;i<IMX_MAX;i++)
+			{
+				if(checked_pages[i] == page_number)
+				{
+					new_page_number = page_number+1;
+					return new_page_number;
+					break;
+				}
+				else
+					break;
+			}
+		}		
+		/*printf("\n\r In Binary Search");
+		printf("\n\r imin = %d", imin);
+		printf("\n\r imax = %d", imax);
+		printf("\n\r page_number = %d",page_number);*/
+		continue;
+	}
+	
+}
+
+uint16_t flash_compare(uint32_t page_number)
+{
+	uint8_t page_status = 0;
+	uint8_t ram_buff[512];
+	//printf("\n\r In Flash Compare\n\r");
+	FLASH_ReadFlashPage(ram_buff,page_number);
+	for(uint16_t idx=0;idx<(FLASH_PAGE_SIZE * 2);idx++)
+	{
+		//printf("page:%d's contents:",page_number);
+		//printf("%01X",ram_buff[idx]);
+		if(idx!=0 && idx%16 == 0)
+		printf("\n\r");
+		if(ram_buff[idx] == 0xFF)
+		{
+			page_status = PAGE_TRUE;
+			continue;
+		}			
+		else
+		{
+			page_status = PAGE_FALSE;
+			break;
+		}			
+	}
+	/*printf("\n\r page_status=%d",page_status);
+	printf("\n\r page_number =%d", page_number);*/
+	return (page_status);
+}
+
+uint16_t midpoint(uint16_t imin, uint16_t imax)
+{
+	return ((imin + imax)/2);
 }

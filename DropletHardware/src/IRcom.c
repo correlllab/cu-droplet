@@ -80,7 +80,7 @@ int8_t recover_msg(uint8_t dirs)
 	int8_t dirB = -1;
 	for(uint8_t dir=0; dir<6; dir++)
 	{
-		if(!(dirs&(1<<dir)) continue; //if a channel wasn't marked as having a bad crc, skip it.
+		if(!(dirs&(1<<dir))) continue; //if a channel wasn't marked as having a bad crc, skip it.
 		if(dirA<0) dirA = (1<<dir);
 		else if(dirB<8) dirB = (1<<dir);
 		else return; //too many channels with bad crc
@@ -106,8 +106,8 @@ int8_t recover_msg_recur(uint8_t dirs, uint16_t crc, uint8_t pos)
 		if(!(dirs&(1<<dir))) continue;
 		if(pos>=ir_rxtx[dir].data_length)
 		{
-			if(ir_rxtx[dir].data_crc = crc) return true;//good match found!
-			else return false;
+			if(ir_rxtx[dir].data_crc = crc) return 1;//true;//good match found!
+			else return 0;//false;
 		}
 		for(uint8_t prev_dir=(dir-1);prev_dir<dir; prev_dir++) if(seen[prev_dir]=ir_rxtx[dir].buf[pos]) continue;
 		if(recover_msg_recur(dirs, _crc16_update(crc, ir_rxtx[dir].buf[pos]), pos++)) printf("%c", ir_rxtx[dir].buf[pos]);

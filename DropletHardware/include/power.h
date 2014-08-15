@@ -8,7 +8,7 @@
 #include "delay_x.h"
 
 
-#define FULL_BIT_DURATION 208 //duration of a bit at 300 baud, us.(increase delay by 6%)
+#define FULL_BIT_DURATION 208 //duration of a bit at 4800 baud, us.
 #define HALF_BIT_DURATION 104 //half duration of a bit at 300 baud, us.
 #define PROG_BUFFER_SIZE 64
 #define PROG_BUFFER_CHECK_FREQ 5
@@ -20,8 +20,8 @@
 
 volatile uint32_t time_new,time_old,time_diff;
 volatile uint8_t prog_num_chars;
-volatile char* prog_in_buffer;
-volatile char* prog_temp_buffer;
+volatile uint8_t* prog_in_buffer;
+volatile uint8_t* prog_temp_buffer;
 volatile uint8_t data_length,pwr_curr_pos;
 volatile uint8_t byte_addr_low,byte_addr_high;
 volatile uint8_t rec_type,byte_addr;

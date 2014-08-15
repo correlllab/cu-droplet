@@ -36,8 +36,6 @@ try:
                 while not Serial.check_chars():
                     1+1 #do nothing
                 now=time.time()
-
-
             process_and_transmit_line(line)
 except(KeyboardInterrupt, SystemExit):
     Serial.cleanup()

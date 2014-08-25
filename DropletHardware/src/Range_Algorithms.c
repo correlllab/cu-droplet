@@ -486,43 +486,17 @@ void IR_emit(uint8_t direction, uint8_t duration) // this is now BLOCKING ***
 	switch(direction)
 	{
 		case 0:	// WORKS!
-		carrier_wave_bm = PIN0_bm;			// TODO, name these "PIN0_bm" to something more specific, like "IR_CARRIER_PIN_0"
-		TX_pin_bm = PIN3_bm;
-		the_UART_port = &PORTC;
-		the_USART = &USARTC0;
-		break;
+		carrier_wave_bm = PIN0_bm; TX_pin_bm = PIN3_bm; the_UART_port = &PORTC; the_USART = &USARTC0; break;
 		case 1:	// WORKS!
-		carrier_wave_bm = PIN1_bm;
-		TX_pin_bm = PIN7_bm;
-		the_UART_port = &PORTC;
-		the_USART = &USARTC1;
-		break;
+		carrier_wave_bm = PIN1_bm; TX_pin_bm = PIN7_bm; the_UART_port = &PORTC; the_USART = &USARTC1; break;
 		case 2:	// WORKS!
-		carrier_wave_bm = PIN4_bm;
-		TX_pin_bm = PIN3_bm;
-		the_UART_port = &PORTD;
-		the_USART = &USARTD0;
-		break;
+		carrier_wave_bm = PIN4_bm; TX_pin_bm = PIN3_bm; the_UART_port = &PORTD; the_USART = &USARTD0; break;
 		case 3:	// WORKS!
-		carrier_wave_bm = PIN5_bm;
-		TX_pin_bm = PIN3_bm;
-		the_UART_port = &PORTE;
-		the_USART = &USARTE0;
-		break;
+		carrier_wave_bm = PIN5_bm; TX_pin_bm = PIN3_bm; the_UART_port = &PORTE; the_USART = &USARTE0; break;
 		case 4:	// WORKS!
-		carrier_wave_bm = PIN7_bm;
-		TX_pin_bm = PIN7_bm;
-		the_UART_port = &PORTE;
-		the_USART = &USARTE1;
-		break;
+		carrier_wave_bm = PIN7_bm; TX_pin_bm = PIN7_bm; the_UART_port = &PORTE; the_USART = &USARTE1; break;
 		case 5:	// WORKS!
-		carrier_wave_bm = PIN6_bm;
-		TX_pin_bm = PIN3_bm;
-		the_UART_port = &PORTF;
-		the_USART = &USARTF0;
-		break;
-		default:
-		break;
+		carrier_wave_bm = PIN6_bm; TX_pin_bm = PIN3_bm; the_UART_port = &PORTF; the_USART = &USARTF0; break;
 	}
 
 	USART_CTRLB_save = the_USART->CTRLB;		// record the current state of the USART
@@ -551,8 +525,6 @@ void IR_emit(uint8_t direction, uint8_t duration) // this is now BLOCKING ***
 	the_USART->CTRLB = USART_CTRLB_save;	// re-enable USART (restore settings as it was before)
 	PORTF.OUT &= ~carrier_wave_bm;			// low signal on the carrier wave pin, don't really know why we do this? probably not necessary
 	TCF2.CTRLB |= carrier_wave_bm;			// re-enable carrier wave output
-
-	set_rgb(0,0,0);
 }
 
 float pretty_angle(float alpha)

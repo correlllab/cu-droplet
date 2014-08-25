@@ -8,7 +8,7 @@
 #include "IRcom.h"
 
 int main(void);
-
+void check_messages();
 void color_cycle();
 
 #endif

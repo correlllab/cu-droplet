@@ -26,6 +26,10 @@ void SimInfoLogger::Init()
     char stime[9];
 	_strdate_s(sdate);
     _strtime_s(stime);
+	timeInterval = .5;
+    lastPrint = 0;
+	firstTime = true;
+
 	newFile = QString(DEFAULT_ASSETDIR).append("output_");
 	newFile.append(stime);
     newFile.append("_");
@@ -40,10 +44,9 @@ void SimInfoLogger::Init()
 	{
 		printf("Cannot create output file\n");
 	}
-	timeInterval = .5;
+
 	//lastPrint = -timeInterval - 1;
-    lastPrint = 0;
-	firstTime = true;
+
 
 	if(macroRedFlag)
 	{

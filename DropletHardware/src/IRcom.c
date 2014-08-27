@@ -3,14 +3,14 @@
 /* Hardware addresses for the port pins with the carrier wave */
 uint8_t ir_carrier_bm[] = { PIN0_bm, PIN1_bm, PIN4_bm, PIN5_bm, PIN6_bm, PIN7_bm };
 
-USART_t* channel[] = {
-	&USARTC0,  //   -- Channel 0
-	&USARTC1,  //   -- Channel 1
-	&USARTD0,  //   -- Channel 2
-	&USARTE0,  //   -- Channel 3
-	&USARTE1,  //   -- Channel 4
-	&USARTF0   //   -- Channel 5
-};// channel[] is declared here, but defined in IRcom.c
+//USART_t* channel[] = {
+	//&USARTC0,  //   -- Channel 0
+	//&USARTC1,  //   -- Channel 1
+	//&USARTD0,  //   -- Channel 2
+	//&USARTE0,  //   -- Channel 3
+	//&USARTE1,  //   -- Channel 4
+	//&USARTF0   //   -- Channel 5
+//};
 
 // TAKES ~ 4 ms to transmit a single (8-bit) byte (~13 ms when byte is golay encoded like we do)
 // [measured with RTC on 11/20/2012, range = {3,4,5}, mode = 4]

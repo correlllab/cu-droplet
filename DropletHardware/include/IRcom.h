@@ -38,6 +38,8 @@
 #define HEADER_POS_TARGET_ID_HIGH 6
 #define HEADER_LEN 7
 
+extern USART_t* channel[];
+
 volatile struct
 {	
 	uint32_t last_byte;		// TX time or RX time of last received byte	

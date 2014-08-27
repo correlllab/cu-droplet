@@ -18,6 +18,10 @@ void handle_serial_command(char* command, uint16_t command_length)
 		{
 			handle_walk(command_args);
 		}
+		else if(strcmp(command_word,"coll")==0)
+		{
+			handle_check_collisions();
+		}		
 		else if(strcmp(command_word,"stop_walk")==0)
 		{
 			handle_stop_walk();
@@ -96,6 +100,11 @@ void handle_serial_command(char* command, uint16_t command_length)
 			printf("\tCommand ( %s ) not recognized.\r\n",command_word);
 		}
 	}
+}
+
+void handle_check_collisions()
+{
+	check_collisions();
 }
 
 void handle_move_steps(char* command_args)

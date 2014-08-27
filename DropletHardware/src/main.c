@@ -5,36 +5,31 @@ volatile float blah;
 
 int main(void)
 {
-	//uint8_t ram_buff[512];
-	//uint16_t idx =0, page_number = 0;
 	uint16_t pg_no = 0;
 	init_all_systems();
 	printf("Initialized.\r\n");
-	//pg_no = binary_search(MIN_PAGE_NUMBER,MAX_PAGE_NUMBER);
-	//printf("\n\rIn main");
-	//printf("\n\rPage Number = %d",pg_no);
-	//uint8_t val = FLASH_ReadByte(0x0002);
-	//printf("\n\rval_read = %x",val);
-	
-	/*FLASH_ReadFlashPage(&ram_buff,74);
-	while(idx < FLASH_PAGE_SIZE * 2)
-	{
-		//printf("idx=%d",idx);
-		printf("%01X",ram_buff[idx]);
-		if(idx!=0 && idx%16 == 0)
-		printf("\n\r");
-		idx++;
-	}
-	printf("\n\rpage_num=%d\n\r",page_number);
-	page_number++;
-	//idx=0;*/
-	
 	while (1)
 	{	
-		check_messages();
-		delay_ms(100);
+		//check_messages();
+		//delay_ms(100);
+		check_collisions();
+		delay_ms(500);
 	}
 }
+
+//void turn_on_emitters()
+//{
+	//if(emitters_on=(!emitters_on))
+	//{
+		//for(uint8_t i=0;i<6;i++) ir_blast(1000); 
+		//set_rgb(20,0,0); 
+	//}
+	//else
+	//{
+		//set_rgb(0,0,0);
+	//}	
+	//schedule_task(1000,turn_on_emitters, NULL);
+//}
 
 void check_messages()
 {

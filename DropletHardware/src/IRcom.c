@@ -198,9 +198,9 @@ void set_ir_power(uint8_t dir, uint16_t power)
 		case 0: varpotaddr = 0x58; wiperaddr = 0x00; break;
 		case 1: varpotaddr = 0x58; wiperaddr = 0x10; break;
 		case 2: varpotaddr = 0x58; wiperaddr = 0x60; break;
-		case 3: varpotaddr = 0x5A; wiperaddr = 0x60; break;
-		case 4: varpotaddr = 0x5A; wiperaddr = 0x00; break;
-		case 5: varpotaddr = 0x5A; wiperaddr = 0x10; break;
+		case 3: varpotaddr = 0x58; wiperaddr = 0x60; break;
+		case 4: varpotaddr = 0x58; wiperaddr = 0x00; break;
+		case 5: varpotaddr = 0x58; wiperaddr = 0x10; break;
 		default: return;
 	}
 	

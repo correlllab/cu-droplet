@@ -3,7 +3,7 @@
 void motor_init()
 {
 	PORTC.DIRSET = PIN0_bm | PIN1_bm | PIN4_bm | PIN5_bm;
-	PORTE.DIRSET = PIN0_bm | PIN1_bm;
+	PORTD.DIRSET = PIN0_bm | PIN1_bm;
 
 	TCC0.CTRLA = TC_CLKSEL_DIV1024_gc;
 	TCC0.CTRLB = TC_WGMODE_SS_gc;
@@ -11,8 +11,8 @@ void motor_init()
 	TCC1.CTRLA = TC_CLKSEL_DIV1024_gc;
 	TCC1.CTRLB = TC_WGMODE_SS_gc;
 
-	TCE0.CTRLA = TC_CLKSEL_DIV1024_gc;
-	TCE0.CTRLB = TC_WGMODE_SS_gc;
+	TCD0.CTRLA = TC_CLKSEL_DIV1024_gc;
+	TCD0.CTRLB = TC_WGMODE_SS_gc;
 
 	motor_status = 0;
 
@@ -53,10 +53,10 @@ uint8_t move_steps(uint8_t direction, uint16_t num_steps)
 	}
 	//printf("Moving in dir: %hhu for %hu steps. Mot_durs: {%hu, %hu, %hu}. Total_time: %hu.\r\n",direction, num_steps, mot_durs[0], mot_durs[1], mot_durs[2], total_time);
 
-	TCC0.PER = TCC1.PER = TCE0.PER = total_time;
+	TCC0.PER = TCC1.PER = TCD0.PER = total_time;
 	TCC0.CCA = TCC0.CCB = mot_durs[0]; //motor 0
 	TCC1.CCA = TCC1.CCB = mot_durs[1]; //motor 1
-	TCE0.CCA = TCE0.CCB = mot_durs[2]; //motor 2
+	TCD0.CCA = TCD0.CCB = mot_durs[2]; //motor 2
 	
 	uint16_t current_offset = 0;
 	
@@ -67,11 +67,11 @@ uint8_t move_steps(uint8_t direction, uint16_t num_steps)
 		{
 			case 0: TCC0.CNT = ((total_time - current_offset)%total_time); break;
 			case 1: TCC1.CNT = ((total_time - current_offset)%total_time); break;
-			case 2: TCE0.CNT = ((total_time - current_offset)%total_time); break;
+			case 2: TCD0.CNT = ((total_time - current_offset)%total_time); break;
 		}
 		current_offset += mot_durs[mot] + 32*motor_off_time;//If we left the motor on for longer to compensate, we should wait a little longer before starting again.
 	}
-	//printf("Offsets are: (%hu, %hu, %hu)\r\n",TCC0.CNT, TCC1.CNT, TCE0.CNT);
+	//printf("Offsets are: (%hu, %hu, %hu)\r\n",TCC0.CNT, TCC1.CNT, TCD0.CNT);
 	if(current_offset != total_time) printf("ERROR (I think): current_offset: %hu and total_time: %hu not equal!\r\n", current_offset, total_time);
 	for(uint8_t mot=0 ; mot<3 ; mot++) 	//Now we just need to tell the motors to go!
 	{
@@ -98,17 +98,17 @@ void stop()
 
 	TCC0.CTRLB = TC_WGMODE_SS_gc;
 	TCC1.CTRLB = TC_WGMODE_SS_gc;
-	TCE0.CTRLB = TC_WGMODE_SS_gc;
+	TCD0.CTRLB = TC_WGMODE_SS_gc;
 	
 	PORTC.OUTCLR = PIN0_bm | PIN1_bm | PIN4_bm | PIN5_bm;
-	PORTE.OUTCLR = PIN0_bm | PIN1_bm;
+	PORTD.OUTCLR = PIN0_bm | PIN1_bm;
 	
 	PORTC.PIN0CTRL = 0;
 	PORTC.PIN1CTRL = 0;
 	PORTC.PIN4CTRL = 0;
 	PORTC.PIN5CTRL = 0;
-	PORTE.PIN0CTRL = 0;
-	PORTE.PIN1CTRL = 0;
+	PORTD.PIN0CTRL = 0;
+	PORTD.PIN1CTRL = 0;
 	
 	TCD0.CTRLB = TC_WGMODE_SS_gc;		
 	TCD0.INTCTRLB = 0x0;

@@ -2,8 +2,8 @@
 
 void i2c_init()
 {
-	PORTD.DIRSET = PIN0_bm | PIN1_bm;
-	PORTD.OUTSET = PIN0_bm | PIN1_bm;
+	PORTE.DIRSET = PIN0_bm | PIN1_bm;
+	PORTE.OUTSET = PIN0_bm | PIN1_bm;
 }
 
 void i2c_startbit()
@@ -45,14 +45,14 @@ uint8_t i2c_sendbyte(uint8_t byte)
 	delay_us(1.5);
 	SDA_ON;
 	delay_us(1);
-	PORTD.DIRCLR = PIN0_bm;
+	PORTE.DIRCLR = PIN0_bm;
 	SCL_ON;
 	delay_us(2.5);
-	uint8_t ack = PORTD.IN & PIN0_bm;
+	uint8_t ack = PORTE.IN & PIN0_bm;
 	delay_us(2.5);
 	SCL_OFF;
 	SDA_OFF;
-	PORTD.DIRSET = PIN0_bm;
+	PORTE.DIRSET = PIN0_bm;
 	delay_us(2.5);
 	
 	return ack;

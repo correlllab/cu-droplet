@@ -41,8 +41,10 @@ void ir_com_init()
 	// TX pins as outputs:
 	PORTC.DIRSET = PIN3_bm | PIN7_bm;		// DIR 0,1									
 	PORTD.DIRSET = PIN3_bm;					// DIR 2
+	PORTD.DIRCLR = PIN3_bm;					//undoes the previous line; sets the pin as output. (Just for the bugged samples)
 	PORTE.DIRSET = PIN3_bm | PIN7_bm;		// DIR 3,4
 	PORTF.DIRSET = PIN3_bm;					// DIR 5
+	PORTF.DIRCLR = PIN3_bm;					//undoes the previous line; sets the pin as output. (Just for the bugged samples)
 	
 	// Invert the output pins:
 	PORTC.PIN3CTRL = PORT_INVEN_bm;												
@@ -63,11 +65,8 @@ void ir_com_init()
 		channel[i]->CTRLB |= USART_RXEN_bm;		// Enable communication
 		channel[i]->CTRLB |= USART_TXEN_bm;
 	}
-	for(uint8_t dir=0; dir<6; dir++)
-	{
-		set_ir_power(dir, 255);
-		clear_ir_buffer(dir); //this initializes the buffer's values to 0.
-	}
+	set_all_ir_powers(256);
+	for(uint8_t dir=0; dir<6; dir++) clear_ir_buffer(dir); //this initializes the buffer's values to 0.
 	last_ir_msg = NULL;
 	schedule_task(1000/IR_UPKEEP_FREQUENCY, perform_ir_upkeep, NULL);
 }
@@ -181,40 +180,6 @@ inline void clear_ir_buffer(uint8_t dir)
 	ir_rxtx[dir].target_ID = 0;
 	ir_rxtx[dir].sender_ID = 0;
 	channel[dir]->CTRLB |= USART_RXEN_bm; //this enables receive on the USART
-}
-
-void set_ir_power(uint8_t dir, uint16_t power)
-// note: the use of the term 'power' is more of a misnomer in this instance (in that its not linear)
-// since voltage across the LED + digipot combo is constant, we actually setting the power of the LED
-// by setting the resistance of the digipot
-// the equation for LED light output power is:
-// LED_POWER = (Vtot - Vled)(Vled/Rpot)
-// this means, the light-power output is proportional to 1/(256-'power') relationship with the variable 'power'
-{
-	uint8_t varpotaddr, wiperaddr;
-	
-	switch (dir)
-	{
-		case 0: varpotaddr = 0x58; wiperaddr = 0x00; break;
-		case 1: varpotaddr = 0x58; wiperaddr = 0x10; break;
-		case 2: varpotaddr = 0x58; wiperaddr = 0x60; break;
-		case 3: varpotaddr = 0x58; wiperaddr = 0x60; break;
-		case 4: varpotaddr = 0x58; wiperaddr = 0x00; break;
-		case 5: varpotaddr = 0x58; wiperaddr = 0x10; break;
-		default: return;
-	}
-	
-	if (power > 255)
-	{
-		wiperaddr++;		// LSB of wiper address byte is MSB of data
-		power = 0;			// 0x100 is maximum powerF
-	}		
-	
-	i2c_startbit();
-	i2c_sendbyte(varpotaddr);
-	i2c_sendbyte(wiperaddr);
-	i2c_sendbyte(power);
-	i2c_stopbit();
 }
 
 void ir_targeted_cmd(uint8_t dirs, char *data, uint16_t data_length, uint16_t target)

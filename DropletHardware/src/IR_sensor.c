@@ -16,37 +16,42 @@ USART_t* channel[] = {
 void IR_sensor_init()
 {
 	/* SET INPUT PINS AS INPUTS */
-	IR_SENSOR_PORT.DIRCLR = ALL_IR_SENSOR_PINS_bm;
+	IR_SENSOR_PORT.DIRCLR = /*0xFF*/IR_SENSOR_0_PIN_bm | IR_SENSOR_1_PIN_bm | IR_SENSOR_2_PIN_bm | IR_SENSOR_3_PIN_bm | IR_SENSOR_4_PIN_bm | IR_SENSOR_5_PIN_bm;
 	
-	ADCB.CTRLB = ADC_RESOLUTION_8BIT_gc;		// use 8 bit resolution
-	ADCB.CTRLB |= ADC_CONMODE_bm;				// switch to signed mode
+
+	/*ADCB.REFCTRL = ADC_BANDGAP_bm | ADC_REFSEL_AREFB_gc;*/
+	ADCB.CTRLB = ADC_RESOLUTION_8BIT_gc;
+	ADCB.CTRLB |= ADC_CONMODE_bm;		// use 8 bit resolution, signed mode
 	ADCB.PRESCALER = ADC_PRESCALER_DIV512_gc;
 	ADCB.CH0.CTRL = ADC_CH_INPUTMODE_DIFF_gc;	// differential input. requires signed mode (see sec. 28.6 in manual)
 	ADCB.CH0.MUXCTRL = ADC_CH_MUXNEG_PIN0_gc;	// use VREF_IN for the negative input (0.54 V)
 	ADCB.CTRLA = ADC_ENABLE_bm;
+	//ADCB.CALL = PRODSIGNATURES_ADCBCAL0;
+	//ADCB.CALH = PRODSIGNATURES_ADCBCAL1;
 
 	/* FIND AND RECORD THE ZERO-OFFSET OF EACH IR DIRECTION */
-
-	IR_SENSOR_PORT.DIRSET = ALL_IR_SENSOR_PINS_bm;		// set the IR sense pins as OUTPUT
-	IR_SENSOR_PORT.OUTCLR = ALL_IR_SENSOR_PINS_bm;		// put a low voltage on these pins (typically, this will be about 15 mV)
-
+	busy_delay_us(400);
+	IR_SENSOR_PORT.DIRSET = /*ALL_IR_SENSOR_PINS_bm*/0b11111100;		// set the IR sense pins as OUTPUT
+	IR_SENSOR_PORT.OUTCLR = /*ALL_IR_SENSOR_PINS_bm*/0b00000000;		// put a low voltage on these pins (typically, this will be about 15 mV)
+	busy_delay_us(400);
 	for(uint8_t i=0; i<6; i++)
 	{
-		ADCB.CH0.MUXCTRL &= MUX_SENSOR_CLR; //clear previous sensor selection		
+		ADCB.CH0.MUXCTRL &= MUX_SENSOR_CLR; //clear previous sensor selection
 		ADCB.CH0.MUXCTRL |= mux_sensor_selectors[i];
+		busy_delay_us(400);
 		ADCB.CTRLA |= ADC_CH0START_bm;
 		while (ADCB.CH0.INTFLAGS==0);		// wait for 'complete flag' to be set
-		ADC_offset[i] = ADCB.CH0.RESL*(-1);
+		ADC_offset[i] = ADCB.CH0.RES*(-1);
 	}
-	IR_SENSOR_PORT.DIRCLR = ALL_IR_SENSOR_PINS_bm;
-	//printf("Offsets: [0: %i, 1: %i, 2: %i, 3: %i, 4: %i, 5: %i\r\n",ADC_offset[0],ADC_offset[1],ADC_offset[2],ADC_offset[3],ADC_offset[4],ADC_offset[5]);
+	IR_SENSOR_PORT.DIRCLR = /*ALL_IR_SENSOR_PINS_bm*/0xFF;
+	printf("Offsets: [0: %i, 1: %i, 2: %i, 3: %i, 4: %i, 5: %i\r\n",ADC_offset[0],ADC_offset[1],ADC_offset[2],ADC_offset[3],ADC_offset[4],ADC_offset[5]);
 		
-	//the commands below set the ir_emitters to output.
-	PORTC.DIRSET = (PIN3_bm | PIN7_bm);
-	PORTD.DIRSET =  PIN3_bm;
-	PORTE.DIRSET = (PIN3_bm | PIN7_bm);
-	PORTF.DIRSET =  PIN3_bm;	
-	PORTF.DIRSET = ALL_EMITTERS_CARWAV_bm;	//set carrier wave pins to output.
+	////the commands below set the ir_emitters to output.
+	//PORTC.DIRSET = (PIN3_bm | PIN7_bm);
+	//PORTD.DIRSET =  PIN3_bm;
+	//PORTE.DIRSET = (PIN3_bm | PIN7_bm);
+	//PORTF.DIRSET =  PIN3_bm;	
+	//PORTF.DIRSET = ALL_EMITTERS_CARWAV_bm;	//set carrier wave pins to output.
 }
 
 /*
@@ -58,28 +63,29 @@ uint8_t get_IR_sensor(uint8_t sensor_num)
 {
 	int8_t meas[3]; //we're going to take three measurements, and then calculate their median.
 		
-	ADCB.CH0.MUXCTRL &= MUX_SENSOR_CLR; //clear previous sensor selection
-	ADCB.CH0.MUXCTRL |= mux_sensor_selectors[sensor_num];
-	
+	//ADCB.CH0.MUXCTRL &= MUX_SENSOR_CLR; //clear previous sensor selection
+	ADCB.CH0.MUXCTRL = mux_sensor_selectors[sensor_num] | ADC_CH_MUXNEG_PIN0_gc;
+	busy_delay_us(400);
 	for (uint8_t i = 0; i < 3; i++)
 	{
-		ADCB.CTRLA |= ADC_CH0START_bm;
-		while (ADCB.CH0.INTFLAGS==0);		// wait for measurement to complete
+		ADCB.CH0.CTRL |= ADC_CH_START_bm;
+		//busy_delay_us(400);
+		while (ADCB.INTFLAGS==0);		// wait for measurement to complete
 		meas[i] = ADCB.CH0.RESL;
-		ADCB.CTRLA |= ADC_FLUSH_bm;
+		//ADCB.CTRLA |= ADC_FLUSH_bm;
 
 	}		
 	//return (uint8_t)(meas+ADC_offset[sensor_num]);
 	//printf("\t%hhd %hhd %hhd\r\n",meas[0], meas[1], meas[2]);
-	return (uint8_t)(find_median(meas)+ADC_offset[sensor_num]);
+	return (uint8_t)(find_median(meas)/*+ADC_offset[sensor_num]*/);
 }
 
-//void check_collisions(){
-	//uint8_t meas[6];
-	//for(uint8_t dir = 0; dir < 6; dir++) set_ir_power(dir, 256);
-	//for(uint8_t i=0;i<6;i++) printf("%3hhu ",ir_bounce_meas(i));
-	//printf("\r\n");
-//}
+void check_collisions(){
+	uint8_t meas[6];
+	set_all_ir_powers(256);
+	for(uint8_t i=0;i<6;i++) printf("%3hhd ",ir_bounce_meas(i));
+	printf("\r\n");
+}
 
 //void ir_blast(uint16_t duration){
 	//for(uint8_t i=0;i<6;i++) channelCtrlBVals[i] = channel[i]->CTRLB;	
@@ -117,60 +123,66 @@ uint8_t get_IR_sensor(uint8_t sensor_num)
 //}
 
 	
-void check_collisions(){
-	uint8_t baseline_meas[6];
-	uint8_t channelCtrlBVals[6];
-	uint8_t measured_vals[6];
-	for(uint8_t i=0;i<6;i++)
-	{
-		baseline_meas[i] = get_IR_sensor(i);
-		set_ir_power(i, 256);
-		channelCtrlBVals[i] = channel[i]->CTRLB;
-		channel[i]->CTRLB=0;
-	}	
-	TCF2.CTRLB &= ~ALL_EMITTERS_CARWAV_bm;	//disable carrier wave output
-	PORTF.OUTSET = ALL_EMITTERS_CARWAV_bm;	// set carrier wave pins high.
-	//PORTF.DIRSET = ALL_EMITTERS_CARWAV_bm;
-	PORTC.DIRSET = (PIN3_bm | PIN7_bm);
-	PORTD.DIRSET =  PIN3_bm;
-	PORTE.DIRSET = (PIN3_bm | PIN7_bm);
-	PORTF.DIRSET =  PIN3_bm;
-		
-	PORTC.OUTCLR = (PIN3_bm | PIN7_bm);
-	PORTD.OUTCLR = PIN3_bm;
-	PORTE.OUTCLR = (PIN3_bm | PIN7_bm);
-	PORTF.OUTCLR = PIN3_bm;
-
+//void check_collisions(){
+	//uint8_t baseline_meas[6];
+	//uint8_t channelCtrlBVals[6];
+	//uint8_t measured_vals[6];
+	//for(uint8_t i=0;i<6;i++)
+	//{
+//
+		//channelCtrlBVals[i] = channel[i]->CTRLB;
+		//channel[i]->CTRLB=0;
+	//}	
+	//for(uint8_t i=0;i<6;i++)
+	//{	
+		//busy_delay_us(50);
+		//baseline_meas[i] = get_IR_sensor(i);
+	//}
+			//
+	//set_all_ir_powers(256);
+	//TCF2.CTRLB &= ~ALL_EMITTERS_CARWAV_bm;	//disable carrier wave output
+	//PORTF.OUTSET = ALL_EMITTERS_CARWAV_bm;	// set carrier wave pins high.
+	////PORTF.DIRSET = ALL_EMITTERS_CARWAV_bm;
+	//PORTC.DIRSET = (PIN3_bm | PIN7_bm);
+	//PORTD.DIRSET =  PIN3_bm;
+	//PORTE.DIRSET = (PIN3_bm | PIN7_bm);
+	//PORTF.DIRSET =  PIN3_bm;
+		//
+	//PORTC.OUTCLR = (PIN3_bm | PIN7_bm);
+	//PORTD.OUTCLR = PIN3_bm;
+	//PORTE.OUTCLR = (PIN3_bm | PIN7_bm);
+	//PORTF.OUTCLR = PIN3_bm;
+//
 	//busy_delay_us(50);
-	delay_ms(500);
-	for(uint8_t i=0;i<6;i++){
-		measured_vals[i]=get_IR_sensor(i);
-	}		
-
-	PORTC.OUTTGL = (PIN3_bm | PIN7_bm);
-	PORTD.OUTTGL =  PIN3_bm;
-	PORTE.OUTTGL = (PIN3_bm | PIN7_bm);
-	PORTF.OUTTGL =  PIN3_bm;
-	for(uint8_t i=0;i<6;i++) channel[i]->CTRLB = channelCtrlBVals[i];
-	TCF2.CTRLB |= ALL_EMITTERS_CARWAV_bm; //reenable carrier wave output
-
-	for(uint8_t i=0;i<6;i++){
-		printf("%3hhu ", measured_vals[i]);
-	}		
-	printf("\r\n");
-	for(uint8_t i=0;i<6;i++){
-		printf("%3hhu ", baseline_meas[i]);
-	}		
-	printf("\r\n\n");	
-}	
-	
-uint8_t ir_bounce_meas(uint8_t dir){
+	////delay_ms(500);
+	//for(uint8_t i=0;i<6;i++){
+		//measured_vals[i]=get_IR_sensor(i);
+		//busy_delay_us(50);
+	//}		
+//
+	//PORTC.OUTTGL = (PIN3_bm | PIN7_bm);
+	//PORTD.OUTTGL =  PIN3_bm;
+	//PORTE.OUTTGL = (PIN3_bm | PIN7_bm);
+	//PORTF.OUTTGL =  PIN3_bm;
+	//for(uint8_t i=0;i<6;i++) channel[i]->CTRLB = channelCtrlBVals[i];
+	//TCF2.CTRLB |= ALL_EMITTERS_CARWAV_bm; //reenable carrier wave output
+//
+	//for(uint8_t i=0;i<6;i++){
+		//printf("%3hhu ", measured_vals[i]);
+	//}		
+	//printf("\r\n");
+	//for(uint8_t i=0;i<6;i++){
+		//printf("%3hhu ", baseline_meas[i]);
+	//}		
+	//printf("\r\n\n");	
+//}	
+	//
+int8_t ir_bounce_meas(uint8_t dir){
 	uint8_t carrier_wave_bm;
 	uint8_t TX_pin_bm;
 
 	PORT_t * UART;
 	USART_t* USART;
-	set_ir_power(dir, 256);
 	int16_t baseline_meas = get_IR_sensor(dir);
 
 	switch(dir)
@@ -199,8 +211,8 @@ uint8_t ir_bounce_meas(uint8_t dir){
 	UART->DIRSET = TX_pin_bm;			// enable user output on this pin
 	UART->OUT &= ~TX_pin_bm;			// low signal on TX pin		(IR LED is ON when this pin is LOW, these pins were inverted in software during initialization)
 
-	//busy_delay_us(250);
-	delay_ms(30);
+	busy_delay_us(250);
+	//delay_ms(30);
 	// IR LIGHT IS ON NOW
 	int16_t measured_val = get_IR_sensor(dir);
 
@@ -210,8 +222,8 @@ uint8_t ir_bounce_meas(uint8_t dir){
 	PORTF.OUT &= ~carrier_wave_bm;			// low signal on the carrier wave pin, don't really know why we do this? probably not necessary
 	TCF2.CTRLB |= carrier_wave_bm;			// re-enable carrier wave output
 
-	if(measured_val>baseline_meas) return (uint8_t)(measured_val-baseline_meas);
-	else return 0;
+	return (int8_t)(measured_val-baseline_meas);
+	
 }
 
 // Finds the median of 3 numbers by finding the max, finding the min, and returning the other value
@@ -234,6 +246,6 @@ int8_t find_median(int8_t* meas)
 	}
 	for (medi = 0; medi < 3; medi++)
 	{
-		if (medi != maxi & medi != mini) return meas[medi];
+		if ((medi != maxi) && (medi != mini)) return meas[medi];
 	}
 }

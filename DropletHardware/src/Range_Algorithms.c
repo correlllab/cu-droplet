@@ -391,10 +391,7 @@ void IR_range_blast(uint16_t power)
 	//uint32_t timer[20];
 	//timer[0] = get_16bit_time(); //Top of the function.
 	uint16_t pre_sync_op = get_16bit_time();
-	for(uint8_t dir = 0; dir < 6; dir++)
-	{
-		set_ir_power(dir, power);
-	}
+	set_all_ir_powers(256);
 	while((get_16bit_time() - pre_sync_op) < TIME_FOR_SET_IR_POWERS);
 
 

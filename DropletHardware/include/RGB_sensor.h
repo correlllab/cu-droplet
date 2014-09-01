@@ -18,7 +18,4 @@ int8_t get_red_sensor();
 int8_t get_green_sensor();
 int8_t get_blue_sensor();
 
-inline void rgb_sensor_enable(){ ADCA.CTRLA |= ADC_ENABLE_bm; }
-inline void rgb_sensor_disable(){ ADCA.CTRLA &= ~ADC_ENABLE_bm; }
-
 #endif

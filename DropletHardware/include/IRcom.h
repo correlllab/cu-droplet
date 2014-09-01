@@ -73,7 +73,6 @@ void ir_com_init();
  * power = 256 turns transmitter on maximum power
  * Note: this function is blocking and will take approx 300us to complete
  */
-void set_ir_power(uint8_t dir, uint16_t power);
 void perform_ir_upkeep();
 inline void clear_ir_buffer(uint8_t dir);
 void ir_targeted_cmd(uint8_t dirs, char *data, uint16_t data_length, uint16_t target);

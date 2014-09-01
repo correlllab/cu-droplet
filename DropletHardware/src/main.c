@@ -12,8 +12,20 @@ int main(void)
 	{	
 		//check_messages();
 		//delay_ms(100);
-		check_collisions();
+		//check_collisions();
+		for(uint8_t i=0;i<6;i++) printf("%hhu ", get_IR_sensor(i));
+		//uint8_t randDir = rand_byte()%6;
+		//int8_t meas = get_IR_sensor(randDir);
+		//printf("| %hhu: %3hhd ",randDir, meas);
+		//if(randDir==5) printf("\r\n");
+		printf("\r\n");
 		delay_ms(500);
+		//set_rgb(200,0,0);
+		//delay_ms(5000);
+		//set_rgb(0,200,0);
+		//delay_ms(5000);
+		//set_rgb(0,0,200);
+		//delay_ms(5000);
 	}
 }
 

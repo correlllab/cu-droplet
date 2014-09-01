@@ -40,11 +40,11 @@ void ir_com_init()
 	
 	// TX pins as outputs:
 	PORTC.DIRSET = PIN3_bm | PIN7_bm;		// DIR 0,1									
-	PORTD.DIRSET = PIN3_bm;					// DIR 2
-	PORTD.DIRCLR = PIN3_bm;					//undoes the previous line; sets the pin as output. (Just for the bugged samples)
+	//PORTD.DIRSET = PIN3_bm;					// DIR 2
+	//PORTD.DIRCLR = PIN3_bm;					//undoes the previous line; sets the pin as output. (Just for the bugged samples)
 	PORTE.DIRSET = PIN3_bm | PIN7_bm;		// DIR 3,4
-	PORTF.DIRSET = PIN3_bm;					// DIR 5
-	PORTF.DIRCLR = PIN3_bm;					//undoes the previous line; sets the pin as output. (Just for the bugged samples)
+	//PORTF.DIRSET = PIN3_bm;					// DIR 5
+	//PORTF.DIRCLR = PIN3_bm;					//undoes the previous line; sets the pin as output. (Just for the bugged samples)
 	
 	// Invert the output pins:
 	PORTC.PIN3CTRL = PORT_INVEN_bm;												

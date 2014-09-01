@@ -17,7 +17,7 @@ void init_all_systems()
 	power_init();				if(INIT_DEBUG_MODE) printf("POWER INIT\r\n");
 	random_init();				if(INIT_DEBUG_MODE) printf("RAND INIT\r\n");
 	i2c_init();					if(INIT_DEBUG_MODE) printf("I2C INIT\r\n");	
-	//ir_com_init();				if(INIT_DEBUG_MODE) printf("IR COM INIT\r\n");
+	ir_com_init();				if(INIT_DEBUG_MODE) printf("IR COM INIT\r\n");
 	IR_sensor_init();			if(INIT_DEBUG_MODE) printf("IR SENSE INIT\r\n");
 	motor_init();				if(INIT_DEBUG_MODE) printf("MOTOR INIT\r\n");
 	range_algorithms_init();	if(INIT_DEBUG_MODE) printf("RANGE ALGORITHMS INIT\r\n");

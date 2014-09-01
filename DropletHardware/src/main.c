@@ -8,18 +8,20 @@ int main(void)
 	uint16_t pg_no = 0;
 	init_all_systems();
 	printf("Initialized.\r\n");
+			
+			set_all_ir_powers(256);	
 	while (1)
 	{	
-		//check_messages();
+		check_messages();
 		//delay_ms(100);
 		//check_collisions();
-		for(uint8_t i=0;i<6;i++) printf("%hhu ", get_IR_sensor(i));
+		//for(uint8_t i=0;i<6;i++) printf("%hhu ", get_IR_sensor(i));
 		//uint8_t randDir = rand_byte()%6;
 		//int8_t meas = get_IR_sensor(randDir);
 		//printf("| %hhu: %3hhd ",randDir, meas);
 		//if(randDir==5) printf("\r\n");
-		printf("\r\n");
-		delay_ms(500);
+		//printf("\r\n");
+		delay_ms(50);
 		//set_rgb(200,0,0);
 		//delay_ms(5000);
 		//set_rgb(0,200,0);

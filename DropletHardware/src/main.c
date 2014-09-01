@@ -8,11 +8,14 @@ int main(void)
 	//pulse();
 	while (1)
 	{	
+		for(uint8_t i=0;i<6;i++) printf("%4hhd, ",get_IR_sensor(i));
+		printf("\r\n");
 		/* Not including this line seems to break
 		 * recieving broadcast commands on this droplet. 
 		 * TODO: Why? Fix it.
 		 */
 		check_messages();	
+		delay_ms(500);
 		//color_cycle();	
 	}
 }

@@ -170,6 +170,7 @@ void perform_ir_upkeep()
 		}
 	}
 	schedule_task(1000/IR_UPKEEP_FREQUENCY, perform_ir_upkeep, NULL);
+	//printf("\r\n");
 }
 
 inline void clear_ir_buffer(uint8_t dir)
@@ -247,7 +248,7 @@ void ir_send(uint8_t local_dirs, char *data, uint8_t data_length)
 void ir_receive(uint8_t dir)
 {
 	uint8_t in_byte = channel[dir]->DATA;				// Some data just came in
-	//printf("%02X ",in_byte); //Used for debugging - prints raw bytes as we get them.	
+	printf("%02X ",in_byte); //Used for debugging - prints raw bytes as we get them.	
 
 	uint32_t now = get_32bit_time();
 	if(now-ir_rxtx[dir].last_byte > IR_MSG_TIMEOUT) ir_rxtx[dir].curr_pos = 0;

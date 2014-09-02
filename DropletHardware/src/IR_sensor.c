@@ -43,7 +43,7 @@ void IR_sensor_init()
 		ADC_offset[i] = ADCB.CH0.RES*(-1);
 	}
 	IR_SENSOR_PORT.DIRCLR = ALL_IR_SENSOR_PINS_bm;
-	printf("Offsets: [0: %hhd, 1: %hhd, 2: %hhd, 3: %hhd, 4: %hhd, 5: %hhd\r\n",ADC_offset[0],ADC_offset[1],ADC_offset[2],ADC_offset[3],ADC_offset[4],ADC_offset[5]);
+	//printf("Offsets: [0: %hhd, 1: %hhd, 2: %hhd, 3: %hhd, 4: %hhd, 5: %hhd\r\n",ADC_offset[0],ADC_offset[1],ADC_offset[2],ADC_offset[3],ADC_offset[4],ADC_offset[5]);
 		
 	////the commands below set the ir_emitters to output.
 	//PORTC.DIRSET = (PIN3_bm | PIN7_bm);

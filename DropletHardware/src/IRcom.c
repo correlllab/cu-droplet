@@ -40,10 +40,10 @@ void ir_com_init()
 	
 	// TX pins as outputs:
 	PORTC.DIRSET = PIN3_bm | PIN7_bm;		// DIR 0,1									
-	//PORTD.DIRSET = PIN3_bm;					// DIR 2
+	PORTD.DIRSET = PIN3_bm;					// DIR 2
 	//PORTD.DIRCLR = PIN3_bm;					//undoes the previous line; sets the pin as output. (Just for the bugged samples)
 	PORTE.DIRSET = PIN3_bm | PIN7_bm;		// DIR 3,4
-	//PORTF.DIRSET = PIN3_bm;					// DIR 5
+	PORTF.DIRSET = PIN3_bm;					// DIR 5
 	//PORTF.DIRCLR = PIN3_bm;					//undoes the previous line; sets the pin as output. (Just for the bugged samples)
 	
 	// Invert the output pins:
@@ -248,7 +248,7 @@ void ir_send(uint8_t local_dirs, char *data, uint8_t data_length)
 void ir_receive(uint8_t dir)
 {
 	uint8_t in_byte = channel[dir]->DATA;				// Some data just came in
-	printf("%02X ",in_byte); //Used for debugging - prints raw bytes as we get them.	
+	//printf("%02X ",in_byte); //Used for debugging - prints raw bytes as we get them.	
 
 	uint32_t now = get_32bit_time();
 	if(now-ir_rxtx[dir].last_byte > IR_MSG_TIMEOUT) ir_rxtx[dir].curr_pos = 0;

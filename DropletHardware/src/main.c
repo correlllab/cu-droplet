@@ -1,190 +1,68 @@
 #include "main.h"
+#include "flash_api.h"
+
+volatile float blah;
 
 int main(void)
 {
+	uint16_t pg_no = 0;
 	init_all_systems();
-
 	printf("Initialized.\r\n");
-	// Set theta and tau initially
-	theta = 2.f;
-	tau = 10;
-
-	group_root = (group_item*)malloc(sizeof(group_item));
-	group_root->ms_age = 0;
-	group_root->ID = droplet_ID;
-	group_root->next = group_root;
-	group_root->prev = group_root;
-
-	uint32_t last_time = get_32bit_time();
-	uint32_t cur_time = get_32bit_time();
-	uint16_t prev_gap=0;
-	
-	yes_count = 0;
-	broadcast_heartbeat();
-	check_votes();
+			
+			set_all_ir_powers(256);	
 	while (1)
 	{	
-		cur_time = get_32bit_time();
-		prev_gap = (uint16_t)(cur_time - last_time);
-		last_time = cur_time;
-		current_group_size = update_group_size(prev_gap);
-		check_messages();	
+		check_messages();
+		//delay_ms(100);
+		//check_collisions();
+		//for(uint8_t i=0;i<6;i++) printf("%hhu ", get_IR_sensor(i));
+		//uint8_t randDir = rand_byte()%6;
+		//int8_t meas = get_IR_sensor(randDir);
+		//printf("| %hhu: %3hhd ",randDir, meas);
+		//if(randDir==5) printf("\r\n");
+		//printf("\r\n");
+		delay_ms(50);
+		//set_rgb(200,0,0);
+		//delay_ms(5000);
+		//set_rgb(0,200,0);
+		//delay_ms(5000);
+		//set_rgb(0,0,200);
+		//delay_ms(5000);
 	}
 }
 
-uint8_t roll_that_sigmoid(int16_t group_size)
-{
-	double sig_value = 1.0/(1.0+exp(theta*(tau-group_size)));
-	uint8_t random_byte_h = rand_byte();
-	uint8_t random_byte_l = rand_byte();
-	uint16_t random_short = ((uint16_t)random_byte_l | (((uint16_t)random_byte_h)<<8));
-	
-	printf("sig_value:%f, ", exp(theta*(tau-group_size)));
-	//printf("theta: %f, ", theta);
-	printf("tau: %hd\r\n", tau);
-	//printf("sig_val: %hu, rand_val: %hu, rand_byte_h: %hhu, rand_byte_l: %hhu\r\n",(uint16_t)sig_value*65535,random_short, random_byte_h, random_byte_l);
-	
-	if(random_short <= (int16_t)(sig_value * 65535)) return 1;
-	return 0;
-}
-
-void check_votes()
-{
-	if(!collaborating)
-	{
-		if(yes_count*2>=current_group_size)
-		{
-			unsigned char* msg = "GO";
-			ir_broadcast(msg,2);
-			collaborative_task();
-			//Do collab stuff.
-		}
-		yes_count=0;
-	}
-	schedule_task(HEART_RATE, check_votes, NULL);
-}
-
-void collaborative_task()
-{	
-	collaborating=1;
-	set_rgb(150,200,0);	
-	delay_ms(3000);
-	set_rgb(0,0,0);	
-	collaborating=0;
-	reset_experiment();
-}
-
-void reset_experiment(){
-	while(check_for_new_messages()>0){global_rx_buffer.read=1;} //Throw out any messages we got.
-	yes_count=0;
-}
-
-void broadcast_heartbeat()
-{
-	if(!collaborating)
-	{
-		set_rgb(80,0,120);
-		unsigned char* msg;
-		if(roll_that_sigmoid(current_group_size))
-		{
-			 msg = "<3Y";
-			 yes_count+=1;
-		}	    
-		else msg = "<3N";
-		ir_broadcast(msg, 3);
-		set_rgb(0,0,0);
-	}
-	schedule_task(HEART_RATE, broadcast_heartbeat, NULL);		
-}
-
-/* 
- * This function traverses the group list, adding time_to_add to the age of each item.
- * If, after adding, the ms_age is greater than the timeout, that item is removed from the list.
- * Otherwise, we increase our group size by one.
- */
-uint16_t update_group_size(uint16_t time_to_add)
-{
-	group_item* gi=group_root;
-	uint16_t group_size = 0;
-	do 
-	{
-		if(gi==group_root) group_size++;
-		else
-		{
-			gi->ms_age+=time_to_add;
-			if(gi->ms_age>GROUP_MEMBERSHIP_TIMEOUT)
-			{
-				group_item* temp = gi;
-				gi->prev->next=gi->next;
-				gi->next->prev=gi->prev;
-				gi=gi->next;
-				free(temp);
-			}
-			else
-			{
-				group_size++;
-			}
-		}
-	} while (gi!=group_root);
-	return group_size;
-}
-
-// If the senderID is already in our group, this function resets its age to 0.
-// Otherwise, this function adds it to the group list.
-void add_group_member(uint16_t senderID)
-{
-	group_item* gi=group_root;
-	do
-	{
-		if(senderID==gi->ID)
-		{
-			gi->ms_age=0;
-			return;	
-		}		
-		gi=gi->next;	
-	}
-	while(gi!=group_root);
-
-	group_item* new_node = (group_item*)malloc(sizeof(group_item));
-	new_node->ms_age=0;
-	new_node->ID = senderID;
-
-	new_node->prev = gi->prev;
-	gi->prev->next = new_node;
-	gi->prev = new_node;
-	new_node->next = gi;
-	current_group_size++;
-}
+//void turn_on_emitters()
+//{
+	//if(emitters_on=(!emitters_on))
+	//{
+		//for(uint8_t i=0;i<6;i++) ir_blast(1000); 
+		//set_rgb(20,0,0); 
+	//}
+	//else
+	//{
+		//set_rgb(0,0,0);
+	//}	
+	//schedule_task(1000,turn_on_emitters, NULL);
+//}
 
 void check_messages()
 {
-	if(check_for_new_messages()==1)
-	{	
-		/* Do whatever you want with incoming message, stored in array
-		 * global_rx_buffer.buf[i] from i=0 to i<global_rx_buffer.data_len
-		 */
-		char tempStr[64];
-		memcpy(tempStr, global_rx_buffer.buf, global_rx_buffer.data_len);
-		tempStr[global_rx_buffer.data_len] = NULL;
-		uint16_t senderID = global_rx_buffer.sender_ID;
-		if(strcmp(tempStr,"<3Y")==0||strcmp(tempStr,"<3N")==0)
-		{
-			add_group_member(senderID);
-			if(tempStr[2]=='Y') yes_count++;
-		}
-		else if(strcmp(tempStr,"GO")==0)
-		{
-			char* msg = "GO";
-			ir_broadcast(msg,2);
-			collaborative_task();
-		}
-		global_rx_buffer.read = 1;
-	}
-	if(rnb_updated==1)
+	uint8_t num_msgs = 0;
+	while(last_ir_msg!=NULL)
 	{
-		//do stuff with last_good_rnb
-		rnb_updated=0;
+		printf("\tGot: \"");
+		for(uint8_t i=0; i<last_ir_msg->msg_length; i++)
+		{
+			printf("%c",last_ir_msg->msg[i]);
+		}
+		printf("\"\r\n\tfrom %hx %ums ago.\r\n",last_ir_msg->sender_ID, get_32bit_time()-last_ir_msg->arrival_time);
+		msg_node* temp = last_ir_msg;
+		last_ir_msg = last_ir_msg->prev;
+		free(temp->msg);
+		free(temp);
+		num_msgs++;
 	}
+	if(num_msgs>0) printf("Got %hhu messages.\r\n",num_msgs);
 }
 
 void color_cycle()

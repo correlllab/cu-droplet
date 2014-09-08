@@ -1,240 +1,219 @@
 #include "IR_sensor.h"
-//
-//uint8_t ADCAcalibration0, ADCAcalibration1; //(for ADCA, the legs and the color sensors)
-//uint8_t ADCBcalibration0, ADCBcalibration1;
 
+const uint8_t mux_sensor_selectors[6] = {MUX_IR_SENSOR_0, MUX_IR_SENSOR_1, MUX_IR_SENSOR_2, MUX_IR_SENSOR_3, MUX_IR_SENSOR_4, MUX_IR_SENSOR_5};
 int8_t ADC_offset[6];		// this value will typically be about -72 if using 1.00 V reference and ADCB0 as VINN
 
+USART_t* channel[] = {
+	&USARTC0,  //   -- Channel 0
+	&USARTC1,  //   -- Channel 1
+	&USARTD0,  //   -- Channel 2
+	&USARTE0,  //   -- Channel 3
+	&USARTE1,  //   -- Channel 4
+	&USARTF0   //   -- Channel 5
+};
+
+// IR sensors use ADCB channel 0, all the time
 void IR_sensor_init()
 {
-	// IR sensors use ADCB channel 0, all the time
-
 	/* SET INPUT PINS AS INPUTS */
+	IR_SENSOR_PORT.DIRCLR = ALL_IR_SENSOR_PINS_bm;
 	
-	IR_SENSOR_PORT.DIRCLR = IR_SENSOR_0_PIN_bm | IR_SENSOR_1_PIN_bm | IR_SENSOR_2_PIN_bm | IR_SENSOR_3_PIN_bm | IR_SENSOR_4_PIN_bm | IR_SENSOR_5_PIN_bm;
-	
-	// 28.16.3 REFCTRL – Reference Control register
-	//
-	// Bit 1 – BANDGAP: Bandgap enable
-	// Setting this bit enables the Bandgap for ADC measurement. Note that if any other functions are
-	// using the Bandgap already, this bit does not need to be set when the internal 1.00V reference is
-	// used in ADC or DAC, or if the Brown-out Detector is enabled.
-	//
-	// Bits 6:4 – REFSEL[2:0]: ADC Reference Selection
-	// These bits selects the reference for the ADC
 
-	//ADCB.REFCTRL = ADC_REFSEL_VCC_gc;								// Vcc/1.6
-	//ADCB.REFCTRL = 0b01000000;									// Vcc/2
-	//ADCB.REFCTRL = 0b00100000;									// AREFA = 0.71 V
-	//ADCB.REFCTRL = 0b00110000;									// AREFB = 0.54 V
-
-	// 28.16.2 CTRLB – ADC Control Register B
-	//
-	// Bit 7 – IMPMODE: Gain Stage Impedance Mode
-	// This bit controls the impedance mode of the gain stage. See GAIN setting with ADC Channel
-	// Register description for more information.
-	//
-	// Bit 6:5 – CURRLIMIT[1:0]: Current Limitation
-	// These bits can be used to limit the maximum current consumption of the ADC. Setting these bits
-	// will also reduce the maximum sampling rate. The available settings is shown in Table 28-3 on
-	// page 367. The indicated current limitations are nominal values, refer to device datasheet for
-	// actual current limitation for each setting.
-	//
-	// Bit 4 – CONVMODE: ADC Conversion ModePlot
-	// This bit controls whether the ADC will work in signed or unsigned mode. By default this bit is
-	// cleared and the ADC is configured for unsigned mode. When this bit is set the ADC is configured
-	// for signed mode.
-	//
-	// Bit 3 – FREERUN: ADC Free Running Mode
-	// When the bit is set to one, the ADC is in free running mode and ADC channels defined in the
-	// EVCTRL register are swept repeatedly.
-	//
-	// Bit 2:1 – RESOLUTION[1:0]: ADC Conversion Result Resolution
-	// These bits define whether the ADC completes the conversion at 12- or 8-bit result. They also
-	// define whether the 12-bit result is left or right oriented in the 16-bit result registers. See Table
-	// 28-4 on page 367 for possible settings.
-
-	ADCB.CTRLB = ADC_RESOLUTION_8BIT_gc;		// use 8 bit resolution
-	ADCB.CTRLB |= ADC_CONMODE_bm;		// switch to signed mode
-	
+	ADCB.REFCTRL = /*ADC_BANDGAP_bm |*/ ADC_REFSEL_AREFB_gc;
+	ADCB.CTRLB = ADC_RESOLUTION_8BIT_gc | ADC_CONMODE_bm;
 	ADCB.PRESCALER = ADC_PRESCALER_DIV512_gc;
-	
-	/* WARNING! WHEN DIFFERENTIAL INPUT IS USED, SIGNED MODE MUST BE USED (sec. 28.6 of Manual) */
-
-	//ADCB.CH0.CTRL = ADC_CH_INPUTMODE_SINGLEENDED_gc;				// can use either signed or unsigned mode
-	ADCB.CH0.CTRL = ADC_CH_INPUTMODE_DIFF_gc;						// requires selecting signed mode
-	//ADCB.CH0.CTRL = ADC_CH_INPUTMODE_DIFFWGAIN_gc;				// requires selecting signed mode
-	
-	/* SELECT MUXNEG */
-	
-	// selecting the negative input sets where the zero of the signed output is
-	// note that this is NOT a negative voltage, no negative voltages should ever be applied the the XMEGA
-	
-	ADCB.CH0.MUXCTRL = ADC_CH_MUXNEG_PIN0_gc;		// use VREF_IN for the negative input (0.54 V)
-
-
-	/* READ & LOAD CALIBRATION (PRODUCTION SIGNATURE ROW) */	//TODO (unlikely will make any difference)
-	
-	/*
-	* IF YOU UNCOMMENT THE CODE BELOW, 
-	* YOU CAN NO LONGER USE THE MATH LIBRARY. 
-	* OR PRINT FLOATS. GOOD LUCK! <3
-	*/
-	
-	//ADCBcalibration0 = SP_ReadCalibrationByte(offsetof( NVM_PROD_SIGNATURES_t, ADCBCAL0 ));
-	//ADCBcalibration1 = SP_ReadCalibrationByte(offsetof( NVM_PROD_SIGNATURES_t, ADCBCAL1 ));
-	//ADCAcalibration0 = SP_ReadCalibrationByte(offsetof( NVM_PROD_SIGNATURES_t, ADCACAL0 ));
-	//ADCAcalibration1 = SP_ReadCalibrationByte(offsetof( NVM_PROD_SIGNATURES_t, ADCACAL1 ));
-
-	// for Droplet3, the correct values are:
-	//	ADCACAL0	68
-	//	ADCACAL1	4
-	//	ADCBCAL0	68
-	//	ADCBCAL1	4
-
-	// SHOULD WE WRITE THEM???
-	
-	//ADCB.CALL = ADCBcalibration0;
-	//ADCB.CALH = ADCBcalibration1;
-	//ADCB.CALL = 68;
-	//ADCB.CALH = 4;
-	
+	ADCB.CH0.CTRL = ADC_CH_INPUTMODE_DIFF_gc;	// differential input. requires signed mode (see sec. 28.6 in manual)
+	ADCB.CH0.MUXCTRL = ADC_CH_MUXNEG_PIN0_gc;	// use VREF_IN for the negative input (0.54 V)
 	ADCB.CTRLA = ADC_ENABLE_bm;
+	//ADCB.CALL = PRODSIGNATURES_ADCBCAL0;
+	//ADCB.CALH = PRODSIGNATURES_ADCBCAL1;
 
 	/* FIND AND RECORD THE ZERO-OFFSET OF EACH IR DIRECTION */
+	IR_SENSOR_PORT.DIRSET = ALL_IR_SENSOR_PINS_bm;		// set the IR sense pins as OUTPUT
+	IR_SENSOR_PORT.OUTCLR = ALL_IR_SENSOR_PINS_bm;		// put a low voltage on these pins (typically, this will be about 15 mV)
 
-	PORTB.DIRSET = 0b11111100;		// set the IR sense pins as OUTPUT
-	PORTB.OUTSET = 0b00000000;		// put a low voltage on these pins (typically, this will be about 15 mV)
-
-	ADCB.CH0.MUXCTRL |= IR_SENSOR_0_FOR_ADCB_MUXPOS;
-	//_delay_ms(1);	// may have to wait a bit before the new multiplexer (MUX) connection is made in hardware?		TODO ???
-	ADCB.CTRLA |= ADC_CH0START_bm;
-	while (ADCB.CH0.INTFLAGS==0){};		// wait for 'complete flag' to be set
-	ADCB.CH0.INTFLAGS = 1;				// clear the complete flag
-	ADC_offset[0] = ADCB.CH0.RES*(-1);
-
-	ADCB.CH0.MUXCTRL &= ~0b01111000;	// clear out the old value
-	ADCB.CH0.MUXCTRL |= IR_SENSOR_1_FOR_ADCB_MUXPOS;
-	//_delay_ms(1);	// may have to wait a bit before the new multiplexer (MUX) connection is made in hardware?		TODO ???
-	ADCB.CTRLA |= ADC_CH0START_bm;
-	while (ADCB.CH0.INTFLAGS==0){};		// wait for 'complete flag' to be set
-	ADCB.CH0.INTFLAGS = 1;				// clear the complete flag
-	ADC_offset[1] = ADCB.CH0.RES*(-1);
-
-	ADCB.CH0.MUXCTRL &= ~0b01111000;	// clear out the old value
-	ADCB.CH0.MUXCTRL |= IR_SENSOR_2_FOR_ADCB_MUXPOS;
-	//_delay_ms(1);	// may have to wait a bit before the new multiplexer (MUX) connection is made in hardware?		TODO ???
-	ADCB.CTRLA |= ADC_CH0START_bm;
-	while (ADCB.CH0.INTFLAGS==0){};		// wait for 'complete flag' to be set
-	ADCB.CH0.INTFLAGS = 1;				// clear the complete flag
-	ADC_offset[2] = ADCB.CH0.RES*(-1);
-
-	ADCB.CH0.MUXCTRL &= ~0b01111000;	// clear out the old value
-	ADCB.CH0.MUXCTRL |= IR_SENSOR_3_FOR_ADCB_MUXPOS;
-	//_delay_ms(1);	// may have to wait a bit before the new multiplexer (MUX) connection is made in hardware?		TODO ???
-	ADCB.CTRLA |= ADC_CH0START_bm;
-	while (ADCB.CH0.INTFLAGS==0){};		// wait for 'complete flag' to be set
-	ADCB.CH0.INTFLAGS = 1;				// clear the complete flag
-	ADC_offset[3] = ADCB.CH0.RES*(-1);
-
-	ADCB.CH0.MUXCTRL &= ~0b01111000;	// clear out the old value
-	ADCB.CH0.MUXCTRL |= IR_SENSOR_4_FOR_ADCB_MUXPOS;
-	//_delay_ms(1);	// may have to wait a bit before the new multiplexer (MUX) connection is made in hardware?		TODO ???
-	ADCB.CTRLA |= ADC_CH0START_bm;
-	while (ADCB.CH0.INTFLAGS==0){};		// wait for 'complete flag' to be set
-	ADCB.CH0.INTFLAGS = 1;				// clear the complete flag
-	ADC_offset[4] = ADCB.CH0.RES*(-1);
-
-	ADCB.CH0.MUXCTRL &= ~0b01111000;	// clear out the old value
-	ADCB.CH0.MUXCTRL |= IR_SENSOR_5_FOR_ADCB_MUXPOS;
-	//_delay_ms(1);	// may have to wait a bit before the new multiplexer (MUX) connection is made in hardware?		TODO ???
-	ADCB.CTRLA |= ADC_CH0START_bm;
-	while (ADCB.CH0.INTFLAGS==0){};		// wait for 'complete flag' to be set
-	ADCB.CH0.INTFLAGS = 1;				// clear the complete flag
-	ADC_offset[5] = ADCB.CH0.RES*(-1);
-/*
-	printf("ADC offset 0: %i\r\n",ADC_offset[0]);
-	printf("ADC offset 1: %i\r\n",ADC_offset[1]);
-	printf("ADC offset 2: %i\r\n",ADC_offset[2]);
-	printf("ADC offset 3: %i\r\n",ADC_offset[3]);
-	printf("ADC offset 4: %i\r\n",ADC_offset[4]);
-	printf("ADC offset 5: %i\r\n",ADC_offset[5]);
-*/
-	PORTB.DIRCLR = 0xFF;			// return the IR sense pins back to inputs
-	
-	//printf("Offsets: [0: %i, 1: %i, 2: %i, 3: %i, 4: %i, 5: %i\r\n",ADC_offset[0],ADC_offset[1],ADC_offset[2],ADC_offset[3],ADC_offset[4],ADC_offset[5]);
+	for(uint8_t i=0; i<6; i++)
+	{
+		ADCB.CH0.MUXCTRL &= MUX_SENSOR_CLR; //clear previous sensor selection
+		ADCB.CH0.MUXCTRL |= mux_sensor_selectors[i];
+		busy_delay_us(250);		
+		ADCB.CH0.CTRL |= ADC_CH_START_bm;
+		busy_delay_us(250);				
+		while (ADCB.CH0.INTFLAGS==0);		// wait for 'complete flag' to be set		
+		ADC_offset[i] = ADCB.CH0.RES*(-1);
+	}
+	IR_SENSOR_PORT.DIRCLR = ALL_IR_SENSOR_PINS_bm;
+	printf("Offsets: [0: %hhd, 1: %hhd, 2: %hhd, 3: %hhd, 4: %hhd, 5: %hhd\r\n",ADC_offset[0],ADC_offset[1],ADC_offset[2],ADC_offset[3],ADC_offset[4],ADC_offset[5]);
+		
+	////the commands below set the ir_emitters to output.
+	//PORTC.DIRSET = (PIN3_bm | PIN7_bm);
+	PORTD.DIRCLR =  PIN3_bm;
+	//PORTE.DIRSET = (PIN3_bm | PIN7_bm);
+	PORTF.DIRCLR =  PIN3_bm;	
+	//PORTF.DIRSET = ALL_EMITTERS_CARWAV_bm;	//set carrier wave pins to output.
 }
 
+/*
+* This measurement will always output a number between 0 and about 200. Ambient light levels are typically around 20.
+* The range of outputs that could be used for actual measurements will be limited to about 20 to 200 (only 180 significant values)
+*/
 
 uint8_t get_IR_sensor(uint8_t sensor_num)
 {
-	// this routine uses ADCB channel 0, all the time
-	
-	int8_t meas[3];
-	int16_t average;
-	int8_t scaled_median, scaled_average;
-	
-	//printf("\r\nget IR %i sen, CH0\r\n",sensor_num);
+	int8_t meas; //we're going to take three measurements, and then calculate their median.
+		
+	ADCB.CH0.MUXCTRL &= MUX_SENSOR_CLR; //clear previous sensor selection
+	ADCB.CH0.MUXCTRL |= mux_sensor_selectors[sensor_num];
+	busy_delay_us(250);
+	ADCB.CH0.CTRL |= ADC_CH_START_bm;
+	busy_delay_us(250);			
+	while (ADCB.CH0.INTFLAGS==0);		// wait for measurement to complete
+	meas = ADCB.CH0.RESL;
+	//return (uint8_t)(meas+ADC_offset[sensor_num]);
+	//printf("\t%hhd %hhd %hhd\r\n",meas[0], meas[1], meas[2]);
+	return (uint8_t)(meas+ADC_offset[sensor_num]);
+}
 
-	switch(sensor_num)
+//void check_collisions(){
+	//uint8_t meas[6];
+	//set_all_ir_powers(256);
+	//for(uint8_t i=0;i<6;i++) printf("%3hhd ",ir_bounce_meas(i));
+	//printf("\r\n");
+//}
+
+//void ir_blast(uint16_t duration){
+	//for(uint8_t i=0;i<6;i++) channelCtrlBVals[i] = channel[i]->CTRLB;	
+	//
+	//TCF2.CTRLB &= ~ALL_EMITTERS_CARWAV_bm; //disable carrier wave output
+	//PORTF.DIRSET = ALL_EMITTERS_CARWAV_bm;			 //enable user output on these pins.
+	//PORTF.OUT |= ALL_EMITTERS_CARWAV_bm;			// high signal on these pins
+//
+	//for(uint8_t i=0;i<6;i++) channel[i]->CTRLB=0;
+	//
+	//PORTC.DIRSET = (PIN3_bm | PIN7_bm);
+	//PORTD.DIRSET =  PIN3_bm;
+	//PORTE.DIRSET = (PIN3_bm | PIN7_bm);
+	//PORTF.DIRSET =  PIN3_bm;
+	//
+	//PORTC.OUT &= ~(PIN3_bm | PIN7_bm);
+	//PORTD.OUT &= ~PIN3_bm;
+	//PORTE.OUT &= ~(PIN3_bm | PIN7_bm);
+	//PORTF.OUT &= ~PIN3_bm;
+	//
+	//ir_blast_on=1;
+	//schedule_task(duration, end_ir_blast, 0);
+//}
+//
+//void end_ir_blast(){
+	//if(!ir_blast_on) return;
+	//PORTC.OUT |= (PIN3_bm | PIN7_bm);
+	//PORTD.OUT |=  PIN3_bm;
+	//PORTE.OUT |= (PIN3_bm | PIN7_bm);
+	//PORTF.OUT |=  PIN3_bm;
+	//for(uint8_t i=0;i<6;i++) channel[i]->CTRLB = channelCtrlBVals[i];	
+	//TCF2.CTRLB |= ALL_EMITTERS_CARWAV_bm; //disable carrier wave output
+	//PORTF.OUT &= ~ALL_EMITTERS_CARWAV_bm; // high signal on these pins
+	//ir_blast_on=0;
+//}
+
+	
+void check_collisions(){
+	uint8_t baseline_meas[6];
+	uint8_t channelCtrlBVals[6];
+	uint8_t measured_vals[6];
+	for(uint8_t i=0;i<6;i++)
 	{
-		case 0:
-			ADCB.CH0.MUXCTRL &= ~0b01111000;	// clear out the old value
-			ADCB.CH0.MUXCTRL |= IR_SENSOR_0_FOR_ADCB_MUXPOS;
-			break;
-		case 1:
-			ADCB.CH0.MUXCTRL &= ~0b01111000;	// clear out the old value
-			ADCB.CH0.MUXCTRL |= IR_SENSOR_1_FOR_ADCB_MUXPOS;
-			break;
-		case 2:
-			ADCB.CH0.MUXCTRL &= ~0b01111000;	// clear out the old value
-			ADCB.CH0.MUXCTRL |= IR_SENSOR_2_FOR_ADCB_MUXPOS;
-			break;
-		case 3:
-			ADCB.CH0.MUXCTRL &= ~0b01111000;	// clear out the old value
-			ADCB.CH0.MUXCTRL |= IR_SENSOR_3_FOR_ADCB_MUXPOS;
-			break;
-		case 4:
-			ADCB.CH0.MUXCTRL &= ~0b01111000;	// clear out the old value
-			ADCB.CH0.MUXCTRL |= IR_SENSOR_4_FOR_ADCB_MUXPOS;
-			break;
-		case 5:
-			ADCB.CH0.MUXCTRL &= ~0b01111000;	// clear out the old value
-			ADCB.CH0.MUXCTRL |= IR_SENSOR_5_FOR_ADCB_MUXPOS;
-			break;
-		default:
-			return 0;
+
+		channelCtrlBVals[i] = channel[i]->CTRLB;
+		channel[i]->CTRLB=0;
+	}	
+	for(uint8_t i=0;i<6;i++)
+	{	
+		busy_delay_us(50);
+		baseline_meas[i] = get_IR_sensor(i);
 	}
+	TCF2.CTRLB &= ~ALL_EMITTERS_CARWAV_bm;	//disable carrier wave output
+	PORTF.OUTSET = ALL_EMITTERS_CARWAV_bm;	// set carrier wave pins high.
+	//PORTF.DIRSET = ALL_EMITTERS_CARWAV_bm;
+	PORTC.DIRSET = (PIN3_bm | PIN7_bm);
+	//PORTD.DIRSET =  PIN3_bm;
+	PORTE.DIRSET = (PIN3_bm | PIN7_bm);
+	//PORTF.DIRSET =  PIN3_bm;
+		
+	PORTC.OUTCLR = (PIN3_bm | PIN7_bm);
+	PORTD.OUTCLR = PIN3_bm;
+	PORTE.OUTCLR = (PIN3_bm | PIN7_bm);
+	PORTF.OUTCLR = PIN3_bm;
 
-	for (uint8_t i = 0; i < 3; i++)
-	{
-		ADCB.CTRLA |= ADC_CH0START_bm;
-		while (ADCB.CH0.INTFLAGS==0){};		// wait for 'complete flag' to be set
-		ADCB.CH0.INTFLAGS = 1;				// clear the complete flag 
-		meas[i] = ADCB.CH0.RES;
-		//printf("meas1: %i\r\n",meas1);
+	//busy_delay_us(250);
+	//ADCB.CTRLA |= ADC_FLUSH_bm;
+	//delay_ms(10000);
+	for(uint8_t i=0;i<6;i++){
+		busy_delay_us(250);		
+		measured_vals[i]=get_IR_sensor(i);
+		//busy_delay_us(50);
 	}		
 
-	average = ((int16_t)meas[0] + (int16_t)meas[1] + (int16_t)meas[2]) / 3;
-	scaled_average = (uint8_t)(average+ADC_offset[sensor_num]);
-	scaled_median = (uint8_t)(find_median(meas)+ADC_offset[sensor_num]);
-	//printf("measA: %i, measB: %i, measC: %i\r\n",meas[0],meas[1],meas[2]);
-	//printf("avg: %i, scale_avg: %u, scale_med: %u\r\n",average, scaled_average, scaled_median);
-	return scaled_median;
+	PORTC.OUTTGL = (PIN3_bm | PIN7_bm);
+	PORTD.OUTTGL =  PIN3_bm;
+	PORTE.OUTTGL = (PIN3_bm | PIN7_bm);
+	PORTF.OUTTGL =  PIN3_bm;
+	for(uint8_t i=0;i<6;i++) channel[i]->CTRLB = channelCtrlBVals[i];
+	TCF2.CTRLB |= ALL_EMITTERS_CARWAV_bm; //reenable carrier wave output
 
-	// notes on how this works:
-	// the usual range of outputs for the 8 bit signed ADC is -127 to 128
-	// right now the range of outputs we can actually get is limited by the negative input voltage to the ADC (VINN)
-	// since we use ADCB pin0, with a constant voltage of 0.54 V, this sets the 0 of our scale (-127 to 128)
-	// at 0.54 V, this also means the GND evaluates to about -73.  This means that values below -73 are inaccessible to us,
-	// since we will never have an ADC input that is below GND.  That makes the new range -73 to 128.
-	// when we shift this range to get only unsigned values, the new range becomes 0 to 201.
-	// Conclusion: this measurement will always output a number between 0 and abt 200.
-	// furthermore, experimentally, the ambient room light levels are typically around 20 (unsigned shift already applied, so 0 = GND)
-	// and so the range of outputs that could be used for actual measurements will be limited to about 20 to 200 (only 180 significant values)
-	// this range could be improved slightly by increasing the VINN voltage.  If ADCA pin0 is used, VINN becomes 0.71 V and the range is shifted upwards.
+	for(uint8_t i=0;i<6;i++){
+		printf("%3hhu ", (uint8_t)(measured_vals[i]-baseline_meas[i]));
+	}		
+	printf("\r\n");
+}	
+	
+int8_t ir_bounce_meas(uint8_t dir){
+	uint8_t carrier_wave_bm;
+	uint8_t TX_pin_bm;
 
-	return scaled_average;
+	PORT_t * UART;
+	USART_t* USART;
+	int16_t baseline_meas = get_IR_sensor(dir);
+
+	switch(dir)
+	{
+		case 0:	// WORKS!
+			carrier_wave_bm = PIN0_bm; TX_pin_bm = PIN3_bm; UART = &PORTC; break;
+			case 1:	// WORKS!
+			carrier_wave_bm = PIN1_bm; TX_pin_bm = PIN7_bm; UART = &PORTC; break;
+			case 2:	// WORKS!
+			carrier_wave_bm = PIN4_bm; TX_pin_bm = PIN3_bm; UART = &PORTD; break;
+			case 3:	// WORKS!
+			carrier_wave_bm = PIN5_bm; TX_pin_bm = PIN3_bm; UART = &PORTE; break;
+			case 4:	// WORKS!
+			carrier_wave_bm = PIN7_bm; TX_pin_bm = PIN7_bm; UART = &PORTE; break;
+			case 5:	// WORKS!
+			carrier_wave_bm = PIN6_bm; TX_pin_bm = PIN3_bm; UART = &PORTF; break;
+	}
+
+	uint8_t USART_CTRLB = channel[dir]->CTRLB;		// record the current state of the USART
+
+	TCF2.CTRLB &= ~carrier_wave_bm;			// disable carrier wave output
+	PORTF.DIRSET = carrier_wave_bm;			// enable user output on this pin
+	PORTF.OUT |= carrier_wave_bm;			// high signal on this pin
+
+	channel[dir]->CTRLB = 0;				// disable USART
+	UART->DIRSET = TX_pin_bm;			// enable user output on this pin
+	UART->OUT &= ~TX_pin_bm;			// low signal on TX pin		(IR LED is ON when this pin is LOW, these pins were inverted in software during initialization)
+
+	busy_delay_us(250);
+	//delay_ms(30);
+	// IR LIGHT IS ON NOW
+	int16_t measured_val = get_IR_sensor(dir);
+
+	UART->OUT |= TX_pin_bm;			// high signal on TX pin (turns IR blast OFF)
+
+	channel[dir]->CTRLB = USART_CTRLB;	// re-enable USART (restore settings as it was before)
+	PORTF.OUT &= ~carrier_wave_bm;			// low signal on the carrier wave pin, don't really know why we do this? probably not necessary
+	TCF2.CTRLB |= carrier_wave_bm;			// re-enable carrier wave output
+
+	return (int8_t)(measured_val-baseline_meas);
+	
 }
 
 // Finds the median of 3 numbers by finding the max, finding the min, and returning the other value
@@ -257,6 +236,6 @@ int8_t find_median(int8_t* meas)
 	}
 	for (medi = 0; medi < 3; medi++)
 	{
-		if (medi != maxi & medi != mini) return meas[medi];
+		if ((medi != maxi) && (medi != mini)) return meas[medi];
 	}
 }

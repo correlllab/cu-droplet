@@ -2,7 +2,7 @@
 #define motor_h
 
 #include <avr/io.h>
-#include <sp_driver.h>
+#include <stdlib.h>
 
 #define MOTOR_STATUS_DIRECTION		0x07
 #define MOTOR_STATUS_ON				0x80
@@ -23,6 +23,8 @@
 
 #include "droplet_init.h"
 #include "scheduler.h"
+#include "flash_api.h"
+#include "eeprom_driver.h"
 
 volatile uint8_t motor_status; // [ on, cancel, 0, 0, 0, direction(2-0) ] 
 volatile Task_t* current_motor_task;
@@ -67,7 +69,7 @@ static inline void motor_forward(uint8_t num)
 	{
 		case 0: TCC0.CTRLB = TC_WGMODE_SS_gc | TC0_CCBEN_bm; PORTC.PIN1CTRL = PORT_INVEN_bm; PORTC.OUTSET |= PIN0_bm; break;
 		case 1: TCC1.CTRLB = TC_WGMODE_SS_gc | TC1_CCBEN_bm; PORTC.PIN5CTRL = PORT_INVEN_bm; PORTC.OUTSET |= PIN4_bm; break;
-		case 2: TCE0.CTRLB = TC_WGMODE_SS_gc | TC0_CCBEN_bm;PORTE.PIN1CTRL = PORT_INVEN_bm; PORTE.OUTSET |= PIN0_bm; break;
+		case 2: TCD0.CTRLB = TC_WGMODE_SS_gc | TC0_CCBEN_bm;PORTD.PIN1CTRL = PORT_INVEN_bm; PORTD.OUTSET |= PIN0_bm; break;
 	}
 }
 
@@ -77,7 +79,7 @@ static inline void motor_backward(uint8_t num)
 	{
 		case 0: TCC0.CTRLB = TC_WGMODE_SS_gc | TC0_CCAEN_bm; PORTC.PIN0CTRL = PORT_INVEN_bm; PORTC.OUTSET |= PIN1_bm; break;
 		case 1: TCC1.CTRLB = TC_WGMODE_SS_gc | TC1_CCAEN_bm; PORTC.PIN4CTRL = PORT_INVEN_bm; PORTC.OUTSET |= PIN5_bm; break;
-		case 2: TCE0.CTRLB = TC_WGMODE_SS_gc | TC0_CCAEN_bm; PORTE.PIN0CTRL = PORT_INVEN_bm; PORTE.OUTSET |= PIN1_bm; break;
+		case 2: TCD0.CTRLB = TC_WGMODE_SS_gc | TC0_CCAEN_bm; PORTD.PIN0CTRL = PORT_INVEN_bm; PORTD.OUTSET |= PIN1_bm; break;
 	}
 }
 

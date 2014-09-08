@@ -1,0 +1,14 @@
+Droplets Code Cleanup Notes:
+
+    Completed:
+        RGB_sensor.c, RGB_sensor.h
+        serial_handler.c, serial_handler.h
+        RGB_LED.c, RGB_LED.h
+        pc_com.c, pc_com.h
+        random.c, random.h
+        droplet_init.c, droplet_init.h
+        IR_sensor.c, IR_sensor.h
+        
+    Completed, not tested:
+        power.c, power.h
+        i2c.c, i2c.h

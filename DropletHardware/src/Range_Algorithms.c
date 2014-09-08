@@ -10,12 +10,6 @@
 *		}
 *	There were previous inconsistencies in this code.
 */
-
-#include <avr/io.h>
-#include <math.h>
-#include <stdio.h> 
-#include <avr/delay.h>
-
 #include "Range_Algorithms.h"
 
 float basis[6][2] = {	{0.866025 , -0.5}, 
@@ -57,14 +51,8 @@ void collect_rnb_data(void* arg)
 	while(error && (number_of_tries < 5))
 	{
 		if(number_of_tries > 0) delay_ms(1000);
-		if(!OK_to_send())
-		{
-			printf("ERROR: RNB request failed. Not ok to send.");
-			return;
-		}
-
-		ir_broadcast_cmd(cmd, 7);
-		while(ir_tx[5].ir_status & IR_TX_STATUS_BUSY_bm);
+		ir_cmd(IR_ALL_DIRS, cmd, 7);
+		wait_for_ir(IR_ALL_DIRS);
 		get_IR_range_readings();
 		error = pack_measurements_into_matrix(brightness_matrix);
 		number_of_tries++;
@@ -93,8 +81,8 @@ void collect_rnb_data(void* arg)
 void broadcast_rnb_data()
 {
 	uint16_t power = 257;
-	ir_broadcast_cmd("rnb_r",5);
-	while(ir_tx[5].ir_status & IR_TX_STATUS_BUSY_bm);
+	ir_cmd(IR_ALL_DIRS, "rnb_r", 5);
+	wait_for_ir(IR_ALL_DIRS);
 	IR_range_blast(power);
 }
 
@@ -127,7 +115,7 @@ void use_rnb_data(uint8_t power)
 	last_good_rnb.bearing = bearing;
 	last_good_rnb.heading = heading;
 	last_good_rnb.brightness_matrix_ptr = brightness_matrix;
-	last_good_rnb.id_number = last_command_source_id;
+	//last_good_rnb.id_number = last_command_source_id; TODO: re-add this.
 	rnb_updated=1;
 }
 
@@ -403,10 +391,7 @@ void IR_range_blast(uint16_t power)
 	//uint32_t timer[20];
 	//timer[0] = get_16bit_time(); //Top of the function.
 	uint16_t pre_sync_op = get_16bit_time();
-	for(uint8_t dir = 0; dir < 6; dir++)
-	{
-		set_ir_power(dir, power);
-	}
+	set_all_ir_powers(256);
 	while((get_16bit_time() - pre_sync_op) < TIME_FOR_SET_IR_POWERS);
 
 
@@ -498,43 +483,17 @@ void IR_emit(uint8_t direction, uint8_t duration) // this is now BLOCKING ***
 	switch(direction)
 	{
 		case 0:	// WORKS!
-		carrier_wave_bm = PIN0_bm;			// TODO, name these "PIN0_bm" to something more specific, like "IR_CARRIER_PIN_0"
-		TX_pin_bm = PIN3_bm;
-		the_UART_port = &PORTC;
-		the_USART = &USARTC0;
-		break;
+		carrier_wave_bm = PIN0_bm; TX_pin_bm = PIN3_bm; the_UART_port = &PORTC; the_USART = &USARTC0; break;
 		case 1:	// WORKS!
-		carrier_wave_bm = PIN1_bm;
-		TX_pin_bm = PIN7_bm;
-		the_UART_port = &PORTC;
-		the_USART = &USARTC1;
-		break;
+		carrier_wave_bm = PIN1_bm; TX_pin_bm = PIN7_bm; the_UART_port = &PORTC; the_USART = &USARTC1; break;
 		case 2:	// WORKS!
-		carrier_wave_bm = PIN4_bm;
-		TX_pin_bm = PIN3_bm;
-		the_UART_port = &PORTD;
-		the_USART = &USARTD0;
-		break;
+		carrier_wave_bm = PIN4_bm; TX_pin_bm = PIN3_bm; the_UART_port = &PORTD; the_USART = &USARTD0; break;
 		case 3:	// WORKS!
-		carrier_wave_bm = PIN5_bm;
-		TX_pin_bm = PIN3_bm;
-		the_UART_port = &PORTE;
-		the_USART = &USARTE0;
-		break;
+		carrier_wave_bm = PIN5_bm; TX_pin_bm = PIN3_bm; the_UART_port = &PORTE; the_USART = &USARTE0; break;
 		case 4:	// WORKS!
-		carrier_wave_bm = PIN7_bm;
-		TX_pin_bm = PIN7_bm;
-		the_UART_port = &PORTE;
-		the_USART = &USARTE1;
-		break;
+		carrier_wave_bm = PIN7_bm; TX_pin_bm = PIN7_bm; the_UART_port = &PORTE; the_USART = &USARTE1; break;
 		case 5:	// WORKS!
-		carrier_wave_bm = PIN6_bm;
-		TX_pin_bm = PIN3_bm;
-		the_UART_port = &PORTF;
-		the_USART = &USARTF0;
-		break;
-		default:
-		break;
+		carrier_wave_bm = PIN6_bm; TX_pin_bm = PIN3_bm; the_UART_port = &PORTF; the_USART = &USARTF0; break;
 	}
 
 	USART_CTRLB_save = the_USART->CTRLB;		// record the current state of the USART
@@ -563,8 +522,6 @@ void IR_emit(uint8_t direction, uint8_t duration) // this is now BLOCKING ***
 	the_USART->CTRLB = USART_CTRLB_save;	// re-enable USART (restore settings as it was before)
 	PORTF.OUT &= ~carrier_wave_bm;			// low signal on the carrier wave pin, don't really know why we do this? probably not necessary
 	TCF2.CTRLB |= carrier_wave_bm;			// re-enable carrier wave output
-
-	set_rgb(0,0,0);
 }
 
 float pretty_angle(float alpha)

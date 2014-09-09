@@ -485,7 +485,6 @@ uint32_t DSimDroplet::get_timer_time_remaining(uint8_t index)
 
 	float current_status = timeData->timer[index];
 
-
 	return static_cast<uint32_t>(timeData->timer[index]);
 }
  
@@ -520,10 +519,10 @@ uint8_t DSimDroplet::range_and_bearing(uint16_t partner_id, float *dist, float *
 	angle *= 180 / SIMD_PI; // Radians to Degrees
 
 	//START JOHN ADD DIST FIX HACK?
-	float xDist = (dropletPositions[this->objPhysics->_dataID]->posX - dropletPositions[partner_data_id]->posX);
-	float yDist = (dropletPositions[this->objPhysics->_dataID]->posY - dropletPositions[partner_data_id]->posY);
-	float zDist = (dropletPositions[this->objPhysics->_dataID]->posZ - dropletPositions[partner_data_id]->posZ);
-	*dist = sqrtf(xDist*xDist+yDist*yDist+zDist*zDist);
+	//float xDist = (dropletPositions[this->objPhysics->_dataID]->posX - dropletPositions[partner_data_id]->posX);
+	//float yDist = (dropletPositions[this->objPhysics->_dataID]->posY - dropletPositions[partner_data_id]->posY);
+	//float zDist = (dropletPositions[this->objPhysics->_dataID]->posZ - dropletPositions[partner_data_id]->posZ);
+	//*dist = sqrtf(xDist*xDist+yDist*yDist+zDist*zDist);
 	//END JOHN ADD DIST FIX HACK
 
 	// Find Theta

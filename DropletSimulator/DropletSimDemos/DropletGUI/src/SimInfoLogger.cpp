@@ -200,6 +200,7 @@ void SimInfoLogger::timeCheck(simState_t stateInfo)
 {
 	double currentTime;
 	currentTime = stateInfo.simTime;
+
 	if((currentTime - lastPrint) > timeInterval)
 	{
 		lastPrint = currentTime;

@@ -31,6 +31,8 @@ SimInterface::SimInterface(QObject *parent)
 	// Set default reset timer values here
 	_simState.useResetTime = false;
 	_simState.resetTime = DEFAULT_RESET_TIME;
+	_simState.simTime = 0.0;
+	_simState.realTime = 0.0;
 }
 
 SimInterface::~SimInterface()
@@ -41,7 +43,6 @@ SimInterface::~SimInterface()
 		killTimer(_timerID);
 		_timerID = 0;
 	}
-
 
 	teardownSim();
 
@@ -93,7 +94,6 @@ void SimInterface::teardownSim()
 	}
 
 	if (_objectPos != NULL)
-
 	{
 		std::vector<GPSInfo *>::iterator it;
 		for (it = _objectPos->begin(); it != _objectPos->end() ; it++)
@@ -106,7 +106,8 @@ void SimInterface::teardownSim()
 		_objectPos = NULL;
 	}
 
-	if (_timer != NULL){
+	if (_timer != NULL)
+	{
 		free(_timer);
 		_timer = NULL;
 	}
@@ -1215,7 +1216,6 @@ DSimDroplet* SimInterface::newDropletOfType(droplet_t dType, ObjectPhysicsData *
 void SimInterface::reset()
 {
 	Init();
-
 }
 
 simSetting_t SimInterface::getSimulatorSettings()

@@ -153,8 +153,8 @@ void MainWindow::launchSimulator()
 
 	if (!_simulatorRunning)
 	{
-		emit setUpdateRate(1.0f);
-		emit enableLimit();
+		//emit setUpdateRate(1.0f);
+		//emit enableLimit();
 
 		_simulatorRunning = true;
 	}

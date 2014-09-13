@@ -38,7 +38,10 @@ void handle_wave()
 	rand_color = rand_color%360;
 	set_hsv(rand_color,255,20);
 	int8_t moveDir = is_moving();
-	if(moveDir<0) move_steps(rand_byte()%8,100);
+	if(moveDir<0){
+		if(rand_byte()%3==0) move_steps(0,100);
+		else move_steps(6+(rand_byte()%2),100);
+	}
 }
 
 void check_messages()

@@ -10,7 +10,7 @@
 #include "motor.h"
 #include "IRcom.h"
 
-void pulse();
+void handle_wave();
 void check_messages();
 void color_cycle();
 

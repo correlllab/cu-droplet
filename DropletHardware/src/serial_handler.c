@@ -158,7 +158,7 @@ void handle_walk(char* command_args)
 void handle_stop_walk()
 {
 	set_rgb(180,0,0);
-	stop();
+	stop(0);
 	set_rgb(0,0,0);
 }
 

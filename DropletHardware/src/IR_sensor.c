@@ -176,7 +176,7 @@ void IR_sensor_init()
 */
 	PORTB.DIRCLR = 0xFF;			// return the IR sense pins back to inputs
 	
-	printf("Offsets: [0: %i, 1: %i, 2: %i, 3: %i, 4: %i, 5: %i\r\n",ADC_offset[0],ADC_offset[1],ADC_offset[2],ADC_offset[3],ADC_offset[4],ADC_offset[5]);
+	//printf("Offsets: [0: %i, 1: %i, 2: %i, 3: %i, 4: %i, 5: %i\r\n",ADC_offset[0],ADC_offset[1],ADC_offset[2],ADC_offset[3],ADC_offset[4],ADC_offset[5]);
 }
 
 

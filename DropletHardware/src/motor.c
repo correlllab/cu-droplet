@@ -34,7 +34,7 @@ void motor_init()
 
 uint8_t move_steps(uint8_t direction, uint16_t num_steps)
 {
-	if(is_moving()) return 0;
+	if(is_moving()>=0) return 0;
 	motor_status = MOTOR_STATUS_ON | (direction & MOTOR_STATUS_DIRECTION);
 	
 	uint16_t mot_durs[3]; //This is how long we want each motor to be on for.
@@ -96,35 +96,35 @@ void walk(uint8_t direction, uint16_t mm)
 void stop()
 {
 	//printf("Stopping.\r\n");
-
+	
 	TCC0.CTRLB = TC_WGMODE_SS_gc;
 	TCC1.CTRLB = TC_WGMODE_SS_gc;
-	TCE0.CTRLB = TC_WGMODE_SS_gc;
+	TCE0.CTRLB = TC_WGMODE_SS_gc;	
 	
 	PORTC.OUTCLR = PIN0_bm | PIN1_bm | PIN4_bm | PIN5_bm;
-	PORTE.OUTCLR = PIN0_bm | PIN1_bm;
+	PORTE.OUTCLR = PIN0_bm | PIN1_bm;	
 	
 	PORTC.PIN0CTRL = 0;
 	PORTC.PIN1CTRL = 0;
 	PORTC.PIN4CTRL = 0;
 	PORTC.PIN5CTRL = 0;
 	PORTE.PIN0CTRL = 0;
-	PORTE.PIN1CTRL = 0;
+	PORTE.PIN1CTRL = 0;	
 	
 	TCD0.CTRLB = TC_WGMODE_SS_gc;		
 	TCD0.INTCTRLB = 0x0;
 
 	motor_status = 0;
 	remove_task(current_motor_task);
+	//printf("Stopping.\r\n");	
 }
 
-uint8_t is_moving(void) // returns 0 if droplet is not moving, (1-6) if moving
+int8_t is_moving() // returns -1 if droplet is not moving, movement dir otherwise.
 {
 	if (motor_status & MOTOR_STATUS_ON){
-		return (motor_status & MOTOR_STATUS_DIRECTION) + 1;
+		return (motor_status & MOTOR_STATUS_DIRECTION);
 	}	
-	
-	return 0;
+	return -1;
 }
 
 uint16_t get_mm_per_kilostep(uint8_t direction)
@@ -139,48 +139,38 @@ void set_mm_per_kilostep(uint8_t direction, uint16_t dist)
 
 void read_motor_settings()
 {
-	//for (uint8_t direction = 0; direction < 8; direction++)
-	//{
-		//for (uint8_t motor_num = 0; motor_num < 3 ; motor_num++)
-		//{
-			//motor_adjusts[direction][motor_num] = ((((int16_t)SP_ReadUserSignatureByte(0x10 + 6*direction + 2*motor_num + 0))<<8) | ((int16_t)SP_ReadUserSignatureByte(0x10 + 6*direction + 2*motor_num + 1)));
-		//}
-//
-	//}
-	//for (uint8_t direction = 0; direction < 8 ; direction++)
-	//{
-		//mm_per_kilostep[direction] =(uint16_t)SP_ReadUserSignatureByte(0x40 + 2*direction + 0)<<8 |
-		//(uint16_t)SP_ReadUserSignatureByte(0x40 + 2*direction + 1);
-	//}
+	for (uint8_t direction = 0; direction < 8; direction++)
+	{
+		for (uint8_t motor_num = 0; motor_num < 3 ; motor_num++)
+		{
+			motor_adjusts[direction][motor_num] = ((((int16_t)EEPROM_read_byte(0x10 + 6*direction + 2*motor_num + 0))<<8) | ((int16_t)EEPROM_read_byte(0x10 + 6*direction + 2*motor_num + 1)));
+		}
+
+	}
+	for (uint8_t direction = 0; direction < 8 ; direction++)
+	{
+		mm_per_kilostep[direction] =(uint16_t)EEPROM_read_byte(0x40 + 2*direction + 0)<<8 | (uint16_t)EEPROM_read_byte(0x40 + 2*direction + 1);
+	}
 }
 
 void write_motor_settings()
 {
-	//uint8_t page_buffer[512];
-	//for (uint16_t i = 0; i < 512; i++)
-		//page_buffer[i] = SP_ReadUserSignatureByte(i);
-		//
-	//for (uint8_t direction = 0; direction < 8; direction++)
-	//{
-		//for (uint8_t motor_num = 0; motor_num < 3 ; motor_num++)
-		//{
-			//int16_t temp = motor_adjusts[direction][motor_num];
-			//page_buffer[(0x10 + 6*direction + 2*motor_num + 0)] = (uint8_t)((temp>>8)&0xFF);
-			//page_buffer[(0x10 + 6*direction + 2*motor_num + 1)] = (uint8_t)(temp&0xFF);
-		//}		
-	//}
-	//
-	//for (uint8_t direction = 0; direction < 8; direction++)
-	//{
-		//uint16_t temp = mm_per_kilostep[direction];
-		//page_buffer[(0x40 + 2*direction + 0)] = (uint8_t)((temp>>8)&0xFF);
-		//page_buffer[(0x40 + 2*direction + 1)] = (uint8_t)(temp&0xFF);
-	//}					
-	//
-	//SP_LoadFlashPage(page_buffer);
-	//
-	//SP_EraseUserSignatureRow();
-	//SP_WriteUserSignatureRow();
+	for (uint8_t direction = 0; direction < 8; direction++)
+	{
+		for (uint8_t motor_num = 0; motor_num < 3 ; motor_num++)
+		{
+			int16_t temp = motor_adjusts[direction][motor_num];
+			EEPROM_write_byte(0x10 + 6*direction + 2*motor_num + 0, (uint8_t)((temp>>8)&0xFF));
+			EEPROM_write_byte(0x10 + 6*direction + 2*motor_num + 1, (uint8_t)(temp&0xFF));
+		}
+	}
+	
+	for (uint8_t direction = 0; direction < 8; direction++)
+	{
+		uint16_t temp = mm_per_kilostep[direction];
+		EEPROM_write_byte(0x40 + 2*direction + 0, (uint8_t)((temp>>8)&0xFF));
+		EEPROM_write_byte(0x40 + 2*direction + 1, (uint8_t)(temp&0xFF));
+	}
 }
 
 //void print_motor_adjusts()

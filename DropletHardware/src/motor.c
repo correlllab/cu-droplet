@@ -46,13 +46,22 @@ uint8_t move_steps(uint8_t direction, uint16_t num_steps)
 	{		
 		mot_durs[mot] = 32*motor_on_time + abs(motor_adjusts[direction][mot]);
 		
-		mot_dirs[mot] = ((((motor_adjusts[direction][mot]>>15)&0x1)*-2)+1)/**motor_signs[direction][mot]*/;
+		if(motor_adjusts[direction][mot]==0) 
+		{
+			mot_durs[mot] = 0;
+			mot_dirs[mot] = 0;
+		}
+		else
+		{
+			mot_dirs[mot] = ((((motor_adjusts[direction][mot]>>15)&0x1)*-2)+1)/**motor_signs[direction][mot]*/;
+		}
 		
 		if(mot_durs[mot]==0) continue;
 		
 		total_time += mot_durs[mot] + 32*motor_off_time;
 	}
 	//printf("Moving in dir: %hhu for %hu steps. Mot_durs: {%hu, %hu, %hu}. Total_time: %hu.\r\n",direction, num_steps, mot_durs[0], mot_durs[1], mot_durs[2], total_time);
+	//printf("Mot_dirs: {%hhd, %hhd, %hhd}.\r\n\n", mot_dirs[0], mot_dirs[1], mot_dirs[2]);
 
 	TCC0.PER = TCC1.PER = TCE0.PER = total_time;
 	TCC0.CCA = TCC0.CCB = mot_durs[0]; //motor 0

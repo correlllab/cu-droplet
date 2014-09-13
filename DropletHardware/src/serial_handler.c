@@ -182,8 +182,6 @@ void handle_set_motors(char* command_args)
 	token = strtok(NULL,delim);
 	if(token==NULL){ printf("strtok returned NULL on third val.\r\n"); return;}
 	motor_adjusts[direction][2] = atoi(token);	
-	
-	//There should always be at least one motor with strength 1.0. It(they) must be the strongest motor(s).
 
 	printf("Got set_motors command. direction: %hhu, vals: (%d, %d, %d)\r\n", direction, motor_adjusts[direction][0], motor_adjusts[direction][1], motor_adjusts[direction][2]);
 }

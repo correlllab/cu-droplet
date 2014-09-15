@@ -124,7 +124,6 @@ void DSimDroplet::init_all_systems()
 	reset_motors();
 	reset_rgb_led();
 	reset_rgb_sensor();
-	reset_timers();
 	for(uint8_t i = 0; i < NUM_COMM_CHANNELS; i++)
 		reset_ir_sensor(i);
 
@@ -132,6 +131,7 @@ void DSimDroplet::init_all_systems()
 	commData->sendActive = false;
 	compData->capStatus = 0;
 	msg_return_order = OLDEST_MSG_FIRST;
+    timeData->time_since_start = 0;
 }
 
 void droplet_reboot(void)
@@ -176,17 +176,6 @@ void DSimDroplet::reset_motors()
 	actData->moveStepRemaining		= 0;
 	actData->rotateStepRemaining	= 0;
 	actData->_oscillator			= true;
-}
-
-void DSimDroplet::reset_timers()
-{
-	for(int i = 0; i < DROPLET_NUM_TIMERS; i++)
-	{
-		timeData->timer[i] = 0;
-		timeData->trigger[i] = 1;
-	}
-
-	timeData->time_since_start = 0;
 }
 
 droplet_id_type DSimDroplet::get_droplet_id()
@@ -469,35 +458,9 @@ uint8_t DSimDroplet::check_for_new_messages(void)
 	return (newMsgCh == -1) ? 0 : 1;
 }
 
-uint8_t DSimDroplet::set_timer(uint32_t time, uint8_t index)
-{
-	if(index >= DROPLET_NUM_TIMERS) return 0;
-
-	timeData->timer[index] = static_cast<float>(time);
-	timeData->trigger[index] = 0;
-
-	return 1;
-}
-
-uint32_t DSimDroplet::get_timer_time_remaining(uint8_t index)
-{
-	if(index >= DROPLET_NUM_TIMERS) return 0;
-
-	float current_status = timeData->timer[index];
-
-	return static_cast<uint32_t>(timeData->timer[index]);
-}
- 
 uint32_t DSimDroplet::get_32bit_time()
 {
 	return static_cast<uint32_t>(timeData->time_since_start);
-}
-
-uint8_t DSimDroplet::check_timer(uint8_t index)
-{
-	if(index >= DROPLET_NUM_TIMERS) return 0;
-
-	return timeData->trigger[index];
 }
 
 uint8_t DSimDroplet::range_and_bearing(uint16_t partner_id, float *dist, float *theta, float *phi)

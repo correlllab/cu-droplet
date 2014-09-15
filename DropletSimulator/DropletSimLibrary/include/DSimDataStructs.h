@@ -129,8 +129,6 @@ typedef struct _Droplet_Component_Data
 
 typedef struct _Droplet_Timing_Data
 {
-	float timer[DROPLET_NUM_TIMERS];
-	uint8_t trigger[DROPLET_NUM_TIMERS];
 	float time_since_start;
 
 } DropletTimeData;

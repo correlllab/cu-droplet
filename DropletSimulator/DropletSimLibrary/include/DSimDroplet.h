@@ -166,11 +166,6 @@ protected :
 	void reset_motors(void);
 
 	/**
-	 * Resets the timers.
-	 */
-	void reset_timers(void);
-
-	/**
 	 * Gets droplet identifier.
 	 *
 	 * \return	The droplet identifier.
@@ -424,23 +419,6 @@ protected :
 ///@}
 /** @name Timer subsystem functions.
  */
-///@{
-	/**
-	 * Set one of the 5 available timers.
-	 * /param time the time to fire in ms
-	 * /param index 0 to 4, for one of the available timers.
-	 */
-	uint8_t set_timer(uint32_t time, uint8_t index); // time in ms
-
-	/**
-	 * Check the status of available timers.
-	 * /return 0 when the timer is on and hasn't fired yet. 1 if the
-	 * timer is off or has fired after being set.
-	 */
-	uint8_t check_timer(uint8_t index);
-
-	uint32_t get_timer_time_remaining(uint8_t index);
-
 	uint32_t get_32bit_time(void);
 ///@}
 

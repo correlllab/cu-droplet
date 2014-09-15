@@ -989,15 +989,6 @@ void DSim::timerController()
 
 		// Update 32-bit timer
 		timeData->time_since_start += simSetupData->timestep;
-
-		for(int i = 0; i < DROPLET_NUM_TIMERS; i++)
-		{
-			if(timeData->trigger[i] == 0)
-			{
-				if((timeData->timer[i] -= simSetupData->timestep) <= 0.f)
-					timeData->trigger[i] = 1;
-			}
-		}
 	}
 }
 

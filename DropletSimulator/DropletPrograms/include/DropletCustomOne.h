@@ -14,6 +14,7 @@ class DropletCustomOne : public DSimDroplet
 {
 private :
 
+
 public :
 	DropletCustomOne(ObjectPhysicsData *objPhysics);
 	~DropletCustomOne(void);

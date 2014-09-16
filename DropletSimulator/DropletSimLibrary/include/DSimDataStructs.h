@@ -70,17 +70,16 @@ typedef struct _Droplet_Localization_Data
 }GPSInfo;
 
 /**
- * Defines an alias representing information describing the droplet actuator.
+ * Defines an alias representing information describing the droplet motors and 
+ * RGB LED.
  */
 
 typedef struct _Droplet_Actuator_Data
 {
 	uint8_t rOut, gOut, bOut;
-	float moveTimeRemaining, rotateTimeRemaining;	// in milliseconds
-	float moveStepRemaining, rotateStepRemaining;
+	float moveTimeRemaining;	// in milliseconds
 	bool _oscillator;
 	move_direction currMoveDir;
-	turn_direction currTurnDir;
 
 } DropletActuatorData;
 

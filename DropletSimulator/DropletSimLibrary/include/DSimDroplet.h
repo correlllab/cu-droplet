@@ -184,60 +184,37 @@ protected :
  */
 ///@{
 	/**
-	 * Rotate duration.
-	 *
-	 * \param	direction	The direction (1 = CW, -1 = CCW, or use macros).
-	 * \param	duration	The duration in ms.
-	 */
-	void rotate_duration(turn_direction direction, uint16_t duration);
-
-	/**
-	 * Rotate steps.
-	 *
-	 * \param	direction	The direction (1 = CW, -1 = CCW, or use macros).
-	 * \param	num_steps The number of steps.
-	 */
-	void rotate_steps(turn_direction direction, uint16_t num_steps);
-
-	/**
 	 * Rotate degrees.
 	 *
 	 * \param	deg	The number of degrees (between -180 and +180) to rotate.
 	 */
-	void rotate_degrees(int16_t deg);
+	uint32_t rotate_degrees(int16_t deg);
 
 	/**
 	 * Move duration.
 	 *
-	 * \param	direction	The direction (1 through 6, or use macros).
+	 * \param	dir	The direction (0 through 5, or use macros).
 	 * \param	duration	The duration in ms.
 	 */
-	void move_duration(uint8_t direction, uint16_t duration);
+	uint32_t move_duration(move_direction dir, uint32_t duration);
 
 	/**
 	 * Move steps.
 	 *
-	 * \param	dir	The direction (1 through 6, or use macros).
+	 * \param	dir	The direction (0 through 5, or use macros).
 	 * \param	num_steps The number of steps.
 	 */
-	void move_steps(uint8_t direction, uint16_t num_steps);
+	uint32_t move_steps(move_direction dir, uint16_t num_steps);
 
 	/**
 	 * Returns droplet movement status.
 	 * 
-	 * \return 0 if droplet is not moving.
-	 * \return 1 through 6 depending on movement direction.
+	 * \param  dir Pointer to assign movement dir to if the droplet is moving. Can
+     * be NULL if the dir is not required.
+     *
+     * \return 0 if droplet is not moving, 1 otherwise.
 	 */
-	move_direction is_moving(void);
-
-	/**
-	 * Returns droplet rotation status.
-	 * 
-	 * \return 0 if droplet is not rotating.
-	 * \return 1 if droplet is rotating CW.
-	 * \return -1 if droplet is rotating CCW.
-	 */
-	turn_direction is_rotating(void);
+	uint8_t is_moving(move_direction *dir);
 
 	/**
 	 * Cancel move.
@@ -246,14 +223,6 @@ protected :
 	 * \return duration 
 	 */
 	uint32_t cancel_move(void);
-
-	/**
-	 * Cancel rotate.
-	 *
-	 * \return number of steps taken
-	 * \return duration
-	 */
-	uint32_t cancel_rotate(void);
 
 ///@}
 /** @name RGB LED subsystem functions.

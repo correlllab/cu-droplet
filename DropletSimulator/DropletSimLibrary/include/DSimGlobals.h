@@ -34,31 +34,19 @@
 typedef unsigned char DS_RESULT;
 
 /**
- * \typedef	short int turn_direction
- *
- * \brief	droplet rotation directions
- *
- */
-
-#define TURN_OFF				0
-#define TURN_CLOCKWISE			1
-#define TURN_COUNTERCLOCKWISE	2
-typedef uint8_t turn_direction;
-
-/**
  * \typedef	uint8_t move_direction
  *
  * \brief	droplet move directions
  *
  */
-
-#define MOVE_OFF	0
-#define NORTH		1
-#define NORTH_EAST	2
-#define SOUTH_EAST	3
-#define SOUTH		4
-#define SOUTH_WEST	5
-#define NORTH_WEST	6
+#define NORTH		0
+#define NORTH_EAST	1
+#define SOUTH_EAST	2
+#define SOUTH		3
+#define SOUTH_WEST	4
+#define NORTH_WEST	5
+#define TURN_CLOCKWISE			6
+#define TURN_COUNTERCLOCKWISE	7
 typedef uint8_t move_direction;
 
 // Droplet Communication Error Codes

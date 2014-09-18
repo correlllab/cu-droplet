@@ -1,24 +1,14 @@
-
+#include "IRcom.h"
 // NDF 3/18/13: Dustin request to add a change to cause messages with arrival time difference less than some 
 //	time-out time to be ignored. I dont really know how this change would be implemented yet, will have to try things later.
 //	the goal of implementing this is to prevent duplicate messages from being treated as separate?
 
-#include "debug.h"
-#include "IRcom.h"
-#define F_CPU 32000000UL
 
-#include <avr/interrupt.h>
-#include <util/delay.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
-#include "i2c.h"
-#include "ecc.h"
 //#include "boot.h"
-#include "RGB_LED.h"
-#include "serial_handler.h"
-#include "droplet_init.h"	// contains the global droplet_ID variable
+//#include "RGB_LED.h"
+//#include "serial_handler.h"
+	// contains the global droplet_ID variable
 
 #define BINARY "%d%d%d%d%d%d%d%d"	// used for debug printfs
 #define BYTETOBINARY(byte)  \
@@ -112,7 +102,7 @@ void ir_com_init(uint16_t buffersize)
 			ir_tx[i].data_len = 0;
 			ir_tx[i].ir_status = 0;
 	
-			tx_msg_header[i].sender_ID = droplet_ID;
+			tx_msg_header[i].sender_ID = get_droplet_id();
 		}
 
 		/* Initialize the common RX buffer */
@@ -299,7 +289,7 @@ uint8_t ir_send(uint8_t dir, uint8_t *data, uint16_t data_length)
 	
 	ir_tx[dir].ir_status |= IR_TX_STATUS_BUSY_bm;
 
-	crc = (uint8_t)droplet_ID;	// include sender ID in crc calculation, if using 16-bit IDs, truncate to 8-bit for this calculation
+	crc = (uint8_t)get_droplet_id();	// include sender ID in crc calculation, if using 16-bit IDs, truncate to 8-bit for this calculation
 
 	/* CALCULATE THE CRC OF THE OUTBOUND MESSAGE */
 	for (uint8_t i = 0; i < data_length; i++)
@@ -366,7 +356,7 @@ uint8_t ir_broadcast(uint8_t *data, uint16_t data_length)
 	uint8_t byte;
 	uint16_t crc = 0;
 	//printf("Calculating CRC to broadcast.\r\n");
-	crc = (uint8_t)droplet_ID;	// include sender ID in crc calculation, has to be 8-bit for now
+	crc = (uint8_t)get_droplet_id();	// include sender ID in crc calculation, has to be 8-bit for now
 	//printf("%02X ",crc);
 	/* CALCULATE THE CRC OF THE OUTBOUND MESSAGE */
 	for (uint8_t i = 0; i < data_length; i++)
@@ -927,7 +917,7 @@ void ir_receive(uint8_t dir)
 							if(ir_rx[dir].ir_status & IR_RX_STATUS_TARGETED_bm)
 							{
 								//printf("Targeted.\r\n");
-								if(rx_msg_header[dir].target_ID != droplet_ID)
+								if(rx_msg_header[dir].target_ID != get_droplet_id())
 								{
 									//printf("ID no match, target ID: %04X\r\n",rx_msg_header[dir].target_ID);
 									ir_reset_rx(dir);
@@ -956,7 +946,7 @@ void ir_receive(uint8_t dir)
 							if(ir_rx[dir].ir_status & IR_RX_STATUS_TARGETED_bm)
 							{
 								//printf("Targeted, target ID: %04X\r\n",rx_msg_header[dir].target_ID);
-								if(rx_msg_header[dir].target_ID == droplet_ID)
+								if(rx_msg_header[dir].target_ID == get_droplet_id())
 								{
 									ir_rx[dir].ir_status |= IR_RX_STATUS_PACKET_DONE_bm;	// this is the ONLY! place in the code where this assignment is allowed
 								}

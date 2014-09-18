@@ -18,7 +18,8 @@
 #include <cstdlib>
 #include <utility>
 #include <string>
-#include <math.h>
+#include <cmath>
+#include <algorithm>
 
 class SimSetupData;	// Defined after DSim
 
@@ -30,11 +31,6 @@ class DSim
 	friend class DSimDataLogger;
 
 private :
-
-	// TODO : Remove this later
-	FILE *fh;
-
-
 	SimPhysicsData *simPhysics;
 	SimSetupData *simSetupData;
 
@@ -130,13 +126,6 @@ protected :
 	 */
 
 	std::vector<DSimPhysicalObject *> physicalObjects;
-
-	/**
-	 * Vector containing droplet positions.
-	 */
-
-//	std::vector<GPSInfo *> dropletPositions;
-//	TrigArray *dropletRelPos;
 
 	/**
 	 * Vector containing physical object positions (other than droplets).

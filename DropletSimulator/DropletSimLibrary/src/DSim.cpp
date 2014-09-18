@@ -5,9 +5,6 @@ std::vector<GPSInfo *> dropletPositions;
 
 DSim::DSim()
 {
-	// TODO: Remove this later
-	//fh = NULL;
-
 	firstRun = true;
 	projSet  = false;
 
@@ -234,9 +231,6 @@ DS_RESULT DSim::SetUpProjector(
 
 DS_RESULT DSim::Init(const SimSetupData &setupData)
 {
-	// TODO: Remove this later
-	//fh = fopen("SimMsgDat.txt","w");
-
 	DS_RESULT retval;
 
 	// Set up simulator init parameters
@@ -344,10 +338,6 @@ DS_RESULT DSim::Step()
 
 DS_RESULT DSim::Cleanup()
 {
-	// TODO: Remove this later
-	//if(fh != NULL)
-		//fclose(fh);
-
 	// Clean up droplet data.
 	std::vector<DSimDroplet *>::reverse_iterator d_rit;
 	for(d_rit = droplets.rbegin(); d_rit != droplets.rend(); d_rit++)
@@ -633,8 +623,7 @@ void DSim::motionController()
 		AccessActuatorData(pDroplet, &actData);
 
 		// Move/Rotate all the droplets
-		if(actData->moveTimeRemaining > 0 || actData->rotateTimeRemaining > 0 ||
-			actData->moveStepRemaining > 0 || actData->rotateStepRemaining > 0)
+		if( actData->moveTimeRemaining > 0 )
 		{
 			// The motors are positioned 2*PI/3 radians apart
 			// Rotate the relative position of the first motor
@@ -673,112 +662,82 @@ void DSim::motionController()
 			AccessPhysicsData(pDroplet, &objPhysics);
 			btRigidBody *body = btRigidBody::upcast(objs[objPhysics->_worldID]);
 		
-			if(actData->moveTimeRemaining > 0 || actData->moveStepRemaining > 0)
+			move_direction md = actData->currMoveDir;
+			bool updateRelPos = true;
+			switch(md)
 			{
-				move_direction md = actData->currMoveDir;
-				bool updateRelPos = true;
-				switch(md)
+			case NORTH :
+				if(actData->_oscillator) 
+                    body->applyImpulse(motor2ClockImpulse, motor2RelativePos);
+				else 
+                    body->applyImpulse(motor3CounterClockImpulse, motor3RelativePos);
+				break;
+
+			case NORTH_EAST :
+				if(actData->_oscillator) 
+                    body->applyImpulse(motor1ClockImpulse, motor1RelativePos);
+				else 
+                    body->applyImpulse(motor3CounterClockImpulse, motor3RelativePos);
+				break;
+
+			case SOUTH_EAST :
+				if(actData->_oscillator) 
+                    body->applyImpulse(motor1ClockImpulse, motor1RelativePos);
+				else 
+                    body->applyImpulse(motor2CounterClockImpulse, motor2RelativePos);
+				break;
+
+			case SOUTH :			
+				if(actData->_oscillator)
+                    body->applyImpulse(motor3ClockImpulse, motor3RelativePos);
+				else 
+                    body->applyImpulse(motor2CounterClockImpulse, motor2RelativePos);
+				break;
+
+			case SOUTH_WEST :
+				if(actData->_oscillator) 
+                    body->applyImpulse(motor3ClockImpulse, motor3RelativePos);
+				else 
+                    body->applyImpulse(motor1CounterClockImpulse, motor1RelativePos);
+				break;
+
+			case NORTH_WEST :
+				if(actData->_oscillator) 
+                    body->applyImpulse(motor2ClockImpulse, motor2RelativePos);
+				else 
+                    body->applyImpulse(motor1CounterClockImpulse, motor1RelativePos);
+				break;
+
+			case TURN_CLOCKWISE :
+				if(actData->_oscillator)
 				{
-				case NORTH :
-					if(actData->_oscillator) body->applyImpulse(motor2ClockImpulse, motor2RelativePos);
-					else body->applyImpulse(motor3CounterClockImpulse, motor3RelativePos);
-					break;
-
-				case NORTH_EAST :
-					if(actData->_oscillator) body->applyImpulse(motor1ClockImpulse, motor1RelativePos);
-					else body->applyImpulse(motor3CounterClockImpulse, motor3RelativePos);
-					break;
-
-				case SOUTH_EAST :
-					if(actData->_oscillator) body->applyImpulse(motor1ClockImpulse, motor1RelativePos);
-					else body->applyImpulse(motor2CounterClockImpulse, motor2RelativePos);
-					break;
-
-				case SOUTH :			
-					if(actData->_oscillator) body->applyImpulse(motor3ClockImpulse, motor3RelativePos);
-					else body->applyImpulse(motor2CounterClockImpulse, motor2RelativePos);
-					break;
-
-				case SOUTH_WEST :
-					if(actData->_oscillator) body->applyImpulse(motor3ClockImpulse, motor3RelativePos);
-					else body->applyImpulse(motor1CounterClockImpulse, motor1RelativePos);
-					break;
-
-				case NORTH_WEST :
-					if(actData->_oscillator) body->applyImpulse(motor2ClockImpulse, motor2RelativePos);
-					else body->applyImpulse(motor1CounterClockImpulse, motor1RelativePos);
-					break;
-
-				default :
-					updateRelPos = false;
-					break;
+					body->applyImpulse(motor1ClockImpulse, motor1RelativePos);
+					body->applyImpulse(motor2ClockImpulse, motor2RelativePos);
+					body->applyImpulse(motor3ClockImpulse, motor3RelativePos);
 				}
+				break;
 
-				gpsInfo->movedSinceLastUpdate = updateRelPos;
-				if (actData->moveTimeRemaining > 0)
+			case TURN_COUNTERCLOCKWISE :
+				if(actData->_oscillator)
 				{
-					if((actData->moveTimeRemaining -= simSetupData->timestep) <= 0)
-					{
-						actData->moveTimeRemaining = 0;
-						actData->currMoveDir = MOVE_OFF;
-					}
+					body->applyImpulse(motor1CounterClockImpulse, motor1RelativePos);
+					body->applyImpulse(motor2CounterClockImpulse, motor2RelativePos);
+					body->applyImpulse(motor3CounterClockImpulse, motor3RelativePos);
 				}
-				else if(actData->moveStepRemaining > 0)
-				{
-					if((actData->moveStepRemaining -= simSetupData->timestep) <= 0)
-					{
-						actData->moveStepRemaining = 0;
-						actData->currMoveDir = MOVE_OFF;
-					}
-				}
+				break;
+
+			default :
+				updateRelPos = false;
+				break;
 			}
 
-			if(actData->rotateTimeRemaining > 0 || actData->rotateStepRemaining > 0)
-			{
-				turn_direction td = actData->currTurnDir;
-				switch(td)
-				{
-				case TURN_CLOCKWISE :
-					if(actData->_oscillator)
-					{
-						body->applyImpulse(motor1ClockImpulse, motor1RelativePos);
-						body->applyImpulse(motor2ClockImpulse, motor2RelativePos);
-						body->applyImpulse(motor3ClockImpulse, motor3RelativePos);
-					}
-					break;
-
-				case TURN_COUNTERCLOCKWISE :
-					if(!actData->_oscillator)
-					{
-						body->applyImpulse(motor1CounterClockImpulse, motor1RelativePos);
-						body->applyImpulse(motor2CounterClockImpulse, motor2RelativePos);
-						body->applyImpulse(motor3CounterClockImpulse, motor3RelativePos);
-					}
-					break;
-				}
-				if (actData->rotateTimeRemaining > 0)
-				{
-					if((actData->rotateTimeRemaining -= simSetupData->timestep) <= 0)
-					{
-						actData->rotateTimeRemaining = 0;
-						actData->currTurnDir = MOVE_OFF;
-					}
-				}
-				else if(actData->rotateStepRemaining >0)
-				{
-					if((actData->rotateStepRemaining -= simSetupData->timestep) <= 0)
-					{
-						actData->rotateStepRemaining = 0;
-						actData->currTurnDir = MOVE_OFF;
-					}
-				}
-
-			}
-			actData->_oscillator = !actData->_oscillator;
-
-			if (actData->moveTimeRemaining > 0 || actData->moveStepRemaining > 0 ||
-				actData->rotateTimeRemaining > 0 || actData->rotateStepRemaining > 0)
-				setLegPower(pDroplet, gpsInfo);
+            actData->_oscillator = !actData->_oscillator;
+			gpsInfo->movedSinceLastUpdate = updateRelPos;
+            actData->moveTimeRemaining = max ( 
+                0.0f,
+                actData->moveTimeRemaining - simSetupData->timestep );
+            
+            setLegPower(pDroplet, gpsInfo);
 		}
 		d_it++;
 	}
@@ -967,17 +926,6 @@ void DSim::commController()
 							recvCommData->commChannels[recvChannel].lastMsgInTimestamp = 
 								sendCommData->commChannels[sendChannel].lastMsgOutTimestamp = 
 								static_cast<uint16_t>(timer.getTotalST() * 1000);
-
-							// TODO: Remove this later
-							/*if(fh != NULL)
-							{
-								DropletCompData *sendDat, *recvDat;
-								AccessCompData(sendDroplet, &sendDat);
-								AccessCompData(recvDroplet, &recvDat);
-								fprintf(fh, "Sent a msg from %u ---> %u\n", 
-									sendDat->dropletID,
-									recvDat->dropletID);
-							}*/
 						}
 					}
 				}
@@ -1008,14 +956,8 @@ void DSim::timerController()
 		DropletTimeData *timeData;
 		AccessTimeData(pDroplet, &timeData);
 
-		for(int i = 0; i < DROPLET_NUM_TIMERS; i++)
-		{
-			if(timeData->trigger[i] == 0)
-			{
-				if((timeData->timer[i] -= simSetupData->timestep) <= 0.f)
-					timeData->trigger[i] = 1;
-			}
-		}
+		// Update 32-bit timer
+		timeData->time_since_start += simSetupData->timestep;
 	}
 }
 

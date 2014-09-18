@@ -1,5 +1,3 @@
-#include <avr/io.h>
-
 #include "RGB_sensor.h"
 
 void rgb_sensor_init()
@@ -81,14 +79,4 @@ uint8_t get_blue_sensor()
 		if (ADCA.CH2.RESL > cursen) cursen = ADCA.CH2.RESL;
 	}		
 	return cursen - bsenbase;
-}
-
-void rgb_sensor_enable() 
-{ 
-	ADCA.CTRLA |= ADC_ENABLE_bm; 
-}
-
-void rgb_sensor_disable() 
-{ 
-	ADCA.CTRLA &= ~ADC_ENABLE_bm; 
 }

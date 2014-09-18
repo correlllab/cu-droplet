@@ -1,12 +1,21 @@
 #ifndef IR_COM_H
 #define IR_COM_H
+#define F_CPU 32000000UL
 
 #include <avr/io.h>
 #include <util/crc16.h>
+#include <avr/interrupt.h>
+//#include <util/delay.h>
+//#include <stdio.h>
+//#include <stdlib.h>
+//#include <string.h>
+#include "droplet_init.h"
+#include "droplet_time.h"
+//#include "i2c.h"
+#include "ecc.h"
 
 #define IR_BUFFER_SIZE			72		// Proper size for IR reprogramming
-#define IR_SMALL_BUFFER_SIZE	25		// Smaller size for debugging
-#define IR_MAX_BUFFER_SIZE		
+#define IR_SMALL_BUFFER_SIZE	25		// Smaller size for debugging		
 
 //For COMMAND and PROG: 00: normal comm, 01: serial command, 10: programming, 11: time-sensitive.
 #define IR_PACKET_DATA_gc			0x00FF
@@ -26,13 +35,19 @@
 #define IR_RX_STATUS_PACKET_DONE_bm	0x02	// 0000 0010	note: there is only exactly ONE place in the code where this flag should be set!
 #define IR_RX_STATUS_BYTE_DONE_bm	0x04	// 0000 0100
 #define IR_RX_STATUS_COMMAND_bm		0x08  // Receiving a command		
-//#define IR_RX_STATUS_RX_BYTE_bm		0x0008	// 0000 1000 wasn't referenced.
 #define IR_RX_STATUS_ECCERR_bm		0x10	// 0001 0000		
 #define IR_RX_STATUS_LENERR_bm		0x20	// 0010 0000
 #define IR_RX_STATUS_TIMEOUT_bm		0x40	// 0100 0000	note: see 1*
 #define IR_RX_STATUS_ERR_gc			0x70	// 0111 0000	note: this is NEVER assigned, only used for reading flags!
 #define IR_RX_STATUS_TARGETED_bm	0x80	// 1000 0000
 
+#define HEADER_POS_MSG_LENGTH 0
+#define HEADER_POS_CRC 1
+#define HEADER_POS_SENDER_ID_LOW 2
+#define HEADER_POS_SENDER_ID_HIGH 3
+#define HEADER_POS_TARGET_ID_LOW 4
+#define HEADER_POS_TARGET_ID_HIGH 5
+#define HEADER_LEN 6
 // notes:
 // 1*	ir_receive is only called IF there is new data coming in, it will not be able to check the timeout condition if there is no new data
 //		and if there is new data that is significantly time delayed, then it may be part of a new message (in which case it will be tagged
@@ -44,7 +59,6 @@ extern USART_t* channel[];			// channel[] is declared here, but defined in IRcom
 
 
 /* DATA STRUCTURES */
-
 struct
 {
 	// MEMORY MANAGEMENT:
@@ -99,14 +113,6 @@ struct
 	uint8_t printed_read_prompt;	// strictly for debugging 'read'
 
 } global_rx_buffer;
-
-#define HEADER_POS_MSG_LENGTH 0
-#define HEADER_POS_CRC 1
-#define HEADER_POS_SENDER_ID_LOW 2
-#define HEADER_POS_SENDER_ID_HIGH 3
-#define HEADER_POS_TARGET_ID_LOW 4
-#define HEADER_POS_TARGET_ID_HIGH 5
-#define HEADER_LEN 6
 
 struct Message_header
 {

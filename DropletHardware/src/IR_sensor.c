@@ -1,29 +1,9 @@
-#define F_CPU 32000000UL
-
-#include <avr/io.h>
-#include <util/delay.h>
-#include <stdio.h>
-#include "sp_driver.h"
-#include "stddef.h"				// required to use "offsetof(_,_)" for production row access
-#include "RGB_LED.h"			// currently uses some color flashes for debugging
-
 #include "IR_sensor.h"
-#include "IRcom.h"
-
-#define IR_SENSOR_0_FOR_ADCB_MUXPOS		ADC_CH_MUXPOS_PIN5_gc		// IR0 sensor on PB5
-#define IR_SENSOR_1_FOR_ADCB_MUXPOS		ADC_CH_MUXPOS_PIN6_gc		// IR1 sensor on PB6
-#define IR_SENSOR_2_FOR_ADCB_MUXPOS		ADC_CH_MUXPOS_PIN7_gc		// IR2 sensor on PB7
-#define IR_SENSOR_3_FOR_ADCB_MUXPOS		ADC_CH_MUXPOS_PIN4_gc		// IR3 sensor on PB4
-#define IR_SENSOR_4_FOR_ADCB_MUXPOS		ADC_CH_MUXPOS_PIN2_gc		// IR4 sensor on PB2
-#define IR_SENSOR_5_FOR_ADCB_MUXPOS		ADC_CH_MUXPOS_PIN3_gc		// IR5 sensor on PB3
-
-uint8_t ADCAcalibration0, ADCAcalibration1; //(for ADCA, the legs and the color sensors)
-uint8_t ADCBcalibration0, ADCBcalibration1;
-
+//
+//uint8_t ADCAcalibration0, ADCAcalibration1; //(for ADCA, the legs and the color sensors)
+//uint8_t ADCBcalibration0, ADCBcalibration1;
 
 int8_t ADC_offset[6];		// this value will typically be about -72 if using 1.00 V reference and ADCB0 as VINN
-
-int8_t find_median(int8_t* meas); // Helper function for getting the middle of the 3 measurements
 
 void IR_sensor_init()
 {
@@ -249,16 +229,6 @@ uint8_t get_IR_sensor(uint8_t sensor_num)
 	// this range could be improved slightly by increasing the VINN voltage.  If ADCA pin0 is used, VINN becomes 0.71 V and the range is shifted upwards.
 
 	return scaled_average;
-}
-
-void IR_sensor_enable() 
-{ 
-	ADCB.CTRLA |= ADC_ENABLE_bm; 
-}
-
-void IR_sensor_disable() 
-{ 
-	ADCB.CTRLA &= ~ADC_ENABLE_bm; 
 }
 
 // Finds the median of 3 numbers by finding the max, finding the min, and returning the other value

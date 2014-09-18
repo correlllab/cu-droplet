@@ -1,6 +1,6 @@
 #include "serial_handler.h"
 
-extern rnb last_good_rnb;
+//extern rnb last_good_rnb;
 
 void handle_serial_command(char* command, uint16_t command_length)
 {
@@ -18,14 +18,18 @@ void handle_serial_command(char* command, uint16_t command_length)
 		char command_word[BUFFER_SIZE];
 		char command_args[BUFFER_SIZE];
 		get_command_word_and_args(command,command_length,command_word,command_args);
-		if(strcmp(command_word,"data")==0)
+		if(strcmp(command_word,"set_tau")==0)
 		{
-			handle_data(command_args);
+			handle_set_tau(command_args);
 		}
+		else if(strcmp(command_word,"set_theta")==0)
+		{
+			handle_set_theta(command_args);
+		}		
 		else if(strcmp(command_word,"move_steps")==0)
 		{
 			handle_move_steps(command_args);
-		}		
+		}
 		else if(strcmp(command_word,"walk")==0)
 		{
 			handle_walk(command_args);
@@ -56,7 +60,7 @@ void handle_serial_command(char* command, uint16_t command_length)
 		}
 		else if(strcmp(command_word,"rnb_r")==0)
 		{
-			handle_rnb_receive();	
+			handle_rnb_receive();
 		}
 		else if(strcmp(command_word,"set_led")==0)
 		{
@@ -110,18 +114,36 @@ void handle_serial_command(char* command, uint16_t command_length)
 	}
 }
 
-void handle_data(char *command_args)
+void handle_set_tau(char* command_args)
 {
-	memset(serial_data_out_buffer.data, 0, BUFFER_SIZE);
-	serial_data_out_buffer.length = strlen(command_args);
-	if(serial_data_out_buffer.length < BUFFER_SIZE)
-	{
-		memcpy(serial_data_out_buffer.data, command_args, serial_data_out_buffer.length);
-	}
-	else
-	{
-		memcpy(serial_data_out_buffer.data, command_args, BUFFER_SIZE);
-	}
+	const char delim[2] = " ";
+	
+	char* token = strtok(command_args,delim);
+	if(token==NULL){ printf("strtok returned NULL on set_tau.\r\n"); return;}
+	set_tau((int16_t)atoi(token));
+	
+	printf("Tau set to %d.\r\n",tau);
+	set_rgb(0,0,200);
+	delay_ms(500);
+	set_rgb(0,0,0);
+	collaborative_task();
+}
+
+void handle_set_theta(char* command_args)
+{
+	const char delim[2] = " ";
+	
+	char* token = strtok(command_args,delim);
+	if(token==NULL){ printf("strtok returned NULL on set_theta.\r\n"); return;}
+	uint8_t int_theta = (uint8_t)atoi(token);
+	
+	set_theta(((double)int_theta)*0.01f);
+	
+	printf("Theta set to %d over 100.\r\n",int_theta);
+	set_rgb(0,200,0);
+	delay_ms(500);
+	set_rgb(0,0,0);
+	collaborative_task();
 }
 
 void handle_move_steps(char* command_args)

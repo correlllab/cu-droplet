@@ -1,1 +1,2 @@
-start .\DropletSimDemos\DropletGUI\vs2010\bin\DropletGUI.exe
+cd .\DropletSimDemos\DropletGUI\vs2010\bin\
+start .\DropletGUI.exe

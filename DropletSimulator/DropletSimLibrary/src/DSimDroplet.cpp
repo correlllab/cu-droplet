@@ -8,14 +8,20 @@
 extern TrigArray *dropletRelPos; // Welcome to the DAINJA' ZONE!
 extern std::vector<GPSInfo *> dropletPositions;
 
-float prettyAngle(float ang){
-	ang = fmodf(ang,360);
-	if(ang<-180){
-		ang+=360;
-	}else if(ang>180){
-		ang-=360;
+float prettyAngle(float ang)
+{
+	ang = fmodf ( ang, 360 );
+	
+    if(ang < -180)
+    {
+		ang += 360;
 	}
-	return ang;
+    else if(ang > 180)
+    {
+		ang -= 360;
+	}
+	
+    return ang;
 }
 
 
@@ -124,7 +130,6 @@ void DSimDroplet::init_all_systems()
 	reset_motors();
 	reset_rgb_led();
 	reset_rgb_sensor();
-	reset_timers();
 	for(uint8_t i = 0; i < NUM_COMM_CHANNELS; i++)
 		reset_ir_sensor(i);
 
@@ -132,6 +137,7 @@ void DSimDroplet::init_all_systems()
 	commData->sendActive = false;
 	compData->capStatus = 0;
 	msg_return_order = OLDEST_MSG_FIRST;
+    timeData->time_since_start = 0;
 }
 
 void droplet_reboot(void)
@@ -169,22 +175,8 @@ void DSimDroplet::reset_rgb_sensor()
 
 void DSimDroplet::reset_motors() 
 {
-	actData->currMoveDir			= MOVE_OFF;
-	actData->currTurnDir			= TURN_OFF;
-	actData->moveTimeRemaining		= 0;
-	actData->rotateTimeRemaining	= 0;
-	actData->moveStepRemaining		= 0;
-	actData->rotateStepRemaining	= 0;
-	actData->_oscillator			= true;
-}
-
-void DSimDroplet::reset_timers()
-{
-	for(int i = 0; i < DROPLET_NUM_TIMERS; i++)
-	{
-		timeData->timer[i] = 0;
-		timeData->trigger[i] = 1;
-	}
+	actData->moveTimeRemaining  = 0;
+	actData->_oscillator        = true;
 }
 
 droplet_id_type DSimDroplet::get_droplet_id()
@@ -197,94 +189,62 @@ uint8_t DSimDroplet::rand_byte(void)
 	return static_cast<uint8_t>(255 * ((float)rand() / RAND_MAX));
 }
 
+
 // Droplet Motion Subsystem Functions
-void DSimDroplet::move_duration(move_direction direction, uint16_t duration)
+uint32_t DSimDroplet::rotate_degrees(int16_t deg)
 {
-	actData->moveTimeRemaining = static_cast<float>(duration);
-	actData->currMoveDir = direction;
-}
+    uint32_t retval = cancel_move();
 
-void DSimDroplet::move_steps(move_direction direction, uint16_t num_steps)
-{
-	actData->moveStepRemaining = static_cast<float>(num_steps * WALK_STEP_TIME);
-	actData->currMoveDir = direction;
-}
-void DSimDroplet::rotate_duration(turn_direction direction, uint16_t duration)
-{
-	actData->rotateTimeRemaining = static_cast<float>(duration);
-	actData->currTurnDir = direction;
-}
-
-void DSimDroplet::rotate_steps(turn_direction direction, uint16_t num_steps)
-{
-	actData->rotateStepRemaining = static_cast<float>(num_steps * WALK_STEP_TIME);
-	actData->currTurnDir = direction;
-}
-
-void DSimDroplet::rotate_degrees(int16_t deg)
-{
 	deg = static_cast<int16_t>(prettyAngle(static_cast<float>(deg)));
 	if(deg > 0)
 	{
-		rotate_duration(TURN_COUNTERCLOCKWISE, ROTATE_RATE_MS_PER_DEG * deg);
+		move_duration(TURN_COUNTERCLOCKWISE, ROTATE_RATE_MS_PER_DEG * deg);
 	}
 	else if(deg < 0)
 	{
-		rotate_duration(TURN_CLOCKWISE, -1 * ROTATE_RATE_MS_PER_DEG * deg);
+		move_duration(TURN_CLOCKWISE, -1 * ROTATE_RATE_MS_PER_DEG * deg);
 	}
+
+    return retval;
+}
+
+uint32_t DSimDroplet::move_duration(move_direction dir, uint32_t duration)
+{
+    uint32_t retval = cancel_move();
+	actData->moveTimeRemaining = static_cast<float>(duration);
+	actData->currMoveDir = dir;
+
+    return retval;
+}
+
+uint32_t DSimDroplet::move_steps(move_direction dir, uint16_t num_steps)
+{
+    return move_duration ( dir, num_steps * WALK_STEP_TIME );
+}
+
+uint8_t DSimDroplet::is_moving(move_direction *dir)
+{
+    uint8_t retval = 0;
+    if( actData->moveTimeRemaining > 0.f )
+    {
+        if ( dir != NULL )
+            *dir = actData->currMoveDir;
+
+        retval = 1;
+    }
+
+    return retval;
 }
 
 uint32_t DSimDroplet::cancel_move() 
 {
-	float tmp;
-	if ( actData->moveStepRemaining > 0){
-		tmp = actData->moveStepRemaining * ( 60.f / 1000.f);
-		actData->moveStepRemaining = 0;
-		actData->moveTimeRemaining = 0;
-		return static_cast<uint32_t>(tmp);
-	}
-	else{
+	float tmp = 0.0f;
+    if ( actData->moveTimeRemaining > 0 )
 		tmp = actData->moveTimeRemaining;
-		actData->moveTimeRemaining = 0;
-		actData->moveStepRemaining = 0;
-		return static_cast<uint32_t>(tmp);
-	}
-}
 
-uint32_t DSimDroplet::cancel_rotate() 
-{
-	float tmp;
-	if ( actData->rotateStepRemaining > 0){
-		tmp = actData->rotateStepRemaining * ( 60.f / 1000.f);
-		actData->rotateStepRemaining = 0;
-		actData->rotateTimeRemaining = 0;
-		return static_cast<uint32_t>(tmp);
-	}
-	else{
-		tmp = actData->rotateTimeRemaining;
-		actData->rotateTimeRemaining = 0;
-		actData->rotateStepRemaining = 0;
-		return static_cast<uint32_t>(tmp);
-	}
-}
+    reset_motors();
 
-uint8_t DSimDroplet::is_moving()
-{
-	if(actData->moveTimeRemaining <= 0.f && 
-		actData->moveStepRemaining <= 0.f)
-		return 0;
-	else
-		return actData->currMoveDir;
-}
-
-//uint8_t DSimDroplet::is_rotating()
-turn_direction DSimDroplet::is_rotating() 
-{
-	if(actData->rotateTimeRemaining <= 0.f &&
-		actData->rotateStepRemaining <= 0.f)
-		return 0;
-	else
-		return actData->currTurnDir;
+    return static_cast<uint32_t>(tmp);
 }
 
 int8_t DSimDroplet::leg1_status()
@@ -423,10 +383,9 @@ uint8_t DSimDroplet::ir_send(uint8_t channel, const char *send_buf, uint8_t leng
 	memcpy(commData->commChannels[sendChannel].outBuf, &(compData->dropletID), sizeof(droplet_id_type));
 
 	// Store the rest of the message header, then body
-	uint8_t msgLength = length < IR_MAX_DATA_SIZE ? length : IR_MAX_DATA_SIZE;
-	memcpy(&commData->commChannels[sendChannel].outBuf[sizeof(droplet_id_type)], &msgLength, sizeof(uint8_t));
-	memcpy(&commData->commChannels[sendChannel].outBuf[IR_MSG_HEADER], send_buf, msgLength);
-	commData->commChannels[sendChannel].outMsgLength = msgLength + IR_MSG_HEADER;
+	uint16_t msgLength = length < IR_MAX_DATA_SIZE ? length : IR_MAX_DATA_SIZE;
+	memcpy(&commData->commChannels[sendChannel].outBuf[sizeof(droplet_id_type)], send_buf, msgLength);
+	commData->commChannels[sendChannel].outMsgLength = msgLength + sizeof(droplet_id_type);
 
 	// Set Send to active
 	commData->sendActive = true;
@@ -442,22 +401,6 @@ uint8_t DSimDroplet::check_for_new_messages(void)
 		{
 			newMsgCh = i;
 			break;
-			//if(newMsgCh == -1)
-			//	newMsgCh = i;
-			//else
-			//{
-			//	if(commData->commChannels[i].lastMsgInTimestamp <
-			//		commData->commChannels[newMsgCh].lastMsgInTimestamp)
-			//	{
-			//		if(msg_return_order == OLDEST_MSG_FIRST)
-			//			newMsgCh = i;
-			//	}
-			//	else
-			//	{
-			//		if(msg_return_order == NEWEST_MSG_FIRST)
-			//			newMsgCh = i;
-			//	}
-			//}
 		}
 	}
 
@@ -465,17 +408,17 @@ uint8_t DSimDroplet::check_for_new_messages(void)
 	if(newMsgCh != -1)
 	{
 		global_rx_buffer.size = commData->commChannels[newMsgCh].inMsgLength;
-		global_rx_buffer.data_len = global_rx_buffer.size - IR_MSG_HEADER;
+		global_rx_buffer.data_len = global_rx_buffer.size - sizeof(droplet_id_type);
 		global_rx_buffer.message_time = commData->commChannels[newMsgCh].lastMsgInTimestamp;
 		memset(global_rx_buffer.buf, 0, IR_BUFFER_SIZE);
-		memcpy( 
-			global_rx_buffer.buf,
-			&commData->commChannels[newMsgCh].inBuf[IR_MSG_HEADER],
-			global_rx_buffer.data_len);
 		memcpy(
 			&global_rx_buffer.sender_ID,
 			commData->commChannels[newMsgCh].inBuf,
 			sizeof(droplet_id_type));
+		memcpy( 
+			global_rx_buffer.buf,
+			&commData->commChannels[newMsgCh].inBuf[sizeof(droplet_id_type)],
+			global_rx_buffer.data_len);
 
 		// Clean out this message from the in buffer
 		commData->commChannels[newMsgCh].inMsgLength = 0;
@@ -484,21 +427,9 @@ uint8_t DSimDroplet::check_for_new_messages(void)
 	return (newMsgCh == -1) ? 0 : 1;
 }
 
-uint8_t DSimDroplet::set_timer(uint16_t time, uint8_t index)
+uint32_t DSimDroplet::get_32bit_time()
 {
-	if(index >= DROPLET_NUM_TIMERS) return 0;
-
-	timeData->timer[index] = static_cast<float>(time);
-	timeData->trigger[index] = 0;
-
-	return 1;
-}
- 
-uint8_t DSimDroplet::check_timer(uint8_t index)
-{
-	if(index >= DROPLET_NUM_TIMERS) return 0;
-
-	return timeData->trigger[index];
+	return static_cast<uint32_t>(timeData->time_since_start);
 }
 
 uint8_t DSimDroplet::range_and_bearing(uint16_t partner_id, float *dist, float *theta, float *phi)
@@ -519,6 +450,13 @@ uint8_t DSimDroplet::range_and_bearing(uint16_t partner_id, float *dist, float *
 	}
 	angle *= 180 / SIMD_PI; // Radians to Degrees
 
+	//START JOHN ADD DIST FIX HACK?
+	//float xDist = (dropletPositions[this->objPhysics->_dataID]->posX - dropletPositions[partner_data_id]->posX);
+	//float yDist = (dropletPositions[this->objPhysics->_dataID]->posY - dropletPositions[partner_data_id]->posY);
+	//float zDist = (dropletPositions[this->objPhysics->_dataID]->posZ - dropletPositions[partner_data_id]->posZ);
+	//*dist = sqrtf(xDist*xDist+yDist*yDist+zDist*zDist);
+	//END JOHN ADD DIST FIX HACK
+
 	// Find Theta
 	float tauRX;
 	if(dropletPositions[this->objPhysics->_dataID]->rotZ < 0)
@@ -535,10 +473,17 @@ uint8_t DSimDroplet::range_and_bearing(uint16_t partner_id, float *dist, float *
 		tauTX = dropletPositions[partner_data_id]->rotA * 180 / SIMD_PI;
 	*phi = prettyAngle(tauTX - tauRX); 
 
+	//JOHN ADD: non-perfect r&b
+	//std::uniform_real_distribution<float> dist_distribution(*dist,2.0);
+	//*dist = dist_distribution(generator); 
+	//std::uniform_real_distribution<float> theta_distribution(*theta,.30);
+	//*theta = prettyAngle(theta_distribution(generator));
+	//std::uniform_real_distribution<float> phi_distribution(*phi,1.0);
+	//*phi = prettyAngle(phi_distribution(generator)); 
+	//END JOHN ADD
+
 	return 1;
 }
-
-
 
 void DSimDroplet::DropletInit(void) { return; }
 void DSimDroplet::DropletMainLoop(void) { return; }

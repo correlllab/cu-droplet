@@ -20,11 +20,11 @@
 #define SCREENSHOT_WIDTH 4096
 #define SCREENSHOT_HEIGHT 3072
 
+#define DEFAULT_RESET_TIME 60.0 // 1 minute in seconds
+
 // Droplet Simulator specific constants
 #define DEFAULT_ROW_TILES 4
 #define DEFAULT_COL_TILES 4
-
-//#define DEFAULT_NUM_DROPLETS 128
 
 #define DEFAULT_TILE_LENGTH 25.0f
 #define DEFAULT_DROPLET_RADIUS 2.2f
@@ -38,8 +38,6 @@
 
 // 0.0 is the bottom of the mesh, 1.0 is the top of the mesh
 #define DEFAULT_DROPLET_CENTER_OF_MASS 0.15f 
-
-
 #define DEFAULT_OBJECT_MASS  100.f // in g
 #define DEFAULT_OBJECT_FRICTION .25f
 #define DEFAULT_OBJECT_RADIUS 4.0f
@@ -49,8 +47,6 @@
 
 #define DEFAULT_FLOOR_MASS 0.0f // in g
 #define DEFAULT_FLOOR_FRICTION .5f
-
-#define DEFAULT_RESET_TIME 60.0 // 1 minute in seconds
 
 #define DEBUG_MESH "cube"
 #define DEBUG_DROPLET_MESH "cylinder"

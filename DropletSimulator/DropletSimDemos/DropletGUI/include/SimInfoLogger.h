@@ -31,19 +31,10 @@
 
 class SimInfoLogger : public QObject
 {
-
 	Q_OBJECT
 
 public:
 	SimInfoLogger(QObject *parent = 0);
-
-	/**
-	 * \fn	void SimInfoLogger::Init();
-	 *
-	 * \brief	opens the output file and initializes some vars.
-	 */
-
-	void Init();
 
 	/**
 	 * \fn	void SimInfoLogger::printDropletData(simState_t stateInfo);
@@ -83,6 +74,8 @@ private:
 
 	bool posFlag,colorFlag,rotationFlag,commSAFlag, macroRedFlag, macroSAFlag;
 
+	bool firstTime;
+
 	/**
 	 * \property	int redTally, SATally
 	 *
@@ -93,7 +86,7 @@ private:
 	int redTally, SATally;
 
 	/**
-	 * \property	int lastPrint
+	 * \property	double lastPrint
 	 *
 	 * \brief	Time of the last print.
 	 */
@@ -101,7 +94,7 @@ private:
 	double lastPrint;
 
 	/**
-	 * \property	int timeInterval
+	 * \property	double timeInterval
 	 *
 	 * \brief	Time between prints.
 	 */
@@ -123,7 +116,16 @@ private:
 	FILE * fp;
 
 public slots:
+    
 	/**
+	 * \fn	void SimInfoLogger::Init();
+	 *
+	 * \brief	opens the output file and initializes some vars.
+	 */
+
+	void Init();
+
+    /**
 	 * \fn	void SimInfoLogger::close();
 	 *
 	 * \brief	Closes output file.

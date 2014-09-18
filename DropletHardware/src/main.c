@@ -7,7 +7,7 @@
 int main(void)
 {
 	init_all_systems();
-	
+
 	printf("Initialized.\r\n");
 	float lightVal;
 	float rollingLightVal=0.0;
@@ -71,3 +71,4 @@ void color_cycle()
 		delay_ms(10);
 	}
 }
+

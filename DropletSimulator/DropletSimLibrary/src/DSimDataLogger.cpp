@@ -4,11 +4,13 @@
 
 extern std::vector<GPSInfo *> dropletPositions;
 
-DS_RESULT DSimDataLogger::GetDropletPositions(std::vector<GPSInfo *> *outPosData, DSim& simulator)
+DS_RESULT DSimDataLogger::GetDropletPositions ( 
+    std::vector<GPSInfo *> *outPosData, 
+    DSim& simulator )
 {
 
 	std::vector<GPSInfo *>::iterator in_it, p_it;
-	p_it = /*simulator.*/dropletPositions.begin();
+	p_it = dropletPositions.begin();
 
 	for(in_it = outPosData->begin(); in_it < outPosData->end(); in_it++)
 	{
@@ -23,14 +25,16 @@ DS_RESULT DSimDataLogger::GetDropletPositions(std::vector<GPSInfo *> *outPosData
 		outDat->rotY = dat->rotY;
 		outDat->rotZ = dat->rotZ;
 
-		if(p_it < /*simulator.*/dropletPositions.end())
+		if(p_it < dropletPositions.end())
 			p_it++;
 	}
 
 	return DS_SUCCESS;
 }
 
-DS_RESULT DSimDataLogger::GetObjectPositions(std::vector<GPSInfo *> *outPosData, DSim& simulator)
+DS_RESULT DSimDataLogger::GetObjectPositions ( 
+    std::vector<GPSInfo *> *outPosData, 
+    DSim& simulator )
 {
 
 	std::vector<GPSInfo *>::iterator in_it, p_it;
@@ -56,7 +60,9 @@ DS_RESULT DSimDataLogger::GetObjectPositions(std::vector<GPSInfo *> *outPosData,
 	return DS_SUCCESS;
 }
 
-DS_RESULT DSimDataLogger::GetDropletColors(std::vector<uint8_t *> *colors, DSim& simulator)
+DS_RESULT DSimDataLogger::GetDropletColors ( 
+    std::vector<uint8_t *> *colors, 
+    DSim& simulator )
 {
 	std::vector<DSimDroplet *>::iterator d_it;
 	std::vector<uint8_t *>::iterator c_it;
@@ -80,7 +86,9 @@ DS_RESULT DSimDataLogger::GetDropletColors(std::vector<uint8_t *> *colors, DSim&
 	return DS_SUCCESS;
 }
 
-DS_RESULT DSimDataLogger::GetRemainingMotionTimes(std::vector<float *> *times, DSim& simulator)
+DS_RESULT DSimDataLogger::GetRemainingMotionTimes ( 
+    std::vector<float *> *times, 
+    DSim& simulator )
 {
 	std::vector<DSimDroplet *>::iterator d_it;
 	std::vector<float *>::iterator c_it;
@@ -94,7 +102,6 @@ DS_RESULT DSimDataLogger::GetRemainingMotionTimes(std::vector<float *> *times, D
 
 		float *outTime = (float *)*c_it;
 		outTime[0] = actData->moveTimeRemaining;
-		outTime[1] = actData->rotateTimeRemaining;
 
 		if(c_it < times->end())
 			c_it++;
@@ -103,7 +110,9 @@ DS_RESULT DSimDataLogger::GetRemainingMotionTimes(std::vector<float *> *times, D
 	return DS_SUCCESS;
 }
 
-DS_RESULT DSimDataLogger::GetMotionDirections(std::vector<DirInfo *> *directions, DSim& simulator)
+DS_RESULT DSimDataLogger::GetMotionDirections (
+    std::vector<DirInfo *> *directions, 
+    DSim& simulator )
 {
 	std::vector<DSimDroplet *>::iterator d_it;
 	std::vector<DirInfo *>::iterator c_it;
@@ -117,7 +126,6 @@ DS_RESULT DSimDataLogger::GetMotionDirections(std::vector<DirInfo *> *directions
 
 		DirInfo *outDir = (DirInfo *)*c_it;
 		outDir->currMoveDir = actData->currMoveDir;
-		outDir->currTurnDir = actData->currTurnDir;
 
 		if(c_it < directions->end())
 			c_it++;
@@ -126,7 +134,9 @@ DS_RESULT DSimDataLogger::GetMotionDirections(std::vector<DirInfo *> *directions
 	return DS_SUCCESS;
 }
 
-DS_RESULT DSimDataLogger::GetSensorColors(std::vector<uint8_t *> *colors, DSim& simulator)
+DS_RESULT DSimDataLogger::GetSensorColors (
+    std::vector<uint8_t *> *colors, 
+    DSim& simulator )
 {
 	std::vector<DSimDroplet *>::iterator d_it;
 	std::vector<uint8_t *>::iterator c_it;
@@ -150,7 +160,9 @@ DS_RESULT DSimDataLogger::GetSensorColors(std::vector<uint8_t *> *colors, DSim& 
 	return DS_SUCCESS;
 }
 
-DS_RESULT DSimDataLogger::GetPhysData(std::vector<ObjectPhysicsData *> *phys, DSim& simulator)
+DS_RESULT DSimDataLogger::GetPhysData ( 
+    std::vector<ObjectPhysicsData *> *phys, 
+    DSim& simulator )
 {
 	std::vector<DSimDroplet *>::iterator d_it;
 	std::vector<ObjectPhysicsData *>::iterator c_it;
@@ -176,7 +188,9 @@ DS_RESULT DSimDataLogger::GetPhysData(std::vector<ObjectPhysicsData *> *phys, DS
 	return DS_SUCCESS;
 }
 
-DS_RESULT DSimDataLogger::GetCommData(std::vector<DropletCommData *> *comm, DSim& simulator)
+DS_RESULT DSimDataLogger::GetCommData ( 
+    std::vector<DropletCommData *> *comm, 
+    DSim& simulator )
 {
 	std::vector<DSimDroplet *>::iterator d_it;
 	std::vector<DropletCommData *>::iterator c_it;
@@ -213,7 +227,9 @@ DS_RESULT DSimDataLogger::GetCommData(std::vector<DropletCommData *> *comm, DSim
 	return DS_SUCCESS;
 }
 
-DS_RESULT DSimDataLogger::GetCompData(std::vector<DropletCompData *> *comp, DSim& simulator)
+DS_RESULT DSimDataLogger::GetCompData ( 
+    std::vector<DropletCompData *> *comp, 
+    DSim& simulator )
 {
 	std::vector<DSimDroplet *>::iterator d_it;
 	std::vector<DropletCompData *>::iterator c_it;
@@ -239,7 +255,9 @@ DS_RESULT DSimDataLogger::GetCompData(std::vector<DropletCompData *> *comp, DSim
 	return DS_SUCCESS;
 }
 
-DS_RESULT DSimDataLogger::GetActuationData(std::vector<DropletActuatorData *> *act, DSim &simulator)
+DS_RESULT DSimDataLogger::GetActuationData ( 
+    std::vector<DropletActuatorData *> *act, 
+    DSim &simulator )
 {
 	std::vector<DSimDroplet *>::iterator d_it;
 	std::vector<DropletActuatorData *>::iterator c_it;
@@ -256,9 +274,7 @@ DS_RESULT DSimDataLogger::GetActuationData(std::vector<DropletActuatorData *> *a
 		outAct->gOut = actData->gOut;
 		outAct->bOut = actData->bOut;
 		outAct->currMoveDir = actData->currMoveDir;
-		outAct->currTurnDir = actData->currTurnDir;
 		outAct->moveTimeRemaining = actData->moveTimeRemaining;
-		outAct->rotateTimeRemaining = actData->rotateTimeRemaining;
 
 		if(c_it < act->end())
 			c_it++;
@@ -267,7 +283,7 @@ DS_RESULT DSimDataLogger::GetActuationData(std::vector<DropletActuatorData *> *a
 	return DS_SUCCESS;
 }
 
-uint64_t DSimDataLogger::GetNumCollisions(DSim &simulator)
+uint64_t DSimDataLogger::GetNumCollisions ( DSim &simulator )
 {
 	int numManifolds = simulator.simPhysics->dynWorld->getDispatcher()->getNumManifolds();
 	uint64_t numColls = 0;
@@ -297,22 +313,27 @@ uint64_t DSimDataLogger::GetNumCollisions(DSim &simulator)
 	return numColls;
 }
 
-double DSimDataLogger::GetTotalRT(DSim& simulator) {
+double DSimDataLogger::GetTotalRT(DSim& simulator) 
+{
 	return simulator.timer.getTotalRT();
 }
 
-double DSimDataLogger::GetTotalST(DSim& simulator) {
+double DSimDataLogger::GetTotalST(DSim& simulator) 
+{
 	return simulator.timer.getTotalST();
 }
 
-double DSimDataLogger::GetStepRT(DSim& simulator) {
+double DSimDataLogger::GetStepRT(DSim& simulator) 
+{
 	return simulator.timer.getStepRT();
 }
 
-double DSimDataLogger::GetTotalDiff(DSim& simulator) {
+double DSimDataLogger::GetTotalDiff(DSim& simulator) 
+{
 	return simulator.timer.getTotalDiff();
 }
 
-double DSimDataLogger::GetTimeRatio(DSim& simulator) {
+double DSimDataLogger::GetTimeRatio(DSim& simulator) 
+{
 	return simulator.timer.getTimeRatio();
 }

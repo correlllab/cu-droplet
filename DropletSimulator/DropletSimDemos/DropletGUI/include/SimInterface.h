@@ -213,6 +213,8 @@ signals:
 
 	void ratesChanged(simRate_t rates);
 
+    void resetLogger ( void );
+
 public slots:
 
 		/**

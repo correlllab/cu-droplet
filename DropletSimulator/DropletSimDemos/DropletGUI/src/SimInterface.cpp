@@ -30,7 +30,7 @@ SimInterface::SimInterface(QObject *parent)
 
 	// Set default reset timer values here
 	_simState.useResetTime = false;
-	_simState.resetTime = DEFAULT_RESET_TIME;
+    _simState.resetTime = DEFAULT_RESET_TIME;
 	_simState.simTime = 0.0;
 	_simState.realTime = 0.0;
 }
@@ -111,6 +111,9 @@ void SimInterface::teardownSim()
 		free(_timer);
 		_timer = NULL;
 	}
+
+    _simState.simTime = 0.0;
+    _simState.realTime = 0.0;
 }
 
 void SimInterface::Init()
@@ -1134,7 +1137,6 @@ void SimInterface::Update(float timeSinceLastUpdate)
 	}
 }
 
-
 void SimInterface::pause()
 {
 	_simStatus.paused = true;
@@ -1145,6 +1147,7 @@ void SimInterface::pause()
 	}
 	emit pauseChanged(_simStatus.paused);
 }
+
 void SimInterface::resume()
 {
 	_simStatus.paused = false;
@@ -1215,6 +1218,7 @@ DSimDroplet* SimInterface::newDropletOfType(droplet_t dType, ObjectPhysicsData *
 
 void SimInterface::reset()
 {
+    emit resetLogger();
 	Init();
 }
 
@@ -1510,10 +1514,6 @@ void SimInterface::updateResetTimer(const QString &text)
 {
 	bool ok;
 	_simState.resetTime = text.toDouble(&ok);
-	//if(!ok)
-	//{
-	//	_simState.useResetTime = false;
-	//}
 }
 
 simRate_t SimInterface::getSimulatorRate()

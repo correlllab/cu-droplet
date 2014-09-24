@@ -5,9 +5,6 @@ std::vector<GPSInfo *> dropletPositions;
 
 DSim::DSim()
 {
-	// TODO: Remove this later
-	//fh = NULL;
-
 	firstRun = true;
 	projSet  = false;
 
@@ -234,9 +231,6 @@ DS_RESULT DSim::SetUpProjector(
 
 DS_RESULT DSim::Init(const SimSetupData &setupData)
 {
-	// TODO: Remove this later
-	//fh = fopen("SimMsgDat.txt","w");
-
 	DS_RESULT retval;
 
 	// Set up simulator init parameters
@@ -344,10 +338,6 @@ DS_RESULT DSim::Step()
 
 DS_RESULT DSim::Cleanup()
 {
-	// TODO: Remove this later
-	//if(fh != NULL)
-		//fclose(fh);
-
 	// Clean up droplet data.
 	std::vector<DSimDroplet *>::reverse_iterator d_rit;
 	for(d_rit = droplets.rbegin(); d_rit != droplets.rend(); d_rit++)
@@ -967,17 +957,6 @@ void DSim::commController()
 							recvCommData->commChannels[recvChannel].lastMsgInTimestamp = 
 								sendCommData->commChannels[sendChannel].lastMsgOutTimestamp = 
 								static_cast<uint16_t>(timer.getTotalST() * 1000);
-
-							// TODO: Remove this later
-							/*if(fh != NULL)
-							{
-								DropletCompData *sendDat, *recvDat;
-								AccessCompData(sendDroplet, &sendDat);
-								AccessCompData(recvDroplet, &recvDat);
-								fprintf(fh, "Sent a msg from %u ---> %u\n", 
-									sendDat->dropletID,
-									recvDat->dropletID);
-							}*/
 						}
 					}
 				}

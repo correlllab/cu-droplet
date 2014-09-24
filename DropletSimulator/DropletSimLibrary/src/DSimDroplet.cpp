@@ -425,10 +425,9 @@ uint8_t DSimDroplet::ir_send(uint8_t channel, const char *send_buf, uint8_t leng
 	memcpy(commData->commChannels[sendChannel].outBuf, &(compData->dropletID), sizeof(droplet_id_type));
 
 	// Store the rest of the message header, then body
-	uint8_t msgLength = length < IR_MAX_DATA_SIZE ? length : IR_MAX_DATA_SIZE;
-	memcpy(&commData->commChannels[sendChannel].outBuf[sizeof(droplet_id_type)], &msgLength, sizeof(uint8_t));
-	memcpy(&commData->commChannels[sendChannel].outBuf[IR_MSG_HEADER], send_buf, msgLength);
-	commData->commChannels[sendChannel].outMsgLength = msgLength + IR_MSG_HEADER;
+	uint16_t msgLength = length < IR_MAX_DATA_SIZE ? length : IR_MAX_DATA_SIZE;
+	memcpy(&commData->commChannels[sendChannel].outBuf[sizeof(droplet_id_type)], send_buf, msgLength);
+	commData->commChannels[sendChannel].outMsgLength = msgLength + sizeof(droplet_id_type);
 
 	// Set Send to active
 	commData->sendActive = true;
@@ -444,22 +443,6 @@ uint8_t DSimDroplet::check_for_new_messages(void)
 		{
 			newMsgCh = i;
 			break;
-			//if(newMsgCh == -1)
-			//	newMsgCh = i;
-			//else
-			//{
-			//	if(commData->commChannels[i].lastMsgInTimestamp <
-			//		commData->commChannels[newMsgCh].lastMsgInTimestamp)
-			//	{
-			//		if(msg_return_order == OLDEST_MSG_FIRST)
-			//			newMsgCh = i;
-			//	}
-			//	else
-			//	{
-			//		if(msg_return_order == NEWEST_MSG_FIRST)
-			//			newMsgCh = i;
-			//	}
-			//}
 		}
 	}
 
@@ -467,17 +450,17 @@ uint8_t DSimDroplet::check_for_new_messages(void)
 	if(newMsgCh != -1)
 	{
 		global_rx_buffer.size = commData->commChannels[newMsgCh].inMsgLength;
-		global_rx_buffer.data_len = global_rx_buffer.size - IR_MSG_HEADER;
+		global_rx_buffer.data_len = global_rx_buffer.size - sizeof(droplet_id_type);
 		global_rx_buffer.message_time = commData->commChannels[newMsgCh].lastMsgInTimestamp;
 		memset(global_rx_buffer.buf, 0, IR_BUFFER_SIZE);
-		memcpy( 
-			global_rx_buffer.buf,
-			&commData->commChannels[newMsgCh].inBuf[IR_MSG_HEADER],
-			global_rx_buffer.data_len);
 		memcpy(
 			&global_rx_buffer.sender_ID,
 			commData->commChannels[newMsgCh].inBuf,
 			sizeof(droplet_id_type));
+		memcpy( 
+			global_rx_buffer.buf,
+			&commData->commChannels[newMsgCh].inBuf[sizeof(droplet_id_type)],
+			global_rx_buffer.data_len);
 
 		// Clean out this message from the in buffer
 		commData->commChannels[newMsgCh].inMsgLength = 0;
@@ -501,7 +484,6 @@ uint32_t DSimDroplet::get_timer_time_remaining(uint8_t index)
 	if(index >= DROPLET_NUM_TIMERS) return 0;
 
 	float current_status = timeData->timer[index];
-
 
 	return static_cast<uint32_t>(timeData->timer[index]);
 }
@@ -537,10 +519,10 @@ uint8_t DSimDroplet::range_and_bearing(uint16_t partner_id, float *dist, float *
 	angle *= 180 / SIMD_PI; // Radians to Degrees
 
 	//START JOHN ADD DIST FIX HACK?
-	float xDist = (dropletPositions[this->objPhysics->_dataID]->posX - dropletPositions[partner_data_id]->posX);
-	float yDist = (dropletPositions[this->objPhysics->_dataID]->posY - dropletPositions[partner_data_id]->posY);
-	float zDist = (dropletPositions[this->objPhysics->_dataID]->posZ - dropletPositions[partner_data_id]->posZ);
-	*dist = sqrtf(xDist*xDist+yDist*yDist+zDist*zDist);
+	//float xDist = (dropletPositions[this->objPhysics->_dataID]->posX - dropletPositions[partner_data_id]->posX);
+	//float yDist = (dropletPositions[this->objPhysics->_dataID]->posY - dropletPositions[partner_data_id]->posY);
+	//float zDist = (dropletPositions[this->objPhysics->_dataID]->posZ - dropletPositions[partner_data_id]->posZ);
+	//*dist = sqrtf(xDist*xDist+yDist*yDist+zDist*zDist);
 	//END JOHN ADD DIST FIX HACK
 
 	// Find Theta

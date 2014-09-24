@@ -30,11 +30,6 @@ class DSim
 	friend class DSimDataLogger;
 
 private :
-
-	// TODO : Remove this later
-	FILE *fh;
-
-
 	SimPhysicsData *simPhysics;
 	SimSetupData *simSetupData;
 

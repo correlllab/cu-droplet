@@ -1,5 +1,5 @@
 /* *** PROGRAM DESCRIPTION ***
- * 
+ * This is the tile assembly model for making concentric sqaures
  */
 #pragma once
 

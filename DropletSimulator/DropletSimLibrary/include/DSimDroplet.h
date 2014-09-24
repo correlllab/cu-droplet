@@ -410,6 +410,13 @@ protected :
 	
 	uint8_t ir_broadcast(const char *send_buf, uint8_t length);
 
+	/**
+	 * Checks input buffers of all sensors to see if an IR message has arrived. 
+	 * If a message is present it places a copy in the global rx buffer for reading
+	 * and sets global_rx_buffer.read to 0.
+	 * /return 0 if no new messages are present. 1 if a new message is present and is
+	 * successfully copied over to the global rx buffer.
+	 */
 	uint8_t check_for_new_messages(void);
 
 	uint8_t range_and_bearing(uint16_t partner_id, float *dist, float *theta, float *phi);
@@ -442,11 +449,6 @@ public :
 	msg_order msg_return_order; // See DSimGlobals.h NEWEST_MSG_FIRST and OLDEST_MSG_FIRST
 
 	/// The global incoming message buffer for the droplet.
-	/* TODO : Here global_rx_buffer.size, global_rx_buffer.data_len are 
-	 * being used to store the same value, the length of the actual
-	 * body of the message and not the whole message (including
-	 * header). It is a bit confusing, fix it later.
-	*/
 	struct  
 	{
 			uint8_t *buf;

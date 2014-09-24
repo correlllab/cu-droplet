@@ -74,13 +74,7 @@ void IR_sensor_init()
 
 
 	/* READ & LOAD CALIBRATION (PRODUCTION SIGNATURE ROW) */	//TODO (unlikely will make any difference)
-	
-	/*
-	* IF YOU UNCOMMENT THE CODE BELOW, 
-	* YOU CAN NO LONGER USE THE MATH LIBRARY. 
-	* OR PRINT FLOATS. GOOD LUCK! <3
-	*/
-	
+	//
 	//ADCBcalibration0 = SP_ReadCalibrationByte(offsetof( NVM_PROD_SIGNATURES_t, ADCBCAL0 ));
 	//ADCBcalibration1 = SP_ReadCalibrationByte(offsetof( NVM_PROD_SIGNATURES_t, ADCBCAL1 ));
 	//ADCAcalibration0 = SP_ReadCalibrationByte(offsetof( NVM_PROD_SIGNATURES_t, ADCACAL0 ));

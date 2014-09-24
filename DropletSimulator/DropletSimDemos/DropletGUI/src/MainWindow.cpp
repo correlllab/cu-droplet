@@ -146,15 +146,16 @@ void MainWindow::launchSimulator()
 		_logger.setMacroRedFlag(macroRedCheckBox->isChecked());
 		_logger.setMacroSAFlag(macroSACheckBox->isChecked());
 		_logger.Init();
-		connect(&_simInterface,SIGNAL(simulationUpdated(simState_t)),&_logger,SLOT(timeCheck(simState_t)));
+		connect(&_simInterface, SIGNAL(simulationUpdated(simState_t)), &_logger, SLOT(timeCheck(simState_t)));
+        connect(&_simInterface, SIGNAL(resetLogger(void)), &_logger, SLOT(Init()));
 	}
 
 	emit launchSim(newSettings);
 
 	if (!_simulatorRunning)
 	{
-		//emit setUpdateRate(1.0f);
-		//emit enableLimit();
+		emit setUpdateRate(1.0f);
+		emit enableLimit();
 
 		_simulatorRunning = true;
 	}
@@ -406,7 +407,7 @@ void MainWindow::addButtonWidgets()
 	logWidget->setLayout(logLayout);
 	connect(logCheckBox, SIGNAL(stateChanged(int)), this, SLOT(showHideLogWidget(int)));
 
-	resetTimerCheckBox = new QCheckBox(tr("Simulation Reset Timer (s)"));
+	resetTimerCheckBox = new QCheckBox(tr("Simulation Reset Timer (sec)"));
 	resetTimerValue = new QLineEdit;
 	QDoubleValidator *v = new QDoubleValidator(this);
 	v->setBottom(1.0);

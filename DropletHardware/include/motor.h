@@ -23,8 +23,9 @@
 
 #include "droplet_init.h"
 #include "scheduler.h"
+#include "eeprom_driver.h"
 
-volatile uint8_t motor_status; // [ on, cancel, 0, 0, 0, direction(2-0) ] 
+volatile uint8_t motor_status;
 volatile Task_t* current_motor_task;
 
 int16_t motor_on_time;
@@ -48,7 +49,7 @@ void walk(uint8_t direction, uint16_t mm);
 // Stops all motors
 void stop();
 
-uint8_t is_moving(void); // returns 0 if droplet is not moving, otherwise returns the direction of motion (1-6)
+int8_t is_moving(); // returns 0 if droplet is not moving, otherwise returns the direction of motion (1-6)
 
 uint16_t	get_mm_per_kilostep(uint8_t direction);
 void		set_mm_per_kilostep(uint8_t direction, uint16_t dist);

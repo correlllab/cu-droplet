@@ -18,7 +18,8 @@
 #include <cstdlib>
 #include <utility>
 #include <string>
-#include <math.h>
+#include <cmath>
+#include <algorithm>
 
 class SimSetupData;	// Defined after DSim
 

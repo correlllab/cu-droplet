@@ -47,6 +47,7 @@ typedef unsigned char DS_RESULT;
 #define NORTH_WEST	5
 #define TURN_CLOCKWISE			6
 #define TURN_COUNTERCLOCKWISE	7
+#define TURN_ANTICLOCKWISE		7
 typedef uint8_t move_direction;
 
 // Droplet Communication Error Codes

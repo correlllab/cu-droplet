@@ -10,9 +10,9 @@ void DropletCustomEight::DropletInit()
 {
 	init_all_systems();
 	char buffer[64];
-	sprintf(buffer,"C:\\Users\\Colab\\Desktop\\dropletSimDumps\\%04hxdat.txt",get_droplet_id());
 	//sprintf(buffer,"C:\\Users\\Colab\\Desktop\\dropletSimDumps\\%04hxdat.txt",get_droplet_id());
-	file_handle = fopen (buffer,"w");
+	//sprintf(buffer,"C:\\Users\\Colab\\Desktop\\dropletSimDumps\\%04hxdat.txt",get_droplet_id());
+	//file_handle = fopen (buffer,"w");
 	set_rgb_led(0,0,0);
 
 	state = STATE_PRE_ASSEMBLY;
@@ -212,6 +212,8 @@ void DropletCustomEight::handle_move_to_spot(){
 		if(moving_state==MOVING_NORMAL){
 			float this_move_dist, this_move_theta;
 			sub_polar_vec(adj_move_target_dist, adj_move_target_theta, last_move_r, last_move_theta, &this_move_dist, &this_move_theta);
+			//fprintf(file_handle, "move_target: %hu, move_target_dir: %hhu, adj_move_target_dist: %f\n", move_target, move_target_dir, adj_move_target_dist);
+			//fflush(file_handle);
 			if(adj_move_target_dist<(PROXIMITY_THRESHOLD)){ //we're done moving!
 				state = STATE_ADJUSTING_PHI;
 				last_move_r=0;
@@ -224,7 +226,7 @@ void DropletCustomEight::handle_move_to_spot(){
 				last_move_dist=0;
 				backing_up_start = get_32bit_time();
 			}else if(adj_move_target_dist<DROPLET_RADIUS){ //we're almost done moving. Take smaller steps.
-				move_steps(get_best_move_dir(adj_move_target_theta), 5);
+				move_steps(get_best_move_dir(adj_move_target_theta), MOVE_STEPS_AMOUNT/3);
 				last_move_r = adj_move_target_dist;
 				last_move_dist = this_move_dist;
 				last_move_theta = adj_move_target_theta;
@@ -657,17 +659,17 @@ void DropletCustomEight::broadcast_claim_msg(droplet_id_type parent, uint8_t dir
 move_direction DropletCustomEight::get_best_move_dir(float theta){
 	theta = quick_and_dirty_mod(theta);
 	if((-30<=theta)&&(theta<30)){
-		return 1;
+		return NORTH;
 	}else if((-90<=theta)&&(theta<-30)){
-		return 2;
+		return NORTH_EAST;
 	}else if((-150<=theta)&&(theta<-90)){
-		return 3;
+		return SOUTH_EAST;
 	}else if(((-180<=theta)&&(theta<-150))||((150<=theta)&&(theta<=180))){
-		return 4;
+		return SOUTH;
 	}else if((90<=theta)&&(theta<150)){
-		return 5;
+		return SOUTH_WEST;
 	}else if((30<=theta)&&(theta<90)){
-		return 6;
+		return NORTH_WEST;
 	}
 	//fprintf(file_handle,"\n\n\n\n\nERROR ERROR UNEXPECTED DIRECTION FOR THETA: %f ERROR ERROR \n\n\n\n\n",theta);
 	//fflush(file_handle);

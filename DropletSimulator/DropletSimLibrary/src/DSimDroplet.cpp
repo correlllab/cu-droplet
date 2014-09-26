@@ -140,9 +140,9 @@ void DSimDroplet::init_all_systems()
     timeData->time_since_start = 0;
 }
 
-void droplet_reboot(void)
+void DSimDroplet::droplet_reboot(void)
 {
-	// TODO
+	init_all_systems ();
 }
 
 void DSimDroplet::reset_rgb_led() 

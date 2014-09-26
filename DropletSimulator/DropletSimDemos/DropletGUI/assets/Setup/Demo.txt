@@ -17,11 +17,11 @@ sphere 37.5 37.5 6 0.25 1.0
 cube -37.5 -37.5 3 0.25 0.1
 
 # Droplet Creation. Usage: 
-# droplet <program> <number>
+# droplets <program> <number>
 # --- OR ---
-# droplet <program> <x-pos> <y-pos>
+# droplets <program> <x-pos> <y-pos>
 
-droplet customfive 50
+droplets customfive 50
 
 droplets customone 44.1 -44.1
 droplets customone 30.9 -30.9

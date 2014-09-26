@@ -273,7 +273,6 @@ DS_RESULT DSim::Init(const SimSetupData &setupData)
 DS_RESULT DSim::Step()
 {
 	// The following if() statement is just run on the first step of the simulator.
-	std::vector<DSimDroplet *>::iterator it;
 	if(firstRun)
 	{
 		// Step the simulation a few times first
@@ -281,8 +280,15 @@ DS_RESULT DSim::Step()
 			simPhysics->dynWorld->stepSimulation(1.0f / simSetupData->fps);
 
 		// Stagger each droplet's starting time, if required
+        // Call the simulation controllers once for initialization
+		gatherPositionsAndCorrect();
+		motionController();
+        sensorController();
+		timerController();
+
 		if(simSetupData->staggeredStart)
 		{
+            std::vector<DSimDroplet *>::iterator it;
 			for(it = droplets.begin(); it != droplets.end(); it++)
 			{
 
@@ -296,10 +302,11 @@ DS_RESULT DSim::Step()
 						pDroplet->DropletMainLoop();
 					}
 
-					// Call some of the simulation controllers
 					gatherPositionsAndCorrect();
 					motionController();
+	                sensorController();
 					timerController();
+	                commController();
 
 					// Step the physics simulation.
 					simPhysics->dynWorld->stepSimulation(1.0f / simSetupData->fps);
@@ -310,7 +317,8 @@ DS_RESULT DSim::Step()
 		firstRun = false;
 		return DS_SUCCESS;
 	}
-
+    
+    std::vector<DSimDroplet *>::iterator it;
 	for(it = droplets.begin(); it != droplets.end(); it++)
 	{
 		DSimDroplet *pDroplet = *it;

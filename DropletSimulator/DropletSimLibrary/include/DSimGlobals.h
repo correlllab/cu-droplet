@@ -84,7 +84,7 @@ typedef uint8_t msg_order;
 #define NUM_COMM_CHANNELS 100
 
 #define DROPLET_REL_POS_UPDATE_TIME .1f // seconds
-#define BROADCAST_THRESHOLD	25.f // cm
+#define BROADCAST_THRESHOLD	50.f // cm
 
 #define IR_MAX_DATA_SIZE	72
 #define IR_BUFFER_SIZE		sizeof(droplet_id_type) + IR_MAX_DATA_SIZE

@@ -24,11 +24,17 @@ void DropletCustomOne::DropletMainLoop()
 {
     switch ( state )
     {
-    case START_DELAY:
+    case COLLABORATING:
+        if ( get_32bit_time() - collab_time > COLLABORATE_DURATION )
         {
-            uint32_t curr_time = get_32bit_time ();
-            if ( curr_time - start_delay_time > START_DELAY_TIME )
-                change_state ( SAFE );
+            change_state ( LEAVING );
+        }
+        break;
+
+    case LEAVING:
+        if ( !is_moving(NULL) )
+        {
+            change_state ( SAFE );
         }
         break;
 
@@ -53,6 +59,14 @@ void DropletCustomOne::DropletMainLoop()
         }
         break;
 
+    case START_DELAY:
+        {
+            uint32_t curr_time = get_32bit_time ();
+            if ( curr_time - start_delay_time > START_DELAY_TIME )
+                change_state ( SAFE );
+        }
+        break;
+
     case WAITING:
         if ( get_32bit_time() - heartbeat_time > HEART_RATE )
         {
@@ -60,6 +74,9 @@ void DropletCustomOne::DropletMainLoop()
             send_heartbeat ();
         }
 
+        // Checks incoming messages and updates group size.
+        // There is a chance the state can be changed to COLLABORATING in
+        // this function if the droplet sees a GO message.
         update_group_size ();
 
         if (    get_32bit_time() - voting_time > HEART_RATE &&
@@ -69,13 +86,6 @@ void DropletCustomOne::DropletMainLoop()
             check_votes ();
         }
 
-        break;
-
-    case COLLABORATING:
-        if ( get_32bit_time() - collab_time > COLLABORATE_DURATION )
-        {
-            change_state ( SAFE );
-        }
         break;
 
     default:
@@ -203,7 +213,8 @@ void DropletCustomOne::random_walk ( void )
         }
         else
         {
-            move_duration ( rand_byte() % 6, rand_byte() * MOVE_DIST_SCALAR );
+            last_move_dir = rand_byte() % 6;
+            move_duration ( last_move_dir, rand_byte() * MOVE_DIST_SCALAR );
         }
     }
 }
@@ -213,12 +224,21 @@ void DropletCustomOne::change_state ( State new_state )
     state = new_state;
     switch ( state )
     {
-    case START_DELAY:
-        start_delay_time    = get_32bit_time ();
+    case COLLABORATING:
+        set_rgb_led         ( 0, 0, 250 );
+        collab_time         = get_32bit_time ();
         break;
+
+    case LEAVING:
+        set_rgb_led         ( 0, 250, 250 );
+        move_duration       ( (last_move_dir + 3) % 6, WALKAWAY_TIME );
 
     case SAFE:
         set_rgb_led         ( 255, 255, 0 );
+        break;
+
+    case START_DELAY:
+        start_delay_time    = get_32bit_time ();
         break;
 
     case WAITING:
@@ -231,11 +251,6 @@ void DropletCustomOne::change_state ( State new_state )
         heartbeat_time      = get_32bit_time ();
         voting_time         = get_32bit_time ();
         send_heartbeat      ();
-        break;
-
-    case COLLABORATING:
-        set_rgb_led         ( 0, 0, 250 );
-        collab_time         = get_32bit_time ();
         break;
 
     case SEARCHING:

@@ -18,7 +18,7 @@
 #define MOVE_DIST_SCALAR            50
 #define RED_THRESHOLD               200
 
-#define SURVIIVAL_TIME              15000   // in ms
+#define WALKAWAY_TIME               15000   // in ms
 #define START_DELAY_TIME            100     // in ms
 #define COLLABORATE_DURATION        3000    // in ms
 
@@ -34,16 +34,19 @@ private :
     uint32_t    voting_time;
     uint32_t    collab_time;
     uint32_t    last_update_time;
+    uint8_t     last_move_dir;
     double      tau, theta;
+
     std::map<droplet_id_type, std::pair<uint32_t, bool>> unique_ids;
 
     enum State
     {
-        SEARCHING,
-        WAITING,
         COLLABORATING,
+        LEAVING,
         SAFE,
-        START_DELAY
+        SEARCHING,
+        START_DELAY,
+        WAITING
     } state;
 
     bool check_safe         ( void );

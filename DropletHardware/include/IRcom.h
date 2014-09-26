@@ -27,6 +27,12 @@
 #define DATA_LEN_VAL_bm		0x7F
 #define DATA_LEN_CMD_bm		0x80
 
+#define IR_CH0		0x01
+#define IR_CH1		0x02
+#define IR_CH2		0x04
+#define IR_CH3		0x08
+#define IR_CH4		0x10
+#define IR_CH5		0x20
 #define IR_ALL_DIRS 0x3F
 
 #define HEADER_POS_SENDER_ID_LOW 0
@@ -56,6 +62,7 @@ typedef volatile struct node
 {
 	char* msg;
 	uint32_t arrival_time;
+	uint8_t arrival_dir;
 	uint16_t sender_ID;
 	uint8_t msg_length;
 	struct node* prev;

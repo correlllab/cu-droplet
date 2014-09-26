@@ -138,12 +138,12 @@ void perform_ir_upkeep()
 			bad_crc_dirs |= (0x1<<dir);
 		}
 	}
-	if(msg_chan<0 && bad_crc_dirs>0) msg_chan = recover_msg(bad_crc_dirs);
+	//if(msg_chan<0 && bad_crc_dirs>0) msg_chan = recover_msg(bad_crc_dirs);
 	for(int8_t dir=0;dir<6;dir++) //free up the ir buffers for all the channels we don't need.
 	{
 		if(ir_rxtx[dir].status&IR_STATUS_COMPLETE_bm) if(dir!=msg_chan) clear_ir_buffer(dir);
 	}
-	if(msg_chan>0) //If we got a good message.
+	if(msg_chan>=0) //If we got a good message.
 	{
 		if(ir_rxtx[msg_chan].status & IR_STATUS_COMMAND_bm) //If the message is a command.
 		{
@@ -162,6 +162,7 @@ void perform_ir_upkeep()
 			memcpy(new_node->msg, ir_rxtx[msg_chan].buf, ir_rxtx[msg_chan].data_length);
 			new_node->msg[ir_rxtx[msg_chan].data_length]='\0';
 			new_node->arrival_time = ir_rxtx[msg_chan].last_byte;
+			new_node->arrival_dir = msg_chan;
 			new_node->sender_ID = ir_rxtx[msg_chan].sender_ID;
 			new_node->msg_length = ir_rxtx[msg_chan].data_length;
 			new_node->prev = last_ir_msg;

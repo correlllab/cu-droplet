@@ -17,8 +17,17 @@ int main(void)
 		//handle_shout(&msg);
 		//delay_ms(500);		
 		//check_messages();
-		check_collisions();
-		delay_ms(1000);		
+		//delay_ms(20);
+		//check_collisions();
+		delay_ms(10);
+		//char dat;
+		//for(uint8_t i=0;i<6;i++)
+		//{
+			//dat = i + '0';
+			//ir_send(IR_CH0, &dat, 1);
+			//delay_ms(1000);
+		//}
+
 		//for(uint8_t i=0;i<6;i++) printf("%hhu ", get_IR_sensor(i));
 		//uint8_t randDir = rand_byte()%6;
 		//int8_t meas = get_IR_sensor(randDir);
@@ -59,7 +68,7 @@ void check_messages()
 		{
 			printf("%c",last_ir_msg->msg[i]);
 		}
-		printf("\"\r\n\tfrom %hx %ums ago.\r\n",last_ir_msg->sender_ID, get_32bit_time()-last_ir_msg->arrival_time);
+		printf("\"\r\n\tfrom %hx on ch%hhu %ums ago.\r\n",last_ir_msg->sender_ID, last_ir_msg->arrival_dir, get_32bit_time()-last_ir_msg->arrival_time);
 		msg_node* temp = last_ir_msg;
 		last_ir_msg = last_ir_msg->prev;
 		free(temp->msg);

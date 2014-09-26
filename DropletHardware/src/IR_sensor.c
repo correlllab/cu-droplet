@@ -145,9 +145,9 @@ void check_collisions(){
 	PORTE.OUTCLR = (PIN3_bm | PIN7_bm);
 	PORTF.OUTCLR = PIN3_bm;
 
-	//busy_delay_us(250);
+	busy_delay_us(250);
 	//ADCB.CTRLA |= ADC_FLUSH_bm;
-	delay_ms(10000);
+	//delay_ms(1000);
 	for(uint8_t i=0;i<6;i++){
 		busy_delay_us(250);		
 		measured_vals[i]=get_IR_sensor(i);

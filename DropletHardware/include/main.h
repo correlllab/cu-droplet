@@ -5,6 +5,7 @@
 #include "RGB_sensor.h"
 #include "pc_com.h"
 //#include "motor.h"
+//#include "flash_api.h"
 #include "IRcom.h"
 
 int main(void);

@@ -46,9 +46,9 @@ void IR_sensor_init()
 	//printf("Offsets: [0: %hhd, 1: %hhd, 2: %hhd, 3: %hhd, 4: %hhd, 5: %hhd\r\n",ADC_offset[0],ADC_offset[1],ADC_offset[2],ADC_offset[3],ADC_offset[4],ADC_offset[5]);
 		
 	////the commands below set the ir_emitters to output.
-	//PORTC.DIRSET = (PIN3_bm | PIN7_bm);
+	PORTC.DIRSET = (PIN3_bm | PIN7_bm);
 	PORTD.DIRCLR =  PIN3_bm;
-	//PORTE.DIRSET = (PIN3_bm | PIN7_bm);
+	PORTE.DIRSET = (PIN3_bm | PIN7_bm);
 	PORTF.DIRCLR =  PIN3_bm;	
 	//PORTF.DIRSET = ALL_EMITTERS_CARWAV_bm;	//set carrier wave pins to output.
 }
@@ -134,11 +134,11 @@ void check_collisions(){
 	}
 	TCF2.CTRLB &= ~ALL_EMITTERS_CARWAV_bm;	//disable carrier wave output
 	PORTF.OUTSET = ALL_EMITTERS_CARWAV_bm;	// set carrier wave pins high.
-	//PORTF.DIRSET = ALL_EMITTERS_CARWAV_bm;
+	PORTF.DIRSET = ALL_EMITTERS_CARWAV_bm;
 	PORTC.DIRSET = (PIN3_bm | PIN7_bm);
-	//PORTD.DIRSET =  PIN3_bm;
+	PORTD.DIRSET =  PIN3_bm;
 	PORTE.DIRSET = (PIN3_bm | PIN7_bm);
-	//PORTF.DIRSET =  PIN3_bm;
+	PORTF.DIRSET =  PIN3_bm;
 		
 	PORTC.OUTCLR = (PIN3_bm | PIN7_bm);
 	PORTD.OUTCLR = PIN3_bm;
@@ -147,7 +147,7 @@ void check_collisions(){
 
 	//busy_delay_us(250);
 	//ADCB.CTRLA |= ADC_FLUSH_bm;
-	//delay_ms(10000);
+	delay_ms(10000);
 	for(uint8_t i=0;i<6;i++){
 		busy_delay_us(250);		
 		measured_vals[i]=get_IR_sensor(i);

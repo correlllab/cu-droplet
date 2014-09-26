@@ -1,5 +1,5 @@
 #include "main.h"
-#include "flash_api.h"
+
 
 volatile float blah;
 
@@ -17,8 +17,8 @@ int main(void)
 		//handle_shout(&msg);
 		//delay_ms(500);		
 		//check_messages();
-		delay_ms(100);
 		check_collisions();
+		delay_ms(1000);		
 		//for(uint8_t i=0;i<6;i++) printf("%hhu ", get_IR_sensor(i));
 		//uint8_t randDir = rand_byte()%6;
 		//int8_t meas = get_IR_sensor(randDir);

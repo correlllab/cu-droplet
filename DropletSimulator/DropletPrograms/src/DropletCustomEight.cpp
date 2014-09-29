@@ -239,7 +239,7 @@ void DropletCustomEight::adj_spots_to_fill(){
 		state = STATE_ALL_ADJ_SPOTS_FILLED;
 	}
 	else{
-		if (get_32bit_time()-neighbor_call_timeout_start>NEIGHBOR_CALL_TIMEOUT_TIMER_DELAY_MS){
+		if (get_32bit_time() - neighbor_call_timeout_start>NEIGHBOR_CALL_TIMEOUT_TIMER_DELAY_MS){
 			call_for_neighbors();
 		}
 	}

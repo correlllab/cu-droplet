@@ -572,14 +572,14 @@ private:
 	 * \brief	The droplet position.
 	 */
 
-	std::vector<GPSInfo *> *_dropletPos;
+	std::vector<ObjectPositionData *> *_dropletPos;
 	std::vector<DropletCommData *> *_dropletComm;
 
 	/**
 	 * \brief	The object position.
 	 */
 
-	std::vector<GPSInfo *> *_objectPos;
+	std::vector<ObjectPositionData *> *_objectPos;
 	DSimTimeControl *_timer;
 
 	/**

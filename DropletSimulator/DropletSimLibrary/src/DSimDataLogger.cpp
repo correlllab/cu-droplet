@@ -2,21 +2,21 @@
 #include "DSim.h"
 #include "DSimDroplet.h"
 
-extern std::vector<GPSInfo *> dropletPositions;
+extern std::vector<ObjectPositionData *> dropletPositions;
 
 DS_RESULT DSimDataLogger::GetDropletPositions ( 
-    std::vector<GPSInfo *> *outPosData, 
+    std::vector<ObjectPositionData *> *outPosData, 
     DSim& simulator )
 {
 
-	std::vector<GPSInfo *>::iterator in_it, p_it;
+	std::vector<ObjectPositionData *>::iterator in_it, p_it;
 	p_it = dropletPositions.begin();
 
 	for(in_it = outPosData->begin(); in_it < outPosData->end(); in_it++)
 	{
-		GPSInfo *outDat, *dat;
-		outDat = (GPSInfo *)*in_it;
-		dat = (GPSInfo *)*p_it;
+		ObjectPositionData *outDat, *dat;
+		outDat = (ObjectPositionData *)*in_it;
+		dat = (ObjectPositionData *)*p_it;
 		outDat->posX = dat->posX;
 		outDat->posY = dat->posY;
 		outDat->posZ = dat->posZ;
@@ -33,18 +33,18 @@ DS_RESULT DSimDataLogger::GetDropletPositions (
 }
 
 DS_RESULT DSimDataLogger::GetObjectPositions ( 
-    std::vector<GPSInfo *> *outPosData, 
+    std::vector<ObjectPositionData *> *outPosData, 
     DSim& simulator )
 {
 
-	std::vector<GPSInfo *>::iterator in_it, p_it;
+	std::vector<ObjectPositionData *>::iterator in_it, p_it;
 	p_it = simulator.objectPositions.begin();
 
 	for(in_it = outPosData->begin(); in_it < outPosData->end(); in_it++)
 	{
-		GPSInfo *outDat, *dat;
-		outDat = (GPSInfo *)*in_it;
-		dat = (GPSInfo *)*p_it;
+		ObjectPositionData *outDat, *dat;
+		outDat = (ObjectPositionData *)*in_it;
+		dat = (ObjectPositionData *)*p_it;
 		outDat->posX = dat->posX;
 		outDat->posY = dat->posY;
 		outDat->posZ = dat->posZ;

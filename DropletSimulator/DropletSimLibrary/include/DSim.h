@@ -82,7 +82,7 @@ private :
 	 * Set Power to droplet legs
 	 */
 
-	void setLegPower(DSimDroplet *pDroplet, GPSInfo *gpsInfo);
+	void setLegPower(DSimDroplet *pDroplet, ObjectPositionData *ObjectPositionData);
 
 	/**
 	 * Sensor controller.
@@ -130,7 +130,7 @@ protected :
 	/**
 	 * Vector containing physical object positions (other than droplets).
 	 */
-	std::vector<GPSInfo *> objectPositions;
+	std::vector<ObjectPositionData *> objectPositions;
 	
 	// time info class
 	DSimTimeControl timer;

@@ -70,10 +70,10 @@ void SimInterface::teardownSim()
 	}
 	if (_dropletPos != NULL)
 	{
-		std::vector<GPSInfo *>::iterator it;
+		std::vector<ObjectPositionData *>::iterator it;
 		for (it = _dropletPos->begin(); it != _dropletPos->end() ; it++)
 		{
-			GPSInfo *bob = *it;
+			ObjectPositionData *bob = *it;
 			free(bob); 
 		}
 		delete _dropletPos;
@@ -95,10 +95,10 @@ void SimInterface::teardownSim()
 
 	if (_objectPos != NULL)
 	{
-		std::vector<GPSInfo *>::iterator it;
+		std::vector<ObjectPositionData *>::iterator it;
 		for (it = _objectPos->begin(); it != _objectPos->end() ; it++)
 		{
-			GPSInfo *bob = *it;
+			ObjectPositionData *bob = *it;
 			free(bob); 
 
 		}
@@ -188,11 +188,11 @@ void SimInterface::Init()
 	_sim->AddCollisionShape(_simStatus.dropletShape, &_simStatus.btDropletShapeID);
 
 	_dropletColors = new std::vector<unsigned char *>();
-	_dropletPos = new std::vector<GPSInfo *>();
+	_dropletPos = new std::vector<ObjectPositionData *>();
 
 	_dropletComm = new std::vector<DropletCommData *>();
 
-	_objectPos = new std::vector<GPSInfo *>();
+	_objectPos = new std::vector<ObjectPositionData *>();
 
 	_timer = (DSimTimeControl *)malloc(sizeof(DSimTimeControl));
 
@@ -607,7 +607,7 @@ void SimInterface::addDroplet( float x, float y, droplet_t dType, int dropletID 
 	_simStatus.paused = true;
 	unsigned char *tmp1 = (unsigned char *)malloc(sizeof(unsigned char) * 3);
 	_dropletColors->push_back(tmp1);
-	GPSInfo *tmp2 = (GPSInfo *)malloc(sizeof(GPSInfo));
+	ObjectPositionData *tmp2 = (ObjectPositionData *)malloc(sizeof(ObjectPositionData));
 	_dropletPos->push_back(tmp2);
 
 	DropletCommData *tmp3 = (DropletCommData *)malloc(sizeof(DropletCommData));
@@ -734,7 +734,7 @@ void SimInterface::addSphere( float x, float y, int objectID, float radius, floa
 
 	bool isPaused = _simStatus.paused;
 	_simStatus.paused = true;
-	GPSInfo *tmp2 = (GPSInfo *)malloc(sizeof(GPSInfo));
+	ObjectPositionData *tmp2 = (ObjectPositionData *)malloc(sizeof(ObjectPositionData));
 	_objectPos->push_back(tmp2);
 	objectStruct_t object;
 
@@ -788,7 +788,7 @@ void SimInterface::addCube( float x, float y, int objectID, vec3 scale, float ma
 
 	bool isPaused = _simStatus.paused;
 	_simStatus.paused = true;
-	GPSInfo *tmp2 = (GPSInfo *)malloc(sizeof(GPSInfo));
+	ObjectPositionData *tmp2 = (ObjectPositionData *)malloc(sizeof(ObjectPositionData));
 	_objectPos->push_back(tmp2);
 	objectStruct_t object;
 
@@ -976,7 +976,7 @@ void SimInterface::Update(float timeSinceLastUpdate)
 			_simStatus.runTime = _simInfo.GetTotalST(*_sim);
 		}
 
-		std::vector<GPSInfo *>::iterator it;
+		std::vector<ObjectPositionData *>::iterator it;
 		it = _dropletPos->begin();
 		std::vector<DropletCommData *>::iterator commIt;
 		commIt = _dropletComm->begin();
@@ -985,12 +985,12 @@ void SimInterface::Update(float timeSinceLastUpdate)
 		{
 
 			dropletStruct_t droplet = _simState.dropletData[i];
-			GPSInfo *gpsInfo = *it;
+			ObjectPositionData *ObjectPositionData = *it;
 			DropletCommData *dropletCommData = *commIt;
 			bool posChanged = false;
 
 
-			glm::quat quaternion = glm::angleAxis(gpsInfo->rotA * 180.f / SIMD_PI,gpsInfo->rotX,gpsInfo->rotY,gpsInfo->rotZ);
+			glm::quat quaternion = glm::angleAxis(ObjectPositionData->rotA * 180.f / SIMD_PI,ObjectPositionData->rotX,ObjectPositionData->rotY,ObjectPositionData->rotZ);
 			glm::vec3 rotation = glm::eulerAngles(quaternion);
 
 			vec4 newQuaternion = {
@@ -1008,9 +1008,9 @@ void SimInterface::Update(float timeSinceLastUpdate)
 
 
 			vec3 newOrigin = {
-				gpsInfo->posX,
-				gpsInfo->posY,
-				gpsInfo->posZ
+				ObjectPositionData->posX,
+				ObjectPositionData->posY,
+				ObjectPositionData->posZ
 			};
 
 			vec3i newColor = {
@@ -1066,17 +1066,17 @@ void SimInterface::Update(float timeSinceLastUpdate)
 		}
 
 		//Update object positions
-		std::vector<GPSInfo *>::iterator itobj;
+		std::vector<ObjectPositionData *>::iterator itobj;
 		itobj = _objectPos->begin();
 
 		for(int i = 0 ; i < _objectPos->size(); i++)
 		{
 
 			objectStruct_t object = _simState.dynamicObjectData[i];
-			GPSInfo *gpsInfo = *itobj;
+			ObjectPositionData *ObjectPositionData = *itobj;
 			bool posChanged = false;
 
-			glm::quat quaternion = glm::angleAxis(gpsInfo->rotA * 180.f / SIMD_PI,gpsInfo->rotX,gpsInfo->rotY,gpsInfo->rotZ);
+			glm::quat quaternion = glm::angleAxis(ObjectPositionData->rotA * 180.f / SIMD_PI,ObjectPositionData->rotX,ObjectPositionData->rotY,ObjectPositionData->rotZ);
 			glm::vec3 rotation = glm::eulerAngles(quaternion);
 
 			vec4 newQuaternion = {
@@ -1094,9 +1094,9 @@ void SimInterface::Update(float timeSinceLastUpdate)
 
 
 			vec3 newOrigin = {
-				gpsInfo->posX,
-				gpsInfo->posY,
-				gpsInfo->posZ
+				ObjectPositionData->posX,
+				ObjectPositionData->posY,
+				ObjectPositionData->posZ
 			};
 
 

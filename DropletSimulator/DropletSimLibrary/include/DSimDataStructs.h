@@ -60,14 +60,14 @@ typedef struct _Object_Physics_Data
  * Stores localization information for droplets.
  */
 
-typedef struct _Droplet_Localization_Data
+typedef struct _Object_Position_Data
 {
 	float rotX, rotY, rotZ, rotA; // (rotX, rotY, rotZ) describe the axis of rotation
 	float posX, posY, posZ;
 	bool movedSinceLastUpdate;
 	double lastRelPosUpdate;
 
-}GPSInfo;
+} ObjectPositionData;
 
 /**
  * Defines an alias representing information describing the droplet motors and 

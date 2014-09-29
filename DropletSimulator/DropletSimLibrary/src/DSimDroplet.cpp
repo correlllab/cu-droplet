@@ -6,7 +6,7 @@
  * cannot be included in DSimDroplet.h but dropletRelPos is affected by it. 
  */
 extern TrigArray *dropletRelPos; // Welcome to the DAINJA' ZONE!
-extern std::vector<GPSInfo *> dropletPositions;
+extern std::vector<ObjectPositionData *> dropletPositions;
 
 float prettyAngle(float ang)
 {
@@ -472,15 +472,6 @@ uint8_t DSimDroplet::range_and_bearing(uint16_t partner_id, float *dist, float *
 	else
 		tauTX = dropletPositions[partner_data_id]->rotA * 180 / SIMD_PI;
 	*phi = prettyAngle(tauTX - tauRX); 
-
-	//JOHN ADD: non-perfect r&b
-	//std::uniform_real_distribution<float> dist_distribution(*dist,2.0);
-	//*dist = dist_distribution(generator); 
-	//std::uniform_real_distribution<float> theta_distribution(*theta,.30);
-	//*theta = prettyAngle(theta_distribution(generator));
-	//std::uniform_real_distribution<float> phi_distribution(*phi,1.0);
-	//*phi = prettyAngle(phi_distribution(generator)); 
-	//END JOHN ADD
 
 	return 1;
 }

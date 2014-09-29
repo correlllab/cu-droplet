@@ -157,60 +157,37 @@ void DropletCustomEight::decide_if_should_move(){
 void DropletCustomEight::awaiting_confirmation(){
 	claimMsg* claim;
 	confMsg* conf;
-	if (my_type == TYPE__){ //if we haven't gotten a type yet.
-		if (rand_byte()<64){
-			char msg[4];
-			msg[0] = NOT_IN_ASSEMBLY_INDICATOR_BYTE;
-			*((droplet_id_type*)(msg + 1)) = move_target;
-			msg[3] = move_target_dir;
-			ir_broadcast(msg, 4); //send request for confirmation.
-		}
-	}
-	else{
-		set_rgb_led(250, 250, 250);
-		if (rand_byte()<4){
-			char msg[4];
-			msg[0] = NOT_IN_ASSEMBLY_INDICATOR_BYTE;
-			*((droplet_id_type*)(msg + 1)) = move_target;
-			msg[3] = move_target_dir;
-			ir_broadcast(msg, 4); //send request for confirmation.
-		}
-	}
 	while (check_for_new_messages()){
 		if ((global_rx_buffer.data_len == sizeof(confMsg)) && ((conf = (confMsg*)global_rx_buffer.buf)->type == CONF_MSG_TYPE)){			//someone sent out a confirmation message.
-			droplet_id_type ack_tgt = *((droplet_id_type*)(global_rx_buffer.buf + 1));
-			uint16_t type_from_msg = *((uint16_t*)(global_rx_buffer.buf + 3));
-			int8_t type_val_from_msg = *((int8_t*)(global_rx_buffer.buf + 5));
 			if (conf->target == get_droplet_id()){
 				if (global_rx_buffer.sender_ID == move_target) my_type_value = conf->value; //this is a hard confirmation
+
 				if (my_type == TYPE__) my_type = conf->bot_type;
 				else my_type &= conf->bot_type;
+
 				if (my_type == TYPE__); //ERROR: mutually exclusive types given!
 			}
 		}
 		else if ((global_rx_buffer.data_len == sizeof(claimMsg)) && ((claim = (claimMsg*)global_rx_buffer.buf)->type == CLAIM_MSG_TYPE)){
-			if (claim->bot_type_value>my_type_value) last_greater_val_time = get_32bit_time();
-			if (my_type&ALL_N_TYPES){
-				if (claim->bot_type&ALL_W_TYPES){
-					if (claim->bot_type_value>0){
-						last_greater_val_time = get_32bit_time();
-					}
-				}
-			}
+			//if (claim->bot_type_value>my_type_value) last_greater_val_time = get_32bit_time();
+			//if (my_type&ALL_N_TYPES){
+			//	if (claim->bot_type&ALL_W_TYPES){
+			//		if (claim->bot_type_value>0){
+			//			last_greater_val_time = get_32bit_time();
+			//		}
+			//	}
+			//}
 		}
 		global_rx_buffer.read = 1;
 	}
 	if (one_bit_set(my_type)){
 		if ((my_type_value <= 0) && (get_soft_spots_from_type(my_type) == 0)){
-
 			state = STATE_ALL_ADJ_SPOTS_FILLED;
-		}
-		else if ((get_32bit_time() - last_greater_val_time)>WAIT_FOR_LAYER_DELAY){
+		}else if ((get_32bit_time() - last_greater_val_time)>WAIT_FOR_LAYER_DELAY){
 			state = STATE_ADJ_SPOTS_TO_BE_FILLED;
 			call_for_neighbors();
 		}
-	}
-	else{
+	}else{
 		if (rand_byte()<16){
 			confReqMsg* msg = new confReqMsg;
 			msg->type = CONF_REQ_MSG_TYPE;
@@ -225,7 +202,7 @@ void DropletCustomEight::awaiting_confirmation(){
 void DropletCustomEight::adj_spots_to_fill(){
 	confReqMsg* confReq;
 	while (check_for_new_messages()){
-		if (((global_rx_buffer.data_len) == sizeof(confReqMsg)) && ((confReq = ((confReqMsg*)global_rx_buffer.buf))->type == CONF_REQ_MSG_TYPE)){
+		if ((global_rx_buffer.data_len == sizeof(confReqMsg)) && ((confReq = ((confReqMsg*)global_rx_buffer.buf))->type == CONF_REQ_MSG_TYPE)){
 			if (confReq->target == get_droplet_id()){
 				handle_hard_confirm(global_rx_buffer.sender_ID, confReq->dir);
 			}

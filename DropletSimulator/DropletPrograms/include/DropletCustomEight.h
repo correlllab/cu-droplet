@@ -87,7 +87,7 @@
 #define ALL_N_TYPES			0x0030
 #define DISPLAY_0_TYPES		(TYPE_W0|TYPE_SEED|TYPE_W00|TYPE_W11|TYPE_N11)
 #define DISPLAY_1_TYPES		(TYPE_W01|TYPE_W10|TYPE_N10)
-#define SEED_TYPE_VALUE 7 //width of number-1
+#define SEED_TYPE_VALUE 5 //width of number-1
 
 #define STATE_WAITING_FOR_MSGS			0x00 //r__ (red)
 #define STATE_ADJ_SPOTS_TO_BE_FILLED	0x01 //rgb (white)

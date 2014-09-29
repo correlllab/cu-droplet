@@ -8,10 +8,10 @@ DropletCustomOne::~DropletCustomOne() { return; }
 
 void DropletCustomOne::DropletInit()
 {
-
+	
 }
 
 void DropletCustomOne::DropletMainLoop()
 {
-
+	
 }

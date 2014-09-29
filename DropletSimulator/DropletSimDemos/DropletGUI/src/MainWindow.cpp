@@ -187,7 +187,7 @@ void MainWindow::launchRenderer()
 
 	connect(renderer,SIGNAL(togglePause(void)),&_simInterface,SLOT(togglePause(void)));
 	connect(renderer,SIGNAL(restart(void)),&_simInterface,SLOT(reset(void)));
-	connect(renderer,SIGNAL(requestNewDroplet(float,float,droplet_t)),&_simInterface,SLOT(addDroplet(float,float,droplet_t)));
+	connect(renderer,SIGNAL(requestNewDroplet(float,float,float,droplet_t)),&_simInterface,SLOT(addDroplet(float,float,float,droplet_t)));
 	connect(renderer,SIGNAL(toggleLimit(void)),&_simInterface,SLOT(toggleUpdateLimit(void)));
 	connect(renderer,SIGNAL(increaseRate(void)),&_simInterface,SLOT(increaseUpdateRate(void)));
 	connect(renderer,SIGNAL(decreaseRate(void)),&_simInterface,SLOT(decreaseUpdateRate(void)));

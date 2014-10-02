@@ -136,9 +136,9 @@ DS_RESULT DSimProjection::GetPixels(
 	return DS_SUCCESS;
 }
 
-DS_RESULT DSimProjection::GetPixels(float *xyTopLeft, float *xyBottomRight, uint8_t **rgbaVals)
-{
-	// TODO : Frank Erdesz's BMP Code goes here
-
-	return DS_SUCCESS;
-}
+//DS_RESULT DSimProjection::GetPixels(float *xyTopLeft, float *xyBottomRight, uint8_t **rgbaVals)
+//{
+//	// TODO : Frank Erdesz's BMP Code goes here
+//
+//	return DS_SUCCESS;
+//}

@@ -20,25 +20,37 @@ void DropletCustomTwo::DropletInit()
     tau_id              = 0;
     change_state        ( WAITING );
 
+    num_collabs         = 0;
     char    filename[32];
     memset  ( filename, 0, 32 );
-    sprintf ( filename, "out_%u.txt" );
+    sprintf ( filename, "out_%u.txt", get_droplet_id() );
     fp      = fopen ( filename, "w"  );
+    fprintf ( fp, "time, theta, tau, collab\n" );
 }
 
 void DropletCustomTwo::DropletMainLoop()
 {
-    if ( get_32bit_time() - exp_time >= EXP_LENGTH )
+    if ( (state != DONE) && (get_32bit_time() - exp_time >= EXP_LENGTH) )
     {
-        fprintf ( fp, "(%u) theta=%f, tau=%f, collab=%u\n",
-            exp_time,
-            theta[theta_id],
-            tau[tau_id],
-            collabs);
         exp_time = get_32bit_time ();
+        if ( fp )
+        {
+            fprintf ( fp, "%u, %f, %f, %u\n",
+                exp_time,
+                theta[theta_id],
+                tau[tau_id],
+                num_collabs);
+            num_collabs = 0;
+        }
+
         if ( ((theta_id + 1) * (tau_id + 1)) == (NUM_THETA * NUM_TAU) )
         {
             change_state ( DONE );
+            if ( fp )
+            {
+                fclose ( fp );
+                fp = NULL;
+            }
         }
         else 
         {
@@ -47,6 +59,7 @@ void DropletCustomTwo::DropletMainLoop()
                 tau_id = 0;
                 ++theta_id;
             }
+
             change_state ( WAITING );
         }
     }
@@ -191,6 +204,7 @@ void DropletCustomTwo::change_state ( State new_state )
     case COLLABORATING:
         set_rgb_led         ( 0, 0, 250 );
         collab_time         = get_32bit_time ();
+        num_collabs++;
         break;
 
     case WAITING:

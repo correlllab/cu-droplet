@@ -34,6 +34,7 @@ private :
     uint32_t    last_update_time;
     uint32_t    exp_time;
     uint8_t     theta_id, tau_id;
+    uint32_t    num_collabs;
 
     static const double theta [ NUM_THETA ];
     static const double tau   [ NUM_TAU   ];

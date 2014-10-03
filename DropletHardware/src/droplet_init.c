@@ -8,12 +8,11 @@ void init_all_systems()
 {
 	Config32MHzClock();
 	
-
+	calculate_id_number();
 	
 	scheduler_init();			if(INIT_DEBUG_MODE) printf("SCHEDULER INIT\r\n"); //This will probably never print, since you need pc_com for printf to happen, but pc_com needs the scheduler.
 	pc_com_init();				if(INIT_DEBUG_MODE) printf("PC COM INIT\r\n");
-	calculate_id_number();	
-	RGB_LED_init();				if(INIT_DEBUG_MODE) printf("LED INIT\r\n");	
+	RGB_LED_init();				if(INIT_DEBUG_MODE) printf("LED INIT\r\n");
 	rgb_sensor_init();			if(INIT_DEBUG_MODE) printf("RGB SENSE INIT\r\n");
 	power_init();				if(INIT_DEBUG_MODE) printf("POWER INIT\r\n");
 	random_init();				if(INIT_DEBUG_MODE) printf("RAND INIT\r\n");
@@ -42,18 +41,17 @@ void calculate_id_number()
 	
 	uint8_t l_byte, h_byte;
 
-	for (uint32_t i = 0x00; i <= 0x15; i++)			
+	uint32_t addrs[16] = {0x00,0x01,0x02,0x03,0x04,0x08,0x09,0x0A,0x0B,0x0C,0x0D,0x10,0x12,0x13,0x14,0x15};
+
+	for (uint8_t i = 0; i < 16; i++)			
 	{
-		pgm_bytes = pgm_read_word_far(i);
-		printf("0x%02X: ",i);
-		printf("%02X\r\n", pgm_bytes&0xFF);
-		crc = _crc16_update(crc, (uint16_t)pgm_bytes);
+		pgm_bytes = pgm_read_word_far(addrs[i]);
+		crc = _crc16_update(crc, (uint16_t)(pgm_bytes&0xFF));
 	}
 
 	NVM_CMD = NVM_CMD_NO_OPERATION_gc;
 
 	droplet_ID = crc;
-	printf("ID: %04hX\r\n",droplet_ID);
 }
 
 void enable_interrupts()

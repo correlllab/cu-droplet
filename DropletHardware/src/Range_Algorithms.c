@@ -51,8 +51,8 @@ void collect_rnb_data(void* arg)
 	while(error && (number_of_tries < 5))
 	{
 		if(number_of_tries > 0) delay_ms(1000);
-		ir_cmd(IR_ALL_DIRS, cmd, 7);
-		wait_for_ir(IR_ALL_DIRS);
+		ir_cmd(ALL_DIRS, cmd, 7);
+		wait_for_ir(ALL_DIRS);
 		get_IR_range_readings();
 		error = pack_measurements_into_matrix(brightness_matrix);
 		number_of_tries++;
@@ -81,8 +81,8 @@ void collect_rnb_data(void* arg)
 void broadcast_rnb_data()
 {
 	uint16_t power = 257;
-	ir_cmd(IR_ALL_DIRS, "rnb_r", 5);
-	wait_for_ir(IR_ALL_DIRS);
+	ir_cmd(ALL_DIRS, "rnb_r", 5);
+	wait_for_ir(ALL_DIRS);
 	IR_range_blast(power);
 }
 

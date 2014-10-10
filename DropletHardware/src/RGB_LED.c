@@ -114,9 +114,7 @@ void hsv_to_rgb(uint16_t hue, uint8_t saturation, uint8_t val, uint8_t* red, uin
 			//printf("SHOULD NEVER SEE THIS. i: %hhu",i);
 			break;
 	}
-	
 	*red = (uint8_t)(r*255);
 	*blue = (uint8_t)(b*255);
 	*green = (uint8_t)(g*255);
-	
 }

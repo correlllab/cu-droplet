@@ -31,15 +31,12 @@ static uint8_t SCHEDULER_DEBUG_MODE = 0;
 volatile uint8_t num_tasks, num_executing_tasks;
 
 // Get the current 32-bit time, as measured in ms from the last reset
-inline volatile extern uint32_t get_32bit_time() __attribute__((OS_task));
+inline volatile extern uint32_t get_time() __attribute__((OS_task));
 
 void scheduler_init();
 void Config32MHzClock(void);
-void set_current_time(uint16_t count);
 void delay_ms(uint16_t ms);
 static inline void delay_us(double __us){ _delay_us(__us); }
-inline uint16_t get_16bit_time(){ return RTC.CNT; }
-
 /* 
  * Adds a new task to the task queue
  * time is number of milliseconds from present until function is executed

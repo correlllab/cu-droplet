@@ -1,6 +1,6 @@
-#include "RGB_LED.h"
+#include "rgb_led.h"
 
-void RGB_LED_init()
+void rgb_led_init()
 {
 	// LED Pins as output
 	LED_R_PORT.DIRSET = LED_R_PIN_bm;

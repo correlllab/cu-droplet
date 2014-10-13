@@ -1,14 +1,14 @@
-#ifndef RANGE_ALGORITHMS_H
-#define RANGE_ALGORITHMS_H
+#ifndef range_algs_H
+#define range_algs_H
 
 #include <avr/io.h>
 #include <math.h>
 
 #include "droplet_init.h"
 #include "scheduler.h"
-#include "IR_sensor.h"
-#include "RGB_LED.h"
-#include "IRcom.h"
+#include "ir_sensor.h"
+#include "rgb_led.h"
+#include "ir_comm.h"
 
 
 #define DROPLET_RADIUS 2
@@ -54,7 +54,7 @@ typedef struct rnb_data rnb;
 rnb last_good_rnb;
 volatile uint8_t rnb_updated;
 
-void range_algorithms_init();
+void range_algs_init();
 
 void collect_rnb_data(void* arg);
 void broadcast_rnb_data();

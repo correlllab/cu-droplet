@@ -1,3 +1,9 @@
+/** \file *********************************************************************
+ * \deprecated
+ * \brief Code for Droplet bootloader. No longer in use.
+ *
+ *****************************************************************************/
+
 #ifndef BOOT_H
 #define BOOT_H
 

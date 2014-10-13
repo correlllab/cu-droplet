@@ -10,7 +10,7 @@
 *		}
 *	There were previous inconsistencies in this code.
 */
-#include "Range_Algorithms.h"
+#include "range_algs.h"
 
 float basis[6][2] = {	{0.866025 , -0.5}, 
 						{0        , -1  }, 
@@ -24,7 +24,7 @@ float basis_angle[6] = {-0.523599, -1.5708, -2.61799, 2.61799, 1.5708, 0.523599}
 //Should maybe be elsewhere?
 uint8_t bright_meas[6][6][NUMBER_OF_RB_MEASUREMENTS];
 
-void range_algorithms_init()
+void range_algs_init()
 {
 	for(uint8_t i; i<NUMBER_OF_RB_MEASUREMENTS; i++)
 	{
@@ -379,7 +379,7 @@ void get_baseline_readings()
 	{			//[emitter#][sensor#][meas#]
 		for (uint8_t sensor_num = 0; sensor_num < 6; sensor_num++)
 		{
-			bright_meas[emitter_num][sensor_num][0] = get_IR_sensor(sensor_num);
+			bright_meas[emitter_num][sensor_num][0] = get_ir_sensor(sensor_num);
 		}			
 	}
 }
@@ -439,7 +439,7 @@ void get_IR_range_readings()
 			uint32_t pre_sync_op = get_time();
 			for (uint8_t sensor_num = 0; sensor_num < 6; sensor_num++)
 			{
-				bright_meas[emitter_dir][sensor_num][meas_num] = get_IR_sensor(sensor_num);
+				bright_meas[emitter_dir][sensor_num][meas_num] = get_ir_sensor(sensor_num);
 			}
 			while((get_time() - pre_sync_op) < TIME_FOR_GET_IR_VALS);
 			

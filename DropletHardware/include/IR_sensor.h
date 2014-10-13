@@ -1,5 +1,9 @@
-#ifndef IR_sensor_h
-#define IR_sensor_h
+/** \file *********************************************************************
+ * Low level sensing functions using IR channels.
+ * Note that there is no IR communication code in this file.
+ *****************************************************************************/
+#ifndef ir_sensor_h
+#define ir_sensor_h
 
 #include <avr/io.h>
 #include "scheduler.h"
@@ -25,12 +29,21 @@
 #define MUX_IR_SENSOR_5		ADC_CH_MUXPOS_PIN3_gc		// IR5 sensor on PB3
 #define MUX_SENSOR_CLR		0b10000111
 
-void IR_sensor_init();
-uint8_t get_IR_sensor(uint8_t sensor_num);
-int8_t find_median(int8_t* meas); // Helper function for getting the middle of the 3 measurements
+/**
+ * \brief Can be used to check if object(s) are within 1cm of this Droplet.
+ *
+ * \return A bit-mask with 1 set in the directions where objects are detected within 1 cm.
+ * Direction macros are defined in droplet_init.h.
+ *
+ */
 uint8_t check_collisions();
+
+
+void ir_sensor_init();
+uint8_t get_ir_sensor(uint8_t sensor_num);
+int8_t find_median(int8_t* meas); // Helper function for getting the middle of the 3 measurements
 int8_t ir_bounce_meas(uint8_t dir);
-inline void IR_sensor_enable(){ ADCB.CTRLA |= ADC_ENABLE_bm; }
-inline void IR_sensor_disable(){ ADCB.CTRLA &= ~ADC_ENABLE_bm; }
+inline void ir_sensor_enable(){ ADCB.CTRLA |= ADC_ENABLE_bm; }
+inline void ir_sensor_disable(){ ADCB.CTRLA &= ~ADC_ENABLE_bm; }
 
 #endif

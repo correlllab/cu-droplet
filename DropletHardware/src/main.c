@@ -47,9 +47,9 @@ int main(void)
 		//}else{
 			//set_rgb(230,230,230);
 		//}
-		//for(uint8_t i=0;i<6;i++) printf("%hhu ", get_IR_sensor(i));
+		//for(uint8_t i=0;i<6;i++) printf("%hhu ", get_ir_sensor(i));
 		//uint8_t randDir = rand_byte()%6;
-		//int8_t meas = get_IR_sensor(randDir);
+		//int8_t meas = get_ir_sensor(randDir);
 		//printf("| %hhu: %3hhd ",randDir, meas);
 		//if(randDir==5) printf("\r\n");
 		//printf("\r\n");

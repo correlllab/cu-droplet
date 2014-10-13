@@ -43,12 +43,12 @@ void IR_sensor_init()
 		ADC_offset[i] = ADCB.CH0.RES*(-1);
 	}
 	IR_SENSOR_PORT.DIRCLR = ALL_IR_SENSOR_PINS_bm;
-	printf("Offsets: [0: %hhd, 1: %hhd, 2: %hhd, 3: %hhd, 4: %hhd, 5: %hhd\r\n",ADC_offset[0],ADC_offset[1],ADC_offset[2],ADC_offset[3],ADC_offset[4],ADC_offset[5]);
+	//printf("Offsets: [0: %hhd, 1: %hhd, 2: %hhd, 3: %hhd, 4: %hhd, 5: %hhd\r\n",ADC_offset[0],ADC_offset[1],ADC_offset[2],ADC_offset[3],ADC_offset[4],ADC_offset[5]);
 		
 	////the commands below set the ir_emitters to output.
-	//PORTC.DIRSET = (PIN3_bm | PIN7_bm);
+	PORTC.DIRSET = (PIN3_bm | PIN7_bm);
 	PORTD.DIRCLR =  PIN3_bm;
-	//PORTE.DIRSET = (PIN3_bm | PIN7_bm);
+	PORTE.DIRSET = (PIN3_bm | PIN7_bm);
 	PORTF.DIRCLR =  PIN3_bm;	
 	//PORTF.DIRSET = ALL_EMITTERS_CARWAV_bm;	//set carrier wave pins to output.
 }
@@ -117,10 +117,12 @@ uint8_t get_IR_sensor(uint8_t sensor_num)
 //}
 
 	
-void check_collisions(){
+uint8_t check_collisions(){
 	uint8_t baseline_meas[6];
 	uint8_t channelCtrlBVals[6];
 	uint8_t measured_vals[6];
+	uint8_t dirs=0;
+	
 	for(uint8_t i=0;i<6;i++)
 	{
 
@@ -134,23 +136,26 @@ void check_collisions(){
 	}
 	TCF2.CTRLB &= ~ALL_EMITTERS_CARWAV_bm;	//disable carrier wave output
 	PORTF.OUTSET = ALL_EMITTERS_CARWAV_bm;	// set carrier wave pins high.
-	//PORTF.DIRSET = ALL_EMITTERS_CARWAV_bm;
+	PORTF.DIRSET = ALL_EMITTERS_CARWAV_bm;
 	PORTC.DIRSET = (PIN3_bm | PIN7_bm);
-	//PORTD.DIRSET =  PIN3_bm;
+	PORTD.DIRSET =  PIN3_bm;
 	PORTE.DIRSET = (PIN3_bm | PIN7_bm);
-	//PORTF.DIRSET =  PIN3_bm;
+	PORTF.DIRSET =  PIN3_bm;
 		
 	PORTC.OUTCLR = (PIN3_bm | PIN7_bm);
 	PORTD.OUTCLR = PIN3_bm;
 	PORTE.OUTCLR = (PIN3_bm | PIN7_bm);
 	PORTF.OUTCLR = PIN3_bm;
 
-	//busy_delay_us(250);
+	busy_delay_us(250);
 	//ADCB.CTRLA |= ADC_FLUSH_bm;
-	//delay_ms(10000);
+	//delay_ms(1000);
 	for(uint8_t i=0;i<6;i++){
 		busy_delay_us(250);		
-		measured_vals[i]=get_IR_sensor(i);
+		measured_vals[i] = get_IR_sensor(i);
+		if((measured_vals[i]-baseline_meas[i])>10){
+			dirs = dirs|(1<<i);
+		}
 		//busy_delay_us(50);
 	}		
 
@@ -160,11 +165,8 @@ void check_collisions(){
 	PORTF.OUTTGL =  PIN3_bm;
 	for(uint8_t i=0;i<6;i++) channel[i]->CTRLB = channelCtrlBVals[i];
 	TCF2.CTRLB |= ALL_EMITTERS_CARWAV_bm; //reenable carrier wave output
-
-	for(uint8_t i=0;i<6;i++){
-		printf("%3hhu ", (uint8_t)(measured_vals[i]-baseline_meas[i]));
-	}		
-	printf("\r\n");
+	
+	return dirs;
 }	
 	
 int8_t ir_bounce_meas(uint8_t dir){

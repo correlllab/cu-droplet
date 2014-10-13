@@ -42,14 +42,19 @@ uint8_t move_steps(uint8_t direction, uint16_t num_steps)
 	
 	int8_t sign_flip;
 	for(uint8_t mot=0 ; mot<3 ; mot++)
-	{		
-		mot_durs[mot] = 32*motor_on_time + abs(motor_adjusts[direction][mot]);
-		
-		mot_dirs[mot] = ((((motor_adjusts[direction][mot]>>15)&0x1)*-2)+1)/**motor_signs[direction][mot]*/;
-		
-		if(mot_durs[mot]==0) continue;
-		
-		total_time += mot_durs[mot] + 32*motor_off_time;
+	{	
+		if(motor_adjusts[direction][mot]==0)
+		{
+			mot_durs[mot] = 0;
+			mot_dirs[mot] = 0;
+			continue;
+		}
+		else
+		{
+			mot_durs[mot] = 32*motor_on_time + abs(motor_adjusts[direction][mot]);			
+			mot_dirs[mot] = ((((motor_adjusts[direction][mot]>>15)&0x1)*-2)+1)/**motor_signs[direction][mot]*/;
+			total_time += mot_durs[mot] + 32*motor_off_time;
+		}
 	}
 	//printf("Moving in dir: %hhu for %hu steps. Mot_durs: {%hu, %hu, %hu}. Total_time: %hu.\r\n",direction, num_steps, mot_durs[0], mot_durs[1], mot_durs[2], total_time);
 
@@ -110,8 +115,8 @@ void stop()
 	PORTD.PIN0CTRL = 0;
 	PORTD.PIN1CTRL = 0;
 	
-	TCD0.CTRLB = TC_WGMODE_SS_gc;		
-	TCD0.INTCTRLB = 0x0;
+	//TCD0.CTRLB = TC_WGMODE_SS_gc;		
+	//TCD0.INTCTRLB = 0x0;
 
 	motor_status = 0;
 	remove_task(current_motor_task);

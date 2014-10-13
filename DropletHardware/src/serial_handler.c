@@ -104,7 +104,16 @@ void handle_serial_command(char* command, uint16_t command_length)
 
 void handle_check_collisions()
 {
-	check_collisions();
+	uint8_t dirs = check_collisions();
+	uint8_t found=0;
+	for(uint8_t i=0;i<6;i++){
+		if(dirs&(1<<i)){
+			found=1;
+			printf("%hhu",i);
+		}
+	}
+	if(!found) printf("None");
+	printf("\r\n");
 }
 
 void handle_move_steps(char* command_args)
@@ -311,13 +320,13 @@ void handle_cmd(char* command_args, uint8_t should_broadcast)
 	if(should_broadcast)
 	{
 		printf("Broadcasting command: \"%s\", of length %i.\r\n",(uint8_t*)command_args, strlen(command_args));
-		wait_for_ir(IR_ALL_DIRS);
-		ir_cmd(IR_ALL_DIRS, (uint8_t*)command_args,strlen(command_args));
+		wait_for_ir(ALL_DIRS);
+		ir_cmd(ALL_DIRS, (uint8_t*)command_args,strlen(command_args));
 	}
 	else
 	{
 		//printf("Transmitting command: \"%s\", of length %i.\r\n",(uint8_t*)command_args, strlen(command_args));
-		wait_for_ir(IR_ALL_DIRS);
+		wait_for_ir(ALL_DIRS);
 		ir_cmd(1,(uint8_t*)command_args,strlen(command_args));
 	}
 
@@ -343,7 +352,7 @@ void handle_targeted_cmd(char* command_args)
 	
 	uint16_t target = strtoul(targetString, NULL, 16);
 	printf("command string: %s, length: %d\r\n",cmdString, strlen(cmdString));
-	ir_targeted_cmd(IR_ALL_DIRS, cmdString,strlen(cmdString), target);
+	ir_targeted_cmd(ALL_DIRS, cmdString,strlen(cmdString), target);
 }
 
 void handle_shout(char* command_args)
@@ -355,8 +364,8 @@ void handle_shout(char* command_args)
 		return;
 	}
 	
-	wait_for_ir(IR_ALL_DIRS);	
-	ir_send(IR_ALL_DIRS, command_args, strlen(command_args));
+	wait_for_ir(ALL_DIRS);	
+	ir_send(ALL_DIRS, command_args, strlen(command_args));
 }
 
 void handle_target(char* command_args)
@@ -372,7 +381,7 @@ void handle_target(char* command_args)
 	uint16_t target = strtoul(targetString, NULL, 16);
 	
 	//printf("Target: %04X\r\n",target);	
-	ir_targeted_send(IR_ALL_DIRS, msgString,strlen(msgString), target);
+	ir_targeted_send(ALL_DIRS, msgString,strlen(msgString), target);
 } 
 
 

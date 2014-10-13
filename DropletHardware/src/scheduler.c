@@ -54,24 +54,17 @@ void Config32MHzClock(void)
 	RTC.CNT = 0;
 }
 
-void set_current_time(uint16_t count)
-{
-	while(RTC.STATUS & RTC_SYNCBUSY_bm);	// wait for SYNCBUSY to clear
-	
-	RTC.CNT = count;
-}
-
 // Delay ms milliseconds
 // (the built-in _delay_ms only takes constant arguments, not variables)
 void delay_ms(uint16_t ms)
 {
 	uint32_t cur_time, end_time;
-	cli(); cur_time = get_32bit_time(); sei();
+	cli(); cur_time = get_time(); sei();
 	end_time = cur_time + ms;
 	while (1)
 	{
 		cli();
-		if (get_32bit_time() >= end_time)
+		if (get_time() >= end_time)
 		{
 			sei();
 			return;
@@ -90,7 +83,7 @@ Task_t* schedule_task(volatile uint32_t time, void (*function)(void*), void* arg
 	Task_t* new_task = (Task_t*)malloc(sizeof(Task_t));
 	if (new_task == NULL) return NULL;
 	
-	new_task->scheduled_time = time + get_32bit_time();
+	new_task->scheduled_time = time + get_time();
 	if ((uint16_t)(new_task->scheduled_time) < 2) new_task->scheduled_time += 4;
 	new_task->arg = arg;
 	new_task->task_function = function;
@@ -169,7 +162,7 @@ void print_task_queue()
 		// Iterate through the list of tasks, printing name, function, and scheduled time of each
 		while (cur_task != NULL)
 		{
-			printf("\tTask %p (%p) scheduled at %s, %s current\r\n", cur_task, cur_task->task_function, ltoa(cur_task->scheduled_time, s1, 10), ltoa(get_32bit_time(), s2, 10));
+			printf("\tTask %p (%p) scheduled at %s, %s current\r\n", cur_task, cur_task->task_function, ltoa(cur_task->scheduled_time, s1, 10), ltoa(get_time(), s2, 10));
 			cur_task = cur_task->next;
 		}
 	}
@@ -183,7 +176,7 @@ void run_tasks()
 	{
 		// Run all tasks that are scheduled to execute in the next 2ms
 		// (The RTC compare register takes 2 RTC clock cycles to update)
-		while (task_list != NULL && task_list->scheduled_time <= get_32bit_time() + 2)
+		while (task_list != NULL && task_list->scheduled_time <= get_time() + 2)
 		{
 			if (SCHEDULER_DEBUG_MODE >= 1) printf("Executing task %p (%p)\r\n", task_list, task_list->task_function);
 			Task_t* cur_task = task_list;
@@ -216,7 +209,7 @@ void run_tasks()
 }
 
 // Increment rtc_epoch on RTC overflow
-// Must be atomic so no reads of get_32bit_time() occur between RTC overflow and updating of epoch
+// Must be atomic so no reads of get_time() occur between RTC overflow and updating of epoch
 ISR( RTC_OVF_vect )
 {
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE) // Disable interrupts
@@ -225,7 +218,7 @@ ISR( RTC_OVF_vect )
 		char s2[12];
 		if (SCHEDULER_DEBUG_MODE >= 1)
 		{
-			printf("RTC Overflow. Current time %s\n", ltoa(get_32bit_time(), s2, 10));
+			printf("RTC Overflow. Current time %s\n", ltoa(get_time(), s2, 10));
 			print_task_queue();
 		}
 
@@ -235,7 +228,7 @@ ISR( RTC_OVF_vect )
 		{
 			// updating RTC.COMP takes 2 RTC clock cycles, so only update the compare value and
 			// interrupt if the scheduled_time is more than 2ms away
-			if (task_list->scheduled_time > get_32bit_time() + 2)
+			if (task_list->scheduled_time > get_time() + 2)
 			{
 				while (RTC.STATUS & RTC_SYNCBUSY_bm);
 				RTC.COMP = (uint16_t)(task_list->scheduled_time);

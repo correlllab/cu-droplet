@@ -6,6 +6,14 @@
 #include <avr/interrupt.h>
 #include <avr/pgmspace.h>
 
+#define DIR0		0x01
+#define DIR1		0x02
+#define DIR2		0x04
+#define DIR3		0x08
+#define DIR4		0x10
+#define DIR5		0x20
+#define ALL_DIRS	0x3F
+
 #include "scheduler.h"
 #include "pc_com.h"
 #include "RGB_LED.h"

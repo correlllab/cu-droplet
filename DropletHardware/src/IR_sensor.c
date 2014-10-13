@@ -73,49 +73,6 @@ uint8_t get_IR_sensor(uint8_t sensor_num)
 	//printf("\t%hhd %hhd %hhd\r\n",meas[0], meas[1], meas[2]);
 	return (uint8_t)(meas+ADC_offset[sensor_num]);
 }
-
-//void check_collisions(){
-	//uint8_t meas[6];
-	//set_all_ir_powers(256);
-	//for(uint8_t i=0;i<6;i++) printf("%3hhd ",ir_bounce_meas(i));
-	//printf("\r\n");
-//}
-
-//void ir_blast(uint16_t duration){
-	//for(uint8_t i=0;i<6;i++) channelCtrlBVals[i] = channel[i]->CTRLB;	
-	//
-	//TCF2.CTRLB &= ~ALL_EMITTERS_CARWAV_bm; //disable carrier wave output
-	//PORTF.DIRSET = ALL_EMITTERS_CARWAV_bm;			 //enable user output on these pins.
-	//PORTF.OUT |= ALL_EMITTERS_CARWAV_bm;			// high signal on these pins
-//
-	//for(uint8_t i=0;i<6;i++) channel[i]->CTRLB=0;
-	//
-	//PORTC.DIRSET = (PIN3_bm | PIN7_bm);
-	//PORTD.DIRSET =  PIN3_bm;
-	//PORTE.DIRSET = (PIN3_bm | PIN7_bm);
-	//PORTF.DIRSET =  PIN3_bm;
-	//
-	//PORTC.OUT &= ~(PIN3_bm | PIN7_bm);
-	//PORTD.OUT &= ~PIN3_bm;
-	//PORTE.OUT &= ~(PIN3_bm | PIN7_bm);
-	//PORTF.OUT &= ~PIN3_bm;
-	//
-	//ir_blast_on=1;
-	//schedule_task(duration, end_ir_blast, 0);
-//}
-//
-//void end_ir_blast(){
-	//if(!ir_blast_on) return;
-	//PORTC.OUT |= (PIN3_bm | PIN7_bm);
-	//PORTD.OUT |=  PIN3_bm;
-	//PORTE.OUT |= (PIN3_bm | PIN7_bm);
-	//PORTF.OUT |=  PIN3_bm;
-	//for(uint8_t i=0;i<6;i++) channel[i]->CTRLB = channelCtrlBVals[i];	
-	//TCF2.CTRLB |= ALL_EMITTERS_CARWAV_bm; //disable carrier wave output
-	//PORTF.OUT &= ~ALL_EMITTERS_CARWAV_bm; // high signal on these pins
-	//ir_blast_on=0;
-//}
-
 	
 uint8_t check_collisions(){
 	uint8_t baseline_meas[6];
@@ -168,55 +125,6 @@ uint8_t check_collisions(){
 	
 	return dirs;
 }	
-	
-int8_t ir_bounce_meas(uint8_t dir){
-	uint8_t carrier_wave_bm;
-	uint8_t TX_pin_bm;
-
-	PORT_t * UART;
-	USART_t* USART;
-	int16_t baseline_meas = get_IR_sensor(dir);
-
-	switch(dir)
-	{
-		case 0:	// WORKS!
-			carrier_wave_bm = PIN0_bm; TX_pin_bm = PIN3_bm; UART = &PORTC; break;
-			case 1:	// WORKS!
-			carrier_wave_bm = PIN1_bm; TX_pin_bm = PIN7_bm; UART = &PORTC; break;
-			case 2:	// WORKS!
-			carrier_wave_bm = PIN4_bm; TX_pin_bm = PIN3_bm; UART = &PORTD; break;
-			case 3:	// WORKS!
-			carrier_wave_bm = PIN5_bm; TX_pin_bm = PIN3_bm; UART = &PORTE; break;
-			case 4:	// WORKS!
-			carrier_wave_bm = PIN7_bm; TX_pin_bm = PIN7_bm; UART = &PORTE; break;
-			case 5:	// WORKS!
-			carrier_wave_bm = PIN6_bm; TX_pin_bm = PIN3_bm; UART = &PORTF; break;
-	}
-
-	uint8_t USART_CTRLB = channel[dir]->CTRLB;		// record the current state of the USART
-
-	TCF2.CTRLB &= ~carrier_wave_bm;			// disable carrier wave output
-	PORTF.DIRSET = carrier_wave_bm;			// enable user output on this pin
-	PORTF.OUT |= carrier_wave_bm;			// high signal on this pin
-
-	channel[dir]->CTRLB = 0;				// disable USART
-	UART->DIRSET = TX_pin_bm;			// enable user output on this pin
-	UART->OUT &= ~TX_pin_bm;			// low signal on TX pin		(IR LED is ON when this pin is LOW, these pins were inverted in software during initialization)
-
-	busy_delay_us(250);
-	//delay_ms(30);
-	// IR LIGHT IS ON NOW
-	int16_t measured_val = get_IR_sensor(dir);
-
-	UART->OUT |= TX_pin_bm;			// high signal on TX pin (turns IR blast OFF)
-
-	channel[dir]->CTRLB = USART_CTRLB;	// re-enable USART (restore settings as it was before)
-	PORTF.OUT &= ~carrier_wave_bm;			// low signal on the carrier wave pin, don't really know why we do this? probably not necessary
-	TCF2.CTRLB |= carrier_wave_bm;			// re-enable carrier wave output
-
-	return (int8_t)(measured_val-baseline_meas);
-	
-}
 
 // Finds the median of 3 numbers by finding the max, finding the min, and returning the other value
 int8_t find_median(int8_t* meas)

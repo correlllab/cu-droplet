@@ -207,8 +207,26 @@ void handle_rnb_broadcast()
  */
 void handle_rnb_collect(char* command_args)
 {
-	uint8_t power = atoi(command_args);	
-	schedule_task(5,collect_rnb_data, power);
+	const char delim[2] = " ";
+	char* token;
+
+	uint8_t successful_read = 0;
+	
+	uint16_t id_val = atoi(strtok(command_args, delim));
+	uint8_t power_val = atoi(strtok(NULL, delim));
+	
+	uint32_t wrapper_arg = (((uint32_t)id_val)|(((uint32_t)power_val)<<16));
+	schedule_task(5,collect_rnb_data_wrapper, wrapper_arg);
+}
+
+// This function is used so we can make a transparent call to collect_rnb_data with 
+// multiple arguments, but still leave the interrupt handler.
+void collect_rnb_data_wrapper(void* arg)
+{
+	uint32_t wrapper_arg = *((uint32_t*)arg);
+	uint16_t id_val = (wrapper_arg&0xFFFF);
+	uint8_t power_val = ((wrapper_arg>>16)&0xFF);
+	collect_rnb_data(id_val, power_val);
 }
 
 /* This should only be called when another droplet asks this droplet 
@@ -218,7 +236,6 @@ void handle_rnb_transmit(char* command_args)
 {
 	uint16_t power = (uint16_t)command_args[0] + 2;
 	IR_range_blast(power);
-	got_rnb_cmd_flag = 1;
 }
 
 /* This should only be called when another droplet is about to 

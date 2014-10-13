@@ -18,6 +18,7 @@ void handle_set_motors(char* command_args);
 void handle_set_mm_per_kilostep(char* command_args);
 void handle_rnb_broadcast();
 void handle_rnb_collect(char* command_args);
+void collect_rnb_data_wrapper(void* arg);
 void handle_rnb_transmit(char* command_args);
 void handle_rnb_receive();
 void handle_set_led(char* command_args);

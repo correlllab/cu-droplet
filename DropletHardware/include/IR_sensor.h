@@ -29,7 +29,6 @@ void IR_sensor_init();
 uint8_t get_IR_sensor(uint8_t sensor_num);
 int8_t find_median(int8_t* meas); // Helper function for getting the middle of the 3 measurements
 uint8_t check_collisions();
-int8_t ir_bounce_meas(uint8_t dir);
 inline void IR_sensor_enable(){ ADCB.CTRLA |= ADC_ENABLE_bm; }
 inline void IR_sensor_disable(){ ADCB.CTRLA &= ~ADC_ENABLE_bm; }
 

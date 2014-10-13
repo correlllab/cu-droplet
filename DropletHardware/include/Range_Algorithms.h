@@ -9,7 +9,7 @@
 #include "IR_sensor.h"
 #include "RGB_LED.h"
 #include "IRcom.h"
-
+#include "delay_x.h"
 
 #define DROPLET_RADIUS 2
 #define DROPLET_SENSOR_RADIUS 2
@@ -56,7 +56,7 @@ volatile uint8_t rnb_updated;
 
 void range_algorithms_init();
 
-void collect_rnb_data(void* arg);
+void collect_rnb_data(uint16_t target_id, uint8_t power);
 void broadcast_rnb_data();
 void receive_rnb_data();
 void use_rnb_data(uint8_t power);

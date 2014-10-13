@@ -1,5 +1,10 @@
-#ifndef IR_COM_H
-#define IR_COM_H
+/** \file *********************************************************************
+ * \brief Droplet infrared communication subsystem functions are defined here.
+ *
+ *****************************************************************************/
+
+#ifndef IR_COMM_H
+#define IR_COMM_H
 
 #include <avr/io.h>
 #include <util/crc16.h>

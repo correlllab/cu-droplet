@@ -18,6 +18,7 @@
 #include <utility>
 #include <time.h>
 #include <vector>
+#include <random>
 
 /**
  * DSimDroplet models the behavior and state of and individual droplet.
@@ -33,6 +34,8 @@ private :
 	DropletCommData *commData;
 	DropletCompData *compData;
 	DropletTimeData *timeData;
+
+	std::default_random_engine generator;
 	
 	/** \name Simulator backend functions  
 	 *  
@@ -407,6 +410,13 @@ protected :
 	
 	uint8_t ir_broadcast(const char *send_buf, uint8_t length);
 
+	/**
+	 * Checks input buffers of all sensors to see if an IR message has arrived. 
+	 * If a message is present it places a copy in the global rx buffer for reading
+	 * and sets global_rx_buffer.read to 0.
+	 * /return 0 if no new messages are present. 1 if a new message is present and is
+	 * successfully copied over to the global rx buffer.
+	 */
 	uint8_t check_for_new_messages(void);
 
 	uint8_t range_and_bearing(uint16_t partner_id, float *dist, float *theta, float *phi);
@@ -420,7 +430,7 @@ protected :
 	 * /param time the time to fire in ms
 	 * /param index 0 to 4, for one of the available timers.
 	 */
-	uint8_t set_timer(uint16_t time, uint8_t index); // time in ms
+	uint8_t set_timer(uint32_t time, uint8_t index); // time in ms
 
 	/**
 	 * Check the status of available timers.
@@ -428,6 +438,10 @@ protected :
 	 * timer is off or has fired after being set.
 	 */
 	uint8_t check_timer(uint8_t index);
+
+	uint32_t get_timer_time_remaining(uint8_t index);
+
+	uint32_t get_32bit_time(void);
 ///@}
 
 public :
@@ -435,11 +449,6 @@ public :
 	msg_order msg_return_order; // See DSimGlobals.h NEWEST_MSG_FIRST and OLDEST_MSG_FIRST
 
 	/// The global incoming message buffer for the droplet.
-	/* TODO : Here global_rx_buffer.size, global_rx_buffer.data_len are 
-	 * being used to store the same value, the length of the actual
-	 * body of the message and not the whole message (including
-	 * header). It is a bit confusing, fix it later.
-	*/
 	struct  
 	{
 			uint8_t *buf;

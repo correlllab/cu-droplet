@@ -1,4 +1,4 @@
-#include "IR_sensor.h"
+#include "ir_sensor.h"
 
 const uint8_t mux_sensor_selectors[6] = {MUX_IR_SENSOR_0, MUX_IR_SENSOR_1, MUX_IR_SENSOR_2, MUX_IR_SENSOR_3, MUX_IR_SENSOR_4, MUX_IR_SENSOR_5};
 int8_t ADC_offset[6];		// this value will typically be about -72 if using 1.00 V reference and ADCB0 as VINN
@@ -13,7 +13,7 @@ USART_t* channel[] = {
 };
 
 // IR sensors use ADCB channel 0, all the time
-void IR_sensor_init()
+void ir_sensor_init()
 {
 	/* SET INPUT PINS AS INPUTS */
 	IR_SENSOR_PORT.DIRCLR = ALL_IR_SENSOR_PINS_bm;
@@ -58,7 +58,7 @@ void IR_sensor_init()
 * The range of outputs that could be used for actual measurements will be limited to about 20 to 200 (only 180 significant values)
 */
 
-uint8_t get_IR_sensor(uint8_t sensor_num)
+uint8_t get_ir_sensor(uint8_t sensor_num)
 {
 	int8_t meas; //we're going to take three measurements, and then calculate their median.
 		
@@ -89,7 +89,7 @@ uint8_t check_collisions(){
 	for(uint8_t i=0;i<6;i++)
 	{	
 		busy_delay_us(50);
-		baseline_meas[i] = get_IR_sensor(i);
+		baseline_meas[i] = get_ir_sensor(i);
 	}
 	TCF2.CTRLB &= ~ALL_EMITTERS_CARWAV_bm;	//disable carrier wave output
 	PORTF.OUTSET = ALL_EMITTERS_CARWAV_bm;	// set carrier wave pins high.
@@ -109,7 +109,7 @@ uint8_t check_collisions(){
 	//delay_ms(1000);
 	for(uint8_t i=0;i<6;i++){
 		busy_delay_us(250);		
-		measured_vals[i] = get_IR_sensor(i);
+		measured_vals[i] = get_ir_sensor(i);
 		if((measured_vals[i]-baseline_meas[i])>10){
 			dirs = dirs|(1<<i);
 		}

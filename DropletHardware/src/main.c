@@ -23,20 +23,6 @@ int main(void)
 	}
 }
 
-//void turn_on_emitters()
-//{
-	//if(emitters_on=(!emitters_on))
-	//{
-		//for(uint8_t i=0;i<6;i++) ir_blast(1000); 
-		//set_rgb(20,0,0); 
-	//}
-	//else
-	//{
-		//set_rgb(0,0,0);
-	//}	
-	//schedule_task(1000,turn_on_emitters, NULL);
-//}
-
 void check_messages()
 {
 	uint8_t num_msgs = 0;

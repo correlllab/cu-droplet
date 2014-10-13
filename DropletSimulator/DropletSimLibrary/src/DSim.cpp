@@ -967,17 +967,6 @@ void DSim::commController()
 							recvCommData->commChannels[recvChannel].lastMsgInTimestamp = 
 								sendCommData->commChannels[sendChannel].lastMsgOutTimestamp = 
 								static_cast<uint16_t>(timer.getTotalST() * 1000);
-
-							// TODO: Remove this later
-							/*if(fh != NULL)
-							{
-								DropletCompData *sendDat, *recvDat;
-								AccessCompData(sendDroplet, &sendDat);
-								AccessCompData(recvDroplet, &recvDat);
-								fprintf(fh, "Sent a msg from %u ---> %u\n", 
-									sendDat->dropletID,
-									recvDat->dropletID);
-							}*/
 						}
 					}
 				}
@@ -1007,6 +996,9 @@ void DSim::timerController()
 		DSimDroplet *pDroplet = *it;
 		DropletTimeData *timeData;
 		AccessTimeData(pDroplet, &timeData);
+
+		// Update 32-bit timer
+		timeData->time_since_start += simSetupData->timestep;
 
 		for(int i = 0; i < DROPLET_NUM_TIMERS; i++)
 		{

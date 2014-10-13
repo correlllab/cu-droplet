@@ -1,4 +1,28 @@
-/*
+/*! \file *********************************************************************
+  delay_x.h
+
+  Accurate delays ranging from a single CPU cycle up to
+  more than 500 second (e.g. with 8MHz device):
+
+  The idea for the functions below was heavily inspired by the
+  file <avr/delay.h> which is part of the excellent WinAVR
+  distribution. Therefore, thanks to Marek Michalkiewicz and
+  Joerg Wunsch.
+
+  The idea is to have the GCC preprocessor handle all calculations
+  necessary for determining the exact implementation of a delay
+  algorithm. The implementation itself is then inlined into the
+  user code.
+  In this way it is possible to always get the code size optimized
+  delay implementation.
+
+\verbatim
+  !!======================================================!!
+  !! Requires compile time constants for the delay        !!
+  !! Requires compiler optimization                       !!
+  !!======================================================!!
+\endverbatim
+
    Copyright (c) 2005, Hans-Juergen Heinrichs
    All rights reserved.
 
@@ -28,34 +52,7 @@
   CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE.
-*/
-
-
-/*
- *  delay_x.h
- *
- *  Accurate delays ranging from a single CPU cycle up to
- *  more than 500 second (e.g. with 8MHz device):
- *
- *  The idea for the functions below was heavily inspired by the
- *  file <avr/delay.h> which is part of the excellent WinAVR
- *  distribution. Therefore, thanks to Marek Michalkiewicz and
- *  Joerg Wunsch.
- *
- *  The idea is to have the GCC preprocessor handle all calculations
- *  necessary for determining the exact implementation of a delay
- *  algorithm. The implementation itself is then inlined into the
- *  user code.
- *  In this way it is possible to always get the code size optimized
- *  delay implementation.
- *
- *  !!======================================================!!
- *  !! Requires compile time constants for the delay        !!
- *  !! Requires compiler optimization                       !!
- *  !!======================================================!!
- *
- */
-
+ *****************************************************************************/
 #ifndef _AVR_DELAY_X_H_
 #define _AVR_DELAY_X_H_ 1
 

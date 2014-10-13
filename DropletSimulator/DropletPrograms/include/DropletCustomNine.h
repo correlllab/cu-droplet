@@ -1,5 +1,5 @@
 /* *** PROGRAM DESCRIPTION ***
- * 
+ * Testing global_rx_buffer.data_len bug
  */
 #pragma once
 
@@ -16,6 +16,7 @@
 class DropletCustomNine : public DSimDroplet
 {
 private :
+	FILE *fh;
 
 public :
 	DropletCustomNine(ObjectPhysicsData *objPhysics);

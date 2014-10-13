@@ -5,8 +5,8 @@
 #include <string.h>
 #include "droplet_init.h"
 #include "pc_com.h"
-#include "RGB_LED.h"
-#include "Range_Algorithms.h"
+#include "rgb_led.h"
+#include "range_algs.h"
 #include "scheduler.h"
 
 void handle_serial_command(char* command, uint16_t command_length);

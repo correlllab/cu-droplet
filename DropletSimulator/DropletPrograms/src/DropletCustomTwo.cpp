@@ -60,18 +60,16 @@ void DropletCustomTwo::searching()
 {
 	if(!is_moving())
 	{
-		move_steps((rand_byte() % 6) + 1, 500);
+		move_steps((rand_byte() % 6) + 1, 500+rand()%50);
 	}
 
 	if(check_timer(2))
 	{
 		get_rgb_sensor(&color_msg[RED], &color_msg[GREEN], &color_msg[BLUE]);
+		
 		if(color_msg[RED] < RED_THRESHOLD
 			&& color_msg[GREEN] < GREEN_THRESHOLD
 			&& color_msg[BLUE] < BLUE_THRESHOLD)
-		//if(color_msg[RED] >= RED_THRESHOLD
-		//	|| color_msg[GREEN] >= GREEN_THRESHOLD
-		//	|| color_msg[BLUE] >= BLUE_THRESHOLD)
 		{
 			state = DISCOVER_GROUP;
 			set_state_led();

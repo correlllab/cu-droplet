@@ -1,9 +1,13 @@
+/** \file *********************************************************************
+ * \brief Code for Droplet IR communication message error detection and correction 
+ *
+ *****************************************************************************/
 #ifndef ECC_H
 #define ECC_H
 
 #include <avr/io.h>
 #include <stdint.h>
-#include "IRcom.h"
+#include "ir_comm.h"
 
 // Encodes 8 bit data to 16 bit Manchester encoding
 uint16_t manchester_encode( uint8_t data );

@@ -1,5 +1,5 @@
-#ifndef __RGB_LED_H__
-#define __RGB_LED_H__
+#ifndef __rgb_led_H__
+#define __rgb_led_H__
 
 #include "avr/io.h" //includes stdlib
 #include "math.h"
@@ -16,7 +16,7 @@
 #define LED_B_PIN_bm			PIN4_bm		// rationale: BLUE LED is on pin4
 #define LED_B_TC				TCD1		// rationale: BLUE LED is on OC1x pins
 
-void RGB_LED_init(void); // Set RGB LED pins as output & initialize timers for PWM
+void rgb_led_init(void); // Set RGB LED pins as output & initialize timers for PWM
 
 // Get and set intensity for red LED
 inline uint8_t get_red_led() { return LED_R_TC.CCB; }

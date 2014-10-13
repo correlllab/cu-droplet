@@ -8,7 +8,7 @@ DS_RESULT DSimDataLogger::GetDropletPositions(std::vector<GPSInfo *> *outPosData
 {
 
 	std::vector<GPSInfo *>::iterator in_it, p_it;
-	p_it = /*simulator.*/dropletPositions.begin();
+	p_it = dropletPositions.begin();
 
 	for(in_it = outPosData->begin(); in_it < outPosData->end(); in_it++)
 	{
@@ -23,7 +23,7 @@ DS_RESULT DSimDataLogger::GetDropletPositions(std::vector<GPSInfo *> *outPosData
 		outDat->rotY = dat->rotY;
 		outDat->rotZ = dat->rotZ;
 
-		if(p_it < /*simulator.*/dropletPositions.end())
+		if(p_it < dropletPositions.end())
 			p_it++;
 	}
 

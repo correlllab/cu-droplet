@@ -1,4 +1,4 @@
-#include "RGB_sensor.h"
+#include "rgb_sensor.h"
 
 	///* SET INPUT PINS AS INPUTS */
 	//IR_SENSOR_PORT.DIRCLR = ALL_IR_SENSOR_PINS_bm;

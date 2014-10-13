@@ -81,7 +81,7 @@ typedef uint8_t move_direction;
  *
  */
 
-#define DROPLET_NUM_TIMERS		5
+#define DROPLET_NUM_TIMERS		8
 #define DROPLET_ID_START		100 // Droplet ids will start incrementing from this number
 typedef uint16_t droplet_id_type;
 
@@ -99,9 +99,8 @@ typedef uint8_t msg_order;
 #define DROPLET_REL_POS_UPDATE_TIME .1f // seconds
 #define BROADCAST_THRESHOLD	100.f // cm
 
-#define IR_MSG_HEADER		sizeof(droplet_id_type) + sizeof(uint8_t) // the uint8_t is for message length
 #define IR_MAX_DATA_SIZE	72
-#define IR_BUFFER_SIZE		IR_MSG_HEADER + IR_MAX_DATA_SIZE
+#define IR_BUFFER_SIZE		sizeof(droplet_id_type) + IR_MAX_DATA_SIZE
 
 // Physics Constants
 #define PHYSICS_GRAVITY			9.8f // Bullet seems to only accept gravity in units of m/s^2

@@ -1,3 +1,12 @@
+/** \file *********************************************************************
+ * \brief Code for reading and writing to flash memory directly.
+ *
+ * This file largely derived from the 
+ * <a href="https://github.com/alexforencich/xboot">xboot</a> project, on GitHub.
+ *
+ ************************************************************************/
+
+
 #ifndef FLASH_API_H
 #define FLASH_API_H
 #include <avr/io.h>
@@ -5,7 +14,6 @@
 #include <util/atomic.h>
 #include "sp_driver.h"
 #include "eeprom_driver.h"
-//This file largely derived from xboot project, on git
 
 /******************************************************New Code for write/read on flash********************************/
 // XMega 128A3 

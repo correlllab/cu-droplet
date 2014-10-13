@@ -406,7 +406,7 @@ void MainWindow::addButtonWidgets()
 	logWidget->setLayout(logLayout);
 	connect(logCheckBox, SIGNAL(stateChanged(int)), this, SLOT(showHideLogWidget(int)));
 
-	resetTimerCheckBox = new QCheckBox(tr("Simulation Reset Timer (ms)"));
+	resetTimerCheckBox = new QCheckBox(tr("Simulation Reset Timer (s)"));
 	resetTimerValue = new QLineEdit;
 	QDoubleValidator *v = new QDoubleValidator(this);
 	v->setBottom(1.0);

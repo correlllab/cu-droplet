@@ -31,7 +31,6 @@
 
 class SimInfoLogger : public QObject
 {
-
 	Q_OBJECT
 
 public:
@@ -83,6 +82,8 @@ private:
 
 	bool posFlag,colorFlag,rotationFlag,commSAFlag, macroRedFlag, macroSAFlag;
 
+	bool firstTime;
+
 	/**
 	 * \property	int redTally, SATally
 	 *
@@ -93,7 +94,7 @@ private:
 	int redTally, SATally;
 
 	/**
-	 * \property	int lastPrint
+	 * \property	double lastPrint
 	 *
 	 * \brief	Time of the last print.
 	 */
@@ -101,7 +102,7 @@ private:
 	double lastPrint;
 
 	/**
-	 * \property	int timeInterval
+	 * \property	double timeInterval
 	 *
 	 * \brief	Time between prints.
 	 */

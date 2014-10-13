@@ -1,4 +1,4 @@
-#include "IRcom.h"
+#include "ir_comm.h"
 
 /* Hardware addresses for the port pins with the carrier wave */
 uint8_t ir_carrier_bm[] = { PIN0_bm, PIN1_bm, PIN4_bm, PIN5_bm, PIN6_bm, PIN7_bm };

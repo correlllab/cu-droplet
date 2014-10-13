@@ -132,13 +132,6 @@ protected :
 	std::vector<DSimPhysicalObject *> physicalObjects;
 
 	/**
-	 * Vector containing droplet positions.
-	 */
-
-//	std::vector<GPSInfo *> dropletPositions;
-//	TrigArray *dropletRelPos;
-
-	/**
 	 * Vector containing physical object positions (other than droplets).
 	 */
 	std::vector<GPSInfo *> objectPositions;

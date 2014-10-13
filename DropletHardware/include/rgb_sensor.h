@@ -1,5 +1,5 @@
-#ifndef RGB_sensor_h
-#define RGB_sensor_h
+#ifndef rgb_sensor_h
+#define rgb_sensor_h
 
 #include "avr/io.h" //includes stdlib
 

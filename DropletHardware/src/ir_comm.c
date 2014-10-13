@@ -17,7 +17,7 @@ uint8_t ir_carrier_bm[] = { PIN0_bm, PIN1_bm, PIN4_bm, PIN5_bm, PIN6_bm, PIN7_bm
 // EXACT: at 2400 bits per second (BAUD), 8 bits takes 3.3333 ms
 // comment: there is no start bit nor parity bits included in a byte transmission
 // XMEGA hardware supports up to 2 parity bits & start, giving up to 11 bits per byte possible
-void ir_com_init()
+void ir_comm_init()
 {
 	/* Initialize carrier waves */
 	uint8_t carrier_pins = PIN0_bm | PIN1_bm | PIN4_bm | PIN5_bm | PIN6_bm | PIN7_bm;

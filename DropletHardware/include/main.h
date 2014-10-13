@@ -3,7 +3,7 @@
 
 #include "droplet_init.h"
 #include "rgb_sensor.h"
-#include "pc_com.h"
+#include "pc_comm.h"
 //#include "motor.h"
 //#include "flash_api.h"
 #include "ir_comm.h"

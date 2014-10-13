@@ -4,7 +4,7 @@
 #include <avr/io.h>
 #include <string.h>
 #include "droplet_init.h"
-#include "pc_com.h"
+#include "pc_comm.h"
 #include "rgb_led.h"
 #include "range_algs.h"
 #include "scheduler.h"

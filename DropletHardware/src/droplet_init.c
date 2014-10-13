@@ -11,7 +11,7 @@ void init_all_systems()
 	calculate_id_number();
 	
 	scheduler_init();			if(INIT_DEBUG_MODE) printf("SCHEDULER INIT\r\n"); //This will probably never print, since you need pc_com for printf to happen, but pc_com needs the scheduler.
-	pc_com_init();				if(INIT_DEBUG_MODE) printf("PC COM INIT\r\n");
+	pc_comm_init();				if(INIT_DEBUG_MODE) printf("PC COM INIT\r\n");
 	rgb_led_init();				if(INIT_DEBUG_MODE) printf("LED INIT\r\n");
 	rgb_sensor_init();			if(INIT_DEBUG_MODE) printf("RGB SENSE INIT\r\n");
 	power_init();				if(INIT_DEBUG_MODE) printf("POWER INIT\r\n");

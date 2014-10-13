@@ -69,7 +69,7 @@ volatile msg_node* last_ir_msg;
 
 /* GENERAL IR RELATED ROUTINES */
 
-void ir_com_init();
+void ir_comm_init();
 
 /* 
  * Sets intensity of IR transmitters

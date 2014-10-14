@@ -25,8 +25,8 @@ void ir_sensor_init()
 	ADCB.CH0.CTRL = ADC_CH_INPUTMODE_DIFF_gc;	// differential input. requires signed mode (see sec. 28.6 in manual)
 	ADCB.CH0.MUXCTRL = ADC_CH_MUXNEG_PIN0_gc;	// use VREF_IN for the negative input (0.54 V)
 	ADCB.CTRLA = ADC_ENABLE_bm;
-	//ADCB.CALL = PRODSIGNATURES_ADCBCAL0;
-	//ADCB.CALH = PRODSIGNATURES_ADCBCAL1;
+	ADCB.CALL = PRODSIGNATURES_ADCBCAL0;
+	ADCB.CALH = PRODSIGNATURES_ADCBCAL1;
 
 	/* FIND AND RECORD THE ZERO-OFFSET OF EACH IR DIRECTION */
 	IR_SENSOR_PORT.DIRSET = ALL_IR_SENSOR_PINS_bm;		// set the IR sense pins as OUTPUT
@@ -104,7 +104,7 @@ uint8_t check_collisions(){
 	PORTE.OUTCLR = (PIN3_bm | PIN7_bm);
 	PORTF.OUTCLR = PIN3_bm;
 
-	busy_delay_us(250);
+	//busy_delay_us(250);
 	//ADCB.CTRLA |= ADC_FLUSH_bm;
 	//delay_ms(1000);
 	for(uint8_t i=0;i<6;i++){

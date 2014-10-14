@@ -234,6 +234,8 @@ void collect_rnb_data_wrapper(void* arg)
  */
 void handle_rnb_transmit(char* command_args)
 {
+	uint32_t time_since_arrival = (get_time()-command_arrival_time);
+	if(time_since_arrival<=POST_MESSAGE_DELAY) delay_ms(POST_MESSAGE_DELAY - time_since_arrival);
 	uint16_t power = (uint16_t)command_args[0] + 2;
 	IR_range_blast(power);
 }
@@ -243,6 +245,8 @@ void handle_rnb_transmit(char* command_args)
  */
 void handle_rnb_receive()
 {
+	uint32_t time_since_arrival = (get_time()-command_arrival_time);
+	if(time_since_arrival<=POST_MESSAGE_DELAY) delay_ms(POST_MESSAGE_DELAY - time_since_arrival);	
 	receive_rnb_data();
 	rnb_updated = 0;
 	//last_good_rnb.id_number = (uint16_t)last_command_source_id; TODO: re-add this.

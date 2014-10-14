@@ -4,22 +4,27 @@ int main(void)
 {
 	init_all_systems();
 	printf("Initialized.\r\n");
-	set_all_ir_powers(256);	
+	set_all_ir_powers(256);
 	while (1)
 	{	
+		printf("%hhu\r\n",get_ir_sensor(3));
+		delay_ms(300);
+		//uint8_t dirs = check_collisions();
+		//printf("%hh02X\r\n", dirs);
+		//delay_ms(500);
 		//collect_rnb_data(0x32A7, 255);
-		for(uint8_t i=0 ; i<200 ; i++)
-		{
-			check_messages();
-			if(rnb_updated)
-			{
-				printf("R: %f, ", (last_good_rnb.range));
-				printf("B: %f, ", rad_to_deg(last_good_rnb.bearing));
-				printf("H: %f\r\n", rad_to_deg(last_good_rnb.heading));
-				rnb_updated = 0;
-			}
-			delay_ms(50);
-		}
+		//for(uint8_t i=0 ; i<50 ; i++)
+		//{
+			//check_messages();
+			//if(rnb_updated)
+			//{
+				//printf("R: %f, ", (last_good_rnb.range));
+				//printf("B: %f, ", rad_to_deg(last_good_rnb.bearing));
+				//printf("H: %f\r\n", rad_to_deg(last_good_rnb.heading));
+				//rnb_updated = 0;
+			//}
+			//delay_ms(40);
+		//}
 	}
 }
 

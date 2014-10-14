@@ -68,6 +68,7 @@ void ir_comm_init()
 	set_all_ir_powers(256);
 	for(uint8_t dir=0; dir<6; dir++) clear_ir_buffer(dir); //this initializes the buffer's values to 0.
 	last_ir_msg = NULL;
+	command_arrival_time=0;
 	schedule_task(1000/IR_UPKEEP_FREQUENCY, perform_ir_upkeep, NULL);
 }
 
@@ -103,6 +104,7 @@ void perform_ir_upkeep()
 			memcpy(msg, ir_rxtx[msg_chan].buf, ir_rxtx[msg_chan].data_length);
 			msg[ir_rxtx[msg_chan].data_length]='\0';
 			uint8_t cmd_length = ir_rxtx[msg_chan].data_length;
+			command_arrival_time = ir_rxtx[msg_chan].last_byte;
 			clear_ir_buffer(msg_chan);
 			handle_serial_command(msg, cmd_length);
 		}
@@ -243,7 +245,6 @@ void ir_receive(uint8_t dir)
 		ir_rxtx[dir].status |= IR_STATUS_COMPLETE_bm;
 		ir_rxtx[dir].status |= IR_STATUS_BUSY_bm; //mark as busy so we don't overwrite it.
 		channel[dir]->CTRLB &= ~USART_RXEN_bm; //Disable receiving messages on this channel until the message has been processed.
-		//schedule_task(5, print_completed_msg, (void*)dir);
 	}
 
 }

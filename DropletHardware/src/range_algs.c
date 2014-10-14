@@ -46,13 +46,14 @@ void collect_rnb_data(uint16_t target_id, uint8_t power)
 	uint8_t error = 1;
 	uint8_t brightness_matrix[6][6];
 	uint8_t number_of_tries = 0;
-	while(error && (number_of_tries < 5))
+	while(error && (number_of_tries < 1))
 	{
 		if(number_of_tries > 0) delay_ms(1000);
 		ir_targeted_cmd(ALL_DIRS, cmd, 7, target_id);
 		wait_for_ir(ALL_DIRS);
+		delay_ms(POST_MESSAGE_DELAY);
 		get_IR_range_readings();
-		//brightness_meas_printout_mathematica();
+		brightness_meas_printout_mathematica();
 		error = pack_measurements_into_matrix(brightness_matrix);
 		number_of_tries++;
 	}
@@ -82,6 +83,7 @@ void broadcast_rnb_data()
 	uint16_t power = 257;
 	ir_cmd(ALL_DIRS, "rnb_r", 5);
 	wait_for_ir(ALL_DIRS);
+	delay_ms(POST_MESSAGE_DELAY);	
 	IR_range_blast(power);
 }
 
@@ -387,40 +389,40 @@ void IR_range_blast(uint16_t power)
 {
 	delay_ms(POST_BROADCAST_DELAY);
 	
-	uint32_t timer[20];
-	timer[0] = get_time(); //Top of the function.
+	//uint32_t timer[20];
+	//timer[0] = get_time(); //Top of the function.
 	uint32_t pre_sync_op = get_time();
-	set_all_ir_powers(256);
+	set_all_ir_powers(255);
 	while((get_time() - pre_sync_op) < TIME_FOR_SET_IR_POWERS);
 
 	for(uint8_t dir = 0; dir < 6; dir++)
 	{
 		//IR_emit(dir, DELAY_BETWEEN_RB_MEASUREMENTS*NUMBER_OF_RB_MEASUREMENTS);
-		timer[(3*dir + 0) + 1] = get_time();//Top of the for loop.
-		busy_delay_ms((DELAY_BETWEEN_RB_MEASUREMENTS + TIME_FOR_GET_IR_VALS)*(NUMBER_PRE_MEASUREMENTS));
+		//timer[(3*dir + 0) + 1] = get_time();//Top of the for loop.
+		delay_ms((DELAY_BETWEEN_RB_MEASUREMENTS + TIME_FOR_GET_IR_VALS)*(NUMBER_PRE_MEASUREMENTS));
 		IR_emit(dir, (DELAY_BETWEEN_RB_MEASUREMENTS + TIME_FOR_GET_IR_VALS)*(NUMBER_OF_RB_MEASUREMENTS - (NUMBER_PRE_MEASUREMENTS + NUMBER_POST_MEASUREMENTS + 1))); //The -1 is 'cause we shouldn't count the baseline measurements.
-		busy_delay_ms((DELAY_BETWEEN_RB_MEASUREMENTS + TIME_FOR_GET_IR_VALS)*(NUMBER_POST_MEASUREMENTS));
-		timer[(3*dir + 1) + 1] = get_time();//post emit
+		delay_ms((DELAY_BETWEEN_RB_MEASUREMENTS + TIME_FOR_GET_IR_VALS)*(NUMBER_POST_MEASUREMENTS));
+		//timer[(3*dir + 1) + 1] = get_time();//post emit
 		set_green_led(100);
-		busy_delay_ms(DELAY_BETWEEN_RB_TRANSMISSIONS);
+		delay_ms(DELAY_BETWEEN_RB_TRANSMISSIONS);
 		led_off();
-		timer[(3*dir + 2) + 1] = get_time();//bottom of the for loop.
+		//timer[(3*dir + 2) + 1] = get_time();//bottom of the for loop.
 	}
-	timer[19] = get_time();//End of function.
-	debug_print_timer(timer);
+	//timer[19] = get_time();//End of function.
+	//debug_print_timer(timer);
 }
 
 void get_IR_range_readings()
 {
 	busy_delay_ms(POST_BROADCAST_DELAY);
-	uint32_t timer[20];
-	timer[0] = get_time(); //Top of the function.
+	//uint32_t timer[20];
+	//timer[0] = get_time(); //Top of the function.
 	
 	busy_delay_ms(TIME_FOR_SET_IR_POWERS);
 	
 	for(uint8_t emitter_dir = 0; emitter_dir < 6; emitter_dir++) // Transmitter goes through 6 directions, one at a time
 	{
-		timer[(3*emitter_dir + 0) + 1] = get_time();//Top of the for loop.
+		//timer[(3*emitter_dir + 0) + 1] = get_time();//Top of the for loop.
 		for(uint8_t meas_num = 1; meas_num < NUMBER_OF_RB_MEASUREMENTS; meas_num++)
 		{
 			uint32_t pre_sync_op = get_time();
@@ -432,19 +434,19 @@ void get_IR_range_readings()
 			
 			if (meas_num < NUMBER_OF_RB_MEASUREMENTS - 1)
 			{
-				busy_delay_ms(DELAY_BETWEEN_RB_MEASUREMENTS);
+				delay_ms(DELAY_BETWEEN_RB_MEASUREMENTS);
 			}
 		}
-		timer[(3*emitter_dir + 1) + 1] = get_time();//post emit
+		//timer[(3*emitter_dir + 1) + 1] = get_time();//post emit
 
 		set_green_led(100);
-		busy_delay_ms(DELAY_BETWEEN_RB_TRANSMISSIONS);
+		delay_ms(DELAY_BETWEEN_RB_TRANSMISSIONS);
 		led_off();
-		timer[(3*emitter_dir + 2) + 1] = get_time(); //bottom of the for loop.
+		//timer[(3*emitter_dir + 2) + 1] = get_time(); //bottom of the for loop.
 
 	}// end loop through PHYSICALLY LOOKING AT the 6 emitters, recording DATA
-	timer[19] = get_time();//End of function.
-	debug_print_timer(timer);
+	//timer[19] = get_time();//End of function.
+	//debug_print_timer(timer);
 }
 
 void IR_emit(uint8_t direction, uint8_t duration) // this is now BLOCKING ***

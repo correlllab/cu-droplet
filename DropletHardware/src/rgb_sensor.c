@@ -44,8 +44,9 @@ void rgb_sensor_init()
 	ADCA.REFCTRL = ADC_REFSEL_INT1V_gc | ADC_BANDGAP_bm;
 	ADCA.CTRLB = ADC_RESOLUTION_8BIT_gc | ADC_CONMODE_bm;
 	ADCA.PRESCALER = ADC_PRESCALER_DIV512_gc;
-	
 	/* When differential input is used, signed mode must be used. (sec. 28.6 of Manual) */
+	ADCA.CALL = PRODSIGNATURES_ADCACAL0;
+	ADCA.CALH = PRODSIGNATURES_ADCACAL1;
 
 	ADCA.CH0.CTRL = ADC_CH_INPUTMODE_DIFFWGAIN_gc | ADC_CH_GAIN_2X_gc;	//Probably should turn the gain back up to 4X when we put the shells on.
 	ADCA.CH1.CTRL = ADC_CH_INPUTMODE_DIFFWGAIN_gc | ADC_CH_GAIN_4X_gc;	//Probably should turn the gain back up to 4X when we put the shells on.

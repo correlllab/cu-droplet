@@ -7,9 +7,9 @@ int main(void)
 	set_all_ir_powers(256);
 	while (1)
 	{	
-		printf("%hhu\r\n",get_ir_sensor(3));
-		delay_ms(300);
-		//uint8_t dirs = check_collisions();
+		//printf("%hhu\r\n",get_ir_sensor(3));
+		//delay_ms(300);
+		uint8_t dirs = check_collisions();
 		//printf("%hh02X\r\n", dirs);
 		//delay_ms(500);
 		//collect_rnb_data(0x32A7, 255);

@@ -9,24 +9,24 @@
 #include "ir_sensor.h"
 #include "rgb_led.h"
 #include "ir_comm.h"
+#include "i2c.h"
 #include "delay_x.h"
 
-#define DROPLET_RADIUS 2
-#define DROPLET_SENSOR_RADIUS 2
+#define DROPLET_RADIUS 2.0828
+#define DROPLET_SENSOR_RADIUS 2.0828
 #define BRIGHTNESS_THRESHOLD 1
 
-#define POST_MESSAGE_DELAY ((1000/IR_UPKEEP_FREQUENCY)+5)
+#define POST_MESSAGE_DELAY ((3*((1000/IR_UPKEEP_FREQUENCY)))/2)
 
-#define NUMBER_OF_RB_MEASUREMENTS 6
-#define NUMBER_PRE_MEASUREMENTS 0
-#define NUMBER_POST_MEASUREMENTS 0
+#define NUMBER_OF_RB_MEASUREMENTS 4
 #define DELAY_BETWEEN_RB_MEASUREMENTS 5
 #define POST_BROADCAST_DELAY 15
 #define TIME_FOR_SET_IR_POWERS 2
 #define TIME_FOR_GET_IR_VALS 3
-#define DELAY_BETWEEN_RB_TRANSMISSIONS 35
+#define TIME_FOR_ALL_MEAS 23
+#define DELAY_BETWEEN_RB_TRANSMISSIONS 15
 
-#define BASELINE_NOISE_THRESHOLD 7
+#define BASELINE_NOISE_THRESHOLD 1
 
 //uint8_t brightness_matrix[6][6];
 //int16_t sensor_total[6];
@@ -48,7 +48,7 @@ struct rnb_data {
 	float bearing;
 	float heading;
 	uint8_t (*brightness_matrix_ptr)[6]; //almost definitely take this out, later
-	uint16_t id_number; //Currently largely unsupported.
+	uint16_t id_number;
 };
 
 typedef struct rnb_data rnb;
@@ -65,16 +65,16 @@ void use_rnb_data(uint8_t power);
 
 float get_bearing(uint8_t sensor_total[6]);
 float get_heading(uint8_t emitter_total[6], float bearing);
-float get_initial_range_guess(float bearing, float heading, uint8_t sensor_total[6], uint8_t emitter_total[6], uint8_t brightness_matrix[6][6], uint8_t power);
-float range_estimate(uint8_t brightness_matrix[6][6], float range_upper_limit, float bearing, float heading, uint8_t power);
+float get_initial_range_guess(float bearing, float heading, uint8_t power, uint8_t sensor_total[6], uint8_t emitter_total[6], uint8_t brightness_matrix[6][6]);
+float range_estimate(float init_range, float bearing, float heading, uint8_t power, uint8_t brightness_matrix[6][6]);
 
 void fill_S_and_T(uint8_t brightness_matrix[6][6], uint8_t sensor_total[6], uint8_t emitter_total[6]);
 uint8_t pack_measurements_into_matrix( uint8_t brightness_matrix[6][6]);
 
 void get_baseline_readings();
-void IR_range_blast(uint16_t power);
-void get_IR_range_readings();
-void IR_emit(uint8_t direction, uint8_t duration);
+void ir_range_meas();
+void ir_range_blast(uint8_t power);
+void ir_emit(uint8_t direction, uint8_t duration);
 
 float pretty_angle(float alpha);
 float rad_to_deg(float rad);

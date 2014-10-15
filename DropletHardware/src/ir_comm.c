@@ -105,6 +105,7 @@ void perform_ir_upkeep()
 			msg[ir_rxtx[msg_chan].data_length]='\0';
 			uint8_t cmd_length = ir_rxtx[msg_chan].data_length;
 			command_arrival_time = ir_rxtx[msg_chan].last_byte;
+			command_sender_id = ir_rxtx[msg_chan].sender_ID;
 			clear_ir_buffer(msg_chan);
 			handle_serial_command(msg, cmd_length);
 		}

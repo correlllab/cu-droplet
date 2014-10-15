@@ -68,6 +68,7 @@ typedef volatile struct node
 
 volatile msg_node* last_ir_msg;
 volatile uint32_t command_arrival_time;
+volatile uint16_t command_sender_id;
 /* GENERAL IR RELATED ROUTINES */
 
 void ir_comm_init();

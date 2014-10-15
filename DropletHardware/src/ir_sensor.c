@@ -17,16 +17,15 @@ void ir_sensor_init()
 {
 	/* SET INPUT PINS AS INPUTS */
 	IR_SENSOR_PORT.DIRCLR = ALL_IR_SENSOR_PINS_bm;
-	
 
-	ADCB.REFCTRL = /*ADC_BANDGAP_bm |*/ ADC_REFSEL_AREFB_gc;
-	ADCB.CTRLB = ADC_RESOLUTION_8BIT_gc | ADC_CONMODE_bm;
+	ADCB.REFCTRL = ADC_REFSEL_AREFB_gc;
+	ADCB.CTRLB = ADC_RESOLUTION_8BIT_gc | ADC_CONMODE_bm; //8bit resolution, and sets it to signed mode.
 	ADCB.PRESCALER = ADC_PRESCALER_DIV512_gc;
 	ADCB.CH0.CTRL = ADC_CH_INPUTMODE_DIFF_gc;	// differential input. requires signed mode (see sec. 28.6 in manual)
 	ADCB.CH0.MUXCTRL = ADC_CH_MUXNEG_PIN0_gc;	// use VREF_IN for the negative input (0.54 V)
-	ADCB.CTRLA = ADC_ENABLE_bm;
 	ADCB.CALL = PRODSIGNATURES_ADCBCAL0;
 	ADCB.CALH = PRODSIGNATURES_ADCBCAL1;
+	ADCB.CTRLA = ADC_ENABLE_bm;	
 
 	/* FIND AND RECORD THE ZERO-OFFSET OF EACH IR DIRECTION */
 	IR_SENSOR_PORT.DIRSET = ALL_IR_SENSOR_PINS_bm;		// set the IR sense pins as OUTPUT
@@ -43,7 +42,7 @@ void ir_sensor_init()
 		ADC_offset[i] = ADCB.CH0.RES*(-1);
 	}
 	IR_SENSOR_PORT.DIRCLR = ALL_IR_SENSOR_PINS_bm;
-	//printf("Offsets: [0: %hhd, 1: %hhd, 2: %hhd, 3: %hhd, 4: %hhd, 5: %hhd\r\n",ADC_offset[0],ADC_offset[1],ADC_offset[2],ADC_offset[3],ADC_offset[4],ADC_offset[5]);
+	printf("Offsets: [0: %hhd, 1: %hhd, 2: %hhd, 3: %hhd, 4: %hhd, 5: %hhd\r\n",ADC_offset[0],ADC_offset[1],ADC_offset[2],ADC_offset[3],ADC_offset[4],ADC_offset[5]);
 		
 	////the commands below set the ir_emitters to output.
 	PORTC.DIRSET = (PIN3_bm | PIN7_bm);

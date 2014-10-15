@@ -12,7 +12,7 @@ int main(void)
 		//uint8_t dirs = check_collisions();
 		//printf("%hh02X\r\n", dirs);
 		//delay_ms(500);
-		collect_rnb_data(0x32A7, 255);
+		//collect_rnb_data(0x32A7, 255);
 		for(uint8_t i=0 ; i<50 ; i++)
 		{
 			check_messages();

@@ -105,7 +105,7 @@ uint8_t check_collisions(){
 
 	//busy_delay_us(250);
 	//ADCB.CTRLA |= ADC_FLUSH_bm;
-	delay_ms(1000);
+	//delay_ms(1000);
 	for(uint8_t i=0;i<6;i++){
 		busy_delay_us(250);		
 		measured_vals[i] = get_ir_sensor(i);

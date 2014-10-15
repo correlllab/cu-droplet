@@ -29,6 +29,8 @@
 #define MUX_IR_SENSOR_5		ADC_CH_MUXPOS_PIN3_gc		// IR5 sensor on PB3
 #define MUX_SENSOR_CLR		0b10000111
 
+uint8_t ir_sense_baseline[6];
+
 /**
  * \brief Can be used to check if object(s) are within 1cm of this Droplet.
  *

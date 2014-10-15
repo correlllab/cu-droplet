@@ -26,7 +26,7 @@
 #define TIME_FOR_ALL_MEAS 23
 #define DELAY_BETWEEN_RB_TRANSMISSIONS 15
 
-#define BASELINE_NOISE_THRESHOLD 1
+#define BASELINE_NOISE_THRESHOLD 3
 
 //uint8_t brightness_matrix[6][6];
 //int16_t sensor_total[6];

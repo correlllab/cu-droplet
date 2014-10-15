@@ -48,7 +48,7 @@ void collect_rnb_data(uint16_t target_id, uint8_t power)
 	wait_for_ir(ALL_DIRS);
 	delay_ms(POST_MESSAGE_DELAY);
 	ir_range_meas();
-	brightness_meas_printout_mathematica();
+	//brightness_meas_printout_mathematica();
 	use_rnb_data(power);
 }
 
@@ -85,7 +85,7 @@ void use_rnb_data(uint8_t power)
 		{0, 0, 0, 0, 0, 0}
 	};
 	*/
-	//print_brightness_matrix(brightness_matrix);
+	print_brightness_matrix(brightness_matrix);
 	
 	uint8_t emitter_total[6];
 	uint8_t sensor_total[6];
@@ -306,11 +306,11 @@ void ir_range_meas()
 			{
 				bright_meas[emitter_dir][sensor_num][meas_num] = get_ir_sensor(sensor_num);
 			}
-			while((get_time() - inner_pre_sync_op) < TIME_FOR_GET_IR_VALS);
+			while((get_time() - inner_pre_sync_op) < TIME_FOR_GET_IR_VALS){};
 			
 			if (meas_num < (NUMBER_OF_RB_MEASUREMENTS - 1))	delay_ms(DELAY_BETWEEN_RB_MEASUREMENTS);
 		}
-		while((get_time() - outer_pre_sync_op) < TIME_FOR_ALL_MEAS);
+		while((get_time() - outer_pre_sync_op) < TIME_FOR_ALL_MEAS){};
 
 		//set_green_led(100);
 		delay_ms(DELAY_BETWEEN_RB_TRANSMISSIONS);
@@ -325,13 +325,13 @@ void ir_range_blast(uint8_t power)
 	uint32_t pre_sync_op = get_time();
 	//set_all_ir_powers(((uint16_t)power)+1);
 	set_all_ir_powers(256);
-	while((get_time() - pre_sync_op) < TIME_FOR_SET_IR_POWERS);
+	while((get_time() - pre_sync_op) < TIME_FOR_SET_IR_POWERS){};
 
 	for(uint8_t dir = 0; dir < 6; dir++)
 	{
 		pre_sync_op = get_time();
 		ir_emit(dir, TIME_FOR_ALL_MEAS);
-		while((get_time() - pre_sync_op) < TIME_FOR_ALL_MEAS);
+		while((get_time() - pre_sync_op) < TIME_FOR_ALL_MEAS){};
 		//set_green_led(100);
 		delay_ms(DELAY_BETWEEN_RB_TRANSMISSIONS);
 		//set_green_led(0);

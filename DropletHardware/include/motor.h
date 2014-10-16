@@ -18,7 +18,7 @@
 #define COUNTERCLOCKWISE	7
 
 // Timing for taking a step:
-#define MOTOR_ON_TIME			30
+#define MOTOR_ON_TIME			20
 #define MOTOR_OFF_TIME			30
 
 #include "droplet_init.h"

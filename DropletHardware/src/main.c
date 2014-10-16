@@ -7,7 +7,7 @@ int main(void)
 	set_all_ir_powers(256);
 	while (1)
 	{	
-
+		delay_ms(100);
 	}
 }
 

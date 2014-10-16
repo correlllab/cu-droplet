@@ -28,10 +28,6 @@
 
 #define BASELINE_NOISE_THRESHOLD 3
 
-//uint8_t brightness_matrix[6][6];
-//int16_t sensor_total[6];
-//int16_t emitter_total[6];
-
 struct list_el {
 	float Rx;
 	float Ry;

@@ -95,9 +95,10 @@ void use_rnb_data(uint8_t power)
 	float heading = get_heading(emitter_total, bearing);
 	
 	float initial_range = get_initial_range_guess(bearing, heading, power, sensor_total, emitter_total, brightness_matrix);
+	if(initial_range==0) return; //Some error occurred.
 	float range = range_estimate(initial_range, bearing, heading, power, brightness_matrix);
 	
-	last_good_rnb.range = range;
+	last_good_rnb.range = initial_range;
 	last_good_rnb.bearing = bearing;
 	last_good_rnb.heading = heading;
 	last_good_rnb.brightness_matrix_ptr = brightness_matrix;
@@ -164,19 +165,31 @@ float get_initial_range_guess(float bearing, float heading, uint8_t power, uint8
 	
 	// find alpha using infinite approximation
 	alpha = bearing - basis_angle[best_s];
-	if((alpha > M_PI_2) || (alpha < -M_PI_2))	printf("ERROR: alpha out of range (alpha: %f, sensor %u)\r\n", alpha, best_s);
+	if((alpha > M_PI_2) || (alpha < -M_PI_2))
+	{
+		//printf("ERROR: alpha out of range (alpha: %f, sensor %u)\r\n", alpha, best_s); 
+		return 0;
+	}
 	
 	// find beta using infinite approximation
 	beta = bearing - heading - basis_angle[best_e] - M_PI;
 	beta = pretty_angle(beta);
-	if((beta > M_PI_2)  || (beta < -M_PI_2)) 	printf("ERROR: beta out of range (beta: %f, emitter %u)\r\n",  beta, best_e);
+	if((beta > M_PI_2)  || (beta < -M_PI_2))
+	{
+		//printf("ERROR: beta out of range (beta: %f, emitter %u)\r\n",  beta, best_e); 
+		return 0;
+	}
 	
 	// expected contribution (using infinite distance approximation)
 	float amplitude;
 	float exp_con = sensor_model(alpha)*emitter_model(beta);
 	
 	if(exp_con > 0)	amplitude = brightness_matrix[best_e][best_s]/exp_con;	
-	else			printf("ERROR: exp_con (%f) is negative (or zero)!\r\n", exp_con);
+	else
+	{
+		//printf("ERROR: exp_con (%f) is negative (or zero)!\r\n", exp_con); 
+		return 0;
+	}
 
 	return inverse_amplitude_model(amplitude, power) + 2*DROPLET_RADIUS;
 }
@@ -395,47 +408,47 @@ float deg_to_rad(float deg){
 
 float sensor_model(float alpha)
 {
-	volatile float alphaFourth = alpha*alpha*alpha*alpha;
-	if(abs(alpha) < 0.618614)
-	{
-		return 1 - alphaFourth;
-	}
-	else
-	{
-		return 1/(8*alphaFourth);
-	}
+	if((alpha>(-M_PI_2))&&(alpha<M_PI_2))	return cos(alpha);
+	else									return 0;
+	//volatile float alphaFourth = alpha*alpha*alpha*alpha;
+	//if(abs(alpha) < 0.618614)
+	//{
+		//return 1 - alphaFourth;
+	//}
+	//else
+	//{
+		//return 1/(8*alphaFourth);
+	//}
 }
 
 float emitter_model(float beta)
 {	
-	volatile float betaSquared = beta*beta;
-	if(abs(beta) < 0.720527)
-	{
-		return 0.9375 + 0.5*betaSquared - betaSquared*betaSquared;
-	}
-	else
-	{
-		return 1/(4*betaSquared*betaSquared);
-	}
+	if((beta>(-M_PI_2))&&(beta<M_PI_2)) return cos(beta);
+	else								return 0;
+	//volatile float betaSquared = beta*beta;
+	//if(abs(beta) < 0.720527)
+	//{
+		//return 0.9375 + 0.5*betaSquared - betaSquared*betaSquared;
+	//}
+	//else
+	//{
+		//return 1/(4*betaSquared*betaSquared);
+	//}
 }
 
 float amplitude_model(float r, uint8_t power)
 {
-	if(power==255){
-		return (14000/((r-3)*(r-3))) - 1;
-	}else if(power ==250){
-		return (1100./((r-4.)*(r-4.)))+12.5;
-	}else{
-		printf("ERROR: Unexpected power: %hhu\r\n",power);
-		return 0;
-	}
+	if(power==255)			return (1.36255 + (298.285/((0.691321+r)*(0.691321+r))));
+	//else if(power ==250)	return (1100./((r-4.)*(r-4.)))+12.5;
+	else					printf("ERROR: Unexpected power: %hhu\r\n",power);
+	return 0;
 }
 
 float inverse_amplitude_model(float ADC_val, uint8_t power)
 {
-	if(power == 255) return (118/sqrtf(ADC_val+1)) + 3;
-	else if(power == 250) return (33.166/sqrtf(ADC_val - 12.5)) + 4;
-	else printf("ERROR: Unexpected power: %hhu\r\n",power);
+	if(power == 255)		return (19.6587/sqrtf(ADC_val-1.36255)) - 1.19672;
+	//else if(power == 250) return (33.166/sqrtf(ADC_val - 12.5)) + 4;
+	else					printf("ERROR: Unexpected power: %hhu\r\n",power);
 	return 0;
 }
 

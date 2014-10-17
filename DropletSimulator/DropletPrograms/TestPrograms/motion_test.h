@@ -8,9 +8,12 @@
 #include <DSimDataStructs.h>
 #include <inttypes.h>
 
+#include <stdlib.h>
+
 class DropletCustomOne : public DSimDroplet
 {
 private :
+
 
 public :
 	DropletCustomOne(ObjectPhysicsData *objPhysics);

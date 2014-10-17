@@ -1,0 +1,6 @@
+col_tiles 4
+row_tiles 4
+
+projecting firefighting.bmp
+
+droplets customone 100

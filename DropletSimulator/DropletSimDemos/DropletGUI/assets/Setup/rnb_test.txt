@@ -1,0 +1,14 @@
+# Setup file for testing range_and_bearing code
+col_tiles 4
+row_tiles 4
+
+# Droplet Creation. Usage: 
+# droplets <program> <number>
+# --- OR ---
+# droplets <program> <x-pos> <y-pos>
+
+droplets customone 0 0
+droplets customone 0 25
+droplets customone 35 0
+droplets customone -30 0
+droplets customone 0 -20

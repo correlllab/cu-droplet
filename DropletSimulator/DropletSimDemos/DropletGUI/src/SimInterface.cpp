@@ -375,14 +375,20 @@ void SimInterface::Init()
 							_tilePositions[tileIndex].x + _simSettings.tileLength/2.0 - _simSettings.dropletRadius);
 						float yPos = getRandomf(_tilePositions[tileIndex].y - _simSettings.tileLength/2.0 + _simSettings.dropletRadius,
 							_tilePositions[tileIndex].y + _simSettings.tileLength/2.0 - _simSettings.dropletRadius);
+                        float angle = rand() % 360;
 
-						addDroplet(xPos,yPos,dType);
+						addDroplet(xPos,yPos,angle,dType);
 					}
-				} else if (list.count() == 3) 
+				} else if (list.count() >= 3) 
 				{
-					float xPos = list[1].toFloat();
-					float yPos = list[2].toFloat();
-					addDroplet(xPos,yPos,dType);
+					float xPos  = list[1].toFloat();
+					float yPos  = list[2].toFloat();
+                    float angle = rand() % 360;
+                    if (list.count() > 3 )
+                    {
+                        angle = list[3].toFloat();
+                    }
+					addDroplet(xPos,yPos,angle,dType);
 				}
 			}
 
@@ -601,7 +607,7 @@ void SimInterface::createArena()
 		}
 }
 
-void SimInterface::addDroplet( float x, float y, droplet_t dType, int dropletID )
+void SimInterface::addDroplet( float x, float y, float angle, droplet_t dType, int dropletID )
 {
 	bool isPaused = _simStatus.paused;
 	_simStatus.paused = true;
@@ -645,7 +651,7 @@ void SimInterface::addDroplet( float x, float y, droplet_t dType, int dropletID 
 	_sim->AddDroplet(
 		newDroplet, 
 		std::make_pair(droplet.origin.x, droplet.origin.y),
-		rand() % 360
+		angle
 		);
 	_simStatus.paused = isPaused;
 

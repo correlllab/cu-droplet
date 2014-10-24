@@ -17,7 +17,7 @@ uint8_t ir_carrier_bm[] = { PIN0_bm, PIN1_bm, PIN4_bm, PIN5_bm, PIN6_bm, PIN7_bm
 // EXACT: at 2400 bits per second (BAUD), 8 bits takes 3.3333 ms
 // comment: there is no start bit nor parity bits included in a byte transmission
 // XMEGA hardware supports up to 2 parity bits & start, giving up to 11 bits per byte possible
-void ir_com_init()
+void ir_comm_init()
 {
 	/* Initialize carrier waves */
 	uint8_t carrier_pins = PIN0_bm | PIN1_bm | PIN4_bm | PIN5_bm | PIN6_bm | PIN7_bm;
@@ -68,6 +68,7 @@ void ir_com_init()
 	set_all_ir_powers(256);
 	for(uint8_t dir=0; dir<6; dir++) clear_ir_buffer(dir); //this initializes the buffer's values to 0.
 	last_ir_msg = NULL;
+	command_arrival_time=0;
 	schedule_task(1000/IR_UPKEEP_FREQUENCY, perform_ir_upkeep, NULL);
 }
 
@@ -103,6 +104,8 @@ void perform_ir_upkeep()
 			memcpy(msg, ir_rxtx[msg_chan].buf, ir_rxtx[msg_chan].data_length);
 			msg[ir_rxtx[msg_chan].data_length]='\0';
 			uint8_t cmd_length = ir_rxtx[msg_chan].data_length;
+			command_arrival_time = ir_rxtx[msg_chan].last_byte;
+			command_sender_id = ir_rxtx[msg_chan].sender_ID;
 			clear_ir_buffer(msg_chan);
 			handle_serial_command(msg, cmd_length);
 		}
@@ -243,7 +246,6 @@ void ir_receive(uint8_t dir)
 		ir_rxtx[dir].status |= IR_STATUS_COMPLETE_bm;
 		ir_rxtx[dir].status |= IR_STATUS_BUSY_bm; //mark as busy so we don't overwrite it.
 		channel[dir]->CTRLB &= ~USART_RXEN_bm; //Disable receiving messages on this channel until the message has been processed.
-		//schedule_task(5, print_completed_msg, (void*)dir);
 	}
 
 }

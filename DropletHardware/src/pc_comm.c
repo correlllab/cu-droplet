@@ -1,8 +1,8 @@
-#include "pc_com.h"
+#include "pc_comm.h"
 
-static FILE mystdout = FDEV_SETUP_STREAM (pc_com_putchar,NULL,_FDEV_SETUP_WRITE);
+static FILE mystdout = FDEV_SETUP_STREAM (pc_comm_putchar,NULL,_FDEV_SETUP_WRITE);
 
-void pc_com_init()
+void pc_comm_init()
 {
 	PC_PORT.DIRSET = PIN7_bm; 	// TX as output
 	PC_PORT.DIRCLR = PIN6_bm;	// RX as input
@@ -85,14 +85,14 @@ void handle_up_arrow()
 	serial_in_index = temp_index;
 }
 
-int pc_com_putchar(char c, FILE *stream)
+int pc_comm_putchar(char c, FILE *stream)
 {
 	while( (PC_USART.STATUS & USART_DREIF_bm) == 0 ) {}
 	PC_USART.DATA = c;
 	return 1;
 }
  
-int pc_com_getchar(FILE *stream)
+int pc_comm_getchar(FILE *stream)
 {
 	while( (PC_USART.STATUS & USART_RXCIF_bm) == 0 ) {}
 	return PC_USART.DATA;

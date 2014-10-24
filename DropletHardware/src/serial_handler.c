@@ -195,7 +195,7 @@ void handle_set_mm_per_kilostep(char* command_args)
 }
 
 /* This tells the droplet that it should tell other droplets nearby their rnb to it.
- * In other words, this tells nearby droplets to listen, and then performs an IR_range_blast.
+ * In other words, this tells nearby droplets to listen, and then performs an ir_range_blast.
  */
 void handle_rnb_broadcast()
 {
@@ -203,7 +203,7 @@ void handle_rnb_broadcast()
 }
 
 /* This tells the droplet that it should ask nearby droplets to do an 
- * IR_range_blast so it can learn their rnb.
+ * ir_range_blast so it can learn their rnb.
  */
 void handle_rnb_collect(char* command_args)
 {
@@ -230,12 +230,14 @@ void collect_rnb_data_wrapper(void* arg)
 }
 
 /* This should only be called when another droplet asks this droplet 
- * to do an IR_range_blast (ie., by using handle_rnb_collect).
+ * to do an ir_range_blast (ie., by using handle_rnb_collect).
  */
 void handle_rnb_transmit(char* command_args)
 {
+	uint32_t time_since_arrival = (get_time()-command_arrival_time+6);
+	if(time_since_arrival<POST_MESSAGE_DELAY) delay_ms(POST_MESSAGE_DELAY - time_since_arrival);
 	uint16_t power = (uint16_t)command_args[0] + 2;
-	IR_range_blast(power);
+	ir_range_blast(power);
 }
 
 /* This should only be called when another droplet is about to 
@@ -243,6 +245,8 @@ void handle_rnb_transmit(char* command_args)
  */
 void handle_rnb_receive()
 {
+	uint32_t time_since_arrival = (get_time()-command_arrival_time+5);
+	if(time_since_arrival<POST_MESSAGE_DELAY) delay_ms(POST_MESSAGE_DELAY - time_since_arrival);	
 	receive_rnb_data();
 	rnb_updated = 0;
 	//last_good_rnb.id_number = (uint16_t)last_command_source_id; TODO: re-add this.

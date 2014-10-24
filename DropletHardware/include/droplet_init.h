@@ -24,7 +24,7 @@
 #define ALL_DIRS	0x3F
 
 #include "scheduler.h"
-#include "pc_com.h"
+#include "pc_comm.h"
 #include "rgb_led.h"
 #include "rgb_sensor.h"
 #include "power.h"

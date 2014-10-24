@@ -1,5 +1,5 @@
-#ifndef PC_COM_H
-#define PC_COM_H
+#ifndef PC_COMM_H
+#define PC_COMM_H
 
 #include <stdio.h> //Needed for 'FILE' type
 #include <avr/io.h>
@@ -23,11 +23,11 @@ struct
 	
 } serial_data_out_buffer;
 
-void pc_com_init();
+void pc_comm_init();
 void handle_serial_input();
 void handle_up_arrow();
-int pc_com_putchar(char c, FILE *stream);
-int pc_com_getchar(FILE *stream);
+int pc_comm_putchar(char c, FILE *stream);
+int pc_comm_getchar(FILE *stream);
 char get_char_nonblocking();
 
 #endif

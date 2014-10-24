@@ -1,7 +1,6 @@
 #include "ir_sensor.h"
 
 const uint8_t mux_sensor_selectors[6] = {MUX_IR_SENSOR_0, MUX_IR_SENSOR_1, MUX_IR_SENSOR_2, MUX_IR_SENSOR_3, MUX_IR_SENSOR_4, MUX_IR_SENSOR_5};
-int8_t ADC_offset[6];		// this value will typically be about -72 if using 1.00 V reference and ADCB0 as VINN
 
 USART_t* channel[] = {
 	&USARTC0,  //   -- Channel 0
@@ -17,39 +16,41 @@ void ir_sensor_init()
 {
 	/* SET INPUT PINS AS INPUTS */
 	IR_SENSOR_PORT.DIRCLR = ALL_IR_SENSOR_PINS_bm;
-	
 
-	ADCB.REFCTRL = /*ADC_BANDGAP_bm |*/ ADC_REFSEL_AREFB_gc;
-	ADCB.CTRLB = ADC_RESOLUTION_8BIT_gc | ADC_CONMODE_bm;
+	ADCB.REFCTRL = ADC_REFSEL_AREFB_gc;
+	ADCB.CTRLB = ADC_RESOLUTION_12BIT_gc | ADC_CONMODE_bm; //8bit resolution, and sets it to signed mode.
 	ADCB.PRESCALER = ADC_PRESCALER_DIV512_gc;
 	ADCB.CH0.CTRL = ADC_CH_INPUTMODE_DIFF_gc;	// differential input. requires signed mode (see sec. 28.6 in manual)
 	ADCB.CH0.MUXCTRL = ADC_CH_MUXNEG_PIN0_gc;	// use VREF_IN for the negative input (0.54 V)
-	ADCB.CTRLA = ADC_ENABLE_bm;
-	//ADCB.CALL = PRODSIGNATURES_ADCBCAL0;
-	//ADCB.CALH = PRODSIGNATURES_ADCBCAL1;
-
-	/* FIND AND RECORD THE ZERO-OFFSET OF EACH IR DIRECTION */
-	IR_SENSOR_PORT.DIRSET = ALL_IR_SENSOR_PINS_bm;		// set the IR sense pins as OUTPUT
-	IR_SENSOR_PORT.OUTCLR = ALL_IR_SENSOR_PINS_bm;		// put a low voltage on these pins (typically, this will be about 15 mV)
-
-	for(uint8_t i=0; i<6; i++)
-	{
-		ADCB.CH0.MUXCTRL &= MUX_SENSOR_CLR; //clear previous sensor selection
-		ADCB.CH0.MUXCTRL |= mux_sensor_selectors[i];
-		busy_delay_us(250);		
-		ADCB.CH0.CTRL |= ADC_CH_START_bm;
-		busy_delay_us(250);				
-		while (ADCB.CH0.INTFLAGS==0);		// wait for 'complete flag' to be set		
-		ADC_offset[i] = ADCB.CH0.RES*(-1);
-	}
+	ADCB.CALL = PRODSIGNATURES_ADCBCAL0;
+	ADCB.CALH = PRODSIGNATURES_ADCBCAL1;
+	ADCB.CTRLA = ADC_ENABLE_bm;	
+	
+	//ADCB.CH0.INTCTRL = ADC_CH_INTMODE_COMPLETE_gc;
+	
+	for(uint8_t dir=0; dir<6; dir++) ir_sense_baseline[dir] = 0;
+	
 	IR_SENSOR_PORT.DIRCLR = ALL_IR_SENSOR_PINS_bm;
+	delay_ms(5);
+	uint8_t min_val, val;
+	for(uint8_t dir=0; dir<6; dir++)
+	{
+		min_val=255;
+		for(uint8_t meas_count=0; meas_count<5; meas_count++)
+		{
+			val = get_ir_sensor(dir);
+			if(val<min_val) min_val = val;
+		}
+		ir_sense_baseline[dir] = min_val;
+	}
+	printf("\r\n");
 	//printf("Offsets: [0: %hhd, 1: %hhd, 2: %hhd, 3: %hhd, 4: %hhd, 5: %hhd\r\n",ADC_offset[0],ADC_offset[1],ADC_offset[2],ADC_offset[3],ADC_offset[4],ADC_offset[5]);
 		
 	////the commands below set the ir_emitters to output.
-	PORTC.DIRSET = (PIN3_bm | PIN7_bm);
-	PORTD.DIRCLR =  PIN3_bm;
-	PORTE.DIRSET = (PIN3_bm | PIN7_bm);
-	PORTF.DIRCLR =  PIN3_bm;	
+	//PORTC.DIRSET = (PIN3_bm | PIN7_bm);
+	//PORTD.DIRCLR =  PIN3_bm;
+	//PORTE.DIRSET = (PIN3_bm | PIN7_bm);
+	//PORTF.DIRCLR =  PIN3_bm;	
 	//PORTF.DIRSET = ALL_EMITTERS_CARWAV_bm;	//set carrier wave pins to output.
 }
 
@@ -60,19 +61,23 @@ void ir_sensor_init()
 
 uint8_t get_ir_sensor(uint8_t sensor_num)
 {
-	int8_t meas; //we're going to take three measurements, and then calculate their median.
-		
 	ADCB.CH0.MUXCTRL &= MUX_SENSOR_CLR; //clear previous sensor selection
 	ADCB.CH0.MUXCTRL |= mux_sensor_selectors[sensor_num];
-	busy_delay_us(250);
-	ADCB.CH0.CTRL |= ADC_CH_START_bm;
-	busy_delay_us(250);			
-	while (ADCB.CH0.INTFLAGS==0);		// wait for measurement to complete
-	meas = ADCB.CH0.RESL;
-	//return (uint8_t)(meas+ADC_offset[sensor_num]);
-	//printf("\t%hhd %hhd %hhd\r\n",meas[0], meas[1], meas[2]);
-	return (uint8_t)(meas+ADC_offset[sensor_num]);
+	
+	uint8_t meas[3];
+	
+	for(uint8_t meas_count=0; meas_count<3; meas_count++)
+	{
+		ADCB.CH0.INTFLAGS=1; // clear the complete flag
+		ADCB.CTRLA |= ADC_CH0START_bm;
+		while (ADCB.CH0.INTFLAGS==0){};		// wait for measurement to complete
+		meas[meas_count] = (ADCB.CH0.RESH<<6)|(ADCB.CH0.RESL>>2);
+	}
+	
+	if(find_median(meas)<ir_sense_baseline[sensor_num])	return 0;
+	else									return (find_median(meas)-ir_sense_baseline[sensor_num]);
 }
+
 	
 uint8_t check_collisions(){
 	uint8_t baseline_meas[6];
@@ -104,18 +109,16 @@ uint8_t check_collisions(){
 	PORTE.OUTCLR = (PIN3_bm | PIN7_bm);
 	PORTF.OUTCLR = PIN3_bm;
 
-	busy_delay_us(250);
+	//busy_delay_us(250);
 	//ADCB.CTRLA |= ADC_FLUSH_bm;
 	//delay_ms(1000);
 	for(uint8_t i=0;i<6;i++){
 		busy_delay_us(250);		
 		measured_vals[i] = get_ir_sensor(i);
-		if((measured_vals[i]-baseline_meas[i])>10){
+		if((measured_vals[i]-baseline_meas[i])>30){
 			dirs = dirs|(1<<i);
 		}
-		//busy_delay_us(50);
-	}		
-
+	}
 	PORTC.OUTTGL = (PIN3_bm | PIN7_bm);
 	PORTD.OUTTGL =  PIN3_bm;
 	PORTE.OUTTGL = (PIN3_bm | PIN7_bm);
@@ -123,6 +126,8 @@ uint8_t check_collisions(){
 	for(uint8_t i=0;i<6;i++) channel[i]->CTRLB = channelCtrlBVals[i];
 	TCF2.CTRLB |= ALL_EMITTERS_CARWAV_bm; //reenable carrier wave output
 	
+	//for(uint8_t i=0;i<6;i++) printf("%hhu: %hhu - %hhu\r\n",i, measured_vals[i], baseline_meas[i]);
+	//printf("\r\n");
 	return dirs;
 }	
 

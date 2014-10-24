@@ -40,22 +40,40 @@ void range_algs_init()
 
 void collect_rnb_data(uint16_t target_id, uint8_t power)
 {	
-	char* cmd = "rnb_t ";
+	char cmd[7] = "rnb_t ";
 	cmd[6] = power;
 	get_baseline_readings(bright_meas);
-	uint8_t error = 1;
+	
+	ir_targeted_cmd(ALL_DIRS, cmd, 7, target_id);
+	wait_for_ir(ALL_DIRS);
+	delay_ms(POST_MESSAGE_DELAY);
+	ir_range_meas();
+	//brightness_meas_printout_mathematica();
+	use_rnb_data(power);
+}
+
+//TODO: handle variable power.
+void broadcast_rnb_data()
+{
+	uint8_t power = 255;
+	ir_cmd(ALL_DIRS, "rnb_r", 5);
+	wait_for_ir(ALL_DIRS);
+	delay_ms(POST_MESSAGE_DELAY);	
+	ir_range_blast(power);
+}
+
+void receive_rnb_data()
+{
+	ir_range_meas();
+	get_baseline_readings();
+	schedule_task(10,use_rnb_data,NULL);
+}
+
+void use_rnb_data(uint8_t power)
+{
 	uint8_t brightness_matrix[6][6];
-	uint8_t number_of_tries = 0;
-	while(error && (number_of_tries < 5))
-	{
-		if(number_of_tries > 0) delay_ms(1000);
-		ir_targeted_cmd(ALL_DIRS, cmd, 7, target_id);
-		wait_for_ir(ALL_DIRS);
-		get_IR_range_readings();
-		//brightness_meas_printout_mathematica();
-		error = pack_measurements_into_matrix(brightness_matrix);
-		number_of_tries++;
-	}
+	uint8_t error = pack_measurements_into_matrix(brightness_matrix);
+	if(error) return;
 	/*
 	For testing, comment out the above and use a hardcoded matrix from the mathematica notebook.
 	uint8_t brightness_matrix[6][6] = {
@@ -67,54 +85,25 @@ void collect_rnb_data(uint16_t target_id, uint8_t power)
 		{0, 0, 0, 0, 0, 0}
 	};
 	*/
-	//brightness_meas_printout_mathematica();
-	if(error){
-		printf("ERROR: Gave up hearing from other droplet.\r\n");
-		return;
-	}
-	use_rnb_data(power);
-}
-
-//TODO: handle variable power.
-
-void broadcast_rnb_data()
-{
-	uint16_t power = 257;
-	ir_cmd(ALL_DIRS, "rnb_r", 5);
-	wait_for_ir(ALL_DIRS);
-	IR_range_blast(power);
-}
-
-void receive_rnb_data()
-{
-	get_IR_range_readings();
-	get_baseline_readings();
-	schedule_task(10,use_rnb_data,NULL);
-}
-
-void use_rnb_data(uint8_t power)
-{
-	uint8_t brightness_matrix[6][6];
-	pack_measurements_into_matrix(brightness_matrix);;
-	//print_brightness_matrix(brightness_matrix);
+	print_brightness_matrix(brightness_matrix);
+	
 	uint8_t emitter_total[6];
 	uint8_t sensor_total[6];
-	
 	fill_S_and_T(brightness_matrix, sensor_total, emitter_total);
 	
 	float bearing = get_bearing(sensor_total);
 	float heading = get_heading(emitter_total, bearing);
 	
-	float initial_range = get_initial_range_guess(bearing, heading, sensor_total, emitter_total, brightness_matrix, power);
-	float range = range_estimate(brightness_matrix, initial_range, bearing, heading, power);
-	//TODO: Actually incorporate the ID #.
-	//rnb temp = {.range = range, .bearing = bearing, .heading = heading, .id_number = 0};
-	//printf("Bearing: %f | Heading: %f | Initial Range Guess: %f | Range: %f\r\n", rad_to_deg(bearing), rad_to_deg(heading), initial_range, range);
-	last_good_rnb.range = range;
+	float initial_range = get_initial_range_guess(bearing, heading, power, sensor_total, emitter_total, brightness_matrix);
+	if(initial_range==0) return; //Some error occurred.
+	float range = range_estimate(initial_range, bearing, heading, power, brightness_matrix);
+	
+	last_good_rnb.range = initial_range;
 	last_good_rnb.bearing = bearing;
 	last_good_rnb.heading = heading;
 	last_good_rnb.brightness_matrix_ptr = brightness_matrix;
-	//last_good_rnb.id_number = last_command_source_id; TODO: re-add this.
+	last_good_rnb.id_number = command_sender_id;
+	
 	rnb_updated=1;
 }
 
@@ -152,16 +141,13 @@ float get_heading(uint8_t emitter_total[6], float bearing)
 	return pretty_angle(heading);
 }
 
-float get_initial_range_guess(float bearing, float heading, uint8_t sensor_total[6], uint8_t emitter_total[6], uint8_t brightness_matrix[6][6], uint8_t power)
+float get_initial_range_guess(float bearing, float heading, uint8_t power, uint8_t sensor_total[6], uint8_t emitter_total[6], uint8_t brightness_matrix[6][6])
 {
-	uint8_t i, e, s, best_e, best_s;
+	uint8_t best_e, best_s;
 	uint16_t biggest_e_val = 0;
 	uint16_t biggest_s_val = 0;
-	float alpha, beta;
-	float EC, amplitude;
-	float inital_guess;
 
-	for(i = 0; i < 6; i++)
+	for(uint8_t i = 0; i < 6; i++)
 	{
 		if(emitter_total[i] > biggest_e_val)
 		{
@@ -175,57 +161,46 @@ float get_initial_range_guess(float bearing, float heading, uint8_t sensor_total
 		}
 	}
 	
-	/*printf("BEST SENSOR: %u\r\n", best_s);
-	printf("BEST EMITTER: %u\r\n", best_e);*/
-
+	float alpha, beta;
+	
 	// find alpha using infinite approximation
-
-	alpha = bearing - atan2f(basis[best_s][1],basis[best_s][0]); // TODO: dont use atan2 for this simple task
-	alpha = pretty_angle(alpha);
-
+	alpha = bearing - basis_angle[best_s];
+	if((alpha > M_PI_2) || (alpha < -M_PI_2))
+	{
+		//printf("ERROR: alpha out of range (alpha: %f, sensor %u)\r\n", alpha, best_s); 
+		return 0;
+	}
+	
 	// find beta using infinite approximation
-
-	beta = bearing - heading - atan2f(basis[best_e][1],basis[best_e][0]) - M_PI; // TODO: dont use atan2 for this simple task
+	beta = bearing - heading - basis_angle[best_e] - M_PI;
 	beta = pretty_angle(beta);
+	if((beta > M_PI_2)  || (beta < -M_PI_2))
+	{
+		//printf("ERROR: beta out of range (beta: %f, emitter %u)\r\n",  beta, best_e); 
+		return 0;
+	}
 	
 	// expected contribution (using infinite distance approximation)
-
-	if((alpha > M_PI/2)||(alpha < -M_PI/2))			// pi/2 = 1.5708
-	{
-		printf("ERROR: alpha out of range (alpha: %f, sensor %u)\r\n",alpha, best_s);
-	}
-
-	if((beta > M_PI/2)||(beta < -M_PI/2))
-	{
-		printf("ERROR: beta out of range (beta: %f, emitter %u)\r\n", beta, best_e);
-	}
-
-	EC = sensor_model(alpha)*emitter_model(beta);
-
-	if(EC > 0)
-	{
-		amplitude = brightness_matrix[best_e][best_s]/EC;
-	}		
+	float amplitude;
+	float exp_con = sensor_model(alpha)*emitter_model(beta);
+	
+	if(exp_con > 0)	amplitude = brightness_matrix[best_e][best_s]/exp_con;	
 	else
 	{
-		printf("ERROR: EC is negative (or zero)! oh, my (EC = %f)\r\n", EC);
+		//printf("ERROR: exp_con (%f) is negative (or zero)!\r\n", exp_con); 
+		return 0;
 	}
 
 	return inverse_amplitude_model(amplitude, power) + 2*DROPLET_RADIUS;
 }
 
-float range_estimate(uint8_t brightness_matrix[6][6], float range_upper_limit, float bearing, float heading, uint8_t power)
+float range_estimate(float init_range, float bearing, float heading, uint8_t power, uint8_t brightness_matrix[6][6])
 {
-	float alpha, beta;
-
-	float SEcontribution;
-
-	float sensorRXx, sensorRXy, sensorTXx, sensorTXy;
-	
-	float calcRIJmag, calcRmag;
-	float calcRx, calcRy;
-	
 	float range_matrix[6][6];
+	
+	float sensorRXx, sensorRXy, sensorTXx, sensorTXy;
+	float alpha, beta, sense_emit_contr;
+	float calcRIJmag, calcRmag, calcRx, calcRy;
 
 	uint8_t maxBright = 0;
 	uint8_t maxE;
@@ -245,8 +220,8 @@ float range_estimate(uint8_t brightness_matrix[6][6], float range_upper_limit, f
 			{				
 				sensorRXx = DROPLET_SENSOR_RADIUS*basis[s][0];
 				sensorRXy = DROPLET_SENSOR_RADIUS*basis[s][1];
-				sensorTXx = DROPLET_SENSOR_RADIUS*basis[e][0] + range_upper_limit*cosf(bearing);
-				sensorTXy = DROPLET_SENSOR_RADIUS*basis[e][1] + range_upper_limit*sinf(bearing);
+				sensorTXx = DROPLET_SENSOR_RADIUS*basis[e][0] + init_range*cosf(bearing);
+				sensorTXy = DROPLET_SENSOR_RADIUS*basis[e][1] + init_range*sinf(bearing);
 
 				alpha = atan2f(sensorTXy-sensorRXy,sensorTXx-sensorRXx) - basis_angle[s];
 				beta = atan2f(sensorRXy-sensorTXy,sensorRXx-sensorTXx) - basis_angle[e] - heading;
@@ -254,33 +229,19 @@ float range_estimate(uint8_t brightness_matrix[6][6], float range_upper_limit, f
 				alpha = pretty_angle(alpha);
 				beta = pretty_angle(beta);
 				
-				//if((alpha < M_PI/2)&&(alpha > -M_PI/2))
-				//{
-					//if((beta < M_PI/2)&&(beta > -M_PI/2))
-					//{
-						SEcontribution = sensor_model(alpha)*emitter_model(beta);
+				sense_emit_contr = sensor_model(alpha)*emitter_model(beta);
 
-						calcRIJmag = inverse_amplitude_model(brightness_matrix[e][s]/SEcontribution, power);
-						calcRx = calcRIJmag*cosf(alpha) + DROPLET_SENSOR_RADIUS*(basis[s][0] - basis[e][0]);
-						calcRy = calcRIJmag*sinf(alpha) + DROPLET_SENSOR_RADIUS*(basis[s][1] - basis[e][1]);
-						range_matrix[e][s] = sqrt(calcRx*calcRx + calcRy*calcRy);
-						continue;
-					//}
-				//}
+				calcRIJmag = inverse_amplitude_model(brightness_matrix[e][s]/sense_emit_contr, power);
+				calcRx = calcRIJmag*cosf(alpha) + DROPLET_SENSOR_RADIUS*(basis[s][0] - basis[e][0]);
+				calcRy = calcRIJmag*sinf(alpha) + DROPLET_SENSOR_RADIUS*(basis[s][1] - basis[e][1]);
+				range_matrix[e][s] = sqrt(calcRx*calcRx + calcRy*calcRy);
+				continue;
 			}
 			range_matrix[e][s]=0;
 		}
 	}
 	
-	//
-	//for(uint8_t e=0; e<6 ; e++){
-		//for(uint8_t s=0; s<6; s++){
-			//printf("%02.3f  ",range_matrix[e][s]);
-		//}
-		//printf("\r\n");
-	//}
 	float range = range_matrix[maxE][maxS];
-	//printf("range from 0,0: %f\r\n",range_matrix[maxE][maxS]);
 	return range;
 }
 
@@ -307,158 +268,91 @@ void fill_S_and_T(uint8_t brightness_matrix[6][6], uint8_t sensor_total[6], uint
 
 uint8_t pack_measurements_into_matrix(uint8_t brightness_matrix[6][6])
 {
-	uint8_t high, low, diff;
-	
-	uint8_t max_diff = 0;
-
-	uint8_t probable_timing_fail = 0;
-
-	uint8_t print_results = 0;
-
-	// do some math with the measurements to find the correct values to put into the brightness matrix
-	for(uint8_t emitter_dir = 0; emitter_dir < 6; emitter_dir++)
+	uint8_t val, meas, min_meas, max_meas;
+	uint8_t max_val=0;
+	for(uint8_t emitter_num = 0; emitter_num < 6; emitter_num++)
 	{
-		// find measurement value (greatest difference) from the NUMBER_OF_RB_MEASUREMENTS measurements
-		// usually, the 0th value (baseline) will provide the lowest value, but this is not guaranteed
-
 		for(uint8_t sensor_num = 0; sensor_num < 6; sensor_num++)
 		{
-			high = 0;
-			low = 255;
-			
+			min_meas = 255;
+			max_meas = 0;
+
 			for(uint8_t meas_num = 0; meas_num < NUMBER_OF_RB_MEASUREMENTS; meas_num++)
 			{
-				
-				if(bright_meas[emitter_dir][sensor_num][meas_num] > high)
-				{
-					high = bright_meas[emitter_dir][sensor_num][meas_num];
-				}
-				if(bright_meas[emitter_dir][sensor_num][meas_num] < low)
-				{
-					low = bright_meas[emitter_dir][sensor_num][meas_num];
-				}
+				meas = bright_meas[emitter_num][sensor_num][meas_num];
+				if(meas<min_meas) min_meas=meas;
+				if(meas>max_meas) max_meas=meas; 
 			}
-
-			diff = high - low;
-
-			//if(print_results)
-				//printf("[S%u E%u] lowest %u, highest %u, diff %u ", sensor_num, emitter_dir, low, high, diff);
-
-			//if(low + BASELINE_NOISE_THRESHOLD < bright_meas[sensor_num][emitter_dir][0])
-			////if(low_meas[sensor_num] < bright_meas[sensor_num][emitter_dir][0])
-			//{
-				//printf("base: %u, low: %u\r\n", bright_meas[sensor_num][emitter_dir][0], low);		// "lowest measurement is not the first"
-				//printf("TIMING FAIL? sensor %u emitter %u\r\n", sensor_num, emitter_dir);
-				//probable_timing_fail = 1;
-			//}
-			//else if(abs(bright_meas[sensor_num][emitter_dir][0] - bright_meas[sensor_num][emitter_dir][NUMBER_OF_RB_MEASUREMENTS-1]) > BASELINE_NOISE_THRESHOLD)
-			//{
-				//printf("TIMING FAIL? (FRAME ERROR) sensor %u emitter %u\r\n", sensor_num, emitter_dir);
-				//probable_timing_fail = 2;
-			//}
-			//else 
-			//{
-				//if(print_results)	printf("\r\n");
-			//}
-			
-			brightness_matrix[emitter_dir][sensor_num] = diff;
-			if(diff > max_diff) max_diff = diff;
+			val = max_meas-min_meas;
+			if(val>max_val) max_val=val;
+			brightness_matrix[emitter_num][sensor_num] = val;
 		}
-
-	}// end loop through DOING MATH WITH the 6 emitters DATA
-	if(max_diff < BASELINE_NOISE_THRESHOLD) probable_timing_fail = 1;
-	return probable_timing_fail;
+	}
+	return (max_val<=BASELINE_NOISE_THRESHOLD);
 }
+
 
 void get_baseline_readings()
 {
-	// Baseline measurements
-	// take 6 readings, one for each 'emitter'
-	for (uint8_t emitter_num = 0; emitter_num <6; emitter_num++)
-	{			//[emitter#][sensor#][meas#]
+	uint8_t meas_num = 0;
+	for (uint8_t emitter_num = 0; emitter_num < 6; emitter_num++)
+	{
 		for (uint8_t sensor_num = 0; sensor_num < 6; sensor_num++)
 		{
-			bright_meas[emitter_num][sensor_num][0] = get_ir_sensor(sensor_num);
+			bright_meas[emitter_num][sensor_num][meas_num] = get_ir_sensor(sensor_num);
 		}			
 	}
 }
 
-void IR_range_blast(uint16_t power)
-{
-	delay_ms(POST_BROADCAST_DELAY);
-	
-	uint32_t timer[20];
-	timer[0] = get_time(); //Top of the function.
-	uint32_t pre_sync_op = get_time();
-	set_all_ir_powers(256);
-	while((get_time() - pre_sync_op) < TIME_FOR_SET_IR_POWERS);
-
-	for(uint8_t dir = 0; dir < 6; dir++)
-	{
-		//IR_emit(dir, DELAY_BETWEEN_RB_MEASUREMENTS*NUMBER_OF_RB_MEASUREMENTS);
-		timer[(3*dir + 0) + 1] = get_time();//Top of the for loop.
-		busy_delay_ms((DELAY_BETWEEN_RB_MEASUREMENTS + TIME_FOR_GET_IR_VALS)*(NUMBER_PRE_MEASUREMENTS));
-		IR_emit(dir, (DELAY_BETWEEN_RB_MEASUREMENTS + TIME_FOR_GET_IR_VALS)*(NUMBER_OF_RB_MEASUREMENTS - (NUMBER_PRE_MEASUREMENTS + NUMBER_POST_MEASUREMENTS + 1))); //The -1 is 'cause we shouldn't count the baseline measurements.
-		busy_delay_ms((DELAY_BETWEEN_RB_MEASUREMENTS + TIME_FOR_GET_IR_VALS)*(NUMBER_POST_MEASUREMENTS));
-		timer[(3*dir + 1) + 1] = get_time();//post emit
-		set_green_led(100);
-		busy_delay_ms(DELAY_BETWEEN_RB_TRANSMISSIONS);
-		led_off();
-		timer[(3*dir + 2) + 1] = get_time();//bottom of the for loop.
-	}
-	timer[19] = get_time();//End of function.
-	debug_print_timer(timer);
-}
-
-void get_IR_range_readings()
+void ir_range_meas()
 {
 	busy_delay_ms(POST_BROADCAST_DELAY);
-	uint32_t timer[20];
-	timer[0] = get_time(); //Top of the function.
-	
 	busy_delay_ms(TIME_FOR_SET_IR_POWERS);
 	
-	for(uint8_t emitter_dir = 0; emitter_dir < 6; emitter_dir++) // Transmitter goes through 6 directions, one at a time
+	for(uint8_t emitter_dir = 0; emitter_dir < 6; emitter_dir++)
 	{
-		timer[(3*emitter_dir + 0) + 1] = get_time();//Top of the for loop.
+		uint32_t outer_pre_sync_op = get_time();
 		for(uint8_t meas_num = 1; meas_num < NUMBER_OF_RB_MEASUREMENTS; meas_num++)
 		{
-			uint32_t pre_sync_op = get_time();
+			uint32_t inner_pre_sync_op = get_time();
 			for (uint8_t sensor_num = 0; sensor_num < 6; sensor_num++)
 			{
 				bright_meas[emitter_dir][sensor_num][meas_num] = get_ir_sensor(sensor_num);
 			}
-			while((get_time() - pre_sync_op) < TIME_FOR_GET_IR_VALS);
+			while((get_time() - inner_pre_sync_op) < TIME_FOR_GET_IR_VALS){};
 			
-			if (meas_num < NUMBER_OF_RB_MEASUREMENTS - 1)
-			{
-				busy_delay_ms(DELAY_BETWEEN_RB_MEASUREMENTS);
-			}
+			if (meas_num < (NUMBER_OF_RB_MEASUREMENTS - 1))	delay_ms(DELAY_BETWEEN_RB_MEASUREMENTS);
 		}
-		timer[(3*emitter_dir + 1) + 1] = get_time();//post emit
+		while((get_time() - outer_pre_sync_op) < TIME_FOR_ALL_MEAS){};
 
-		set_green_led(100);
-		busy_delay_ms(DELAY_BETWEEN_RB_TRANSMISSIONS);
-		led_off();
-		timer[(3*emitter_dir + 2) + 1] = get_time(); //bottom of the for loop.
-
-	}// end loop through PHYSICALLY LOOKING AT the 6 emitters, recording DATA
-	timer[19] = get_time();//End of function.
-	debug_print_timer(timer);
+		//set_green_led(100);
+		delay_ms(DELAY_BETWEEN_RB_TRANSMISSIONS);
+		//set_green_led(0);
+	}
 }
 
-void IR_emit(uint8_t direction, uint8_t duration) // this is now BLOCKING ***
+void ir_range_blast(uint8_t power)
 {
-	// as of now, this routine:
-	// 1. turns on a pink color for 200 ms
-	// 2. turns off pink, turns on green color while it blasts IR for 100 ms
-	// 3. turns off green, and returns
-	// note that the IR blast occurs during the latter 1/3 of the routine
-	// somewhere in there it toggles some pins to temporarily disable carrier wave and UART
+	delay_ms(POST_BROADCAST_DELAY);
 	
-	// note further that the brightness is set elsewhere in the code
-	// note: IR carrier pins { PIN0_bm, PIN1_bm, PIN4_bm, PIN5_bm, PIN7_bm, PIN6_bm };
+	uint32_t pre_sync_op = get_time();
+	//set_all_ir_powers(((uint16_t)power)+1);
+	set_all_ir_powers(256);
+	while((get_time() - pre_sync_op) < TIME_FOR_SET_IR_POWERS){};
 
+	for(uint8_t dir = 0; dir < 6; dir++)
+	{
+		pre_sync_op = get_time();
+		ir_emit(dir, TIME_FOR_ALL_MEAS);
+		while((get_time() - pre_sync_op) < TIME_FOR_ALL_MEAS){};
+		//set_green_led(100);
+		delay_ms(DELAY_BETWEEN_RB_TRANSMISSIONS);
+		//set_green_led(0);
+	}
+}
+
+void ir_emit(uint8_t direction, uint8_t duration)
+{
 	uint8_t USART_CTRLB_save;
 
 	uint8_t carrier_wave_bm;
@@ -469,46 +363,31 @@ void IR_emit(uint8_t direction, uint8_t duration) // this is now BLOCKING ***
 
 	switch(direction)
 	{
-		case 0:	// WORKS!
-		carrier_wave_bm = PIN0_bm; TX_pin_bm = PIN3_bm; the_UART_port = &PORTC; the_USART = &USARTC0; break;
-		case 1:	// WORKS!
-		carrier_wave_bm = PIN1_bm; TX_pin_bm = PIN7_bm; the_UART_port = &PORTC; the_USART = &USARTC1; break;
-		case 2:	// WORKS!
-		carrier_wave_bm = PIN4_bm; TX_pin_bm = PIN3_bm; the_UART_port = &PORTD; the_USART = &USARTD0; break;
-		case 3:	// WORKS!
-		carrier_wave_bm = PIN5_bm; TX_pin_bm = PIN3_bm; the_UART_port = &PORTE; the_USART = &USARTE0; break;
-		case 4:	// WORKS!
-		carrier_wave_bm = PIN7_bm; TX_pin_bm = PIN7_bm; the_UART_port = &PORTE; the_USART = &USARTE1; break;
-		case 5:	// WORKS!
-		carrier_wave_bm = PIN6_bm; TX_pin_bm = PIN3_bm; the_UART_port = &PORTF; the_USART = &USARTF0; break;
+		case 0: carrier_wave_bm = PIN0_bm; TX_pin_bm = PIN3_bm; the_UART_port = &PORTC; the_USART = &USARTC0; break;
+		case 1:	carrier_wave_bm = PIN1_bm; TX_pin_bm = PIN7_bm; the_UART_port = &PORTC; the_USART = &USARTC1; break;
+		case 2:	carrier_wave_bm = PIN4_bm; TX_pin_bm = PIN3_bm; the_UART_port = &PORTD; the_USART = &USARTD0; break;
+		case 3:	carrier_wave_bm = PIN5_bm; TX_pin_bm = PIN3_bm; the_UART_port = &PORTE; the_USART = &USARTE0; break;
+		case 4:	carrier_wave_bm = PIN7_bm; TX_pin_bm = PIN7_bm; the_UART_port = &PORTE; the_USART = &USARTE1; break;
+		case 5:	carrier_wave_bm = PIN6_bm; TX_pin_bm = PIN3_bm; the_UART_port = &PORTF; the_USART = &USARTF0; break;
 	}
 
-	USART_CTRLB_save = the_USART->CTRLB;		// record the current state of the USART
+	//Turning on the light.
+	USART_CTRLB_save	  = the_USART->CTRLB;	// record the current state of the USART
+	TCF2.CTRLB			 &= ~carrier_wave_bm;	// disable carrier wave output
+	PORTF.DIRSET		  =  carrier_wave_bm;	// enable user output on this pin
+	PORTF.OUT			 |=  carrier_wave_bm;	// high signal on this pin
+	the_USART->CTRLB  	  =  0;					// disable USART
+	the_UART_port->DIRSET =  TX_pin_bm;			// enable user output on this pin
+	the_UART_port->OUT	 &= ~TX_pin_bm;			// low signal on TX pin (remember: these pins were inverted during init)
 
-	TCF2.CTRLB &= ~carrier_wave_bm;			// disable carrier wave output
-	PORTF.DIRSET = carrier_wave_bm;			// enable user output on this pin
-	PORTF.OUT |= carrier_wave_bm;			// high signal on this pin
-
-	the_USART->CTRLB = 0;				// disable USART
-	the_UART_port->DIRSET = TX_pin_bm;			// enable user output on this pin
-	the_UART_port->OUT &= ~TX_pin_bm;			// low signal on TX pin		(IR LED is ON when this pin is LOW, these pins were inverted in software during initialization)
-
-	// IR LIGHT IS ON NOW
-
-	//_delay_ms(NUMBER_OF_RB_MEASUREMENTS * DELAY_BETWEEN_RB_MEASUREMENTS);
-	// -1 only counting gaps between N measurements
-	// 0.1 delay while taking a meas
-	//_delay_ms((NUMBER_OF_RB_MEASUREMENTS-1) * (DELAY_BETWEEN_RB_MEASUREMENTS+0.1)*0.75);
-
-	delay_ms(duration);
-
-	// IR LIGHT IS about to go OFF
-
-	the_UART_port->OUT |= TX_pin_bm;			// high signal on TX pin (turns IR blast OFF)
-
-	the_USART->CTRLB = USART_CTRLB_save;	// re-enable USART (restore settings as it was before)
-	PORTF.OUT &= ~carrier_wave_bm;			// low signal on the carrier wave pin, don't really know why we do this? probably not necessary
-	TCF2.CTRLB |= carrier_wave_bm;			// re-enable carrier wave output
+	// Light is on now, wait..
+	busy_delay_ms(duration);
+	
+	//Turning off the light.
+	the_UART_port->OUT  |=  TX_pin_bm;			// high signal on TX pin (turns IR blast OFF)
+	the_USART->CTRLB	 =  USART_CTRLB_save;	// re-enable USART (restore settings as it was before)
+	PORTF.OUT			&= ~carrier_wave_bm;	// low signal on the carrier wave pin, just in casies.
+	TCF2.CTRLB			|=  carrier_wave_bm;	// re-enable carrier wave output
 }
 
 float pretty_angle(float alpha)
@@ -529,60 +408,56 @@ float deg_to_rad(float deg){
 
 float sensor_model(float alpha)
 {
-	volatile float alphaFourth = alpha*alpha*alpha*alpha;
-	if(abs(alpha) < 0.618614)
-	{
-		return 1 - alphaFourth;
-	}
-	else
-	{
-		return 1/(8*alphaFourth);
-	}
+	if((alpha>(-M_PI_2))&&(alpha<M_PI_2))	return cos(alpha);
+	else									return 0;
+	//volatile float alphaFourth = alpha*alpha*alpha*alpha;
+	//if(abs(alpha) < 0.618614)
+	//{
+		//return 1 - alphaFourth;
+	//}
+	//else
+	//{
+		//return 1/(8*alphaFourth);
+	//}
 }
 
 float emitter_model(float beta)
 {	
-	volatile float betaSquared = beta*beta;
-	if(abs(beta) < 0.720527)
-	{
-		return 0.9375 + 0.5*betaSquared - betaSquared*betaSquared;
-	}
-	else
-	{
-		return 1/(4*betaSquared*betaSquared);
-	}
+	if((beta>(-M_PI_2))&&(beta<M_PI_2)) return cos(beta);
+	else								return 0;
+	//volatile float betaSquared = beta*beta;
+	//if(abs(beta) < 0.720527)
+	//{
+		//return 0.9375 + 0.5*betaSquared - betaSquared*betaSquared;
+	//}
+	//else
+	//{
+		//return 1/(4*betaSquared*betaSquared);
+	//}
 }
 
 float amplitude_model(float r, uint8_t power)
 {
-	if(power==255){
-		return (14000/((r-3)*(r-3))) - 1;
-	}else if(power ==250){
-		return (1100./((r-4.)*(r-4.)))+12.5;
-	}else{
-		printf("ERROR: Unexpected power: %hhu\r\n",power);
-		return 0;
-	}
+	if(power==255)			return (1.36255 + (298.285/((0.691321+r)*(0.691321+r))));
+	//else if(power ==250)	return (1100./((r-4.)*(r-4.)))+12.5;
+	else					printf("ERROR: Unexpected power: %hhu\r\n",power);
+	return 0;
 }
 
 float inverse_amplitude_model(float ADC_val, uint8_t power)
 {
-	if(power==255){
-		return (118/sqrtf(ADC_val+1)) + 3;
-	}else if(power ==250){
-		return (33.166/sqrtf(ADC_val - 12.5)) + 4;
-	}else{
-		printf("ERROR: Unexpected power: %hhu\r\n",power);
-		return 0;
-	}
+	if(power == 255)		return (19.6587/sqrtf(ADC_val-1.36255)) - 1.19672;
+	//else if(power == 250) return (33.166/sqrtf(ADC_val - 12.5)) + 4;
+	else					printf("ERROR: Unexpected power: %hhu\r\n",power);
+	return 0;
 }
 
 
-void debug_print_timer(uint32_t timer[20])
+void debug_print_timer(uint32_t timer[14])
 {
-	printf("Duration: %u\r\n",timer[19] - timer[0]);
+	printf("Duration: %u\r\n",timer[13] - timer[0]);
 	printf("|  ");
-	for(uint8_t i=1 ; i<19 ; i++)
+	for(uint8_t i=1 ; i<13 ; i++)
 	{
 		printf("%3u  |  ",timer[i] - timer[i-1]);
 	}
@@ -608,17 +483,15 @@ void print_brightness_matrix(uint8_t brightness_matrix[6][6])
 
 void brightness_meas_printout_mathematica()
 {
-	// MATHEMATICA PRINTOUT //
-
 	printf("data = {");
 		for(uint8_t emitter_num = 0; emitter_num < 6; emitter_num++)
 		{
 			printf("\r\n{");
 				for(uint8_t sensor_num = 0; sensor_num < 6; sensor_num++)
 				{
-					printf("\r\n(*s%u,e%u*){", emitter_num, sensor_num);
+					printf("\r\n(*e%u,s%u*){", emitter_num, sensor_num);
 						for(uint8_t meas_num = 0; meas_num < NUMBER_OF_RB_MEASUREMENTS; meas_num++)
-						{	//[sensor#][emitter#][meas#]
+						{
 							if(meas_num == 10)
 							printf("\r\n");
 							printf("%u,",bright_meas[emitter_num][sensor_num][meas_num]);

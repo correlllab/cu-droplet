@@ -2,10 +2,11 @@
 #define _MAIN_
 #include "droplet_init.h"
 
-#define MOVE_DIST_SCALAR            50
 #define RED_THRESHOLD               200
 
-#define WALKAWAY_TIME               15000   // in ms
+#define MOVE_DIST_SCALAR            50
+#define WALKAWAY_STEPS              1000
+
 #define START_DELAY_TIME            100     // in ms
 #define COLLABORATE_DURATION        3000    // in ms
 
@@ -54,10 +55,11 @@ void		check_votes			();
 uint8_t		roll_sigmoid		( int16_t	group_size	);
 void		add_group_member	( uint16_t	senderID	);
 
-void		change_state		( State		new_state	);
-
 // Droplet Communication Helper Functions
 void		check_messages		();
 void		clear_msg_buffers	();
 void		clear_state			();
+
+void		change_state		( State		new_state	);
+
 #endif

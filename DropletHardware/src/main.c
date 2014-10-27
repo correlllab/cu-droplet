@@ -77,13 +77,10 @@ int main(void)
 				heartbeat_time = get_time ();
 				send_heartbeat ();
 			}
-
-			// Checks incoming messages and updates group size.
-			// There is a chance the state can be changed to COLLABORATING in
-			// this function if the droplet sees a GO message.
+			
 			current_group_size = update_group_size ( prev_gap );
-
-			if ( get_time() - voting_time > HEART_RATE && state == WAITING )
+			
+			if ( get_time() - voting_time > HEART_RATE )
 			{
 				voting_time = get_time ();
 				check_votes ();
@@ -128,14 +125,15 @@ void send_heartbeat ()
 	if( roll_sigmoid(current_group_size) )
 	{
 		msg = "<3Y";
-		yes_count += 1;
+		yes_count++;
 	}
 	else
 	{
 		msg = "<3N";
 	}
 	
-	ir_send ( ALL_DIRS, msg, 3 );
+	ir_send	( ALL_DIRS, msg, 3 );
+	add_group_member ( droplet_ID );
 	set_rgb ( 0, 0, 0 );
 }
 
@@ -151,26 +149,21 @@ uint16_t update_group_size ( uint16_t time_to_add )
 	
 	do 
 	{
-		if ( gi==group_root )
+		gi->ms_age += time_to_add;
+		if( gi->ms_age > GROUP_MEMBERSHIP_TIMEOUT )
 		{
-			group_size++;
+			group_item* temp	= gi;
+			gi->prev->next		= gi->next;
+			gi->next->prev		= gi->prev;
+			gi					= gi->next;
+			free ( temp );
 		}
 		else
 		{
-			gi->ms_age += time_to_add;
-			if( gi->ms_age > GROUP_MEMBERSHIP_TIMEOUT )
-			{
-				group_item* temp	= gi;
-				gi->prev->next		= gi->next;
-				gi->next->prev		= gi->prev;
-				gi					= gi->next;
-				free ( temp );
-			}
-			else
-			{
-				group_size++;
-			}
+			group_size++;
 		}
+		
+		gi = gi->next;
 	} while ( gi != group_root );
 	
 	return group_size;
@@ -178,7 +171,7 @@ uint16_t update_group_size ( uint16_t time_to_add )
 
 void check_votes ()
 {
-	if( yes_count*2 >= current_group_size )
+	if( (current_group_size > 1) && (yes_count*2 >= current_group_size) )
 	{
 		char* msg = "GO";
 		ir_send ( ALL_DIRS, msg, 2 );
@@ -241,47 +234,6 @@ void add_group_member ( uint16_t senderID )
 	current_group_size++;
 }
 
-void change_state ( State new_state )
-{
-	state = new_state;
-	switch ( state )
-	{
-		case COLLABORATING:
-		set_rgb				( 0, 0, 250 );		// BLUE
-		collab_time			= get_time ();
-		break;
-
-		case LEAVING:
-		set_rgb				( 0, 250, 0 );		// GREEN 
-		move_steps			( (last_move_dir + 3) % 6, WALKAWAY_TIME );
-
-		case SAFE:
-		set_rgb				( 250, 0, 0 );		// RED
-		break;
-
-		case START_DELAY:
-		start_delay_time	= get_time ();
-		break;
-
-		case WAITING:
-		stop				();
-		led_off				();					// OFF
-		clear_msg_buffers	();
-		
-		heartbeat_time		= get_time ();
-		voting_time			= get_time ();
-		send_heartbeat		();
-		break;
-
-		case SEARCHING:
-		set_rgb				( 250, 250, 0 );	// YELLOW
-		break;
-			
-		default:
-		led_off				();
-	}
-}
-
 void check_messages ()
 {
 	// If we are not in the wait state then discard all incoming messages
@@ -339,17 +291,58 @@ void clear_msg_buffers ()
 
 void clear_state ()
 {
-		group_item *gi = group_root;
-		while ( gi != NULL )
-		{
-			group_item *tmp = gi;
-			gi = gi->next;
-			free ( tmp );
-			tmp = NULL;
-		}
-		
-		yes_count			= 0;
-		current_group_size	= 0;
+	clear_msg_buffers ();
+	
+	group_item *gi = group_root;
+	while ( gi != NULL )
+	{
+		group_item *tmp = gi;
+		gi = gi->next;
+		free ( tmp );
+		tmp = NULL;
+	}
+	
+	yes_count			= 0;
+	current_group_size	= 0;
 }
 
+void change_state ( State new_state )
+{
+	state = new_state;
+	switch ( state )
+	{
+		case COLLABORATING:
+		set_rgb				( 0, 0, 250 );		// BLUE
+		collab_time			= get_time ();
+		break;
+
+		case LEAVING:
+		set_rgb				( 0, 250, 0 );		// GREEN
+		move_steps			( (last_move_dir + 3) % 6, WALKAWAY_STEPS );
+
+		case SAFE:
+		set_rgb				( 250, 0, 0 );		// RED
+		break;
+
+		case START_DELAY:
+		start_delay_time	= get_time ();
+		break;
+
+		case WAITING:
+		stop				();
+		led_off				();					// OFF
+		clear_state			();	
+		heartbeat_time		= get_time ();
+		voting_time			= get_time ();
+		send_heartbeat		();
+		break;
+
+		case SEARCHING:
+		set_rgb				( 250, 250, 0 );	// YELLOW
+		break;
+		
+		default:
+		led_off				();
+	}
+}
 

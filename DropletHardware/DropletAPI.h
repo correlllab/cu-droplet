@@ -47,6 +47,7 @@ uint16_t get_droplet_id();
 // Scheduler
 void delay_ms(uint16_t ms);
 void delay_us(double us);
+void schedule_task(uint32_t time, (void *)fn_name, void *args);
 uint32_t get_32bit_time();
 
 // Initialization

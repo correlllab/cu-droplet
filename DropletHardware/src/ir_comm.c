@@ -1,5 +1,15 @@
 #include "ir_comm.h"
 
+inline void clear_ir_buffer(uint8_t dir)
+{
+	ir_rxtx[dir].status = 0;
+	ir_rxtx[dir].data_length = 0;
+	ir_rxtx[dir].curr_pos = 0;
+	ir_rxtx[dir].target_ID = 0;
+	ir_rxtx[dir].sender_ID = 0;
+	channel[dir]->CTRLB |= USART_RXEN_bm; //this enables receive on the USART
+}
+
 /* Hardware addresses for the port pins with the carrier wave */
 uint8_t ir_carrier_bm[] = { PIN0_bm, PIN1_bm, PIN4_bm, PIN5_bm, PIN6_bm, PIN7_bm };
 
@@ -129,15 +139,7 @@ void perform_ir_upkeep()
 	//printf("\r\n");
 }
 
-inline void clear_ir_buffer(uint8_t dir)
-{
-	ir_rxtx[dir].status = 0;
-	ir_rxtx[dir].data_length = 0;
-	ir_rxtx[dir].curr_pos = 0;
-	ir_rxtx[dir].target_ID = 0;
-	ir_rxtx[dir].sender_ID = 0;
-	channel[dir]->CTRLB |= USART_RXEN_bm; //this enables receive on the USART
-}
+
 
 void send_msg(uint8_t dirs, char *data, uint8_t data_length)
 {

@@ -64,9 +64,9 @@ uint8_t get_ir_sensor(uint8_t sensor_num)
 	ADCB.CH0.MUXCTRL &= MUX_SENSOR_CLR; //clear previous sensor selection
 	ADCB.CH0.MUXCTRL |= mux_sensor_selectors[sensor_num];
 	
-	uint8_t meas[3];
+	uint8_t meas[IR_MEAS_COUNT];
 	
-	for(uint8_t meas_count=0; meas_count<3; meas_count++)
+	for(uint8_t meas_count=0; meas_count<IR_MEAS_COUNT; meas_count++)
 	{
 		ADCB.CH0.INTFLAGS=1; // clear the complete flag
 		ADCB.CTRLA |= ADC_CH0START_bm;
@@ -74,8 +74,8 @@ uint8_t get_ir_sensor(uint8_t sensor_num)
 		meas[meas_count] = (ADCB.CH0.RESH<<6)|(ADCB.CH0.RESL>>2);
 	}
 	
-	if(find_median(meas)<ir_sense_baseline[sensor_num])	return 0;
-	else									return (find_median(meas)-ir_sense_baseline[sensor_num]);
+	if(find_median(meas, IR_MEAS_COUNT)<ir_sense_baseline[sensor_num])	return 0;
+	else									return (find_median(meas, IR_MEAS_COUNT)-ir_sense_baseline[sensor_num]);
 }
 
 	
@@ -132,25 +132,23 @@ uint8_t check_collisions(){
 }	
 
 // Finds the median of 3 numbers by finding the max, finding the min, and returning the other value
-int8_t find_median(int8_t* meas)
+int8_t find_median(int8_t* meas, uint8_t arr_len)
 {
-	uint8_t mini, maxi, medi;
-	int8_t min = -128, max = 127;
-	for (uint8_t i = 0; i < 3; i++)
+	if(arr_len==1) return meas[0];
+	else if(arr_len==2) return (meas[0]+meas[1])/2;
+	
+	for(uint8_t i=0; i<arr_len ; i++)
 	{
-		if (meas[i] < max)
+		for(uint8_t j=i+1 ; j<arr_len ; j++)
 		{
-			max = meas[i]; 
-			maxi = i;
-		}
-		if (meas[i] > min)
-		{
-			min = meas[i];
-			mini = i;
+			if(meas[j] < meas[i])
+			{
+				int8_t temp = meas[i];
+				meas[i] = meas[j];
+				meas[j] = temp;
+			}
 		}
 	}
-	for (medi = 0; medi < 3; medi++)
-	{
-		if ((medi != maxi) && (medi != mini)) return meas[medi];
-	}
+	if(arr_len%2==0) return (meas[arr_len/2-1]+meas[arr_len/2])/2;
+	else return meas[arr_len/2];
 }

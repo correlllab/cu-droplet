@@ -26,29 +26,87 @@ void rgb_sensor_init()
 	
 }
 
+void get_rgb_sensors(int8_t* r, int8_t* g, int8_t* b)
+{
+	uint8_t led_r = get_red_led();
+	uint8_t led_g = get_green_led();
+	uint8_t led_b = get_blue_led();
+	
+	set_rgb(0,0,0);
+	delay_ms(LED_OFF_DELAY_MS);
+	
+	if(r!=NULL) *r = get_red_sensor();
+	if(g!=NULL) *g = get_green_sensor();
+	if(b!=NULL) *b = get_blue_sensor();
+		
+	set_rgb(led_r, led_g, led_b);
+}
+
 int8_t get_red_sensor()
 {
-	int8_t cursen = 0;
-	ADCA.CH0.CTRL |= ADC_CH_START_bm;
-	while (ADCA.CH0.INTFLAGS==0);
-	cursen = ADCA.CH0.RESL;
-	return cursen;
+	uint8_t meas[RGB_MEAS_COUNT];
+	
+	for(uint8_t meas_count=0; meas_count<RGB_MEAS_COUNT; meas_count++)
+	{
+		ADCA.CH0.INTFLAGS=1; // clear the complete flag
+		ADCA.CH0.CTRL |= ADC_CH_START_bm;
+		while (ADCA.CH0.INTFLAGS==0){};		// wait for measurement to complete
+		meas[meas_count] = ADCA.CH0.RESL;
+	}
+	
+	return find_median(meas, RGB_MEAS_COUNT);
 }
 
 int8_t get_green_sensor()
 {
-	int8_t cursen = 0;
-	ADCA.CH1.CTRL |= ADC_CH_START_bm;
-	while (ADCA.CH1.INTFLAGS==0);
-	cursen = ADCA.CH1.RESL;
-	return cursen;
+	uint8_t meas[RGB_MEAS_COUNT];
+		
+	for(uint8_t meas_count=0; meas_count<RGB_MEAS_COUNT; meas_count++)
+	{
+		ADCA.CH1.INTFLAGS=1; // clear the complete flag
+		ADCA.CH1.CTRL |= ADC_CH_START_bm;
+		while (ADCA.CH1.INTFLAGS==0){};		// wait for measurement to complete
+		meas[meas_count] = ADCA.CH1.RESL;
+	}
+		
+	return find_median(meas, RGB_MEAS_COUNT);
 }
 
 int8_t get_blue_sensor()
 {
-	int8_t cursen = 0;
-	ADCA.CH2.CTRL |= ADC_CH_START_bm;
-	while (ADCA.CH2.INTFLAGS==0);
-	cursen = ADCA.CH2.RESL;
-	return cursen;
+	uint8_t meas[RGB_MEAS_COUNT];
+		
+	for(uint8_t meas_count=0; meas_count<RGB_MEAS_COUNT; meas_count++)
+	{
+		ADCA.CH2.INTFLAGS=1; // clear the complete flag
+		ADCA.CH2.CTRL |= ADC_CH_START_bm;
+		while (ADCA.CH2.INTFLAGS==0){};		// wait for measurement to complete
+		meas[meas_count] = ADCA.CH2.RESL;
+	}
+		
+	return find_median(meas, RGB_MEAS_COUNT);
 }
+
+//// Finds the median of 3 numbers by finding the max, finding the min, and returning the other value
+//int8_t find_median(int8_t* meas)
+//{
+	//uint8_t mini, maxi, medi;
+	//int8_t min = -128, max = 127;
+	//for (uint8_t i = 0; i < 3; i++)
+	//{
+		//if (meas[i] < max)
+		//{
+			//max = meas[i];
+			//maxi = i;
+		//}
+		//if (meas[i] > min)
+		//{
+			//min = meas[i];
+			//mini = i;
+		//}
+	//}
+	//for (medi = 0; medi < 3; medi++)
+	//{
+		//if ((medi != maxi) && (medi != mini)) return meas[medi];
+	//}
+//}

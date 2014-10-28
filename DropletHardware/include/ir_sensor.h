@@ -11,6 +11,8 @@
 #include "i2c.h"
 #define IR_SENSOR_PORT PORTB
 
+#define IR_MEAS_COUNT 3
+
 #define IR_SENSOR_0_PIN_bm		PIN5_bm
 #define IR_SENSOR_1_PIN_bm		PIN6_bm
 #define IR_SENSOR_2_PIN_bm		PIN7_bm
@@ -41,7 +43,7 @@ uint8_t ir_sense_baseline[6];
 void ir_sensor_init();
 uint8_t get_ir_sensor(uint8_t sensor_num);
 uint8_t check_collisions();
-int8_t find_median(int8_t* meas); // Helper function for getting the middle of the 3 measurements
+int8_t find_median(int8_t* meas, uint8_t arr_len); // Helper function for getting the middle of the 3 measurements
 inline void ir_sensor_enable(){ ADCB.CTRLA |= ADC_ENABLE_bm; }
 inline void ir_sensor_disable(){ ADCB.CTRLA &= ~ADC_ENABLE_bm; }
 

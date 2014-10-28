@@ -40,7 +40,6 @@ uint8_t move_steps(uint8_t direction, uint16_t num_steps)
 	int8_t mot_dirs[3]; //This is what direction we want each motor to spin in. 1: CCW, -1: CW, 0: No spin.
 	uint16_t total_time = 0; //This is the total length of a step, and will be the period of the PWM generation.
 	
-	int8_t sign_flip;
 	for(uint8_t mot=0 ; mot<3 ; mot++)
 	{	
 		if(motor_adjusts[direction][mot]==0)

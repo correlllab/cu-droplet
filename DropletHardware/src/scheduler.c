@@ -157,12 +157,12 @@ void print_task_queue()
 	{
 		Task_t* cur_task = task_list;
 		
-		printf("Task Queue (%u tasks, %u executing):\r\n", num_tasks, num_executing_tasks);
+		//printf("Task Queue (%u tasks, %u executing):\r\n", num_tasks, num_executing_tasks);
 		
 		// Iterate through the list of tasks, printing name, function, and scheduled time of each
 		while (cur_task != NULL)
 		{
-			printf("\tTask %p (%p) scheduled at %s, %s current\r\n", cur_task, cur_task->task_function, ltoa(cur_task->scheduled_time, s1, 10), ltoa(get_time(), s2, 10));
+			//printf("\tTask %p (%p) scheduled at %s, %s current\r\n", cur_task, cur_task->task_function, ltoa(cur_task->scheduled_time, s1, 10), ltoa(get_time(), s2, 10));
 			cur_task = cur_task->next;
 		}
 	}
@@ -178,7 +178,6 @@ void run_tasks()
 		// (The RTC compare register takes 2 RTC clock cycles to update)
 		while (task_list != NULL && task_list->scheduled_time <= get_time() + 2)
 		{
-			if (SCHEDULER_DEBUG_MODE >= 1) printf("Executing task %p (%p)\r\n", task_list, task_list->task_function);
 			Task_t* cur_task = task_list;
 			task_list = cur_task->next;
 			NONATOMIC_BLOCK(NONATOMIC_FORCEOFF) // Enable interrupts during tasks
@@ -216,12 +215,8 @@ ISR( RTC_OVF_vect )
 	{
 		rtc_epoch++;
 		char s2[12];
-		if (SCHEDULER_DEBUG_MODE >= 1)
-		{
-			printf("RTC Overflow. Current time %s\n", ltoa(get_time(), s2, 10));
-			print_task_queue();
-		}
-
+			//printf("RTC Overflow. Current time %s\n", ltoa(get_time(), s2, 10));
+			//print_task_queue();
 
 		// If the next task to run is in the current epoch, update the RTC compare value and interrupt
 		if (task_list != NULL && task_list->scheduled_time < ((((uint32_t)rtc_epoch) << 16) | (uint32_t)RTC.PER))

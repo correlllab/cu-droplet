@@ -6,92 +6,77 @@ int main(void)
 	
 	// Set theta and tau initially
 	theta	= 2.f;
-	tau		= 10;
+	tau		= 2;
 
 	group_root = NULL;
 	clear_state();
 	
 	// Initialize timing values
-	start_delay_time    = 0;
 	heartbeat_time      = 0;
-	voting_time         = 0;
-		
-	uint32_t last_time	= get_time();
+	light_check_time	= 0;
+	last_update_time	= 0;
+
 	uint32_t cur_time	= get_time();
-	uint16_t prev_gap	= 0;
+	uint32_t prev_gap	= 0;
 	
-    change_state ( START_DELAY );
+    change_state ( SAFE );
 	while (1)
-	{
-		cur_time	= get_time ();
-		prev_gap	= (uint16_t)( cur_time - last_time );
-		last_time	= cur_time;	
-		
+	{	
+		cur_time = get_time ();
 		switch ( state )
 		{
 			case COLLABORATING:
-			if ( get_time() - collab_time > COLLABORATE_DURATION )
-			{
-				change_state ( LEAVING );
-			}
+				if ( cur_time - collab_time > COLLABORATE_DURATION )
+				{
+					change_state ( LEAVING );
+				}
 			break;
 
 			case LEAVING:
-			if ( !is_moving() )
-			{
-				change_state ( SAFE );
-			}
+				if ( !is_moving() )
+				{
+					change_state ( SAFE );
+				}
 			break;
 
 			case SAFE:
-			if ( check_safe () )
-			{
-				change_state ( SEARCHING );
-			}
-
-			// If you start in the red region then try to get out before you die
-			else
-			{
-				random_walk ();
-			}
+				if ( cur_time - light_check_time > LIGHT_CHECK_RATE )
+				{
+					light_check_time = cur_time;
+					if(check_safe()) change_state ( SEARCHING );
+				}
+				else // If you start in the red region then try to get out before you die
+				{
+					random_walk ();
+				}
 			break;
-
 			case SEARCHING:
-			random_walk ();
-			if ( !check_safe() )
-			{
-				change_state ( WAITING );
-			}
+				random_walk ();
+				if ( cur_time - light_check_time > LIGHT_CHECK_RATE )
+				{
+					light_check_time = cur_time;
+					if(!check_safe()) change_state ( WAITING );
+				}
 			break;
-
-			case START_DELAY:
-			{
-				if ( cur_time - start_delay_time > START_DELAY_TIME )
-				change_state ( SAFE );
-			}
-			break;
-
 			case WAITING:
-			if ( get_time() - heartbeat_time > HEART_RATE )
-			{
-				heartbeat_time = get_time ();
-				send_heartbeat ();
-			}
-			
-			current_group_size = update_group_size ( prev_gap );
-			
-			if ( get_time() - voting_time > HEART_RATE )
-			{
-				voting_time = get_time ();
-				check_votes ();
-			}
-			break;
 
+				prev_gap	= ( cur_time - last_update_time );
+				last_update_time	= cur_time;
+				current_group_size = update_group_size ( prev_gap );
+				
+				if ( cur_time - heartbeat_time > HEART_RATE )
+				{
+					heartbeat_time = cur_time;
+					send_heartbeat ();
+					check_votes ();
+				}
+			break;
 			default:
 			break;
 		}		
 		
 		check_messages ();	
+		delay_ms(10);
 	}
 }
 
@@ -99,7 +84,9 @@ int main(void)
 // Droplet Movement Helper Functions
 uint8_t check_safe ()
 {
-    if ( get_red_sensor() > RED_THRESHOLD )
+	int8_t r;
+	get_rgb_sensors(&r, NULL, NULL);
+    if ( r > RED_THRESHOLD )
     {
 	    return 0;
     }
@@ -112,7 +99,7 @@ void random_walk ()
     if ( !is_moving() )
     {
 		last_move_dir = rand_byte() % 8;
-		move_steps ( last_move_dir, rand_byte() * MOVE_DIST_SCALAR );
+		move_steps ( last_move_dir, ((rand_byte()%40)+1)* MOVE_DIST_SCALAR );
     }	
 }
 
@@ -134,6 +121,7 @@ void send_heartbeat ()
 	
 	ir_send	( ALL_DIRS, msg, 3 );
 	add_group_member ( droplet_ID );
+	delay_ms(200);
 	set_rgb ( 0, 0, 0 );
 }
 
@@ -142,11 +130,12 @@ void send_heartbeat ()
  * If, after adding, the ms_age is greater than the timeout, that item is removed from the list.
  * Otherwise, we increase our group size by one.
  */
-uint16_t update_group_size ( uint16_t time_to_add )
+uint16_t update_group_size ( uint32_t time_to_add )
 {
 	group_item	*gi			= group_root;
 	uint16_t	group_size	= 0;
 	
+	if(gi==NULL) return 0; //This shouldn't happen, but just in case.
 	do 
 	{
 		gi->ms_age += time_to_add;
@@ -157,6 +146,7 @@ uint16_t update_group_size ( uint16_t time_to_add )
 			gi->next->prev		= gi->prev;
 			gi					= gi->next;
 			free ( temp );
+			continue;
 		}
 		else
 		{
@@ -182,11 +172,8 @@ void check_votes ()
 uint8_t roll_sigmoid ( int16_t group_size )
 {
 	double		sig_value	= 1.0 / (1.0 + exp(theta*(tau-group_size)));
-	uint8_t		rand_byte_h	= rand_byte();
-	uint8_t		rand_byte_l	= rand_byte();
-	uint16_t	rand_short  = ((uint16_t)rand_byte_l | (((uint16_t)rand_byte_h) << 8));
 	
-	if( rand_short <= (uint16_t)(sig_value * 0xffff) ) // Max Value of uint16_t = 0xffff 
+	if( rand_short() <= (uint16_t)(sig_value * 0xffff) ) // Max Value of uint16_t = 0xffff 
 	{
 		return 1;
 	}
@@ -321,26 +308,24 @@ void change_state ( State new_state )
 		move_steps			( (last_move_dir + 3) % 6, WALKAWAY_STEPS );
 
 		case SAFE:
+		light_check_time	= 0;
 		set_rgb				( 250, 0, 0 );		// RED
-		break;
-
-		case START_DELAY:
-		start_delay_time	= get_time ();
 		break;
 
 		case WAITING:
 		stop				();
 		led_off				();					// OFF
 		clear_state			();	
+		last_update_time	= get_time();
 		heartbeat_time		= get_time ();
-		voting_time			= get_time ();
 		send_heartbeat		();
 		break;
 
 		case SEARCHING:
-		set_rgb				( 250, 250, 0 );	// YELLOW
+		set_rgb				( 250, 250, 250 );	// YELLOW
+		light_check_time	= 0;
 		break;
-		
+
 		default:
 		led_off				();
 	}

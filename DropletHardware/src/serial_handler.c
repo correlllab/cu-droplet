@@ -18,6 +18,20 @@ void handle_serial_command(char* command, uint16_t command_length)
 		{
 			handle_walk(command_args);
 		}
+		else if(strcmp(command_word, "get_rgb")==0)
+		{
+			int8_t r, g, b;
+			get_rgb_sensors(&r, &g, &b);
+			printf("r: %hhd, g: %hhd, b: %hhd\r\n", r, g, b);	
+		}
+		else if(strcmp(command_word, "set_tau")==0)
+		{
+			handle_set_tau(command_args);
+		}
+		else if(strcmp(command_word, "set_theta")==0)
+		{
+			handle_set_theta(command_args);
+		}
 		else if(strcmp(command_word,"coll")==0)
 		{
 			handle_check_collisions();
@@ -147,6 +161,18 @@ void handle_walk(char* command_args)
 	walk(direction, distance_mm);
 }
 
+void handle_set_tau(char* command_args)
+{
+	tau=atoi(command_args);
+	printf("Tau set to %hd.\r\n",tau);
+}
+
+void handle_set_theta(char* command_args)
+{
+	theta=atof(command_args);
+	printf("Theta set to %f.\r\n", theta);
+}
+
 void handle_stop_walk()
 {
 	set_rgb(180,0,0);
@@ -208,10 +234,7 @@ void handle_rnb_broadcast()
 void handle_rnb_collect(char* command_args)
 {
 	const char delim[2] = " ";
-	char* token;
-
-	uint8_t successful_read = 0;
-	
+		
 	uint16_t id_val = atoi(strtok(command_args, delim));
 	uint8_t power_val = atoi(strtok(NULL, delim));
 	
@@ -342,13 +365,13 @@ void handle_cmd(char* command_args, uint8_t should_broadcast)
 	{
 		printf("Broadcasting command: \"%s\", of length %i.\r\n",(uint8_t*)command_args, strlen(command_args));
 		wait_for_ir(ALL_DIRS);
-		ir_cmd(ALL_DIRS, (uint8_t*)command_args,strlen(command_args));
+		ir_cmd(ALL_DIRS, command_args,strlen(command_args));
 	}
 	else
 	{
 		//printf("Transmitting command: \"%s\", of length %i.\r\n",(uint8_t*)command_args, strlen(command_args));
 		wait_for_ir(ALL_DIRS);
-		ir_cmd(1,(uint8_t*)command_args,strlen(command_args));
+		ir_cmd(1,command_args,strlen(command_args));
 	}
 
 	//if(0==ir_send_command(0,(uint8_t*)command_args,strlen(command_args)))

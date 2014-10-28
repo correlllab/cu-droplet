@@ -7,6 +7,7 @@
 #include <avr/interrupt.h>
 #include <util/atomic.h>
 #include <util/delay.h>
+#include <stdlib.h>
 #include <stdio.h>
 
 
@@ -27,7 +28,6 @@ typedef struct task
 // Linked list of tasks, sorted by time until execution
 Task_t *task_list;
 volatile uint16_t rtc_epoch;
-static uint8_t SCHEDULER_DEBUG_MODE = 0;
 volatile uint8_t num_tasks, num_executing_tasks;
 
 // Get the current 32-bit time, as measured in ms from the last reset

@@ -26,11 +26,11 @@ uint8_t bright_meas[6][6][NUMBER_OF_RB_MEASUREMENTS];
 
 void range_algs_init()
 {
-	for(uint8_t i; i<NUMBER_OF_RB_MEASUREMENTS; i++)
+	for(uint8_t i=0 ; i<NUMBER_OF_RB_MEASUREMENTS ; i++)
 	{
-		for(uint8_t j; j<6;j++)
+		for(uint8_t j=0 ; j<6 ;j++)
 		{
-			for(uint8_t k ; k<6 ; k++)
+			for(uint8_t k=0 ; k<6 ; k++)
 			{
 				bright_meas[j][k][i] = 0;
 			}
@@ -98,7 +98,7 @@ void use_rnb_data(uint8_t power)
 	if(initial_range==0) return; //Some error occurred.
 	float range = range_estimate(initial_range, bearing, heading, power, brightness_matrix);
 	
-	last_good_rnb.range = initial_range;
+	last_good_rnb.range = range;
 	last_good_rnb.bearing = bearing;
 	last_good_rnb.heading = heading;
 	last_good_rnb.brightness_matrix_ptr = brightness_matrix;
@@ -143,7 +143,7 @@ float get_heading(uint8_t emitter_total[6], float bearing)
 
 float get_initial_range_guess(float bearing, float heading, uint8_t power, uint8_t sensor_total[6], uint8_t emitter_total[6], uint8_t brightness_matrix[6][6])
 {
-	uint8_t best_e, best_s;
+	uint8_t best_e=255, best_s=255;
 	uint16_t biggest_e_val = 0;
 	uint16_t biggest_s_val = 0;
 
@@ -200,11 +200,11 @@ float range_estimate(float init_range, float bearing, float heading, uint8_t pow
 	
 	float sensorRXx, sensorRXy, sensorTXx, sensorTXy;
 	float alpha, beta, sense_emit_contr;
-	float calcRIJmag, calcRmag, calcRx, calcRy;
+	float calcRIJmag, calcRx, calcRy;
 
 	uint8_t maxBright = 0;
-	uint8_t maxE;
-	uint8_t maxS;
+	uint8_t maxE=255;
+	uint8_t maxS=255;
 	for(uint8_t e = 0; e < 6; e++)
 	{
 		for(uint8_t s = 0; s < 6; s++)
@@ -355,11 +355,11 @@ void ir_emit(uint8_t direction, uint8_t duration)
 {
 	uint8_t USART_CTRLB_save;
 
-	uint8_t carrier_wave_bm;
-	uint8_t TX_pin_bm;
+	uint8_t carrier_wave_bm=0;
+	uint8_t TX_pin_bm=0;
 
-	PORT_t * the_UART_port;
-	USART_t * the_USART;
+	PORT_t * the_UART_port=0;
+	USART_t * the_USART=0;
 
 	switch(direction)
 	{
@@ -455,7 +455,7 @@ float inverse_amplitude_model(float ADC_val, uint8_t power)
 
 void debug_print_timer(uint32_t timer[14])
 {
-	printf("Duration: %u\r\n",timer[13] - timer[0]);
+	printf("Duration: %u\r\n",(timer[13] - timer[0]));
 	printf("|  ");
 	for(uint8_t i=1 ; i<13 ; i++)
 	{

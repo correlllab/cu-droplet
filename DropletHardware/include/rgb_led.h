@@ -19,15 +19,15 @@
 void rgb_led_init(void); // Set RGB LED pins as output & initialize timers for PWM
 
 // Get and set intensity for red LED
-inline uint8_t get_red_led() { return LED_R_TC.CCB; }
+inline uint8_t get_red_led() { return LED_R_TC.CCBBUF; }
 inline void set_red_led(uint8_t saturation) { LED_R_TC.CCBBUF = saturation; }
 
 // Get and set intensity for green LED
-inline uint8_t get_green_led() { return LED_G_TC.CCA; }
+inline uint8_t get_green_led() { return LED_G_TC.CCABUF; }
 inline void set_green_led(uint8_t saturation) { LED_G_TC.CCABUF = saturation; }
 	
 // Get and set intensity for blue LED
-inline uint8_t get_blue_led() { return LED_B_TC.CCA; }
+inline uint8_t get_blue_led() { return LED_B_TC.CCABUF; }
 inline void set_blue_led(uint8_t saturation) { LED_B_TC.CCABUF = saturation; }
 
 void led_off();

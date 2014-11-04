@@ -5,8 +5,8 @@ int main(void)
 	init_all_systems ();
 	
 	// Set theta and tau initially
-	theta	= 2.f;
-	tau		= 2;
+	theta	= 10.f;
+	tau		= 6;
 
 	group_root = NULL;
 	clear_state();
@@ -19,7 +19,7 @@ int main(void)
 	uint32_t cur_time	= get_time();
 	uint32_t prev_gap	= 0;
 	
-    change_state ( SAFE );
+    change_state ( NOTHING );
 	while (1)
 	{	
 		cur_time = get_time ();
@@ -71,8 +71,6 @@ int main(void)
 					check_votes ();
 				}
 			break;
-			default:
-			break;
 		}		
 		
 		check_messages ();	
@@ -99,7 +97,9 @@ void random_walk ()
     if ( !is_moving() )
     {
 		last_move_dir = rand_byte() % 8;
-		move_steps ( last_move_dir, ((rand_byte()%40)+1)* MOVE_DIST_SCALAR );
+		uint16_t num_steps = (rand_byte()%57)+8;
+		if(last_move_dir<6) num_steps*= MOVE_DIST_SCALAR;
+		move_steps ( last_move_dir, num_steps);
     }	
 }
 
@@ -107,7 +107,7 @@ void random_walk ()
 // Task Allocation Helper Functions
 void send_heartbeat ()
 {
-	set_rgb ( 80, 0, 120 );
+	//set_rgb ( 80, 0, 120 );
 	char* msg;
 	if( roll_sigmoid(current_group_size) )
 	{
@@ -121,8 +121,8 @@ void send_heartbeat ()
 	
 	ir_send	( ALL_DIRS, msg, 3 );
 	add_group_member ( droplet_ID );
-	delay_ms(200);
-	set_rgb ( 0, 0, 0 );
+	//delay_ms(200);
+	//set_rgb ( 0, 0, 0 );
 }
 
 /* 
@@ -222,27 +222,26 @@ void add_group_member ( uint16_t senderID )
 }
 
 void check_messages ()
-{
-	// If we are not in the wait state then discard all incoming messages
-	if ( state != WAITING )
-	{
-		clear_msg_buffers ();			
-		return;
-	}
-	
-	uint8_t num_msgs = 0;
+{	
 	while ( last_ir_msg != NULL )
 	{
-		// Add your code here
-		char	tempStr [ IR_BUFFER_SIZE ];
-		memset	( tempStr, 0, IR_BUFFER_SIZE );
-		memcpy	( tempStr, last_ir_msg->msg, last_ir_msg->msg_length );
-
-		uint16_t senderID = last_ir_msg->sender_ID;
+		uint16_t senderID;
+		char tempStr [ IR_BUFFER_SIZE ];		
+		ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+		{	
+			memset	( tempStr, 0, IR_BUFFER_SIZE );
+			memcpy	( tempStr, last_ir_msg->msg, last_ir_msg->msg_length );
+			uint16_t senderID = last_ir_msg->sender_ID;			
+			msg_node *temp	= last_ir_msg;
+			last_ir_msg		= last_ir_msg->prev;
+			free ( temp->msg );
+			free ( temp );
+		}
+		if(state!=WAITING) return;
 		if ( strcmp(tempStr,"<3Y") == 0 || strcmp(tempStr, "<3N") == 0 )
 		{
 			add_group_member ( senderID );
-			if ( tempStr[2]=='Y' ) 
+			if ( tempStr[2]=='Y' )
 			{
 				yes_count++;
 			}
@@ -250,17 +249,13 @@ void check_messages ()
 		else if ( strcmp(tempStr,"GO") == 0 )
 		{
 			char *msg = "GO";
+			set_green_led(250);
+			wait_for_ir(ALL_DIRS);
 			ir_send ( ALL_DIRS, msg, 2);
 			change_state ( COLLABORATING );
+			set_green_led(0);			
 			break;
 		}
-		
-		// Keep this code here
-		msg_node *temp	= last_ir_msg;
-		last_ir_msg		= last_ir_msg->prev;
-		free ( temp->msg );
-		free ( temp );
-		num_msgs++;
 	}
 }
 
@@ -278,7 +273,6 @@ void clear_msg_buffers ()
 
 void clear_state ()
 {
-	clear_msg_buffers ();
 	
 	group_item *gi = group_root;
 	while ( gi != NULL )

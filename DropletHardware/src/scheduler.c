@@ -137,15 +137,27 @@ void remove_task(Task_t* task)
 {
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 	{
-		Task_t* tmp_task = task_list;
-		while (tmp_task != NULL && tmp_task != task) tmp_task = tmp_task->next;
-		if (tmp_task != NULL)
+		if(task_list==NULL) return;
+		if(task_list==task)
 		{
-			tmp_task->next = task->next;
+			task_list=task->next;
 			free(task);
 			task = NULL;
 			num_tasks--;
 		}
+		else
+		{
+			Task_t* tmp_task = task_list;
+			while (tmp_task->next != NULL && tmp_task->next != task) tmp_task = tmp_task->next;
+			if (tmp_task->next != NULL)
+			{
+				tmp_task->next = task->next;
+				free(task);
+				task = NULL;
+				num_tasks--;
+			}
+		}
+
 	}
 
 }

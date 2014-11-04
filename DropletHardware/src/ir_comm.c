@@ -85,7 +85,7 @@ void ir_comm_init()
 void perform_ir_upkeep()
 {
 	//For now, can only get one message per call to this function.
-	int8_t msg_chan = -1; //This value is negative if we don't have a message, and otherwise holds the value of the chanel which received the message.
+	int8_t msg_chan = -1; //This value is negative if we don't have a message, and otherwise holds the value of the channel which received the message.
 	int8_t start_dir = (int8_t)(rand_byte()%6);
 	for(int8_t loop_dir= start_dir; loop_dir<(start_dir+6); loop_dir++) //This first loop looks for a channel on which we got a good message.
 	{
@@ -95,6 +95,7 @@ void perform_ir_upkeep()
 		if(ir_rxtx[dir].sender_ID==get_droplet_id()) continue;  //ignore a message if it is from me! Silly reflections.
 		
 		uint16_t crc = ir_rxtx[dir].sender_ID;
+		crc = _crc16_update(crc, (ir_rxtx[dir].status & IR_STATUS_COMMAND_bm));
 		for(uint8_t i=0; i<ir_rxtx[dir].data_length; i++) crc = _crc16_update(crc, ir_rxtx[dir].buf[i]); //Calculate CRC of inbound message.
 		if(ir_rxtx[dir].data_crc == crc) //crc check passed, hurray!
 		{
@@ -145,6 +146,14 @@ void send_msg(uint8_t dirs, char *data, uint8_t data_length)
 {
 	
 	uint16_t crc = get_droplet_id();
+	for(uint8_t dir=0; dir<6; dir++)
+	{
+		if(dirs&(1<<dir))
+		{
+			crc = _crc16_update(crc, (ir_rxtx[dir].status & IR_STATUS_COMMAND_bm));
+			break;
+		}	
+	}
 	for(uint8_t i=0; i<data_length; i++) crc = _crc16_update(crc, data[i]); //Calculate CRC of outbound message.
 	
 	for(uint8_t dir=0; dir<6; dir++)

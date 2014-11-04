@@ -114,9 +114,6 @@ void stop()
 	PORTD.PIN0CTRL = 0;
 	PORTD.PIN1CTRL = 0;
 	
-	//TCD0.CTRLB = TC_WGMODE_SS_gc;		
-	//TCD0.INTCTRLB = 0x0;
-
 	motor_status = 0;
 	remove_task(current_motor_task);
 }

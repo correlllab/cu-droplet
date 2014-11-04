@@ -24,6 +24,12 @@ void handle_serial_command(char* command, uint16_t command_length)
 			get_rgb_sensors(&r, &g, &b);
 			printf("r: %hhd, g: %hhd, b: %hhd\r\n", r, g, b);	
 		}
+		else if(strcmp(command_word, "do_nothing")==0)
+		{
+			change_state(NOTHING);
+			stop();
+			set_rgb(0,0,0);
+		}
 		else if(strcmp(command_word, "set_tau")==0)
 		{
 			handle_set_tau(command_args);

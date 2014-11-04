@@ -24,20 +24,6 @@ void handle_serial_command(char* command, uint16_t command_length)
 			get_rgb_sensors(&r, &g, &b);
 			printf("r: %hhd, g: %hhd, b: %hhd\r\n", r, g, b);	
 		}
-		else if(strcmp(command_word, "do_nothing")==0)
-		{
-			change_state(NOTHING);
-			stop();
-			set_rgb(0,0,0);
-		}
-		else if(strcmp(command_word, "set_tau")==0)
-		{
-			handle_set_tau(command_args);
-		}
-		else if(strcmp(command_word, "set_theta")==0)
-		{
-			handle_set_theta(command_args);
-		}
 		else if(strcmp(command_word,"coll")==0)
 		{
 			handle_check_collisions();
@@ -165,18 +151,6 @@ void handle_walk(char* command_args)
 	uint16_t distance_mm = (uint16_t)atoi(token);
 	
 	walk(direction, distance_mm);
-}
-
-void handle_set_tau(char* command_args)
-{
-	tau=atoi(command_args);
-	printf("Tau set to %hd.\r\n",tau);
-}
-
-void handle_set_theta(char* command_args)
-{
-	theta=atof(command_args);
-	printf("Theta set to %f.\r\n", theta);
 }
 
 void handle_stop_walk()

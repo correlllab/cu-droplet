@@ -26,20 +26,25 @@ void rgb_sensor_init()
 	
 }
 
+// Still not convinced that we should have the conditional, instead of just telling people
+// that if their lights are on they won't get good values, here.
 void get_rgb_sensors(int8_t* r, int8_t* g, int8_t* b)
 {
 	uint8_t led_r = get_red_led();
 	uint8_t led_g = get_green_led();
 	uint8_t led_b = get_blue_led();
 	
-	set_rgb(0,0,0);
-	delay_ms(LED_OFF_DELAY_MS);
-	
+	if(led_r || led_g || led_b)
+	{
+		set_rgb(0,0,0);
+		delay_ms(LED_OFF_DELAY_MS);
+	} 
+
 	if(r!=NULL) *r = get_red_sensor();
 	if(g!=NULL) *g = get_green_sensor();
 	if(b!=NULL) *b = get_blue_sensor();
 		
-	set_rgb(led_r, led_g, led_b);
+	if(led_r || led_g || led_b) set_rgb(led_r, led_g, led_b);
 }
 
 int8_t get_red_sensor()

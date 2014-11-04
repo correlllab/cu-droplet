@@ -71,6 +71,7 @@ int8_t leg_status(uint8_t leg)
 	if ((status & AC_WSTATE_gm) == AC_WSTATE_ABOVE_gc) { return 1; }
 	if ((status & AC_WSTATE_gm) == AC_WSTATE_INSIDE_gc) { return 0; }
 	if ((status & AC_WSTATE_gm) == AC_WSTATE_BELOW_gc) { return -1; }
+		return 127;
 }
 
 uint8_t legs_powered()

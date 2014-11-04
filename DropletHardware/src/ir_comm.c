@@ -112,7 +112,7 @@ void perform_ir_upkeep()
 		if(ir_rxtx[msg_chan].status & IR_STATUS_COMMAND_bm) //If the message is a command.
 		{
 			char msg[ir_rxtx[msg_chan].data_length+1];
-			memcpy(msg, ir_rxtx[msg_chan].buf, ir_rxtx[msg_chan].data_length);
+			memcpy(msg, (char*)ir_rxtx[msg_chan].buf, ir_rxtx[msg_chan].data_length);
 			msg[ir_rxtx[msg_chan].data_length]='\0';
 			uint8_t cmd_length = ir_rxtx[msg_chan].data_length;
 			command_arrival_time = ir_rxtx[msg_chan].last_byte;
@@ -122,10 +122,10 @@ void perform_ir_upkeep()
 		}
 		else //Normal message, so add to msg queue
 		{
-			msg_node* new_node = (msg_node*)malloc(sizeof(msg_node));
+			volatile msg_node* new_node = (msg_node*)malloc(sizeof(msg_node));
 			char* tmp = (char*)malloc(ir_rxtx[msg_chan].data_length+1);
 			new_node->msg = tmp;
-			memcpy(new_node->msg, ir_rxtx[msg_chan].buf, ir_rxtx[msg_chan].data_length);
+			memcpy(new_node->msg, (char*)ir_rxtx[msg_chan].buf, ir_rxtx[msg_chan].data_length);
 			new_node->msg[ir_rxtx[msg_chan].data_length]='\0';
 			new_node->arrival_time = ir_rxtx[msg_chan].last_byte;
 			new_node->arrival_dir = msg_chan;
@@ -164,7 +164,7 @@ void send_msg(uint8_t dirs, char *data, uint8_t data_length)
 			ir_rxtx[dir].data_crc = crc;
 			ir_rxtx[dir].curr_pos = 0;
 			ir_rxtx[dir].sender_ID = get_droplet_id();
-			memcpy(ir_rxtx[dir].buf, data, data_length);
+			memcpy((char*)ir_rxtx[dir].buf, data, data_length);
 			TCF2.CTRLB |= ir_carrier_bm[dir];		// Turn on carrier wave on port dir
 		}
 	}

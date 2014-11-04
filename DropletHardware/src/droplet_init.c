@@ -27,6 +27,50 @@ void init_all_systems()
 
 }
 
+int main()
+{
+	init_all_systems();
+	init();
+	while(1)
+	{
+		loop();
+		check_messages();
+	}
+	return 0;
+}
+
+void check_messages ()
+{
+	ir_msg* msg_struct;	
+	while ( last_ir_msg != NULL )
+	{
+		//We don't want this block to be interrupted by perform_ir_upkeep because the 
+		//list of messages could get corrupted.
+		ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+		{
+			msg_struct			= (ir_msg*)malloc(sizeof(ir_msg));
+			char* tmp			= (char*)malloc(last_ir_msg->msg_length+1);
+			msg_struct->msg		= tmp;
+			
+			memcpy(msg_struct->msg, last_ir_msg->msg, last_ir_msg->msg_length);
+			
+			msg_struct->msg[last_ir_msg->msg_length]	= '\0';
+			msg_struct->arrival_time					= last_ir_msg->arrival_time;
+			msg_struct->sender_ID						= last_ir_msg->sender_ID;
+			msg_struct->length							= last_ir_msg->msg_length;
+			
+			msg_node* temp = last_ir_msg;
+			last_ir_msg = last_ir_msg->prev;
+			free(temp->msg);
+			free((ir_msg*)temp);
+		}
+
+		handle_msg(msg_struct);
+		free(msg_struct->msg);
+		free(msg_struct);
+	}
+}
+
 void calculate_id_number()
 {
 	if(INIT_DEBUG_MODE >= 1)	printf("get id number\r\n");

@@ -219,7 +219,7 @@ void handle_rnb_collect(char* command_args)
 	uint8_t power_val = atoi(strtok(NULL, delim));
 	
 	uint32_t wrapper_arg = (((uint32_t)id_val)|(((uint32_t)power_val)<<16));
-	schedule_task(5,collect_rnb_data_wrapper, wrapper_arg);
+	schedule_task(5,collect_rnb_data_wrapper, (void*)&wrapper_arg);
 }
 
 // This function is used so we can make a transparent call to collect_rnb_data with 

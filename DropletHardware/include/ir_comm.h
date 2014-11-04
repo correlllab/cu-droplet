@@ -63,7 +63,7 @@ typedef volatile struct ir_msg_node
 	uint8_t arrival_dir;
 	uint16_t sender_ID;
 	uint8_t msg_length;
-	struct ir_msg_node* prev;
+	volatile struct ir_msg_node* prev;
 } msg_node;
 
 volatile msg_node* last_ir_msg;

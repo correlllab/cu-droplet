@@ -66,7 +66,8 @@ void receive_rnb_data()
 {
 	ir_range_meas();
 	get_baseline_readings();
-	schedule_task(10,use_rnb_data,NULL);
+	uint8_t power = 0; //TODO: get this from the message.
+	schedule_task(10, use_rnb_data, (void*)(&power));
 }
 
 void use_rnb_data(uint8_t power)
@@ -455,11 +456,11 @@ float inverse_amplitude_model(float ADC_val, uint8_t power)
 
 void debug_print_timer(uint32_t timer[14])
 {
-	printf("Duration: %u\r\n",(timer[13] - timer[0]));
+	printf("Duration: %lu\r\n",(timer[13] - timer[0]));
 	printf("|  ");
 	for(uint8_t i=1 ; i<13 ; i++)
 	{
-		printf("%3u  |  ",timer[i] - timer[i-1]);
+		printf("%3lu  |  ",timer[i] - timer[i-1]);
 	}
 	printf("\r\n");
 }

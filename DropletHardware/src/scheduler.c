@@ -164,17 +164,16 @@ void remove_task(Task_t* task)
 
 void print_task_queue()
 {
-	char s1[12], s2[12]; // Temp strings for ltoa, to printf 32-bit timestamps
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)  // Disable interrupts during printing
 	{
 		Task_t* cur_task = task_list;
 		
-		//printf("Task Queue (%u tasks, %u executing):\r\n", num_tasks, num_executing_tasks);
+		printf("Task Queue (%hhu tasks, %hhu executing):\r\n", num_tasks, num_executing_tasks);
 		
 		// Iterate through the list of tasks, printing name, function, and scheduled time of each
 		while (cur_task != NULL)
 		{
-			//printf("\tTask %p (%p) scheduled at %s, %s current\r\n", cur_task, cur_task->task_function, ltoa(cur_task->scheduled_time, s1, 10), ltoa(get_time(), s2, 10));
+			printf("\tTask %p (%p) scheduled at %lu, %lu current\r\n", cur_task, cur_task->task_function, cur_task->scheduled_time, get_time());
 			cur_task = cur_task->next;
 		}
 	}
@@ -226,9 +225,8 @@ ISR( RTC_OVF_vect )
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE) // Disable interrupts
 	{
 		rtc_epoch++;
-		char s2[12];
-			//printf("RTC Overflow. Current time %s\n", ltoa(get_time(), s2, 10));
-			//print_task_queue();
+		//printf("RTC Overflow. Current time %u\n", get_time());
+		//print_task_queue();
 
 		// If the next task to run is in the current epoch, update the RTC compare value and interrupt
 		if (task_list != NULL && task_list->scheduled_time < ((((uint32_t)rtc_epoch) << 16) | (uint32_t)RTC.PER))

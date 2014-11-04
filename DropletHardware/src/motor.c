@@ -85,6 +85,7 @@ uint8_t move_steps(uint8_t direction, uint16_t num_steps)
 	uint32_t total_movement_duration = ((uint32_t)total_time)*((uint32_t)num_steps)/32;
 	//printf("Total duration: %u ms.\r\n\n",total_movement_duration);
 	current_motor_task = schedule_task(total_movement_duration, stop, NULL);
+	return 1;
 }
 
 void walk(uint8_t direction, uint16_t mm)
@@ -115,7 +116,7 @@ void stop()
 	PORTD.PIN1CTRL = 0;
 	
 	motor_status = 0;
-	remove_task(current_motor_task);
+	remove_task((Task_t*)current_motor_task);
 }
 
 uint8_t is_moving(void) // returns 0 if droplet is not moving, (1-6) if moving

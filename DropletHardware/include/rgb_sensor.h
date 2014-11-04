@@ -2,8 +2,8 @@
 #define rgb_sensor_h
 
 #include "avr/io.h" //includes stdlib OR DOES IT?
-#include <stdlib.h>
 #include "rgb_led.h"
+#include "scheduler.h"
 
 #define RGB_MEAS_COUNT 3
 #define LED_OFF_DELAY_MS 150

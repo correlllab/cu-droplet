@@ -64,7 +64,7 @@ uint8_t get_ir_sensor(uint8_t sensor_num)
 	ADCB.CH0.MUXCTRL &= MUX_SENSOR_CLR; //clear previous sensor selection
 	ADCB.CH0.MUXCTRL |= mux_sensor_selectors[sensor_num];
 	
-	uint8_t meas[IR_MEAS_COUNT];
+	int8_t meas[IR_MEAS_COUNT];
 	
 	for(uint8_t meas_count=0; meas_count<IR_MEAS_COUNT; meas_count++)
 	{

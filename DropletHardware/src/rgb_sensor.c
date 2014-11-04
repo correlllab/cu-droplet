@@ -49,7 +49,7 @@ void get_rgb_sensors(int8_t* r, int8_t* g, int8_t* b)
 
 int8_t get_red_sensor()
 {
-	uint8_t meas[RGB_MEAS_COUNT];
+	int8_t meas[RGB_MEAS_COUNT];
 	
 	for(uint8_t meas_count=0; meas_count<RGB_MEAS_COUNT; meas_count++)
 	{
@@ -64,7 +64,7 @@ int8_t get_red_sensor()
 
 int8_t get_green_sensor()
 {
-	uint8_t meas[RGB_MEAS_COUNT];
+	int8_t meas[RGB_MEAS_COUNT];
 		
 	for(uint8_t meas_count=0; meas_count<RGB_MEAS_COUNT; meas_count++)
 	{
@@ -79,7 +79,7 @@ int8_t get_green_sensor()
 
 int8_t get_blue_sensor()
 {
-	uint8_t meas[RGB_MEAS_COUNT];
+	int8_t meas[RGB_MEAS_COUNT];
 		
 	for(uint8_t meas_count=0; meas_count<RGB_MEAS_COUNT; meas_count++)
 	{

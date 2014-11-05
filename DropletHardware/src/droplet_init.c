@@ -117,4 +117,3 @@ void droplet_reboot()
 	CPU_CCP=CCP_IOREG_gc;
 	RST.CTRL = 0x1;
 }
-

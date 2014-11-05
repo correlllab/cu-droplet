@@ -47,7 +47,8 @@ uint32_t	heartbeat_time;
 uint32_t	voting_time;
 uint32_t	collab_time;
 uint8_t		last_move_dir;
-uint8_t is_end;
+uint8_t		is_end;
+uint8_t     num_sent = 0;
 
 // Task Allocation Helper Functions
 uint16_t	update_group_size	( uint16_t	time_to_add	);

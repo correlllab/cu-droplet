@@ -13,6 +13,8 @@ void handle_serial_command(char* command, uint16_t command_length);
 void handle_check_collisions();
 void handle_move_steps(char* command_args);
 void handle_walk(char* command_args);
+void handle_get_rgb();
+void handle_set_ir(char* command_args);
 void handle_stop_walk();
 void handle_set_motors(char* command_args);
 void handle_set_mm_per_kilostep(char* command_args);

@@ -20,9 +20,11 @@ void handle_serial_command(char* command, uint16_t command_length)
 		}
 		else if(strcmp(command_word, "get_rgb")==0)
 		{
-			int8_t r, g, b;
-			get_rgb_sensors(&r, &g, &b);
-			printf("r: %hhd, g: %hhd, b: %hhd\r\n", r, g, b);	
+			handle_get_rgb();
+		}
+		else if(strcmp(command_word,"set_ir")==0)
+		{
+			handle_set_ir(command_args);
 		}
 		else if(strcmp(command_word,"coll")==0)
 		{
@@ -151,6 +153,23 @@ void handle_walk(char* command_args)
 	uint16_t distance_mm = (uint16_t)atoi(token);
 	
 	walk(direction, distance_mm);
+}
+
+void handle_get_rgb()
+{
+	int8_t r, g, b;
+	get_rgb_sensors(&r, &g, &b);
+	printf("r: %hhd, g: %hhd, b: %hhd\r\n", r, g, b);
+}
+
+void handle_set_ir(char* command_args)
+{
+	const char delim[2] = " ";
+	
+	char* token = strtok(command_args,delim);
+	uint16_t ir_val = (uint16_t)atoi(token);
+	
+	set_all_ir_powers(ir_val);
 }
 
 void handle_stop_walk()
@@ -387,8 +406,7 @@ void handle_shout(char* command_args)
 		printf("Message length was %d chars, which exceeds the maximum of %d", strlen(command_args), IR_BUFFER_SIZE);
 		return;
 	}
-	
-	wait_for_ir(ALL_DIRS);	
+
 	ir_send(ALL_DIRS, command_args, strlen(command_args));
 }
 

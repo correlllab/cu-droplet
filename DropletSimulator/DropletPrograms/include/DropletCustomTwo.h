@@ -1,92 +1,65 @@
 /* *** PROGRAM DESCRIPTION ***
- * Swarm collaboration using sigmoid function.
+ * 
  */
 #pragma once
-
-#ifndef _DROPLET_CUSTOM_TWO
-#define _DROPLET_CUSTOM_TWO
 
 #include <DSimDroplet.h>
 #include <DSimGlobals.h>
 #include <DSimDataStructs.h>
-#include <inttypes.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <vector>
-#include <algorithm>
-#include <random>
-#include <ctime>
 
-#define _USE_MATH_DEFINES // For math constants
+#include <inttypes.h>
+#include <map>
+#include <utility>
+#include <cstdlib>
+#include <cstring>
+#define _USE_MATH_DEFINES
 #include <math.h>
 
-#define RED   0
-#define GREEN 1
-#define BLUE  2
+#define COLLABORATE_DURATION        3000    // in ms
 
-//#define RED_THRESHOLD 220
-//#define GREEN_THRESHOLD 220
-//#define BLUE_THRESHOLD 220
-#define RED_THRESHOLD 40
-#define GREEN_THRESHOLD 40
-#define BLUE_THRESHOLD 40
+#define GROUP_MEMBERSHIP_TIMEOUT    2000    // in ms
+#define HEART_RATE                  1000    // in ms
+#define EXP_LENGTH                  30 * 60 * 1000 // 30 min in ms
+#define NUM_THETA                   3
+#define NUM_TAU                     5
 
-#define RQST_GROUP_SIZE 4
-#define SIGMOID_SLOPE 5.0
-#define TASK_TIME 10.0
-#define REPEAT_DISCOVER_MSG 3
 
 class DropletCustomTwo : public DSimDroplet
 {
 private :
-	enum STATE
-	{
-		IDLE,
-		SEARCH,
-		DISCOVER_GROUP,
-		LEAD_GROUP,
-		WAIT,
-		COLLABORATE,
-		NUM_STATES
-	} state;
+    
+    uint32_t    heartbeat_time;
+    uint32_t    voting_time;
+    uint32_t    collab_time;
+    uint32_t    last_update_time;
+    uint32_t    exp_time;
+    uint8_t     theta_id, tau_id;
+    uint32_t    num_collabs;
 
-	enum MSG_TYPE
-	{
-		RQST_DISCOVER_GROUP = 1,
-		RSP_DISCOVER_GROUP = 2,
-		RQST_UPDATE_COLLAB = 3,
-		RSP_START_COLLAB = 4
-	} msg_type;
+    static const double theta [ NUM_THETA ];
+    static const double tau   [ NUM_TAU   ];
 
-	uint8_t color_msg[3];
-	uint8_t group_size, i_am_leader, repeat_discover_msg, collaborators;
-	static const uint8_t led_state_colors[NUM_STATES][3];
-	std::vector<droplet_id_type> unique_ids;
+    FILE *fp;
 
-	uint8_t rqst_group_size;
-	double task_time, sigmoid_slope;
+    std::map<droplet_id_type, std::pair<uint32_t, bool>> unique_ids;
 
-	FILE *fh;
+    enum State
+    {
+        COLLABORATING,
+        WAITING,
+        DONE
+    } state;
 
-	void log_msg(void);
-
-	void init_leader(void);
-	void set_state_led(void);
-	uint8_t run_sigmoid(void);
-
-	void searching(void);
-	void discovering_group(void);
-	void leading_group(void);
-	void waiting_at_object(void);
-	void collaborating(void);
-	void reset_values(void);
+    void send_heartbeat     ( void );
+    void update_group_size  ( void );
+    void check_votes        ( void );
+    bool roll_sigmoid       ( void );
+    void change_state       ( State new_state );
 
 public :
 	DropletCustomTwo(ObjectPhysicsData *objPhysics);
 	~DropletCustomTwo(void);
-
+	
 	void DropletInit(void);
 	void DropletMainLoop(void);
 };
-
-#endif

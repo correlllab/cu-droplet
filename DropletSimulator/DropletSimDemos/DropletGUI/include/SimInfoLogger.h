@@ -37,14 +37,6 @@ public:
 	SimInfoLogger(QObject *parent = 0);
 
 	/**
-	 * \fn	void SimInfoLogger::Init();
-	 *
-	 * \brief	opens the output file and initializes some vars.
-	 */
-
-	void Init();
-
-	/**
 	 * \fn	void SimInfoLogger::printDropletData(simState_t stateInfo);
 	 *
 	 * \brief	prints out droplet data to a file
@@ -124,7 +116,16 @@ private:
 	FILE * fp;
 
 public slots:
+    
 	/**
+	 * \fn	void SimInfoLogger::Init();
+	 *
+	 * \brief	opens the output file and initializes some vars.
+	 */
+
+	void Init();
+
+    /**
 	 * \fn	void SimInfoLogger::close();
 	 *
 	 * \brief	Closes output file.

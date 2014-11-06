@@ -184,7 +184,7 @@ void DropletCustomOne::check_votes ( void )
         it++;
     }
 
-    if ( (unique_ids.size() >= 2) && (yes_votes * 2 > unique_ids.size()) )
+    if ( yes_votes * 2 > unique_ids.size() )
     {
         ir_broadcast ( "GO", 2 );
         change_state ( COLLABORATING );
@@ -234,7 +234,7 @@ void DropletCustomOne::change_state ( State new_state )
         move_duration       ( (last_move_dir + 3) % 6, WALKAWAY_TIME );
 
     case SAFE:
-        set_rgb_led         ( 250, 250, 0 );
+        set_rgb_led         ( 255, 255, 0 );
         break;
 
     case START_DELAY:
@@ -244,7 +244,7 @@ void DropletCustomOne::change_state ( State new_state )
     case WAITING:
         cancel_move         ();
         unique_ids.clear    ();
-        set_rgb_led         ( 0, 250, 0 );
+        set_rgb_led         ( 0, 255, 0 );
 
         // Clear out all messages in buffer first.
         while               ( check_for_new_messages() );

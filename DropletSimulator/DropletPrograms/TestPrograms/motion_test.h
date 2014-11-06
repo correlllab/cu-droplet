@@ -10,13 +10,14 @@
 
 #include <stdlib.h>
 
-class DropletCustomSix : public DSimDroplet
+class DropletCustomOne : public DSimDroplet
 {
 private :
 
+
 public :
-	DropletCustomSix(ObjectPhysicsData *objPhysics);
-	~DropletCustomSix(void);
+	DropletCustomOne(ObjectPhysicsData *objPhysics);
+	~DropletCustomOne(void);
 
 	
 	void DropletInit(void);

@@ -3,9 +3,6 @@
  */
 #pragma once
 
-#ifndef _DROPLET_CUSTOM_SEVEN
-#define _DROPLET_CUSTOM_SEVEN
-
 #include <DSimDroplet.h>
 #include <DSimGlobals.h>
 #include <DSimDataStructs.h>
@@ -25,5 +22,3 @@ public :
 	void DropletInit(void);
 	void DropletMainLoop(void);
 };
-
-#endif

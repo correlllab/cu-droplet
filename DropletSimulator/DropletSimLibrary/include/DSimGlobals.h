@@ -34,31 +34,20 @@
 typedef unsigned char DS_RESULT;
 
 /**
- * \typedef	short int turn_direction
- *
- * \brief	droplet rotation directions
- *
- */
-
-#define TURN_OFF				0
-#define TURN_CLOCKWISE			1
-#define TURN_COUNTERCLOCKWISE	2
-typedef uint8_t turn_direction;
-
-/**
  * \typedef	uint8_t move_direction
  *
  * \brief	droplet move directions
  *
  */
-
-#define MOVE_OFF	0
-#define NORTH		1
-#define NORTH_EAST	2
-#define SOUTH_EAST	3
-#define SOUTH		4
-#define SOUTH_WEST	5
-#define NORTH_WEST	6
+#define NORTH		0
+#define NORTH_EAST	1
+#define SOUTH_EAST	2
+#define SOUTH		3
+#define SOUTH_WEST	4
+#define NORTH_WEST	5
+#define TURN_CLOCKWISE			6
+#define TURN_COUNTERCLOCKWISE	7
+#define TURN_ANTICLOCKWISE		7
 typedef uint8_t move_direction;
 
 // Droplet Communication Error Codes
@@ -80,8 +69,6 @@ typedef uint8_t move_direction;
  * \brief	droplet ID types.
  *
  */
-
-#define DROPLET_NUM_TIMERS		8
 #define DROPLET_ID_START		100 // Droplet ids will start incrementing from this number
 typedef uint16_t droplet_id_type;
 
@@ -97,7 +84,7 @@ typedef uint8_t msg_order;
 #define NUM_COMM_CHANNELS 100
 
 #define DROPLET_REL_POS_UPDATE_TIME .1f // seconds
-#define BROADCAST_THRESHOLD	100.f // cm
+#define BROADCAST_THRESHOLD	50.f // cm
 
 #define IR_MAX_DATA_SIZE	72
 #define IR_BUFFER_SIZE		sizeof(droplet_id_type) + IR_MAX_DATA_SIZE

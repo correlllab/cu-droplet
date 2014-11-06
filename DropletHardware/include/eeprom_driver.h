@@ -28,7 +28,6 @@
 * SOFTWARE.                                                            
 *                                                                      
 ************************************************************************/
-
 #ifndef __EEPROM_DRIVER_H
 #define __EEPROM_DRIVER_H
 
@@ -70,8 +69,4 @@ void EEPROM_erase_page(uint16_t addr);
 
 void EEPROM_erase_all(void);
 
-
 #endif // __EEPROM_DRIVER_H
-
-
-

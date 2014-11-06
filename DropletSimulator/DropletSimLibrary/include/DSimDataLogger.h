@@ -31,7 +31,6 @@
 typedef struct Droplet_Motion_Direction_Data // Droplet move and turn direction Info
 {
 	move_direction currMoveDir;
-	turn_direction currTurnDir;
 }DirInfo;
 
 

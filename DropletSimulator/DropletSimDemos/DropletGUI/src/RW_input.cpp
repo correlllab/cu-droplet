@@ -9,7 +9,7 @@
 // handle mouse movement
 void RenderWidget::mouseMoveEvent ( QMouseEvent * event )
 {
-	if (event->buttons().testFlag(Qt::LeftButton) && _mouseStatus.leftButtonHeldDown)
+	if (event->buttons().testFlag(Qt::RightButton) && _mouseStatus.rightButtonHeldDown)
 	{
 		if (_camera.mode == 0)
 		{
@@ -26,17 +26,26 @@ void RenderWidget::mouseMoveEvent ( QMouseEvent * event )
 // handle mouse button pressed
 void RenderWidget::mousePressEvent ( QMouseEvent * event )
 {
-	if (event->buttons().testFlag(Qt::LeftButton))
-	{
-		_mouseStatus.leftButtonHeldDown = true;
-		_mouseStatus.startX = event->x();
-		_mouseStatus.startY = event->y();
-		_mouseStatus.origHoriz = _camera.rotHoriz;
-		_mouseStatus.origVert = _camera.rotVert;
-		_mouseStatus.origPan = _camera.pan;
-		_mouseStatus.origTilt = _camera.tilt;
 
-		setCursor(QCursor(Qt::BlankCursor));
+
+	if (event->buttons().testFlag(Qt::RightButton) || event->buttons().testFlag(Qt::LeftButton))
+	{
+		if (event->buttons().testFlag(Qt::LeftButton))
+		{
+			_mouseStatus.leftButtonHeldDown = true;
+		}
+		else 
+		{
+			_mouseStatus.rightButtonHeldDown = true;
+			_mouseStatus.startX = event->x();
+			_mouseStatus.startY = event->y();
+			_mouseStatus.origHoriz = _camera.rotHoriz;
+			_mouseStatus.origVert = _camera.rotVert;
+			_mouseStatus.origPan = _camera.pan;
+			_mouseStatus.origTilt = _camera.tilt;
+			setCursor(QCursor(Qt::BlankCursor));
+		}
+		
 	}
 	event->accept();
 }
@@ -44,19 +53,16 @@ void RenderWidget::mousePressEvent ( QMouseEvent * event )
 // handle releasing the mouse button
 void RenderWidget::mouseReleaseEvent ( QMouseEvent * event )
 {
-	if (!event->buttons().testFlag(Qt::LeftButton))
+	if (!event->buttons().testFlag(Qt::RightButton))
 	{
-		if (_camera.mode == 0)
-		{
-			_camera.rotHoriz = _mouseStatus.origHoriz + (event->x() - _mouseStatus.startX) / 2.0;
-			_camera.rotVert = _mouseStatus.origVert - (event->y() - _mouseStatus.startY) / 2.0;
-		} else if (_camera.mode == 1) {
-			_camera.pan = _mouseStatus.origPan - (event->x() - _mouseStatus.startX) / 2.0;
-			_camera.tilt =_mouseStatus.origTilt - (event->y() - _mouseStatus.startY) / 2.0;
-		}
-		_mouseStatus.leftButtonHeldDown = false;
+		_mouseStatus.rightButtonHeldDown = false;
 		setCursor(QCursor(Qt::ArrowCursor));
-	} 
+	}
+
+	if (!event->buttons().testFlag(Qt::LeftButton)) 
+	{
+		_mouseStatus.leftButtonHeldDown = false;
+	}
 	event->accept();
 }
 

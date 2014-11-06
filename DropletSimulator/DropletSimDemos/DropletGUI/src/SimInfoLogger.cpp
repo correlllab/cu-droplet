@@ -8,24 +8,35 @@
 #include <ctime>
 
 SimInfoLogger::SimInfoLogger(QObject *parent)
-	: QObject(parent)
-{
-	timeInterval = NULL;
-	lastPrint = NULL;
-	posFlag = NULL;
-	colorFlag = NULL;
-	rotationFlag = NULL;
-	commSAFlag = NULL;
-	macroRedFlag = NULL;
-	macroSAFlag = NULL;
-	QString newFile = NULL;
-}
+	: QObject(parent),
+    timeInterval ( 0.0 ),
+    lastPrint ( 0.0 ),
+    posFlag ( false ),
+    colorFlag ( false ),
+    rotationFlag ( false ),
+    commSAFlag ( false ),
+    macroRedFlag ( false ),
+    macroSAFlag ( false ),
+    fp ( NULL )
+{ }
+
+
+SimInfoLogger::~SimInfoLogger()
+{ }
+
 void SimInfoLogger::Init()
 {	
+    // close any open file first
+    close();
+
 	char sdate[9];
     char stime[9];
 	_strdate_s(sdate);
     _strtime_s(stime);
+	timeInterval = .5;
+    lastPrint = 0;
+	firstTime = true;
+
 	newFile = QString(DEFAULT_ASSETDIR).append("output_");
 	newFile.append(stime);
     newFile.append("_");
@@ -40,8 +51,8 @@ void SimInfoLogger::Init()
 	{
 		printf("Cannot create output file\n");
 	}
+
 	timeInterval = .5;
-	//lastPrint = -timeInterval - 1;
     lastPrint = 0;
 	firstTime = true;
 
@@ -90,20 +101,15 @@ void SimInfoLogger::Init()
 
 }
 
-SimInfoLogger::~SimInfoLogger()
-{
-
-}
-
 void SimInfoLogger::close()
 {
 	// If newFile == NULL, then Init has not been called.
 	// and thus a file has not been opened.
-	if(newFile != NULL)
+	if(fp != NULL)
 	{	
-		printf("File had been opened");
 		fprintf(fp,"}");
 		fclose(fp);
+        fp = NULL;
 	}
 }
 
@@ -200,6 +206,7 @@ void SimInfoLogger::timeCheck(simState_t stateInfo)
 {
 	double currentTime;
 	currentTime = stateInfo.simTime;
+
 	if((currentTime - lastPrint) > timeInterval)
 	{
 		lastPrint = currentTime;

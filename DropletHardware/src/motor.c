@@ -33,7 +33,7 @@ void motor_init()
 
 uint8_t move_steps(uint8_t direction, uint16_t num_steps)
 {
-	if(is_moving()) return 0;
+	if(is_moving()>=0) return 0;
 	motor_status = MOTOR_STATUS_ON | (direction & MOTOR_STATUS_DIRECTION);
 	
 	uint16_t mot_durs[3]; //This is how long we want each motor to be on for.
@@ -41,6 +41,7 @@ uint8_t move_steps(uint8_t direction, uint16_t num_steps)
 	uint16_t total_time = 0; //This is the total length of a step, and will be the period of the PWM generation.
 	
 	for(uint8_t mot=0 ; mot<3 ; mot++)
+<<<<<<< HEAD
 	{	
 		if(motor_adjusts[direction][mot]==0)
 		{
@@ -54,8 +55,27 @@ uint8_t move_steps(uint8_t direction, uint16_t num_steps)
 			mot_dirs[mot] = ((((motor_adjusts[direction][mot]>>15)&0x1)*-2)+1)/**motor_signs[direction][mot]*/;
 			total_time += mot_durs[mot] + 32*motor_off_time;
 		}
+=======
+	{		
+		mot_durs[mot] = 32*motor_on_time + abs(motor_adjusts[direction][mot]);
+		
+		if(motor_adjusts[direction][mot]==0) 
+		{
+			mot_durs[mot] = 0;
+			mot_dirs[mot] = 0;
+		}
+		else
+		{
+			mot_dirs[mot] = ((((motor_adjusts[direction][mot]>>15)&0x1)*-2)+1)/**motor_signs[direction][mot]*/;
+		}
+		
+		if(mot_durs[mot]==0) continue;
+		
+		total_time += mot_durs[mot] + 32*motor_off_time;
+>>>>>>> master
 	}
 	//printf("Moving in dir: %hhu for %hu steps. Mot_durs: {%hu, %hu, %hu}. Total_time: %hu.\r\n",direction, num_steps, mot_durs[0], mot_durs[1], mot_durs[2], total_time);
+	//printf("Mot_dirs: {%hhd, %hhd, %hhd}.\r\n\n", mot_dirs[0], mot_dirs[1], mot_dirs[2]);
 
 	TCC0.PER = TCC1.PER = TCD0.PER = total_time;
 	TCC0.CCA = TCC0.CCB = mot_durs[0]; //motor 0
@@ -99,32 +119,44 @@ void walk(uint8_t direction, uint16_t mm)
 void stop()
 {
 	//printf("Stopping.\r\n");
-
+	
 	TCC0.CTRLB = TC_WGMODE_SS_gc;
 	TCC1.CTRLB = TC_WGMODE_SS_gc;
+<<<<<<< HEAD
 	TCD0.CTRLB = TC_WGMODE_SS_gc;
 	
 	PORTC.OUTCLR = PIN0_bm | PIN1_bm | PIN4_bm | PIN5_bm;
 	PORTD.OUTCLR = PIN0_bm | PIN1_bm;
+=======
+	TCE0.CTRLB = TC_WGMODE_SS_gc;	
+	
+	PORTC.OUTCLR = PIN0_bm | PIN1_bm | PIN4_bm | PIN5_bm;
+	PORTE.OUTCLR = PIN0_bm | PIN1_bm;	
+>>>>>>> master
 	
 	PORTC.PIN0CTRL = 0;
 	PORTC.PIN1CTRL = 0;
 	PORTC.PIN4CTRL = 0;
 	PORTC.PIN5CTRL = 0;
+<<<<<<< HEAD
 	PORTD.PIN0CTRL = 0;
 	PORTD.PIN1CTRL = 0;
+=======
+	PORTE.PIN0CTRL = 0;
+	PORTE.PIN1CTRL = 0;	
+>>>>>>> master
 	
 	motor_status = 0;
 	remove_task(current_motor_task);
+	//printf("Stopping.\r\n");	
 }
 
-uint8_t is_moving(void) // returns 0 if droplet is not moving, (1-6) if moving
+int8_t is_moving() // returns -1 if droplet is not moving, movement dir otherwise.
 {
 	if (motor_status & MOTOR_STATUS_ON){
-		return (motor_status & MOTOR_STATUS_DIRECTION) + 1;
+		return (motor_status & MOTOR_STATUS_DIRECTION);
 	}	
-	
-	return 0;
+	return -1;
 }
 
 uint16_t get_mm_per_kilostep(uint8_t direction)

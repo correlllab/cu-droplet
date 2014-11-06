@@ -1,6 +1,6 @@
 /* *** PROGRAM DESCRIPTION ***
- * This is the tile assembly model for making concentric sqaures
- */
+* This is the tile assembly model for making concentric sqaures
+*/
 #pragma once
 
 #ifndef _DROPLET_CUSTOM_EIGHT
@@ -51,7 +51,6 @@
 #define MOVE_STEPS_AMOUNT 15
 #define ROTATE_STEPS_AMOUNT 5
 #define BIG_NUMBER 10000
-#define SEED_TYPE_VALUE 7
 
 #define IN_ASSEMBLY_INDICATOR_BYTE (uint8_t)0x55
 #define CLAIM_MSG_TYPE (uint8_t)0xf0
@@ -60,26 +59,35 @@
 #define DELAY_BEFORE_MOVING_MS 5000
 #define SIDESTEPPING_DELAY_MS 10000
 #define RANDOM_WALK_DELAY_MS 30000
-#define DECIDING_DELAY_TIMER 1
-#define MOVING_DELAY_TIMER 2
-#define SIDESTEP_TIMER 3
-#define RANDOM_WALK_TIMER 5
-#define BACK_UP_TIMER 6
 #define BACK_UP_TIMER_DELAY_MS 30000
-#define NEIGHBOR_CALL_TIMEOUT_TIMER 4
-#define NEIGHBOR_CALL_TIMEOUT_TIMER_DELAY_MS 300000
+#define NEIGHBOR_CALL_TIMEOUT_TIMER_DELAY_MS 150000
 #define WAIT_FOR_LAYER_DELAY 30000
 
 #define TYPE__			0x0000
-#define TYPE_E			0x0001
-#define TYPE_W			0x0002
-#define TYPE_N			0x0004
-#define TYPE_S			0x0008
-#define TYPE_NE			0x0010
-#define TYPE_SE			0x0020
-#define TYPE_SW			0x0040
-#define	TYPE_NW			0x0080
 #define TYPE_SEED		0x0100
+
+//#define TYPE_E			0x0001
+//#define TYPE_W			0x0002
+//#define TYPE_N			0x0004
+//#define TYPE_S			0x0008
+//#define TYPE_NE			0x0010
+//#define TYPE_SE			0x0020
+//#define TYPE_SW			0x0040
+//#define	TYPE_NW			0x0080
+
+//types for counter
+#define TYPE_W00		0x0001
+#define TYPE_W01		0x0002
+#define TYPE_W10		0x0004
+#define TYPE_W11		0x0008			
+#define TYPE_N10		0x0010
+#define TYPE_N11		0x0020
+#define TYPE_W0			0x0040
+#define ALL_W_TYPES			0x004F
+#define ALL_N_TYPES			0x0030
+#define DISPLAY_0_TYPES		(TYPE_W0|TYPE_SEED|TYPE_W00|TYPE_W11|TYPE_N11)
+#define DISPLAY_1_TYPES		(TYPE_W01|TYPE_W10|TYPE_N10)
+#define SEED_TYPE_VALUE 5 //width of number-1
 
 #define STATE_WAITING_FOR_MSGS			0x00 //r__ (red)
 #define STATE_ADJ_SPOTS_TO_BE_FILLED	0x01 //rgb (white)
@@ -96,6 +104,48 @@
 
 #define STATE_IN_ASSEMBLY				0x07
 
+#define CONF_REQ_MSG_TYPE (uint8_t) 0x66
+#define FAV_TGT_MSG_TYPE (uint8_t) 0x11
+#define NEIGHBOR_CALL_MSG_TYPE (uint8_t)0x0f
+#define CONF_MSG_TYPE (uint8_t)0x33
+#define CLAIM_MSG_TYPE (uint8_t)0xf0
+
+struct confReqMsg{
+	uint8_t type;
+	droplet_id_type target;
+	uint8_t dir;
+};
+
+
+struct favTgtMsg{
+	uint8_t type;
+	uint8_t dir;
+	float dist;
+	droplet_id_type id;
+};
+
+
+struct neighborCallMsg{
+	uint8_t type;
+	uint8_t dir_mask;
+};
+
+
+struct confMsg{
+	uint8_t type;
+	droplet_id_type target;
+	uint16_t bot_type;
+	int8_t value;
+};
+
+struct claimMsg{
+	uint8_t type;
+	droplet_id_type parent_id;
+	uint8_t dir;
+	uint16_t bot_type;
+	int8_t bot_type_value;
+};
+
 struct recruitingRobot{
 	uint8_t desiredNeighbors;
 	float toNeighborDist[8];
@@ -105,31 +155,15 @@ struct recruitingRobot{
 	float heading;
 };
 
-struct favTgtMsg{
-	uint8_t type;
-	uint8_t dir;
-	float dist;
-	droplet_id_type id;
-};
-
-struct claimMsg{
-	uint8_t type;
-	droplet_id_type parent_id;
-	uint8_t dir;
-	uint8_t bot_type;
-	int8_t bot_type_value;
-};
-
 struct botPos{
 	float r;
 	float theta;
 	droplet_id_type id;
 };
 
-
 class DropletCustomEight : public DSimDroplet
 {
-private :
+private:
 	std::map<droplet_id_type, recruitingRobot*> recruiting_robots;
 	uint8_t state;
 	FILE *file_handle;
@@ -139,6 +173,13 @@ private :
 	droplet_id_type closestID;
 	droplet_id_type move_target;
 	uint8_t closestDir;
+
+	uint32_t moving_delay_start; //DELAY_BEFORE_MOVING_MS
+	uint32_t neighbor_call_timeout_start; //NEIGHBOR_CALL_TIMEOUT_TIMER_DELAY_MS
+	uint32_t backing_up_start; //BACK_UP_TIMER_DELAY_MS
+	uint32_t backup_duration;
+	uint32_t sidestep_start; //backup_duration;
+	uint32_t deciding_delay_start; //DELAY_BEFORE_DECIDING_MS
 
 	uint8_t move_target_dir;
 	uint16_t my_type;
@@ -160,7 +201,7 @@ private :
 
 	//functions to edit to change the shape you get. (also edit SEED_TYPE_VALUE)
 	void get_neighbor_type(uint16_t type, int8_t value, uint8_t dir, uint16_t* neighbor_type, int8_t* neighbor_value);
-	uint8_t get_soft_spots_from_type(uint16_t type);	
+	uint8_t get_soft_spots_from_type(uint16_t type);
 	uint8_t get_spots_from_type(uint16_t type);
 
 	//helper/utility functions
@@ -189,11 +230,12 @@ private :
 	float inline deg2rad(float deg);
 	float inline rad2deg(float rad);
 	float inline quick_and_dirty_mod(float theta);
+	bool inline one_bit_set(uint16_t n);
 
-public :
+public:
 	DropletCustomEight(ObjectPhysicsData *objPhysics);
 	~DropletCustomEight(void);
-	
+
 	void DropletInit(void);
 	void DropletMainLoop(void);
 };

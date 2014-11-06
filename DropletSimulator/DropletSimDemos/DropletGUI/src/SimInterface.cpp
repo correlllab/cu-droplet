@@ -30,7 +30,9 @@ SimInterface::SimInterface(QObject *parent)
 
 	// Set default reset timer values here
 	_simState.useResetTime = false;
-	_simState.resetTime = DEFAULT_RESET_TIME;
+    _simState.resetTime = DEFAULT_RESET_TIME;
+	_simState.simTime = 0.0;
+	_simState.realTime = 0.0;
 }
 
 SimInterface::~SimInterface()
@@ -41,7 +43,6 @@ SimInterface::~SimInterface()
 		killTimer(_timerID);
 		_timerID = 0;
 	}
-
 
 	teardownSim();
 
@@ -93,7 +94,6 @@ void SimInterface::teardownSim()
 	}
 
 	if (_objectPos != NULL)
-
 	{
 		std::vector<GPSInfo *>::iterator it;
 		for (it = _objectPos->begin(); it != _objectPos->end() ; it++)
@@ -106,10 +106,14 @@ void SimInterface::teardownSim()
 		_objectPos = NULL;
 	}
 
-	if (_timer != NULL){
+	if (_timer != NULL)
+	{
 		free(_timer);
 		_timer = NULL;
 	}
+
+    _simState.simTime = 0.0;
+    _simState.realTime = 0.0;
 }
 
 void SimInterface::Init()
@@ -371,14 +375,20 @@ void SimInterface::Init()
 							_tilePositions[tileIndex].x + _simSettings.tileLength/2.0 - _simSettings.dropletRadius);
 						float yPos = getRandomf(_tilePositions[tileIndex].y - _simSettings.tileLength/2.0 + _simSettings.dropletRadius,
 							_tilePositions[tileIndex].y + _simSettings.tileLength/2.0 - _simSettings.dropletRadius);
+                        float angle = rand() % 360;
 
-						addDroplet(xPos,yPos,dType);
+						addDroplet(xPos,yPos,angle,dType);
 					}
-				} else if (list.count() == 3) 
+				} else if (list.count() >= 3) 
 				{
-					float xPos = list[1].toFloat();
-					float yPos = list[2].toFloat();
-					addDroplet(xPos,yPos,dType);
+					float xPos  = list[1].toFloat();
+					float yPos  = list[2].toFloat();
+                    float angle = rand() % 360;
+                    if (list.count() > 3 )
+                    {
+                        angle = list[3].toFloat();
+                    }
+					addDroplet(xPos,yPos,angle,dType);
 				}
 			}
 
@@ -597,7 +607,7 @@ void SimInterface::createArena()
 		}
 }
 
-void SimInterface::addDroplet( float x, float y, droplet_t dType, int dropletID )
+void SimInterface::addDroplet( float x, float y, float angle, droplet_t dType, int dropletID )
 {
 	bool isPaused = _simStatus.paused;
 	_simStatus.paused = true;
@@ -641,7 +651,7 @@ void SimInterface::addDroplet( float x, float y, droplet_t dType, int dropletID 
 	_sim->AddDroplet(
 		newDroplet, 
 		std::make_pair(droplet.origin.x, droplet.origin.y),
-		rand() % 360
+		angle
 		);
 	_simStatus.paused = isPaused;
 
@@ -1133,7 +1143,6 @@ void SimInterface::Update(float timeSinceLastUpdate)
 	}
 }
 
-
 void SimInterface::pause()
 {
 	_simStatus.paused = true;
@@ -1144,6 +1153,7 @@ void SimInterface::pause()
 	}
 	emit pauseChanged(_simStatus.paused);
 }
+
 void SimInterface::resume()
 {
 	_simStatus.paused = false;
@@ -1214,8 +1224,8 @@ DSimDroplet* SimInterface::newDropletOfType(droplet_t dType, ObjectPhysicsData *
 
 void SimInterface::reset()
 {
+    emit resetLogger();
 	Init();
-
 }
 
 simSetting_t SimInterface::getSimulatorSettings()
@@ -1510,10 +1520,6 @@ void SimInterface::updateResetTimer(const QString &text)
 {
 	bool ok;
 	_simState.resetTime = text.toDouble(&ok);
-	//if(!ok)
-	//{
-	//	_simState.useResetTime = false;
-	//}
 }
 
 simRate_t SimInterface::getSimulatorRate()

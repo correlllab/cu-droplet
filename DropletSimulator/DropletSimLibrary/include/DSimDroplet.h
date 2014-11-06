@@ -431,6 +431,9 @@ protected :
 
 	uint32_t get_timer_time_remaining(uint8_t index);
 
+	/**
+	 * Returns time in ms since droplet was powered on
+	 */
 	uint32_t get_32bit_time(void);
 ///@}
 

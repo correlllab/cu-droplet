@@ -15,6 +15,7 @@ void init()
 	msg_h = "here";
 	
 	is_end = 0;
+	num_sent = 0;
 	
 	set_all_ir_powers(236);
 	
@@ -27,7 +28,7 @@ void init()
  */
 void loop()
 {
-	if(rand_byte()<4) ir_send(ALL_DIRS,msg_h,4); // signals its presence to its neighbors 1/64th of the time.
+	if(rand_byte()<8) ir_send(ALL_DIRS,msg_h,4); // signals its presence to its neighbors 1/64th of the time.
 	if(redSenseVal>RED_THRESH) change_state(FINAL);
 	switch ( state )
 	{
@@ -38,18 +39,13 @@ void loop()
 	
 		case IDLE:{
 			if (greenSenseVal>GREEN_THRESH){ // if a droplet sees a green light above
-				if(rand_byte()<8)
-				{
-					send_query(); // send a query to neighbors 1/32 of the time (~320ms)
-					num_sent++;
-				}
-				if(num_sent>5) change_state(FRONTIER);
+				change_state(FRONTIER);
 			}
 		}
 		break;
 	
 		case FRONTIER:{
-			if(rand_byte()<8)
+			if(rand_byte()<16)
 			{
 				send_query(); // send a query to neighbors 1/32 of the time (~320ms)
 				num_sent++;
@@ -59,7 +55,11 @@ void loop()
 		break;
 
 		case FINAL:{
-			
+			if ((who_asked_me != 0) && (num_sent<=5)) //the start doesn't need to send a message back.
+			{
+				if(rand_byte()<16)	ir_targeted_send(ALL_DIRS,msg_f,2,who_asked_me);// otherwise send a message "F!" (Found!) to the one who put a query on me
+				num_sent++;
+			}
 		}
 		break;
 
@@ -69,7 +69,11 @@ void loop()
 		break;
 
 		case LIGHT_ON:{
-			// do nothing
+			if ((who_asked_me != 0) && (num_sent<=5)) //the start doesn't need to send a message back.
+			{
+			    if(rand_byte()<16)	ir_targeted_send(ALL_DIRS,msg_f,2,who_asked_me);// otherwise send a message "F!" (Found!) to the one who put a query on me
+				num_sent++;
+			}
 		}
 		break;
 	
@@ -107,14 +111,10 @@ void handle_msg(ir_msg* msg_struct)
 				ir_targeted_send(ALL_DIRS,msg_f,2,who_asked_me);				
 			}
 		}		
-		else if(state==WAIT) // added below
+		else if(state==WAIT||state==FRONTIER) // added below
 		{
-			if (strcmp(msg_struct->msg,"F!") == 0){ // if got an answer from your neighbor
+			if (strcmp(msg_struct->msg,"F!") == 0) //Got an answer from neighbor.
 				change_state(LIGHT_ON);     // change a state into LIGHT_ON
-				
-				if (who_asked_me != 0)// if I am the start, just turn on an LED,
-					ir_targeted_send(ALL_DIRS,msg_f,2,who_asked_me);// otherwise send a message "F!" (Found!) to the one who put a query on me
-				}
 		}
 	}
 }
@@ -122,15 +122,15 @@ void handle_msg(ir_msg* msg_struct)
 // send queries to neighbors in the list
 void send_query () {
 	
-	group_item* temp;
-	temp = group_root;
-	
-	while (temp != NULL){ // walk along the list of neighbors
-		if (temp ->ID == who_asked_me) continue; 
-		ir_targeted_send(ALL_DIRS,msg_q,2,temp->ID); // send a query to a neighbor
-		temp = temp->next;
+	group_item* gi = group_root;
+	do
+	{
+		if(gi==NULL) break;
+		if (gi->ID == who_asked_me) continue;
+		ir_targeted_send(ALL_DIRS,msg_q,2,gi->ID); // send a query to a neighbor
+		gi = gi->next;		
 	}
-	
+	while(gi != group_root);
 }
 
 // If the senderID is already in our group, this function resets its age to 0.
@@ -183,7 +183,6 @@ void change_state ( State new_state )
 		
 		case IDLE:
 		//set_rgb(0,0,250); //blue
-		num_sent = 0; 
 		break;
 		
 		case FRONTIER:
@@ -197,10 +196,12 @@ void change_state ( State new_state )
 		
 		case LIGHT_ON:
 		set_rgb(0,0,250); //blue
+		num_sent = 0; 		
 		break;
 		
 		case FINAL:
 		set_rgb(250,0,250);
+		num_sent = 0; 		
 		break;
 		
 		default:

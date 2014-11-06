@@ -1,10 +1,9 @@
 #include "motor.h"
-#include <stdlib.h>
 
 void motor_init()
 {
 	PORTC.DIRSET = PIN0_bm | PIN1_bm | PIN4_bm | PIN5_bm;
-	PORTE.DIRSET = PIN0_bm | PIN1_bm;
+	PORTD.DIRSET = PIN0_bm | PIN1_bm;
 
 	TCC0.CTRLA = TC_CLKSEL_DIV1024_gc;
 	TCC0.CTRLB = TC_WGMODE_SS_gc;
@@ -12,8 +11,8 @@ void motor_init()
 	TCC1.CTRLA = TC_CLKSEL_DIV1024_gc;
 	TCC1.CTRLB = TC_WGMODE_SS_gc;
 
-	TCE0.CTRLA = TC_CLKSEL_DIV1024_gc;
-	TCE0.CTRLB = TC_WGMODE_SS_gc;
+	TCD0.CTRLA = TC_CLKSEL_DIV1024_gc;
+	TCD0.CTRLB = TC_WGMODE_SS_gc;
 
 	motor_status = 0;
 
@@ -41,8 +40,22 @@ uint8_t move_steps(uint8_t direction, uint16_t num_steps)
 	int8_t mot_dirs[3]; //This is what direction we want each motor to spin in. 1: CCW, -1: CW, 0: No spin.
 	uint16_t total_time = 0; //This is the total length of a step, and will be the period of the PWM generation.
 	
-	int8_t sign_flip;
 	for(uint8_t mot=0 ; mot<3 ; mot++)
+<<<<<<< HEAD
+	{	
+		if(motor_adjusts[direction][mot]==0)
+		{
+			mot_durs[mot] = 0;
+			mot_dirs[mot] = 0;
+			continue;
+		}
+		else
+		{
+			mot_durs[mot] = 32*motor_on_time + abs(motor_adjusts[direction][mot]);			
+			mot_dirs[mot] = ((((motor_adjusts[direction][mot]>>15)&0x1)*-2)+1)/**motor_signs[direction][mot]*/;
+			total_time += mot_durs[mot] + 32*motor_off_time;
+		}
+=======
 	{		
 		mot_durs[mot] = 32*motor_on_time + abs(motor_adjusts[direction][mot]);
 		
@@ -59,14 +72,15 @@ uint8_t move_steps(uint8_t direction, uint16_t num_steps)
 		if(mot_durs[mot]==0) continue;
 		
 		total_time += mot_durs[mot] + 32*motor_off_time;
+>>>>>>> master
 	}
 	//printf("Moving in dir: %hhu for %hu steps. Mot_durs: {%hu, %hu, %hu}. Total_time: %hu.\r\n",direction, num_steps, mot_durs[0], mot_durs[1], mot_durs[2], total_time);
 	//printf("Mot_dirs: {%hhd, %hhd, %hhd}.\r\n\n", mot_dirs[0], mot_dirs[1], mot_dirs[2]);
 
-	TCC0.PER = TCC1.PER = TCE0.PER = total_time;
+	TCC0.PER = TCC1.PER = TCD0.PER = total_time;
 	TCC0.CCA = TCC0.CCB = mot_durs[0]; //motor 0
 	TCC1.CCA = TCC1.CCB = mot_durs[1]; //motor 1
-	TCE0.CCA = TCE0.CCB = mot_durs[2]; //motor 2
+	TCD0.CCA = TCD0.CCB = mot_durs[2]; //motor 2
 	
 	uint16_t current_offset = 0;
 	
@@ -77,11 +91,11 @@ uint8_t move_steps(uint8_t direction, uint16_t num_steps)
 		{
 			case 0: TCC0.CNT = ((total_time - current_offset)%total_time); break;
 			case 1: TCC1.CNT = ((total_time - current_offset)%total_time); break;
-			case 2: TCE0.CNT = ((total_time - current_offset)%total_time); break;
+			case 2: TCD0.CNT = ((total_time - current_offset)%total_time); break;
 		}
 		current_offset += mot_durs[mot] + 32*motor_off_time;//If we left the motor on for longer to compensate, we should wait a little longer before starting again.
 	}
-	//printf("Offsets are: (%hu, %hu, %hu)\r\n",TCC0.CNT, TCC1.CNT, TCE0.CNT);
+	//printf("Offsets are: (%hu, %hu, %hu)\r\n",TCC0.CNT, TCC1.CNT, TCD0.CNT);
 	if(current_offset != total_time) printf("ERROR (I think): current_offset: %hu and total_time: %hu not equal!\r\n", current_offset, total_time);
 	for(uint8_t mot=0 ; mot<3 ; mot++) 	//Now we just need to tell the motors to go!
 	{
@@ -108,21 +122,30 @@ void stop()
 	
 	TCC0.CTRLB = TC_WGMODE_SS_gc;
 	TCC1.CTRLB = TC_WGMODE_SS_gc;
+<<<<<<< HEAD
+	TCD0.CTRLB = TC_WGMODE_SS_gc;
+	
+	PORTC.OUTCLR = PIN0_bm | PIN1_bm | PIN4_bm | PIN5_bm;
+	PORTD.OUTCLR = PIN0_bm | PIN1_bm;
+=======
 	TCE0.CTRLB = TC_WGMODE_SS_gc;	
 	
 	PORTC.OUTCLR = PIN0_bm | PIN1_bm | PIN4_bm | PIN5_bm;
 	PORTE.OUTCLR = PIN0_bm | PIN1_bm;	
+>>>>>>> master
 	
 	PORTC.PIN0CTRL = 0;
 	PORTC.PIN1CTRL = 0;
 	PORTC.PIN4CTRL = 0;
 	PORTC.PIN5CTRL = 0;
+<<<<<<< HEAD
+	PORTD.PIN0CTRL = 0;
+	PORTD.PIN1CTRL = 0;
+=======
 	PORTE.PIN0CTRL = 0;
 	PORTE.PIN1CTRL = 0;	
+>>>>>>> master
 	
-	TCD0.CTRLB = TC_WGMODE_SS_gc;		
-	TCD0.INTCTRLB = 0x0;
-
 	motor_status = 0;
 	remove_task(current_motor_task);
 	//printf("Stopping.\r\n");	
@@ -162,6 +185,32 @@ void read_motor_settings()
 	}
 }
 
+//void write_motor_settings()
+//{
+	//uint8_t page_buffer[USER_SIGNATURES_SIZE];
+	//for (uint16_t i = 0; i < USER_SIGNATURES_SIZE; i++)
+		//page_buffer[i] = read_user_signature_byte(i);
+		//
+	//for (uint8_t direction = 0; direction < 8; direction++)
+	//{
+		//for (uint8_t motor_num = 0; motor_num < 3 ; motor_num++)
+		//{
+			//int16_t temp = motor_adjusts[direction][motor_num];
+			//page_buffer[(0x10 + 6*direction + 2*motor_num + 0)] = (uint8_t)((temp>>8)&0xFF);
+			//page_buffer[(0x10 + 6*direction + 2*motor_num + 1)] = (uint8_t)(temp&0xFF);
+		//}		
+	//}
+	//
+	//for (uint8_t direction = 0; direction < 8; direction++)
+	//{
+		//uint16_t temp = mm_per_kilostep[direction];
+		//page_buffer[(0x40 + 2*direction + 0)] = (uint8_t)((temp>>8)&0xFF);
+		//page_buffer[(0x40 + 2*direction + 1)] = (uint8_t)(temp&0xFF);
+	//}					
+	//
+	//write_user_signature_row(page_buffer);
+//}
+
 void write_motor_settings()
 {
 	for (uint8_t direction = 0; direction < 8; direction++)
@@ -182,6 +231,8 @@ void write_motor_settings()
 	}
 }
 
+
+//
 //void print_motor_adjusts()
 //{
 	//printf("Motor Adjustments:\r\n");

@@ -1,0 +1,5 @@
+#ignore doxygen output
+
+html/
+latex/
+*.exe

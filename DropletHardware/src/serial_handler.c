@@ -1,16 +1,8 @@
 #include "serial_handler.h"
 
-//extern rnb last_good_rnb;
-
 void handle_serial_command(char* command, uint16_t command_length)
 {
-	uint32_t command_time = get_32bit_time();
-	if((command_time - last_serial_command_time) < 5)
-	{
-		//printf("Ignoring a command: %s.\r\n",command);
-		return;
-	}
-	last_serial_command_time = command_time;
+	//last_serial_command_time = command_time;
 	//printf("Got command \"%s\".\r\n",command);
 	//printf("command_time: %lu | last_command_time: %lu\r\n", command_time, last_serial_command_time);
 	if(command[0]!='\0') //Not much to handle if we get an empty string.
@@ -18,15 +10,7 @@ void handle_serial_command(char* command, uint16_t command_length)
 		char command_word[BUFFER_SIZE];
 		char command_args[BUFFER_SIZE];
 		get_command_word_and_args(command,command_length,command_word,command_args);
-		if(strcmp(command_word,"set_tau")==0)
-		{
-			handle_set_tau(command_args);
-		}
-		else if(strcmp(command_word,"set_theta")==0)
-		{
-			handle_set_theta(command_args);
-		}		
-		else if(strcmp(command_word,"move_steps")==0)
+		if(strcmp(command_word,"move_steps")==0)
 		{
 			handle_move_steps(command_args);
 		}
@@ -34,6 +18,30 @@ void handle_serial_command(char* command, uint16_t command_length)
 		{
 			handle_walk(command_args);
 		}
+		else if(strcmp(command_word, "get_rgb")==0)
+		{
+			int8_t r, g, b;
+			get_rgb_sensors(&r, &g, &b);
+			printf("r: %hhd, g: %hhd, b: %hhd\r\n", r, g, b);	
+		}
+		else if(strcmp(command_word, "do_nothing")==0)
+		{
+			change_state(NOTHING);
+			stop();
+			set_rgb(0,0,0);
+		}
+		else if(strcmp(command_word, "set_tau")==0)
+		{
+			handle_set_tau(command_args);
+		}
+		else if(strcmp(command_word, "set_theta")==0)
+		{
+			handle_set_theta(command_args);
+		}
+		else if(strcmp(command_word,"coll")==0)
+		{
+			handle_check_collisions();
+		}		
 		else if(strcmp(command_word,"stop_walk")==0)
 		{
 			handle_stop_walk();
@@ -82,10 +90,6 @@ void handle_serial_command(char* command, uint16_t command_length)
 		{
 			handle_targeted_cmd(command_args);
 		}
-		else if(strcmp(command_word,"tasks")==0)
-		{
-			print_task_queue();
-		}
 		else if(strcmp(command_word,"msg")==0)
 		{
 			handle_shout(command_args);
@@ -94,6 +98,10 @@ void handle_serial_command(char* command, uint16_t command_length)
 		{
 			handle_target(command_args);
 		}
+		else if(strcmp(command_word,"tasks")==0)
+		{
+			print_task_queue();
+		}		
 		else if(strcmp(command_word,"reset")==0)
 		{
 			handle_reset();
@@ -101,7 +109,7 @@ void handle_serial_command(char* command, uint16_t command_length)
 		else if(strcmp(command_word,"print_motor_settings")==0)
 		{
 			print_motor_values();
-			print_dist_per_step();
+			print_dist_per_step(); 
 		}	
 		else if(strcmp(command_word,"write_motor_settings")==0)
 		{
@@ -114,36 +122,18 @@ void handle_serial_command(char* command, uint16_t command_length)
 	}
 }
 
-void handle_set_tau(char* command_args)
+void handle_check_collisions()
 {
-	const char delim[2] = " ";
-	
-	char* token = strtok(command_args,delim);
-	if(token==NULL){ printf("strtok returned NULL on set_tau.\r\n"); return;}
-	set_tau((int16_t)atoi(token));
-	
-	printf("Tau set to %d.\r\n",tau);
-	set_rgb(0,0,200);
-	delay_ms(500);
-	set_rgb(0,0,0);
-	collaborative_task();
-}
-
-void handle_set_theta(char* command_args)
-{
-	const char delim[2] = " ";
-	
-	char* token = strtok(command_args,delim);
-	if(token==NULL){ printf("strtok returned NULL on set_theta.\r\n"); return;}
-	uint8_t int_theta = (uint8_t)atoi(token);
-	
-	set_theta(((double)int_theta)*0.01f);
-	
-	printf("Theta set to %d over 100.\r\n",int_theta);
-	set_rgb(0,200,0);
-	delay_ms(500);
-	set_rgb(0,0,0);
-	collaborative_task();
+	uint8_t dirs = check_collisions();
+	uint8_t found=0;
+	for(uint8_t i=0;i<6;i++){
+		if(dirs&(1<<i)){
+			found=1;
+			printf("%hhu",i);
+		}
+	}
+	if(!found) printf("None");
+	printf("\r\n");
 }
 
 void handle_move_steps(char* command_args)
@@ -175,6 +165,18 @@ void handle_walk(char* command_args)
 	uint16_t distance_mm = (uint16_t)atoi(token);
 	
 	walk(direction, distance_mm);
+}
+
+void handle_set_tau(char* command_args)
+{
+	tau=atoi(command_args);
+	printf("Tau set to %hd.\r\n",tau);
+}
+
+void handle_set_theta(char* command_args)
+{
+	theta=atof(command_args);
+	printf("Theta set to %f.\r\n", theta);
 }
 
 void handle_stop_walk()
@@ -223,7 +225,7 @@ void handle_set_mm_per_kilostep(char* command_args)
 }
 
 /* This tells the droplet that it should tell other droplets nearby their rnb to it.
- * In other words, this tells nearby droplets to listen, and then performs an IR_range_blast.
+ * In other words, this tells nearby droplets to listen, and then performs an ir_range_blast.
  */
 void handle_rnb_broadcast()
 {
@@ -231,22 +233,38 @@ void handle_rnb_broadcast()
 }
 
 /* This tells the droplet that it should ask nearby droplets to do an 
- * IR_range_blast so it can learn their rnb.
+ * ir_range_blast so it can learn their rnb.
  */
 void handle_rnb_collect(char* command_args)
 {
-	uint8_t power = atoi(command_args);	
-	schedule_task(5,collect_rnb_data, power);
+	const char delim[2] = " ";
+		
+	uint16_t id_val = atoi(strtok(command_args, delim));
+	uint8_t power_val = atoi(strtok(NULL, delim));
+	
+	uint32_t wrapper_arg = (((uint32_t)id_val)|(((uint32_t)power_val)<<16));
+	schedule_task(5,collect_rnb_data_wrapper, wrapper_arg);
+}
+
+// This function is used so we can make a transparent call to collect_rnb_data with 
+// multiple arguments, but still leave the interrupt handler.
+void collect_rnb_data_wrapper(void* arg)
+{
+	uint32_t wrapper_arg = *((uint32_t*)arg);
+	uint16_t id_val = (wrapper_arg&0xFFFF);
+	uint8_t power_val = ((wrapper_arg>>16)&0xFF);
+	collect_rnb_data(id_val, power_val);
 }
 
 /* This should only be called when another droplet asks this droplet 
- * to do an IR_range_blast (ie., by using handle_rnb_collect).
+ * to do an ir_range_blast (ie., by using handle_rnb_collect).
  */
 void handle_rnb_transmit(char* command_args)
 {
+	uint32_t time_since_arrival = (get_time()-command_arrival_time+6);
+	if(time_since_arrival<POST_MESSAGE_DELAY) delay_ms(POST_MESSAGE_DELAY - time_since_arrival);
 	uint16_t power = (uint16_t)command_args[0] + 2;
-	IR_range_blast(power);
-	got_rnb_cmd_flag = 1;
+	ir_range_blast(power);
 }
 
 /* This should only be called when another droplet is about to 
@@ -254,9 +272,11 @@ void handle_rnb_transmit(char* command_args)
  */
 void handle_rnb_receive()
 {
+	uint32_t time_since_arrival = (get_time()-command_arrival_time+5);
+	if(time_since_arrival<POST_MESSAGE_DELAY) delay_ms(POST_MESSAGE_DELAY - time_since_arrival);	
 	receive_rnb_data();
 	rnb_updated = 0;
-	last_good_rnb.id_number = (uint16_t)last_command_source_id;
+	//last_good_rnb.id_number = (uint16_t)last_command_source_id; TODO: re-add this.
 }
 
 void handle_set_led(char* command_args)
@@ -326,49 +346,47 @@ void handle_broadcast_id()
 
 void handle_get_id()
 {
-	printf("My ID is: %X\r\n",droplet_ID);
+	printf("My ID is: %X\r\n",get_droplet_id());
 }
 
 void send_id()
 {
-	if(OK_to_send())
-	{
-		set_rgb(50,50,0);
-		uint8_t data[2];
-		data[0] = 0xFF & (droplet_ID>>8);
-		data[1] = 0xFF & droplet_ID;
-		ir_broadcast(data, 2);
-		delay_ms(100);
-		set_rgb(0,0,0);
-	}
+	//if(OK_to_send())
+	//{
+		//set_rgb(50,50,0);
+		//uint8_t data[2];
+		//data[0] = 0xFF & (droplet_ID>>8);
+		//data[1] = 0xFF & droplet_ID;
+		//ir_broadcast(data, 2);
+		//delay_ms(100);
+		//set_rgb(0,0,0);
+	//}
 }
 
 void handle_cmd(char* command_args, uint8_t should_broadcast)
 {
-	if(OK_to_send())
+	if(should_broadcast)
 	{
-		
-		if(should_broadcast)
-		{
-			//printf("Broadcasting command: \"%s\", of length %i.\r\n",(uint8_t*)command_args, strlen(command_args));
-			ir_broadcast_cmd((uint8_t*)command_args,strlen(command_args));
-		}
-		else
-		{
-			//printf("Transmitting command: \"%s\", of length %i.\r\n",(uint8_t*)command_args, strlen(command_args));
-			ir_send_cmd(1,(uint8_t*)command_args,strlen(command_args));
-		}
-
-		//if(0==ir_send_command(0,(uint8_t*)command_args,strlen(command_args)))
-		//printf("\tSent command \"%s\", of length %i\r\n",command_args,strlen(command_args));
-		//else
-		//printf("\tFailed to send \"%s\", of length %i\r\n",command_args,strlen(command_args));
+		printf("Broadcasting command: \"%s\", of length %i.\r\n",(uint8_t*)command_args, strlen(command_args));
+		wait_for_ir(ALL_DIRS);
+		ir_cmd(ALL_DIRS, command_args,strlen(command_args));
 	}
-	
 	else
 	{
-		printf("\tIt wasn't OK to send command\r\n");
+		//printf("Transmitting command: \"%s\", of length %i.\r\n",(uint8_t*)command_args, strlen(command_args));
+		wait_for_ir(ALL_DIRS);
+		ir_cmd(1,command_args,strlen(command_args));
 	}
+
+	//if(0==ir_send_command(0,(uint8_t*)command_args,strlen(command_args)))
+	//printf("\tSent command \"%s\", of length %i\r\n",command_args,strlen(command_args));
+	//else
+	//printf("\tFailed to send \"%s\", of length %i\r\n",command_args,strlen(command_args));
+	//
+	//else
+	//{
+		//printf("\tIt wasn't OK to send command\r\n");
+	//}
 }
 
 void handle_targeted_cmd(char* command_args)
@@ -382,23 +400,20 @@ void handle_targeted_cmd(char* command_args)
 	
 	uint16_t target = strtoul(targetString, NULL, 16);
 	printf("command string: %s, length: %d\r\n",cmdString, strlen(cmdString));
-	if(OK_to_send())
-	{
-		ir_targeted_broadcasted_cmd(cmdString,strlen(cmdString), target);
-	}
+	ir_targeted_cmd(ALL_DIRS, cmdString,strlen(cmdString), target);
 }
 
 void handle_shout(char* command_args)
 {
-	if(strlen(command_args)==0)
-	{
-		command_args = "Hello over there.";
+	if(strlen(command_args)==0) command_args = "The quick brown fox jumped over the lazy dog. Unique New York.";
+	else if(strlen(command_args)>IR_BUFFER_SIZE)
+	{ 
+		printf("Message length was %d chars, which exceeds the maximum of %d", strlen(command_args), IR_BUFFER_SIZE);
+		return;
 	}
 	
-	if(OK_to_send())
-	{
-		ir_broadcast(command_args,strlen(command_args));
-	}
+	wait_for_ir(ALL_DIRS);	
+	ir_send(ALL_DIRS, command_args, strlen(command_args));
 }
 
 void handle_target(char* command_args)
@@ -413,12 +428,8 @@ void handle_target(char* command_args)
 	
 	uint16_t target = strtoul(targetString, NULL, 16);
 	
-	//printf("Target: %04X\r\n",target);
-	
-	if(OK_to_send())
-	{
-		ir_targeted_broadcast(msgString,strlen(msgString), target);
-	}
+	//printf("Target: %04X\r\n",target);	
+	ir_targeted_send(ALL_DIRS, msgString,strlen(msgString), target);
 } 
 
 

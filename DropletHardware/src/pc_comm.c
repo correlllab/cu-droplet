@@ -1,23 +1,16 @@
-#include "pc_com.h"
+#include "pc_comm.h"
 
-static FILE mystdout = FDEV_SETUP_STREAM (pc_com_putchar,NULL,_FDEV_SETUP_WRITE);
+static FILE mystdout = FDEV_SETUP_STREAM (pc_comm_putchar,NULL,_FDEV_SETUP_WRITE);
 
-ISR( USARTD1_RXC_vect ) { handle_serial_input(); }
-
-void pc_com_init()
+void pc_comm_init()
 {
-	// TX as output
-	PC_PORT.DIRSET = PIN7_bm;
-	// RX as input
-	PC_PORT.DIRCLR = PIN6_bm;
+	PC_PORT.DIRSET = PIN7_bm; 	// TX as output
+	PC_PORT.DIRCLR = PIN6_bm;	// RX as input
 
 	PC_USART.CTRLC = (uint8_t) USART_CHSIZE_8BIT_gc | USART_PMODE_DISABLED_gc;
 
-	// try changing this to 2400 (same as IR) to resolve PC com/IR com conflict
-
 	PC_USART.BAUDCTRLA = 0b00010111;		// Baud rate 115200
 	PC_USART.BAUDCTRLB = 0b10100100;		// BSCALE = -6, BSEL = 1047 @ 32MHz clock
-	
 
 	PC_USART.CTRLB |= USART_RXEN_bm;
 	PC_USART.CTRLB |= USART_TXEN_bm;
@@ -27,6 +20,8 @@ void pc_com_init()
 	
 	PC_USART.CTRLA = (uint8_t) USART_RXCINTLVL_MED_gc;
 }
+
+ISR( USARTD1_RXC_vect ) { handle_serial_input(); }
 
 void handle_serial_input()
 {
@@ -71,6 +66,7 @@ void handle_serial_input()
 	else //Everything is fine. Add the character to the buffer.
 	{
 		serial_in_buffer[serial_in_index] = data;
+		//printf("Got char '%c'\r\n",data);
 		serial_in_index++;
 		putchar(data);
 	}
@@ -78,9 +74,8 @@ void handle_serial_input()
 
 void handle_up_arrow()
 {
-	//printf("the index position is: %i\r\n", serial_in_index);
 	uint8_t temp_index = serial_in_index;
-				
+			
 	while(serial_in_buffer[temp_index] != '\0')
 	{
 		putchar(serial_in_buffer[temp_index]);
@@ -90,14 +85,14 @@ void handle_up_arrow()
 	serial_in_index = temp_index;
 }
 
-int pc_com_putchar(char c, FILE *stream)
+int pc_comm_putchar(char c, FILE *stream)
 {
 	while( (PC_USART.STATUS & USART_DREIF_bm) == 0 ) {}
 	PC_USART.DATA = c;
 	return 1;
 }
  
-int pc_com_getchar(FILE *stream)
+int pc_comm_getchar(FILE *stream)
 {
 	while( (PC_USART.STATUS & USART_RXCIF_bm) == 0 ) {}
 	return PC_USART.DATA;

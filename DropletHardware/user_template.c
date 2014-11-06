@@ -78,7 +78,7 @@ void loop()
 		break;
 	
 	}
-	if((state!=FRONTIER)||(state!=LIGHT_ON)||(state!=FINAL))
+	if((state!=FRONTIER)||(state!=LIGHT_ON)||(state!=FINAL)||(state!=INIT))
 	{	
 		redSenseVal = get_red_sensor();
 		greenSenseVal = get_green_sensor();
@@ -126,8 +126,7 @@ void send_query () {
 	do
 	{
 		if(gi==NULL) break;
-		if (gi->ID == who_asked_me) continue;
-		ir_targeted_send(ALL_DIRS,msg_q,2,gi->ID); // send a query to a neighbor
+		if (gi->ID != who_asked_me) ir_targeted_send(ALL_DIRS,msg_q,2,gi->ID); // send a query to a neighbor
 		gi = gi->next;		
 	}
 	while(gi != group_root);
@@ -179,10 +178,11 @@ void change_state ( State new_state )
 	switch ( state )
 	{
 		case INIT:
+		//set_rgb(0,250,250); //cyan
 		break;
 		
 		case IDLE:
-		//set_rgb(0,0,250); //blue
+		set_rgb(0,0,0); //blue
 		break;
 		
 		case FRONTIER:

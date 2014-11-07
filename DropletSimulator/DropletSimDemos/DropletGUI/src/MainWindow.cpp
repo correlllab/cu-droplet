@@ -146,7 +146,8 @@ void MainWindow::launchSimulator()
 		_logger.setMacroRedFlag(macroRedCheckBox->isChecked());
 		_logger.setMacroSAFlag(macroSACheckBox->isChecked());
 		_logger.Init();
-		connect(&_simInterface,SIGNAL(simulationUpdated(simState_t)),&_logger,SLOT(timeCheck(simState_t)));
+		connect(&_simInterface, SIGNAL(simulationUpdated(simState_t)), &_logger, SLOT(timeCheck(simState_t)));
+        connect(&_simInterface, SIGNAL(resetLogger(void)), &_logger, SLOT(Init()));
 	}
 
 	emit launchSim(newSettings);
@@ -186,7 +187,7 @@ void MainWindow::launchRenderer()
 
 	connect(renderer,SIGNAL(togglePause(void)),&_simInterface,SLOT(togglePause(void)));
 	connect(renderer,SIGNAL(restart(void)),&_simInterface,SLOT(reset(void)));
-	connect(renderer,SIGNAL(requestNewDroplet(float,float,droplet_t)),&_simInterface,SLOT(addDroplet(float,float,droplet_t)));
+	connect(renderer,SIGNAL(requestNewDroplet(float,float,float,droplet_t)),&_simInterface,SLOT(addDroplet(float,float,float,droplet_t)));
 	connect(renderer,SIGNAL(toggleLimit(void)),&_simInterface,SLOT(toggleUpdateLimit(void)));
 	connect(renderer,SIGNAL(increaseRate(void)),&_simInterface,SLOT(increaseUpdateRate(void)));
 	connect(renderer,SIGNAL(decreaseRate(void)),&_simInterface,SLOT(decreaseUpdateRate(void)));
@@ -406,7 +407,7 @@ void MainWindow::addButtonWidgets()
 	logWidget->setLayout(logLayout);
 	connect(logCheckBox, SIGNAL(stateChanged(int)), this, SLOT(showHideLogWidget(int)));
 
-	resetTimerCheckBox = new QCheckBox(tr("Simulation Reset Timer (ms)"));
+	resetTimerCheckBox = new QCheckBox(tr("Simulation Reset Timer (sec)"));
 	resetTimerValue = new QLineEdit;
 	QDoubleValidator *v = new QDoubleValidator(this);
 	v->setBottom(1.0);

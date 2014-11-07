@@ -75,8 +75,6 @@ float TrigArray::GetDistance(unsigned int d1, unsigned int d2)
 		powf(data[i]->yDist, 2) +
 		powf(data[i]->zDist, 2));
 
-	printf("dist: %f\n", dist);
-
 	return dist;
 }
 

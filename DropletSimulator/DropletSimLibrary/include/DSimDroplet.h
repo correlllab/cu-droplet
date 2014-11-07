@@ -18,6 +18,7 @@
 #include <utility>
 #include <time.h>
 #include <vector>
+#include <random>
 
 /**
  * DSimDroplet models the behavior and state of and individual droplet.
@@ -33,6 +34,8 @@ private :
 	DropletCommData *commData;
 	DropletCompData *compData;
 	DropletTimeData *timeData;
+
+	std::default_random_engine generator;
 	
 	/** \name Simulator backend functions  
 	 *  
@@ -163,11 +166,6 @@ protected :
 	void reset_motors(void);
 
 	/**
-	 * Resets the timers.
-	 */
-	void reset_timers(void);
-
-	/**
 	 * Gets droplet identifier.
 	 *
 	 * \return	The droplet identifier.
@@ -186,60 +184,37 @@ protected :
  */
 ///@{
 	/**
-	 * Rotate duration.
-	 *
-	 * \param	direction	The direction (1 = CW, -1 = CCW, or use macros).
-	 * \param	duration	The duration in ms.
-	 */
-	void rotate_duration(turn_direction direction, uint16_t duration);
-
-	/**
-	 * Rotate steps.
-	 *
-	 * \param	direction	The direction (1 = CW, -1 = CCW, or use macros).
-	 * \param	num_steps The number of steps.
-	 */
-	void rotate_steps(turn_direction direction, uint16_t num_steps);
-
-	/**
 	 * Rotate degrees.
 	 *
 	 * \param	deg	The number of degrees (between -180 and +180) to rotate.
 	 */
-	void rotate_degrees(int16_t deg);
+	uint32_t rotate_degrees(int16_t deg);
 
 	/**
 	 * Move duration.
 	 *
-	 * \param	direction	The direction (1 through 6, or use macros).
+	 * \param	dir	The direction (0 through 5, or use macros).
 	 * \param	duration	The duration in ms.
 	 */
-	void move_duration(uint8_t direction, uint16_t duration);
+	uint32_t move_duration(move_direction dir, uint32_t duration);
 
 	/**
 	 * Move steps.
 	 *
-	 * \param	dir	The direction (1 through 6, or use macros).
+	 * \param	dir	The direction (0 through 5, or use macros).
 	 * \param	num_steps The number of steps.
 	 */
-	void move_steps(uint8_t direction, uint16_t num_steps);
+	uint32_t move_steps(move_direction dir, uint16_t num_steps);
 
 	/**
 	 * Returns droplet movement status.
 	 * 
-	 * \return 0 if droplet is not moving.
-	 * \return 1 through 6 depending on movement direction.
+	 * \param  dir Pointer to assign movement dir to if the droplet is moving. Can
+     * be NULL if the dir is not required.
+     *
+     * \return 0 if droplet is not moving, 1 otherwise.
 	 */
-	move_direction is_moving(void);
-
-	/**
-	 * Returns droplet rotation status.
-	 * 
-	 * \return 0 if droplet is not rotating.
-	 * \return 1 if droplet is rotating CW.
-	 * \return -1 if droplet is rotating CCW.
-	 */
-	turn_direction is_rotating(void);
+	uint8_t is_moving(move_direction *dir);
 
 	/**
 	 * Cancel move.
@@ -248,14 +223,6 @@ protected :
 	 * \return duration 
 	 */
 	uint32_t cancel_move(void);
-
-	/**
-	 * Cancel rotate.
-	 *
-	 * \return number of steps taken
-	 * \return duration
-	 */
-	uint32_t cancel_rotate(void);
 
 ///@}
 /** @name RGB LED subsystem functions.
@@ -407,6 +374,13 @@ protected :
 	
 	uint8_t ir_broadcast(const char *send_buf, uint8_t length);
 
+	/**
+	 * Checks input buffers of all sensors to see if an IR message has arrived. 
+	 * If a message is present it places a copy in the global rx buffer for reading
+	 * and sets global_rx_buffer.read to 0.
+	 * /return 0 if no new messages are present. 1 if a new message is present and is
+	 * successfully copied over to the global rx buffer.
+	 */
 	uint8_t check_for_new_messages(void);
 
 	uint8_t range_and_bearing(uint16_t partner_id, float *dist, float *theta, float *phi);
@@ -414,39 +388,13 @@ protected :
 ///@}
 /** @name Timer subsystem functions.
  */
-///@{
-	/**
-	 * Set one of the 5 available timers.
-	 * /param time the time to fire in ms
-	 * /param index 0 to 4, for one of the available timers.
-	 */
-	uint8_t set_timer(uint32_t time, uint8_t index); // time in ms
-
-	/**
-	 * Check the status of available timers.
-	 * /return 0 when the timer is on and hasn't fired yet. 1 if the
-	 * timer is off or has fired after being set.
-	 */
-	uint8_t check_timer(uint8_t index);
-
-	uint32_t get_timer_time_remaining(uint8_t index);
-
-	/**
-	 * Returns time in ms since droplet was powered on
-	 */
 	uint32_t get_32bit_time(void);
-///@}
 
 public :
 
 	msg_order msg_return_order; // See DSimGlobals.h NEWEST_MSG_FIRST and OLDEST_MSG_FIRST
 
 	/// The global incoming message buffer for the droplet.
-	/* TODO : Here global_rx_buffer.size, global_rx_buffer.data_len are 
-	 * being used to store the same value, the length of the actual
-	 * body of the message and not the whole message (including
-	 * header). It is a bit confusing, fix it later.
-	*/
 	struct  
 	{
 			uint8_t *buf;

@@ -213,6 +213,8 @@ signals:
 
 	void ratesChanged(simRate_t rates);
 
+    void resetLogger ( void );
+
 public slots:
 
 		/**
@@ -296,7 +298,7 @@ public slots:
 	 * \param	dropletID	(Optional) The Droplet ID. If 0, adds one to the current number of droplets.
 	 */
 
-	void addDroplet(float x, float y, droplet_t dType = CustomOne, int dropletID = 0);
+	void addDroplet(float x, float y, float a, droplet_t dType = CustomOne, int dropletID = 0);
 
 	/**
 	 * \fn	int SimInterface::addNewShape(object_t objectType, float radius, vec3 scale);

@@ -35,15 +35,7 @@ volatile double a;
 
 void print_shit();
 
-uint8_t roll_that_sigmoid(int16_t group_size);
-void check_votes();
-void collaborative_task();
-void reset_experiment();
-void broadcast_heartbeat();
-uint16_t update_group_size();
-void add_group_member(uint16_t senderID);
-inline void set_tau(int16_t t){ tau = t; }
-inline void set_theta(double th){ theta = th; }
+void handle_wave();
 void check_messages();
 void color_cycle();
 

@@ -5,31 +5,56 @@
  */
 
 #include "SimInfoLogger.h"
+#include <ctime>
 
 SimInfoLogger::SimInfoLogger(QObject *parent)
-	: QObject(parent)
-{
-	timeInterval = NULL;
-	lastPrint = NULL;
-	posFlag = NULL;
-	colorFlag = NULL;
-	rotationFlag = NULL;
-	commSAFlag = NULL;
-	macroRedFlag = NULL;
-	macroSAFlag = NULL;
-	QString newFile = NULL;
-}
+	: QObject(parent),
+    timeInterval ( 0.0 ),
+    lastPrint ( 0.0 ),
+    posFlag ( false ),
+    colorFlag ( false ),
+    rotationFlag ( false ),
+    commSAFlag ( false ),
+    macroRedFlag ( false ),
+    macroSAFlag ( false ),
+    fp ( NULL )
+{ }
+
+
+SimInfoLogger::~SimInfoLogger()
+{ }
+
 void SimInfoLogger::Init()
-{
-	newFile = QString(DEFAULT_ASSETDIR).append("output.txt");
+{	
+    // close any open file first
+    close();
+
+	char sdate[9];
+    char stime[9];
+	_strdate_s(sdate);
+    _strtime_s(stime);
+	timeInterval = .5;
+    lastPrint = 0;
+	firstTime = true;
+
+	newFile = QString(DEFAULT_ASSETDIR).append("output_");
+	newFile.append(stime);
+    newFile.append("_");
+    newFile.append(sdate);
+    newFile.append(".txt");
+    for(int i = 10; i<newFile.length(); ++i){
+        if (newFile[i] == '/' || newFile[i] == ':')
+            newFile[i] = '-';
+    }
     fp = fopen (newFile.toStdString().c_str(),"w");
 	if (fp==NULL)
 	{
 		printf("Cannot create output file\n");
 	}
+
 	timeInterval = .5;
-	//lastPrint = -timeInterval - 1;
     lastPrint = 0;
+	firstTime = true;
 
 	if(macroRedFlag)
 	{
@@ -41,29 +66,38 @@ void SimInfoLogger::Init()
 	}
 
 	// Messages printed one at the top of the file
-	fprintf(fp, "Format:\n");
-	fprintf(fp, "Droplet#: ");
+	fprintf(fp, "(*\nFormat:\n{\n");
+	fprintf(fp, "{simulationTime, realTime");
+	if(macroRedFlag)
+	{
+		fprintf(fp, ", redTally");
+		redTally = 0;
+	}
+	if(macroSAFlag)
+	{
+		fprintf(fp, ", saTally");
+		SATally = 0;
+	}
+	fprintf(fp, ", \n\t{dropletID");
 	if(posFlag)
 	{
-		fprintf(fp,"(xPos,yPos,zPos)  |  ");
+		fprintf(fp,", {xPos,yPos,zPos}");
 	}
 	if(colorFlag)
 	{
-		fprintf(fp,"(rColor,gColor,bColor)  |  ");
+		fprintf(fp,", {rColor,gColor,bColor}");
 	}
 	if(rotationFlag)
 	{
-		fprintf(fp,"(xRot,yRot,zRot)  |  ");
+		fprintf(fp,", {xRot,yRot,zRot}");
 	}
 	if(commSAFlag)
 	{
-		fprintf(fp,"SAbool  |  ");
+		fprintf(fp,", {saBool}");
 	}
-	fprintf(fp, "\n\n");
-}
-
-SimInfoLogger::~SimInfoLogger()
-{
+	fprintf(fp, "},\n\t...\n},\n...\n}\n*)\n");
+	fprintf(fp, "rawDat={\n");
+	fflush(fp);
 
 }
 
@@ -71,10 +105,11 @@ void SimInfoLogger::close()
 {
 	// If newFile == NULL, then Init has not been called.
 	// and thus a file has not been opened.
-	if(newFile != NULL)
+	if(fp != NULL)
 	{	
-		printf("File had been opened");
+		fprintf(fp,"}");
 		fclose(fp);
+        fp = NULL;
 	}
 }
 
@@ -113,55 +148,57 @@ void SimInfoLogger::printDropletData(simState_t stateInfo)
 	}
 
 	// Messages printed at the start of each step
-	fprintf(fp, "Simiulation time: %.3f | Real time: %.3f\n", stateInfo.simTime, stateInfo.realTime);
-	fprintf(fp, "----------------------------------------------\n");
-	
+	if(firstTime) firstTime=false;
+	else fprintf(fp, ", ");
+	fprintf(fp, "{%.3f, %.3f", stateInfo.simTime, stateInfo.realTime);
+	if (macroRedFlag)
+	{
+		fprintf(fp, ", %d", redTally);
+	}
+	if (macroSAFlag)
+	{
+		fprintf(fp, ", %d", SATally);
+	}
+	fprintf(fp, ", {\n");
 	// Messages printed once per droplet per step
+	bool first_bot = true;
 	foreach(dropletStruct_t droplet, stateInfo.dropletData)
 	{
-		fprintf(fp,"%i: ", droplet.dropletID);
+		if(first_bot) first_bot=false;
+		else fprintf(fp, ", ");
+		fprintf(fp,"{%i", droplet.dropletID);
 		if(posFlag)
 		{
-			fprintf(fp,"(%3.4f,%3.4f,%3.4f)  |  ",droplet.origin.x,droplet.origin.y,droplet.origin.z);
+			fprintf(fp,", {%3.4f, %3.4f, %3.4f}",droplet.origin.x,droplet.origin.y,droplet.origin.z);
 		}
 		if(colorFlag)
 		{
-			fprintf(fp,"(%03i,%03i,%03i)  |  ",droplet.color.r,droplet.color.g,droplet.color.b);
+			fprintf(fp,", {%03i, %03i, %03i}",droplet.color.r,droplet.color.g,droplet.color.b);
 			if(macroRedFlag && droplet.color.r > 240 && droplet.color.g < 15 && droplet.color.b < 15){
 				redTally++;
 			}
 		}
 		if(rotationFlag)
 		{
-			fprintf(fp,"(%3.4f,%3.4f,%3.4f)  |  ",droplet.rotation.x,droplet.rotation.y,droplet.rotation.z);
+			fprintf(fp,", {%3.4f, %3.4f, %3.4f}",droplet.rotation.x,droplet.rotation.y,droplet.rotation.z);
 		}
 		if(commSAFlag)
 		{
 			if(droplet.commData.sendActive)
 			{
-				fprintf(fp,"TRUE  |  ");
+				fprintf(fp,", {True}");
 				if(macroSAFlag){
 					SATally++;
 				}
 			}
 			else
 			{
-				fprintf(fp,"FALSE  |  ");
+				fprintf(fp,", {False}");
 			}
 		}
-		fprintf(fp,"\n");
+		fprintf(fp,"}");
 	}
-	fprintf(fp, "\n");
-	if (macroRedFlag)
-	{
-		fprintf(fp, "# of red Droplets: %d  |  ", redTally);
-	}
-	if (macroSAFlag)
-	{
-		fprintf(fp, "# of Droplets communicating: %d  |  ", SATally);
-	}
-	fprintf(fp, "\n");
-	fprintf(fp, "----------------------------------------------\n\n");
+	fprintf(fp, "}\n}");
 	fflush(fp);
 }
 
@@ -169,6 +206,7 @@ void SimInfoLogger::timeCheck(simState_t stateInfo)
 {
 	double currentTime;
 	currentTime = stateInfo.simTime;
+
 	if((currentTime - lastPrint) > timeInterval)
 	{
 		lastPrint = currentTime;

@@ -1,6 +1,0 @@
-col_tiles 8
-row_tiles 8
-
-projecting GuitarStart.bmp
-
-droplets customsix 200

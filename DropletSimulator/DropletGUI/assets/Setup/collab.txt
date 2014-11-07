@@ -1,7 +1,0 @@
-# Setup file for droplet collaboration experiment. Creates 100 customtwo droplets and projects a scaled 4x4 arena with 3 objects.
-col_tiles 16
-row_tiles 16
-
-projecting oilspill.bmp
-
-droplets customtwo 500

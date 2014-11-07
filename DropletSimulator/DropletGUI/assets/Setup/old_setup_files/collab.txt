@@ -1,6 +1,0 @@
-col_tiles 4
-row_tiles 4
-
-projecting StickPullUpdated_Large.bmp
-
-droplets customfive 8

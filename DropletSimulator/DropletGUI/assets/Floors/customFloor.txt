@@ -1,6 +1,0 @@
-#Floor xPos yPos Walls up right down left
-#xPos and yPos don't account for tileLength, input grid position
-1 1 yes yes no yes
-0 1 yes no no yes
-0 0 no no no no
-1 0 no no no no

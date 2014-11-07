@@ -62,20 +62,21 @@
 #ifndef SP_DRIVER_H
 #define SP_DRIVER_H
 
+//#include "avr_compiler.h"
+//#include "Flash_Defines.h"
 #include <avr/io.h>
 
-#define FLASH_PAGE_SIZE 512
 
 /* Define the size of the flash page if not defined in the header files. */
-#ifndef FLASH_PAGE_SIZE
-	#error  FLASH_PAGE_SIZE must be defined if not defined in header files.
-	//#define FLASH_PAGE_SIZE 512
+#ifndef APP_SECTION_PAGE_SIZE
+        #error  APP_SECTION_PAGE_SIZE must be defined if not defined in header files.
+        //#define APP_SECTION_PAGE_SIZE 512
 #endif /*FLASH_PAGE_SIZE*/
 
 /* Define the Start of the application table if not defined in the header files. */
 #ifndef APPTABLE_SECTION_START
 	#error  APPTABLE_SECTION_START must be defined if not defined in header files.
-#	//#define APPTABLE_SECTION_START 0x01E000 //APPTABLE address for ATxmega128A1
+	//#define APPTABLE_SECTION_START 0x01E000 //APPTABLE address for ATxmega128A1
 #endif /*APPTABLE_SECTION_START*/
 
 /*! \brief Read a byte from flash.
@@ -96,7 +97,7 @@ uint8_t SP_ReadByte(uint32_t address);
  *  This function reads one word from the flash.
  *
  *  \note Both IAR and GCC have functions to do this automatically, but
- *        we include the functions for easier use.
+ *        we include the fucntions for easier use.
  *
  *  \param address Address to the location of the word to read.
  *
@@ -171,7 +172,7 @@ void SP_WriteUserSignatureRow(void);
  *  \note If the lock bits is set to not allow spm in the application or
  *        application table section the erase is not done.
  */
-void SP_EraseApplicationSections(void);
+void SP_EraseApplicationSection(void);
 
 /*! \brief Erase page at byte address in application or application table section.
  *

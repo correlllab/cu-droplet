@@ -260,3 +260,7 @@ void EEPROM_erase_all(void)
 #endif // __AVR_XMEGA__
 
 
+<<<<<<< HEAD
+
+=======
+>>>>>>> master

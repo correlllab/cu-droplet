@@ -95,3 +95,13 @@ uint8_t rand_byte()
 	}
 	return r;
 }
+
+uint16_t rand_short()
+{
+	return ((uint16_t)rand_byte()<<8)|((uint16_t)rand_byte());
+}
+
+uint32_t rand_quad()
+{
+	return ((uint32_t)rand_short()<<16)|((uint32_t)rand_short());
+}

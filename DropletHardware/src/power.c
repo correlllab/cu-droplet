@@ -1,5 +1,12 @@
 #include "power.h"
 
+void power_init()
+{
+	cap_monitor_init();
+	leg_monitor_init();
+}
+
+
 void cap_monitor_init()
 {
 	PORTB.DIRCLR = PIN0_bm | PIN1_bm;
@@ -29,6 +36,7 @@ void leg_monitor_init()
 	ACA.WINCTRL = AC_WEN_bm;					// Enable window mode
 }
 
+
 uint8_t cap_status()
 {
 	switch (ACB.STATUS & AC_WSTATE_gm)
@@ -44,72 +52,31 @@ int8_t leg_status(uint8_t leg)
 {
 	switch (leg)
 	{
+		case 0: 
+			ACA.AC0MUXCTRL = AC_MUXNEG_PIN0_gc | AC_MUXPOS_PIN2_gc;
+			ACA.AC1MUXCTRL = AC_MUXNEG_PIN1_gc | AC_MUXPOS_PIN2_gc;
+			break;
 		case 1:
-		return leg1_status();
+			ACA.AC0MUXCTRL = AC_MUXNEG_PIN0_gc | AC_MUXPOS_PIN3_gc;
+			ACA.AC1MUXCTRL = AC_MUXNEG_PIN1_gc | AC_MUXPOS_PIN3_gc;
+			break;
 		case 2:
-		return leg2_status();
-		case 3:
-		return leg3_status();
+			ACA.AC0MUXCTRL = AC_MUXNEG_PIN0_gc | AC_MUXPOS_PIN4_gc;
+			ACA.AC1MUXCTRL = AC_MUXNEG_PIN1_gc | AC_MUXPOS_PIN4_gc;
+			break;
 	}
-	return 0x80;
-}
-
-int8_t leg1_status()
-{
-	ACA.AC0MUXCTRL = AC_MUXNEG_PIN0_gc | AC_MUXPOS_PIN2_gc;
-	ACA.AC1MUXCTRL = AC_MUXNEG_PIN1_gc | AC_MUXPOS_PIN2_gc;
-	
-	//delay_ms(1);
 	
 	uint8_t status = ACA.STATUS;
 	
 	if ((status & AC_WSTATE_gm) == AC_WSTATE_ABOVE_gc) { return 1; }
 	if ((status & AC_WSTATE_gm) == AC_WSTATE_INSIDE_gc) { return 0; }
 	if ((status & AC_WSTATE_gm) == AC_WSTATE_BELOW_gc) { return -1; }
-	return -2;
 }
 
-int8_t leg2_status()
+uint8_t legs_powered()
 {
-	ACA.AC0MUXCTRL = AC_MUXNEG_PIN0_gc | AC_MUXPOS_PIN3_gc;
-	ACA.AC1MUXCTRL = AC_MUXNEG_PIN1_gc | AC_MUXPOS_PIN3_gc;
-
-	//delay_ms(1);
-	
-	uint8_t status = ACA.STATUS;
-	
-	if ((status & AC_WSTATE_gm) == AC_WSTATE_ABOVE_gc) { return 1; }
-	if ((status & AC_WSTATE_gm) == AC_WSTATE_INSIDE_gc) { return 0; }
-	if ((status & AC_WSTATE_gm) == AC_WSTATE_BELOW_gc) { return -1; }
-	return -2;
-}
-
-int8_t leg3_status()
-{
-	ACA.AC0MUXCTRL = AC_MUXNEG_PIN0_gc | AC_MUXPOS_PIN4_gc;
-	ACA.AC1MUXCTRL = AC_MUXNEG_PIN1_gc | AC_MUXPOS_PIN4_gc;
-
-	//delay_ms(1);
-	
-	uint8_t status = ACA.STATUS;
-	
-	if ((status & AC_WSTATE_gm) == AC_WSTATE_ABOVE_gc) { return 1; }
-	if ((status & AC_WSTATE_gm) == AC_WSTATE_INSIDE_gc) { return 0; }
-	if ((status & AC_WSTATE_gm) == AC_WSTATE_BELOW_gc) { return -1; }
-	return -2;
-}
-
-int8_t legs_powered()
-{
-	if ((leg1_status() == 1 || leg2_status() == 1 || leg3_status() == 1) &&
-		(leg1_status() == -1 || leg2_status() == -1 || leg3_status() == -1))
+	if ((leg_status(0) ==  1 || leg_status(1) ==  1 || leg_status(2) ==  1) &&
+		(leg_status(0) == -1 || leg_status(1) == -1 || leg_status(2) == -1))
 		return 1;
 	return 0;
-}
-
-uint8_t light_if_unpowered(uint8_t r, uint8_t g, uint8_t b)
-{
-	if (!legs_powered())
-	set_rgb(r,g,b);
-	else set_rgb(0,0,0);
 }

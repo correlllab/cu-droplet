@@ -31,7 +31,6 @@
 typedef struct Droplet_Motion_Direction_Data // Droplet move and turn direction Info
 {
 	move_direction currMoveDir;
-	turn_direction currTurnDir;
 }DirInfo;
 
 
@@ -49,7 +48,7 @@ friend class DSim;
 public:
 	
 	/**
-	 * \fn	DS_RESULT DSimDataLogger::GetDropletPositions(std::vector<GPSInfo *> *outPosData,
+	 * \fn	DS_RESULT DSimDataLogger::GetDropletPositions(std::vector<ObjectPositionData *> *outPosData,
 	 * 		DSim& simulator);
 	 *
 	 * \brief	puts droplet position info into a supplied vector.
@@ -59,10 +58,10 @@ public:
 	 *
 	 * \return	A Droplet Simulator error code.
 	 */
-	DS_RESULT GetDropletPositions(std::vector<GPSInfo *> *outPosData, DSim& simulator);
+	DS_RESULT GetDropletPositions(std::vector<ObjectPositionData *> *outPosData, DSim& simulator);
 
 	/**
-	 * \fn	DS_RESULT DSimDataLogger::GetObjectPositions(std::vector<GPSInfo *> *outPosData,
+	 * \fn	DS_RESULT DSimDataLogger::GetObjectPositions(std::vector<ObjectPositionData *> *outPosData,
 	 * 		DSim& simulator);
 	 *
 	 * \brief	puts object position info into a supplied vector.
@@ -72,7 +71,7 @@ public:
 	 *
 	 * \return	A Droplet Simulator error code.
 	 */
-	DS_RESULT GetObjectPositions(std::vector<GPSInfo *> *outPosData, DSim& simulator);
+	DS_RESULT GetObjectPositions(std::vector<ObjectPositionData *> *outPosData, DSim& simulator);
 
 	/**
 	 * \fn	DS_RESULT DSimDataLogger::GetDropletColors(std::vector<uint8_t *> *colors,

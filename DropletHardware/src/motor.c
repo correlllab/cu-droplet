@@ -33,7 +33,7 @@ void motor_init()
 
 uint8_t move_steps(uint8_t direction, uint16_t num_steps)
 {
-	if(is_moving()) return 0;
+	if(is_moving()>=0) return 0;
 	motor_status = MOTOR_STATUS_ON | (direction & MOTOR_STATUS_DIRECTION);
 	
 	uint16_t mot_durs[3]; //This is how long we want each motor to be on for.
@@ -56,6 +56,7 @@ uint8_t move_steps(uint8_t direction, uint16_t num_steps)
 		}
 	}
 	//printf("Moving in dir: %hhu for %hu steps. Mot_durs: {%hu, %hu, %hu}. Total_time: %hu.\r\n",direction, num_steps, mot_durs[0], mot_durs[1], mot_durs[2], total_time);
+	//printf("Mot_dirs: {%hhd, %hhd, %hhd}.\r\n\n", mot_dirs[0], mot_dirs[1], mot_dirs[2]);
 
 	TCC0.PER = TCC1.PER = TCD0.PER = total_time;
 	TCC0.CCA = TCC0.CCB = mot_durs[0]; //motor 0
@@ -100,7 +101,7 @@ void walk(uint8_t direction, uint16_t mm)
 void stop()
 {
 	//printf("Stopping.\r\n");
-
+	
 	TCC0.CTRLB = TC_WGMODE_SS_gc;
 	TCC1.CTRLB = TC_WGMODE_SS_gc;
 	TCD0.CTRLB = TC_WGMODE_SS_gc;
@@ -114,18 +115,18 @@ void stop()
 	PORTC.PIN5CTRL = 0;
 	PORTD.PIN0CTRL = 0;
 	PORTD.PIN1CTRL = 0;
+
 	
 	motor_status = 0;
 	remove_task((Task_t*)current_motor_task);
 }
 
-uint8_t is_moving(void) // returns 0 if droplet is not moving, (1-6) if moving
+int8_t is_moving() // returns -1 if droplet is not moving, movement dir otherwise.
 {
 	if (motor_status & MOTOR_STATUS_ON){
-		return (motor_status & MOTOR_STATUS_DIRECTION) + 1;
+		return (motor_status & MOTOR_STATUS_DIRECTION);
 	}	
-	
-	return 0;
+	return -1;
 }
 
 uint16_t get_mm_per_kilostep(uint8_t direction)
@@ -154,32 +155,6 @@ void read_motor_settings()
 	}
 }
 
-//void write_motor_settings()
-//{
-	//uint8_t page_buffer[USER_SIGNATURES_SIZE];
-	//for (uint16_t i = 0; i < USER_SIGNATURES_SIZE; i++)
-		//page_buffer[i] = read_user_signature_byte(i);
-		//
-	//for (uint8_t direction = 0; direction < 8; direction++)
-	//{
-		//for (uint8_t motor_num = 0; motor_num < 3 ; motor_num++)
-		//{
-			//int16_t temp = motor_adjusts[direction][motor_num];
-			//page_buffer[(0x10 + 6*direction + 2*motor_num + 0)] = (uint8_t)((temp>>8)&0xFF);
-			//page_buffer[(0x10 + 6*direction + 2*motor_num + 1)] = (uint8_t)(temp&0xFF);
-		//}		
-	//}
-	//
-	//for (uint8_t direction = 0; direction < 8; direction++)
-	//{
-		//uint16_t temp = mm_per_kilostep[direction];
-		//page_buffer[(0x40 + 2*direction + 0)] = (uint8_t)((temp>>8)&0xFF);
-		//page_buffer[(0x40 + 2*direction + 1)] = (uint8_t)(temp&0xFF);
-	//}					
-	//
-	//write_user_signature_row(page_buffer);
-//}
-
 void write_motor_settings()
 {
 	for (uint8_t direction = 0; direction < 8; direction++)
@@ -200,17 +175,6 @@ void write_motor_settings()
 	}
 }
 
-
-//
-//void print_motor_adjusts()
-//{
-	//printf("Motor Adjustments:\r\n");
-	//printf("\tmotor 0:\tccw: %hd, cw: %hd, flipped: %hhu\r\n",motor_adjusts[0][0],motor_adjusts[0][1], !!(motor_flipped&MOTOR_0_FLIPPED_bm));
-	//printf("\tmotor 1:\tccw: %hd, cw: %hd, flipped: %hhu\r\n",motor_adjusts[1][0],motor_adjusts[1][1], !!(motor_flipped&MOTOR_1_FLIPPED_bm));
-	//printf("\tmotor 2:\tccw: %hd, cw: %hd, flipped: %hhu\r\n",motor_adjusts[2][0],motor_adjusts[2][1], !!(motor_flipped&MOTOR_2_FLIPPED_bm));		
-//}
-//
-
 void print_motor_values()
 {
 	printf("Motor Values\r\n");
@@ -227,16 +191,7 @@ void print_motor_values()
 }
 void broadcast_motor_adjusts()
 {
-	//char buffer[128];
-	//uint16_t data_len = sprintf(buffer, "ccw0: %hd, cw0: %hd, f0: %hhu, ccw1: %hd, cw1: %hd, f1: %hhu, ccw2: %hd, cw2: %hd, f2: %hhu", 
-					//motor_adjusts[0][0], motor_adjusts[0][1], !!(motor_flipped&MOTOR_0_FLIPPED_bm),
-					//motor_adjusts[1][0], motor_adjusts[1][1], !!(motor_flipped&MOTOR_1_FLIPPED_bm),
-					//motor_adjusts[2][0], motor_adjusts[2][1], !!(motor_flipped&MOTOR_2_FLIPPED_bm));
-					//
-	//ir_broadcast(buffer, data_len);
-	//printf("\tmotor 0:\tccw: %hd, cw: %hd, flipped: %hhu\r\n",motor_adjusts[0][0],motor_adjusts[0][1], !!(motor_flipped&MOTOR_0_FLIPPED_bm));
-	//printf("\tmotor 1:\tccw: %hd, cw: %hd, flipped: %hhu\r\n",motor_adjusts[1][0],motor_adjusts[1][1], !!(motor_flipped&MOTOR_1_FLIPPED_bm));
-	//printf("\tmotor 2:\tccw: %hd, cw: %hd, flipped: %hhu\r\n",motor_adjusts[2][0],motor_adjusts[2][1], !!(motor_flipped&MOTOR_2_FLIPPED_bm));
+	// TODO: Deprecated?
 }
 
 void print_dist_per_step()

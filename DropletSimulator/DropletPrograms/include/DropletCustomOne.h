@@ -1,41 +1,28 @@
 /* *** PROGRAM DESCRIPTION ***
- * Yay!
+ * 
  */
 #pragma once
-
-#ifndef _DROPLET_CUSTOM_ONE
-#define _DROPLET_CUSTOM_ONE
-
-#define _USE_MATH_DEFINES
 
 #include <DSimDroplet.h>
 #include <DSimGlobals.h>
 #include <DSimDataStructs.h>
-#include <math.h>
+
 #include <inttypes.h>
-#include <cmath>
+#include <map>
+#include <utility>
+#include <cstdlib>
+#include <cstring>
+#define _USE_MATH_DEFINES
+#include <math.h>
 
 class DropletCustomOne : public DSimDroplet
 {
 private :
-
-	enum State
-	{
-		TARGET,
-		WALKER
-	} state;
-
-	char ack;
-	droplet_id_type target;
-	bool target_set_rgb, walker_set_rgb, toggle;
-	
+ 
 public :
 	DropletCustomOne(ObjectPhysicsData *objPhysics);
 	~DropletCustomOne(void);
-
 	
 	void DropletInit(void);
 	void DropletMainLoop(void);
 };
-
-#endif

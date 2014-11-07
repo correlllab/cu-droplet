@@ -116,7 +116,7 @@ public :
 	 * \return	The pixels.
 	 */
 
-	virtual DS_RESULT GetPixels(float *xyTopLeft, float *xyBottomRight, uint8_t **rgbaVals);
+	//virtual DS_RESULT GetPixels(float *xyTopLeft, float *xyBottomRight, uint8_t **rgbaVals);
 	
 	
 };

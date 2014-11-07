@@ -1,9 +1,0 @@
-row_tiles 4
-col_tiles 4
-
-droplets customtwo 0 25 0
-droplets customtwo 21.65 12.5 0
-droplets customtwo 21.65 -12.5 0
-droplets customtwo 0 -25 0
-droplets customtwo -21.65 -12.5 0
-droplets customtwo -21.65 12.5 0

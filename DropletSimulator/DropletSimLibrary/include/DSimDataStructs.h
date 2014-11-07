@@ -60,27 +60,26 @@ typedef struct _Object_Physics_Data
  * Stores localization information for droplets.
  */
 
-typedef struct _Droplet_Localization_Data
+typedef struct _Object_Position_Data
 {
 	float rotX, rotY, rotZ, rotA; // (rotX, rotY, rotZ) describe the axis of rotation
 	float posX, posY, posZ;
 	bool movedSinceLastUpdate;
 	double lastRelPosUpdate;
 
-}GPSInfo;
+} ObjectPositionData;
 
 /**
- * Defines an alias representing information describing the droplet actuator.
+ * Defines an alias representing information describing the droplet motors and 
+ * RGB LED.
  */
 
 typedef struct _Droplet_Actuator_Data
 {
 	uint8_t rOut, gOut, bOut;
-	float moveTimeRemaining, rotateTimeRemaining;	// in milliseconds
-	float moveStepRemaining, rotateStepRemaining;
+	float moveTimeRemaining;	// in milliseconds
 	bool _oscillator;
 	move_direction currMoveDir;
-	turn_direction currTurnDir;
 
 } DropletActuatorData;
 
@@ -129,8 +128,6 @@ typedef struct _Droplet_Component_Data
 
 typedef struct _Droplet_Timing_Data
 {
-	float timer[DROPLET_NUM_TIMERS];
-	uint8_t trigger[DROPLET_NUM_TIMERS];
 	float time_since_start;
 
 } DropletTimeData;

@@ -1,0 +1,41 @@
+# This is a demo file for showing how setup files can
+# be created for loading droplet programs, setting up the floor,
+# and loading an image in the projector.
+# Set up arena size and shape
+# Load custom arena file
+arena Squares.txt
+
+# Or load rectangular arena
+col_tiles 5
+row_tiles 5
+
+# Set up image projection
+projecting scaledarena.bmp
+
+# Physical objects
+sphere 37.5 37.5 6 0.25 1.0
+cube -37.5 -37.5 3 0.25 0.1
+
+# Droplet Creation. Usage: 
+# droplets <program> <number>
+# --- OR ---
+# droplets <program> <x-pos> <y-pos>
+
+droplets customfive 50
+
+droplets customone 44.1 -44.1
+droplets customone 30.9 -30.9
+
+droplets customtwo -44.1 -44.1
+droplets customtwo -30.9 -30.9
+droplets customtwo -44.1 -30.9
+
+droplets customthree 44.1 44.1
+droplets customthree 30.9 30.9
+droplets customthree 44.1 30.9
+droplets customthree 30.9 44.1
+
+droplets customfour -44.1 44.1
+
+
+

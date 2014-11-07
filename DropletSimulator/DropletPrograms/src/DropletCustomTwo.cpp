@@ -1,269 +1,225 @@
 #include "DropletCustomTwo.h"
 
-const uint8_t DropletCustomTwo::led_state_colors[NUM_STATES][3] = {
-	{  0,   0, 200},
-	{200,   0, 200},
-	{200,   0,   0},
-	{  0, 200, 200},
-	{  0, 200,   0},
-};
+const double DropletCustomTwo::theta [] = { 0.1, 1.0, 10.0 };
+const double DropletCustomTwo::tau   [] = { 2, 3, 4, 5, 6  };
 
 DropletCustomTwo::DropletCustomTwo(ObjectPhysicsData *objPhysics) 
-	: DSimDroplet(objPhysics) {}
+	: DSimDroplet(objPhysics)
+{ return; }
 
-DropletCustomTwo::~DropletCustomTwo() {}
+DropletCustomTwo::~DropletCustomTwo() { if ( fp ) { fclose (fp); } return; }
 
 void DropletCustomTwo::DropletInit()
 {
-	init_all_systems();	
+    init_all_systems    ();
+    unique_ids.clear    ();
+    heartbeat_time      = 0;
+    voting_time         = 0;
+    exp_time            = get_32bit_time ();
+    theta_id            = 0;
+    tau_id              = 0;
+    change_state        ( WAITING );
 
-	rqst_group_size = RQST_GROUP_SIZE;
-	task_time = TASK_TIME;
-	sigmoid_slope = SIGMOID_SLOPE;
-
-	// TODO: Remove this later
-	//char filename[256];
-	//memset(filename, 0, 256);
-	//sprintf(filename, "Droplet_%u_msg_buffer.txt", get_droplet_id());
-	//fh = fopen(filename, "w");
-
-	reset_values();
-	state = IDLE;
+    num_collabs         = 0;
+    char    filename[32];
+    memset  ( filename, 0, 32 );
+    sprintf ( filename, "out_%u.txt", get_droplet_id() );
+    fp      = fopen ( filename, "w"  );
+    fprintf ( fp, "time, theta, tau, collab\n" );
 }
 
 void DropletCustomTwo::DropletMainLoop()
 {
-	switch(state)
-	{
-	case IDLE:
-		if(rand_byte() < 1)
-			state = SEARCH;
-		break;
-	case SEARCH:
-		searching();
-		break;
-	case DISCOVER_GROUP:
-		discovering_group();
-		break;
-	case WAIT:
-		waiting_at_object();
-		break;
-	case LEAD_GROUP:
-		leading_group();
-		break;
-	case COLLABORATE:
-		collaborating();
-	}
+    if ( (state != DONE) && (get_32bit_time() - exp_time >= EXP_LENGTH) )
+    {
+        exp_time = get_32bit_time ();
+        if ( fp )
+        {
+            fprintf ( fp, "%u, %f, %f, %u\n",
+                exp_time,
+                theta[theta_id],
+                tau[tau_id],
+                num_collabs);
+            num_collabs = 0;
+        }
+
+        if ( ((theta_id + 1) * (tau_id + 1)) == (NUM_THETA * NUM_TAU) )
+        {
+            change_state ( DONE );
+            if ( fp )
+            {
+                fclose ( fp );
+                fp = NULL;
+            }
+        }
+        else 
+        {
+            if ( !(++tau_id % NUM_TAU) )
+            {
+                tau_id = 0;
+                ++theta_id;
+            }
+
+            change_state ( WAITING );
+        }
+    }
+
+    switch ( state )
+    {
+    case COLLABORATING:
+        if ( get_32bit_time() - collab_time > COLLABORATE_DURATION )
+        {
+            change_state ( WAITING );
+        }
+        break;
+
+    case WAITING:
+        if ( get_32bit_time() - heartbeat_time > HEART_RATE )
+        {
+            heartbeat_time = get_32bit_time ();
+            send_heartbeat ();
+        }
+
+        // Checks incoming messages and updates group size.
+        // There is a chance the state can be changed to COLLABORATING in
+        // this function if the droplet sees a GO message.
+        update_group_size ();
+
+        if (    get_32bit_time() - voting_time > HEART_RATE &&
+                state == WAITING )
+        {
+            voting_time = get_32bit_time ();
+            check_votes ();
+        }
+
+        break;
+
+    case DONE:
+    default:
+        break;
+    }
 }
 
-void DropletCustomTwo::searching()
+void DropletCustomTwo::send_heartbeat ( void )
 {
-	if(!is_moving())
-	{
-		move_steps((rand_byte() % 6) + 1, 500+rand()%50);
-	}
+    bool sig_val = roll_sigmoid();
+    if ( sig_val )
+    {
+        ir_broadcast ( "<3Y", 3 );
+    }
+    else
+    {
+        ir_broadcast ( "<3N", 3 );
+    }
 
-	if(check_timer(2))
-	{
-		get_rgb_sensor(&color_msg[RED], &color_msg[GREEN], &color_msg[BLUE]);
-		
-		if(color_msg[RED] < RED_THRESHOLD
-			&& color_msg[GREEN] < GREEN_THRESHOLD
-			&& color_msg[BLUE] < BLUE_THRESHOLD)
-		{
-			state = DISCOVER_GROUP;
-			set_state_led();
-			cancel_move();
-		}
-	}
+    std::pair<uint32_t, bool> my_vote = std::make_pair ( 0, sig_val );
+    unique_ids[get_droplet_id()] = my_vote;
 }
 
-void DropletCustomTwo::discovering_group()
+void DropletCustomTwo::update_group_size ( void )
 {
-	if(repeat_discover_msg == 0)
-	{
-		init_leader();
-		return;
-	}
+    // Clear out-of-date data
+    std::map<droplet_id_type, std::pair<uint32_t, bool>>::iterator it = unique_ids.begin();
+    while ( it != unique_ids.end() )
+    {
+        std::pair<uint32_t, bool> old_data = it->second;
+        std::pair<uint32_t, bool> new_data = std::make_pair
+            (   old_data.first + (get_32bit_time() - last_update_time),
+                old_data.second );
+        if ( new_data.first > GROUP_MEMBERSHIP_TIMEOUT )
+        {
+            unique_ids.erase(it++);
+        }
+        else
+        {
+            unique_ids[it->first] = new_data;
+            it++;
+        }
+    }
+    
 
-	if(check_timer(0) && repeat_discover_msg > 0)
-	{
-		repeat_discover_msg--;
-		set_timer(1000, 0);
-		char msg[5];
-		msg[0] = (uint8_t)RQST_DISCOVER_GROUP;
-		memcpy(&msg[1], color_msg, 3);
-		msg[4] = group_size;
-		ir_broadcast(msg, 5);
-	}
+    // Update group size based on incoming messages
+    while ( check_for_new_messages() )
+    {
+        char    in_msg[4];
+        memset  ( in_msg, 0, 4 );
+        memcpy  ( in_msg, global_rx_buffer.buf, global_rx_buffer.data_len );
 
-	while(check_for_new_messages())
-	{
-		//log_msg();
-		if(global_rx_buffer.buf[0] == (uint8_t)RSP_DISCOVER_GROUP 
-			&& strncmp((char *)&(global_rx_buffer.buf[1]), (char *)color_msg, 3) == 0)
-		{
-				group_size = global_rx_buffer.buf[4];
-				global_rx_buffer.read = 1;
+        if ( strcmp(in_msg, "GO") == 0 )
+        {
+            change_state ( COLLABORATING );
+            return;
+        }
+        else if ( strstr(in_msg, "<3") != NULL )
+        {
+            std::pair<uint32_t, bool> new_droplet_data = std::make_pair
+                (   0,
+                    in_msg[2] == 'Y' );
 
-				state = WAIT;
-				set_state_led();
-				break;
-		}
-		global_rx_buffer.read = 1;
-	}
+            unique_ids[global_rx_buffer.sender_ID] = new_droplet_data;
+        }
+
+        // Mark the message in the global receive buffer as read
+        global_rx_buffer.read = 1;
+    }
+
+    last_update_time = get_32bit_time ();
 }
 
-void DropletCustomTwo::leading_group()
+void DropletCustomTwo::check_votes ( void )
 {
-	collaborators = 0;
-	if(run_sigmoid())
-		collaborators++;
+    uint32_t yes_votes = 0;
 
-	std::vector<droplet_id_type>::iterator pos;
+    std::map<droplet_id_type, std::pair<uint32_t, bool>>::iterator it = unique_ids.begin();
+    while ( it != unique_ids.end() )
+    {
+        std::pair<uint32_t, bool> vote_data = it->second;
+        if ( vote_data.second )
+        {
+            yes_votes++;
+        }
+        it++;
+    }
 
-	uint8_t state_changed = 0;
-	while(check_for_new_messages())
-	{
-		//log_msg();
-		// Make sure the msg originated from the same collaboration site.
-		if(strncmp((char *)&(global_rx_buffer.buf[1]), (char *)color_msg, 3) == 0)
-		{
-			switch(global_rx_buffer.buf[0])
-			{
-			case RQST_DISCOVER_GROUP:
-				// If a new droplet is requesting information on the group then
-				// increment the group size by 1.
-				pos = std::find(unique_ids.begin(), unique_ids.end(), global_rx_buffer.sender_ID);
-				if(pos != unique_ids.end())
-					group_size++;
-					
-				char msg[5];
-				msg[0] = (uint8_t)RSP_DISCOVER_GROUP;
-				memcpy(&msg[1], color_msg, 3);
-				msg[4] = group_size;
-				ir_broadcast(msg, 5);
-				break;
-
-			case RQST_UPDATE_COLLAB:
-				collaborators++;
-
-				// If half or more decide to collaborate in a single time-step
-				// then send the collaborate msg to everyone at the site.
-				if(collaborators >= std::max(2.0, (group_size / 2.0)))
-				{
-					char msg[5];
-					msg[0] = (uint8_t)RSP_START_COLLAB;
-					memcpy(&msg[1], color_msg, 3);
-					msg[4] = group_size;
-					ir_broadcast(msg, 5);
-					state = COLLABORATE;
-					set_state_led();
-					state_changed = 1;
-				}
-				break;
-			}
-		}
-		global_rx_buffer.read = 1;
-		if(state_changed)
-			break;
-	}
+    if ( (unique_ids.size() >= 2) && (yes_votes * 2 > unique_ids.size()) )
+    {
+        ir_broadcast ( "GO", 2 );
+        change_state ( COLLABORATING );
+    }
 }
 
-void DropletCustomTwo::waiting_at_object()
+bool DropletCustomTwo::roll_sigmoid ( void )
 {
-	while(check_for_new_messages())
-	{
-		//log_msg();
-		switch(global_rx_buffer.buf[0])
-		{
-		case RSP_START_COLLAB:
-			state = COLLABORATE;
-			set_state_led();
-			break;
-		case RSP_DISCOVER_GROUP:
-			group_size = (uint8_t)global_rx_buffer.buf[4];
-		}
-		global_rx_buffer.read = 1;
-	}
+    double rand_val = rand_byte() / 256.0;
+    double sig_val  = 1.0 / ( 1.0 + std::pow(M_E, theta[theta_id] * (tau[tau_id] - unique_ids.size())) );
 
-	// Run the sigmoid to see if you want to collaborate
-	if(run_sigmoid())
-	{
-		char msg[5];
-		msg[0] = (uint8_t)RQST_UPDATE_COLLAB;
-		memcpy(&msg[1], color_msg, 3);
-		msg[4] = group_size;
-		ir_broadcast(msg, 5);
-	}
+    return (rand_val <= sig_val);
 }
 
-void DropletCustomTwo::collaborating()
+void DropletCustomTwo::change_state ( State new_state )
 {
-	if(rand() <= RAND_MAX / task_time)
-	{
-		reset_values();
-	}
-}
+    state = new_state;
+    switch ( state )
+    {
+    case COLLABORATING:
+        set_rgb_led         ( 0, 0, 250 );
+        collab_time         = get_32bit_time ();
+        num_collabs++;
+        break;
 
-uint8_t DropletCustomTwo::run_sigmoid()
-{
-	double exp_val = pow(M_E, sigmoid_slope * (rqst_group_size - group_size));
-	double sig_val = pow(1. + exp_val, -1);
-	return (double)rand() <= (sig_val * RAND_MAX);
-}
+    case WAITING:
+        unique_ids.clear    ();
+        set_rgb_led         ( 0, 250, 0 );
 
+        // Clear out all messages in buffer first.
+        while               ( check_for_new_messages() );
+        heartbeat_time      = get_32bit_time ();
+        voting_time         = get_32bit_time ();
+        send_heartbeat      ();
+        break;
 
-void DropletCustomTwo::init_leader()
-{
-		i_am_leader = 1;
-		state = LEAD_GROUP;
-		unique_ids.clear();
-		unique_ids.push_back(get_droplet_id());
-		set_state_led();
-}
-
-void DropletCustomTwo::reset_values()
-{
-	state = SEARCH;
-	set_state_led();
-	if(i_am_leader)
-		unique_ids.clear();
-
-	collaborators = 0;
-	group_size = 1;
-	i_am_leader = 0;
-	repeat_discover_msg = (rand_byte() % 10) + 2;
-	memset(color_msg, 0, 3);
-
-	// Reset the message buffers
-	for(unsigned int i = 0; i < NUM_COMM_CHANNELS; i++)
-		reset_ir_sensor(i);
-
-	set_timer(3000, 2);
-}
-
-void DropletCustomTwo::set_state_led()
-{
-	set_rgb_led(
-		led_state_colors[state][RED],
-		led_state_colors[state][GREEN],
-		led_state_colors[state][BLUE]);
-}
-
-void DropletCustomTwo::log_msg()
-{
-	int cmpVal = strncmp((char *)&global_rx_buffer.buf[1], (char *)color_msg, 3);
-	fprintf(fh, "Droplet[%u] State[%u] ColorCmp[%d] Color[%u %u %u] Msg[%u %u %u %u %u]\n", 
-		get_droplet_id(), 
-		state,
-		cmpVal,
-		color_msg[0],
-		color_msg[1],
-		color_msg[2],
-		global_rx_buffer.buf[0],
-		global_rx_buffer.buf[1],
-		global_rx_buffer.buf[2],
-		global_rx_buffer.buf[3],
-		global_rx_buffer.buf[4]);
+    case DONE:
+    default:
+        reset_rgb_led       ();
+    }
 }

@@ -1,13 +1,10 @@
 #include "DSim.h"
 
 extern TrigArray *dropletRelPos; // Welcome to the DAINJA' ZONE!
-std::vector<GPSInfo *> dropletPositions;
+std::vector<ObjectPositionData *> dropletPositions;
 
 DSim::DSim()
 {
-	// TODO: Remove this later
-	//fh = NULL;
-
 	firstRun = true;
 	projSet  = false;
 
@@ -91,7 +88,7 @@ DS_RESULT DSim::AddDroplet(
 	if(retval == DS_SUCCESS)
 	{
 		droplets.push_back(pDroplet); 
-		GPSInfo *tmp = (GPSInfo *)malloc(sizeof(GPSInfo));
+		ObjectPositionData *tmp = (ObjectPositionData *)malloc(sizeof(ObjectPositionData));
 		// initialize the droplet when adding it
 		pDroplet->DropletInit();
 
@@ -130,7 +127,7 @@ DS_RESULT DSim::AddPhysicalObject(
 		// Only create tracking information for dynamic objects
 		if(pObject->objPhysics->mass != 0.f)
 		{
-			GPSInfo *tmp = (GPSInfo *)malloc(sizeof(GPSInfo));
+			ObjectPositionData *tmp = (ObjectPositionData *)malloc(sizeof(ObjectPositionData));
 			tmp->posX = startPos.first;
 			tmp->posY = startPos.second;
 			tmp->posZ = 0.1f; // TODO : This isn't the right z-position but it shouldn't matter
@@ -163,7 +160,7 @@ DS_RESULT DSim::AddPhysicalObject(
 		// Only create tracking information for dynamic objects
 		if(pObject->objPhysics->mass != 0.f)
 		{
-			GPSInfo *tmp = (GPSInfo *)malloc(sizeof(GPSInfo));
+			ObjectPositionData *tmp = (ObjectPositionData *)malloc(sizeof(ObjectPositionData));
 			tmp->posX = startPos.first;
 			tmp->posY = startPos.second;
 			tmp->posZ = startHeight;
@@ -234,9 +231,6 @@ DS_RESULT DSim::SetUpProjector(
 
 DS_RESULT DSim::Init(const SimSetupData &setupData)
 {
-	// TODO: Remove this later
-	//fh = fopen("SimMsgDat.txt","w");
-
 	DS_RESULT retval;
 
 	// Set up simulator init parameters
@@ -279,7 +273,6 @@ DS_RESULT DSim::Init(const SimSetupData &setupData)
 DS_RESULT DSim::Step()
 {
 	// The following if() statement is just run on the first step of the simulator.
-	std::vector<DSimDroplet *>::iterator it;
 	if(firstRun)
 	{
 		// Step the simulation a few times first
@@ -287,8 +280,15 @@ DS_RESULT DSim::Step()
 			simPhysics->dynWorld->stepSimulation(1.0f / simSetupData->fps);
 
 		// Stagger each droplet's starting time, if required
+        // Call the simulation controllers once for initialization
+		gatherPositionsAndCorrect();
+		motionController();
+        sensorController();
+		timerController();
+
 		if(simSetupData->staggeredStart)
 		{
+            std::vector<DSimDroplet *>::iterator it;
 			for(it = droplets.begin(); it != droplets.end(); it++)
 			{
 
@@ -302,10 +302,11 @@ DS_RESULT DSim::Step()
 						pDroplet->DropletMainLoop();
 					}
 
-					// Call some of the simulation controllers
 					gatherPositionsAndCorrect();
 					motionController();
+	                sensorController();
 					timerController();
+	                commController();
 
 					// Step the physics simulation.
 					simPhysics->dynWorld->stepSimulation(1.0f / simSetupData->fps);
@@ -316,7 +317,8 @@ DS_RESULT DSim::Step()
 		firstRun = false;
 		return DS_SUCCESS;
 	}
-
+    
+    std::vector<DSimDroplet *>::iterator it;
 	for(it = droplets.begin(); it != droplets.end(); it++)
 	{
 		DSimDroplet *pDroplet = *it;
@@ -344,18 +346,14 @@ DS_RESULT DSim::Step()
 
 DS_RESULT DSim::Cleanup()
 {
-	// TODO: Remove this later
-	//if(fh != NULL)
-		//fclose(fh);
-
 	// Clean up droplet data.
 	std::vector<DSimDroplet *>::reverse_iterator d_rit;
 	for(d_rit = droplets.rbegin(); d_rit != droplets.rend(); d_rit++)
 		delete *d_rit;
 
-	std::vector<GPSInfo *>::reverse_iterator p_rit;
+	std::vector<ObjectPositionData *>::reverse_iterator p_rit;
 	for(p_rit = dropletPositions.rbegin(); p_rit != dropletPositions.rend(); p_rit++)
-		free((GPSInfo *)*p_rit);
+		free((ObjectPositionData *)*p_rit);
 
 	// Clean up physical object data
 	std::vector<DSimPhysicalObject *>::reverse_iterator po_rit;
@@ -466,7 +464,7 @@ void DSim::gatherPositionsAndCorrect()
 	btCollisionObjectArray objs = simPhysics->dynWorld->getCollisionObjectArray();
 	std::vector<DSimDroplet *>::iterator d_it;
 	std::vector<DSimPhysicalObject *>::iterator o_it;
-	std::vector<GPSInfo *>::iterator p_it;
+	std::vector<ObjectPositionData *>::iterator p_it;
 	p_it = dropletPositions.begin();
 
 	for(d_it = droplets.begin(); d_it != droplets.end(); d_it++)
@@ -478,7 +476,7 @@ void DSim::gatherPositionsAndCorrect()
 		btRigidBody *body = btRigidBody::upcast(objs[objPhysics->_worldID]);
 		if (body && body->getMotionState())
 		{
-			GPSInfo *gpsDat = (GPSInfo *)*p_it;
+			ObjectPositionData *posDat = (ObjectPositionData *)*p_it;
 			btTransform trans;
 			body->getMotionState()->getWorldTransform(trans);
 			btVector3 physicsPos = trans.getOrigin();
@@ -498,13 +496,10 @@ void DSim::gatherPositionsAndCorrect()
 				btTransform fixTransform;
 				fixTransform.setIdentity();
 				fixTransform.setOrigin(trans);
-				btQuaternion rotation(btVector3(
+				btQuaternion rotation( btVector3(
 					btScalar(0.0), 
 					btScalar(0.0),
-					btScalar(1.0)
-					), 
-					btScalar(0.0)
-					);		
+					btScalar(1.0)), btScalar(0.0) );		
 				fixTransform.setRotation(rotation);
 				body->setCenterOfMassTransform(fixTransform);
 
@@ -515,13 +510,13 @@ void DSim::gatherPositionsAndCorrect()
 			btQuaternion physicsRot = trans.getRotation();	
 			physicsRot.normalize();
 			btVector3 rotAxis = physicsRot.getAxis();
-			gpsDat->rotA = static_cast<float>(physicsRot.getAngle());
-			gpsDat->rotX = static_cast<float>(rotAxis.x());
-			gpsDat->rotY = static_cast<float>(rotAxis.y());
-			gpsDat->rotZ = static_cast<float>(rotAxis.z());
-			gpsDat->posX = static_cast<float>(physicsPos.getX());
-			gpsDat->posY = static_cast<float>(physicsPos.getY());
-			gpsDat->posZ = static_cast<float>(physicsPos.getZ());
+			posDat->rotA = static_cast<float>(physicsRot.getAngle());
+			posDat->rotX = static_cast<float>(rotAxis.x());
+			posDat->rotY = static_cast<float>(rotAxis.y());
+			posDat->rotZ = static_cast<float>(rotAxis.z());
+			posDat->posX = static_cast<float>(physicsPos.getX());
+			posDat->posY = static_cast<float>(physicsPos.getY());
+			posDat->posZ = static_cast<float>(physicsPos.getZ());
 		}
 		else
 		{
@@ -556,7 +551,7 @@ void DSim::gatherPositionsAndCorrect()
 		btRigidBody *body = btRigidBody::upcast(objs[pPhysicalObj->objPhysics->_worldID]);
 		if (body && body->getMotionState())
 		{
-			GPSInfo *gpsDat = (GPSInfo *)*p_it;
+			ObjectPositionData *posDat = (ObjectPositionData *)*p_it;
 			btTransform trans;
 			body->getMotionState()->getWorldTransform(trans);
 			btVector3 physicsPos = trans.getOrigin();
@@ -577,31 +572,27 @@ void DSim::gatherPositionsAndCorrect()
 				btTransform fixTransform;
 				fixTransform.setIdentity();
 				fixTransform.setOrigin(trans);
-				btQuaternion rotation(btVector3(
+				btQuaternion rotation( btVector3(
 					btScalar(0.0), 
 					btScalar(0.0),
-					btScalar(1.0)
-					), 
-					btScalar(0.0)
-					);
+					btScalar(1.0)), btScalar(0.0) );
 				fixTransform.setRotation(rotation);
 				body->setCenterOfMassTransform(fixTransform);
 
 				body->clearForces();
 				body->setAngularVelocity(btVector3(0,0,0));
 				body->setLinearVelocity(btVector3(0,0,0));
-				//physicsPos.setZ(btScalar(physicsPos.getZ() + height));
 			}
 
 			physicsRot.normalize();
 			btVector3 rotAxis = physicsRot.getAxis();
-			gpsDat->rotA = static_cast<float>(physicsRot.getAngle());
-			gpsDat->rotX = static_cast<float>(rotAxis.x());
-			gpsDat->rotY = static_cast<float>(rotAxis.y());
-			gpsDat->rotZ = static_cast<float>(rotAxis.z());
-			gpsDat->posX = static_cast<float>(physicsPos.getX());
-			gpsDat->posY = static_cast<float>(physicsPos.getY());
-			gpsDat->posZ = static_cast<float>(physicsPos.getZ());
+			posDat->rotA = static_cast<float>(physicsRot.getAngle());
+			posDat->rotX = static_cast<float>(rotAxis.x());
+			posDat->rotY = static_cast<float>(rotAxis.y());
+			posDat->rotZ = static_cast<float>(rotAxis.z());
+			posDat->posX = static_cast<float>(physicsPos.getX());
+			posDat->posY = static_cast<float>(physicsPos.getY());
+			posDat->posZ = static_cast<float>(physicsPos.getZ());
 		}
 		else
 		{
@@ -623,24 +614,23 @@ void DSim::motionController()
 {
 	btCollisionObjectArray objs = simPhysics->dynWorld->getCollisionObjectArray();
 
-	std::vector<GPSInfo *>::iterator d_it = dropletPositions.begin();
+	std::vector<ObjectPositionData *>::iterator d_it = dropletPositions.begin();
 	std::vector<DSimDroplet *>::iterator it;
 	for(it = droplets.begin (); it < droplets.end(); it++) 
 	{
 		DSimDroplet *pDroplet = *it;
-		GPSInfo *gpsInfo = *d_it;
+		ObjectPositionData *ObjectPositionData = *d_it;
 		DropletActuatorData *actData;
 		AccessActuatorData(pDroplet, &actData);
 
 		// Move/Rotate all the droplets
-		if(actData->moveTimeRemaining > 0 || actData->rotateTimeRemaining > 0 ||
-			actData->moveStepRemaining > 0 || actData->rotateStepRemaining > 0)
+		if( actData->moveTimeRemaining > 0 )
 		{
 			// The motors are positioned 2*PI/3 radians apart
 			// Rotate the relative position of the first motor
 			btVector3 motor1RelativePos = 
 				btVector3(0, simSetupData->dropletRadius * MOTOR_POS_SCALING, 0.1f).rotate(
-				btVector3(gpsInfo->rotX, gpsInfo->rotY, gpsInfo->rotZ), gpsInfo->rotA);
+				btVector3(ObjectPositionData->rotX, ObjectPositionData->rotY, ObjectPositionData->rotZ), ObjectPositionData->rotA);
 			btVector3 motor2RelativePos = 
 				motor1RelativePos.rotate(btVector3(0, 0, 1), 2.f * SIMD_PI / 3);
 			btVector3 motor3RelativePos = 
@@ -673,127 +663,97 @@ void DSim::motionController()
 			AccessPhysicsData(pDroplet, &objPhysics);
 			btRigidBody *body = btRigidBody::upcast(objs[objPhysics->_worldID]);
 		
-			if(actData->moveTimeRemaining > 0 || actData->moveStepRemaining > 0)
+			move_direction md = actData->currMoveDir;
+			bool updateRelPos = true;
+			switch(md)
 			{
-				move_direction md = actData->currMoveDir;
-				bool updateRelPos = true;
-				switch(md)
+			case NORTH :
+				if(actData->_oscillator) 
+                    body->applyImpulse(motor2ClockImpulse, motor2RelativePos);
+				else 
+                    body->applyImpulse(motor3CounterClockImpulse, motor3RelativePos);
+				break;
+
+			case NORTH_EAST :
+				if(actData->_oscillator) 
+                    body->applyImpulse(motor1ClockImpulse, motor1RelativePos);
+				else 
+                    body->applyImpulse(motor3CounterClockImpulse, motor3RelativePos);
+				break;
+
+			case SOUTH_EAST :
+				if(actData->_oscillator) 
+                    body->applyImpulse(motor1ClockImpulse, motor1RelativePos);
+				else 
+                    body->applyImpulse(motor2CounterClockImpulse, motor2RelativePos);
+				break;
+
+			case SOUTH :			
+				if(actData->_oscillator)
+                    body->applyImpulse(motor3ClockImpulse, motor3RelativePos);
+				else 
+                    body->applyImpulse(motor2CounterClockImpulse, motor2RelativePos);
+				break;
+
+			case SOUTH_WEST :
+				if(actData->_oscillator) 
+                    body->applyImpulse(motor3ClockImpulse, motor3RelativePos);
+				else 
+                    body->applyImpulse(motor1CounterClockImpulse, motor1RelativePos);
+				break;
+
+			case NORTH_WEST :
+				if(actData->_oscillator) 
+                    body->applyImpulse(motor2ClockImpulse, motor2RelativePos);
+				else 
+                    body->applyImpulse(motor1CounterClockImpulse, motor1RelativePos);
+				break;
+
+			case TURN_CLOCKWISE :
+				if(actData->_oscillator)
 				{
-				case NORTH :
-					if(actData->_oscillator) body->applyImpulse(motor2ClockImpulse, motor2RelativePos);
-					else body->applyImpulse(motor3CounterClockImpulse, motor3RelativePos);
-					break;
-
-				case NORTH_EAST :
-					if(actData->_oscillator) body->applyImpulse(motor1ClockImpulse, motor1RelativePos);
-					else body->applyImpulse(motor3CounterClockImpulse, motor3RelativePos);
-					break;
-
-				case SOUTH_EAST :
-					if(actData->_oscillator) body->applyImpulse(motor1ClockImpulse, motor1RelativePos);
-					else body->applyImpulse(motor2CounterClockImpulse, motor2RelativePos);
-					break;
-
-				case SOUTH :			
-					if(actData->_oscillator) body->applyImpulse(motor3ClockImpulse, motor3RelativePos);
-					else body->applyImpulse(motor2CounterClockImpulse, motor2RelativePos);
-					break;
-
-				case SOUTH_WEST :
-					if(actData->_oscillator) body->applyImpulse(motor3ClockImpulse, motor3RelativePos);
-					else body->applyImpulse(motor1CounterClockImpulse, motor1RelativePos);
-					break;
-
-				case NORTH_WEST :
-					if(actData->_oscillator) body->applyImpulse(motor2ClockImpulse, motor2RelativePos);
-					else body->applyImpulse(motor1CounterClockImpulse, motor1RelativePos);
-					break;
-
-				default :
-					updateRelPos = false;
-					break;
+					body->applyImpulse(motor1ClockImpulse, motor1RelativePos);
+					body->applyImpulse(motor2ClockImpulse, motor2RelativePos);
+					body->applyImpulse(motor3ClockImpulse, motor3RelativePos);
 				}
+				break;
 
-				gpsInfo->movedSinceLastUpdate = updateRelPos;
-				if (actData->moveTimeRemaining > 0)
+			case TURN_COUNTERCLOCKWISE :
+				if(actData->_oscillator)
 				{
-					if((actData->moveTimeRemaining -= simSetupData->timestep) <= 0)
-					{
-						actData->moveTimeRemaining = 0;
-						actData->currMoveDir = MOVE_OFF;
-					}
+					body->applyImpulse(motor1CounterClockImpulse, motor1RelativePos);
+					body->applyImpulse(motor2CounterClockImpulse, motor2RelativePos);
+					body->applyImpulse(motor3CounterClockImpulse, motor3RelativePos);
 				}
-				else if(actData->moveStepRemaining > 0)
-				{
-					if((actData->moveStepRemaining -= simSetupData->timestep) <= 0)
-					{
-						actData->moveStepRemaining = 0;
-						actData->currMoveDir = MOVE_OFF;
-					}
-				}
+				break;
+
+			default :
+				updateRelPos = false;
+				break;
 			}
 
-			if(actData->rotateTimeRemaining > 0 || actData->rotateStepRemaining > 0)
-			{
-				turn_direction td = actData->currTurnDir;
-				switch(td)
-				{
-				case TURN_CLOCKWISE :
-					if(actData->_oscillator)
-					{
-						body->applyImpulse(motor1ClockImpulse, motor1RelativePos);
-						body->applyImpulse(motor2ClockImpulse, motor2RelativePos);
-						body->applyImpulse(motor3ClockImpulse, motor3RelativePos);
-					}
-					break;
-
-				case TURN_COUNTERCLOCKWISE :
-					if(!actData->_oscillator)
-					{
-						body->applyImpulse(motor1CounterClockImpulse, motor1RelativePos);
-						body->applyImpulse(motor2CounterClockImpulse, motor2RelativePos);
-						body->applyImpulse(motor3CounterClockImpulse, motor3RelativePos);
-					}
-					break;
-				}
-				if (actData->rotateTimeRemaining > 0)
-				{
-					if((actData->rotateTimeRemaining -= simSetupData->timestep) <= 0)
-					{
-						actData->rotateTimeRemaining = 0;
-						actData->currTurnDir = MOVE_OFF;
-					}
-				}
-				else if(actData->rotateStepRemaining >0)
-				{
-					if((actData->rotateStepRemaining -= simSetupData->timestep) <= 0)
-					{
-						actData->rotateStepRemaining = 0;
-						actData->currTurnDir = MOVE_OFF;
-					}
-				}
-
-			}
-			actData->_oscillator = !actData->_oscillator;
-
-			if (actData->moveTimeRemaining > 0 || actData->moveStepRemaining > 0 ||
-				actData->rotateTimeRemaining > 0 || actData->rotateStepRemaining > 0)
-				setLegPower(pDroplet, gpsInfo);
+            actData->_oscillator = !actData->_oscillator;
+			ObjectPositionData->movedSinceLastUpdate = updateRelPos;
+            actData->moveTimeRemaining = max ( 
+                0.0f,
+                actData->moveTimeRemaining - simSetupData->timestep );
+            
+            setLegPower(pDroplet, ObjectPositionData);
 		}
 		d_it++;
 	}
 }
 
-void DSim::setLegPower(DSimDroplet *pDroplet, GPSInfo *gpsInfo)
+void DSim::setLegPower(DSimDroplet *pDroplet, ObjectPositionData *ObjectPositionData)
 {
 	DropletCompData *compData;
 	AccessCompData(pDroplet, &compData);
 
 	// compute inital variables for leg power
 	float bandWidth = simSetupData->tileLength / BANDS_PER_TILE;
-	float leg1PosX = gpsInfo->posX + sin(gpsInfo->rotZ) * (simSetupData->dropletRadius * MOTOR_POS_SCALING);
-	float leg2PosX = gpsInfo->posX + sin(gpsInfo->rotZ + (2.f * SIMD_PI / 3.f)) * (simSetupData->dropletRadius * MOTOR_POS_SCALING);
-	float leg3PosX = gpsInfo->posX + sin(gpsInfo->rotZ + (4.f * SIMD_PI / 3.f)) * (simSetupData->dropletRadius * MOTOR_POS_SCALING);
+	float leg1PosX = ObjectPositionData->posX + sin(ObjectPositionData->rotZ) * (simSetupData->dropletRadius * MOTOR_POS_SCALING);
+	float leg2PosX = ObjectPositionData->posX + sin(ObjectPositionData->rotZ + (2.f * SIMD_PI / 3.f)) * (simSetupData->dropletRadius * MOTOR_POS_SCALING);
+	float leg3PosX = ObjectPositionData->posX + sin(ObjectPositionData->rotZ + (4.f * SIMD_PI / 3.f)) * (simSetupData->dropletRadius * MOTOR_POS_SCALING);
 	
 	// leg 1
 	float totalDistance1 = leg1PosX + (( simSetupData->numColTiles * simSetupData->tileLength ) / 2.f);
@@ -852,7 +812,7 @@ void DSim::sensorController()
 	if(projSet)
 	{
 		std::vector<DSimDroplet *>::iterator d_it;
-		std::vector<GPSInfo *>::iterator p_it;
+		std::vector<ObjectPositionData *>::iterator p_it;
 		p_it = dropletPositions.begin();
 
 		for(d_it = droplets.begin(); d_it < droplets.end(); d_it++)
@@ -862,8 +822,8 @@ void DSim::sensorController()
 			AccessSensorData(pDroplet, &senseData);
 			uint8_t rgbaVal[4];
 
-			GPSInfo *gpsInfo = *p_it;
-			float xyPos[2]; xyPos[0] = gpsInfo->posX; xyPos[1] = gpsInfo->posY;
+			ObjectPositionData *ObjectPositionData = *p_it;
+			float xyPos[2]; xyPos[0] = ObjectPositionData->posX; xyPos[1] = ObjectPositionData->posY;
 
 			projector->GetPixel(xyPos, rgbaVal);
 			
@@ -883,7 +843,7 @@ void DSim::calcRelativePos(unsigned int dID)
 	if(dropletRelPos == NULL)
 		dropletRelPos = new TrigArray(dropletPositions.size());
 
-	GPSInfo *gpsData = dropletPositions[dID];
+	ObjectPositionData *posData = dropletPositions[dID];
 
 	for(unsigned int i = 0; i < dropletPositions.size(); i++)
 	{
@@ -892,13 +852,13 @@ void DSim::calcRelativePos(unsigned int dID)
 		dropletRelPos->AddData(
 			dID, 
 			i, 
-			dropletPositions[i]->posX - gpsData->posX,
-			dropletPositions[i]->posY - gpsData->posY,
-			dropletPositions[i]->posZ - gpsData->posZ);
+			dropletPositions[i]->posX - posData->posX,
+			dropletPositions[i]->posY - posData->posY,
+			dropletPositions[i]->posZ - posData->posZ);
 	}
 
-	gpsData->lastRelPosUpdate = timer.getTotalST();
-	gpsData->movedSinceLastUpdate = false;
+	posData->lastRelPosUpdate = timer.getTotalST();
+	posData->movedSinceLastUpdate = false;
 }
 
 void DSim::commController()
@@ -908,9 +868,9 @@ void DSim::commController()
 
 	for(unsigned int i = 0; i < dropletPositions.size(); i++)
 	{
-		GPSInfo *gpsData = dropletPositions[i];
-		if(gpsData->movedSinceLastUpdate && 
-			((timer.getTotalST() - gpsData->lastRelPosUpdate) > 
+		ObjectPositionData *posData = dropletPositions[i];
+		if(posData->movedSinceLastUpdate && 
+			((timer.getTotalST() - posData->lastRelPosUpdate) > 
 			DROPLET_REL_POS_UPDATE_TIME))
 		{
 			calcRelativePos(i);
@@ -999,15 +959,6 @@ void DSim::timerController()
 
 		// Update 32-bit timer
 		timeData->time_since_start += simSetupData->timestep;
-
-		for(int i = 0; i < DROPLET_NUM_TIMERS; i++)
-		{
-			if(timeData->trigger[i] == 0)
-			{
-				if((timeData->timer[i] -= simSetupData->timestep) <= 0.f)
-					timeData->trigger[i] = 1;
-			}
-		}
 	}
 }
 

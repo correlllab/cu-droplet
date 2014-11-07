@@ -389,7 +389,6 @@ protected :
 /** @name Timer subsystem functions.
  */
 	uint32_t get_32bit_time(void);
-///@}
 
 public :
 

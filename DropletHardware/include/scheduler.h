@@ -1,19 +1,15 @@
 #ifndef SCHEDULER_H
 #define SCHEDULER_H
 
+#define F_CPU 32000000UL
+
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <util/atomic.h>
+#include <util/delay.h>
 #include <stdlib.h>
 #include <stdio.h>
 
-#include "RGB_LED.h"
-
-// Get the current 32-bit time, as measured in ms from the last reset
-inline volatile extern uint32_t get_32bit_time() __attribute__((OS_task));
-
-static uint8_t SCHEDULER_DEBUG_MODE = 0;
-volatile uint16_t rtc_epoch;
 
 // A task is a function, possibly with an argument, to be called at a specific time
 // scheduled_time is the 32-bit global time when the function should be called
@@ -28,31 +24,31 @@ typedef struct task
 	struct task *next;
 } Task_t;
 
-
 // Global task list
 // Linked list of tasks, sorted by time until execution
 Task_t *task_list;
-
-
-
-// The total number of tasks in the queue and the number of tasks that are currently executing
+volatile uint16_t rtc_epoch;
 volatile uint8_t num_tasks, num_executing_tasks;
 
+// Get the current 32-bit time, as measured in ms from the last reset
+inline volatile extern uint32_t get_time() __attribute__((OS_task));
+
 void scheduler_init();
-
-// Adds a new task to the task queue
-// time is number of milliseconds from present until function is executed
-// function is a function pointer to execute
-// arg is the argument to supply to function
-// Example: schedule_task(1000, foo, (void*)55)
-// will call foo(55) in one second
-// Returns a pointer to the task that can be used to remove the task from the queue
+void Config32MHzClock(void);
+void delay_ms(uint16_t ms);
+static inline void delay_us(double __us){ _delay_us(__us); }
+/* 
+ * Adds a new task to the task queue
+ * time is number of milliseconds from present until function is executed
+ * function is a function pointer to execute
+ * arg is the argument to supply to function
+ * Example: schedule_task(1000, foo, (void*)55)
+ * will call foo(55) in one second
+ * Returns a pointer to the task that can be used to remove the task from the queue
+ */
 Task_t* schedule_task(uint32_t time, void (*function)(void*), void* arg);
-
-
-// Removes a task from the queue
-void remove_task(Task_t* task);
-
+void remove_task(Task_t* task); // Removes a task from the queue
+void print_task_queue();
 
 // TO BE CALLED FROM INTERRUPT HANDLER ONLY
 // DO NOT CALL

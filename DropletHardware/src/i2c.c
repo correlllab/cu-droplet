@@ -2,58 +2,34 @@
 
 void i2c_init()
 {
-	PORTD.DIRSET = PIN0_bm | PIN1_bm;
-	PORTD.OUTSET = PIN0_bm | PIN1_bm;
+	count=0;
+	thePower=0;
+	PORTE.DIRSET = PIN0_bm | PIN1_bm;
+	TWIE_MASTER_CTRLA = TWI_MASTER_INTLVL_MED_gc | TWI_MASTER_RIEN_bm | TWI_MASTER_WIEN_bm | TWI_MASTER_ENABLE_bm;
+	TWIE_MASTER_BAUD = TWI_BAUD(F_CPU, 400000);
+	TWIE_MASTER_STATUS = TWI_MASTER_BUSSTATE_IDLE_gc;
 }
 
-void i2c_startbit()
+ISR(TWIE_TWIM_vect)
 {
-	SCL_ON; SDA_ON; 
-	delay_us(5);
-	SDA_OFF;
-	delay_us(5);
-	SCL_OFF;
-	delay_us(2.5);
-}
-
-void i2c_stopbit()
-{
-	// Stop bit
-	SDA_OFF;
-	delay_us(2.5);
-	SCL_ON;
-	delay_us(2.5);
-	SDA_ON;
-	delay_us(5);
-}
-
-uint8_t i2c_sendbyte(uint8_t byte)
-{
-	// Send data
-	for (int8_t i = 7; i >= 0; i--)
+	switch(count)
 	{
-		if (byte & (1 << i)) SDA_ON;
-		else SDA_OFF;
-		delay_us(2.5);
-		SCL_ON;
-		delay_us(5);
-		SCL_OFF;
-		delay_us(2.5);
+		case 0:	TWIE_MASTER_DATA = (0x00 | ((uint8_t)((thePower>>8)&1))); break;
+		case 1: TWIE_MASTER_DATA = ((uint8_t)(thePower&0xFF)); break;
+		case 2:	TWIE_MASTER_DATA = (0x10 | ((uint8_t)((thePower>>8)&1))); break;
+		case 3: TWIE_MASTER_DATA = ((uint8_t)(thePower&0xFF)); break;	
+		case 4:	TWIE_MASTER_DATA = (0x60 | ((uint8_t)((thePower>>8)&1))); break;
+		case 5: TWIE_MASTER_DATA = ((uint8_t)(thePower&0xFF)); break;		
+		case 6: TWIE_MASTER_CTRLC = TWI_MASTER_CMD_STOP_gc;
 	}
-	
-	// Ack/Nack
-	delay_us(1.5);
-	SDA_ON;
-	delay_us(1);
-	PORTD.DIRCLR = PIN0_bm;
-	SCL_ON;
-	delay_us(2.5);
-	uint8_t ack = PORTD.IN & PIN0_bm;
-	delay_us(2.5);
-	SCL_OFF;
-	SDA_OFF;
-	PORTD.DIRSET = PIN0_bm;
-	delay_us(2.5);
-	
-	return ack;
+	count = (count+1)%7;
+}
+
+void set_all_ir_powers(uint16_t power)
+{
+	thePower=power;
+	TWIE_MASTER_ADDR = 0x58;
+	delay_us(1200);
+	TWIE_MASTER_ADDR = 0x5c;
+	delay_us(1200);	
 }

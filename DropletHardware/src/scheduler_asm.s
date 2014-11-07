@@ -111,8 +111,8 @@ restore_registers:
 
 
 ; Gets the time as an atomic operation
-.global get_32bit_time
-get_32bit_time:
+.global get_time
+get_time:
 	in		r0, _SFR_IO_ADDR(SREG)		; Save the state of the status register
 	cli									; Disable interrupts
 	lds		r22, RTC_CNT				; Load low byte into return value
@@ -121,4 +121,3 @@ get_32bit_time:
 	lds		r25, rtc_epoch+1
 	out		_SFR_IO_ADDR(SREG), r0		; Restore status register (including re-enabling interrupts if necessary)
 	ret
-

@@ -548,6 +548,7 @@ private:
 	*/
 	struct {
 		bool leftButtonHeldDown;
+		bool rightButtonHeldDown;
 		int startX, startY;
 		GLfloat origHoriz;
 		GLfloat origVert;

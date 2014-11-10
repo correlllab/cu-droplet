@@ -41,7 +41,9 @@ NOTE: These instructions are specific to the Windows operating system. All hardw
     2. In the 'Interface:' drop-down menu, select 'PDI'. 
     3. Make sure that PDI Clock is set to 4MHz and, under 'Programming settings', the 'Preserve EEPROM' box is checked.
 
-Okay! You're done! You should now be able to compile code and upload it to your Droplet. Good luck!
+Okay! You're done! You should now be able to compile code and upload it to your Droplet. To do so, plug your Droplet in, and then click the green 'play' button in the top task bar, to the left of the drop-down menu which defaults to 'Debug'. This compiles the code and writes it to the Droplets.
+
+Good luck!
 
 #### TODO: Programming Connector
 #### TODO: Talk about fuse settings for first-time droplets?

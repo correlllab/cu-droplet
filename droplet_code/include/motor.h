@@ -24,7 +24,6 @@
 #include "droplet_init.h"
 #include "scheduler.h"
 #include "flash_api.h"
-#include "eeprom_driver.h"
 
 volatile uint8_t motor_status;
 volatile Task_t* current_motor_task;

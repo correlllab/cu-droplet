@@ -12,7 +12,7 @@
 #define GROUP_MEMBERSHIP_TIMEOUT    2000    // in ms
 #define HEART_RATE                  1000    // in ms
 
-#define BUILD_NEIGHBOR_LIST_TIME	5000
+#define BUILD_NEIGHBOR_LIST_TIME	5000   // maybe we do not need this one anymore
 
 typedef struct GROUP_LIST_ITEM
 {

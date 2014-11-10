@@ -12,12 +12,12 @@ void init()
 	who_asked_me=0;
 	msg_f = "F!";
 	msg_q = "F?";
-	msg_h = "here";
+	//msg_h = "here";
 	
 	is_end = 0;
 	num_sent = 0;
 	
-	set_all_ir_powers(236);
+	set_all_ir_powers(230); // 238 -> 230
 	
 	change_state ( INIT );
 	delay_ms(200);
@@ -28,7 +28,7 @@ void init()
  */
 void loop()
 {
-	if(rand_byte()<8) ir_send(ALL_DIRS,msg_h,4); // signals its presence to its neighbors 1/64th of the time.
+	//if(rand_byte()<4) ir_send(ALL_DIRS,msg_h,8); // signals its presence to its neighbors 1/64th of the time. (~1280ms)
 	if(redSenseVal>RED_THRESH) change_state(FINAL);
 	switch ( state )
 	{
@@ -45,9 +45,9 @@ void loop()
 		break;
 	
 		case FRONTIER:{
-			if(rand_byte()<16)
+			if(rand_byte()<64) // 16 -> 64
 			{
-				send_query(); // send a query to neighbors 1/32 of the time (~320ms)
+				send_query(); // send a query to neighbors 1/16 of the time (~160ms)
 				num_sent++;
 			}
 			if(num_sent>5) change_state(WAIT); 
@@ -55,7 +55,7 @@ void loop()
 		break;
 
 		case FINAL:{
-			if ((who_asked_me != 0) && (num_sent<=5)) //the start doesn't need to send a message back.
+			if ((who_asked_me != 0) && (num_sent<=10)) //the start doesn't need to send a message back.
 			{
 				if(rand_byte()<16)	ir_targeted_send(ALL_DIRS,msg_f,2,who_asked_me);// otherwise send a message "F!" (Found!) to the one who put a query on me
 				num_sent++;
@@ -69,10 +69,10 @@ void loop()
 		break;
 
 		case LIGHT_ON:{
-			if ((who_asked_me != 0) && (num_sent<=5)) //the start doesn't need to send a message back.
+			if ((who_asked_me != 0) && (num_sent<=10)) //the start doesn't need to send a message back.
 			{
-			    if(rand_byte()<16)	ir_targeted_send(ALL_DIRS,msg_f,2,who_asked_me);// otherwise send a message "F!" (Found!) to the one who put a query on me
-				num_sent++;
+			    if(rand_byte()<64)	ir_targeted_send(ALL_DIRS,msg_f,2,who_asked_me);// otherwise send a message "F!" (Found!) to the one who put a query on me
+				//num_sent++;  // 16 -> 64
 			}
 		}
 		break;
@@ -83,7 +83,7 @@ void loop()
 		redSenseVal = get_red_sensor();
 		greenSenseVal = get_green_sensor();
 	}
-	delay_ms(20);
+	delay_ms(40); // 20ms -> 40 ms, doing an experiment 
 }
 
 /*
@@ -92,44 +92,43 @@ void loop()
  */
 void handle_msg(ir_msg* msg_struct)
 {
-	if (strcmp(msg_struct->msg,"here") == 0){ // if a neighbor sends me a message, "I am here!"
-		add_group_member(msg_struct->sender_ID); // add the neighbor to a list
-	}
-	else
-	{
+	//if (strcmp(msg_struct->msg, msg_h) == 0){ // if a neighbor sends me a message, "I am here!"
+		//add_group_member(msg_struct->sender_ID); // add the neighbor to a list
+	//}
+	//else
+	//{
 		if(state==IDLE) // added below
 		{
-			if (strcmp(msg_struct->msg,"F?") == 0){ // if got a query
+			if (strcmp(msg_struct->msg, msg_q) == 0){ // if got a query
 				who_asked_me = msg_struct->sender_ID;    // memorize the one who put a query on me
 				change_state(FRONTIER);      // change the state into FRONTIER
 			}
 		}
 		else if(state==FINAL) // added below
 		{
-			if (strcmp(msg_struct->msg,"F?") == 0){ // if got a query
-				who_asked_me = msg_struct->sender_ID;    // memorize the one who put a query on me
-				ir_targeted_send(ALL_DIRS,msg_f,2,who_asked_me);				
+			if (strcmp(msg_struct->msg, msg_q) == 0){ // if got a query
+				who_asked_me = msg_struct->sender_ID;    // memorize the one who put a query on me		
 			}
 		}		
 		else if(state==WAIT||state==FRONTIER) // added below
 		{
-			if (strcmp(msg_struct->msg,"F!") == 0) //Got an answer from neighbor.
+			if (strcmp(msg_struct->msg, msg_f) == 0) //Got an answer from neighbor.
 				change_state(LIGHT_ON);     // change a state into LIGHT_ON
 		}
-	}
+	//}
 }
 
 // send queries to neighbors in the list
 void send_query () {
-	
-	group_item* gi = group_root;
-	do
-	{
-		if(gi==NULL) break;
-		if (gi->ID != who_asked_me) ir_targeted_send(ALL_DIRS,msg_q,2,gi->ID); // send a query to a neighbor
-		gi = gi->next;		
-	}
-	while(gi != group_root);
+	ir_send(ALL_DIRS, msg_q, 2);
+	//group_item* gi = group_root;
+	//do
+	//{
+		//if(gi==NULL) break;
+		//if (gi->ID != who_asked_me) ir_targeted_send(ALL_DIRS,msg_q,2,gi->ID); // send a query to a neighbor
+		//gi = gi->next;		
+	//}
+	//while(gi != group_root);
 }
 
 // If the senderID is already in our group, this function resets its age to 0.

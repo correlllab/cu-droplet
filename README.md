@@ -5,7 +5,7 @@ The platform is envisioned to be a scalable robotics experimentation environment
 
 TODO: Add Pictures once shells are finalized.
 
-The hardware is comprised of actual robots, and the test bed/floor that experiments are run on. The robots are capable of sensing IR and RGB intensities, actuation using vibration motors, and IR communication. The embedded software layer is what we use to write and compile on-board code for the droplets. Each robot is equipped with an Atmel xmega-128a3u microprocessor capable of running embedded C-code.
+The hardware is comprised of actual robots, and the test bed/floor that experiments are run on. The robots are capable of sensing IR and RGB intensities, actuation using vibration motors, and IR communication. The embedded software layer is what we use to write and compile on-board code for the droplets. Each robot is equipped with an Atmel xmega-128a3u microprocessor capable of running embedded-c.
 
 Please see "getting_started.md" for information on how to get up and running.
 

@@ -1,7 +1,6 @@
-Droplets: The Correll Lab Swarm Robotics Platform
+Droplets: A Swarm Robotics Platform
 ==========
-
-The platform is envisioned to be a scalable robotics experimentation environment.
+The platform has been produced by the Correll Robotics Lab at the University of Colorado Boulder. It is envisioned to be a scalable robotics experimentation environment.
 
 TODO: Add Pictures once shells are finalized.
 

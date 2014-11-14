@@ -58,12 +58,12 @@ volatile struct
 
 typedef volatile struct ir_msg_node
 {
-	char* msg;
 	uint32_t arrival_time;
-	uint8_t arrival_dir;
 	uint16_t sender_ID;
+	char*	msg;
+	volatile struct ir_msg_node* prev;	
+	uint8_t arrival_dir;
 	uint8_t msg_length;
-	volatile struct ir_msg_node* prev;
 } msg_node;
 
 volatile msg_node* last_ir_msg;

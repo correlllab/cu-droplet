@@ -41,10 +41,11 @@ uint16_t droplet_ID;
 
 typedef struct ir_msg_struct
 {
+	uint32_t arrival_time;	// Time of message receipt.	
+	uint16_t sender_ID;		// ID of sending robot.	
 	char* msg;				// Transmit / receive buffer	
-	uint32_t arrival_time;	// Time of message receipt.
-	uint16_t sender_ID;		// ID of sending robot.
-	uint8_t  length;		// Message length.
+	uint8_t dir_received;
+	uint8_t length;		// Message length.
 } ir_msg;
 
 extern void init();

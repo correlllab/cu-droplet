@@ -12,14 +12,13 @@ void init()
 	who_asked_me=0;
 	msg_f = "F!";
 	msg_q = "F?";
-	//msg_h = "here";
 	
 	is_end = 0;
 	num_sent = 0;
 	
 	set_all_ir_powers(230); // 238 -> 230
 	
-	change_state ( INIT );
+	change_state ( IDLE );
 	delay_ms(200);
 }
 
@@ -28,14 +27,10 @@ void init()
  */
 void loop()
 {
-	//if(rand_byte()<4) ir_send(ALL_DIRS,msg_h,8); // signals its presence to its neighbors 1/64th of the time. (~1280ms)
+	
 	if(redSenseVal>RED_THRESH) change_state(FINAL);
 	switch ( state )
 	{
-		case INIT:{
-			if(get_time()>BUILD_NEIGHBOR_LIST_TIME) change_state(IDLE);
-		}
-		break;
 	
 		case IDLE:{
 			if (greenSenseVal>GREEN_THRESH){ // if a droplet sees a green light above
@@ -64,7 +59,7 @@ void loop()
 		break;
 
 		case WAIT:{
-
+				// do nothing until get a message back
 		}
 		break;
 
@@ -78,7 +73,7 @@ void loop()
 		break;
 	
 	}
-	if((state!=FRONTIER)||(state!=LIGHT_ON)||(state!=FINAL)||(state!=INIT))
+	if((state!=FRONTIER)||(state!=LIGHT_ON)||(state!=FINAL))
 	{	
 		redSenseVal = get_red_sensor();
 		greenSenseVal = get_green_sensor();
@@ -92,11 +87,7 @@ void loop()
  */
 void handle_msg(ir_msg* msg_struct)
 {
-	//if (strcmp(msg_struct->msg, msg_h) == 0){ // if a neighbor sends me a message, "I am here!"
-		//add_group_member(msg_struct->sender_ID); // add the neighbor to a list
-	//}
-	//else
-	//{
+
 		if(state==IDLE) // added below
 		{
 			if (strcmp(msg_struct->msg, msg_q) == 0){ // if got a query
@@ -121,14 +112,6 @@ void handle_msg(ir_msg* msg_struct)
 // send queries to neighbors in the list
 void send_query () {
 	ir_send(ALL_DIRS, msg_q, 2);
-	//group_item* gi = group_root;
-	//do
-	//{
-		//if(gi==NULL) break;
-		//if (gi->ID != who_asked_me) ir_targeted_send(ALL_DIRS,msg_q,2,gi->ID); // send a query to a neighbor
-		//gi = gi->next;		
-	//}
-	//while(gi != group_root);
 }
 
 // If the senderID is already in our group, this function resets its age to 0.
@@ -176,12 +159,9 @@ void change_state ( State new_state )
 	state = new_state;
 	switch ( state )
 	{
-		case INIT:
-		//set_rgb(0,250,250); //cyan
-		break;
 		
 		case IDLE:
-		set_rgb(0,0,0); //blue
+		set_rgb(0,0,0); 
 		break;
 		
 		case FRONTIER:

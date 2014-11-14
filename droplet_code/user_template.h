@@ -12,8 +12,6 @@
 #define GROUP_MEMBERSHIP_TIMEOUT    2000    // in ms
 #define HEART_RATE                  1000    // in ms
 
-#define BUILD_NEIGHBOR_LIST_TIME	5000   // maybe we do not need this one anymore
-
 typedef struct GROUP_LIST_ITEM
 {
 	uint16_t ID;
@@ -25,19 +23,17 @@ group_item* group_root;
 
 typedef enum
 {
-	INIT,
-	FINAL,
 	IDLE,
 	FRONTIER,
 	LIGHT_ON,
-	WAIT
+	WAIT,
+	FINAL
 } State;
 State	state;
 
 uint16_t who_asked_me = 0; // stores the one who put a query
 char* msg_f; // F! = Found!
 char* msg_q; // F? = Found?
-char* msg_h; // a message for signalling its presence to its neighbors
 
 int8_t redSenseVal, greenSenseVal;
 uint16_t	current_group_size;

@@ -58,6 +58,7 @@ void check_messages ()
 			msg_struct->msg[last_ir_msg->msg_length]	= '\0';
 			msg_struct->arrival_time					= last_ir_msg->arrival_time;
 			msg_struct->sender_ID						= last_ir_msg->sender_ID;
+			msg_struct->dir_received					= last_ir_msg->arrival_dir;
 			msg_struct->length							= last_ir_msg->msg_length;
 			
 			msg_node* temp = last_ir_msg;

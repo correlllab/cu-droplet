@@ -1,7 +1,7 @@
 Droplets: A Swarm Robotics Platform
 ==========
 
-(### Click here to get started)[https://github.com/correlllab/cu-droplet/blob/master/getting_started.md]
+(Click here to get started)[https://github.com/correlllab/cu-droplet/blob/master/getting_started.md]
 
 The platform has been produced by the Correll Robotics Lab at the University of Colorado Boulder. It is envisioned to be a scalable robotics experimentation environment.
 

@@ -50,8 +50,7 @@ void check_messages ()
 		ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 		{
 			msg_struct			= (ir_msg*)malloc(sizeof(ir_msg));
-			char* tmp			= (char*)malloc(last_ir_msg->msg_length+1);
-			msg_struct->msg		= tmp;
+			msg_struct->msg		= (char*)malloc(last_ir_msg->msg_length+1);
 			
 			memcpy(msg_struct->msg, last_ir_msg->msg, last_ir_msg->msg_length);
 			

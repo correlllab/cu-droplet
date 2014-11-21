@@ -12,7 +12,7 @@
 #define GROUP_MEMBERSHIP_TIMEOUT    2000    // in ms
 #define HEART_RATE                  1000    // in ms
 
-#define BUILD_NEIGHBOR_LIST_TIME	5000   // maybe we do not need this one anymore
+#define BUILD_NEIGHBOR_LIST_TIME	500   // maybe we do not need this one anymore
 
 typedef struct GROUP_LIST_ITEM
 {
@@ -34,10 +34,15 @@ typedef enum
 } State;
 State	state;
 
+uint8_t got_ack = 0;       // 0 if you have not received ACk message back, 1 otherwise
+uint16_t ir_power = 230;
 uint16_t who_asked_me = 0; // stores the one who put a query
+uint16_t who_asnwered = 0; // stores the one who answered the query
+
 char* msg_f; // F! = Found!
 char* msg_q; // F? = Found?
 char* msg_h; // a message for signalling its presence to its neighbors
+char* msg_ack; // ACK message for receiving a msg_q 
 
 int8_t redSenseVal, greenSenseVal;
 uint16_t	current_group_size;
@@ -54,6 +59,7 @@ uint8_t     num_sent;
 uint16_t	update_group_size	( uint16_t	time_to_add	);
 void		add_group_member	( uint16_t	senderID	);
 
+void		ir_power_increment  ();
 void        send_query			();
 void        make_list_of_neighbors ();
 void        idle_waiting		();

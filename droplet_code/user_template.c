@@ -1,23 +1,20 @@
 #include "user_template.h"
 
-uint32_t last_time;
 
 /*
  * Any code in this function will be run once, when the robot starts.
  */
 void init()
 {
-	last_time=0;
 	group_root = NULL;
 	who_asked_me=0;
 	msg_f = "F!";
 	msg_q = "F?";
-	//msg_h = "here";
+	msg_ack = "ACK";
 	
-	is_end = 0;
 	num_sent = 0;
 	
-	set_all_ir_powers(230); // 238 -> 230
+	set_all_ir_powers(ir_power); // ir_power = 230
 	
 	change_state ( INIT );
 	delay_ms(200);
@@ -28,8 +25,8 @@ void init()
  */
 void loop()
 {
-	//if(rand_byte()<4) ir_send(ALL_DIRS,msg_h,8); // signals its presence to its neighbors 1/64th of the time. (~1280ms)
 	if(redSenseVal>RED_THRESH) change_state(FINAL);
+	
 	switch ( state )
 	{
 		case INIT:{
@@ -38,9 +35,7 @@ void loop()
 		break;
 	
 		case IDLE:{
-			if (greenSenseVal>GREEN_THRESH){ // if a droplet sees a green light above
-				change_state(FRONTIER);
-			}
+			if (greenSenseVal>GREEN_THRESH) change_state(FRONTIER);// if a droplet sees a green light above	
 		}
 		break;
 	
@@ -55,24 +50,31 @@ void loop()
 		break;
 
 		case FINAL:{
-			if ((who_asked_me != 0) && (num_sent<=10)) //the start doesn't need to send a message back.
+			if ((who_asked_me != 0) && !(got_ack)) // while got_ack = 0 (= msg_f is not properly sent back) 
 			{
-				if(rand_byte()<16)	ir_targeted_send(ALL_DIRS,msg_f,2,who_asked_me);// otherwise send a message "F!" (Found!) to the one who put a query on me
-				num_sent++;
+				if(rand_byte()<16)
+				{
+					ir_targeted_send(ALL_DIRS,msg_f,2,who_asked_me);// send a message "F!" (Found!) to the one who put a query on me
+					ir_power_increment();
+				}
 			}
 		}
 		break;
+		
 
 		case WAIT:{
-
+			// just handle messages
 		}
 		break;
 
 		case LIGHT_ON:{
-			if ((who_asked_me != 0) && (num_sent<=10)) //the start doesn't need to send a message back.
+			if ((who_asked_me != 0) &&  !(got_ack) ) // while got_ack = 0 (= msg_f is not properly sent back) 
 			{
-			    if(rand_byte()<64)	ir_targeted_send(ALL_DIRS,msg_f,2,who_asked_me);// otherwise send a message "F!" (Found!) to the one who put a query on me
-				//num_sent++;  // 16 -> 64
+			    if(rand_byte()<64){
+					ir_targeted_send(ALL_DIRS,msg_f,2,who_asked_me);// send a message "F!" (Found!) to the one who put a query on me
+					ir_power_increment();
+				}
+				
 			}
 		}
 		break;
@@ -86,49 +88,59 @@ void loop()
 	delay_ms(40); // 20ms -> 40 ms, doing an experiment 
 }
 
+void ir_power_increment(){
+	if(ir_power<255)
+	{
+		ir_power++;	                 // increase the ir_power
+		set_all_ir_powers(ir_power); // change the ir_power
+	}
+}
+
 /*
  * After each pass through loop(), the robot checks for all messages it has 
  * received, and calls this function once for each message.
  */
 void handle_msg(ir_msg* msg_struct)
 {
-	//if (strcmp(msg_struct->msg, msg_h) == 0){ // if a neighbor sends me a message, "I am here!"
-		//add_group_member(msg_struct->sender_ID); // add the neighbor to a list
-	//}
-	//else
-	//{
+
 		if(state==IDLE) // added below
 		{
-			if (strcmp(msg_struct->msg, msg_q) == 0){ // if got a query
-				who_asked_me = msg_struct->sender_ID;    // memorize the one who put a query on me
-				change_state(FRONTIER);      // change the state into FRONTIER
+			if (strcmp(msg_struct->msg, msg_q) == 0)				// if got a query
+			{				
+				who_asked_me = msg_struct->sender_ID;				// memorize the one who put a query on me
+				change_state(FRONTIER);								// change the state into FRONTIER
 			}
 		}
-		else if(state==FINAL) // added below
+		else if(state==FINAL||state==LIGHT_ON)
 		{
-			if (strcmp(msg_struct->msg, msg_q) == 0){ // if got a query
-				who_asked_me = msg_struct->sender_ID;    // memorize the one who put a query on me		
+			if ((strcmp(msg_struct->msg, msg_q) == 0)&&(state==FINAL))  // if got a query and the state is FINAL
+			{	
+				who_asked_me = msg_struct->sender_ID;				    // memorize the one who put a query on me		
+			}
+			else if ((strcmp(msg_struct->msg, msg_ack) == 0))			// if received an ACK message
+			{
+				got_ack = 1;											// set got_ack = 1  
 			}
 		}		
-		else if(state==WAIT||state==FRONTIER) // added below
+		else if(state==WAIT||state==FRONTIER)
 		{
-			if (strcmp(msg_struct->msg, msg_f) == 0) //Got an answer from neighbor.
-				change_state(LIGHT_ON);     // change a state into LIGHT_ON
+			if (strcmp(msg_struct->msg, msg_f) == 0){				// Got an answer from neighbor.
+				who_asnwered = msg_struct->sender_ID;				// memorize the ID of the neighbor
+				uint8_t i;
+				for (i=0;i<5;i++)
+				{
+					ir_targeted_send(ALL_DIRS,msg_ack,3,who_asnwered);  // sends a message of ACKnowledge to the neighbor multiple times (5 times)
+					delay_ms(40);
+				}
+				change_state(LIGHT_ON);								// change a state into LIGHT_ON
+			}
 		}
-	//}
+
 }
 
-// send queries to neighbors in the list
+// send queries to neighbors 
 void send_query () {
 	ir_send(ALL_DIRS, msg_q, 2);
-	//group_item* gi = group_root;
-	//do
-	//{
-		//if(gi==NULL) break;
-		//if (gi->ID != who_asked_me) ir_targeted_send(ALL_DIRS,msg_q,2,gi->ID); // send a query to a neighbor
-		//gi = gi->next;		
-	//}
-	//while(gi != group_root);
 }
 
 // If the senderID is already in our group, this function resets its age to 0.

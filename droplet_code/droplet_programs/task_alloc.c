@@ -1,4 +1,4 @@
-#include "tmp_experiments/task_alloc.h"
+#include "droplet_programs/task_alloc.h"
 
 uint32_t last_time;
 
@@ -22,7 +22,8 @@ void init()
 	uint32_t cur_time	= get_time();
 	uint32_t prev_gap	= 0;
 	
-	change_state ( NOTHING );
+	//change_state ( SAFE );
+	change_state ( WAITING );
 }
 
 /*
@@ -36,7 +37,9 @@ void loop()
 			case COLLABORATING:
 			if ( cur_time - collab_time > COLLABORATE_DURATION )
 			{
-				change_state ( LEAVING );
+				// Change state to LEAVING if you want the robots to move after collaborating
+				//change_state ( LEAVING );
+				change_state ( WAITING );
 			}
 			break;
 
@@ -58,6 +61,7 @@ void loop()
 				random_walk ();
 			}
 			break;
+			
 			case SEARCHING:
 			random_walk ();
 			if ( cur_time - light_check_time > LIGHT_CHECK_RATE )
@@ -66,10 +70,10 @@ void loop()
 				if(!check_safe()) change_state ( WAITING );
 			}
 			break;
+			
 			case WAITING:
-
-			prev_gap	= ( cur_time - last_update_time );
-			last_update_time	= cur_time;
+			prev_gap = ( cur_time - last_update_time );
+			last_update_time   = cur_time;
 			current_group_size = update_group_size ( prev_gap );
 			
 			if ( cur_time - heartbeat_time > HEART_RATE )
@@ -80,8 +84,6 @@ void loop()
 			}
 			break;
 		}
-		
-		delay_ms(10);
 }
 
 
@@ -227,18 +229,6 @@ void add_group_member ( uint16_t senderID )
 	current_group_size++;
 }
 
-void clear_msg_buffers ()
-{
-	while ( last_ir_msg != NULL )
-	{
-		// Keep this code here
-		msg_node *temp	= last_ir_msg;
-		last_ir_msg		= last_ir_msg->prev;
-		free ( temp->msg );
-		free ( temp );
-	}
-}
-
 void clear_state ()
 {
 	
@@ -304,7 +294,7 @@ void handle_msg(ir_msg* msg_struct)
 	
 	if ( strcmp(msg_struct->msg,"<3Y") == 0 || strcmp(msg_struct->msg, "<3N") == 0 )
 	{
-		add_group_member ( senderID );
+		add_group_member ( msg_struct->sender_ID );
 		if ( msg_struct->msg[2]=='Y' )
 		{
 			yes_count++;
@@ -318,6 +308,5 @@ void handle_msg(ir_msg* msg_struct)
 		ir_send ( ALL_DIRS, msg, 2 );
 		change_state ( COLLABORATING );
 		set_green_led ( 0 );
-		break;
 	}
 }

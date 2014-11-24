@@ -41,8 +41,9 @@ uint16_t	current_group_size;
 uint16_t	yes_count;
 uint32_t	light_check_time;
 uint32_t	heartbeat_time;
-uint32_t	last_update_time;
+uint32_t	prev_gap, last_update_time;
 uint32_t	collab_time;
+uint32_t	cur_time;
 uint8_t		last_move_dir;
 
 // Droplet Movement Helper Functions
@@ -57,7 +58,6 @@ uint8_t		roll_sigmoid		( int16_t	group_size	);
 void		add_group_member	( uint16_t	senderID	);
 
 // Droplet Communication Helper Functions
-void		check_messages		();
 void		clear_state			();
 void		change_state		( State		new_state	);
 

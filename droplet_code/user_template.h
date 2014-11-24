@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 #include "droplet_init.h"
 
 #define RED_THRESH 80
@@ -65,8 +66,15 @@ void        idle_waiting		();
 void        wait_waiting		();
 
 void		change_state		( State		new_state	);
+=======
+#ifndef USER_TEMPLATE
+#define USER_TEMPLATE
+
+#include "droplet_init.h"
+>>>>>>> f43d441bce74b47d3bcea845dfbe365c27c05890
 
 void init();
 void loop();
 void handle_msg(ir_msg* msg_struct);
 
+#endif

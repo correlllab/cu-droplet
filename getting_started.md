@@ -17,20 +17,20 @@ NOTE: These instructions are specific to the Windows operating system. All hardw
 
 2. In this dialog, you should name your project and select a location for it to be stored. The middle of the dialog should have a list of project types. Choose 'GCC C Executable Project'. The bottom of this dialog lets you choose a project name and location on disk. Whatever you prefer is fine. and click 'OK'. This should open a 'Device Selection' dialog. You want to select the device with name 'ATxmega128A3U'. Now, your peojct should be created. 
 
-4. Atmel Studio wiill start your project off with a <Project Name>.c file. Go ahead and delete it.
+3. Atmel Studio wiill start your project off with a \<Project Name\>.c file. Go ahead and delete it.
 
-5. Next, we need to set up the project with the appropriate file structure.
+4. Next, we need to set up the project with the appropriate file structure.
   
-  1. In the 'Solution Explorer' sidebar, right-click on '<Project Name>->Add->New Folder', and make a folder called 'src'.
+  1. In the 'Solution Explorer' sidebar, right-click on '\<Project Name\>->Add->New Folder', and make a folder called 'src'.
   2. Repeat the above to make another folder called 'include'.
   3. In the same sidebar, right-click on the src folder you just created and go to 'Add->Existing Item...'. This will open up a file browser, which you should use to navigate to the src folder in the repository. Specifically, 'cu-droplet/droplet_code/src/'.
   4. *Important* Select (highlight) all files in this folder, and then click the little down-arrow on the right side of the 'Add' button, which should open a drop-down menu. In this menu, select 'Add as Link'. The reason for this is that if you just clicked 'Add', the files would be copied to the location of the project folder, and any changes you made would not be tracked by git. 
   5. Make sure that the 'src' folder in the Solution Explorer has been populated with c and s files, and that each file icon has a little 'shortcut' arrow in the bottom-right, which indicates that the file has been correctly added as a link.
   6. Repeat steps 3-5 for the 'include' folder: right-click on the folder in the solution explorer of Atmel Studio, select 'Add->Existing Item...', and add all files in 'cu-droplet/droplet_code/include/', making sure again to add them as links.
-  7. Finally, repeat steps 3-5 one more time, right-clicking on '<Project Name>' in the solution explorer to add 'cu-droplet/droplet_code/user_template.*' to your project as links. These are the files you will modify for your code.
-6. Next, we need to set up the project settings appropriately.
+  7. Finally, repeat steps 3-5 one more time, right-clicking on '\<Project Name\>' in the solution explorer to add 'cu-droplet/droplet_code/user_template.*' to your project as links. These are the files you will modify for your code.
+5. Next, we need to set up the project settings appropriately.
 
-  1. Right-click on '<Project Name>' again, and select 'Properties', which opens the main dialog for editing settings. There are a lot of things you could edit in this dialog, but this document will only tell you what needs to be changed from the defaults that should have been set if you started the project correctly.
+  1. Right-click on '\<Project Name\>' again, and select 'Properties', which opens the main dialog for editing settings. There are a lot of things you could edit in this dialog, but this document will only tell you what needs to be changed from the defaults that should have been set if you started the project correctly.
   2. On the left, click the 'Toolchain' tab.
     1. In 'AVR/GNU C Compiler->Directories', click the little button with a piece of paper and a green plus sign, then add then navigate to wherever you saved the repo on your machine, and add the repos' include folder ('cu-droplet/droplet_code/include/') to your include path. Then, add 'cu-droplet/droplet_code/' in the same way, so that any '*.h' files you create are included as well. (It doesn't matter if the path is relative or not.)
     2. In 'AVR/GNU Linker->General', check 'Use vprintf library'.

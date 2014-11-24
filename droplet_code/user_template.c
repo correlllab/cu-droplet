@@ -27,7 +27,7 @@ void init()
  */
 void loop()
 {
-	
+
 	if(redSenseVal>RED_THRESH) change_state(FINAL);
 	switch ( state )
 	{

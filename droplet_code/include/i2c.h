@@ -9,5 +9,6 @@ uint16_t thePower;
 void i2c_init();
 
 void set_all_ir_powers(uint16_t power);
+inline uint16_t get_all_ir_powers(){ return thePower; };
 
 #endif

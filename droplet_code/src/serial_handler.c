@@ -361,13 +361,13 @@ void handle_cmd(char* command_args, uint8_t should_broadcast)
 	if(should_broadcast)
 	{
 		printf("Broadcasting command: \"%s\", of length %i.\r\n",(uint8_t*)command_args, strlen(command_args));
-		wait_for_ir(ALL_DIRS);
+		if(!wait_for_ir(ALL_DIRS, 1000)) return;
 		ir_cmd(ALL_DIRS, command_args,strlen(command_args));
 	}
 	else
 	{
 		//printf("Transmitting command: \"%s\", of length %i.\r\n",(uint8_t*)command_args, strlen(command_args));
-		wait_for_ir(ALL_DIRS);
+		if(!wait_for_ir(ALL_DIRS, 1000)) return;
 		ir_cmd(1,command_args,strlen(command_args));
 	}
 

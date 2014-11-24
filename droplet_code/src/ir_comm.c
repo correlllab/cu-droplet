@@ -7,6 +7,8 @@ inline void clear_ir_buffer(uint8_t dir)
 	ir_rxtx[dir].curr_pos = 0;
 	ir_rxtx[dir].target_ID = 0;
 	ir_rxtx[dir].sender_ID = 0;
+	
+	
 	channel[dir]->CTRLB |= USART_RXEN_bm; //this enables receive on the USART
 }
 
@@ -84,60 +86,48 @@ void ir_comm_init()
 
 void perform_ir_upkeep()
 {
-	//For now, can only get one message per call to this function.
-	int8_t msg_chan = -1; //This value is negative if we don't have a message, and otherwise holds the value of the channel which received the message.
-	int8_t start_dir = (int8_t)(rand_byte()%6);
-	for(int8_t loop_dir= start_dir; loop_dir<(start_dir+6); loop_dir++) //This first loop looks for a channel on which we got a good message.
+	uint16_t seen_crcs[6] = {0,0,0,0,0,0};
+	uint8_t crc_seen;
+	for(int8_t dir= 0; dir<6; dir++) //This first loop looks for a channel on which we got a good message.
 	{
-		int8_t dir=(loop_dir%6);
-		if(!(ir_rxtx[dir].status&IR_STATUS_COMPLETE_bm)) continue; //ignore a channel if it isn't done yet. IR_STATUS_COMPLETE should only be set when a transmission is complete.
-		if(ir_rxtx[dir].target_ID) if(ir_rxtx[dir].target_ID != get_droplet_id()) continue;//Is this message targeted, to this droplet?	
-		if(ir_rxtx[dir].sender_ID==get_droplet_id()) continue;  //ignore a message if it is from me! Silly reflections.
-		
-		uint16_t crc = ir_rxtx[dir].sender_ID;
-		crc = _crc16_update(crc, (ir_rxtx[dir].status & IR_STATUS_COMMAND_bm));
-		for(uint8_t i=0; i<ir_rxtx[dir].data_length; i++) crc = _crc16_update(crc, ir_rxtx[dir].buf[i]); //Calculate CRC of inbound message.
-		if(ir_rxtx[dir].data_crc == crc) //crc check passed, hurray!
+		if(ir_rxtx[dir].status&IR_STATUS_COMPLETE_bm)
 		{
-			msg_chan = dir;
-			break;
-		}
-	}
-	for(int8_t dir=0;dir<6;dir++) //free up the ir buffers for all the channels we don't need.
-	{
-		if(ir_rxtx[dir].status&IR_STATUS_COMPLETE_bm) if(dir!=msg_chan) clear_ir_buffer(dir);
-	}
-	if(msg_chan>=0) //If we got a good message.
-	{
-		if(ir_rxtx[msg_chan].status & IR_STATUS_COMMAND_bm) //If the message is a command.
-		{
-			char msg[ir_rxtx[msg_chan].data_length+1];
-			memcpy(msg, (char*)ir_rxtx[msg_chan].buf, ir_rxtx[msg_chan].data_length);
-			msg[ir_rxtx[msg_chan].data_length]='\0';
-			uint8_t cmd_length = ir_rxtx[msg_chan].data_length;
-			command_arrival_time = ir_rxtx[msg_chan].last_byte;
-			command_sender_id = ir_rxtx[msg_chan].sender_ID;
-			clear_ir_buffer(msg_chan);
-			handle_serial_command(msg, cmd_length);
-		}
-		else //Normal message, so add to msg queue
-		{
-			volatile msg_node* new_node = (msg_node*)malloc(sizeof(msg_node));
-			char* tmp = (char*)malloc(ir_rxtx[msg_chan].data_length+1);
-			new_node->msg = tmp;
-			memcpy(new_node->msg, (char*)ir_rxtx[msg_chan].buf, ir_rxtx[msg_chan].data_length);
-			new_node->msg[ir_rxtx[msg_chan].data_length]='\0';
-			new_node->arrival_time = ir_rxtx[msg_chan].last_byte;
-			new_node->arrival_dir = msg_chan;
-			new_node->sender_ID = ir_rxtx[msg_chan].sender_ID;
-			new_node->msg_length = ir_rxtx[msg_chan].data_length;
-			new_node->prev = last_ir_msg;
-			last_ir_msg = new_node;
-			clear_ir_buffer(msg_chan);
+			crc_seen = 0;
+			for(int8_t check_dir=(dir-1) ;  check_dir>=0 ; check_dir--)
+			if(seen_crcs[check_dir]==ir_rxtx[dir].data_crc)
+			crc_seen = 1;
+			seen_crcs[dir] = ir_rxtx[dir].data_crc;
+
+			if(crc_seen) clear_ir_buffer(dir);
+			else if(ir_rxtx[dir].status&IR_STATUS_COMMAND_bm)
+			{
+				char msg[ir_rxtx[dir].data_length+1];
+				memcpy(msg, (char*)ir_rxtx[dir].buf, ir_rxtx[dir].data_length);
+				msg[ir_rxtx[dir].data_length]='\0';
+				uint8_t cmd_length = ir_rxtx[dir].data_length;
+				command_arrival_time = ir_rxtx[dir].last_byte;
+				command_sender_id = ir_rxtx[dir].sender_ID;
+				for(uint8_t other_dirs=dir ; other_dirs<6 ; other_dirs++) clear_ir_buffer(other_dirs); //clear the rest of the buffers first
+				handle_serial_command(msg, cmd_length); //handle command
+				break; //commands can take awhile, so we gave up on the rest of these messages.
+			}
+			else //Normal message; add to message queue.
+			{
+				volatile msg_node* new_node = (msg_node*)malloc(sizeof(msg_node));
+				new_node->msg = (char*)malloc(ir_rxtx[dir].data_length+1);
+				memcpy(new_node->msg, (char*)ir_rxtx[dir].buf, ir_rxtx[dir].data_length);
+				new_node->msg[ir_rxtx[dir].data_length]='\0';
+				new_node->arrival_time = ir_rxtx[dir].last_byte;
+				new_node->arrival_dir = dir;
+				new_node->sender_ID = ir_rxtx[dir].sender_ID;
+				new_node->msg_length = ir_rxtx[dir].data_length;
+				new_node->prev = last_ir_msg;
+				last_ir_msg = new_node;
+				clear_ir_buffer(dir);
+			}
 		}
 	}
 	schedule_task(1000/IR_UPKEEP_FREQUENCY, perform_ir_upkeep, NULL);
-	//printf("\r\n");
 }
 
 
@@ -242,23 +232,36 @@ void ir_receive(uint8_t dir)
 	
 	switch(ir_rxtx[dir].curr_pos)
 	{
-		case HEADER_POS_MSG_LENGTH:		if(in_byte&DATA_LEN_CMD_bm) ir_rxtx[dir].status|=IR_STATUS_COMMAND_bm; ir_rxtx[dir].data_length	= in_byte&DATA_LEN_VAL_bm; break;
-		case HEADER_POS_CRC_LOW:		ir_rxtx[dir].data_crc		= (uint16_t)in_byte; break;
+		case HEADER_POS_MSG_LENGTH:		
+			if(in_byte&DATA_LEN_CMD_bm) ir_rxtx[dir].status|=IR_STATUS_COMMAND_bm; 
+										ir_rxtx[dir].data_length	= in_byte&DATA_LEN_VAL_bm;	
+																								break;
+		case HEADER_POS_CRC_LOW:		ir_rxtx[dir].data_crc		= (uint16_t)in_byte;		break;
 		case HEADER_POS_CRC_HIGH:		ir_rxtx[dir].data_crc	   |= (((uint16_t)in_byte)<<8); break;
-		case HEADER_POS_SENDER_ID_LOW:	ir_rxtx[dir].sender_ID		= (uint16_t)in_byte; break;
-		case HEADER_POS_SENDER_ID_HIGH:	ir_rxtx[dir].sender_ID	   |= (((uint16_t)in_byte)<<8); break;
-		case HEADER_POS_TARGET_ID_LOW:  ir_rxtx[dir].target_ID		= (uint16_t)in_byte; break;
+		case HEADER_POS_SENDER_ID_LOW:	ir_rxtx[dir].sender_ID		= (uint16_t)in_byte;		break;
+		case HEADER_POS_SENDER_ID_HIGH:	
+										ir_rxtx[dir].sender_ID	   |= (((uint16_t)in_byte)<<8);
+										ir_rxtx[dir].calc_crc		= _crc16_update(ir_rxtx[dir].sender_ID, ir_rxtx[dir].status & IR_STATUS_COMMAND_bm);
+																								break;
+		case HEADER_POS_TARGET_ID_LOW:  ir_rxtx[dir].target_ID		= (uint16_t)in_byte;		break;
 		case HEADER_POS_TARGET_ID_HIGH: ir_rxtx[dir].target_ID	   |= (((uint16_t)in_byte)<<8); break;
-		default: ir_rxtx[dir].buf[ir_rxtx[dir].curr_pos-HEADER_LEN] = in_byte;
+		default: 
+			ir_rxtx[dir].buf[ir_rxtx[dir].curr_pos-HEADER_LEN] = in_byte;
+			ir_rxtx[dir].calc_crc = _crc16_update(ir_rxtx[dir].calc_crc, in_byte);
 	}
 	ir_rxtx[dir].curr_pos++;
 	if(ir_rxtx[dir].curr_pos>=(ir_rxtx[dir].data_length+HEADER_LEN))
 	{	
-		ir_rxtx[dir].status |= IR_STATUS_COMPLETE_bm;
-		ir_rxtx[dir].status |= IR_STATUS_BUSY_bm; //mark as busy so we don't overwrite it.
-		channel[dir]->CTRLB &= ~USART_RXEN_bm; //Disable receiving messages on this channel until the message has been processed.
+		if(ir_rxtx[dir].calc_crc!=ir_rxtx[dir].data_crc)							ir_rxtx[dir].curr_pos = 0;	//crc check failed.
+		else if(ir_rxtx[dir].target_ID && ir_rxtx[dir].target_ID!=get_droplet_id()) ir_rxtx[dir].curr_pos = 0;	//msg targeted, but not to me.
+		else if(ir_rxtx[dir].sender_ID == get_droplet_id())							ir_rxtx[dir].curr_pos = 0;  //ignore a message if it is from me. Silly reflections.
+		else
+		{
+			ir_rxtx[dir].status |= IR_STATUS_COMPLETE_bm;
+			ir_rxtx[dir].status |= IR_STATUS_BUSY_bm; //mark as busy so we don't overwrite it.
+			channel[dir]->CTRLB &= ~USART_RXEN_bm; //Disable receiving messages on this channel until the message has been processed.
+		}
 	}
-
 }
 
 // TO BE CALLED FROM INTERRUPT HANDLER ONLY
@@ -317,9 +320,10 @@ void ir_reset_rx(uint8_t dir)
 	ir_transmit_complete(dir); //main reason I can see not to this is that when we're receiving we don't need to turn off the carrier wave. Doing shouldn't hurt, however?
 }
 
-
-void wait_for_ir(uint8_t dirs)
+//returns '1' if the channels became available; '0' otherwise.
+uint8_t wait_for_ir(uint8_t dirs, uint32_t timeout)
 {
+	uint32_t start_time = get_time();
 	uint8_t busy;
 	do
 	{
@@ -335,7 +339,9 @@ void wait_for_ir(uint8_t dirs)
 				}
 			}
 		}
+		if((get_time()-start_time)>timeout) return 0;
 	} while (busy);
+	return 1;
 }
 
 // ISRs for IR channel 0

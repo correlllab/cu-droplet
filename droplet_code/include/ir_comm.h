@@ -46,12 +46,13 @@ extern USART_t* channel[];
 
 volatile struct
 {	
-	uint32_t last_byte;		// TX time or RX time of last received byte	
-	char buf[IR_BUFFER_SIZE];					// Transmit / receive buffer	
+	uint32_t last_byte;			// TX time or RX time of last received byte	
+	char buf[IR_BUFFER_SIZE];	// Transmit / receive buffer	
 	uint16_t data_crc;
 	uint16_t sender_ID;
 	uint16_t target_ID;
 	uint16_t curr_pos;				// Current position in buffer
+	uint16_t calc_crc;
 	uint8_t  data_length;
 	volatile uint8_t status;		// Transmit:
 } ir_rxtx[6];
@@ -66,7 +67,17 @@ typedef volatile struct ir_msg_node
 	uint8_t msg_length;
 } msg_node;
 
+//typedef volatile struct outbound_ir_msg_node
+//{
+	//uint16_t target;		// target ID. Set to '0' for untargeted.
+	//char* msg;				// The message.
+	//volatile struct outbound_ir_msg_node* prev;	
+	//uint8_t length;			// Message length.
+	//uint8_t dir_mask;		// bit mask of dirs message needs to be sent on.
+//} out_msg_node;
+
 volatile msg_node* last_ir_msg;
+//volatile out_msg_node* outbound_msgs;
 volatile uint32_t command_arrival_time;
 volatile uint16_t command_sender_id;
 /* GENERAL IR RELATED ROUTINES */
@@ -84,11 +95,12 @@ void ir_targeted_cmd(uint8_t dirs, char *data, uint16_t data_length, uint16_t ta
 void ir_cmd(uint8_t dirs, char *data, uint16_t data_length);
 void ir_targeted_send(uint8_t dirs, char *data, uint16_t data_length, uint16_t target);
 void ir_send(uint8_t dirs, char *data, uint8_t data_length);
+void ir_send_imp(uint8_t dirs, char* data, uint8_t data_length);
 void ir_receive(uint8_t dir); //Called by Interrupt Handler Only
 void ir_transmit(uint8_t dir);
 void ir_transmit_complete(uint8_t dir);
 void ir_reset_rx(uint8_t dir);
-void wait_for_ir(uint8_t dirs);
+uint8_t wait_for_ir(uint8_t dirs, uint32_t timeout);
 
 void print_received_message(void* dir_star); //DEBUG -> Remove later
 

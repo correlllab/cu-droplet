@@ -84,10 +84,11 @@ uint8_t check_collisions(){
 	uint8_t channelCtrlBVals[6];
 	uint8_t measured_vals[6];
 	uint8_t dirs=0;
+	uint16_t curr_power = get_all_ir_powers();
+	set_all_ir_powers(256);
 	
 	for(uint8_t i=0;i<6;i++)
 	{
-
 		channelCtrlBVals[i] = channel[i]->CTRLB;
 		channel[i]->CTRLB=0;
 	}	
@@ -125,9 +126,8 @@ uint8_t check_collisions(){
 	PORTF.OUTTGL =  PIN3_bm;
 	for(uint8_t i=0;i<6;i++) channel[i]->CTRLB = channelCtrlBVals[i];
 	TCF2.CTRLB |= ALL_EMITTERS_CARWAV_bm; //reenable carrier wave output
-	
-	//for(uint8_t i=0;i<6;i++) printf("%hhu: %hhu - %hhu\r\n",i, measured_vals[i], baseline_meas[i]);
-	//printf("\r\n");
+
+	set_all_ir_powers(curr_power);
 	return dirs;
 }	
 

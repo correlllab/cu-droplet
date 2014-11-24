@@ -73,6 +73,19 @@ void check_messages ()
 	}
 }
 
+////This function adds your message to the linked list of messages to be sent out.
+//void send_message(out_ir_msg* msg_struct)
+//{
+	//out_msg_node* msg_struct_node = (out_msg_node*)malloc(sizeof(out_msg_node));
+	//msg_struct_node->msg = (char*)malloc(msg_struct->length+1);
+	//memcpy(msg_struct_node->msg, msg_struct->msg, msg_struct->length);
+	//msg_struct_node->target = msg_struct->target;
+	//msg_struct_node->length = msg_struct->length;
+	//msg_struct_node->dir_mask = msg_struct->dir_mask;
+	//msg_struct_node->prev = outbound_msgs;
+	//outbound_msgs = msg_struct_node;
+//}
+
 void calculate_id_number()
 {
 	if(INIT_DEBUG_MODE >= 1)	printf("get id number\r\n");

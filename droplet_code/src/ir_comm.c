@@ -8,7 +8,6 @@ inline void clear_ir_buffer(uint8_t dir)
 	ir_rxtx[dir].target_ID = 0;
 	ir_rxtx[dir].sender_ID = 0;
 	
-	
 	channel[dir]->CTRLB |= USART_RXEN_bm; //this enables receive on the USART
 }
 
@@ -79,13 +78,15 @@ void ir_comm_init()
 	}
 	set_all_ir_powers(256);
 	for(uint8_t dir=0; dir<6; dir++) clear_ir_buffer(dir); //this initializes the buffer's values to 0.
-	last_ir_msg = NULL;
 	command_arrival_time=0;
+	num_waiting_msgs=0;
+	user_facing_messages_ovf=0;
 	schedule_task(1000/IR_UPKEEP_FREQUENCY, perform_ir_upkeep, NULL);
+	
 }
 
 void perform_ir_upkeep()
-{
+{	
 	uint16_t seen_crcs[6] = {0,0,0,0,0,0};
 	uint8_t crc_seen;
 	for(int8_t dir= 0; dir<6; dir++) //This first loop looks for a channel on which we got a good message.
@@ -94,8 +95,7 @@ void perform_ir_upkeep()
 		{
 			crc_seen = 0;
 			for(int8_t check_dir=(dir-1) ;  check_dir>=0 ; check_dir--)
-			if(seen_crcs[check_dir]==ir_rxtx[dir].data_crc)
-			crc_seen = 1;
+				if(seen_crcs[check_dir]==ir_rxtx[dir].data_crc) crc_seen = 1;
 			seen_crcs[dir] = ir_rxtx[dir].data_crc;
 
 			if(crc_seen) clear_ir_buffer(dir);
@@ -105,28 +105,31 @@ void perform_ir_upkeep()
 				memcpy(msg, (char*)ir_rxtx[dir].buf, ir_rxtx[dir].data_length);
 				msg[ir_rxtx[dir].data_length]='\0';
 				uint8_t cmd_length = ir_rxtx[dir].data_length;
-				command_arrival_time = ir_rxtx[dir].last_byte;
-				command_sender_id = ir_rxtx[dir].sender_ID;
+				command_arrival_time = ir_rxtx[dir].last_byte;	//This is a 'global' value, referenced by other *.c files.
+				command_sender_id = ir_rxtx[dir].sender_ID;		//This is a 'global' value, referenced by other *.c files.
 				for(uint8_t other_dirs=dir ; other_dirs<6 ; other_dirs++) clear_ir_buffer(other_dirs); //clear the rest of the buffers first
 				handle_serial_command(msg, cmd_length); //handle command
 				break; //commands can take awhile, so we gave up on the rest of these messages.
 			}
 			else //Normal message; add to message queue.
 			{
-				volatile msg_node* new_node = (msg_node*)malloc(sizeof(msg_node));
-				new_node->msg = (char*)malloc(ir_rxtx[dir].data_length+1);
-				memcpy(new_node->msg, (char*)ir_rxtx[dir].buf, ir_rxtx[dir].data_length);
-				new_node->msg[ir_rxtx[dir].data_length]='\0';
-				new_node->arrival_time = ir_rxtx[dir].last_byte;
-				new_node->arrival_dir = dir;
-				new_node->sender_ID = ir_rxtx[dir].sender_ID;
-				new_node->msg_length = ir_rxtx[dir].data_length;
-				new_node->prev = last_ir_msg;
-				last_ir_msg = new_node;
+				if(num_waiting_msgs>=MAX_USER_FACING_MESSAGES)
+				{
+					user_facing_messages_ovf = 1;
+					num_waiting_msgs=0;
+				}
+				memcpy(msg_node[num_waiting_msgs].msg, (char*)ir_rxtx[dir].buf, ir_rxtx[dir].data_length);
+				msg_node[num_waiting_msgs].msg[ir_rxtx[dir].data_length]='\0';
+				msg_node[num_waiting_msgs].arrival_time = ir_rxtx[dir].last_byte;
+				msg_node[num_waiting_msgs].arrival_dir = dir;
+				msg_node[num_waiting_msgs].sender_ID = ir_rxtx[dir].sender_ID;
+				msg_node[num_waiting_msgs].msg_length = ir_rxtx[dir].data_length;
+				num_waiting_msgs++;
 				clear_ir_buffer(dir);
 			}
 		}
 	}
+	
 	schedule_task(1000/IR_UPKEEP_FREQUENCY, perform_ir_upkeep, NULL);
 }
 
@@ -210,26 +213,34 @@ void ir_targeted_send(uint8_t dirs, char *data, uint16_t data_length, uint16_t t
 
 void ir_send(uint8_t dirs, char *data, uint8_t data_length)
 {
-	for(uint8_t dir=0; dir<6; dir++){
-		if(ir_rxtx[dir].status & IR_STATUS_BUSY_bm) dirs&=(~(1<<dir)); //remove a direction from sending list if it is busy.
-		if(dirs&(1<<dir)){
-			channel[dir]->CTRLB &= ~USART_RXEN_bm; //Disable receive messages on this channel while transmitting.
-			ir_rxtx[dir].status = IR_STATUS_BUSY_bm;
+	while(dirs)
+	{
+		for(uint8_t dir=0; dir<6; dir++) //first pass. send what you can.
+		{
+			if(dirs & (1<<dir))
+			{
+				if(!((ir_rxtx[dir].status & IR_STATUS_BUSY_bm) || (get_time() - ir_rxtx[dir].last_byte < IR_MSG_TIMEOUT)))
+				{
+					channel[dir]->CTRLB &= ~USART_RXEN_bm; //Disable receive messages on this channel while transmitting.
+					ir_rxtx[dir].status = IR_STATUS_BUSY_bm;
+					send_msg(1<<dir, data, data_length);
+					dirs&=(~(1<<dir));
+				}
+			}
 		}
+		if(dirs) delay_ms(rand_byte()%10);
 	}
-	send_msg(dirs, data, data_length);
 }
 
 // To be called from interrupt handler only. Do not call.
 void ir_receive(uint8_t dir)
 {
 	uint8_t in_byte = channel[dir]->DATA;				// Some data just came in
-	//printf("%02X ",in_byte); //Used for debugging - prints raw bytes as we get them.	
+	//if(dir>2) printf("%hhu:%02x ", dir, in_byte); //Used for debugging - prints raw bytes as we get them.	
 
 	uint32_t now = get_time();
 	if(now-ir_rxtx[dir].last_byte > IR_MSG_TIMEOUT) ir_rxtx[dir].curr_pos = 0;
-	ir_rxtx[dir].last_byte = get_time();
-	
+	ir_rxtx[dir].last_byte = now;
 	switch(ir_rxtx[dir].curr_pos)
 	{
 		case HEADER_POS_MSG_LENGTH:		
@@ -320,10 +331,8 @@ void ir_reset_rx(uint8_t dir)
 	ir_transmit_complete(dir); //main reason I can see not to this is that when we're receiving we don't need to turn off the carrier wave. Doing shouldn't hurt, however?
 }
 
-//returns '1' if the channels became available; '0' otherwise.
-uint8_t wait_for_ir(uint8_t dirs, uint32_t timeout)
+void wait_for_ir(uint8_t dirs)
 {
-	uint32_t start_time = get_time();
 	uint8_t busy;
 	do
 	{
@@ -339,9 +348,7 @@ uint8_t wait_for_ir(uint8_t dirs, uint32_t timeout)
 				}
 			}
 		}
-		if((get_time()-start_time)>timeout) return 0;
 	} while (busy);
-	return 1;
 }
 
 // ISRs for IR channel 0

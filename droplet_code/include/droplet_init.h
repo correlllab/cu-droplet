@@ -44,22 +44,13 @@ typedef struct ir_msg_struct
 	uint32_t arrival_time;	// Time of message receipt.	
 	uint16_t sender_ID;		// ID of sending robot.	
 	char* msg;				// The message.
-	uint8_t dir_received;
-	uint8_t length;		// Message length.
+	uint8_t dir_received;	// Which side was this message received on?
+	uint8_t length;			// Message length.
 } ir_msg;
-
-//typedef struct outbound_ir_msg_struct
-//{
-	//uint16_t target;		// target ID. Set to '0' for untargeted.	
-	//char* msg;				// The message.
-	//uint8_t length;			// Message length.
-	//uint8_t dir_mask;		// bit mask of dirs message needs to be sent on. 
-//} out_ir_msg;
 
 extern void init();
 extern void loop();
 extern void handle_msg(ir_msg* msg_struct);
-//void send_message(out_ir_msg* msg_struct);
 
 /**
  * \brief Returns this Droplet's unique 16-bit identifier. 0 will never be an identifier.
@@ -89,5 +80,6 @@ void calculate_id_number();
 void enable_interrupts();
 void startup_light_sequence();
 
+uint8_t get_droplet_ord(uint16_t id);
 
 #endif

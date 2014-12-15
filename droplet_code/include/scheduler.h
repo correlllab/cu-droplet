@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#define MAX_NUM_SCHEDULED_TASKS 10
 
 // A task is a function, possibly with an argument, to be called at a specific time
 // scheduled_time is the 32-bit global time when the function should be called
@@ -27,6 +28,7 @@ typedef struct task
 // Global task list
 // Linked list of tasks, sorted by time until execution
 Task_t *task_list;
+
 volatile uint16_t rtc_epoch;
 volatile uint8_t num_tasks, num_executing_tasks;
 

@@ -34,6 +34,14 @@ void handle_serial_command(char* command, uint16_t command_length)
 		{
 			handle_stop_walk();
 		}
+		else if(strcmp(command_word,"set_tau")==0)
+		{
+			handle_set_tau(command_args);
+		}
+		else if(strcmp(command_word,"set_theta")==0)
+		{
+			handle_set_theta(command_args);
+		}
 		else if(strcmp(command_word,"set_motors")==0)
 		{
 			handle_set_motors(command_args);
@@ -177,6 +185,28 @@ void handle_stop_walk()
 	set_rgb(180,0,0);
 	stop(0);
 	set_rgb(0,0,0);
+}
+
+extern int16_t tau;
+void handle_set_tau(char* command_args)
+{
+	const char delim[2] = " ";
+	
+	char* token = strtok(command_args,delim);
+	uint16_t val = (uint16_t)atoi(token);
+	
+	tau = val;
+}
+
+extern double theta;
+void handle_set_theta(char* command_args)
+{
+	const char delim[2] = " ";
+	
+	char* token = strtok(command_args,delim);
+	uint16_t val = (uint16_t)atoi(token);
+	
+	theta = val;
 }
 
 void handle_set_motors(char* command_args)
@@ -339,7 +369,7 @@ void handle_broadcast_id()
 
 void handle_get_id()
 {
-	printf("My ID is: %X\r\n",get_droplet_id());
+	printf("My ID is: %04X\r\n",get_droplet_id());
 }
 
 void send_id()
@@ -361,13 +391,12 @@ void handle_cmd(char* command_args, uint8_t should_broadcast)
 	if(should_broadcast)
 	{
 		printf("Broadcasting command: \"%s\", of length %i.\r\n",(uint8_t*)command_args, strlen(command_args));
-		if(!wait_for_ir(ALL_DIRS, 1000)) return;
 		ir_cmd(ALL_DIRS, command_args,strlen(command_args));
 	}
 	else
 	{
 		//printf("Transmitting command: \"%s\", of length %i.\r\n",(uint8_t*)command_args, strlen(command_args));
-		if(!wait_for_ir(ALL_DIRS, 1000)) return;
+		wait_for_ir(ALL_DIRS);
 		ir_cmd(1,command_args,strlen(command_args));
 	}
 

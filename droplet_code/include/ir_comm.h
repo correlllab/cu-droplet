@@ -18,9 +18,11 @@
 //		2 KB EEPROM	(permanent variables)
 //		8 KB SRAM (temporary variables)
 
+#define MAX_USER_FACING_MESSAGES 6
+
 #define IR_BUFFER_SIZE			63 //bytes
 #define IR_UPKEEP_FREQUENCY		20 //Hz
-#define IR_MSG_TIMEOUT			10 //ms
+#define IR_MSG_TIMEOUT			5 //ms
 
 #define IR_STATUS_BUSY_bm				0x01	// 0000 0001				
 #define IR_STATUS_COMPLETE_bm			0x02	// 0000 0010
@@ -43,11 +45,10 @@
 
 extern USART_t* channel[];
 
-
 volatile struct
 {	
 	uint32_t last_byte;			// TX time or RX time of last received byte	
-	char buf[IR_BUFFER_SIZE];	// Transmit / receive buffer	
+	char   buf[IR_BUFFER_SIZE];	// Transmit / receive buffer	
 	uint16_t data_crc;
 	uint16_t sender_ID;
 	uint16_t target_ID;
@@ -57,39 +58,23 @@ volatile struct
 	volatile uint8_t status;		// Transmit:
 } ir_rxtx[6];
 
-typedef volatile struct ir_msg_node
+volatile struct
 {
-	uint32_t arrival_time;
-	uint16_t sender_ID;
-	char*	msg;
-	volatile struct ir_msg_node* prev;	
-	uint8_t arrival_dir;
-	uint8_t msg_length;
-} msg_node;
+	uint32_t	arrival_time;
+	uint16_t	sender_ID;
+	char		msg[IR_BUFFER_SIZE];		
+	uint8_t		arrival_dir;
+	uint8_t		msg_length;
+} msg_node[MAX_USER_FACING_MESSAGES];
 
-//typedef volatile struct outbound_ir_msg_node
-//{
-	//uint16_t target;		// target ID. Set to '0' for untargeted.
-	//char* msg;				// The message.
-	//volatile struct outbound_ir_msg_node* prev;	
-	//uint8_t length;			// Message length.
-	//uint8_t dir_mask;		// bit mask of dirs message needs to be sent on.
-//} out_msg_node;
+volatile uint8_t num_waiting_msgs;
+volatile uint8_t user_facing_messages_ovf;
 
-volatile msg_node* last_ir_msg;
-//volatile out_msg_node* outbound_msgs;
 volatile uint32_t command_arrival_time;
 volatile uint16_t command_sender_id;
-/* GENERAL IR RELATED ROUTINES */
 
 void ir_comm_init();
 
-/* 
- * Sets intensity of IR transmitters
- * power = 0 turns transmitter off
- * power = 256 turns transmitter on maximum power
- * Note: this function is blocking and will take approx 300us to complete
- */
 void perform_ir_upkeep();
 void ir_targeted_cmd(uint8_t dirs, char *data, uint16_t data_length, uint16_t target);
 void ir_cmd(uint8_t dirs, char *data, uint16_t data_length);
@@ -100,7 +85,7 @@ void ir_receive(uint8_t dir); //Called by Interrupt Handler Only
 void ir_transmit(uint8_t dir);
 void ir_transmit_complete(uint8_t dir);
 void ir_reset_rx(uint8_t dir);
-uint8_t wait_for_ir(uint8_t dirs, uint32_t timeout);
+void wait_for_ir(uint8_t dirs);
 
 void print_received_message(void* dir_star); //DEBUG -> Remove later
 

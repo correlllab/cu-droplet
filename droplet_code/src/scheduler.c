@@ -1,20 +1,49 @@
 #include "scheduler.h"
 
+/* To avoid issues caused by malloc, we're going to have some "fake" malloc functions.
+ * We'll keep an array of MAX_NUM_SCHEDULED_TASKS Task_t structs, and fake_malloc()
+ * will return pointers to those as appropriate.
+ */
+Task_t task_storage_arr[MAX_NUM_SCHEDULED_TASKS];
+uint8_t curr_pointer;
+
+inline Task_t* scheduler_malloc()
+{
+	if(num_tasks>=MAX_NUM_SCHEDULED_TASKS) return NULL;
+	
+	uint8_t tmp;
+	for(tmp=(curr_pointer+1)%MAX_NUM_SCHEDULED_TASKS ; tmp!=curr_pointer ; tmp=(tmp+1)%MAX_NUM_SCHEDULED_TASKS)
+	{
+		//This code assumes that all tasks will have non-null function pointers.
+		if(task_storage_arr[tmp].task_function == NULL) break;
+	}
+	curr_pointer = tmp;
+	return &(task_storage_arr[curr_pointer]);
+}
+
+inline void scheduler_free(Task_t* tgt)
+{
+	for(uint8_t tmp=(curr_pointer); ; tmp = (tmp+(MAX_NUM_SCHEDULED_TASKS-1))%MAX_NUM_SCHEDULED_TASKS)
+	{
+		if(&(task_storage_arr[tmp])==tgt)
+		{
+			task_storage_arr[tmp].task_function = NULL;
+			curr_pointer = ((tmp+(MAX_NUM_SCHEDULED_TASKS-1))%MAX_NUM_SCHEDULED_TASKS);
+			return;
+		}
+	}
+}
+
 void scheduler_init()
 {
+	task_list = NULL;
+	num_tasks = 0;
+	num_executing_tasks = 0;
+	curr_pointer = 0;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)  // Disable interrupts during initialization
 	{
 		// Clear current task list, if necessary
 		// (Should only be necessary if scheduler is re-initialized at runtime)
-		Task_t* cur_task = task_list;
-		while (cur_task != NULL)
-		{
-			Task_t* next_task = cur_task->next;
-			free(cur_task);
-			cur_task = next_task;
-		}
-		task_list = NULL;
-		num_tasks = 0; num_executing_tasks = 0;
 		
 		// Set up real-time clock
 		rtc_epoch = 0;
@@ -80,7 +109,7 @@ void delay_ms(uint16_t ms)
 // arg is the argument to supply to function
 Task_t* schedule_task(volatile uint32_t time, void (*function)(void*), void* arg)
 {
-	Task_t* new_task = (Task_t*)malloc(sizeof(Task_t));
+	Task_t* new_task = (Task_t*)scheduler_malloc();
 	if (new_task == NULL) return NULL;
 	
 	new_task->scheduled_time = time + get_time();
@@ -141,7 +170,7 @@ void remove_task(Task_t* task)
 		if(task_list==task)
 		{
 			task_list=task->next;
-			free(task);
+			scheduler_free(task);
 			task = NULL;
 			num_tasks--;
 		}
@@ -152,7 +181,7 @@ void remove_task(Task_t* task)
 			if (tmp_task->next != NULL)
 			{
 				tmp_task->next = task->next;
-				free(task);
+				scheduler_free(task);
 				task = NULL;
 				num_tasks--;
 			}
@@ -195,7 +224,7 @@ void run_tasks()
 			{
 				cur_task->task_function(cur_task->arg); // run the task
 			}
-			free(cur_task);
+			scheduler_free(cur_task);
 			cur_task = NULL;
 			num_tasks--;
 		}

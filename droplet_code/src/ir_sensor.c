@@ -80,20 +80,20 @@ uint8_t get_ir_sensor(uint8_t sensor_num)
 
 	
 uint8_t check_collisions(){
-	uint8_t baseline_meas[6];
+	int16_t baseline_meas[6];
 	uint8_t channelCtrlBVals[6];
-	uint8_t measured_vals[6];
+	int16_t measured_vals[6];
 	uint8_t dirs=0;
+	//wait_for_ir();	
 	uint16_t curr_power = get_all_ir_powers();
 	set_all_ir_powers(256);
-	
 	for(uint8_t i=0;i<6;i++)
 	{
 		channelCtrlBVals[i] = channel[i]->CTRLB;
 		channel[i]->CTRLB=0;
-	}	
+	}
 	for(uint8_t i=0;i<6;i++)
-	{	
+	{
 		busy_delay_us(50);
 		baseline_meas[i] = get_ir_sensor(i);
 	}
@@ -104,7 +104,7 @@ uint8_t check_collisions(){
 	PORTD.DIRSET =  PIN3_bm;
 	PORTE.DIRSET = (PIN3_bm | PIN7_bm);
 	PORTF.DIRSET =  PIN3_bm;
-		
+
 	PORTC.OUTCLR = (PIN3_bm | PIN7_bm);
 	PORTD.OUTCLR = PIN3_bm;
 	PORTE.OUTCLR = (PIN3_bm | PIN7_bm);
@@ -114,19 +114,21 @@ uint8_t check_collisions(){
 	//ADCB.CTRLA |= ADC_FLUSH_bm;
 	//delay_ms(1000);
 	for(uint8_t i=0;i<6;i++){
-		busy_delay_us(250);		
+		busy_delay_us(250);
 		measured_vals[i] = get_ir_sensor(i);
+		int16_t temp = measured_vals[i]-baseline_meas[i];
+		//printf("%hd ", temp);
 		if((measured_vals[i]-baseline_meas[i])>30){
 			dirs = dirs|(1<<i);
 		}
 	}
+	//printf("\r\n");
 	PORTC.OUTTGL = (PIN3_bm | PIN7_bm);
 	PORTD.OUTTGL =  PIN3_bm;
 	PORTE.OUTTGL = (PIN3_bm | PIN7_bm);
 	PORTF.OUTTGL =  PIN3_bm;
 	for(uint8_t i=0;i<6;i++) channel[i]->CTRLB = channelCtrlBVals[i];
 	TCF2.CTRLB |= ALL_EMITTERS_CARWAV_bm; //reenable carrier wave output
-
 	set_all_ir_powers(curr_power);
 	return dirs;
 }	

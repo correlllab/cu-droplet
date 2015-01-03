@@ -70,8 +70,8 @@ volatile struct
 volatile uint8_t num_waiting_msgs;
 volatile uint8_t user_facing_messages_ovf;
 
-volatile uint32_t command_arrival_time;
-volatile uint16_t command_sender_id;
+volatile uint32_t	cmd_arrival_time;
+volatile uint16_t	cmd_sender_id;
 
 void ir_comm_init();
 

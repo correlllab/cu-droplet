@@ -103,7 +103,7 @@ void use_rnb_data(uint8_t power)
 	last_good_rnb.bearing = bearing;
 	last_good_rnb.heading = heading;
 	last_good_rnb.brightness_matrix_ptr = brightness_matrix;
-	last_good_rnb.id_number = command_sender_id;
+	last_good_rnb.id_number = cmd_sender_id;
 	
 	rnb_updated=1;
 }

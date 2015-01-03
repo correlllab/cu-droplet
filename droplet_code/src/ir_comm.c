@@ -1,5 +1,8 @@
 #include "ir_comm.h"
 
+volatile uint16_t	cmd_length;
+volatile char		cmd_buffer[BUFFER_SIZE];
+
 inline void clear_ir_buffer(uint8_t dir)
 {
 	ir_rxtx[dir].status = 0;
@@ -78,11 +81,23 @@ void ir_comm_init()
 	}
 	set_all_ir_powers(256);
 	for(uint8_t dir=0; dir<6; dir++) clear_ir_buffer(dir); //this initializes the buffer's values to 0.
-	command_arrival_time=0;
+	cmd_arrival_time=0;
 	num_waiting_msgs=0;
 	user_facing_messages_ovf=0;
 	schedule_task(1000/IR_UPKEEP_FREQUENCY, perform_ir_upkeep, NULL);
 	
+}
+
+void handle_cmd_wrapper()
+{
+	char local_msg_copy[cmd_length+1];	
+	uint16_t local_msg_len;
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)  // Disable interrupts just in case we get another command in the middle of copying this one.
+	{
+		memcpy(local_msg_copy, cmd_buffer, cmd_length+1);
+		local_msg_len = cmd_length;
+	}
+	handle_serial_command(local_msg_copy, local_msg_len);
 }
 
 void perform_ir_upkeep()
@@ -101,14 +116,13 @@ void perform_ir_upkeep()
 			if(crc_seen) clear_ir_buffer(dir);
 			else if(ir_rxtx[dir].status&IR_STATUS_COMMAND_bm)
 			{
-				char msg[ir_rxtx[dir].data_length+1];
-				memcpy(msg, (char*)ir_rxtx[dir].buf, ir_rxtx[dir].data_length);
-				msg[ir_rxtx[dir].data_length]='\0';
-				uint8_t cmd_length = ir_rxtx[dir].data_length;
-				command_arrival_time = ir_rxtx[dir].last_byte;	//This is a 'global' value, referenced by other *.c files.
-				command_sender_id = ir_rxtx[dir].sender_ID;		//This is a 'global' value, referenced by other *.c files.
+				memcpy(cmd_buffer, (char*)ir_rxtx[dir].buf, ir_rxtx[dir].data_length);
+				cmd_buffer[ir_rxtx[dir].data_length]='\0';
+				cmd_length = ir_rxtx[dir].data_length;
+				cmd_arrival_time = ir_rxtx[dir].last_byte;	//This is a 'global' value, referenced by other *.c files.
+				cmd_sender_id = ir_rxtx[dir].sender_ID;		//This is a 'global' value, referenced by other *.c files.
 				for(uint8_t other_dirs=dir ; other_dirs<6 ; other_dirs++) clear_ir_buffer(other_dirs); //clear the rest of the buffers first
-				handle_serial_command(msg, cmd_length); //handle command
+				schedule_task(5, handle_cmd_wrapper, NULL);
 				break; //commands can take awhile, so we gave up on the rest of these messages.
 			}
 			else //Normal message; add to message queue.
@@ -132,8 +146,6 @@ void perform_ir_upkeep()
 	
 	schedule_task(1000/IR_UPKEEP_FREQUENCY, perform_ir_upkeep, NULL);
 }
-
-
 
 void send_msg(uint8_t dirs, char *data, uint8_t data_length)
 {
@@ -173,45 +185,7 @@ void send_msg(uint8_t dirs, char *data, uint8_t data_length)
 	/* The whole transmission will now occur in interrupts. */
 }
 
-void ir_targeted_cmd(uint8_t dirs, char *data, uint16_t data_length, uint16_t target)
-{
-	for(uint8_t dir=0; dir<6; dir++){
-		if(ir_rxtx[dir].status & IR_STATUS_BUSY_bm) dirs&=(~(1<<dir)); //remove a direction from sending list if it is busy.
-		if(dirs&(1<<dir)){
-			channel[dir]->CTRLB &= ~USART_RXEN_bm; //Disable receive messages on this channel while transmitting.
-			ir_rxtx[dir].status = IR_STATUS_COMMAND_bm | IR_STATUS_BUSY_bm;
-			ir_rxtx[dir].target_ID=target;
-		}
-	}
-	send_msg(dirs, data, data_length);
-}
-
-void ir_cmd(uint8_t dirs, char *data, uint16_t data_length)
-{	
-	for(uint8_t dir=0; dir<6; dir++){
-		if(ir_rxtx[dir].status & IR_STATUS_BUSY_bm) dirs&=(~(1<<dir)); //remove a direction from sending list if it is busy.
-		if(dirs&(1<<dir)){
-			channel[dir]->CTRLB &= ~USART_RXEN_bm; //Disable receive messages on this channel while transmitting.
-			ir_rxtx[dir].status = IR_STATUS_COMMAND_bm | IR_STATUS_BUSY_bm;
-		}
-	}
-	send_msg(dirs, data, data_length);
-}
-
-void ir_targeted_send(uint8_t dirs, char *data, uint16_t data_length, uint16_t target)
-{
-	for(uint8_t dir=0; dir<6; dir++){
-		if(ir_rxtx[dir].status & IR_STATUS_BUSY_bm) dirs&=(~(1<<dir)); //remove a direction from sending list if it is busy.
-		if(dirs&(1<<dir)){
-			channel[dir]->CTRLB &= ~USART_RXEN_bm; //Disable receive messages on this channel while transmitting.
-			ir_rxtx[dir].status = IR_STATUS_BUSY_bm;
-			ir_rxtx[dir].target_ID=target;			
-		}
-	}
-	send_msg(dirs, data, data_length);
-}
-
-void ir_send(uint8_t dirs, char *data, uint8_t data_length)
+inline void all_ir_sends(uint8_t dirs, char* data, uint8_t data_length, uint16_t target, uint8_t cmd_flag)
 {
 	while(dirs)
 	{
@@ -223,13 +197,35 @@ void ir_send(uint8_t dirs, char *data, uint8_t data_length)
 				{
 					channel[dir]->CTRLB &= ~USART_RXEN_bm; //Disable receive messages on this channel while transmitting.
 					ir_rxtx[dir].status = IR_STATUS_BUSY_bm;
-					send_msg(1<<dir, data, data_length);
+					if(cmd_flag) ir_rxtx[dir].status |= IR_STATUS_COMMAND_bm;
+					ir_rxtx[dir].target_ID=target;
+					send_msg(1<<dir, data, data_length);		
 					dirs&=(~(1<<dir));
 				}
 			}
 		}
 		if(dirs) delay_ms(rand_byte()%10);
 	}
+}
+
+void ir_targeted_cmd(uint8_t dirs, char *data, uint16_t data_length, uint16_t target)
+{
+	all_ir_sends(dirs, data, data_length, target, 1);
+}
+
+void ir_cmd(uint8_t dirs, char *data, uint16_t data_length)
+{	
+	all_ir_sends(dirs, data, data_length, 0, 1);
+}
+
+void ir_targeted_send(uint8_t dirs, char *data, uint16_t data_length, uint16_t target)
+{
+	all_ir_sends(dirs, data, data_length, target, 0);
+}
+
+void ir_send(uint8_t dirs, char *data, uint8_t data_length)
+{
+	all_ir_sends(dirs, data, data_length, 0, 0);
 }
 
 // To be called from interrupt handler only. Do not call.

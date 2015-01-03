@@ -10,18 +10,16 @@
 
 #define COLLABORATE_DURATION        5000    // in ms
 
-#define GROUP_MEMBERSHIP_TIMEOUT    2000    // in ms
-#define HEART_RATE                  1000    // in ms
+#define GROUP_MEMBERSHIP_TIMEOUT    10000    // in ms
+#define HEART_RATE                  2000    // in ms
 #define LIGHT_CHECK_RATE			1000
+#define MAX_GROUP_SIZE 10
 
-typedef struct GROUP_LIST_ITEM
+struct
 {
 	uint16_t ID;
 	uint32_t ms_age;
-	struct GROUP_LIST_ITEM* next;
-	struct GROUP_LIST_ITEM* prev;
-} group_item;
-group_item* group_root;
+} group[MAX_GROUP_SIZE];
 
 typedef enum
 {

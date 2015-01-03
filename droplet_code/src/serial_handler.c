@@ -34,14 +34,14 @@ void handle_serial_command(char* command, uint16_t command_length)
 		{
 			handle_stop_walk();
 		}
-		else if(strcmp(command_word,"set_tau")==0)
-		{
-			handle_set_tau(command_args);
-		}
-		else if(strcmp(command_word,"set_theta")==0)
-		{
-			handle_set_theta(command_args);
-		}
+		//else if(strcmp(command_word,"set_tau")==0)
+		//{
+			//handle_set_tau(command_args);
+		//}
+		//else if(strcmp(command_word,"set_theta")==0)
+		//{
+			//handle_set_theta(command_args);
+		//}
 		else if(strcmp(command_word,"set_motors")==0)
 		{
 			handle_set_motors(command_args);
@@ -80,7 +80,7 @@ void handle_serial_command(char* command, uint16_t command_length)
 		}
 		else if(strcmp(command_word,"cmd")==0)
 		{
-			handle_cmd(command_args, 1);
+			handle_cmd(command_args);
 		}
 		else if(strcmp(command_word,"tgt_cmd")==0)
 		{
@@ -186,28 +186,28 @@ void handle_stop_walk()
 	stop(0);
 	set_rgb(0,0,0);
 }
-
-extern int16_t tau;
-void handle_set_tau(char* command_args)
-{
-	const char delim[2] = " ";
-	
-	char* token = strtok(command_args,delim);
-	uint16_t val = (uint16_t)atoi(token);
-	
-	tau = val;
-}
-
-extern double theta;
-void handle_set_theta(char* command_args)
-{
-	const char delim[2] = " ";
-	
-	char* token = strtok(command_args,delim);
-	uint16_t val = (uint16_t)atoi(token);
-	
-	theta = val;
-}
+//
+//extern int16_t tau;
+//void handle_set_tau(char* command_args)
+//{
+	//const char delim[2] = " ";
+	//
+	//char* token = strtok(command_args,delim);
+	//uint16_t val = (uint16_t)atoi(token);
+	//
+	//tau = val;
+//}
+//
+//extern double theta;
+//void handle_set_theta(char* command_args)
+//{
+	//const char delim[2] = " ";
+	//
+	//char* token = strtok(command_args,delim);
+	//uint16_t val = (uint16_t)atoi(token);
+	//
+	//theta = val;
+//}
 
 void handle_set_motors(char* command_args)
 {	
@@ -284,7 +284,7 @@ void collect_rnb_data_wrapper(void* arg)
  */
 void handle_rnb_transmit(char* command_args)
 {
-	uint32_t time_since_arrival = (get_time()-command_arrival_time+6);
+	uint32_t time_since_arrival = (get_time()-cmd_arrival_time+6);
 	if(time_since_arrival<POST_MESSAGE_DELAY) delay_ms(POST_MESSAGE_DELAY - time_since_arrival);
 	uint16_t power = (uint16_t)command_args[0] + 2;
 	ir_range_blast(power);
@@ -295,7 +295,7 @@ void handle_rnb_transmit(char* command_args)
  */
 void handle_rnb_receive()
 {
-	uint32_t time_since_arrival = (get_time()-command_arrival_time+5);
+	uint32_t time_since_arrival = (get_time()-cmd_arrival_time+5);
 	if(time_since_arrival<POST_MESSAGE_DELAY) delay_ms(POST_MESSAGE_DELAY - time_since_arrival);	
 	receive_rnb_data();
 	rnb_updated = 0;
@@ -386,19 +386,10 @@ void send_id()
 	//}
 }
 
-void handle_cmd(char* command_args, uint8_t should_broadcast)
+void handle_cmd(char* command_args)
 {
-	if(should_broadcast)
-	{
-		printf("Broadcasting command: \"%s\", of length %i.\r\n",(uint8_t*)command_args, strlen(command_args));
-		ir_cmd(ALL_DIRS, command_args,strlen(command_args));
-	}
-	else
-	{
-		//printf("Transmitting command: \"%s\", of length %i.\r\n",(uint8_t*)command_args, strlen(command_args));
-		wait_for_ir(ALL_DIRS);
-		ir_cmd(1,command_args,strlen(command_args));
-	}
+	printf("Broadcasting command: \"%s\", of length %i.\r\n",(uint8_t*)command_args, strlen(command_args));
+	ir_cmd(ALL_DIRS, command_args,strlen(command_args));
 
 	//if(0==ir_send_command(0,(uint8_t*)command_args,strlen(command_args)))
 	//printf("\tSent command \"%s\", of length %i\r\n",command_args,strlen(command_args));

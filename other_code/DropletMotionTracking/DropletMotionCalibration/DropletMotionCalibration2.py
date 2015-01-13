@@ -117,8 +117,6 @@ class Calibrator:
         return val
 
     def full_calibrate(self):
-        #first, calibrate droplet spin for one direction. This will give us motor sign and relative values for the three motors.
-        #then calibrate directions 0, 2, and 4 (or 1, 3, and 5)
         timestamp = time.strftime('%m-%d_%H%M')
         fileName = "data\\dmc_calib_" + timestamp
         self.calibrate_both_spins(fileName)

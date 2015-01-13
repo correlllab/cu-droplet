@@ -7,6 +7,7 @@ void init()
 {
 	const int8_t num_samples = 5;
 	int16_t r_avg=0, g_avg=0, b_avg=0;
+	off_count = 0;
 	int8_t r, g, b;
 	delay_ms(1000);
 	for(uint8_t i=0; i<num_samples; i++)
@@ -30,17 +31,17 @@ void init()
 //these effects accumulate, not quite additively: full power white light reads as 
 //(127, 124, 48) which is a little less than the sum.
 
-
 /*
  * The code in this function will be called repeatedly, as fast as it can execute.
  */
 void loop()
 {
-	//printf("%d\r\n",state);
+
 	uint8_t r,g,b;
-	get_rgb_wrapper(&r, &g, &b);
+	if(state!= PLAY) get_rgb_wrapper(&r, &g, &b);	
+	printf("%3hhu %3hhu %3hhu\r\n", r, g, b);		
 	if(state==UNPROGRAMMED)
-	{
+	{	
 		if((r>MIN_R_THRESH)&&(g>MIN_G_THRESH)&&(b>MIN_B_THRESH)) //If we are seeing full white.
 		{			
 			calib_white[R]=r;
@@ -53,39 +54,45 @@ void loop()
 				calib_matrix[B][i]=0;
 			}
 			state = CALIB_R;			
+			printf("White\r\n");
+			printf("\t%3hhu %3hhu %3hhu\r\n", r, g, b);						
 		}
 	}
 	else if(state==CALIB_R)
 	{
-		if((r>MIN_R_THRESH)&&(g<MIN_G_THRESH)&&(b<MIN_B_THRESH)) //If we are seeing just red.
+		if((r>MIN_R_THRESH)&&(g<calib_white[G]/2)&&(b<(2*calib_white[B]/3))) //If we are seeing just red.
 		{
 			time_vals[0]=get_time();
 			calib_matrix[R][R]=r;
 			calib_matrix[R][G]=g;
 			calib_matrix[R][B]=b;
-			state = CALIB_G;			
+			state = CALIB_G;
+			printf("Red\r\n");			
 		}
+		printf("\t%3hhu %3hhu %3hhu\r\n", r, g, b);		
 	}
 	else if(state==CALIB_G)
-	{
-		if((r<MIN_R_THRESH)&&(g>MIN_G_THRESH)&&(b<MIN_B_THRESH)) //If we are seeing just green.
+	{	
+		if((r<calib_white[R]/2)&&(g>MIN_G_THRESH)&&(b<(2*calib_white[B]/3))) //If we are seeing just green.
 		{
 			time_vals[1]=get_time();
 			calib_matrix[G][R]=r;
 			calib_matrix[G][G]=g;
 			calib_matrix[G][B]=b;
-			state = CALIB_B;			
+			state = CALIB_B;
+			printf("Green\r\n");					
 		}
+		printf("\t%3hhu %3hhu %3hhu\r\n", r, g, b);			
 	}
 	else if(state==CALIB_B)
 	{
-		if((r<MIN_R_THRESH)&&(g<MIN_G_THRESH)&&(b>MIN_B_THRESH)) //If we are seeing just blue.
+		if((r<calib_white[R]/2)&&(g<calib_white[G]/2)&&(b>MIN_B_THRESH)) //If we are seeing just blue.
 		{
 			time_vals[2]=get_time();
 			calib_matrix[B][R]=r;
 			calib_matrix[B][G]=g;
 			calib_matrix[B][B]=b;
-			
+			printf("Blue\r\n");
 			uint32_t gap_a = (time_vals[1]-time_vals[0]);
 			uint32_t gap_b = (time_vals[2]-time_vals[1]);
 			if((gap_a>MAX_FRAME_DELAY)||(gap_b>MAX_FRAME_DELAY))
@@ -97,10 +104,12 @@ void loop()
 			{
 				invert_calib_matrix();
 				frame_delay = (time_vals[2]-time_vals[0])/2;
+				printf("frame_delay: %lu\r\n", frame_delay);
 				frame_count = 0;
 				state = RECORD;
 			}
 		}
+		printf("\t%3hhu %3hhu %3hhu\r\n", r, g, b);				
 	}	
 	else if(state==RECORD)
 	{
@@ -108,22 +117,36 @@ void loop()
 									&(vid_frames[G][frame_count]), 
 									&(vid_frames[B][frame_count]), 
 									r, g, b);
-		//printf("IN:\t%hhu\t%hhu\t%hhu\r\n",r,g,b);
-		//printf("OUT:\t%hhu\t%hhu\t%hhu\r\n",vid_frames[R][frame_count], vid_frames[G][frame_count], vid_frames[B][frame_count]);
+
+		printf("OUT:\t%hhu\t%hhu\t%hhu\r\n",vid_frames[R][frame_count], vid_frames[G][frame_count], vid_frames[B][frame_count]);
 		frame_count++;
 		if(frame_count>MAX_FRAME_COUNT)
 		{
+			total_frames=MAX_FRAME_COUNT;
 			state=PLAY;
 			frame_count = 0;
 		}
+		else if(r<=0 && g<=0 && b<=0)
+		{
+			off_count++;
+			if(off_count>30)
+			{
+				total_frames = frame_count-off_count;
+				state=PLAY;
+				frame_count = 0;
+			}
+		}
+		else off_count = 0;
 	}
 	else if(state==PLAY)
 	{
 		set_rgb(vid_frames[R][frame_count], vid_frames[G][frame_count], vid_frames[B][frame_count]);
 		frame_count++;
+		frame_count=frame_count%total_frames;
 	}
 	if(state==RECORD||state==PLAY)	delay_ms(frame_delay);
-	else									delay_ms(10);
+	else									delay_ms(100);
+	//delay_ms(250);
 }
 
 void get_rgb_wrapper(uint8_t* r_dest, uint8_t* g_dest, uint8_t* b_dest)

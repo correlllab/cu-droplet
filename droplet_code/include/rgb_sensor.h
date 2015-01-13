@@ -5,7 +5,7 @@
 #include "rgb_led.h"
 #include "scheduler.h"
 
-#define RGB_MEAS_COUNT 3
+#define RGB_MEAS_COUNT 7
 #define LED_OFF_DELAY_MS 150
 
 #define RGB_SENSOR_PORT PORTA

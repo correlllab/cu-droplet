@@ -106,40 +106,43 @@ void perform_ir_upkeep()
 	uint8_t crc_seen;
 	for(int8_t dir= 0; dir<6; dir++) //This first loop looks for a channel on which we got a good message.
 	{
-		if(ir_rxtx[dir].status&IR_STATUS_COMPLETE_bm)
+		ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 		{
-			crc_seen = 0;
-			for(int8_t check_dir=(dir-1) ;  check_dir>=0 ; check_dir--)
-				if(seen_crcs[check_dir]==ir_rxtx[dir].data_crc) crc_seen = 1;
-			seen_crcs[dir] = ir_rxtx[dir].data_crc;
+			if(ir_rxtx[dir].status&IR_STATUS_COMPLETE_bm)
+			{
+				crc_seen = 0;
+				for(int8_t check_dir=(dir-1) ;  check_dir>=0 ; check_dir--)
+					if(seen_crcs[check_dir]==ir_rxtx[dir].data_crc) crc_seen = 1;
+				seen_crcs[dir] = ir_rxtx[dir].data_crc;
 
-			if(crc_seen) clear_ir_buffer(dir);
-			else if(ir_rxtx[dir].status&IR_STATUS_COMMAND_bm)
-			{
-				memcpy(cmd_buffer, (char*)ir_rxtx[dir].buf, ir_rxtx[dir].data_length);
-				cmd_buffer[ir_rxtx[dir].data_length]='\0';
-				cmd_length = ir_rxtx[dir].data_length;
-				cmd_arrival_time = ir_rxtx[dir].last_byte;	//This is a 'global' value, referenced by other *.c files.
-				cmd_sender_id = ir_rxtx[dir].sender_ID;		//This is a 'global' value, referenced by other *.c files.
-				for(uint8_t other_dirs=dir ; other_dirs<6 ; other_dirs++) clear_ir_buffer(other_dirs); //clear the rest of the buffers first
-				schedule_task(5, handle_cmd_wrapper, NULL);
-				break; //commands can take awhile, so we gave up on the rest of these messages.
-			}
-			else //Normal message; add to message queue.
-			{
-				if(num_waiting_msgs>=MAX_USER_FACING_MESSAGES)
+				if(crc_seen) clear_ir_buffer(dir);
+				else if(ir_rxtx[dir].status&IR_STATUS_COMMAND_bm)
 				{
-					user_facing_messages_ovf = 1;
-					num_waiting_msgs=0;
+					memcpy(cmd_buffer, (char*)ir_rxtx[dir].buf, ir_rxtx[dir].data_length);
+					cmd_buffer[ir_rxtx[dir].data_length]='\0';
+					cmd_length = ir_rxtx[dir].data_length;
+					cmd_arrival_time = ir_rxtx[dir].last_byte;	//This is a 'global' value, referenced by other *.c files.
+					cmd_sender_id = ir_rxtx[dir].sender_ID;		//This is a 'global' value, referenced by other *.c files.
+					for(uint8_t other_dirs=dir ; other_dirs<6 ; other_dirs++) clear_ir_buffer(other_dirs); //clear the rest of the buffers first
+					schedule_task(5, handle_cmd_wrapper, NULL);
+					break; //commands can take awhile, so we gave up on the rest of these messages.
 				}
-				memcpy(msg_node[num_waiting_msgs].msg, (char*)ir_rxtx[dir].buf, ir_rxtx[dir].data_length);
-				msg_node[num_waiting_msgs].msg[ir_rxtx[dir].data_length]='\0';
-				msg_node[num_waiting_msgs].arrival_time = ir_rxtx[dir].last_byte;
-				msg_node[num_waiting_msgs].arrival_dir = dir;
-				msg_node[num_waiting_msgs].sender_ID = ir_rxtx[dir].sender_ID;
-				msg_node[num_waiting_msgs].msg_length = ir_rxtx[dir].data_length;
-				num_waiting_msgs++;
-				clear_ir_buffer(dir);
+				else //Normal message; add to message queue.
+				{
+					if(num_waiting_msgs>=MAX_USER_FACING_MESSAGES)
+					{
+						user_facing_messages_ovf = 1;
+						num_waiting_msgs=0;
+					}
+					memcpy(msg_node[num_waiting_msgs].msg, (char*)ir_rxtx[dir].buf, ir_rxtx[dir].data_length);
+					msg_node[num_waiting_msgs].msg[ir_rxtx[dir].data_length]='\0';
+					msg_node[num_waiting_msgs].arrival_time = ir_rxtx[dir].last_byte;
+					msg_node[num_waiting_msgs].arrival_dir = dir;
+					msg_node[num_waiting_msgs].sender_ID = ir_rxtx[dir].sender_ID;
+					msg_node[num_waiting_msgs].msg_length = ir_rxtx[dir].data_length;
+					num_waiting_msgs++;
+					clear_ir_buffer(dir);
+				}
 			}
 		}
 	}
@@ -199,7 +202,8 @@ inline void all_ir_sends(uint8_t dirs, char* data, uint8_t data_length, uint16_t
 					ir_rxtx[dir].status = IR_STATUS_BUSY_bm;
 					if(cmd_flag) ir_rxtx[dir].status |= IR_STATUS_COMMAND_bm;
 					ir_rxtx[dir].target_ID=target;
-					send_msg(1<<dir, data, data_length);		
+					send_msg(1<<dir, data, data_length);
+					wait_for_ir(1<<dir);
 					dirs&=(~(1<<dir));
 				}
 			}
@@ -207,6 +211,44 @@ inline void all_ir_sends(uint8_t dirs, char* data, uint8_t data_length, uint16_t
 		if(dirs) delay_ms(rand_byte()%10);
 	}
 }
+
+/*
+ * MORE COMPLICATED ALL_IR_SENDS, allows two channels on opposite sides to send at the same time.
+ */
+//inline void all_ir_sends(uint8_t dirs_to_go, char* data, uint8_t data_length, uint16_t target, uint8_t cmd_flag)
+//{
+	//uint8_t busy_channel=0;
+	//while(dirs_to_go)
+	//{
+		//uint8_t sending_dirs = 0;
+		//uint8_t sendable_dirs = dirs_to_go;
+		//
+		//busy_channel=0;
+		//for(uint8_t dir=0; dir<6; dir++) //first pass. send what you can.
+		//{		
+			//if(sendable_dirs & (1<<dir))
+			//{
+				//if(!((ir_rxtx[dir].status & IR_STATUS_BUSY_bm) || (get_time() - ir_rxtx[dir].last_byte < IR_MSG_TIMEOUT)))
+				//{
+					//channel[dir]->CTRLB &= ~USART_RXEN_bm; //Disable receive messages on this channel while transmitting.
+					//ir_rxtx[dir].status = IR_STATUS_BUSY_bm;
+					//if(cmd_flag) ir_rxtx[dir].status |= IR_STATUS_COMMAND_bm;
+					//ir_rxtx[dir].target_ID=target;
+					//sending_dirs  |=1<<dir;
+					//sendable_dirs &=(1<<((dir+3)%6)); //opposite direction.
+				//}
+				//else busy_channel=1;
+			//}	
+		//}
+		//if(sending_dirs)
+		//{
+			//send_msg(sending_dirs, data, data_length);
+			//wait_for_ir(sending_dirs);
+			//dirs_to_go&=(~sending_dirs);
+		//}
+		//else if(busy_channel) delay_ms(rand_byte()%10);
+	//}
+//}
 
 void ir_targeted_cmd(uint8_t dirs, char *data, uint16_t data_length, uint16_t target)
 {
@@ -232,24 +274,26 @@ void ir_send(uint8_t dirs, char *data, uint8_t data_length)
 void ir_receive(uint8_t dir)
 {
 	uint8_t in_byte = channel[dir]->DATA;				// Some data just came in
-	//if(dir>2) printf("%hhu:%02x ", dir, in_byte); //Used for debugging - prints raw bytes as we get them.	
+	//rintf("%02hhx ", in_byte); //Used for debugging - prints raw bytes as we get them.	
 
 	uint32_t now = get_time();
 	if(now-ir_rxtx[dir].last_byte > IR_MSG_TIMEOUT) ir_rxtx[dir].curr_pos = 0;
 	ir_rxtx[dir].last_byte = now;
 	switch(ir_rxtx[dir].curr_pos)
 	{
+		case HEADER_POS_SENDER_ID_LOW:	ir_rxtx[dir].sender_ID		= (uint16_t)in_byte;		break;
+		case HEADER_POS_SENDER_ID_HIGH:
+										ir_rxtx[dir].sender_ID	   |= (((uint16_t)in_byte)<<8);
+										ir_rxtx[dir].calc_crc		= ir_rxtx[dir].sender_ID;
+																								break;		
 		case HEADER_POS_MSG_LENGTH:		
-			if(in_byte&DATA_LEN_CMD_bm) ir_rxtx[dir].status|=IR_STATUS_COMMAND_bm; 
+			if(in_byte&DATA_LEN_CMD_bm) ir_rxtx[dir].status		   |= IR_STATUS_COMMAND_bm;
+										ir_rxtx[dir].calc_crc		= _crc16_update(ir_rxtx[dir].calc_crc, ir_rxtx[dir].status & IR_STATUS_COMMAND_bm); 
 										ir_rxtx[dir].data_length	= in_byte&DATA_LEN_VAL_bm;	
 																								break;
 		case HEADER_POS_CRC_LOW:		ir_rxtx[dir].data_crc		= (uint16_t)in_byte;		break;
 		case HEADER_POS_CRC_HIGH:		ir_rxtx[dir].data_crc	   |= (((uint16_t)in_byte)<<8); break;
-		case HEADER_POS_SENDER_ID_LOW:	ir_rxtx[dir].sender_ID		= (uint16_t)in_byte;		break;
-		case HEADER_POS_SENDER_ID_HIGH:	
-										ir_rxtx[dir].sender_ID	   |= (((uint16_t)in_byte)<<8);
-										ir_rxtx[dir].calc_crc		= _crc16_update(ir_rxtx[dir].sender_ID, ir_rxtx[dir].status & IR_STATUS_COMMAND_bm);
-																								break;
+
 		case HEADER_POS_TARGET_ID_LOW:  ir_rxtx[dir].target_ID		= (uint16_t)in_byte;		break;
 		case HEADER_POS_TARGET_ID_HIGH: ir_rxtx[dir].target_ID	   |= (((uint16_t)in_byte)<<8); break;
 		default: 
@@ -259,14 +303,15 @@ void ir_receive(uint8_t dir)
 	ir_rxtx[dir].curr_pos++;
 	if(ir_rxtx[dir].curr_pos>=(ir_rxtx[dir].data_length+HEADER_LEN))
 	{	
-		if(ir_rxtx[dir].calc_crc!=ir_rxtx[dir].data_crc)							ir_rxtx[dir].curr_pos = 0;	//crc check failed.
-		else if(ir_rxtx[dir].target_ID && ir_rxtx[dir].target_ID!=get_droplet_id()) ir_rxtx[dir].curr_pos = 0;	//msg targeted, but not to me.
-		else if(ir_rxtx[dir].sender_ID == get_droplet_id())							ir_rxtx[dir].curr_pos = 0;  //ignore a message if it is from me. Silly reflections.
+		if(ir_rxtx[dir].calc_crc!=ir_rxtx[dir].data_crc)							ir_rxtx[dir].curr_pos = 0; //crc check failed.
+		else if(ir_rxtx[dir].target_ID && ir_rxtx[dir].target_ID!=get_droplet_id()) ir_rxtx[dir].curr_pos = 0; //msg targeted, but not to me.
+		else if(ir_rxtx[dir].sender_ID == get_droplet_id())							ir_rxtx[dir].curr_pos = 0; //ignore a message if it is from me. Silly reflections.
 		else
 		{
 			ir_rxtx[dir].status |= IR_STATUS_COMPLETE_bm;
 			ir_rxtx[dir].status |= IR_STATUS_BUSY_bm; //mark as busy so we don't overwrite it.
 			channel[dir]->CTRLB &= ~USART_RXEN_bm; //Disable receiving messages on this channel until the message has been processed.
+			//printf("\r\n");
 		}
 	}
 }
@@ -287,7 +332,7 @@ void ir_transmit(uint8_t dir)
 		case HEADER_POS_TARGET_ID_HIGH: next_byte  = (uint8_t)((ir_rxtx[dir].target_ID>>8)&0xFF); break;
 		default: next_byte = ir_rxtx[dir].buf[ir_rxtx[dir].curr_pos - HEADER_LEN];
 	}
-	//printf("%02X ", next_byte);	
+	//printf("%02x ", next_byte);	
 	channel[dir]->DATA = next_byte;
 	ir_rxtx[dir].curr_pos++;
 	/* CHECK TO SEE IF MESSAGE IS COMPLETE */
@@ -295,6 +340,7 @@ void ir_transmit(uint8_t dir)
 	{
 		clear_ir_buffer(dir);
 		channel[dir]->CTRLA &= ~USART_DREINTLVL_gm; //Turn off interrupt things.
+		//printf("\r\n");
 	}
 
 }

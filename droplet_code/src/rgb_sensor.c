@@ -14,7 +14,7 @@ void rgb_sensor_init()
 
 	ADCA.CH0.CTRL = ADC_CH_INPUTMODE_DIFFWGAIN_gc | ADC_CH_GAIN_4X_gc;	//Probably should turn the gain back up to 4X when we put the shells on.
 	ADCA.CH1.CTRL = ADC_CH_INPUTMODE_DIFFWGAIN_gc | ADC_CH_GAIN_4X_gc;	//Probably should turn the gain back up to 4X when we put the shells on.
-	ADCA.CH2.CTRL = ADC_CH_INPUTMODE_DIFFWGAIN_gc | ADC_CH_GAIN_4X_gc;	//Probably should turn the gain back up to 4X when we put the shells on.
+	ADCA.CH2.CTRL = ADC_CH_INPUTMODE_DIFFWGAIN_gc | ADC_CH_GAIN_8X_gc;	//Probably should turn the gain back up to 4X when we put the shells on.
 	
 	ADCA.CH0.MUXCTRL = ADC_CH_MUXPOS_PIN5_gc;	// Red sensor on ADC A channel 0
 	ADCA.CH1.MUXCTRL = ADC_CH_MUXPOS_PIN6_gc;	// Green sensor on ADC A channel 1

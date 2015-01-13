@@ -18,7 +18,7 @@ void pc_comm_init()
 	stdout = &mystdout;
 	serial_in_index = 0;
 	
-	PC_USART.CTRLA = (uint8_t) USART_RXCINTLVL_MED_gc;
+	PC_USART.CTRLA = (uint8_t) USART_RXCINTLVL_LO_gc;
 }
 
 ISR( USARTD1_RXC_vect ) { handle_serial_input(); }

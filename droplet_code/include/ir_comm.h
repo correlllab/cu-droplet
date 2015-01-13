@@ -22,7 +22,7 @@
 
 #define IR_BUFFER_SIZE			63 //bytes
 #define IR_UPKEEP_FREQUENCY		20 //Hz
-#define IR_MSG_TIMEOUT			5 //ms
+#define IR_MSG_TIMEOUT			10 //ms
 
 #define IR_STATUS_BUSY_bm				0x01	// 0000 0001				
 #define IR_STATUS_COMPLETE_bm			0x02	// 0000 0010

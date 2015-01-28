@@ -5,24 +5,41 @@
  */
 void init()
 {
+	
 	const int8_t num_samples = 5;
 	int16_t r_avg=0, g_avg=0, b_avg=0;
 	off_count = 0;
-	int8_t r, g, b;
+	int16_t rCal, gCal, bCal;
 	delay_ms(1000);
 	for(uint8_t i=0; i<num_samples; i++)
 	{
-		get_rgb_sensors(&r, &g, &b);
-		r_avg+=r;
-		g_avg+=g;
-		b_avg+=b;
+		get_rgb_sensors(&rCal, &gCal, &bCal);	
+		r_avg+=rCal;
+		g_avg+=gCal;
+		b_avg+=bCal;
 		delay_ms(100);
 	}
 	r_baseline= r_avg/num_samples;
 	g_baseline= g_avg/num_samples;
 	b_baseline= b_avg/num_samples;
+	
 	printf("Baselines:\r\n%3hd  %3hd  %3hd\r\n", r_baseline, g_baseline, b_baseline);
-	state = UNPROGRAMMED;
+		
+	uint8_t r, g, b;
+	printf("CM:\r\n");
+	for(uint8_t i=0; i<NUM_CALIB_MEAS ; i++)
+	{
+		get_rgb_wrapper(&r, &g, &b);
+		cm[i][R] = r;
+		cm[i][G] = g;
+		cm[i][B] = b;
+		printf("\t%hu\t%hu\t%hu\r\n",r, g, b);
+		delay_ms(500);
+	}
+	printf("\r\n");
+	calc_calib_matrix();
+	state = RECORD;
+
 }
 
 //full power red (hits the rail at 127) tends to increase green by ~12 and blue by ~3
@@ -36,89 +53,22 @@ void init()
  */
 void loop()
 {
-
 	uint8_t r,g,b;
-	if(state!= PLAY) get_rgb_wrapper(&r, &g, &b);	
-	printf("%3hhu %3hhu %3hhu\r\n", r, g, b);		
-	if(state==UNPROGRAMMED)
-	{	
-		if((r>MIN_R_THRESH)&&(g>MIN_G_THRESH)&&(b>MIN_B_THRESH)) //If we are seeing full white.
-		{			
-			calib_white[R]=r;
-			calib_white[G]=g;
-			calib_white[B]=b;
-			for(uint8_t i=0;i<3;i++)
-			{
-				calib_matrix[R][i]=0;
-				calib_matrix[G][i]=0;
-				calib_matrix[B][i]=0;
-			}
-			state = CALIB_R;			
-			printf("White\r\n");
-			printf("\t%3hhu %3hhu %3hhu\r\n", r, g, b);						
-		}
+	if(state!= PLAY)
+	{ 
+		get_rgb_wrapper(&r, &g, &b);			
+		printf("\tIN:\t%hhu\t%hhu\t%hhu",r, g, b);
+		if(state!=RECORD) printf("\r\n");
 	}
-	else if(state==CALIB_R)
-	{
-		if((r>MIN_R_THRESH)&&(g<calib_white[G]/2)&&(b<(2*calib_white[B]/3))) //If we are seeing just red.
-		{
-			time_vals[0]=get_time();
-			calib_matrix[R][R]=r;
-			calib_matrix[R][G]=g;
-			calib_matrix[R][B]=b;
-			state = CALIB_G;
-			printf("Red\r\n");			
-		}
-		printf("\t%3hhu %3hhu %3hhu\r\n", r, g, b);		
-	}
-	else if(state==CALIB_G)
-	{	
-		if((r<calib_white[R]/2)&&(g>MIN_G_THRESH)&&(b<(2*calib_white[B]/3))) //If we are seeing just green.
-		{
-			time_vals[1]=get_time();
-			calib_matrix[G][R]=r;
-			calib_matrix[G][G]=g;
-			calib_matrix[G][B]=b;
-			state = CALIB_B;
-			printf("Green\r\n");					
-		}
-		printf("\t%3hhu %3hhu %3hhu\r\n", r, g, b);			
-	}
-	else if(state==CALIB_B)
-	{
-		if((r<calib_white[R]/2)&&(g<calib_white[G]/2)&&(b>MIN_B_THRESH)) //If we are seeing just blue.
-		{
-			time_vals[2]=get_time();
-			calib_matrix[B][R]=r;
-			calib_matrix[B][G]=g;
-			calib_matrix[B][B]=b;
-			printf("Blue\r\n");
-			uint32_t gap_a = (time_vals[1]-time_vals[0]);
-			uint32_t gap_b = (time_vals[2]-time_vals[1]);
-			if((gap_a>MAX_FRAME_DELAY)||(gap_b>MAX_FRAME_DELAY))
-			{
-				//Too long between frames. Giving up.
-				state = UNPROGRAMMED;
-			}
-			else
-			{
-				invert_calib_matrix();
-				frame_delay = (time_vals[2]-time_vals[0])/2;
-				printf("frame_delay: %lu\r\n", frame_delay);
-				frame_count = 0;
-				state = RECORD;
-			}
-		}
-		printf("\t%3hhu %3hhu %3hhu\r\n", r, g, b);				
-	}	
-	else if(state==RECORD)
+	if(state==RECORD)
 	{
 		get_calibrated_frame_vals(	&(vid_frames[R][frame_count]), 
 									&(vid_frames[G][frame_count]), 
 									&(vid_frames[B][frame_count]), 
 									r, g, b);
 
-		printf("OUT:\t%hhu\t%hhu\t%hhu\r\n",vid_frames[R][frame_count], vid_frames[G][frame_count], vid_frames[B][frame_count]);
+		//printf("IN:\t%hhu\t%hhu\t%hhu\r\n",r, g, b);
+		printf("\t\tOUT:\t%hhu\t%hhu\t%hhu\r\n",vid_frames[R][frame_count], vid_frames[G][frame_count], vid_frames[B][frame_count]);
 		frame_count++;
 		if(frame_count>MAX_FRAME_COUNT)
 		{
@@ -126,17 +76,6 @@ void loop()
 			state=PLAY;
 			frame_count = 0;
 		}
-		else if(r<=0 && g<=0 && b<=0)
-		{
-			off_count++;
-			if(off_count>30)
-			{
-				total_frames = frame_count-off_count;
-				state=PLAY;
-				frame_count = 0;
-			}
-		}
-		else off_count = 0;
 	}
 	else if(state==PLAY)
 	{
@@ -144,14 +83,12 @@ void loop()
 		frame_count++;
 		frame_count=frame_count%total_frames;
 	}
-	if(state==RECORD||state==PLAY)	delay_ms(frame_delay);
-	else									delay_ms(100);
-	//delay_ms(250);
+	delay_ms(FRAME_DELAY);
 }
 
 void get_rgb_wrapper(uint8_t* r_dest, uint8_t* g_dest, uint8_t* b_dest)
 {
-	int8_t r,g,b;
+	int16_t r,g,b;
 	get_rgb_sensors(&r, &g, &b);
 	int16_t tmp_r, tmp_g, tmp_b;
 	tmp_r = r-r_baseline;
@@ -169,9 +106,9 @@ void get_calibrated_frame_vals(uint8_t* r_out, uint8_t* g_out, uint8_t* b_out, u
 {
 	float tmp_r_out, tmp_g_out, tmp_b_out;
 	
-	tmp_r_out = inv_calib_matrix[R][R]*r + inv_calib_matrix[R][G]*g + inv_calib_matrix[R][B]*b;
-	tmp_g_out = inv_calib_matrix[G][R]*r + inv_calib_matrix[G][G]*g + inv_calib_matrix[G][B]*b;
-	tmp_b_out = inv_calib_matrix[B][R]*r + inv_calib_matrix[B][G]*g + inv_calib_matrix[B][B]*b;
+	tmp_r_out = calib_result[R][R]*(r*1.) + calib_result[R][G]*(g*1.) + calib_result[R][B]*(b*1.);
+	tmp_g_out = calib_result[G][R]*(r*1.) + calib_result[G][G]*(g*1.) + calib_result[G][B]*(b*1.);
+	tmp_b_out = calib_result[B][R]*(r*1.) + calib_result[B][G]*(g*1.) + calib_result[B][B]*(b*1.);
 	
 	if(tmp_r_out>255)		*r_out = 255;
 	else if(tmp_r_out<0)	*r_out = 0;
@@ -186,26 +123,79 @@ void get_calibrated_frame_vals(uint8_t* r_out, uint8_t* g_out, uint8_t* b_out, u
 	else					*b_out = (uint8_t)tmp_b_out;		
 }
 
-void invert_calib_matrix()
-{
-	float det = calib_matrix[R][R]*(calib_matrix[G][G]*calib_matrix[B][B]-calib_matrix[B][G]*calib_matrix[G][B])+
-				calib_matrix[G][R]*(calib_matrix[B][G]*calib_matrix[R][B]-calib_matrix[R][G]*calib_matrix[B][B])+
-				calib_matrix[B][R]*(calib_matrix[R][G]*calib_matrix[G][B]-calib_matrix[G][G]*calib_matrix[R][B]);
-	det = det/255;
-	inv_calib_matrix[R][R] = (calib_matrix[G][G]*calib_matrix[B][B]-calib_matrix[B][G]*calib_matrix[G][B])/det;
-	inv_calib_matrix[R][G] = (calib_matrix[B][G]*calib_matrix[R][B]-calib_matrix[R][G]*calib_matrix[B][B])/det;
-	inv_calib_matrix[R][B] = (calib_matrix[R][G]*calib_matrix[G][B]-calib_matrix[G][G]*calib_matrix[R][B])/det;
-	inv_calib_matrix[G][R] = (calib_matrix[B][R]*calib_matrix[G][B]-calib_matrix[G][R]*calib_matrix[B][B])/det;
-	inv_calib_matrix[G][G] = (calib_matrix[R][R]*calib_matrix[B][B]-calib_matrix[B][R]*calib_matrix[R][B])/det;
-	inv_calib_matrix[G][B] = (calib_matrix[R][B]*calib_matrix[G][R]-calib_matrix[R][R]*calib_matrix[G][B])/det;
-	inv_calib_matrix[B][R] = (calib_matrix[G][R]*calib_matrix[B][G]-calib_matrix[B][R]*calib_matrix[G][G])/det;
-	inv_calib_matrix[B][G] = (calib_matrix[B][R]*calib_matrix[R][G]-calib_matrix[R][R]*calib_matrix[B][G])/det;
-	inv_calib_matrix[B][B] = (calib_matrix[R][R]*calib_matrix[G][G]-calib_matrix[G][R]*calib_matrix[R][G])/det;
+void calc_calib_matrix()
+{	
+	//First, calculate cm transpose.
+	uint8_t cmT[3][NUM_CALIB_MEAS];
+	for(uint8_t i=0;i<3;i++)
+	{
+		for(uint8_t j=0;j<NUM_CALIB_MEAS;j++)
+		{
+			cmT[i][j]=cm[j][i];
+		}
+	}
+	
+	//Next, calculate the information matrix: tr(cm)*cm
+	float infoM[3][3];
+	for(uint8_t i=0;i<3;i++)
+	{
+		for(uint8_t j=0;j<3;j++)
+		{
+			infoM[i][j]=0;
+			for(uint8_t k=0;k<NUM_CALIB_MEAS;k++)
+			{
+				infoM[i][j]+=(uint16_t)cmT[i][k]*(uint16_t)cm[k][j];
+			}
+		}
+	}
+	
+	//Next, invert the information matrix.
+	float infoMInv[3][3];
+	float infoMdet = infoM[R][R]*(infoM[G][G]*infoM[B][B]-infoM[G][B]*infoM[B][G])-
+					 infoM[R][G]*(infoM[G][R]*infoM[B][B]-infoM[G][B]*infoM[B][R])+
+					 infoM[R][B]*(infoM[G][R]*infoM[B][G]-infoM[G][G]*infoM[B][R]);			 
+	infoMInv[R][R] = (infoM[G][G]*infoM[B][B]-infoM[G][B]*infoM[B][G])/infoMdet;
+	infoMInv[R][G] = (infoM[R][B]*infoM[B][G]-infoM[R][G]*infoM[B][B])/infoMdet;
+	infoMInv[R][B] = (infoM[R][G]*infoM[G][B]-infoM[R][B]*infoM[G][G])/infoMdet;
+	infoMInv[G][R] = (infoM[G][B]*infoM[B][R]-infoM[G][R]*infoM[B][B])/infoMdet;
+	infoMInv[G][G] = (infoM[R][R]*infoM[B][B]-infoM[R][B]*infoM[B][R])/infoMdet;
+	infoMInv[G][B] = (infoM[R][B]*infoM[G][R]-infoM[R][R]*infoM[G][B])/infoMdet;
+	infoMInv[B][R] = (infoM[G][R]*infoM[B][G]-infoM[G][G]*infoM[B][R])/infoMdet;
+	infoMInv[B][G] = (infoM[R][G]*infoM[B][R]-infoM[R][R]*infoM[B][G])/infoMdet;
+	infoMInv[B][B] = (infoM[R][R]*infoM[G][G]-infoM[R][G]*infoM[G][R])/infoMdet;
+
+	//Next, calculate ((tr(cm)*cm)^-1)*tr(cm) 
+	float magic[3][NUM_CALIB_MEAS];
+	for(uint8_t i=0;i<3;i++)
+	{
+		for(uint8_t j=0;j<NUM_CALIB_MEAS;j++)
+		{
+			magic[i][j]=0;
+			for(uint8_t k=0;k<3;k++)
+			{
+				magic[i][j]+=infoMInv[i][k]*cmT[k][j];
+			}
+		}
+	}
+	
+	//Finally, we can get the calibration values by multiplying magic (((tr(cm)*cm)^-1)*tr(cm))) by our known values for the projector.
+	for(uint8_t i=0;i<3;i++)
+	{
+		for(uint8_t j=0;j<3;j++)
+		{
+			calib_result[i][j]=0;
+			for(uint8_t k=0;k<NUM_CALIB_MEAS;k++)
+			{
+				calib_result[i][j]+=magic[j][k]*(float)known_calib_vals[i][k];
+			}
+		}
+	}
+	
 	//printf("Calib Matrix:\r\n");
-	//for(uint8_t i=0;i<3;i++) printf("\t%ld\t%ld\t%ld\r\n", calib_matrix[i][R], calib_matrix[i][G], calib_matrix[i][B]);
-	//printf("\r\nInv CalibMatrix:\r\n");
-	//for(uint8_t i=0;i<3;i++) printf("\t%f\t%f\t%f\r\n", inv_calib_matrix[i][R], inv_calib_matrix[i][G], inv_calib_matrix[i][B]);
-	//printf("\r\n");
+	//for(uint8_t i=0;i<7;i++) printf("%c:\t%ld\t%ld\t%ld\r\n", col_names[i], cm[i][R], cm[i][G], cm[i][B]);
+	printf("\r\nCalib Result:\r\n");
+	for(uint8_t i=0;i<3;i++) printf("\t%f\t%f\t%f\r\n", calib_result[i][R], calib_result[i][G], calib_result[i][B]);
+	printf("\r\n");
 }
 
 /*

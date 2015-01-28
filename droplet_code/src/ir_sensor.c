@@ -15,13 +15,13 @@ USART_t* channel[] = {
 void ir_sensor_init()
 {
 	/* SET INPUT PINS AS INPUTS */
-	IR_SENSOR_PORT.DIRCLR = ALL_IR_SENSOR_PINS_bm;
+	IR_SENSOR_PORT.DIRCLR = PIN0_bm | ALL_IR_SENSOR_PINS_bm;
 
 	ADCB.REFCTRL = ADC_REFSEL_AREFB_gc;
-	ADCB.CTRLB = ADC_RESOLUTION_12BIT_gc | ADC_CONMODE_bm; //8bit resolution, and sets it to signed mode.
-	ADCB.PRESCALER = ADC_PRESCALER_DIV512_gc;
+	ADCB.CTRLB = ADC_RESOLUTION_12BIT_gc | ADC_CONMODE_bm; //12bit resolution, and sets it to signed mode.
+	ADCB.PRESCALER = ADC_PRESCALER_DIV256_gc;
 	ADCB.CH0.CTRL = ADC_CH_INPUTMODE_DIFF_gc;	// differential input. requires signed mode (see sec. 28.6 in manual)
-	ADCB.CH0.MUXCTRL = ADC_CH_MUXNEG_PIN0_gc;	// use VREF_IN for the negative input (0.54 V)
+	ADCB.CH0.MUXCTRL = ADC_CH_MUXNEG_INTGND_MODE3_gc;	// use VREF_IN for the negative input (0.54 V)
 	ADCB.CALL = PRODSIGNATURES_ADCBCAL0;
 	ADCB.CALH = PRODSIGNATURES_ADCBCAL1;
 	ADCB.CTRLA = ADC_ENABLE_bm;	
@@ -30,7 +30,6 @@ void ir_sensor_init()
 	
 	for(uint8_t dir=0; dir<6; dir++) ir_sense_baseline[dir] = 0;
 	
-	IR_SENSOR_PORT.DIRCLR = ALL_IR_SENSOR_PINS_bm;
 	delay_ms(5);
 	uint8_t min_val, val;
 	for(uint8_t dir=0; dir<6; dir++)
@@ -64,18 +63,18 @@ uint8_t get_ir_sensor(uint8_t sensor_num)
 	ADCB.CH0.MUXCTRL &= MUX_SENSOR_CLR; //clear previous sensor selection
 	ADCB.CH0.MUXCTRL |= mux_sensor_selectors[sensor_num];
 	
-	int8_t meas[IR_MEAS_COUNT];
+	int16_t meas[IR_MEAS_COUNT];
 	
 	for(uint8_t meas_count=0; meas_count<IR_MEAS_COUNT; meas_count++)
 	{
-		ADCB.CH0.INTFLAGS=1; // clear the complete flag
+		ADCB.INTFLAGS=ADC_CH0IF_bm; // clear the complete flag
 		ADCB.CTRLA |= ADC_CH0START_bm;
-		while (ADCB.CH0.INTFLAGS==0){};		// wait for measurement to complete
-		meas[meas_count] = (ADCB.CH0.RESH<<6)|(ADCB.CH0.RESL>>2);
+		while (ADCB.INTFLAGS&ADC_CH0IF_bm==0){};		// wait for measurement to complete
+		meas[meas_count] = (ADCB.CH0RESH<<6)|(ADCB.CH0RESL>>2);
 	}
-	
-	if(find_median(meas, IR_MEAS_COUNT)<ir_sense_baseline[sensor_num])	return 0;
-	else									return (find_median(meas, IR_MEAS_COUNT)-ir_sense_baseline[sensor_num]);
+	int16_t median = find_median(&(meas[2]), IR_MEAS_COUNT-2);
+	if(median<ir_sense_baseline[sensor_num])	return 0;
+	else										return (median-ir_sense_baseline[sensor_num]);
 }
 
 	
@@ -134,7 +133,7 @@ uint8_t check_collisions(){
 }	
 
 // Finds the median of 3 numbers by finding the max, finding the min, and returning the other value
-int8_t find_median(int8_t* meas, uint8_t arr_len)
+int16_t find_median(int16_t* meas, uint8_t arr_len)
 {
 	if(arr_len==1) return meas[0];
 	else if(arr_len==2) return (meas[0]+meas[1])/2;

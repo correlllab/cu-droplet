@@ -14,7 +14,7 @@ void cap_monitor_init()
 	ACB.AC0CTRL = AC_ENABLE_bm;
 	ACB.AC1CTRL = AC_ENABLE_bm;
 	
-	ACB.AC0MUXCTRL = AC_MUXPOS_PIN1_gc | AC_MUXNEG_BANDGAP_gc;
+	ACB.AC0MUXCTRL = AC_MUXPOS_PIN1_gc | AC_MUXNEG_PIN0_gc; //Changed the muxneg from bandgap
 	ACB.AC1MUXCTRL = AC_MUXPOS_PIN1_gc | AC_MUXNEG_PIN0_gc;
 	
 	ACB.WINCTRL = AC_WEN_bm;

@@ -5,7 +5,7 @@
 #include "rgb_led.h"
 #include "scheduler.h"
 
-#define RGB_MEAS_COUNT 7
+#define RGB_MEAS_COUNT 5
 #define LED_OFF_DELAY_MS 150
 
 #define RGB_SENSOR_PORT PORTA
@@ -19,11 +19,11 @@ uint8_t bsenbase;
 
 void rgb_sensor_init();
 
-void get_rgb_sensors(int8_t* r, int8_t* g, int8_t* b);
-int8_t get_red_sensor();
-int8_t get_green_sensor();
-int8_t get_blue_sensor();
+void get_rgb_sensors(int16_t* r, int16_t* g, int16_t* b);
+int16_t get_red_sensor();
+int16_t get_green_sensor();
+int16_t get_blue_sensor();
 
-int8_t find_median(int8_t* meas, uint8_t arr_len);
+int16_t find_median(int16_t* meas, uint8_t arr_len);
 
 #endif

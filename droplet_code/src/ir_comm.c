@@ -1,15 +1,19 @@
 #include "ir_comm.h"
 
+//#define IR_IS_SPECIAL 1
+
 volatile uint16_t	cmd_length;
 volatile char		cmd_buffer[BUFFER_SIZE];
 
 inline void clear_ir_buffer(uint8_t dir)
 {
-	ir_rxtx[dir].status = 0;
-	ir_rxtx[dir].data_length = 0;
-	ir_rxtx[dir].curr_pos = 0;
-	ir_rxtx[dir].target_ID = 0;
-	ir_rxtx[dir].sender_ID = 0;
+	ir_rxtx[dir].data_crc		= 0;
+	ir_rxtx[dir].sender_ID		= 0;
+	ir_rxtx[dir].target_ID		= 0;	
+	ir_rxtx[dir].curr_pos		= 0;
+	ir_rxtx[dir].calc_crc		= 0;
+	ir_rxtx[dir].data_length	= 0;	
+	ir_rxtx[dir].status			= 0;	
 	
 	channel[dir]->CTRLB |= USART_RXEN_bm; //this enables receive on the USART
 }
@@ -104,14 +108,16 @@ void perform_ir_upkeep()
 {	
 	uint16_t seen_crcs[6] = {0,0,0,0,0,0};
 	uint8_t crc_seen;
-	for(int8_t dir= 0; dir<6; dir++) //This first loop looks for a channel on which we got a good message.
+	int8_t check_dir;
+	int8_t dir;
+	for(dir= 0; dir<6; dir++) //This first loop looks for a channel on which we got a good message.
 	{
 		ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 		{
 			if(ir_rxtx[dir].status&IR_STATUS_COMPLETE_bm)
 			{
 				crc_seen = 0;
-				for(int8_t check_dir=(dir-1) ;  check_dir>=0 ; check_dir--)
+				for(check_dir=(dir-1) ;  check_dir>=0 ; check_dir--)
 					if(seen_crcs[check_dir]==ir_rxtx[dir].data_crc) crc_seen = 1;
 				seen_crcs[dir] = ir_rxtx[dir].data_crc;
 
@@ -188,6 +194,7 @@ void send_msg(uint8_t dirs, char *data, uint8_t data_length)
 	/* The whole transmission will now occur in interrupts. */
 }
 
+#ifdef IR_IS_SPECIAL
 inline void all_ir_sends(uint8_t dirs, char* data, uint8_t data_length, uint16_t target, uint8_t cmd_flag)
 {
 	while(dirs)
@@ -211,12 +218,14 @@ inline void all_ir_sends(uint8_t dirs, char* data, uint8_t data_length, uint16_t
 		if(dirs) delay_ms(rand_byte()%10);
 	}
 }
+#endif
 
-/*
- * MORE COMPLICATED ALL_IR_SENDS, allows two channels on opposite sides to send at the same time.
- */
+///*
+ //* MORE COMPLICATED ALL_IR_SENDS, allows two channels on opposite sides to send at the same time.
+ //*/
 //inline void all_ir_sends(uint8_t dirs_to_go, char* data, uint8_t data_length, uint16_t target, uint8_t cmd_flag)
 //{
+	//uint32_t start=get_time();	
 	//uint8_t busy_channel=0;
 	//while(dirs_to_go)
 	//{
@@ -235,7 +244,11 @@ inline void all_ir_sends(uint8_t dirs, char* data, uint8_t data_length, uint16_t
 					//if(cmd_flag) ir_rxtx[dir].status |= IR_STATUS_COMMAND_bm;
 					//ir_rxtx[dir].target_ID=target;
 					//sending_dirs  |=1<<dir;
-					//sendable_dirs &=(1<<((dir+3)%6)); //opposite direction.
+					//uint8_t left_m	=1<<((dir-1)%6);
+					//uint8_t right_m	=1<<((dir+1)%6);
+					//sendable_dirs &=~left_m;
+					//sendable_dirs &=~right_m;
+					////sendable_dirs &=(~(1<<((dir+3)%6)); //opposite direction.
 				//}
 				//else busy_channel=1;
 			//}	
@@ -243,12 +256,33 @@ inline void all_ir_sends(uint8_t dirs, char* data, uint8_t data_length, uint16_t
 		//if(sending_dirs)
 		//{
 			//send_msg(sending_dirs, data, data_length);
+			////printf("\t%hX:\t%lu\r\n",sending_dirs, get_time()-start);			
 			//wait_for_ir(sending_dirs);
 			//dirs_to_go&=(~sending_dirs);
 		//}
 		//else if(busy_channel) delay_ms(rand_byte()%10);
 	//}
 //}
+
+#ifndef IR_IS_SPECIAL
+//SIMPLEST POSSIBLE ALL_IR_SENDS.
+inline void all_ir_sends(uint8_t dirs_to_go, char* data, uint8_t data_length, uint16_t target, uint8_t cmd_flag)
+{
+	wait_for_ir(dirs_to_go);
+	for(uint8_t dir=0;dir<6;dir++)
+	{
+		if(dirs_to_go&(1<<dir))
+		{
+			channel[dir]->CTRLB &= ~USART_RXEN_bm;
+			ir_rxtx[dir].status = IR_STATUS_BUSY_bm;
+			if(cmd_flag) ir_rxtx[dir].status |= IR_STATUS_COMMAND_bm;
+			ir_rxtx[dir].target_ID=target;
+		}
+	}
+	send_msg(dirs_to_go, data, data_length);
+}
+#endif
+
 
 void ir_targeted_cmd(uint8_t dirs, char *data, uint16_t data_length, uint16_t target)
 {
@@ -274,10 +308,10 @@ void ir_send(uint8_t dirs, char *data, uint8_t data_length)
 void ir_receive(uint8_t dir)
 {
 	uint8_t in_byte = channel[dir]->DATA;				// Some data just came in
-	//rintf("%02hhx ", in_byte); //Used for debugging - prints raw bytes as we get them.	
+	//if(dir==0)printf("%02hhx ", in_byte); //Used for debugging - prints raw bytes as we get them.	
 
 	uint32_t now = get_time();
-	if(now-ir_rxtx[dir].last_byte > IR_MSG_TIMEOUT) ir_rxtx[dir].curr_pos = 0;
+	if(now-ir_rxtx[dir].last_byte > IR_MSG_TIMEOUT) clear_ir_buffer(dir);
 	ir_rxtx[dir].last_byte = now;
 	switch(ir_rxtx[dir].curr_pos)
 	{
@@ -303,9 +337,9 @@ void ir_receive(uint8_t dir)
 	ir_rxtx[dir].curr_pos++;
 	if(ir_rxtx[dir].curr_pos>=(ir_rxtx[dir].data_length+HEADER_LEN))
 	{	
-		if(ir_rxtx[dir].calc_crc!=ir_rxtx[dir].data_crc)							ir_rxtx[dir].curr_pos = 0; //crc check failed.
-		else if(ir_rxtx[dir].target_ID && ir_rxtx[dir].target_ID!=get_droplet_id()) ir_rxtx[dir].curr_pos = 0; //msg targeted, but not to me.
-		else if(ir_rxtx[dir].sender_ID == get_droplet_id())							ir_rxtx[dir].curr_pos = 0; //ignore a message if it is from me. Silly reflections.
+		if(ir_rxtx[dir].calc_crc!=ir_rxtx[dir].data_crc)							clear_ir_buffer(dir); //crc check failed.
+		else if(ir_rxtx[dir].target_ID && ir_rxtx[dir].target_ID!=get_droplet_id()) clear_ir_buffer(dir); //msg targeted, but not to me.
+		else if(ir_rxtx[dir].sender_ID == get_droplet_id())							clear_ir_buffer(dir); //ignore a message if it is from me. Silly reflections.
 		else
 		{
 			ir_rxtx[dir].status |= IR_STATUS_COMPLETE_bm;

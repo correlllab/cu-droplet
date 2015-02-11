@@ -19,13 +19,31 @@ void rgb_sensor_init()
 	
 	ADCA.CALL = PRODSIGNATURES_ADCACAL0;
 	ADCA.CALH = PRODSIGNATURES_ADCACAL1;	
-	
+
 	ADCA.CTRLA = ADC_ENABLE_bm;
+	
+	read_color_settings();
+	
+	delay_ms(50);
+	const int8_t num_samples = 3;
+	int16_t r_avg=0, g_avg=0, b_avg=0;
+	int16_t rCal, gCal, bCal;
+	for(uint8_t i=0; i<num_samples; i++)
+	{
+		r_avg+=get_red_sensor();
+		g_avg+=get_green_sensor();
+		b_avg+=get_blue_sensor();
+		delay_ms(50);
+	}
+	r_baseline= r_avg/num_samples;
+	g_baseline= g_avg/num_samples;
+	b_baseline= b_avg/num_samples;
+	printf("Baselines:\r\n%3d  %3d  %3d\r\n", r_baseline, g_baseline, b_baseline);
 }
 
 // Still not convinced that we should have the conditional, instead of just telling people
 // that if their lights are on they won't get good values, here.
-void get_rgb_sensors(int16_t* r, int16_t* g, int16_t* b)
+void get_rgb_sensors(uint8_t* r, uint8_t* g, uint8_t* b)
 {
 	uint8_t led_r = get_red_led();
 	uint8_t led_g = get_green_led();
@@ -41,17 +59,49 @@ void get_rgb_sensors(int16_t* r, int16_t* g, int16_t* b)
 	//*g = (int8_t)((((gResH&0x08)<<4)|((gResH&0x01)<<6))|((gResL&0xFC)>>2));	
 	//*b = (int8_t)((((bResH&0x08)<<4)|((bResH&0x01)<<6))|((bResL&0xFC)>>2));	
 
+	int16_t rTemp,gTemp,bTemp;
 
-
-	if(r!=NULL) *r = get_red_sensor();
-	if(g!=NULL) *g = get_green_sensor();		
-	if(b!=NULL) *b = get_blue_sensor();	
-
-
-
+	rTemp = get_red_sensor();
+	gTemp = get_green_sensor();		
+	bTemp = get_blue_sensor();	
 	
+	rTemp=rTemp-r_baseline;
+	gTemp=gTemp-g_baseline;
+	bTemp=bTemp-b_baseline;
+	if(rTemp<0) rTemp = 0;
+	if(gTemp<0) gTemp = 0;
+	if(bTemp<0) bTemp = 0;
+	if(r!=NULL) *r=(uint8_t)rTemp;
+	if(g!=NULL) *g=(uint8_t)gTemp;	
+	if(b!=NULL) *b=(uint8_t)bTemp;	
 		
 	if(led_r || led_g || led_b) set_rgb(led_r, led_g, led_b);
+}
+
+void get_cal_rgb(uint8_t* r, uint8_t* g, uint8_t* b)
+{
+	uint8_t tmpR, tmpG, tmpB;
+	get_rgb_sensors(&tmpR, &tmpG, &tmpB);
+	
+	float calcR, calcG, calcB;
+	
+	calcR = calib_matrix[R][R]*(tmpR*1.) + calib_matrix[R][G]*(tmpG*1.) + calib_matrix[R][B]*(tmpB*1.);
+	calcG = calib_matrix[G][R]*(tmpR*1.) + calib_matrix[G][G]*(tmpG*1.) + calib_matrix[G][B]*(tmpB*1.);
+	calcB = calib_matrix[B][R]*(tmpR*1.) + calib_matrix[B][G]*(tmpG*1.) + calib_matrix[B][B]*(tmpB*1.);
+	
+	if(calcR>255)		*r = 255;
+	else if(calcR<0)	*r = 0;
+	else				*r = (uint8_t)calcR;
+	
+	if(calcG>255)		*g = 255;
+	else if(calcG<0)	*g = 0;
+	else				*g = (uint8_t)calcG;
+	
+	if(calcB>255)		*b = 255;
+	else if(calcB<0)	*b = 0;
+	else				*b = (uint8_t)calcB;
+	
+	printf("%3hu %3hu %3hu\t->\t%3hu %3hu %3hu\r\n",tmpR,tmpG,tmpB,*r,*g,*b);
 }
 
 int16_t get_red_sensor()
@@ -89,7 +139,7 @@ int16_t get_green_sensor()
 int16_t get_blue_sensor()
 {
 	int16_t meas[RGB_MEAS_COUNT];
-		
+	int16_t blue_val;
 	for(uint8_t meas_count=0; meas_count<RGB_MEAS_COUNT; meas_count++)
 	{
 		ADCA.CH2.INTFLAGS=1; // clear the complete flag
@@ -97,31 +147,46 @@ int16_t get_blue_sensor()
 		while (ADCA.CH2.INTFLAGS==0){};		// wait for measurement to complete
 		meas[meas_count] = ((((int16_t)(ADCA.CH2.RESH))<<8)|((int16_t)ADCA.CH2.RESL))>>4;
 	}
-	//printf("%d\r\n", meas[RGB_MEAS_COUNT-1]);	
-		
-	return find_median(&meas[2], RGB_MEAS_COUNT-2);
+	blue_val=find_median(&meas[2], RGB_MEAS_COUNT-2);
+	return blue_val;
 }
 
-//// Finds the median of 3 numbers by finding the max, finding the min, and returning the other value
-//int8_t find_median(int8_t* meas)
-//{
-	//uint8_t mini, maxi, medi;
-	//int8_t min = -128, max = 127;
-	//for (uint8_t i = 0; i < 3; i++)
-	//{
-		//if (meas[i] < max)
-		//{
-			//max = meas[i];
-			//maxi = i;
-		//}
-		//if (meas[i] > min)
-		//{
-			//min = meas[i];
-			//mini = i;
-		//}
-	//}
-	//for (medi = 0; medi < 3; medi++)
-	//{
-		//if ((medi != maxi) && (medi != mini)) return meas[medi];
-	//}
-//}
+void read_color_settings()
+{
+	printf("Reading Color Calib Matrix:\r\n");
+	u dat;
+	for(uint8_t i=0;i<3;i++)
+	{
+		for(uint8_t j=0;j<3;j++)
+		{
+			dat.i =((uint32_t)EEPROM_read_byte(0x60 + 12*i + 4*j + 0))<<24;
+			dat.i|=((uint32_t)EEPROM_read_byte(0x60 + 12*i + 4*j + 1))<<16;
+			dat.i|=((uint32_t)EEPROM_read_byte(0x60 + 12*i + 4*j + 2))<<8;
+			dat.i|=((uint32_t)EEPROM_read_byte(0x60 + 12*i + 4*j + 3))<<0;
+			calib_matrix[i][j]=dat.f;
+			printf("\t%f\t",dat.f);			
+		}
+		printf("\r\n");		
+	}
+	printf("\r\n");
+}
+
+void write_color_settings(float cm[3][3])
+{
+	printf("Writing Color Calib Matrix:\r\n");
+	u dat;
+	for(uint8_t i=0;i<3;i++)
+	{
+		for(uint8_t j=0;j<3;j++)
+		{
+			dat.f=cm[i][j];
+			printf("\t%f\t",dat.f);
+			EEPROM_write_byte(0x60 + 12*i + 4*j + 0, (uint8_t)((dat.i>>24)&0xFF));
+			EEPROM_write_byte(0x60 + 12*i + 4*j + 1, (uint8_t)((dat.i>>16)&0xFF));
+			EEPROM_write_byte(0x60 + 12*i + 4*j + 2, (uint8_t)((dat.i>>8)&0xFF));
+			EEPROM_write_byte(0x60 + 12*i + 4*j + 3, (uint8_t)((dat.i>>0)&0xFF));
+		}
+		printf("\r\n");
+	}
+	printf("\r\n");
+}

@@ -54,7 +54,7 @@ void check_messages ()
 		num_waiting_msgs=MAX_USER_FACING_MESSAGES;
 		printf("Error: Messages overflow. Too many messages received. Try speeding up your loop if you see this a lot.\r\n");
 	}
-	
+	//if(num_waiting_msgs>0) printf("num_msgs: %hu\r\n",num_waiting_msgs);
 	while(num_waiting_msgs>0)
 	{
 		i=num_waiting_msgs-1;

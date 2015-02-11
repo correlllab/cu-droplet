@@ -20,8 +20,8 @@
 
 #define MAX_USER_FACING_MESSAGES 6
 
-#define IR_BUFFER_SIZE			63 //bytes
-#define IR_UPKEEP_FREQUENCY		20 //Hz
+#define IR_BUFFER_SIZE			16 //bytes
+#define IR_UPKEEP_FREQUENCY		16 //Hz
 #define IR_MSG_TIMEOUT			10 //ms
 
 #define IR_STATUS_BUSY_bm				0x01	// 0000 0001				

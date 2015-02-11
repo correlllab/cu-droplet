@@ -51,6 +51,7 @@ typedef struct ir_msg_struct
 extern void init();
 extern void loop();
 extern void handle_msg(ir_msg* msg_struct);
+extern uint8_t user_handle_command(char* command_word, char* command_args);
 
 /**
  * \brief Returns this Droplet's unique 16-bit identifier. 0 will never be an identifier.

@@ -1,5 +1,9 @@
 #include "serial_handler.h"
 
+//#define IS_SPECIAL 1
+
+uint8_t user_handle_command(char* command_word, char* command_args) __attribute__((weak));
+
 void handle_serial_command(char* command, uint16_t command_length)
 {
 	//last_serial_command_time = command_time;
@@ -10,111 +14,36 @@ void handle_serial_command(char* command, uint16_t command_length)
 		char command_word[BUFFER_SIZE];
 		char command_args[BUFFER_SIZE];
 		get_command_word_and_args(command,command_length,command_word,command_args);
-		if(strcmp(command_word,"move_steps")==0)
+		if(strcmp(command_word,"move_steps")==0)					handle_move_steps(command_args);
+		else if(strcmp(command_word,"walk")==0)						handle_walk(command_args);
+		else if(strcmp(command_word, "get_rgb")==0)					handle_get_rgb();
+		else if(strcmp(command_word,"set_ir")==0)					handle_set_ir(command_args);
+		else if(strcmp(command_word,"coll")==0)						handle_check_collisions();
+		else if(strcmp(command_word,"stop_walk")==0)				handle_stop_walk();
+		else if(strcmp(command_word,"set_motors")==0)				handle_set_motors(command_args);
+		else if(strcmp(command_word,"set_dist_per_step")==0)		handle_set_mm_per_kilostep(command_args);
+		else if(strcmp(command_word,"rnb_b")==0)					handle_rnb_broadcast();
+		else if(strcmp(command_word,"rnb_c")==0)					handle_rnb_collect(command_args);
+		else if(strcmp(command_word, "rnb_t")==0)					handle_rnb_transmit(command_args);
+		else if(strcmp(command_word,"rnb_r")==0)					handle_rnb_receive();
+		else if(strcmp(command_word,"set_led")==0)					handle_set_led(command_args);
+		else if(strcmp(command_word,"get_id")==0)					handle_get_id();
+		else if(strcmp(command_word,"broadcast_id")==0)				handle_broadcast_id();
+		else if(strcmp(command_word,"cmd")==0)						handle_cmd(command_args);
+		else if(strcmp(command_word,"tgt_cmd")==0)					handle_targeted_cmd(command_args);
+		else if(strcmp(command_word,"msg")==0)						handle_shout(command_args);
+		else if(strcmp(command_word,"tgt")==0)						handle_target(command_args);
+		else if(strcmp(command_word,"tasks")==0)					print_task_queue();
+		else if(strcmp(command_word,"reset")==0)					handle_reset();
+		else if(strcmp(command_word,"write_motor_settings")==0)		write_motor_settings();
+		else if(strcmp(command_word,"print_motor_settings")==0){
+																	print_motor_values();
+																	print_dist_per_step();																	
+		}else if(user_handle_command) //First, make sure the function is defined
 		{
-			handle_move_steps(command_args);
+			if(!user_handle_command(command_word, command_args))	printf("\tCommand ( %s ) not recognized.\r\n",command_word);
 		}
-		else if(strcmp(command_word,"walk")==0)
-		{
-			handle_walk(command_args);
-		}
-		else if(strcmp(command_word, "get_rgb")==0)
-		{
-			handle_get_rgb();
-		}
-		else if(strcmp(command_word,"set_ir")==0)
-		{
-			handle_set_ir(command_args);
-		}
-		else if(strcmp(command_word,"coll")==0)
-		{
-			handle_check_collisions();
-		}		
-		else if(strcmp(command_word,"stop_walk")==0)
-		{
-			handle_stop_walk();
-		}
-		//else if(strcmp(command_word,"set_tau")==0)
-		//{
-			//handle_set_tau(command_args);
-		//}
-		//else if(strcmp(command_word,"set_theta")==0)
-		//{
-			//handle_set_theta(command_args);
-		//}
-		else if(strcmp(command_word,"set_motors")==0)
-		{
-			handle_set_motors(command_args);
-		}
-		else if(strcmp(command_word,"set_dist_per_step")==0)
-		{
-			handle_set_mm_per_kilostep(command_args);
-		}
-		else if(strcmp(command_word,"rnb_b")==0)
-		{
-			handle_rnb_broadcast();
-		}
-		else if(strcmp(command_word,"rnb_c")==0)
-		{
-			handle_rnb_collect(command_args);
-		}
-		else if(strcmp(command_word, "rnb_t")==0)
-		{
-			handle_rnb_transmit(command_args);
-		}
-		else if(strcmp(command_word,"rnb_r")==0)
-		{
-			handle_rnb_receive();
-		}
-		else if(strcmp(command_word,"set_led")==0)
-		{
-			handle_set_led(command_args);
-		}
-		else if(strcmp(command_word,"get_id")==0)
-		{
-			handle_get_id();
-		}
-		else if(strcmp(command_word,"broadcast_id")==0)
-		{
-			handle_broadcast_id();
-		}
-		else if(strcmp(command_word,"cmd")==0)
-		{
-			handle_cmd(command_args);
-		}
-		else if(strcmp(command_word,"tgt_cmd")==0)
-		{
-			handle_targeted_cmd(command_args);
-		}
-		else if(strcmp(command_word,"msg")==0)
-		{
-			handle_shout(command_args);
-		}	
-		else if(strcmp(command_word,"tgt")==0)
-		{
-			handle_target(command_args);
-		}
-		else if(strcmp(command_word,"tasks")==0)
-		{
-			print_task_queue();
-		}		
-		else if(strcmp(command_word,"reset")==0)
-		{
-			handle_reset();
-		}
-		else if(strcmp(command_word,"print_motor_settings")==0)
-		{
-			print_motor_values();
-			print_dist_per_step(); 
-		}	
-		else if(strcmp(command_word,"write_motor_settings")==0)
-		{
-			write_motor_settings();
-		}
-		else
-		{
-			printf("\tCommand ( %s ) not recognized.\r\n",command_word);
-		}
+		else														printf("\tCommand ( %s ) not recognized.\r\n",command_word);
 	}
 }
 
@@ -389,8 +318,11 @@ void send_id()
 void handle_cmd(char* command_args)
 {
 	printf("Broadcasting command: \"%s\", of length %i.\r\n",(uint8_t*)command_args, strlen(command_args));
+	#ifdef IS_SPECIAL
+	ir_cmd(DIR0|DIR1|DIR3|DIR4, command_args,strlen(command_args));
+	#else
 	ir_cmd(ALL_DIRS, command_args,strlen(command_args));
-
+	#endif
 	//if(0==ir_send_command(0,(uint8_t*)command_args,strlen(command_args)))
 	//printf("\tSent command \"%s\", of length %i\r\n",command_args,strlen(command_args));
 	//else
@@ -413,19 +345,26 @@ void handle_targeted_cmd(char* command_args)
 	
 	uint16_t target = strtoul(targetString, NULL, 16);
 	printf("command string: %s, length: %d\r\n",cmdString, strlen(cmdString));
+	#ifdef IS_SPECIAL
+	ir_targeted_cmd(DIR0|DIR1|DIR3|DIR4, cmdString,strlen(cmdString), target);
+	#else
 	ir_targeted_cmd(ALL_DIRS, cmdString,strlen(cmdString), target);
+	#endif	
 }
 
 void handle_shout(char* command_args)
 {
-	if(strlen(command_args)==0) command_args = "The quick brown fox jumped over the lazy dog. Unique New York.";
+	if(strlen(command_args)==0) command_args = "Unique New York.";
 	else if(strlen(command_args)>IR_BUFFER_SIZE)
 	{ 
 		printf("Message length was %d chars, which exceeds the maximum of %d", strlen(command_args), IR_BUFFER_SIZE);
 		return;
 	}
-
-	ir_send(ALL_DIRS, command_args, strlen(command_args));
+	#ifdef IS_SPECIAL
+	ir_send(DIR0|DIR1|DIR3|DIR4, command_args,strlen(command_args));
+	#else
+	ir_send(ALL_DIRS, command_args,strlen(command_args));
+	#endif
 }
 
 void handle_target(char* command_args)
@@ -440,8 +379,12 @@ void handle_target(char* command_args)
 	
 	uint16_t target = strtoul(targetString, NULL, 16);
 	
-	//printf("Target: %04X\r\n",target);	
+	//printf("Target: %04X\r\n",target);
+	#ifdef IS_SPECIAL
+	ir_targeted_send(DIR0|DIR1|DIR3|DIR4, msgString,strlen(msgString), target);
+	#else	
 	ir_targeted_send(ALL_DIRS, msgString,strlen(msgString), target);
+	#endif
 } 
 
 

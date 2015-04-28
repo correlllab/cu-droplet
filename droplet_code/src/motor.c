@@ -5,14 +5,27 @@ void motor_init()
 	PORTC.DIRSET = PIN0_bm | PIN1_bm | PIN4_bm | PIN5_bm;
 	PORTD.DIRSET = PIN0_bm | PIN1_bm;
 
-	TCC0.CTRLA = TC_CLKSEL_DIV1024_gc;
-	TCC0.CTRLB = TC_WGMODE_SS_gc;
-    
-	TCC1.CTRLA = TC_CLKSEL_DIV1024_gc;
-	TCC1.CTRLB = TC_WGMODE_SS_gc;
+	//Below code is for using a motor as a speaker.
+	//TCC0.CTRLA = TC_CLKSEL_DIV1024_gc;
+	//PORTC.PIN1CTRL = PORT_INVEN_bm;
+	//PORTC.PIN0CTRL = PORT_INVEN_bm;
+	//uint16_t period = 10;
+	//TCC0.PER=period;
+	//TCC0.CCA=period/2;
+	//TCC0.CCB=period/2;
+	//TCC0.CNT=0;
+	//TCC0.CTRLB = TC_WGMODE_SS_gc | TC0_CCBEN_bm;
+	//PORTC.OUTSET |= PIN0_bm;
+	//end motor->speaker code
+	
+    TCC0.CTRLA = TC_CLKSEL_DIV1024_gc;
+    TCC1.CTRLB = TC_WGMODE_SS_gc;
+	
+    TCC1.CTRLA = TC_CLKSEL_DIV1024_gc;
+    TCC1.CTRLB = TC_WGMODE_SS_gc;
 
-	TCD0.CTRLA = TC_CLKSEL_DIV1024_gc;
-	TCD0.CTRLB = TC_WGMODE_SS_gc;
+    TCD0.CTRLA = TC_CLKSEL_DIV1024_gc;
+    TCD0.CTRLB = TC_WGMODE_SS_gc;
 
 	motor_status = 0;
 

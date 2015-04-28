@@ -17,8 +17,8 @@
 void rgb_sensor_init();
 
 int16_t r_baseline, g_baseline, b_baseline;
-void get_rgb_sensors(uint8_t* r, uint8_t* g, uint8_t* b);
-void get_cal_rgb(uint8_t* r, uint8_t* g, uint8_t* b);
+void get_rgb_sensors(int8_t* r, int8_t* g, int8_t* b);
+//void get_cal_rgb(uint8_t* r, uint8_t* g, uint8_t* b);
 int16_t get_red_sensor();
 int16_t get_green_sensor();
 int16_t get_blue_sensor();
@@ -31,7 +31,7 @@ typedef enum
 	R, G, B
 } Colors;
 
-int16_t find_median(int16_t* meas, uint8_t arr_len);
+int16_t meas_find_median(int16_t* meas, uint8_t arr_len);
 
 float calib_matrix[3][3];
 

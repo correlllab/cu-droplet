@@ -21,20 +21,6 @@ inline void clear_ir_buffer(uint8_t dir)
 /* Hardware addresses for the port pins with the carrier wave */
 uint8_t ir_carrier_bm[] = { PIN0_bm, PIN1_bm, PIN4_bm, PIN5_bm, PIN6_bm, PIN7_bm };
 
-//USART_t* channel[] = {
-	//&USARTC0,  //   -- Channel 0
-	//&USARTC1,  //   -- Channel 1
-	//&USARTD0,  //   -- Channel 2
-	//&USARTE0,  //   -- Channel 3
-	//&USARTE1,  //   -- Channel 4
-	//&USARTF0   //   -- Channel 5
-//};
-
-// TAKES ~ 4 ms to transmit a single (8-bit) byte (~13 ms when byte is golay encoded like we do)
-// [measured with RTC on 11/20/2012, range = {3,4,5}, mode = 4]
-// EXACT: at 2400 bits per second (BAUD), 8 bits takes 3.3333 ms
-// comment: there is no start bit nor parity bits included in a byte transmission
-// XMEGA hardware supports up to 2 parity bits & start, giving up to 11 bits per byte possible
 void ir_comm_init()
 {
 	/* Initialize carrier waves */
@@ -43,9 +29,9 @@ void ir_comm_init()
 	
 	TCF2.CTRLE = TC_BYTEM_SPLITMODE_gc;		// "split mode" puts this timer counter into "Type 2 mode"
 	TCF2.CTRLA |= TC_CLKSEL_DIV4_gc;		// see CTRLA description in TC2 mode
-	TCF2.CTRLB = carrier_pins;				// Set TC outputs on carrier wave pins (see CTRLA description in TC2 mode)
+	//TCF2.CTRLB = carrier_pins;				// Set TC outputs on carrier wave pins (see CTRLA description in TC2 mode)
 	
-	TCF2.HPER = 210; TCF2.LPER = 210; // 32MHz / (4 * 210) = 38kHz
+	TCF2.HPER = 211; TCF2.LPER = 211; // 32MHz / (4 * 211) = 38kHz
 	TCF2.HCMPA = 105; TCF2.HCMPB = 105; TCF2.HCMPC = 105; // 50% Duty Cycle
 	TCF2.HCMPD = 105; TCF2.LCMPA = 105; TCF2.LCMPB = 105; // 50% Duty Cycle
 	
@@ -59,10 +45,8 @@ void ir_comm_init()
 	// TX pins as outputs:
 	PORTC.DIRSET = PIN3_bm | PIN7_bm;		// DIR 0,1									
 	PORTD.DIRSET = PIN3_bm;					// DIR 2
-	//PORTD.DIRCLR = PIN3_bm;					//undoes the previous line; sets the pin as output. (Just for the bugged samples)
 	PORTE.DIRSET = PIN3_bm | PIN7_bm;		// DIR 3,4
 	PORTF.DIRSET = PIN3_bm;					// DIR 5
-	//PORTF.DIRCLR = PIN3_bm;					//undoes the previous line; sets the pin as output. (Just for the bugged samples)
 	
 	// Invert the output pins:
 	PORTC.PIN3CTRL = PORT_INVEN_bm;												
@@ -77,8 +61,9 @@ void ir_comm_init()
 		channel[i]->CTRLA = (uint8_t) USART_RXCINTLVL_MED_gc | USART_TXCINTLVL_MED_gc;		// Set USART as med-level interrupts
 		channel[i]->CTRLC = (uint8_t) USART_CHSIZE_8BIT_gc | USART_PMODE_DISABLED_gc;		// 8 bits, no parity
 		
-		//channel[i]->BAUDCTRLA = 0b00000000; channel[i]->BAUDCTRLB = 0b11101101; // 2400 baud
-		channel[i]->BAUDCTRLA = 0b01110000; channel[i]->BAUDCTRLB = 0b00000010; //3200 baud.
+		//channel[i]->BAUDCTRLA = 0b00000000; channel[i]->BAUDCTRLB = 0b11101101;	//2400 baud	
+		channel[i]->BAUDCTRLA = 0b01110000; channel[i]->BAUDCTRLB = 0b00000010;	//3200 baud
+		//channel[i]->BAUDCTRLA = 0b11000000; channel[i]->BAUDCTRLB = 0b00000100;		//9600 baud
 		
 		channel[i]->CTRLB |= USART_RXEN_bm;		// Enable communication
 		channel[i]->CTRLB |= USART_TXEN_bm;
@@ -98,7 +83,7 @@ void handle_cmd_wrapper()
 	uint16_t local_msg_len;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)  // Disable interrupts just in case we get another command in the middle of copying this one.
 	{
-		memcpy(local_msg_copy, cmd_buffer, cmd_length+1);
+		memcpy(local_msg_copy, (const void*)cmd_buffer, cmd_length+1);
 		local_msg_len = cmd_length;
 	}
 	handle_serial_command(local_msg_copy, local_msg_len);
@@ -124,7 +109,7 @@ void perform_ir_upkeep()
 				if(crc_seen) clear_ir_buffer(dir);
 				else if(ir_rxtx[dir].status&IR_STATUS_COMMAND_bm)
 				{
-					memcpy(cmd_buffer, (char*)ir_rxtx[dir].buf, ir_rxtx[dir].data_length);
+					memcpy((void *)cmd_buffer, (char*)ir_rxtx[dir].buf, ir_rxtx[dir].data_length);
 					cmd_buffer[ir_rxtx[dir].data_length]='\0';
 					cmd_length = ir_rxtx[dir].data_length;
 					cmd_arrival_time = ir_rxtx[dir].last_byte;	//This is a 'global' value, referenced by other *.c files.
@@ -140,7 +125,7 @@ void perform_ir_upkeep()
 						user_facing_messages_ovf = 1;
 						num_waiting_msgs=0;
 					}
-					memcpy(msg_node[num_waiting_msgs].msg, (char*)ir_rxtx[dir].buf, ir_rxtx[dir].data_length);
+					memcpy((void *)msg_node[num_waiting_msgs].msg, (char*)ir_rxtx[dir].buf, ir_rxtx[dir].data_length);
 					msg_node[num_waiting_msgs].msg[ir_rxtx[dir].data_length]='\0';
 					msg_node[num_waiting_msgs].arrival_time = ir_rxtx[dir].last_byte;
 					msg_node[num_waiting_msgs].arrival_dir = dir;
@@ -268,13 +253,14 @@ inline void all_ir_sends(uint8_t dirs, char* data, uint8_t data_length, uint16_t
 //SIMPLEST POSSIBLE ALL_IR_SENDS.
 inline void all_ir_sends(uint8_t dirs_to_go, char* data, uint8_t data_length, uint16_t target, uint8_t cmd_flag)
 {
+	
 	wait_for_ir(dirs_to_go);
 	for(uint8_t dir=0;dir<6;dir++)
 	{
 		if(dirs_to_go&(1<<dir))
 		{
 			channel[dir]->CTRLB &= ~USART_RXEN_bm;
-			ir_rxtx[dir].status = IR_STATUS_BUSY_bm;
+			ir_rxtx[dir].status = IR_STATUS_BUSY_bm;	
 			if(cmd_flag) ir_rxtx[dir].status |= IR_STATUS_COMMAND_bm;
 			ir_rxtx[dir].target_ID=target;
 		}
@@ -308,10 +294,10 @@ void ir_send(uint8_t dirs, char *data, uint8_t data_length)
 void ir_receive(uint8_t dir)
 {
 	uint8_t in_byte = channel[dir]->DATA;				// Some data just came in
-	//if(dir==0)printf("%02hhx ", in_byte); //Used for debugging - prints raw bytes as we get them.	
+	//if(dir==2)printf("%02hhx ", in_byte); //Used for debugging - prints raw bytes as we get them.	
 
 	uint32_t now = get_time();
-	if(now-ir_rxtx[dir].last_byte > IR_MSG_TIMEOUT) clear_ir_buffer(dir);
+	if(now-ir_rxtx[dir].last_byte > IR_MSG_TIMEOUT)	clear_ir_buffer(dir);
 	ir_rxtx[dir].last_byte = now;
 	switch(ir_rxtx[dir].curr_pos)
 	{
@@ -358,15 +344,14 @@ void ir_transmit(uint8_t dir)
 	switch(ir_rxtx[dir].curr_pos)
 	{
 		case HEADER_POS_MSG_LENGTH:		next_byte  = ir_rxtx[dir].data_length; if(ir_rxtx[dir].status & IR_STATUS_COMMAND_bm) next_byte|= DATA_LEN_CMD_bm; break;
-		case HEADER_POS_CRC_LOW:		next_byte  = (uint8_t)(ir_rxtx[dir].data_crc&0xFF); break;
-		case HEADER_POS_CRC_HIGH:		next_byte  = (uint8_t)((ir_rxtx[dir].data_crc>>8)&0xFF); break;
-		case HEADER_POS_SENDER_ID_LOW:  next_byte  = (uint8_t)(ir_rxtx[dir].sender_ID&0xFF); break;
-		case HEADER_POS_SENDER_ID_HIGH: next_byte  = (uint8_t)((ir_rxtx[dir].sender_ID>>8)&0xFF); break;
-		case HEADER_POS_TARGET_ID_LOW:  next_byte  = (uint8_t)(ir_rxtx[dir].target_ID&0xFF); break;
-		case HEADER_POS_TARGET_ID_HIGH: next_byte  = (uint8_t)((ir_rxtx[dir].target_ID>>8)&0xFF); break;
+		case HEADER_POS_CRC_LOW:		next_byte  = (uint8_t)(ir_rxtx[dir].data_crc&0xFF);			break;
+		case HEADER_POS_CRC_HIGH:		next_byte  = (uint8_t)((ir_rxtx[dir].data_crc>>8)&0xFF);	break;
+		case HEADER_POS_SENDER_ID_LOW:  next_byte  = (uint8_t)(ir_rxtx[dir].sender_ID&0xFF);		break;
+		case HEADER_POS_SENDER_ID_HIGH: next_byte  = (uint8_t)((ir_rxtx[dir].sender_ID>>8)&0xFF);	break;
+		case HEADER_POS_TARGET_ID_LOW:  next_byte  = (uint8_t)(ir_rxtx[dir].target_ID&0xFF);		break;
+		case HEADER_POS_TARGET_ID_HIGH: next_byte  = (uint8_t)((ir_rxtx[dir].target_ID>>8)&0xFF);	break;
 		default: next_byte = ir_rxtx[dir].buf[ir_rxtx[dir].curr_pos - HEADER_LEN];
 	}
-	//printf("%02x ", next_byte);	
 	channel[dir]->DATA = next_byte;
 	ir_rxtx[dir].curr_pos++;
 	/* CHECK TO SEE IF MESSAGE IS COMPLETE */
@@ -378,6 +363,94 @@ void ir_transmit(uint8_t dir)
 	}
 
 }
+
+void ir_remote_send(uint8_t dir, uint16_t data)
+{	
+	//printf("In ir_remote_send.\r\n");
+	//wait_for_ir(1<<dir);
+	//printf("ir_remote_send, post wait_for_ir.\r\n");
+	//ir_rxtx[dir].status = IR_STATUS_BUSY_bm;	
+	channel[dir]->CTRLB &= ~USART_RXEN_bm;
+	channel[dir]->CTRLB &= ~USART_TXEN_bm;
+	//printf("Sending:\t");
+	TCF2.CTRLB |= ir_carrier_bm[dir];
+	PORT_t* port;
+	if(dir==0|dir==1)		port=&PORTC;
+	else if(dir==2)			port=&PORTD;
+	else if(dir==3|dir==4)	port=&PORTE;
+	else if(dir==5)			port=&PORTF;
+	uint8_t pin_mask;
+	if(dir==0|dir==2|dir==3|dir==5) pin_mask=PIN3_bm;
+	else if(dir==1|dir==4)			pin_mask=PIN7_bm;
+	
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+	{
+		port->DIRSET = pin_mask;	
+		//start bit
+		port->OUTCLR = pin_mask;				delay_us(5000);
+		port->OUTSET = pin_mask;				delay_us(5000);
+		//send E0E0:
+		for(uint8_t i=0;i<16;i++)
+		{
+			port->OUTCLR = pin_mask;	delay_us(560);		
+			if((0xE0E0<<i)&0x8000){	port->OUTSET = pin_mask;	delay_us(1600);}
+			else{					port->OUTSET = pin_mask;	delay_us(560);	}
+		}
+		//send data:
+		for(uint8_t i=0;i<16;i++)
+		{
+			port->OUTCLR = pin_mask;	delay_us(560);		
+			if((data<<i)&0x8000){		port->OUTSET = pin_mask;	delay_us(1600);}
+			else{						port->OUTSET = pin_mask;	delay_us(560);	}
+		}	
+		//stop bit
+		port->OUTCLR = pin_mask;		delay_us(560);
+		port->OUTSET = pin_mask;
+	}
+	channel[dir]->CTRLB |= USART_TXEN_bm;
+	ir_transmit_complete(dir);
+	//printf("End of ir_remote_send.\r\n");	
+}
+
+//void ir_remote_send(uint8_t dir, uint16_t data)
+//{
+	//printf("In ir_remote_send.\r\n");
+	//wait_for_ir(1<<dir);
+	//printf("ir_remote_send, post wait_for_ir.\r\n");
+	//ir_rxtx[dir].status = IR_STATUS_BUSY_bm;
+	//channel[dir]->CTRLB &= ~USART_RXEN_bm;
+	//channel[dir]->CTRLB &= ~USART_TXEN_bm;
+	////printf("Sending:\t");
+	//TCF2.CTRLB |= ir_carrier_bm[dir];
+	//
+	//ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+	//{
+		//PORTE.DIRSET = PIN7_bm;
+		////start bit
+		//PORTE.OUTCLR = PIN7_bm;				delay_us(5000);
+		//PORTE.OUTSET = PIN7_bm;				delay_us(5000);
+		////send E0E0:
+		//for(uint8_t i=0;i<16;i++)
+		//{
+			//PORTE.OUTCLR = PIN7_bm;	delay_us(560);
+			//if((0xE0E0<<i)&0x8000){	PORTE.OUTSET = PIN7_bm;	delay_us(1600);}
+			//else{					PORTE.OUTSET = PIN7_bm;	delay_us(560);	}
+		//}
+		////send data:
+		//for(uint8_t i=0;i<16;i++)
+		//{
+			//PORTE.OUTCLR = PIN7_bm;	delay_us(560);
+			//if((data<<i)&0x8000){		PORTE.OUTSET = PIN7_bm;	delay_us(1600);}
+			//else{						PORTE.OUTSET = PIN7_bm;	delay_us(560);	}
+		//}
+		////stop bit
+		//PORTE.OUTCLR = PIN7_bm;		delay_us(560);
+		//PORTE.OUTSET = PIN7_bm;
+	//}
+	//channel[dir]->CTRLB |= USART_TXEN_bm;
+	//ir_transmit_complete(dir);
+	//printf("End of ir_remote_send.\r\n");
+//}
 
 // TO BE CALLED FROM INTERRUPT HANDLER ONLY
 // DO NOT CALL

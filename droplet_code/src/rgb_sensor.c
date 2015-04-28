@@ -22,18 +22,20 @@ void rgb_sensor_init()
 
 	ADCA.CTRLA = ADC_ENABLE_bm;
 	
-	read_color_settings();
+	//read_color_settings();
 	
-	delay_ms(50);
+	delay_us(50);
 	const int8_t num_samples = 3;
+	get_red_sensor(); get_blue_sensor(); get_green_sensor();
+	delay_ms(10);
 	int16_t r_avg=0, g_avg=0, b_avg=0;
-	int16_t rCal, gCal, bCal;
 	for(uint8_t i=0; i<num_samples; i++)
 	{
 		r_avg+=get_red_sensor();
 		g_avg+=get_green_sensor();
 		b_avg+=get_blue_sensor();
-		delay_ms(50);
+		delay_ms(10);
+		printf("\r\n");
 	}
 	r_baseline= r_avg/num_samples;
 	g_baseline= g_avg/num_samples;
@@ -43,7 +45,7 @@ void rgb_sensor_init()
 
 // Still not convinced that we should have the conditional, instead of just telling people
 // that if their lights are on they won't get good values, here.
-void get_rgb_sensors(uint8_t* r, uint8_t* g, uint8_t* b)
+void get_rgb_sensors(int8_t* r, int8_t* g, int8_t* b)
 {
 	uint8_t led_r = get_red_led();
 	uint8_t led_g = get_green_led();
@@ -59,81 +61,84 @@ void get_rgb_sensors(uint8_t* r, uint8_t* g, uint8_t* b)
 	//*g = (int8_t)((((gResH&0x08)<<4)|((gResH&0x01)<<6))|((gResL&0xFC)>>2));	
 	//*b = (int8_t)((((bResH&0x08)<<4)|((bResH&0x01)<<6))|((bResL&0xFC)>>2));	
 
-	int16_t rTemp,gTemp,bTemp;
-
+	int8_t rTemp,gTemp,bTemp;
+	
 	rTemp = get_red_sensor();
 	gTemp = get_green_sensor();		
 	bTemp = get_blue_sensor();	
-	
+
 	rTemp=rTemp-r_baseline;
 	gTemp=gTemp-g_baseline;
 	bTemp=bTemp-b_baseline;
-	if(rTemp<0) rTemp = 0;
-	if(gTemp<0) gTemp = 0;
-	if(bTemp<0) bTemp = 0;
-	if(r!=NULL) *r=(uint8_t)rTemp;
-	if(g!=NULL) *g=(uint8_t)gTemp;	
-	if(b!=NULL) *b=(uint8_t)bTemp;	
+	if(rTemp>=127)			rTemp=127;
+	else if(rTemp<=-128)	rTemp=-128;
+	if(gTemp>=127)			gTemp=127;
+	else if(gTemp<=-128)	gTemp=-128;
+	if(bTemp>=127)			bTemp=127;
+	else if(bTemp<=-128)	bTemp=-128;		
+	if(r!=NULL) *r=(int8_t)rTemp;
+	if(g!=NULL) *g=(int8_t)gTemp;
+	if(b!=NULL) *b=(int8_t)bTemp;	
 		
 	if(led_r || led_g || led_b) set_rgb(led_r, led_g, led_b);
 }
 
-void get_cal_rgb(uint8_t* r, uint8_t* g, uint8_t* b)
-{
-	uint8_t tmpR, tmpG, tmpB;
-	get_rgb_sensors(&tmpR, &tmpG, &tmpB);
-	
-	float calcR, calcG, calcB;
-	
-	calcR = calib_matrix[R][R]*(tmpR*1.) + calib_matrix[R][G]*(tmpG*1.) + calib_matrix[R][B]*(tmpB*1.);
-	calcG = calib_matrix[G][R]*(tmpR*1.) + calib_matrix[G][G]*(tmpG*1.) + calib_matrix[G][B]*(tmpB*1.);
-	calcB = calib_matrix[B][R]*(tmpR*1.) + calib_matrix[B][G]*(tmpG*1.) + calib_matrix[B][B]*(tmpB*1.);
-	
-	if(calcR>255)		*r = 255;
-	else if(calcR<0)	*r = 0;
-	else				*r = (uint8_t)calcR;
-	
-	if(calcG>255)		*g = 255;
-	else if(calcG<0)	*g = 0;
-	else				*g = (uint8_t)calcG;
-	
-	if(calcB>255)		*b = 255;
-	else if(calcB<0)	*b = 0;
-	else				*b = (uint8_t)calcB;
-	
-	printf("%3hu %3hu %3hu\t->\t%3hu %3hu %3hu\r\n",tmpR,tmpG,tmpB,*r,*g,*b);
-}
+//void get_cal_rgb(uint8_t* r, uint8_t* g, uint8_t* b)
+//{
+	//uint8_t tmpR, tmpG, tmpB;
+	//get_rgb_sensors(&tmpR, &tmpG, &tmpB);
+	//
+	//float calcR, calcG, calcB;
+	//
+	//calcR = calib_matrix[R][R]*(tmpR*1.) + calib_matrix[R][G]*(tmpG*1.) + calib_matrix[R][B]*(tmpB*1.);
+	//calcG = calib_matrix[G][R]*(tmpR*1.) + calib_matrix[G][G]*(tmpG*1.) + calib_matrix[G][B]*(tmpB*1.);
+	//calcB = calib_matrix[B][R]*(tmpR*1.) + calib_matrix[B][G]*(tmpG*1.) + calib_matrix[B][B]*(tmpB*1.);
+	//
+	//if(calcR>255)		*r = 255;
+	//else if(calcR<0)	*r = 0;
+	//else				*r = (uint8_t)calcR;
+	//
+	//if(calcG>255)		*g = 255;
+	//else if(calcG<0)	*g = 0;
+	//else				*g = (uint8_t)calcG;
+	//
+	//if(calcB>255)		*b = 255;
+	//else if(calcB<0)	*b = 0;
+	//else				*b = (uint8_t)calcB;
+	//
+	////printf("%3hu %3hu %3hu\t->\t%3hu %3hu %3hu\r\n",tmpR,tmpG,tmpB,*r,*g,*b);
+//}
 
 int16_t get_red_sensor()
 {
 	int16_t meas[RGB_MEAS_COUNT];
-		
+	int16_t red_val;	
 	for(uint8_t meas_count=0; meas_count<RGB_MEAS_COUNT; meas_count++)
 	{
-		ADCA.CH0.INTFLAGS=1; // clear the complete flag
 		ADCA.CH0.CTRL |= ADC_CH_START_bm;
 		while (ADCA.CH0.INTFLAGS==0){};		// wait for measurement to complete
-		meas[meas_count] = ((((int16_t)(ADCA.CH0.RESH))<<8)|((int16_t)ADCA.CH0.RESL))>>4;			
+		meas[meas_count] = ((((int16_t)(ADCA.CH0.RESH))<<8)|((int16_t)ADCA.CH0.RESL))>>4;	
+		ADCA.CH0.INTFLAGS=1; // clear the complete flag				
 	}
-	//printf("%d\t", meas[RGB_MEAS_COUNT-1]);	
-	
-	return find_median(&meas[2], RGB_MEAS_COUNT-2);
+	red_val=meas_find_median(&meas[2], RGB_MEAS_COUNT-2);
+	//printf("%d\t", red_val);
+	return red_val;
 }
 
 int16_t get_green_sensor()
 {
 	int16_t meas[RGB_MEAS_COUNT];
-		
+	int16_t green_val;		
 	for(uint8_t meas_count=0; meas_count<RGB_MEAS_COUNT; meas_count++)
 	{
-		ADCA.CH1.INTFLAGS=1; // clear the complete flag
 		ADCA.CH1.CTRL |= ADC_CH_START_bm;
 		while (ADCA.CH1.INTFLAGS==0){};		// wait for measurement to complete
 		meas[meas_count] = ((((int16_t)(ADCA.CH1.RESH))<<8)|((int16_t)ADCA.CH1.RESL))>>4;		
+		ADCA.CH1.INTFLAGS=1; // clear the complete flag		
 	}
-	//printf("%d\t", meas[RGB_MEAS_COUNT-1]);			
-		
-	return find_median(&meas[2], RGB_MEAS_COUNT-2);
+	green_val=meas_find_median(&meas[2], RGB_MEAS_COUNT-2);
+	//printf("%d\t", green_val);
+	return green_val;
 }
 
 int16_t get_blue_sensor()
@@ -142,18 +147,19 @@ int16_t get_blue_sensor()
 	int16_t blue_val;
 	for(uint8_t meas_count=0; meas_count<RGB_MEAS_COUNT; meas_count++)
 	{
-		ADCA.CH2.INTFLAGS=1; // clear the complete flag
 		ADCA.CH2.CTRL |= ADC_CH_START_bm;
 		while (ADCA.CH2.INTFLAGS==0){};		// wait for measurement to complete
 		meas[meas_count] = ((((int16_t)(ADCA.CH2.RESH))<<8)|((int16_t)ADCA.CH2.RESL))>>4;
-	}
-	blue_val=find_median(&meas[2], RGB_MEAS_COUNT-2);
+		ADCA.CH2.INTFLAGS=1; // clear the complete flag		
+	}		
+	blue_val=meas_find_median(&meas[2], RGB_MEAS_COUNT-2);
+	//printf("%d\t", blue_val);	
 	return blue_val;
 }
 
 void read_color_settings()
 {
-	printf("Reading Color Calib Matrix:\r\n");
+	//printf("Reading Color Calib Matrix:\r\n");
 	u dat;
 	for(uint8_t i=0;i<3;i++)
 	{
@@ -164,11 +170,11 @@ void read_color_settings()
 			dat.i|=((uint32_t)EEPROM_read_byte(0x60 + 12*i + 4*j + 2))<<8;
 			dat.i|=((uint32_t)EEPROM_read_byte(0x60 + 12*i + 4*j + 3))<<0;
 			calib_matrix[i][j]=dat.f;
-			printf("\t%f\t",dat.f);			
+			//printf("\t%f\t",dat.f);	
 		}
-		printf("\r\n");		
+		//printf("\r\n");		
 	}
-	printf("\r\n");
+	//printf("\r\n");
 }
 
 void write_color_settings(float cm[3][3])

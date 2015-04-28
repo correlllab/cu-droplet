@@ -94,9 +94,9 @@ void handle_walk(char* command_args)
 
 void handle_get_rgb()
 {
-	int8_t r, g, b;
+	uint8_t r, g, b;
 	get_rgb_sensors(&r, &g, &b);
-	printf("r: %hhd, g: %hhd, b: %hhd\r\n", r, g, b);
+	printf("r: %hu, g: %hu, b: %hu\r\n", r, g, b);
 }
 
 void handle_set_ir(char* command_args)

@@ -8,6 +8,7 @@
 #include <avr/io.h>
 #include "scheduler.h"
 #include "delay_x.h"
+#include "droplet_init.h"
 #include "i2c.h"
 #define IR_SENSOR_PORT PORTB
 
@@ -31,7 +32,7 @@
 #define MUX_IR_SENSOR_5		ADC_CH_MUXPOS_PIN3_gc		// IR5 sensor on PB3
 #define MUX_SENSOR_CLR		0b00000111
 
-uint8_t ir_sense_baseline[6];
+int16_t ir_sense_baseline[6];
 
 /**
  * \brief Can be used to check if object(s) are within 1cm of this Droplet.
@@ -43,7 +44,7 @@ uint8_t ir_sense_baseline[6];
 void ir_sensor_init();
 uint8_t get_ir_sensor(uint8_t sensor_num);
 uint8_t check_collisions();
-int16_t find_median(int16_t* meas, uint8_t arr_len); // Helper function for getting the middle of the 3 measurements
+int16_t meas_find_median(int16_t* meas, uint8_t arr_len); // Helper function for getting the middle of the 3 measurements
 inline void ir_sensor_enable(){ ADCB.CTRLA |= ADC_ENABLE_bm; }
 inline void ir_sensor_disable(){ ADCB.CTRLA &= ~ADC_ENABLE_bm; }
 

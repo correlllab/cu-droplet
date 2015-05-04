@@ -34,7 +34,6 @@ void handle_serial_command(char* command, uint16_t command_length)
 		else if(strcmp(command_word,"msg")==0)						handle_shout(command_args);
 		else if(strcmp(command_word,"tgt")==0)						handle_target(command_args);
 		else if(strcmp(command_word,"tasks")==0)					print_task_queue();
-		else if(strcmp(command_word,"emit")==0)						handle_emit(command_args);		
 		else if(strcmp(command_word,"reset")==0)					handle_reset();
 		else if(strcmp(command_word,"write_motor_settings")==0)		write_motor_settings();
 		else if(strcmp(command_word,"print_motor_settings")==0){
@@ -427,23 +426,6 @@ void get_command_word_and_args(char* command, uint16_t command_length, char* com
 	{
 		command_args[write_index] = '\0';
 	}
-}
-
-void handle_emit(char* command_args)
-{
-	const char delim[2] = " ";
-	char* token;
-	uint16_t period;
-	uint8_t type;
-	uint32_t duration;
-	
-	token = strtok(command_args, delim);
-	period = atoi(token);
-	token = strtok(NULL, delim);
-	duration = atoi(token);
-	
-	emit_sound(period, duration);
-	
 }
 
 void handle_reset()

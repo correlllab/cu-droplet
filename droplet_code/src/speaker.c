@@ -23,17 +23,6 @@ void speaker_init()
 	song_playing = 0;
 }
 
-void emit_sound(uint16_t period, uint32_t duration)
-{
-	TCC0.CNT=0;
-	TCC0.CCA=period;
-	TCC0.CCB=period;	
-	TCC0.CTRLB |= TC0_CCBEN_bm;
-	//PORTC.PIN1CTRL = PORT_INVEN_bm;
-	PORTC.OUTSET |= PIN0_bm;
-	schedule_task(duration, stop_sound, NULL);
-}
-
 void play_song(uint8_t* notes, uint16_t* durs, uint8_t song_len)
 {
 	if(song_playing) return; //do nothing
@@ -49,42 +38,22 @@ void play_song(uint8_t* notes, uint16_t* durs, uint8_t song_len)
 	schedule_task(durs[0], switch_sound, NULL);
 }
 
-void play_next_sound()
-{
-	if(curr_song_idx>=curr_song_len)
-	{
-		song_playing=0;
-		return;
-	}
-	uint8_t note = local_notes[curr_song_idx];
-	uint16_t dur = local_durs[curr_song_idx];
-	curr_song_idx++;
-	start_sound(note);
-	schedule_task(dur-NOTE_SWITCH_DUR_MS, stop_and_continue_sound, NULL);
-}
-
-void stop_and_continue_sound()
-{
-	stop_sound();
-	schedule_task(NOTE_SWITCH_DUR_MS, play_next_sound, NULL);
-}
-
 void start_sound(uint8_t note)
 {
+	TCC0.CNT = 0;	
 	if(note==0xFF)
 	{
 		TCC0.CCA = 0;
 		TCC0.CCB = 0;
+		PORTC.OUTCLR = PIN0_bm;
 	}
 	else
 	{
 		TCC0.CCA = note_values[note>>4][note&0x0F];
 		TCC0.CCB = note_values[note>>4][note&0x0F];
+		PORTC.OUTSET = PIN0_bm;
 	}
-	TCC0.CNT = 0;
-
 	TCC0.CTRLB |= TC0_CCBEN_bm;
-	PORTC.OUTSET |= PIN0_bm;
 }
 
 void switch_sound()
@@ -92,18 +61,32 @@ void switch_sound()
 	if(curr_song_idx>=curr_song_len)
 	{
 		song_playing=0;
+		stop_sound();
 		return;
 	}	
 	uint8_t note = local_notes[curr_song_idx];
 	uint16_t dur = local_durs[curr_song_idx];
-	uint8_t note_value;
 	curr_song_idx++;
-	if(note==0xFF) note_value=0;
-	else           note_value=note_values[note>>4][note&0x0F];
-	TCC0.CCA = note_value;
-	TCC0.CCB = note_value;
-	TCC0.CNT = 0;
+	TCC0.CNT = 0;	
+	if(note==0xFF)
+	{
+		TCC0.CCA = 0;
+		TCC0.CCB = 0;
+		PORTC.OUTCLR = PIN0_bm;
+	}
+	else
+	{
+		TCC0.CCA = note_values[note>>4][note&0x0F];
+		TCC0.CCB = note_values[note>>4][note&0x0F];
+		PORTC.OUTSET = PIN0_bm;
+		schedule_task(dur-NOTE_SWITCH_DUR_MS, brief_pause, NULL);			
+	}
 	schedule_task(dur, switch_sound, NULL);
+}
+
+void brief_pause()
+{
+	PORTC.OUTCLR = PIN0_bm;
 }
 
 void stop_sound()

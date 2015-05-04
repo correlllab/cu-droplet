@@ -6,7 +6,7 @@
 #include "scheduler.h"
 
 #define MAX_NOTES_PER_SONG 128
-#define NOTE_SWITCH_DUR_MS 5
+#define NOTE_SWITCH_DUR_MS 10
 
 typedef struct{
 	uint16_t dur;
@@ -19,12 +19,12 @@ uint8_t song_playing;
 
 void speaker_init();
 void emit_sound(uint16_t period, uint32_t duration);
-void play_next_sound();
-void stop_and_continue_sound();
+void play_song(uint8_t* notes, uint16_t* durs, uint8_t song_len);
 void start_sound(uint8_t note);
 void switch_sound();
+void brief_pause();
 void stop_sound();
-void play_song(uint8_t* notes, uint16_t* durs, uint8_t song_len);
+
 
 #define NOTE_B7		62
 #define NOTE_AS7	66

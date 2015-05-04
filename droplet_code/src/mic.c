@@ -1,0 +1,10 @@
+#include "mic.h"
+
+void mic_init()
+{
+	////port d, pin 5
+	//ADCD.REFCTRL = ADC_REFSEL_AREFA_gc;
+	//ADCD.CTRLB = ADC_RESOLUTION_8BIT_gc | ADC_CONMODE_bm;
+	//ADCD.PRESCALER = ADC_PRESCALER_DIV256_gc;
+	//ADCD.CALL = PRODSIGNATURES_ADCACAL0;
+}

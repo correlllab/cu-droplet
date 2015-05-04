@@ -2,8 +2,8 @@
 
 void motor_init()
 {
-	PORTC.DIRSET = PIN0_bm | PIN1_bm | PIN4_bm | PIN5_bm;
-	//PORTD.DIRSET = PIN0_bm | PIN1_bm; //AUDIO_DROPLET
+	PORTC.DIRSET = /* PIN0_bm | PIN1_bm |*/ PIN4_bm | PIN5_bm; //AUDIO_DROPLET
+	PORTD.DIRSET = PIN0_bm | PIN1_bm; 
 
 	//Below code is for using a motor as a speaker.
 	//TCC0.CTRLA = TC_CLKSEL_DIV1024_gc;
@@ -18,14 +18,14 @@ void motor_init()
 	//PORTC.OUTSET |= PIN0_bm;
 	//end motor->speaker code
 	
-    TCC0.CTRLA = TC_CLKSEL_DIV1024_gc;
-    TCC1.CTRLB = TC_WGMODE_SS_gc;
+    //TCC0.CTRLA = TC_CLKSEL_DIV1024_gc; //AUDIO_DROPLET
+    //TCC1.CTRLB = TC_WGMODE_SS_gc; //AUDIO_DROPLET
 	
     TCC1.CTRLA = TC_CLKSEL_DIV1024_gc;
     TCC1.CTRLB = TC_WGMODE_SS_gc;
 
-    //TCD0.CTRLA = TC_CLKSEL_DIV1024_gc; //AUDIO_DROPLET
-    //TCD0.CTRLB = TC_WGMODE_SS_gc;  //AUDIO_DROPLET
+    TCD0.CTRLA = TC_CLKSEL_DIV1024_gc; 
+    TCD0.CTRLB = TC_WGMODE_SS_gc;  
 
 	motor_status = 0;
 
@@ -72,26 +72,26 @@ uint8_t move_steps(uint8_t direction, uint16_t num_steps)
 	//printf("Mot_dirs: {%hhd, %hhd, %hhd}.\r\n\n", mot_dirs[0], mot_dirs[1], mot_dirs[2]);
 
 	TCC0.PER = TCC1.PER = TCD0.PER = total_time;
-	TCC0.CCA = TCC0.CCB = mot_durs[0]; //motor 0
+	//TCC0.CCA = TCC0.CCB = mot_durs[0]; //motor 0 //AUDIO_DROPLET
 	TCC1.CCA = TCC1.CCB = mot_durs[1]; //motor 1
-	//TCD0.CCA = TCD0.CCB = mot_durs[2]; //motor 2 //AUDIO_DROPLET
+	TCD0.CCA = TCD0.CCB = mot_durs[2]; //motor 2
 	
 	uint16_t current_offset = 0;
 	
-	for(uint8_t mot=0 ; mot<2 ; mot++) //This loops sets up the offsets correctly, so that (for example) the 30 ms that motor 1 is on won't start until 40ms after motor 0 turns off.
+	for(uint8_t mot=1 ; mot<3 ; mot++) //This loops sets up the offsets correctly, so that (for example) the 30 ms that motor 1 is on won't start until 40ms after motor 0 turns off.
 	{
 		if(mot_durs[mot]==0) continue;
 		switch(mot)
 		{
-			case 0: TCC0.CNT = ((total_time - current_offset)%total_time); break;
+			//case 0: TCC0.CNT = ((total_time - current_offset)%total_time); break; //AUDIO_DROPLET
 			case 1: TCC1.CNT = ((total_time - current_offset)%total_time); break;
-			//case 2: TCD0.CNT = ((total_time - current_offset)%total_time); break; //AUDIO_DROPLET
+			case 2: TCD0.CNT = ((total_time - current_offset)%total_time); break; //AUDIO_DROPLET
 		}
 		current_offset += mot_durs[mot] + 32*motor_off_time;//If we left the motor on for longer to compensate, we should wait a little longer before starting again.
 	}
 	//printf("Offsets are: (%hu, %hu, %hu)\r\n",TCC0.CNT, TCC1.CNT, TCD0.CNT);
 	if(current_offset != total_time) printf("ERROR (I think): current_offset: %hu and total_time: %hu not equal!\r\n", current_offset, total_time);
-	for(uint8_t mot=0 ; mot<2 ; mot++) 	//Now we just need to tell the motors to go!
+	for(uint8_t mot=1 ; mot<3 ; mot++) 	//Now we just need to tell the motors to go!
 	{
 		if(mot_dirs[mot]<0) motor_backward(mot); 
 		else if(mot_dirs[mot]>0)	motor_forward(mot);
@@ -115,19 +115,19 @@ void stop()
 {
 	//printf("Stopping.\r\n");
 	
-	TCC0.CTRLB = TC_WGMODE_SS_gc;
+	//TCC0.CTRLB = TC_WGMODE_SS_gc; //AUDIO_DROPLET
 	TCC1.CTRLB = TC_WGMODE_SS_gc;
-	//TCD0.CTRLB = TC_WGMODE_SS_gc; //AUDIO_DROPLET
+	TCD0.CTRLB = TC_WGMODE_SS_gc;
 	
-	PORTC.OUTCLR = PIN0_bm | PIN1_bm | PIN4_bm | PIN5_bm;
-	//PORTD.OUTCLR = PIN0_bm | PIN1_bm; //AUDIO_DROPLET
+	PORTC.OUTCLR = /*PIN0_bm | PIN1_bm |*/ PIN4_bm | PIN5_bm; //AUDIO_DROPLET
+	PORTD.OUTCLR = PIN0_bm | PIN1_bm; 
 	
-	PORTC.PIN0CTRL = 0;
-	PORTC.PIN1CTRL = 0;
+	//PORTC.PIN0CTRL = 0; //AUDIO_DROPLET
+	//PORTC.PIN1CTRL = 0; //AUDIO_DROPLET
 	PORTC.PIN4CTRL = 0;
 	PORTC.PIN5CTRL = 0;
-	//PORTD.PIN0CTRL = 0; //AUDIO_DROPLET
-	//PORTD.PIN1CTRL = 0; //AUDIO_DROPLET
+	PORTD.PIN0CTRL = 0;
+	PORTD.PIN1CTRL = 0; 
 
 	
 	motor_status = 0;

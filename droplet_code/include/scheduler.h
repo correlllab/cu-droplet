@@ -10,7 +10,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#define MAX_NUM_SCHEDULED_TASKS 10
+#define MAX_NUM_SCHEDULED_TASKS 16
 
 // A task is a function, possibly with an argument, to be called at a specific time
 // scheduled_time is the 32-bit global time when the function should be called

@@ -43,6 +43,8 @@
 #include "motor.h"
 #include "range_algs.h"
 #include "serial_handler.h"
+#include "speaker.h"
+#include "mic.h"
 
 uint16_t droplet_ID;
 

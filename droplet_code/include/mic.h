@@ -7,5 +7,8 @@
 #include "scheduler.h"
 
 void mic_init();
+void process_mic_data();
+
+#define MIC_DATA_WINDOW_SIZE 8
 
 #endif

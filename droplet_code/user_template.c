@@ -20,8 +20,6 @@ uint8_t tetris_notes[58] = {0x44,0x3b,0x40,0x42,0x40,0x3b,0x39,0x39,0x40,0x44,0x
 							0x42,0x44,0x40,0x39,0x39,0x39,0x3b,0x40,0x42,0x45,0x49,0x47,0x45,0x44,
 							0x40,0x44,0x42,0x40,0x3b,0x3b,0x40,0x42,0x44,0x40,0x39,0x39,0xFF,0x44,
 							0x40,0x42,0x3b,0x40,0x39,0x38,0x3b,0xFF,0x44,0x40,0x42,0x3b,0x40,0x44,0x49,0x48};
-	
-	 
 
 /*
  * Any code in this function will be run once, when the robot starts.
@@ -35,21 +33,44 @@ void init()
 		tetris_durs[i]*=(15000/tempo);
 	}
 	for(uint8_t i=0;i<58;i++)//octave switch
-	{
-		tetris_notes[i]-=0x30;
+	{ 
+		tetris_notes[i]-=0x10;
 	}	
+	last_r = 0;
+	last_g = 0;
+	last_b = 0;
+	last_c = 0;
+	last_meas_time=0;
 }
 
-
+uint8_t stupid_do_once = 0;
 
 
 /*
  * The code in this function will be called repeatedly, as fast as it can execute.
  */
 void loop()
-{
+{	
+	delay_ms(10);
+	if(!stupid_do_once)
+	{
+		rgb_power_on();
+		stupid_do_once=1;
+	}
 	//play_song(tetris_notes, tetris_durs, 58);	
-	delay_ms(60000);
+	//delay_ms(60000);
+	uint16_t r,g,b,c;
+	get_rgb(&r,&g,&b,&c);
+	if(!(r==last_r&&g==last_g&&b==last_b&&c==last_c))
+	{
+		//something changed
+		printf("%5u %5u %5u %5u | %lu\r\n",r,g,b,c, get_time()-last_meas_time);
+		last_r=r;
+		last_g=g;
+		last_b=b;
+		last_c=c;		
+		last_meas_time=get_time();
+	}
 }
 
 /*

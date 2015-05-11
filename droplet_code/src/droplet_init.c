@@ -23,6 +23,7 @@ void init_all_systems()
 	motor_init();				if(INIT_DEBUG_MODE) printf("MOTOR INIT\r\n");
 	range_algs_init();			if(INIT_DEBUG_MODE) printf("RANGE ALGORITHMS INIT\r\n");
 	speaker_init();				if(INIT_DEBUG_MODE) printf("SPEAKER INIT\r\n");
+	mic_init();					if(INIT_DEBUG_MODE) printf("MIC INIT\r\n");
 
 	enable_interrupts();
 	startup_light_sequence();

@@ -136,7 +136,7 @@ void TWI_MasterReadHandler(TWI_Master_t *twi);
 void TWI_MasterTransactionFinished(TWI_Master_t *twi, uint8_t result);
 
 
-
+void rgb_power_on();
 
 /*! TWI master interrupt service routine.
  *

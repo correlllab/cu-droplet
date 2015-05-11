@@ -71,31 +71,50 @@
 
 TWI_Master_t twiMaster;
 
-
-
 void i2c_init()
 {
 	PORTB.DIRCLR = PIN5_bm; 
-	PORTB.PIN5CTRL = PORT_OPC_PULLUP_gc;
+	//PORTB.PIN5CTRL = PORT_OPC_PULLUP_gc;
 	PORTE.DIRSET = PIN0_bm | PIN1_bm;
-	TWI_MasterInit(&twiMaster, &TWIE, TWI_MASTER_INTLVL_MED_gc, TWI_BAUD(F_CPU, 400000));
+	TWI_MasterInit(&twiMaster, &TWIE, TWI_MASTER_INTLVL_MED_gc, TWI_BAUD(F_CPU, 100000));
 	
-	uint8_t power_on_sequence[2] = {0x00, 0x01};
-	uint8_t result = TWI_MasterWrite(&twiMaster, RGB_SENSE_ADDR, power_on_sequence, 2);
-	if(result) printf("RGB sense powered on.\r\n");
-	else printf("RGB sense power-on failed.\r\n");
-	delay_ms(500);
+	
+
+}
+
+void rgb_power_on()
+{
+	uint8_t power_on_sequence[8] = {0x80, 0x03,  // Write 0x01 to ENABLE register, activating the device's oscillator.
+									0x8F, 0x01,  // Write 0x01 to CONTROL register, setting the gain to x4.
+									0x81, 0xD5,  // Write 0xD5 to ATIME register, setting the integration time to 2.4ms*(256-ATIME)
+									0x80, 0x03}; // Write 0x03=0x01|0x02 to ENABLE register, activating the device's oscillator and the ADC.
+	uint8_t result = TWI_MasterWrite(&twiMaster, RGB_SENSE_ADDR, &(power_on_sequence[0]), 2);
+	if(result)	printf("RGB sense powered on.\r\n");
+	else		printf("RGB sense power-on failed.\r\n");
+	delay_ms(5);
+	result = TWI_MasterWrite(&twiMaster, RGB_SENSE_ADDR, &(power_on_sequence[2]), 2);
+	if(result)	printf("RGB sense powered on.\r\n");
+	else		printf("RGB sense power-on failed.\r\n");	
+	delay_ms(5);	
+	result = TWI_MasterWrite(&twiMaster, RGB_SENSE_ADDR, &(power_on_sequence[4]), 2);
+	if(result)	printf("RGB sense powered on.\r\n");
+	else		printf("RGB sense power-on failed.\r\n");
+	
+	result = TWI_MasterWrite(&twiMaster, RGB_SENSE_ADDR, &(power_on_sequence[6]), 2);
+	if(result)	printf("RGB sense powered on.\r\n");
+	else		printf("RGB sense power-on failed.\r\n");
 }
 
 void get_rgb(uint16_t *r, uint16_t *g, uint16_t *b, uint16_t *c)
 {
-	uint8_t write_sequence[3] = {0x00,0x01<<1,((0x01<<7) | (0x01<<5) | 0x15)};
-	uint8_t result = TWI_MasterWriteRead(&twiMaster, RGB_SENSE_ADDR, write_sequence, 3, 8); 
+	uint8_t write_sequence[1] = {((0x01<<7) | (0x01<<5) | 0x14)};
+	uint8_t result = TWI_MasterWriteRead(&twiMaster, RGB_SENSE_ADDR, write_sequence, 1, 8); 
+	*c=0;
+	*r=0;
+	*g=0;
+	*b=0;
 	if(result)
 	{
-		delay_ms(500);
-		for(uint8_t i=0;i<8;i++) printf("%3hu ", twiMaster.readData[i]);		
-		printf("\r\n");
 		*c=twiMaster.readData[0];
 		*c=(((uint16_t)twiMaster.readData[1])<<8)|*c;
 		*r=twiMaster.readData[2];
@@ -103,8 +122,7 @@ void get_rgb(uint16_t *r, uint16_t *g, uint16_t *b, uint16_t *c)
 		*g=twiMaster.readData[4];
 		*g=(((uint16_t)twiMaster.readData[5])<<8)|*g;
 		*b=twiMaster.readData[6];
-		*b=(((uint16_t)twiMaster.readData[7])<<8)|*b;	
-		printf("Read: %5u, %5u, %5u, %5u\r\n",*r,*g,*b,*c);		
+		*b=(((uint16_t)twiMaster.readData[7])<<8)|*b;		
 	}
 	else
 	{
@@ -117,7 +135,7 @@ void get_rgb(uint16_t *r, uint16_t *g, uint16_t *b, uint16_t *c)
 
 void set_all_ir_powers(uint16_t power)
 {
-	if(power>256) return;
+	//if(power>256) return;
 	uint16_t temp_write_buffer[3] = {power, power, power};
 	temp_write_buffer[1]|=0x1000;
 	temp_write_buffer[2]|=0x6000;

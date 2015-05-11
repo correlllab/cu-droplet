@@ -43,34 +43,17 @@ void init()
 	last_meas_time=0;
 }
 
-uint8_t stupid_do_once = 0;
-
-
 /*
  * The code in this function will be called repeatedly, as fast as it can execute.
  */
 void loop()
 {	
-	delay_ms(10);
-	if(!stupid_do_once)
-	{
-		rgb_power_on();
-		stupid_do_once=1;
-	}
 	//play_song(tetris_notes, tetris_durs, 58);	
 	//delay_ms(60000);
 	uint16_t r,g,b,c;
 	get_rgb(&r,&g,&b,&c);
-	if(!(r==last_r&&g==last_g&&b==last_b&&c==last_c))
-	{
-		//something changed
-		printf("%5u %5u %5u %5u | %lu\r\n",r,g,b,c, get_time()-last_meas_time);
-		last_r=r;
-		last_g=g;
-		last_b=b;
-		last_c=c;		
-		last_meas_time=get_time();
-	}
+	printf("%5u %5u %5u %5u\r\n",r,g,b,c);
+	delay_ms(100);
 }
 
 /*

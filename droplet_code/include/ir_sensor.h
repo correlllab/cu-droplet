@@ -9,7 +9,8 @@
 #include "scheduler.h"
 #include "delay_x.h"
 #include "droplet_init.h"
-#include "i2c.h"
+#include "ir_comm.h"
+
 #define IR_SENSOR_PORT PORTB
 
 #define IR_MEAS_COUNT 5

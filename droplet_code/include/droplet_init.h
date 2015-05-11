@@ -33,18 +33,19 @@
 #include "scheduler.h"
 #include "pc_comm.h"
 #include "rgb_led.h"
-#include "rgb_sensor.h"
 #include "power.h"
 #include "random.h"
 #include "ecc.h"
-#include "ir_comm.h"
-#include "ir_sensor.h"
 #include "i2c.h"
 #include "motor.h"
 #include "range_algs.h"
-#include "serial_handler.h"
+#include "rgb_sensor.h"
+#include "ir_sensor.h"
+#include "ir_comm.h"
 #include "speaker.h"
 #include "mic.h"
+
+#include "serial_handler.h"
 
 uint16_t droplet_ID;
 

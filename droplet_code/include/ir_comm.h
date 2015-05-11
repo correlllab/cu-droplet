@@ -11,6 +11,7 @@
 #include <avr/interrupt.h>
 #include "droplet_init.h"
 #include "scheduler.h"
+#include "i2c.h"
 
 // FYI, the XMEGA128A3U has:
 //		128 KB flash (program memory)
@@ -42,6 +43,9 @@
 #define IR_STATUS_COMMAND_bm			0x08	// 0000 1000
 #define IR_STATUS_TARGETED_bm			0x10	// 0001 0000
 #define IR_STATUS_UNAVAILABLE_bm		0x03	// Complete or Busy
+
+#define IR_POWER_ADDR_A 0x58
+#define IR_POWER_ADDR_B 0x5c
 
 #define DATA_LEN_VAL_bm		0x7F
 #define DATA_LEN_CMD_bm		0x80
@@ -79,6 +83,8 @@ volatile struct
 	uint8_t		msg_length;
 } msg_node[MAX_USER_FACING_MESSAGES];
 
+uint16_t curr_ir_power;
+
 volatile uint8_t num_waiting_msgs;
 volatile uint8_t user_facing_messages_ovf;
 
@@ -100,6 +106,7 @@ void ir_transmit_complete(uint8_t dir);
 void ir_reset_rx(uint8_t dir);
 void wait_for_ir(uint8_t dirs);
 
-void print_received_message(void* dir_star); //DEBUG -> Remove later
+void set_all_ir_powers(uint16_t power);
+inline uint16_t get_all_ir_powers(){ return curr_ir_power; }
 
 #endif

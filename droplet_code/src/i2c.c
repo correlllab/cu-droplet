@@ -67,84 +67,15 @@
  *****************************************************************************/
 
 #include "i2c.h"
-#define RGB_SENSE_ADDR 0x29
-
-TWI_Master_t twiMaster;
 
 void i2c_init()
 {
 	PORTB.DIRCLR = PIN5_bm; 
 	//PORTB.PIN5CTRL = PORT_OPC_PULLUP_gc;
 	PORTE.DIRSET = PIN0_bm | PIN1_bm;
-	TWI_MasterInit(&twiMaster, &TWIE, TWI_MASTER_INTLVL_MED_gc, TWI_BAUD(F_CPU, 100000));
-	
-	
-
+	twi = &twiMaster;
+	TWI_MasterInit(&TWIE, TWI_MASTER_INTLVL_MED_gc, TWI_BAUD(F_CPU, 100000));
 }
-
-void rgb_power_on()
-{
-	uint8_t power_on_sequence[8] = {0x80, 0x03,  // Write 0x01 to ENABLE register, activating the device's oscillator.
-									0x8F, 0x01,  // Write 0x01 to CONTROL register, setting the gain to x4.
-									0x81, 0xD5,  // Write 0xD5 to ATIME register, setting the integration time to 2.4ms*(256-ATIME)
-									0x80, 0x03}; // Write 0x03=0x01|0x02 to ENABLE register, activating the device's oscillator and the ADC.
-	uint8_t result = TWI_MasterWrite(&twiMaster, RGB_SENSE_ADDR, &(power_on_sequence[0]), 2);
-	if(result)	printf("RGB sense powered on.\r\n");
-	else		printf("RGB sense power-on failed.\r\n");
-	delay_ms(5);
-	result = TWI_MasterWrite(&twiMaster, RGB_SENSE_ADDR, &(power_on_sequence[2]), 2);
-	if(result)	printf("RGB sense powered on.\r\n");
-	else		printf("RGB sense power-on failed.\r\n");	
-	delay_ms(5);	
-	result = TWI_MasterWrite(&twiMaster, RGB_SENSE_ADDR, &(power_on_sequence[4]), 2);
-	if(result)	printf("RGB sense powered on.\r\n");
-	else		printf("RGB sense power-on failed.\r\n");
-	
-	result = TWI_MasterWrite(&twiMaster, RGB_SENSE_ADDR, &(power_on_sequence[6]), 2);
-	if(result)	printf("RGB sense powered on.\r\n");
-	else		printf("RGB sense power-on failed.\r\n");
-}
-
-void get_rgb(uint16_t *r, uint16_t *g, uint16_t *b, uint16_t *c)
-{
-	uint8_t write_sequence[1] = {((0x01<<7) | (0x01<<5) | 0x14)};
-	uint8_t result = TWI_MasterWriteRead(&twiMaster, RGB_SENSE_ADDR, write_sequence, 1, 8); 
-	*c=0;
-	*r=0;
-	*g=0;
-	*b=0;
-	if(result)
-	{
-		*c=twiMaster.readData[0];
-		*c=(((uint16_t)twiMaster.readData[1])<<8)|*c;
-		*r=twiMaster.readData[2];
-		*r=(((uint16_t)twiMaster.readData[3])<<8)|*r;
-		*g=twiMaster.readData[4];
-		*g=(((uint16_t)twiMaster.readData[5])<<8)|*g;
-		*b=twiMaster.readData[6];
-		*b=(((uint16_t)twiMaster.readData[7])<<8)|*b;		
-	}
-	else
-	{
-		printf("Read failed.\r\n");
-	}
-}
-
-#define IR_POWER_ADDR_A 0x58
-#define IR_POWER_ADDR_B 0x5c
-
-void set_all_ir_powers(uint16_t power)
-{
-	//if(power>256) return;
-	uint16_t temp_write_buffer[3] = {power, power, power};
-	temp_write_buffer[1]|=0x1000;
-	temp_write_buffer[2]|=0x6000;
-	uint8_t* write_buffer = ((uint8_t*)temp_write_buffer);
-	TWI_MasterWrite(&twiMaster, IR_POWER_ADDR_A, write_buffer, 6);
-	TWI_MasterWrite(&twiMaster, IR_POWER_ADDR_B, write_buffer, 6);
-}
-
-
 
 /*! \brief Initialize the TWI module.
  *
@@ -157,8 +88,7 @@ void set_all_ir_powers(uint16_t power)
  *  \param intLevel                 Master interrupt level.
  *  \param baudRateRegisterSetting  The baud rate register value.
  */
-void TWI_MasterInit(TWI_Master_t *twi,
-                    TWI_t *module,
+void TWI_MasterInit(TWI_t *module,
                     TWI_MASTER_INTLVL_t intLevel,
                     uint8_t baudRateRegisterSetting)
 {
@@ -184,7 +114,7 @@ void TWI_MasterInit(TWI_Master_t *twi,
  *  \retval TWI_MASTER_BUSSTATE_OWNER_gc   Bus state is owned by the master.
  *  \retval TWI_MASTER_BUSSTATE_BUSY_gc    Bus state is busy.
  */
-TWI_MASTER_BUSSTATE_t TWI_MasterState(TWI_Master_t *twi)
+TWI_MASTER_BUSSTATE_t TWI_MasterState()
 {
 	TWI_MASTER_BUSSTATE_t twi_status;
 	twi_status = (TWI_MASTER_BUSSTATE_t) (twi->interface->MASTER.STATUS &
@@ -203,7 +133,7 @@ TWI_MASTER_BUSSTATE_t TWI_MasterState(TWI_Master_t *twi)
  *  \retval 1  If transaction could be started.
  *  \retval 0 If transaction could not be started.
  */
-uint8_t TWI_MasterReady(TWI_Master_t *twi)
+uint8_t TWI_MasterReady()
 {
 	uint8_t twi_status = (twi->status & TWIM_STATUS_READY);
 	return twi_status;
@@ -222,12 +152,11 @@ uint8_t TWI_MasterReady(TWI_Master_t *twi)
  *  \retval 1  If transaction could be started.
  *  \retval 0 If transaction could not be started.
  */
-uint8_t TWI_MasterWrite(TWI_Master_t *twi,
-                     uint8_t address,
+uint8_t TWI_MasterWrite(uint8_t address,
                      uint8_t *writeData,
                      uint8_t bytesToWrite)
 {
-	uint8_t twi_status = TWI_MasterWriteRead(twi, address, writeData, bytesToWrite, 0);
+	uint8_t twi_status = TWI_MasterWriteRead(address, writeData, bytesToWrite, 0);
 	return twi_status;
 }
 
@@ -243,11 +172,10 @@ uint8_t TWI_MasterWrite(TWI_Master_t *twi,
  *  \retval 1  If transaction could be started.
  *  \retval 0 If transaction could not be started.
  */
-uint8_t TWI_MasterRead(TWI_Master_t *twi,
-                    uint8_t address,
+uint8_t TWI_MasterRead(uint8_t address,
                     uint8_t bytesToRead)
 {
-	uint8_t twi_status = TWI_MasterWriteRead(twi, address, 0, 0, bytesToRead);
+	uint8_t twi_status = TWI_MasterWriteRead(address, 0, 0, bytesToRead);
 	return twi_status;
 }
 
@@ -267,8 +195,7 @@ uint8_t TWI_MasterRead(TWI_Master_t *twi,
  *  \retval 1  If transaction could be started.
  *  \retval 0 If transaction could not be started.
  */
-uint8_t TWI_MasterWriteRead(TWI_Master_t *twi,
-                         uint8_t address,
+uint8_t TWI_MasterWriteRead(uint8_t address,
                          uint8_t *writeData,
                          uint8_t bytesToWrite,
                          uint8_t bytesToRead)
@@ -327,29 +254,29 @@ uint8_t TWI_MasterWriteRead(TWI_Master_t *twi,
  *
  *  \param twi  The TWI_Master_t struct instance.
  */
-void TWI_MasterInterruptHandler(TWI_Master_t *twi)
+void TWI_MasterInterruptHandler()
 {
 	uint8_t currentStatus = twi->interface->MASTER.STATUS;
 	/* If arbitration lost or bus error. */
 	if ((currentStatus & TWI_MASTER_ARBLOST_bm) ||
 	    (currentStatus & TWI_MASTER_BUSERR_bm)) {
 
-		TWI_MasterArbitrationLostBusErrorHandler(twi);
+		TWI_MasterArbitrationLostBusErrorHandler();
 	}
 
 	/* If master write interrupt. */
 	else if (currentStatus & TWI_MASTER_WIF_bm) {
-		TWI_MasterWriteHandler(twi);
+		TWI_MasterWriteHandler();
 	}
 
 	/* If master read interrupt. */
 	else if (currentStatus & TWI_MASTER_RIF_bm) {
-		TWI_MasterReadHandler(twi);
+		TWI_MasterReadHandler();
 	}
 
 	/* If unexpected state. */
 	else {
-		TWI_MasterTransactionFinished(twi, TWIM_RESULT_FAIL);
+		TWI_MasterTransactionFinished(TWIM_RESULT_FAIL);
 	}
 }
 
@@ -360,7 +287,7 @@ void TWI_MasterInterruptHandler(TWI_Master_t *twi)
  *
  *  \param twi  The TWI_Master_t struct instance.
  */
-void TWI_MasterArbitrationLostBusErrorHandler(TWI_Master_t *twi)
+void TWI_MasterArbitrationLostBusErrorHandler()
 {
 	uint8_t currentStatus = twi->interface->MASTER.STATUS;
 
@@ -386,7 +313,7 @@ void TWI_MasterArbitrationLostBusErrorHandler(TWI_Master_t *twi)
  *
  *  \param twi The TWI_Master_t struct instance.
  */
-void TWI_MasterWriteHandler(TWI_Master_t *twi)
+void TWI_MasterWriteHandler()
 {
 	/* Local variables used in if tests to avoid compiler warning. */
 	uint8_t bytesToWrite  = twi->bytesToWrite;
@@ -418,7 +345,7 @@ void TWI_MasterWriteHandler(TWI_Master_t *twi)
 	/* If transaction finished, send STOP condition and set RESULT OK. */
 	else {
 		twi->interface->MASTER.CTRLC = TWI_MASTER_CMD_STOP_gc;
-		TWI_MasterTransactionFinished(twi, TWIM_RESULT_OK);
+		TWI_MasterTransactionFinished(TWIM_RESULT_OK);
 	}
 }
 
@@ -430,7 +357,7 @@ void TWI_MasterWriteHandler(TWI_Master_t *twi)
  *
  *  \param twi The TWI_Master_t struct instance.
  */
-void TWI_MasterReadHandler(TWI_Master_t *twi)
+void TWI_MasterReadHandler()
 {
 	/* Fetch data if bytes to be read. */
 	if (twi->bytesRead < TWIM_READ_BUFFER_SIZE) {
@@ -442,7 +369,7 @@ void TWI_MasterReadHandler(TWI_Master_t *twi)
 	/* If buffer overflow, issue STOP and BUFFER_OVERFLOW condition. */
 	else {
 		twi->interface->MASTER.CTRLC = TWI_MASTER_CMD_STOP_gc;
-		TWI_MasterTransactionFinished(twi, TWIM_RESULT_BUFFER_OVERFLOW);
+		TWI_MasterTransactionFinished(TWIM_RESULT_BUFFER_OVERFLOW);
 	}
 
 	/* Local variable used in if test to avoid compiler warning. */
@@ -457,7 +384,7 @@ void TWI_MasterReadHandler(TWI_Master_t *twi)
 	else {
 		twi->interface->MASTER.CTRLC = TWI_MASTER_ACKACT_bm |
 		                               TWI_MASTER_CMD_STOP_gc;
-		TWI_MasterTransactionFinished(twi, TWIM_RESULT_OK);
+		TWI_MasterTransactionFinished(TWIM_RESULT_OK);
 	}
 }
 
@@ -469,7 +396,7 @@ void TWI_MasterReadHandler(TWI_Master_t *twi)
  *  \param twi     The TWI_Master_t struct instance.
  *  \param result  The result of the operation.
  */
-void TWI_MasterTransactionFinished(TWI_Master_t *twi, uint8_t result)
+void TWI_MasterTransactionFinished(uint8_t result)
 {
 	twi->result = result;
 	twi->status = TWIM_STATUS_READY;
@@ -477,134 +404,5 @@ void TWI_MasterTransactionFinished(TWI_Master_t *twi, uint8_t result)
 
 ISR(TWIE_TWIM_vect)
 {
-	TWI_MasterInterruptHandler(&twiMaster);
+	TWI_MasterInterruptHandler();
 }
-//#include "i2c.h"
-//
-//uint16_t* global_r;
-//uint16_t* global_g;
-//uint16_t* global_b;
-//uint16_t* global_c;
-//
-//
-//void i2c_init()
-//{
-	////init varaibles
-	//i2c_count=0;
-	//i2c_state=NONE;
-	//thePower=0;
-	//
-	////init I2C functionality on xmega.
-	//PORTE.DIRSET = PIN0_bm | PIN1_bm;
-	//TWIE_MASTER_BAUD = TWI_BAUD(F_CPU, 400000);
-	//TWIE_MASTER_CTRLA = TWI_MASTER_INTLVL_MED_gc | TWI_MASTER_RIEN_bm | TWI_MASTER_WIEN_bm | TWI_MASTER_ENABLE_bm;	
-	////TWIE_MASTER_CTRLB = TWI_MASTER_SMEN_bm; //automatically do something when the data register is read.
-	////TWIE_MASTER_CTRLC = TWI_MASTER_ACKACT_bm; //make it so the thing that is automatically done is an 'ack'
-	//TWIE_MASTER_STATUS = TWI_MASTER_BUSSTATE_IDLE_gc;
-		//
-	//PORTB.DIRCLR = 0;
-	//
-	////init RGB sensor.
-	////i2c_count=0;
-	////state=RGB_SENSE_POWER;
-	////TWIE_MASTER_ADDR = RGB_SENSE_ADDR;
-	////delay_ms(500);
-	////state=NONE;
-//}
-//
-//ISR(TWIE_TWIM_vect)
-//{
-	//if(i2c_state==IR_POWER)
-	//{			
-		//printf("I%01d:\t%3hx\r\n", i2c_count, TWIE_MASTER_STATUS);
-		//switch(i2c_count)
-		//{
-			//case 0:	TWIE_MASTER_DATA = (0x00 | ((uint8_t)((thePower>>8)&1))); break;
-			//case 1: TWIE_MASTER_DATA = ((uint8_t)(thePower&0xFF)); break;
-			//case 2:	TWIE_MASTER_DATA = (0x10 | ((uint8_t)((thePower>>8)&1))); break;
-			//case 3: TWIE_MASTER_DATA = ((uint8_t)(thePower&0xFF)); break;
-			//case 4:	TWIE_MASTER_DATA = (0x60 | ((uint8_t)((thePower>>8)&1))); break;
-			//case 5: TWIE_MASTER_DATA = ((uint8_t)(thePower&0xFF)); break;
-			//default: TWIE_MASTER_CTRLC = TWI_MASTER_CMD_STOP_gc;
-		//}
-	//}
-	//else if(i2c_state==RGB_SENSE_POWER)
-	//{
-		//printf("P%01d:\t%3hx\r\n", i2c_count, TWIE_MASTER_STATUS);		
-		//switch(i2c_count)
-		//{
-			//case 0: TWIE_MASTER_DATA = (0x00); break; //(0x00): The ENABLE register.
-			//case 1: TWIE_MASTER_DATA = (0x01); break; //Setting Power ON bit to 1.
-			//default: TWIE_MASTER_CTRLC = TWI_MASTER_CMD_STOP_gc;
-		//}
-	//}
-	//else if(i2c_state==RGB_SENSE_WRITE)
-	//{
-		//printf("W%01d:\t%3hx\r\n", i2c_count, TWIE_MASTER_STATUS);
-		//switch(i2c_count)
-		//{
-			//case 0: TWIE_MASTER_DATA = (0x00); break; //(0x00): The ENABLE register.
-			//case 1: TWIE_MASTER_DATA = (0x01<<1); break; //Setting RGBC enable bit to 1.
-			//case 2: TWIE_MASTER_DATA = ((0x01<<7) | (0x01<<5) | 0x15); break; // (0x01<<7): CMD Register Select | (0x01<<5): auto-increment protocol | (0x15) address of first value to read;
-			//default: TWIE_MASTER_CTRLC = TWI_MASTER_CMD_STOP_gc;
-		//}
-	//}
-	//else if(i2c_state==RGB_SENSE_READ)
-	//{
-		//printf("R%01d:\t%3hx\r\n", i2c_count, TWIE_MASTER_STATUS);
-		//switch(i2c_count)
-		//{
-			//case 0: *global_c = TWIE_MASTER_DATA; TWIE_MASTER_CTRLC = TWI_MASTER_CMD_RECVTRANS_gc; break;
-			//case 1: *global_c = (((uint16_t)TWIE_MASTER_DATA)<<8)|*global_c; TWIE_MASTER_CTRLC = TWI_MASTER_CMD_RECVTRANS_gc; break;
-			//case 2: *global_r = TWIE_MASTER_DATA; TWIE_MASTER_CTRLC = TWI_MASTER_CMD_RECVTRANS_gc; break;
-			//case 3: *global_r = (((uint16_t)TWIE_MASTER_DATA)<<8)|*global_r; TWIE_MASTER_CTRLC = TWI_MASTER_CMD_RECVTRANS_gc; break;
-			//case 4: *global_g = TWIE_MASTER_DATA; TWIE_MASTER_CTRLC = TWI_MASTER_CMD_RECVTRANS_gc; break;
-			//case 5: *global_g = (((uint16_t)TWIE_MASTER_DATA)<<8)|*global_g; TWIE_MASTER_CTRLC = TWI_MASTER_CMD_RECVTRANS_gc; break;
-			//case 6: *global_b = TWIE_MASTER_DATA; TWIE_MASTER_CTRLC = TWI_MASTER_CMD_RECVTRANS_gc; break;
-			//case 7: *global_b = (((uint16_t)TWIE_MASTER_DATA)<<8)|*global_b; TWIE_MASTER_CTRLC = TWI_MASTER_CMD_RECVTRANS_gc; break;
-			//default: TWIE_MASTER_CTRLC = TWI_MASTER_CMD_STOP_gc;			
-		//}
-	//}
-	//else
-	//{
-		//printf("?%01d:\t%3hx\r\n", i2c_count, TWIE_MASTER_STATUS);
-	//}
-	//i2c_count++;
-//}
-//
-//void get_rgb(uint16_t *r, uint16_t *g, uint16_t *b, uint16_t *c)
-//{
-	//global_r = r;
-	//global_g = g;
-	//global_b = b;
-	//global_c = c;
-	//i2c_count=0;
-	//i2c_state=RGB_SENSE_WRITE;
-	//TWIE_MASTER_ADDR = RGB_SENSE_ADDR;
-	//delay_ms(1000);
-	//i2c_count=0;
-	//i2c_state=RGB_SENSE_READ;
-	//TWIE_MASTER_ADDR = RGB_SENSE_ADDR | 0x1;
-	//delay_ms(1000);
-	//printf("%5u | %5u | %5u | %5u\r\n",*r, *g, *b, *c);
-	//i2c_state=NONE;
-//}
-//
-//void set_rgb_gain(uint8_t gain) //need to implement this.
-//{
-	//
-//}
-//
-//
-//void set_all_ir_powers(uint16_t power)
-//{
-	////i2c_state=IR_POWER;
-	////i2c_count=0;
-	////thePower=power;
-	////TWIE_MASTER_ADDR = 0x58;
-	////delay_us(1200);
-	////TWIE_MASTER_ADDR = 0x5c;
-	////delay_us(1200);
-	////
-	////i2c_state=NONE;	
-//}

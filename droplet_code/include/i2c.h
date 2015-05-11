@@ -106,88 +106,29 @@ typedef struct TWI_Master {
 	register8_t result;                             /*!< Result of transaction */
 }TWI_Master_t;
 
-void i2c_init();
-void get_rgb(uint16_t *r, uint16_t *g, uint16_t *b, uint16_t *c);
-void set_all_ir_powers(uint16_t power);
-inline uint16_t get_all_ir_powers(){ return 0; };
+TWI_Master_t twiMaster;
+TWI_Master_t* twi;
 
-void TWI_MasterInit(TWI_Master_t *twi,
-                    TWI_t *module,
+void i2c_init();
+
+void TWI_MasterInit(TWI_t *module,
                     TWI_MASTER_INTLVL_t intLevel,
                     uint8_t baudRateRegisterSetting);
-TWI_MASTER_BUSSTATE_t TWI_MasterState(TWI_Master_t *twi);
-uint8_t TWI_MasterReady(TWI_Master_t *twi);
-uint8_t TWI_MasterWrite(TWI_Master_t *twi,
-                     uint8_t address,
+TWI_MASTER_BUSSTATE_t TWI_MasterState();
+uint8_t TWI_MasterReady();
+uint8_t TWI_MasterWrite(uint8_t address,
                      uint8_t * writeData,
                      uint8_t bytesToWrite);
-uint8_t TWI_MasterRead(TWI_Master_t *twi,
-                    uint8_t address,
+uint8_t TWI_MasterRead(uint8_t address,
                     uint8_t bytesToRead);
-uint8_t TWI_MasterWriteRead(TWI_Master_t *twi,
-                         uint8_t address,
+uint8_t TWI_MasterWriteRead(uint8_t address,
                          uint8_t *writeData,
                          uint8_t bytesToWrite,
                          uint8_t bytesToRead);
-void TWI_MasterInterruptHandler(TWI_Master_t *twi);
-void TWI_MasterArbitrationLostBusErrorHandler(TWI_Master_t *twi);
-void TWI_MasterWriteHandler(TWI_Master_t *twi);
-void TWI_MasterReadHandler(TWI_Master_t *twi);
-void TWI_MasterTransactionFinished(TWI_Master_t *twi, uint8_t result);
-
-
-void rgb_power_on();
-
-/*! TWI master interrupt service routine.
- *
- *  Interrupt service routine for the TWI master. Copy the needed vectors
- *  into your code.
- *
-    ISR(TWIC_TWIM_vect)
-    {
-      TWI_MasterInterruptHandler(&twiMaster);
-    }
-
- *
- */
+void TWI_MasterInterruptHandler();
+void TWI_MasterArbitrationLostBusErrorHandler();
+void TWI_MasterWriteHandler();
+void TWI_MasterReadHandler();
+void TWI_MasterTransactionFinished(uint8_t result);
 
 #endif /* TWI_MASTER_DRIVER_H */
-
-
-//#ifndef I2C_H
-//#define I2C_H
-//#include <avr/io.h>
-//#include "scheduler.h"
-//
-//#define TWI_BAUD(F_SYS, F_TWI) ((F_SYS / (2 * F_TWI)) - 5)
-//volatile uint8_t i2c_count;
-//uint16_t thePower;
-//void i2c_init();
-//
-//#define RGB_SENSE_ADDR	(0x29<<1)
-//#define I2C_CDATA_L		0x14
-//#define I2C_CDATA_H		0x15
-//#define I2C_RDATA_L		0x16
-//#define I2C_RDATA_H		0x17
-//#define I2C_GDATA_L		0x18
-//#define I2C_GDATA_H		0x19
-//#define I2C_BDATA_L		0x1A
-//#define I2C_BDATA_H		0x1B
-//
-//typedef enum{
-	//NONE,
-	//IR_POWER,
-	//RGB_SENSE_POWER,
-	//RGB_SENSE_WRITE,
-	//RGB_SENSE_READ,
-	//RGB_GAIN
-	//} i2c_state_t;
-	//
-//volatile i2c_state_t i2c_state;
-//
-//void set_all_ir_powers(uint16_t power);
-//void get_rgb(uint16_t *r, uint16_t *g, uint16_t *b, uint16_t *c);
-//void set_rgb_gain(uint8_t gain); 
-//inline uint16_t get_all_ir_powers(){ return thePower; };
-//
-//#endif

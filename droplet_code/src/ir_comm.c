@@ -68,6 +68,7 @@ void ir_comm_init()
 		channel[i]->CTRLB |= USART_RXEN_bm;		// Enable communication
 		channel[i]->CTRLB |= USART_TXEN_bm;
 	}
+	curr_ir_power=0;	
 	set_all_ir_powers(256);
 	for(uint8_t dir=0; dir<6; dir++) clear_ir_buffer(dir); //this initializes the buffer's values to 0.
 	cmd_arrival_time=0;
@@ -498,6 +499,21 @@ void wait_for_ir(uint8_t dirs)
 			}
 		}
 	} while (busy);
+}
+
+void set_all_ir_powers(uint16_t power)
+{
+	if(power>256) return;
+	curr_ir_power = power;
+	uint16_t temp_write_buffer[3] = {power, power, power};
+	temp_write_buffer[1]|=0x1000;
+	temp_write_buffer[2]|=0x6000;
+	uint8_t* write_buffer = ((uint8_t*)temp_write_buffer);
+	
+	uint8_t result;
+	result = TWI_MasterWrite(IR_POWER_ADDR_A, write_buffer, 6);
+	delay_ms(5);
+	result = TWI_MasterWrite(IR_POWER_ADDR_B, write_buffer, 6);
 }
 
 // ISRs for IR channel 0

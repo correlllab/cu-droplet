@@ -330,6 +330,7 @@ void ir_range_meas()
 		delay_ms(DELAY_BETWEEN_RB_TRANSMISSIONS);
 		//set_green_led(0);
 	}
+	printf("Argh!\r\n");
 }
 
 void ir_range_blast(uint8_t power)

@@ -20,9 +20,21 @@
 
 #define MAX_USER_FACING_MESSAGES 6
 
-#define IR_BUFFER_SIZE			63 //bytes
-#define IR_UPKEEP_FREQUENCY		20 //Hz
-#define IR_MSG_TIMEOUT			10 //ms
+#define KEY_POWER		((uint16_t)0x40BF)
+#define KEY_CH_UP		((uint16_t)0x48B7)
+#define KEY_CH_DOWN		((uint16_t)0xC837)
+#define KEY_VOL_UP		((uint16_t)0xE01F)
+#define KEY_VOL_DOWN	((uint16_t)0xD02F)
+#define KEY_SOURCE		((uint16_t)0x807F)
+#define KEY_ENTER		((uint16_t)0x1AE5)
+#define KEY_UP			((uint16_t)0x06F9)
+#define KEY_DOWN		((uint16_t)0x8679)
+#define KEY_LEFT		((uint16_t)0xA659)
+#define KEY_RIGHT		((uint16_t)0x46B9)
+
+#define IR_BUFFER_SIZE			16 //bytes
+#define IR_UPKEEP_FREQUENCY		16 //Hz
+#define IR_MSG_TIMEOUT			20 //ms
 
 #define IR_STATUS_BUSY_bm				0x01	// 0000 0001				
 #define IR_STATUS_COMPLETE_bm			0x02	// 0000 0010
@@ -83,6 +95,7 @@ void ir_send(uint8_t dirs, char *data, uint8_t data_length);
 void ir_send_imp(uint8_t dirs, char* data, uint8_t data_length);
 void ir_receive(uint8_t dir); //Called by Interrupt Handler Only
 void ir_transmit(uint8_t dir);
+void ir_remote_send(uint8_t dir, uint16_t data);
 void ir_transmit_complete(uint8_t dir);
 void ir_reset_rx(uint8_t dir);
 void wait_for_ir(uint8_t dirs);

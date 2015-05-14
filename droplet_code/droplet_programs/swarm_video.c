@@ -1,218 +1,117 @@
-#include "droplet_programs/swarm_video.h"
-
-/*
- * Any code in this function will be run once, when the robot starts.
- */
-void init()
-{
-	const int8_t num_samples = 5;
-	int16_t r_avg=0, g_avg=0, b_avg=0;
-	off_count = 0;
-	int8_t r, g, b;
-	delay_ms(1000);
-	for(uint8_t i=0; i<num_samples; i++)
-	{
-		get_rgb_sensors(&r, &g, &b);
-		r_avg+=r;
-		g_avg+=g;
-		b_avg+=b;
-		delay_ms(100);
-	}
-	r_baseline= r_avg/num_samples;
-	g_baseline= g_avg/num_samples;
-	b_baseline= b_avg/num_samples;
-	printf("Baselines:\r\n%3hd  %3hd  %3hd\r\n", r_baseline, g_baseline, b_baseline);
-	state = UNPROGRAMMED;
-}
-
-//full power red (hits the rail at 127) tends to increase green by ~12 and blue by ~3
-//full power green (106) tends to increase red by ~11 and blue by ~12
-//full power blue (37) tends to increase red by ~3 and green by ~11
-//these effects accumulate, not quite additively: full power white light reads as 
-//(127, 124, 48) which is a little less than the sum.
-
-/*
- * The code in this function will be called repeatedly, as fast as it can execute.
- */
-void loop()
-{
-
-	uint8_t r,g,b;
-	if(state!= PLAY) get_rgb_wrapper(&r, &g, &b);	
-	printf("%3hhu %3hhu %3hhu\r\n", r, g, b);		
-	if(state==UNPROGRAMMED)
-	{	
-		if((r>MIN_R_THRESH)&&(g>MIN_G_THRESH)&&(b>MIN_B_THRESH)) //If we are seeing full white.
-		{			
-			calib_white[R]=r;
-			calib_white[G]=g;
-			calib_white[B]=b;
-			for(uint8_t i=0;i<3;i++)
-			{
-				calib_matrix[R][i]=0;
-				calib_matrix[G][i]=0;
-				calib_matrix[B][i]=0;
-			}
-			state = CALIB_R;			
-			printf("White\r\n");
-			printf("\t%3hhu %3hhu %3hhu\r\n", r, g, b);						
-		}
-	}
-	else if(state==CALIB_R)
-	{
-		if((r>MIN_R_THRESH)&&(g<calib_white[G]/2)&&(b<(2*calib_white[B]/3))) //If we are seeing just red.
-		{
-			time_vals[0]=get_time();
-			calib_matrix[R][R]=r;
-			calib_matrix[R][G]=g;
-			calib_matrix[R][B]=b;
-			state = CALIB_G;
-			printf("Red\r\n");			
-		}
-		printf("\t%3hhu %3hhu %3hhu\r\n", r, g, b);		
-	}
-	else if(state==CALIB_G)
-	{	
-		if((r<calib_white[R]/2)&&(g>MIN_G_THRESH)&&(b<(2*calib_white[B]/3))) //If we are seeing just green.
-		{
-			time_vals[1]=get_time();
-			calib_matrix[G][R]=r;
-			calib_matrix[G][G]=g;
-			calib_matrix[G][B]=b;
-			state = CALIB_B;
-			printf("Green\r\n");					
-		}
-		printf("\t%3hhu %3hhu %3hhu\r\n", r, g, b);			
-	}
-	else if(state==CALIB_B)
-	{
-		if((r<calib_white[R]/2)&&(g<calib_white[G]/2)&&(b>MIN_B_THRESH)) //If we are seeing just blue.
-		{
-			time_vals[2]=get_time();
-			calib_matrix[B][R]=r;
-			calib_matrix[B][G]=g;
-			calib_matrix[B][B]=b;
-			printf("Blue\r\n");
-			uint32_t gap_a = (time_vals[1]-time_vals[0]);
-			uint32_t gap_b = (time_vals[2]-time_vals[1]);
-			if((gap_a>MAX_FRAME_DELAY)||(gap_b>MAX_FRAME_DELAY))
-			{
-				//Too long between frames. Giving up.
-				state = UNPROGRAMMED;
-			}
-			else
-			{
-				invert_calib_matrix();
-				frame_delay = (time_vals[2]-time_vals[0])/2;
-				printf("frame_delay: %lu\r\n", frame_delay);
-				frame_count = 0;
-				state = RECORD;
-			}
-		}
-		printf("\t%3hhu %3hhu %3hhu\r\n", r, g, b);				
-	}	
-	else if(state==RECORD)
-	{
-		get_calibrated_frame_vals(	&(vid_frames[R][frame_count]), 
-									&(vid_frames[G][frame_count]), 
-									&(vid_frames[B][frame_count]), 
-									r, g, b);
-
-		printf("OUT:\t%hhu\t%hhu\t%hhu\r\n",vid_frames[R][frame_count], vid_frames[G][frame_count], vid_frames[B][frame_count]);
-		frame_count++;
-		if(frame_count>MAX_FRAME_COUNT)
-		{
-			total_frames=MAX_FRAME_COUNT;
-			state=PLAY;
-			frame_count = 0;
-		}
-		else if(r<=0 && g<=0 && b<=0)
-		{
-			off_count++;
-			if(off_count>30)
-			{
-				total_frames = frame_count-off_count;
-				state=PLAY;
-				frame_count = 0;
-			}
-		}
-		else off_count = 0;
-	}
-	else if(state==PLAY)
-	{
-		set_rgb(vid_frames[R][frame_count], vid_frames[G][frame_count], vid_frames[B][frame_count]);
-		frame_count++;
-		frame_count=frame_count%total_frames;
-	}
-	if(state==RECORD||state==PLAY)	delay_ms(frame_delay);
-	else									delay_ms(100);
-	//delay_ms(250);
-}
-
-void get_rgb_wrapper(uint8_t* r_dest, uint8_t* g_dest, uint8_t* b_dest)
-{
-	int8_t r,g,b;
-	get_rgb_sensors(&r, &g, &b);
-	int16_t tmp_r, tmp_g, tmp_b;
-	tmp_r = r-r_baseline;
-	tmp_g = g-g_baseline;
-	tmp_b = b-b_baseline;
-	if(tmp_r<0) tmp_r = 0;
-	if(tmp_g<0) tmp_g = 0;
-	if(tmp_b<0) tmp_b = 0;
-	*r_dest = (uint8_t)(tmp_r);
-	*g_dest = (uint8_t)(tmp_g);
-	*b_dest = (uint8_t)(tmp_b);
-}
-
-void get_calibrated_frame_vals(uint8_t* r_out, uint8_t* g_out, uint8_t* b_out, uint8_t r, uint8_t g, uint8_t b)
-{
-	float tmp_r_out, tmp_g_out, tmp_b_out;
-	
-	tmp_r_out = inv_calib_matrix[R][R]*r + inv_calib_matrix[R][G]*g + inv_calib_matrix[R][B]*b;
-	tmp_g_out = inv_calib_matrix[G][R]*r + inv_calib_matrix[G][G]*g + inv_calib_matrix[G][B]*b;
-	tmp_b_out = inv_calib_matrix[B][R]*r + inv_calib_matrix[B][G]*g + inv_calib_matrix[B][B]*b;
-	
-	if(tmp_r_out>255)		*r_out = 255;
-	else if(tmp_r_out<0)	*r_out = 0;
-	else					*r_out = (uint8_t)tmp_r_out;
-	
-	if(tmp_g_out>255)		*g_out = 255;
-	else if(tmp_g_out<0)	*g_out = 0;
-	else					*g_out = (uint8_t)tmp_g_out;
-	
-	if(tmp_b_out>255)		*b_out = 255;
-	else if(tmp_b_out<0)	*b_out = 0;
-	else					*b_out = (uint8_t)tmp_b_out;		
-}
-
-void invert_calib_matrix()
-{
-	float det = calib_matrix[R][R]*(calib_matrix[G][G]*calib_matrix[B][B]-calib_matrix[B][G]*calib_matrix[G][B])+
-				calib_matrix[G][R]*(calib_matrix[B][G]*calib_matrix[R][B]-calib_matrix[R][G]*calib_matrix[B][B])+
-				calib_matrix[B][R]*(calib_matrix[R][G]*calib_matrix[G][B]-calib_matrix[G][G]*calib_matrix[R][B]);
-	det = det/255;
-	inv_calib_matrix[R][R] = (calib_matrix[G][G]*calib_matrix[B][B]-calib_matrix[B][G]*calib_matrix[G][B])/det;
-	inv_calib_matrix[R][G] = (calib_matrix[B][G]*calib_matrix[R][B]-calib_matrix[R][G]*calib_matrix[B][B])/det;
-	inv_calib_matrix[R][B] = (calib_matrix[R][G]*calib_matrix[G][B]-calib_matrix[G][G]*calib_matrix[R][B])/det;
-	inv_calib_matrix[G][R] = (calib_matrix[B][R]*calib_matrix[G][B]-calib_matrix[G][R]*calib_matrix[B][B])/det;
-	inv_calib_matrix[G][G] = (calib_matrix[R][R]*calib_matrix[B][B]-calib_matrix[B][R]*calib_matrix[R][B])/det;
-	inv_calib_matrix[G][B] = (calib_matrix[R][B]*calib_matrix[G][R]-calib_matrix[R][R]*calib_matrix[G][B])/det;
-	inv_calib_matrix[B][R] = (calib_matrix[G][R]*calib_matrix[B][G]-calib_matrix[B][R]*calib_matrix[G][G])/det;
-	inv_calib_matrix[B][G] = (calib_matrix[B][R]*calib_matrix[R][G]-calib_matrix[R][R]*calib_matrix[B][G])/det;
-	inv_calib_matrix[B][B] = (calib_matrix[R][R]*calib_matrix[G][G]-calib_matrix[G][R]*calib_matrix[R][G])/det;
-	//printf("Calib Matrix:\r\n");
-	//for(uint8_t i=0;i<3;i++) printf("\t%ld\t%ld\t%ld\r\n", calib_matrix[i][R], calib_matrix[i][G], calib_matrix[i][B]);
-	//printf("\r\nInv CalibMatrix:\r\n");
-	//for(uint8_t i=0;i<3;i++) printf("\t%f\t%f\t%f\r\n", inv_calib_matrix[i][R], inv_calib_matrix[i][G], inv_calib_matrix[i][B]);
-	//printf("\r\n");
-}
-
-/*
- * After each pass through loop(), the robot checks for all messages it has 
- * received, and calls this function once for each message.
- */
-void handle_msg(ir_msg* msg_struct)
-{
-
-}
+//#include "droplet_programs/swarm_video.h"
+//
+///*
+ //* Any code in this function will be run once, when the robot starts.
+ //*/
+//void init()
+//{
+	//state = UNPROGRAMMED;
+	//interp=0;
+	//loop_end=get_time();
+	//magic_number=loop_end%FRAME_DELAY;
+//}
+//
+////full power red (hits the rail at 127) tends to increase green by ~12 and blue by ~3
+////full power green (106) tends to increase red by ~11 and blue by ~12
+////full power blue (37) tends to increase red by ~3 and green by ~11
+////these effects accumulate, not quite additively: full power white light reads as 
+////(127, 124, 48) which is a little less than the sum.
+//
+///*
+ //* The code in this function will be called repeatedly, as fast as it can execute.
+ //*/
+//void loop()
+//{
+	//uint8_t r,g,b;
+	//if(state==RECORD)
+	//{
+		//get_cal_rgb(&r, &g, &b);
+		//if(r>127)	vid_frames[frame_count][R]=255;
+		//else		vid_frames[frame_count][R]=0;
+		//if(g>127)	vid_frames[frame_count][G]=255;
+		//else		vid_frames[frame_count][G]=0;
+		//if(b>127)	vid_frames[frame_count][B]=255;
+		//else		vid_frames[frame_count][B]=0;
+		//
+		//
+		//if		(!vid_frames[frame_count][R]&&vid_frames[frame_count-1][R]&&!vid_frames[frame_count-2][R])	vid_frames[frame_count-1][R]=0; //010->000
+		//else if (vid_frames[frame_count][R]&&!vid_frames[frame_count-1][R]&&vid_frames[frame_count-2][R])	vid_frames[frame_count-1][R]=255; //101->111
+		//if		(!vid_frames[frame_count][G]&&vid_frames[frame_count-1][G]&&!vid_frames[frame_count-2][G])	vid_frames[frame_count-1][G]=0; //010->000
+		//else if (vid_frames[frame_count][G]&&!vid_frames[frame_count-1][G]&&vid_frames[frame_count-2][G])	vid_frames[frame_count-1][G]=255; //101->111
+		//if		(!vid_frames[frame_count][B]&&vid_frames[frame_count-1][B]&&!vid_frames[frame_count-2][B])	vid_frames[frame_count-1][B]=0; //010->000
+		//else if (vid_frames[frame_count][B]&&!vid_frames[frame_count-1][B]&&vid_frames[frame_count-2][B])	vid_frames[frame_count-1][B]=255; //101->111				
+		//
+		//frame_count++;
+		//if(frame_count>MAX_FRAME_COUNT)
+		//{
+			//total_frames=MAX_FRAME_COUNT;
+			//state=PLAY;
+			//frame_count = 0;
+		//}
+	//}
+	//else if(state==PLAY)
+	//{
+		//if(!interp)
+		//{
+			//set_rgb(vid_frames[frame_count][R], vid_frames[frame_count][G], vid_frames[frame_count][B]);
+			//frame_count++;
+			//frame_count=frame_count%total_frames;
+			//interp=1;
+		//}
+		//else if(interp==1)
+		//{
+			//uint8_t rMean = (uint8_t)((3*((uint16_t)vid_frames[frame_count][R])+((uint16_t)vid_frames[frame_count+1][R]))/4);
+			//uint8_t gMean = (uint8_t)((3*((uint16_t)vid_frames[frame_count][G])+((uint16_t)vid_frames[frame_count+1][G]))/4);
+			//uint8_t bMean = (uint8_t)((3*((uint16_t)vid_frames[frame_count][B])+((uint16_t)vid_frames[frame_count+1][B]))/4);
+			//set_rgb(rMean, gMean, bMean);
+			//interp=2;
+		//}
+		//else if(interp==2)
+		//{
+			//uint8_t rMean = (uint8_t)((((uint16_t)vid_frames[frame_count+1][R])+((uint16_t)vid_frames[frame_count+1][R]))/2);
+			//uint8_t gMean = (uint8_t)((((uint16_t)vid_frames[frame_count+1][G])+((uint16_t)vid_frames[frame_count+1][G]))/2);
+			//uint8_t bMean = (uint8_t)((((uint16_t)vid_frames[frame_count+1][B])+((uint16_t)vid_frames[frame_count+1][B]))/2);
+			//set_rgb(rMean, gMean, bMean);
+			//interp=3;
+		//}
+		//else
+		//{
+			//uint8_t rMean = (uint8_t)((((uint16_t)vid_frames[frame_count][R])+3*((uint16_t)vid_frames[frame_count+1][R]))/4);
+			//uint8_t gMean = (uint8_t)((((uint16_t)vid_frames[frame_count][G])+3*((uint16_t)vid_frames[frame_count+1][G]))/4);
+			//uint8_t bMean = (uint8_t)((((uint16_t)vid_frames[frame_count][B])+3*((uint16_t)vid_frames[frame_count+1][B]))/4);
+			//set_rgb(rMean, gMean, bMean);
+			//interp=0;
+		//}
+//
+	//}
+//
+	//uint32_t delay_dur;	
+	//if(state==PLAY)	delay_dur = FRAME_DELAY/4;
+	//else			delay_dur = FRAME_DELAY;
+//
+	//while((get_time()-loop_end)<(FRAME_DELAY-5));
+	//uint32_t curr_time = get_time()%FRAME_DELAY;
+	//uint32_t wait;
+	//if(curr_time<(magic_number%delay_dur))	wait=(magic_number%delay_dur)-curr_time;
+	//else									wait=((magic_number%delay_dur)+FRAME_DELAY)-curr_time;
+	//busy_delay_ms(wait);
+	//loop_end = get_time();
+//}
+//
+///*
+ //* After each pass through loop(), the robot checks for all messages it has 
+ //* received, and calls this function once for each message.
+ //*/
+//void handle_msg(ir_msg* msg_struct)
+//{
+	//if(strcmp(msg_struct->msg,"record")==0)
+	//{
+		//state=RECORD;
+	//}
+	//else if(strcmp(msg_struct->msg,"play")==0)
+	//{
+		//total_frames=frame_count;
+		//state=PLAY;
+		//frame_count=0;
+	//}
+//}

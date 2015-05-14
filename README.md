@@ -5,7 +5,7 @@ Droplets: A Swarm Robotics Platform
 
 The platform has been produced by the Correll Robotics Lab at the University of Colorado Boulder. It is envisioned to be a scalable robotics experimentation environment.
 
-TODO: Add Pictures once shells are finalized.
+<img src="http://correll.cs.colorado.edu/wp-content/uploads/IMG_1087_smaller_cropped.jpg" alt="Two Droplets with U.S. quarter for scale. One is tilted to face the camera and has its shell removed.">
 
 The hardware is comprised of actual robots, and the test bed/floor that experiments are run on. The robots are capable of sensing IR and RGB intensities, actuation using vibration motors, and IR communication. The embedded software layer is what we use to write and compile on-board code for the droplets. Each robot is equipped with an Atmel xmega-128a3u microprocessor capable of running embedded-c.
 

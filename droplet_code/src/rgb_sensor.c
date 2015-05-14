@@ -3,27 +3,44 @@
 void rgb_sensor_init()
 {
 	RGB_SENSOR_PORT.DIRCLR = RGB_SENSOR_R_PIN_bm | RGB_SENSOR_G_PIN_bm | RGB_SENSOR_B_PIN_bm;
-	
-	ADCA.CTRLA = ADC_ENABLE_bm;
-	ADCA.REFCTRL = ADC_REFSEL_INT1V_gc | ADC_BANDGAP_bm;
-	ADCA.CTRLB = ADC_RESOLUTION_8BIT_gc | ADC_CONMODE_bm;
-	ADCA.PRESCALER = ADC_PRESCALER_DIV512_gc;
+
+	ADCA.REFCTRL = ADC_REFSEL_AREFA_gc;
+	ADCA.CTRLB = ADC_RESOLUTION_LEFT12BIT_gc | ADC_CONMODE_bm;
+	ADCA.PRESCALER = ADC_PRESCALER_DIV256_gc;
 	/* When differential input is used, signed mode must be used. (sec. 28.6 of Manual) */
+
+	ADCA.CH0.CTRL = ADC_CH_INPUTMODE_DIFFWGAIN_gc | ADC_CH_GAIN_1X_gc;	//Probably should turn the gain back up to 4X when we put the shells on.
+	ADCA.CH1.CTRL = ADC_CH_INPUTMODE_DIFFWGAIN_gc | ADC_CH_GAIN_1X_gc;	//Probably should turn the gain back up to 4X when we put the shells on.
+	ADCA.CH2.CTRL = ADC_CH_INPUTMODE_DIFFWGAIN_gc | ADC_CH_GAIN_2X_gc;	//Probably should turn the gain back up to 4X when we put the shells on.
+	
+	ADCA.CH0.MUXCTRL = ADC_CH_MUXPOS_PIN5_gc | ADC_CH_MUXNEG_INTGND_MODE4_gc;	// Red sensor on ADC A channel 0
+	ADCA.CH1.MUXCTRL = ADC_CH_MUXPOS_PIN6_gc | ADC_CH_MUXNEG_INTGND_MODE4_gc;	// Green sensor on ADC A channel 1
+	ADCA.CH2.MUXCTRL = ADC_CH_MUXPOS_PIN7_gc | ADC_CH_MUXNEG_INTGND_MODE4_gc;	// Blue sensor on ADC A channel 2
+	
 	ADCA.CALL = PRODSIGNATURES_ADCACAL0;
-	ADCA.CALH = PRODSIGNATURES_ADCACAL1;
+	ADCA.CALH = PRODSIGNATURES_ADCACAL1;	
 
-	ADCA.CH0.CTRL = ADC_CH_INPUTMODE_DIFFWGAIN_gc | ADC_CH_GAIN_4X_gc;	//Probably should turn the gain back up to 4X when we put the shells on.
-	ADCA.CH1.CTRL = ADC_CH_INPUTMODE_DIFFWGAIN_gc | ADC_CH_GAIN_4X_gc;	//Probably should turn the gain back up to 4X when we put the shells on.
-	ADCA.CH2.CTRL = ADC_CH_INPUTMODE_DIFFWGAIN_gc | ADC_CH_GAIN_8X_gc;	//Probably should turn the gain back up to 4X when we put the shells on.
+	ADCA.CTRLA = ADC_ENABLE_bm;
 	
-	ADCA.CH0.MUXCTRL = ADC_CH_MUXPOS_PIN5_gc;	// Red sensor on ADC A channel 0
-	ADCA.CH1.MUXCTRL = ADC_CH_MUXPOS_PIN6_gc;	// Green sensor on ADC A channel 1
-	ADCA.CH2.MUXCTRL = ADC_CH_MUXPOS_PIN7_gc;	// Blue sensor on ADC A channel 2
-
-	ADCA.CH0.MUXCTRL |= ADC_CH_MUXNEG_INTGND_MODE4_gc;
-	ADCA.CH1.MUXCTRL |= ADC_CH_MUXNEG_INTGND_MODE4_gc;
-	ADCA.CH2.MUXCTRL |= ADC_CH_MUXNEG_INTGND_MODE4_gc;
+	//read_color_settings();
 	
+	delay_us(50);
+	const int8_t num_samples = 3;
+	get_red_sensor(); get_blue_sensor(); get_green_sensor();
+	delay_ms(10);
+	int16_t r_avg=0, g_avg=0, b_avg=0;
+	for(uint8_t i=0; i<num_samples; i++)
+	{
+		r_avg+=get_red_sensor();
+		g_avg+=get_green_sensor();
+		b_avg+=get_blue_sensor();
+		delay_ms(10);
+		printf("\r\n");
+	}
+	r_baseline= r_avg/num_samples;
+	g_baseline= g_avg/num_samples;
+	b_baseline= b_avg/num_samples;
+	printf("Baselines:\r\n%3d  %3d  %3d\r\n", r_baseline, g_baseline, b_baseline);
 }
 
 // Still not convinced that we should have the conditional, instead of just telling people
@@ -39,79 +56,143 @@ void get_rgb_sensors(int8_t* r, int8_t* g, int8_t* b)
 		set_rgb(0,0,0);
 		delay_ms(LED_OFF_DELAY_MS);
 	} 
+	
+	//*r = (int8_t)((((rResH&0x08)<<4)|((rResH&0x01)<<6))|((rResL&0xFC)>>2));
+	//*g = (int8_t)((((gResH&0x08)<<4)|((gResH&0x01)<<6))|((gResL&0xFC)>>2));	
+	//*b = (int8_t)((((bResH&0x08)<<4)|((bResH&0x01)<<6))|((bResL&0xFC)>>2));	
 
-	if(r!=NULL) *r = get_red_sensor();
-	if(g!=NULL) *g = get_green_sensor();
-	if(b!=NULL) *b = get_blue_sensor();
+	int8_t rTemp,gTemp,bTemp;
+	
+	rTemp = get_red_sensor();
+	gTemp = get_green_sensor();		
+	bTemp = get_blue_sensor();	
+
+	rTemp=rTemp-r_baseline;
+	gTemp=gTemp-g_baseline;
+	bTemp=bTemp-b_baseline;
+	if(rTemp>=127)			rTemp=127;
+	else if(rTemp<=-128)	rTemp=-128;
+	if(gTemp>=127)			gTemp=127;
+	else if(gTemp<=-128)	gTemp=-128;
+	if(bTemp>=127)			bTemp=127;
+	else if(bTemp<=-128)	bTemp=-128;		
+	if(r!=NULL) *r=(int8_t)rTemp;
+	if(g!=NULL) *g=(int8_t)gTemp;
+	if(b!=NULL) *b=(int8_t)bTemp;	
 		
 	if(led_r || led_g || led_b) set_rgb(led_r, led_g, led_b);
 }
 
-int8_t get_red_sensor()
+//void get_cal_rgb(uint8_t* r, uint8_t* g, uint8_t* b)
+//{
+	//uint8_t tmpR, tmpG, tmpB;
+	//get_rgb_sensors(&tmpR, &tmpG, &tmpB);
+	//
+	//float calcR, calcG, calcB;
+	//
+	//calcR = calib_matrix[R][R]*(tmpR*1.) + calib_matrix[R][G]*(tmpG*1.) + calib_matrix[R][B]*(tmpB*1.);
+	//calcG = calib_matrix[G][R]*(tmpR*1.) + calib_matrix[G][G]*(tmpG*1.) + calib_matrix[G][B]*(tmpB*1.);
+	//calcB = calib_matrix[B][R]*(tmpR*1.) + calib_matrix[B][G]*(tmpG*1.) + calib_matrix[B][B]*(tmpB*1.);
+	//
+	//if(calcR>255)		*r = 255;
+	//else if(calcR<0)	*r = 0;
+	//else				*r = (uint8_t)calcR;
+	//
+	//if(calcG>255)		*g = 255;
+	//else if(calcG<0)	*g = 0;
+	//else				*g = (uint8_t)calcG;
+	//
+	//if(calcB>255)		*b = 255;
+	//else if(calcB<0)	*b = 0;
+	//else				*b = (uint8_t)calcB;
+	//
+	////printf("%3hu %3hu %3hu\t->\t%3hu %3hu %3hu\r\n",tmpR,tmpG,tmpB,*r,*g,*b);
+//}
+
+int16_t get_red_sensor()
 {
-	int8_t meas[RGB_MEAS_COUNT];
-	
+	int16_t meas[RGB_MEAS_COUNT];
+	int16_t red_val;	
 	for(uint8_t meas_count=0; meas_count<RGB_MEAS_COUNT; meas_count++)
 	{
-		ADCA.CH0.INTFLAGS=1; // clear the complete flag
 		ADCA.CH0.CTRL |= ADC_CH_START_bm;
 		while (ADCA.CH0.INTFLAGS==0){};		// wait for measurement to complete
-		meas[meas_count] = ADCA.CH0.RESL;
+		meas[meas_count] = ((((int16_t)(ADCA.CH0.RESH))<<8)|((int16_t)ADCA.CH0.RESL))>>4;	
+		ADCA.CH0.INTFLAGS=1; // clear the complete flag				
 	}
-	
-	return find_median(meas, RGB_MEAS_COUNT);
+	red_val=meas_find_median(&meas[2], RGB_MEAS_COUNT-2);
+	//printf("%d\t", red_val);
+	return red_val;
 }
 
-int8_t get_green_sensor()
+int16_t get_green_sensor()
 {
-	int8_t meas[RGB_MEAS_COUNT];
-		
+	int16_t meas[RGB_MEAS_COUNT];
+	int16_t green_val;		
 	for(uint8_t meas_count=0; meas_count<RGB_MEAS_COUNT; meas_count++)
 	{
-		ADCA.CH1.INTFLAGS=1; // clear the complete flag
 		ADCA.CH1.CTRL |= ADC_CH_START_bm;
 		while (ADCA.CH1.INTFLAGS==0){};		// wait for measurement to complete
-		meas[meas_count] = ADCA.CH1.RESL;
+		meas[meas_count] = ((((int16_t)(ADCA.CH1.RESH))<<8)|((int16_t)ADCA.CH1.RESL))>>4;		
+		ADCA.CH1.INTFLAGS=1; // clear the complete flag		
 	}
-		
-	return find_median(meas, RGB_MEAS_COUNT);
+	green_val=meas_find_median(&meas[2], RGB_MEAS_COUNT-2);
+	//printf("%d\t", green_val);
+	return green_val;
 }
 
-int8_t get_blue_sensor()
+int16_t get_blue_sensor()
 {
-	int8_t meas[RGB_MEAS_COUNT];
-		
+	int16_t meas[RGB_MEAS_COUNT];
+	int16_t blue_val;
 	for(uint8_t meas_count=0; meas_count<RGB_MEAS_COUNT; meas_count++)
 	{
-		ADCA.CH2.INTFLAGS=1; // clear the complete flag
 		ADCA.CH2.CTRL |= ADC_CH_START_bm;
 		while (ADCA.CH2.INTFLAGS==0){};		// wait for measurement to complete
-		meas[meas_count] = ADCA.CH2.RESL;
-	}
-		
-	return find_median(meas, RGB_MEAS_COUNT);
+		meas[meas_count] = ((((int16_t)(ADCA.CH2.RESH))<<8)|((int16_t)ADCA.CH2.RESL))>>4;
+		ADCA.CH2.INTFLAGS=1; // clear the complete flag		
+	}		
+	blue_val=meas_find_median(&meas[2], RGB_MEAS_COUNT-2);
+	//printf("%d\t", blue_val);	
+	return blue_val;
 }
 
-//// Finds the median of 3 numbers by finding the max, finding the min, and returning the other value
-//int8_t find_median(int8_t* meas)
-//{
-	//uint8_t mini, maxi, medi;
-	//int8_t min = -128, max = 127;
-	//for (uint8_t i = 0; i < 3; i++)
-	//{
-		//if (meas[i] < max)
-		//{
-			//max = meas[i];
-			//maxi = i;
-		//}
-		//if (meas[i] > min)
-		//{
-			//min = meas[i];
-			//mini = i;
-		//}
-	//}
-	//for (medi = 0; medi < 3; medi++)
-	//{
-		//if ((medi != maxi) && (medi != mini)) return meas[medi];
-	//}
-//}
+void read_color_settings()
+{
+	//printf("Reading Color Calib Matrix:\r\n");
+	u dat;
+	for(uint8_t i=0;i<3;i++)
+	{
+		for(uint8_t j=0;j<3;j++)
+		{
+			dat.i =((uint32_t)EEPROM_read_byte(0x60 + 12*i + 4*j + 0))<<24;
+			dat.i|=((uint32_t)EEPROM_read_byte(0x60 + 12*i + 4*j + 1))<<16;
+			dat.i|=((uint32_t)EEPROM_read_byte(0x60 + 12*i + 4*j + 2))<<8;
+			dat.i|=((uint32_t)EEPROM_read_byte(0x60 + 12*i + 4*j + 3))<<0;
+			calib_matrix[i][j]=dat.f;
+			//printf("\t%f\t",dat.f);	
+		}
+		//printf("\r\n");		
+	}
+	//printf("\r\n");
+}
+
+void write_color_settings(float cm[3][3])
+{
+	printf("Writing Color Calib Matrix:\r\n");
+	u dat;
+	for(uint8_t i=0;i<3;i++)
+	{
+		for(uint8_t j=0;j<3;j++)
+		{
+			dat.f=cm[i][j];
+			printf("\t%f\t",dat.f);
+			EEPROM_write_byte(0x60 + 12*i + 4*j + 0, (uint8_t)((dat.i>>24)&0xFF));
+			EEPROM_write_byte(0x60 + 12*i + 4*j + 1, (uint8_t)((dat.i>>16)&0xFF));
+			EEPROM_write_byte(0x60 + 12*i + 4*j + 2, (uint8_t)((dat.i>>8)&0xFF));
+			EEPROM_write_byte(0x60 + 12*i + 4*j + 3, (uint8_t)((dat.i>>0)&0xFF));
+		}
+		printf("\r\n");
+	}
+	printf("\r\n");
+}

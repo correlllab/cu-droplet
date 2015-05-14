@@ -52,9 +52,10 @@ void check_messages ()
 	if(user_facing_messages_ovf)
 	{
 		num_waiting_msgs=MAX_USER_FACING_MESSAGES;
+		user_facing_messages_ovf=0;
 		printf("Error: Messages overflow. Too many messages received. Try speeding up your loop if you see this a lot.\r\n");
 	}
-	
+	//if(num_waiting_msgs>0) printf("num_msgs: %hu\r\n",num_waiting_msgs);
 	while(num_waiting_msgs>0)
 	{
 		i=num_waiting_msgs-1;
@@ -62,7 +63,7 @@ void check_messages ()
 		//list of messages could get corrupted.
 		ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 		{
-			memcpy(msg_struct->msg, msg_node[i].msg, msg_node[i].msg_length);
+			memcpy(msg_struct->msg, (const void*)msg_node[i].msg, msg_node[i].msg_length);
 			
 			msg_struct->msg[msg_node[i].msg_length]	= '\0';
 			msg_struct->arrival_time					= msg_node[i].arrival_time;
@@ -228,4 +229,5 @@ uint8_t get_droplet_ord(uint16_t id)
 		case 0xFA6F: return 98;
 		case 0xFCD0: return 99;
 	}
+	return 0xFF;
 }

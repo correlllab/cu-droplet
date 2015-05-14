@@ -15,13 +15,20 @@
 #include <avr/interrupt.h>
 #include <avr/pgmspace.h>
 
-#define DIR0		0x01
-#define DIR1		0x02
-#define DIR2		0x04
-#define DIR3		0x08
-#define DIR4		0x10
-#define DIR5		0x20
-#define ALL_DIRS	0x3F
+#define DIR0		((uint8_t)0x01)
+#define DIR1		((uint8_t)0x02)
+#define DIR2		((uint8_t)0x04)
+#define DIR3		((uint8_t)0x08)
+#define DIR4		((uint8_t)0x10)
+#define DIR5		((uint8_t)0x20)
+#define ALL_DIRS	((uint8_t)0x3F)
+
+#define DIR_NE		DIR0
+#define DIR_E		DIR1
+#define DIR_SE		DIR2
+#define DIR_SW		DIR3
+#define DIR_W		DIR4
+#define DIR_NW		DIR5
 
 #include "scheduler.h"
 #include "pc_comm.h"
@@ -51,6 +58,7 @@ typedef struct ir_msg_struct
 extern void init();
 extern void loop();
 extern void handle_msg(ir_msg* msg_struct);
+extern uint8_t user_handle_command(char* command_word, char* command_args);
 
 /**
  * \brief Returns this Droplet's unique 16-bit identifier. 0 will never be an identifier.

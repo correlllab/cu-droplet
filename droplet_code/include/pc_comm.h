@@ -20,7 +20,6 @@ struct
 {
 	char data[BUFFER_SIZE];
 	uint16_t length;
-	
 } serial_data_out_buffer;
 
 void pc_comm_init();

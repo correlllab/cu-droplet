@@ -68,7 +68,7 @@ static inline void motor_forward(uint8_t num)
 	{
 		case 0: TCC0.CTRLB = TC_WGMODE_SS_gc | TC0_CCBEN_bm; PORTC.PIN1CTRL = PORT_INVEN_bm; PORTC.OUTSET |= PIN0_bm; break;
 		case 1: TCC1.CTRLB = TC_WGMODE_SS_gc | TC1_CCBEN_bm; PORTC.PIN5CTRL = PORT_INVEN_bm; PORTC.OUTSET |= PIN4_bm; break;
-		case 2: TCD0.CTRLB = TC_WGMODE_SS_gc | TC0_CCBEN_bm;PORTD.PIN1CTRL = PORT_INVEN_bm; PORTD.OUTSET |= PIN0_bm; break;
+		case 2: TCD0.CTRLB = TC_WGMODE_SS_gc | TC0_CCBEN_bm; PORTD.PIN1CTRL = PORT_INVEN_bm; PORTD.OUTSET |= PIN0_bm; break;
 	}
 }
 

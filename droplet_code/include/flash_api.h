@@ -63,10 +63,6 @@ uint32_t FLASH_ApplicationCRC(void);
 uint32_t FLASH_RangeCRC(uint32_t, uint32_t); 
 void FLASH_WaitForNVM(void); 
 void FLASH_ReadFlashPage(uint8_t *, uint32_t); 
-uint16_t binary_search(uint16_t, uint16_t);
-uint16_t flash_compare(uint32_t);
-uint16_t midpoint(uint16_t, uint16_t);
-
 /******************************************************End of New Code*******************************************************/
 
 // status codes

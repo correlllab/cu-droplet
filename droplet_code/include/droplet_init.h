@@ -40,6 +40,7 @@
 #include "motor.h"
 #include "range_algs.h"
 #include "rgb_sensor.h"
+#include "ir_led.h"
 #include "ir_sensor.h"
 #include "ir_comm.h"
 #include "speaker.h"

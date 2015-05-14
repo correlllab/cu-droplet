@@ -23,6 +23,7 @@ void init_all_systems()
 	motor_init();				if(INIT_DEBUG_MODE) printf("MOTOR INIT\r\n");
 	range_algs_init();			if(INIT_DEBUG_MODE) printf("RANGE ALGORITHMS INIT\r\n");	
 	rgb_sensor_init();			if(INIT_DEBUG_MODE) printf("RGB SENSE INIT\r\n");
+	ir_led_init();				if(INIT_DEBUG_MODE) printf("IR LED INIT\r\n");
 	ir_sensor_init();			if(INIT_DEBUG_MODE) printf("IR SENSE INIT\r\n");	
 	ir_comm_init();				if(INIT_DEBUG_MODE) printf("IR COM INIT\r\n");
 	speaker_init();				if(INIT_DEBUG_MODE) printf("SPEAKER INIT\r\n");

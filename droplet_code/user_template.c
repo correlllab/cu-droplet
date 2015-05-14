@@ -36,11 +36,9 @@ void init()
 	{ 
 		tetris_notes[i]-=0x10;
 	}	
-	last_r = 0;
-	last_g = 0;
-	last_b = 0;
-	last_c = 0;
 	last_meas_time=0;
+	//set_all_ir_powers(256);
+	delay_ms(1000);
 }
 
 /*
@@ -48,12 +46,20 @@ void init()
  */
 void loop()
 {	
+	
+	//delay_ms(1000);
+	
+	
 	//play_song(tetris_notes, tetris_durs, 58);	
 	//delay_ms(60000);
+	
 	uint16_t r,g,b,c;
 	get_rgb(&r,&g,&b,&c);
 	printf("%5u %5u %5u %5u\r\n",r,g,b,c);
 	delay_ms(100);
+	
+	//check_collisions();
+	//delay_ms(250);
 }
 
 /*

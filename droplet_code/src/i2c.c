@@ -71,10 +71,11 @@
 void i2c_init()
 {
 	PORTB.DIRCLR = PIN5_bm; 
-	//PORTB.PIN5CTRL = PORT_OPC_PULLUP_gc;
+	PORTB.PIN5CTRL = PORT_OPC_WIREDOR_gc;
+	
 	PORTE.DIRSET = PIN0_bm | PIN1_bm;
 	twi = &twiMaster;
-	TWI_MasterInit(&TWIE, TWI_MASTER_INTLVL_MED_gc, TWI_BAUD(F_CPU, 100000));
+	TWI_MasterInit(&TWIE, TWI_MASTER_INTLVL_MED_gc, TWI_BAUD(F_CPU, 400000));
 }
 
 /*! \brief Initialize the TWI module.
@@ -326,7 +327,6 @@ void TWI_MasterWriteHandler()
 		twi->result = TWIM_RESULT_NACK_RECEIVED;
 		twi->status = TWIM_STATUS_READY;
 	}
-
 	/* If more bytes to write, send data. */
 	else if (twi->bytesWritten < bytesToWrite) {
 		uint8_t data = twi->writeData[twi->bytesWritten];

@@ -23,47 +23,20 @@ uint8_t ir_carrier_bm[] = { PIN0_bm, PIN1_bm, PIN4_bm, PIN5_bm, PIN6_bm, PIN7_bm
 
 void ir_comm_init()
 {
-	/* Initialize carrier waves */
-	uint8_t carrier_pins = PIN0_bm | PIN1_bm | PIN4_bm | PIN5_bm | PIN6_bm | PIN7_bm;
-	PORTF.DIRSET = carrier_pins;
-	
-	TCF2.CTRLE = TC_BYTEM_SPLITMODE_gc;		// "split mode" puts this timer counter into "Type 2 mode"
-	TCF2.CTRLA |= TC_CLKSEL_DIV4_gc;		// see CTRLA description in TC2 mode
-	//TCF2.CTRLB = carrier_pins;				// Set TC outputs on carrier wave pins (see CTRLA description in TC2 mode)
-	
-	TCF2.HPER = 211; TCF2.LPER = 211; // 32MHz / (4 * 211) = 38kHz
-	TCF2.HCMPA = 105; TCF2.HCMPB = 105; TCF2.HCMPC = 105; // 50% Duty Cycle
-	TCF2.HCMPD = 105; TCF2.LCMPA = 105; TCF2.LCMPB = 105; // 50% Duty Cycle
-	
 	/* Initialize UARTs */
 	// RX pins as inputs:
 	PORTC.DIRCLR = PIN2_bm | PIN6_bm;		// DIR 0,1							
 	PORTD.DIRCLR = PIN2_bm;					// DIR 2
 	PORTE.DIRCLR = PIN2_bm | PIN6_bm;		// DIR 3,4
 	PORTF.DIRCLR = PIN2_bm;					// DIR 5
-	
-	// TX pins as outputs:
-	PORTC.DIRSET = PIN3_bm | PIN7_bm;		// DIR 0,1									
-	PORTD.DIRSET = PIN3_bm;					// DIR 2
-	PORTE.DIRSET = PIN3_bm | PIN7_bm;		// DIR 3,4
-	PORTF.DIRSET = PIN3_bm;					// DIR 5
-	
-	// Invert the output pins:
-	PORTC.PIN3CTRL = PORT_INVEN_bm;												
-	PORTC.PIN7CTRL = PORT_INVEN_bm;
-	PORTD.PIN3CTRL = PORT_INVEN_bm;
-	PORTE.PIN3CTRL = PORT_INVEN_bm;
-	PORTE.PIN7CTRL = PORT_INVEN_bm;
-	PORTF.PIN3CTRL = PORT_INVEN_bm;
 
 	for (uint8_t i = 0; i < 6; i++)
 	{
 		channel[i]->CTRLA = (uint8_t) USART_RXCINTLVL_MED_gc | USART_TXCINTLVL_MED_gc;		// Set USART as med-level interrupts
 		channel[i]->CTRLC = (uint8_t) USART_CHSIZE_8BIT_gc | USART_PMODE_DISABLED_gc;		// 8 bits, no parity
 		
-		//channel[i]->BAUDCTRLA = 0b00000000; channel[i]->BAUDCTRLB = 0b11101101;	//2400 baud	
-		channel[i]->BAUDCTRLA = 0b01110000; channel[i]->BAUDCTRLB = 0b00000010;	//3200 baud
-		//channel[i]->BAUDCTRLA = 0b11000000; channel[i]->BAUDCTRLB = 0b00000100;		//9600 baud
+		channel[i]->BAUDCTRLA = 0b01110000; channel[i]->BAUDCTRLB = 0b00000010;	//3200 baud - we have an upper bound of 3800 baud because of the 38KHz carrier wave. The IR Receiver's data sheets say that frequency of the data should be a tenth or less than that of the carrier.
+		//channel[i]->BAUDCTRLA = 0b11000000; channel[i]->BAUDCTRLB = 0b00000100; //9600 baud - this would be the upper bound if we switched to TSDP34156-ND.
 		
 		channel[i]->CTRLB |= USART_RXEN_bm;		// Enable communication
 		channel[i]->CTRLB |= USART_TXEN_bm;
@@ -499,21 +472,6 @@ void wait_for_ir(uint8_t dirs)
 			}
 		}
 	} while (busy);
-}
-
-void set_all_ir_powers(uint16_t power)
-{
-	if(power>256) return;
-	curr_ir_power = power;
-	uint16_t temp_write_buffer[3] = {power, power, power};
-	temp_write_buffer[1]|=0x1000;
-	temp_write_buffer[2]|=0x6000;
-	uint8_t* write_buffer = ((uint8_t*)temp_write_buffer);
-	
-	uint8_t result;
-	result = TWI_MasterWrite(IR_POWER_ADDR_A, write_buffer, 6);
-	delay_ms(5);
-	result = TWI_MasterWrite(IR_POWER_ADDR_B, write_buffer, 6);
 }
 
 // ISRs for IR channel 0

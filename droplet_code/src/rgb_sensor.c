@@ -8,8 +8,18 @@ void rgb_sensor_init()
 									0x81, 0xD5,	 // Write 0xD5 to ATIME register, setting the integration time to 2.4ms*(256-ATIME)
 									0x80, 0x03};  // Write 0x03 to ENABLE register, activating the ADC (and leaving the oscillator on);  
 							
-	uint8_t result = TWI_MasterWrite(RGB_SENSE_ADDR, power_on_sequence, 8);
-	if(!result)	printf("RGB sense power-on failed.\r\n");
+
+	uint8_t result = TWI_MasterWrite(RGB_SENSE_ADDR, &(power_on_sequence[0]), 2);
+	if(!result)	printf("RGB sense power-on failed (1).\r\n");
+	delay_ms(5);
+	result = TWI_MasterWrite(RGB_SENSE_ADDR, &(power_on_sequence[2]), 2);
+	if(!result)	printf("RGB sense power-on failed (2).\r\n");
+	delay_ms(5);
+	result = TWI_MasterWrite(RGB_SENSE_ADDR, &(power_on_sequence[4]), 2);
+	if(!result)	printf("RGB sense power-on failed (3).\r\n");
+	delay_ms(5);	
+	result = TWI_MasterWrite(RGB_SENSE_ADDR, &(power_on_sequence[6]), 2);
+	if(!result)	printf("RGB sense power-on failed (4).\r\n");
 	delay_ms(5);
 }
 

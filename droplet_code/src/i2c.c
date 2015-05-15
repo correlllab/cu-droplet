@@ -75,7 +75,7 @@ void i2c_init()
 	
 	PORTE.DIRSET = PIN0_bm | PIN1_bm;
 	twi = &twiMaster;
-	TWI_MasterInit(&TWIE, TWI_MASTER_INTLVL_MED_gc, TWI_BAUD(F_CPU, 400000));
+	TWI_MasterInit(&TWIE, TWI_MASTER_INTLVL_MED_gc, TWI_BAUD(F_CPU, 100000));
 }
 
 /*! \brief Initialize the TWI module.

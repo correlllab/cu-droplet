@@ -45,7 +45,6 @@ void init()
  */
 void loop()
 {	
-	
 	//delay_ms(1000);
 	
 	
@@ -56,13 +55,13 @@ void loop()
 	//delay_ms(20000);
 	
 	
-	uint16_t r,g,b,c;
-	get_rgb(&r,&g,&b,&c);
-	printf("%5u %5u %5u %5u\r\n",r,g,b,c);
-	delay_ms(100);
+	//uint16_t r,g,b,c;
+	//get_rgb(&r,&g,&b,&c);
+	//printf("%5u %5u %5u %5u\r\n",r,g,b,c);
+	//delay_ms(100);
 		
-	//check_collisions();
-	//delay_ms(250);
+	check_collisions();
+	delay_ms(250);
 }
 
 /*

@@ -38,7 +38,6 @@ void init()
 	}	
 	last_meas_time=0;
 	//set_all_ir_powers(256);
-	delay_ms(1000);
 }
 
 /*
@@ -53,19 +52,15 @@ void loop()
 	//play_song(tetris_notes, tetris_durs, 58);	
 	//delay_ms(60000);
 	
+	//mic_recording(10000);
+	//delay_ms(20000);
+	
 	
 	uint16_t r,g,b,c;
 	get_rgb(&r,&g,&b,&c);
 	printf("%5u %5u %5u %5u\r\n",r,g,b,c);
 	delay_ms(100);
 		
-	
-	//uint8_t msg = 0x92;
-	//uint8_t result = TWI_MasterWriteRead(RGB_SENSE_ADDR, &msg, 1, 1);
-	//if(!result) printf("RGB Sense ID Read Failed.\r\n");
-	//uint8_t id = (twi->readData)[0];
-	//printf("\t ID: %2hX %2hX\r\n",id,0xFF&b); //should be 0x44
-	//delay_ms(200);
 	//check_collisions();
 	//delay_ms(250);
 }

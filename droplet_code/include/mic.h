@@ -1,14 +1,14 @@
 #ifndef MIC_H
 #define MIC_H
 
-#include <stdio.h> //Needed for 'FILE' type
+#define OFFSET (13<<4)
+
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include "scheduler.h"
 
 void mic_init();
-void process_mic_data();
-
-#define MIC_DATA_WINDOW_SIZE 8
+int16_t get_mic_reading();
+void mic_recording(uint16_t length);
 
 #endif

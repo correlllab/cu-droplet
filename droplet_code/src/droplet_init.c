@@ -15,7 +15,6 @@ void init_all_systems()
 	pc_comm_init();				if(INIT_DEBUG_MODE) printf("PC COM INIT\r\n");
 	rgb_led_init();				if(INIT_DEBUG_MODE) printf("LED INIT\r\n");
 	power_init();				if(INIT_DEBUG_MODE) printf("POWER INIT\r\n");
-	random_init();				if(INIT_DEBUG_MODE) printf("RAND INIT\r\n");
 	i2c_init();					if(INIT_DEBUG_MODE) printf("I2C INIT\r\n");	
 	
 	enable_interrupts();	
@@ -28,6 +27,7 @@ void init_all_systems()
 	ir_comm_init();				if(INIT_DEBUG_MODE) printf("IR COM INIT\r\n");
 	speaker_init();				if(INIT_DEBUG_MODE) printf("SPEAKER INIT\r\n");
 	mic_init();					if(INIT_DEBUG_MODE) printf("MIC INIT\r\n"); //mic_init requires that ir_sensor_init() has been called.
+	random_init();				if(INIT_DEBUG_MODE) printf("RAND INIT\r\n"); //This uses ADC reading as a random seed, and so must be called after the ADCs are initialized.
 
 
 	startup_light_sequence();

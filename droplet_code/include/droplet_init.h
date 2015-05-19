@@ -34,7 +34,6 @@
 #include "pc_comm.h"
 #include "rgb_led.h"
 #include "power.h"
-#include "random.h"
 #include "ecc.h"
 #include "i2c.h"
 #include "motor.h"
@@ -45,6 +44,7 @@
 #include "ir_comm.h"
 #include "speaker.h"
 #include "mic.h"
+#include "random.h"
 
 #include "serial_handler.h"
 

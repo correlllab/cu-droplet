@@ -8,12 +8,11 @@ typedef enum
 	MIC_TEST,
 	IR_IO_TEST,
 	RGB_IO_TEST,
+	SPEAKER_TEST,
 	DONE
 } State;
 
 State state;
-
-uint32_t last_meas_time;
 
 void init();
 void loop();

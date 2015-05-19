@@ -12,21 +12,22 @@
 //sound6.note+=(1<<4)|7;
 							
 uint16_t one_up_durs[6] = {120, 120, 120, 120, 120, 120};
-uint8_t one_up_notes[6] = {0x44,0x47,0x54,0x40,0x42,0x57};		
+uint8_t one_up_notes[6] = {0x44,0x47,0x54,0x40,0x42,0x57};
+int16_t last_hue;
 	
-uint16_t tetris_durs[58] = {4,2,2,4,2,2,4,2,2,4,2,2,6,2,4,4,4,4,2,2,2,2,6,2,4,2,2,6,2,4,2,2,4,2,2,
-							4,4,4,4,4,4,8,8,8,8,8,8,8,4,4,8,8,8,8,4,4,8,8};
-uint8_t tetris_notes[58] = {0x44,0x3b,0x40,0x42,0x40,0x3b,0x39,0x39,0x40,0x44,0x42,0x40,0x3b,0x40,
-							0x42,0x44,0x40,0x39,0x39,0x39,0x3b,0x40,0x42,0x45,0x49,0x47,0x45,0x44,
-							0x40,0x44,0x42,0x40,0x3b,0x3b,0x40,0x42,0x44,0x40,0x39,0x39,0xFF,0x44,
-							0x40,0x42,0x3b,0x40,0x39,0x38,0x3b,0xFF,0x44,0x40,0x42,0x3b,0x40,0x44,0x49,0x48};
+//uint16_t tetris_durs[58] = {4,2,2,4,2,2,4,2,2,4,2,2,6,2,4,4,4,4,2,2,2,2,6,2,4,2,2,6,2,4,2,2,4,2,2,
+							//4,4,4,4,4,4,8,8,8,8,8,8,8,4,4,8,8,8,8,4,4,8,8};
+//uint8_t tetris_notes[58] = {0x44,0x3b,0x40,0x42,0x40,0x3b,0x39,0x39,0x40,0x44,0x42,0x40,0x3b,0x40,
+							//0x42,0x44,0x40,0x39,0x39,0x39,0x3b,0x40,0x42,0x45,0x49,0x47,0x45,0x44,
+							//0x40,0x44,0x42,0x40,0x3b,0x3b,0x40,0x42,0x44,0x40,0x39,0x39,0xFF,0x44,
+							//0x40,0x42,0x3b,0x40,0x39,0x38,0x3b,0xFF,0x44,0x40,0x42,0x3b,0x40,0x44,0x49,0x48};
 
 /*
  * Any code in this function will be run once, when the robot starts.
  */
 void init()
 {
-	uint16_t tempo=144;
+	//uint16_t tempo=144;
 	
 	//for(uint8_t i=0;i<58;i++)
 	//{
@@ -36,8 +37,11 @@ void init()
 	//{ 
 		//tetris_notes[i]-=0x10;
 	//}	
-	
+	last_hue=((((uint16_t)rand_byte())<<8)|((uint16_t)rand_byte()))%360;
+	printf("Hue: %d\r\n",last_hue);
 	state = MIC_TEST;
+	printf("\r\nStarting Droplet Tests for %X.\r\n\n", get_droplet_id());
+	printf("Testing Microphone.\r\nValues should change based on sounds.\r\n");
 }
 
 /*
@@ -45,23 +49,34 @@ void init()
  */
 void loop()
 {	
+	uint16_t r,g,b,c;	
+	switch(state)
+	{
+		case MIC_TEST:
+			printf("\t%d\r\n",get_mic_reading());
+			delay_ms(50);
+			break;
+		case IR_IO_TEST:
+			printf("\t%02hX\r\n", check_collisions());
+			delay_ms(150);
+			break;
+		case RGB_IO_TEST:
+			last_hue=last_hue+(((int8_t)(rand_byte()%29))-14);
+			if(last_hue<0)		   last_hue+=360;
+			else if(last_hue>=360) last_hue-=360;
+			set_hsv(last_hue, 255, 100);
+			printf("\tHue: %d\r\n",last_hue);			
+			get_rgb(&r, &g, &b, &c);
+			printf("\t%5u %5u %5u %5u\r\n",r,g,b,c);
+			delay_ms(150);
+			break;
+		case SPEAKER_TEST:
+			play_song(one_up_notes, one_up_durs, 6);
+			delay_ms(10000);			
+		case DONE:
+			delay_ms(150);
+	}
 	//delay_ms(1000);
-	
-	
-	//play_song(tetris_notes, tetris_durs, 58);	
-	//delay_ms(60000);
-	
-	printf("%d\r\n",get_mic_reading());
-	delay_ms(50);
-	
-	
-	//uint16_t r,g,b,c;
-	//get_rgb(&r,&g,&b,&c);
-	//printf("%5u %5u %5u %5u\r\n",r,g,b,c);
-	//delay_ms(100);
-		
-	//check_collisions();
-	//delay_ms(250);
 }
 
 /*
@@ -80,5 +95,28 @@ void handle_msg(ir_msg* msg_struct)
  */
 uint8_t user_handle_command(char* command_word, char* command_args)
 {
-	
+	if(command_word[0]!='X') return; //If it is 'X', then its time for the next test.
+	state++;
+	switch(state)
+	{
+		case MIC_TEST:
+			printf("ERROR! We got back to MIC_TEST somehow.\r\n");
+			return 1;
+		case IR_IO_TEST:
+			printf("Testing IR Sensors/Emitters.\r\nCover each with something and the corresponding bit should flip.\r\n");
+			return 1;
+		case RGB_IO_TEST:
+			printf("Testing RGB LED and Sensor.\r\nShould see oscillating light, with sensor matching.\r\n");
+			return 1;
+		case SPEAKER_TEST:
+			printf("Testing speaker.\r\nShould hear the Mario one-up jingle.\r\n");		
+			play_song(one_up_notes, one_up_durs, 6);
+			return 1;
+		case DONE:
+			printf("All tests completed for %X\r\n",get_droplet_id());			
+			return 1;
+		default:
+			printf("All tests already completed.\r\n");
+			return 1;		
+	}
 }

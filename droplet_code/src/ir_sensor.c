@@ -130,14 +130,14 @@ uint8_t check_collisions(){
 		busy_delay_us(250);
 		//get_ir_sensor(i);
 		measured_vals[i] = get_ir_sensor(i);
-		printf("%1hu:%d\t", i, measured_vals[i]);		
+		//printf("%1hu:%d\t", i, measured_vals[i]);		
 		int16_t temp = measured_vals[i]-baseline_meas[i];
 		//printf("\t%3d", temp);
 		if((measured_vals[i]-baseline_meas[i])>16){
 			dirs = dirs|(1<<i);
 		}
 	}
-	printf("\r\n");
+	//printf("\r\n");
 	PORTF.OUTCLR = ALL_EMITTERS_CARWAV_bm;
 	for(uint8_t i=0;i<6;i++) channel[i]->CTRLB = channelCtrlBVals[i];
 	TCF2.CTRLB |= ALL_EMITTERS_CARWAV_bm; //reenable carrier wave output

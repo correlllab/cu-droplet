@@ -14,7 +14,7 @@
 uint16_t one_up_durs[6] = {120, 120, 120, 120, 120, 120};
 uint8_t one_up_notes[6] = {0x44,0x47,0x54,0x40,0x42,0x57};
 int16_t last_hue;
-	
+uint8_t waiting;	
 //uint16_t tetris_durs[58] = {4,2,2,4,2,2,4,2,2,4,2,2,6,2,4,4,4,4,2,2,2,2,6,2,4,2,2,6,2,4,2,2,4,2,2,
 							//4,4,4,4,4,4,8,8,8,8,8,8,8,4,4,8,8,8,8,4,4,8,8};
 //uint8_t tetris_notes[58] = {0x44,0x3b,0x40,0x42,0x40,0x3b,0x39,0x39,0x40,0x44,0x42,0x40,0x3b,0x40,
@@ -40,8 +40,8 @@ void init()
 	last_hue=((((uint16_t)rand_byte())<<8)|((uint16_t)rand_byte()))%360;
 	printf("Hue: %d\r\n",last_hue);
 	state = MIC_TEST;
-	printf("\r\nStarting Droplet Tests for %X.\r\n\n", get_droplet_id());
-	printf("Testing Microphone.\r\nValues should change based on sounds.\r\n");
+	waiting=1;
+	state_changed_printout();	
 }
 
 /*
@@ -49,7 +49,12 @@ void init()
  */
 void loop()
 {	
-	uint16_t r,g,b,c;	
+	uint16_t r,g,b,c;
+	if(waiting)
+	{
+		delay_ms(150);
+		return;
+	}
 	switch(state)
 	{
 		case MIC_TEST:
@@ -70,9 +75,14 @@ void loop()
 			printf("\t%5u %5u %5u %5u\r\n",r,g,b,c);
 			delay_ms(150);
 			break;
+		case MOTOR_TEST:
+			if(is_moving()<0) move_steps(0,100);
+			delay_ms(150);			
+			break;
 		case SPEAKER_TEST:
 			play_song(one_up_notes, one_up_durs, 6);
 			delay_ms(10000);			
+			break;
 		case DONE:
 			delay_ms(150);
 	}
@@ -96,11 +106,26 @@ void handle_msg(ir_msg* msg_struct)
 uint8_t user_handle_command(char* command_word, char* command_args)
 {
 	if(command_word[0]!='X') return; //If it is 'X', then its time for the next test.
-	state++;
+	if(waiting)
+	{
+		waiting=0;
+		return;
+	}
+	else
+	{
+		waiting=1;
+		state++;
+	}
+	state_changed_printout();
+}
+
+void state_changed_printout()
+{
 	switch(state)
 	{
 		case MIC_TEST:
-			printf("ERROR! We got back to MIC_TEST somehow.\r\n");
+			printf("\r\nStarting Droplet Tests for %X.\r\n\n", get_droplet_id());
+			printf("Testing Microphone.\r\nValues should change based on sounds.\r\n");
 			return 1;
 		case IR_IO_TEST:
 			printf("Testing IR Sensors/Emitters.\r\nCover each with something and the corresponding bit should flip.\r\n");
@@ -109,14 +134,21 @@ uint8_t user_handle_command(char* command_word, char* command_args)
 			printf("Testing RGB LED and Sensor.\r\nShould see oscillating light, with sensor matching.\r\n");
 			return 1;
 		case SPEAKER_TEST:
-			printf("Testing speaker.\r\nShould hear the Mario one-up jingle.\r\n");		
+			printf("Testing speaker.\r\nShould hear the Mario one-up jingle.\r\n");
 			play_song(one_up_notes, one_up_durs, 6);
 			return 1;
+		case MOTOR_TEST:
+			set_rgb(0,0,0);
+			printf("Testing motors.\r\nThey should vibrate.\r\n");
+			motor_adjusts[0][1]=1000;
+			motor_adjusts[0][2]=1000;
+			return 1;
 		case DONE:
-			printf("All tests completed for %X\r\n",get_droplet_id());			
+			stop_move();
+			printf("All tests completed for %X\r\n",get_droplet_id());
 			return 1;
 		default:
 			printf("All tests already completed.\r\n");
-			return 1;		
+			return 1;
 	}
 }

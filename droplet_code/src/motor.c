@@ -98,7 +98,7 @@ uint8_t move_steps(uint8_t direction, uint16_t num_steps)
 	}
 	uint32_t total_movement_duration = ((uint32_t)total_time)*((uint32_t)num_steps)/32;
 	//printf("Total duration: %u ms.\r\n\n",total_movement_duration);
-	current_motor_task = schedule_task(total_movement_duration, stop, NULL);
+	current_motor_task = schedule_task(total_movement_duration, stop_move, NULL);
 	return 1;
 }
 
@@ -111,7 +111,7 @@ void walk(uint8_t direction, uint16_t mm)
 	move_steps(direction, (uint16_t)steps);
 }
 
-void stop()
+void stop_move()
 {
 	//printf("Stopping.\r\n");
 	

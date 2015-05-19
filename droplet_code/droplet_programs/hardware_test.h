@@ -9,6 +9,7 @@ typedef enum
 	IR_IO_TEST,
 	RGB_IO_TEST,
 	SPEAKER_TEST,
+	MOTOR_TEST,
 	DONE
 } State;
 

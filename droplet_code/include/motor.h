@@ -47,7 +47,7 @@ uint8_t	move_steps(uint8_t direction, uint16_t num_steps);
 void walk(uint8_t direction, uint16_t mm);
 
 // Stops all motors
-void stop();
+void stop_move();
 
 int8_t is_moving(); // returns 0 if droplet is not moving, otherwise returns the direction of motion (1-6)
 

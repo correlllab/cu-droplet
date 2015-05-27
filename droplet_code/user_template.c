@@ -13,7 +13,22 @@
  //*/
 //void loop()
 //{	
-//
+	////uint16_t note_durs[13] = {8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8};
+	////uint8_t notes_asc[13]  = {0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2A, 0x2B, 0x30};
+	////uint8_t notes_desc[13] = {0x30, 0x2B, 0x2A, 0x29, 0x28, 0x27, 0x26, 0x25, 0x24, 0x23, 0x22, 0x21, 0x20};
+	////play_song(notes_asc, note_durs, 13, 0);
+	////delay_ms(1000);
+	////play_song(notes_desc, note_durs, 13, 0);
+	////delay_ms(3000);
+		////
+	////uint16_t note_durs_b[8] = {13,13,13,13,13,13,13,13};
+	////uint8_t notes_asc_b[8]  = {0x20, 0x22, 0x24, 0x25, 0x27, 0x29, 0x2B, 0x30};
+	////uint8_t notes_desc_b[8] = {0x30, 0x2B, 0x29, 0x27, 0x25, 0x24, 0x22, 0x20};
+	////play_song(notes_asc_b, note_durs_b, 8, 0);
+	////delay_ms(1000);
+	////play_song(notes_desc_b, note_durs_b, 8, 0);
+	////delay_ms(3000);
+	//
 //}
 //
 ///*

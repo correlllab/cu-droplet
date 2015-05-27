@@ -14,19 +14,19 @@ void init_all_systems()
 	scheduler_init();			if(INIT_DEBUG_MODE) printf("SCHEDULER INIT\r\n"); //This will probably never print, since you need pc_com for printf to happen, but pc_com needs the scheduler.
 	pc_comm_init();				if(INIT_DEBUG_MODE) printf("PC COM INIT\r\n");
 	rgb_led_init();				if(INIT_DEBUG_MODE) printf("LED INIT\r\n");
-	power_init();				if(INIT_DEBUG_MODE) printf("POWER INIT\r\n");
+	power_init();				if(INIT_DEBUG_MODE) printf("POWER INIT\r\n");	
 	i2c_init();					if(INIT_DEBUG_MODE) printf("I2C INIT\r\n");	
 	
 	enable_interrupts();	
 	
-	motor_init();				if(INIT_DEBUG_MODE) printf("MOTOR INIT\r\n");
 	range_algs_init();			if(INIT_DEBUG_MODE) printf("RANGE ALGORITHMS INIT\r\n");	
 	rgb_sensor_init();			if(INIT_DEBUG_MODE) printf("RGB SENSE INIT\r\n");
 	ir_led_init();				if(INIT_DEBUG_MODE) printf("IR LED INIT\r\n");
 	ir_sensor_init();			if(INIT_DEBUG_MODE) printf("IR SENSE INIT\r\n");	
 	ir_comm_init();				if(INIT_DEBUG_MODE) printf("IR COM INIT\r\n");
-	speaker_init();				if(INIT_DEBUG_MODE) printf("SPEAKER INIT\r\n");
+	speaker_init();				if(INIT_DEBUG_MODE) printf("SPEAKER INIT\r\n");	
 	mic_init();					if(INIT_DEBUG_MODE) printf("MIC INIT\r\n"); //mic_init requires that ir_sensor_init() has been called.
+	motor_init();				if(INIT_DEBUG_MODE) printf("MOTOR INIT\r\n");	
 	random_init();				if(INIT_DEBUG_MODE) printf("RAND INIT\r\n"); //This uses ADC reading as a random seed, and so must be called after the ADCs are initialized.
 
 

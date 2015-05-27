@@ -16,10 +16,9 @@ typedef struct{
 uint8_t song_playing;
 
 
-
 void speaker_init();
 void emit_sound(uint16_t period, uint32_t duration);
-void play_song(uint8_t* notes, uint16_t* durs, uint8_t song_len);
+void play_song(uint8_t* notes, uint16_t* durs, uint8_t song_len, uint8_t pauses);
 void start_sound(uint8_t note);
 void switch_sound();
 void brief_pause();

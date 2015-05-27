@@ -26,6 +26,11 @@ void motor_init()
 
     TCD0.CTRLA = TC_CLKSEL_DIV1024_gc; 
     TCD0.CTRLB = TC_WGMODE_SS_gc;  
+	
+	PORTC.PIN4CTRL = PORT_INVEN_bm;
+	PORTC.PIN5CTRL = PORT_INVEN_bm;
+	PORTD.PIN0CTRL = PORT_INVEN_bm;
+	PORTD.PIN1CTRL = PORT_INVEN_bm;
 
 	motor_status = 0;
 
@@ -46,14 +51,15 @@ void motor_init()
 
 uint8_t move_steps(uint8_t direction, uint16_t num_steps)
 {
+	//motor_adjusts[direction][0]=0; //AUDIO_DROPLET 
 	if(is_moving()>=0) return 0;
 	motor_status = MOTOR_STATUS_ON | (direction & MOTOR_STATUS_DIRECTION);
 	
-	uint16_t mot_durs[2]; //This is how long we want each motor to be on for.
-	int8_t mot_dirs[2]; //This is what direction we want each motor to spin in. 1: CCW, -1: CW, 0: No spin.
+	uint16_t mot_durs[3]; //This is how long we want each motor to be on for.
+	int8_t mot_dirs[3]; //This is what direction we want each motor to spin in. 1: CCW, -1: CW, 0: No spin.
 	uint16_t total_time = 0; //This is the total length of a step, and will be the period of the PWM generation.
 	
-	for(uint8_t mot=0 ; mot<2 ; mot++)
+	for(uint8_t mot=0 ; mot<3 ; mot++)
 	{	
 		if(motor_adjusts[direction][mot]==0)
 		{
@@ -68,36 +74,36 @@ uint8_t move_steps(uint8_t direction, uint16_t num_steps)
 			total_time += mot_durs[mot] + 32*motor_off_time;
 		}
 	}
-	//printf("Moving in dir: %hhu for %hu steps. Mot_durs: {%hu, %hu, %hu}. Total_time: %hu.\r\n",direction, num_steps, mot_durs[0], mot_durs[1], mot_durs[2], total_time);
-	//printf("Mot_dirs: {%hhd, %hhd, %hhd}.\r\n\n", mot_dirs[0], mot_dirs[1], mot_dirs[2]);
+	printf("Moving in dir: %hu for %u steps. Mot_durs: {%u, %u, %u}. Total_time: %u.\r\n",direction, num_steps, mot_durs[0], mot_durs[1], mot_durs[2], total_time);
+	printf("Mot_dirs: {%hd, %hd, %hd}.\r\n", mot_dirs[0], mot_dirs[1], mot_dirs[2]);
 
-	TCC0.PER = TCC1.PER = TCD0.PER = total_time;
+	/*TCC0.PER =*/ TCC1.PER = TCD0.PER = total_time; //AUDIO_DROPLET
 	//TCC0.CCA = TCC0.CCB = mot_durs[0]; //motor 0 //AUDIO_DROPLET
 	TCC1.CCA = TCC1.CCB = mot_durs[1]; //motor 1
 	TCD0.CCA = TCD0.CCB = mot_durs[2]; //motor 2
 	
 	uint16_t current_offset = 0;
 	
-	for(uint8_t mot=1 ; mot<3 ; mot++) //This loops sets up the offsets correctly, so that (for example) the 30 ms that motor 1 is on won't start until 40ms after motor 0 turns off.
+	for(uint8_t mot=0 ; mot<3 ; mot++) //This loops sets up the offsets correctly, so that (for example) the 30 ms that motor 1 is on won't start until 40ms after motor 0 turns off.
 	{
 		if(mot_durs[mot]==0) continue;
 		switch(mot)
 		{
-			//case 0: TCC0.CNT = ((total_time - current_offset)%total_time); break; //AUDIO_DROPLET
+			case 0: printf("ERROR! In move_steps, mot_durs[0]!=0\r\n"); break; //AUDIO_DROPLET
 			case 1: TCC1.CNT = ((total_time - current_offset)%total_time); break;
-			case 2: TCD0.CNT = ((total_time - current_offset)%total_time); break; //AUDIO_DROPLET
+			case 2: TCD0.CNT = ((total_time - current_offset)%total_time); break;
 		}
 		current_offset += mot_durs[mot] + 32*motor_off_time;//If we left the motor on for longer to compensate, we should wait a little longer before starting again.
 	}
-	//printf("Offsets are: (%hu, %hu, %hu)\r\n",TCC0.CNT, TCC1.CNT, TCD0.CNT);
-	if(current_offset != total_time) printf("ERROR (I think): current_offset: %hu and total_time: %hu not equal!\r\n", current_offset, total_time);
-	for(uint8_t mot=1 ; mot<3 ; mot++) 	//Now we just need to tell the motors to go!
+	
+	if(current_offset != total_time) printf("ERROR: current_offset: %hu and total_time: %hu not equal!\r\n", current_offset, total_time);
+	for(uint8_t mot=0 ; mot<3 ; mot++) 	//Now we just need to tell the motors to go!
 	{
 		if(mot_dirs[mot]<0) motor_backward(mot); 
 		else if(mot_dirs[mot]>0)	motor_forward(mot);
 	}
-	uint32_t total_movement_duration = ((uint32_t)total_time)*((uint32_t)num_steps)/32;
-	//printf("Total duration: %u ms.\r\n\n",total_movement_duration);
+	uint32_t total_movement_duration = (((uint32_t)total_time)*((uint32_t)num_steps))/32;
+	printf("Total duration: %lu ms.\r\n\n",total_movement_duration);
 	current_motor_task = schedule_task(total_movement_duration, stop_move, NULL);
 	return 1;
 }
@@ -124,10 +130,10 @@ void stop_move()
 	
 	//PORTC.PIN0CTRL = 0; //AUDIO_DROPLET
 	//PORTC.PIN1CTRL = 0; //AUDIO_DROPLET
-	PORTC.PIN4CTRL = 0;
-	PORTC.PIN5CTRL = 0;
-	PORTD.PIN0CTRL = 0;
-	PORTD.PIN1CTRL = 0; 
+	//PORTC.PIN4CTRL = 0;
+	//PORTC.PIN5CTRL = 0;
+	//PORTD.PIN0CTRL = 0;
+	//PORTD.PIN1CTRL = 0; 
 
 	
 	motor_status = 0;

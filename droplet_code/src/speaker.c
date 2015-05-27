@@ -10,6 +10,7 @@ const uint16_t note_values[6][12] = {{NOTE_C2, NOTE_CS2, NOTE_D2, NOTE_DS2, NOTE
 uint8_t local_notes[MAX_NOTES_PER_SONG];
 uint16_t local_durs[MAX_NOTES_PER_SONG];
 uint8_t curr_song_len;
+uint8_t auto_pause;
 volatile uint16_t curr_song_idx;
 
 void speaker_init()
@@ -23,9 +24,10 @@ void speaker_init()
 	song_playing = 0;
 }
 
-void play_song(uint8_t* notes, uint16_t* durs, uint8_t song_len)
+void play_song(uint8_t* notes, uint16_t* durs, uint8_t song_len, uint8_t pauses)
 {
 	if(song_playing) return; //do nothing
+	auto_pause = pauses;
 	song_playing = 1;
 	curr_song_idx=1;
 	curr_song_len=song_len;
@@ -35,6 +37,7 @@ void play_song(uint8_t* notes, uint16_t* durs, uint8_t song_len)
 		local_notes[i]=notes[i];
 	}
 	start_sound(notes[0]);
+	if(auto_pause) schedule_task(durs[0]-NOTE_SWITCH_DUR_MS, brief_pause, NULL);			
 	schedule_task(durs[0], switch_sound, NULL);
 }
 
@@ -79,7 +82,7 @@ void switch_sound()
 		TCC0.CCA = note_values[note>>4][note&0x0F];
 		TCC0.CCB = note_values[note>>4][note&0x0F];
 		PORTC.OUTSET = PIN0_bm;
-		schedule_task(dur-NOTE_SWITCH_DUR_MS, brief_pause, NULL);			
+		if(auto_pause) schedule_task(dur-NOTE_SWITCH_DUR_MS, brief_pause, NULL);			
 	}
 	schedule_task(dur, switch_sound, NULL);
 }

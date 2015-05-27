@@ -66,9 +66,9 @@ static inline void motor_forward(uint8_t num)
 {
 	switch(num)
 	{
-		//case 0: TCC0.CTRLB = TC_WGMODE_SS_gc | TC0_CCBEN_bm; PORTC.PIN1CTRL = PORT_INVEN_bm; PORTC.OUTSET |= PIN0_bm; break; //AUDIO_DROPLET
-		case 1: TCC1.CTRLB = TC_WGMODE_SS_gc | TC1_CCBEN_bm; PORTC.PIN5CTRL = PORT_INVEN_bm; PORTC.OUTSET |= PIN4_bm; break;
-		case 2: TCD0.CTRLB = TC_WGMODE_SS_gc | TC0_CCBEN_bm; PORTD.PIN1CTRL = PORT_INVEN_bm; PORTD.OUTSET |= PIN0_bm; break;
+		case 0: printf("ERROR! motor_fw called with num=0\r\n"); break; //AUDIO_DROPLET
+		case 1: TCC1.CTRLB |= TC1_CCBEN_bm; PORTC.OUTSET |= PIN4_bm; break;
+		case 2: TCD0.CTRLB |= TC0_CCBEN_bm; PORTD.OUTSET |= PIN0_bm; break;
 	}
 }
 
@@ -76,9 +76,9 @@ static inline void motor_backward(uint8_t num)
 {
 	switch(num)
 	{
-		//case 0: TCC0.CTRLB = TC_WGMODE_SS_gc | TC0_CCAEN_bm; PORTC.PIN0CTRL = PORT_INVEN_bm; PORTC.OUTSET |= PIN1_bm; break; //AUDIO_DROPLET
-		case 1: TCC1.CTRLB = TC_WGMODE_SS_gc | TC1_CCAEN_bm; PORTC.PIN4CTRL = PORT_INVEN_bm; PORTC.OUTSET |= PIN5_bm; break;
-		case 2: TCD0.CTRLB = TC_WGMODE_SS_gc | TC0_CCAEN_bm; PORTD.PIN0CTRL = PORT_INVEN_bm; PORTD.OUTSET |= PIN1_bm; break;
+		case 0: printf("ERROR! motor_bw called with num=0\r\n"); break; //AUDIO_DROPLET
+		case 1: TCC1.CTRLB |= TC1_CCAEN_bm; PORTC.OUTSET |= PIN5_bm; break;
+		case 2: TCD0.CTRLB |= TC0_CCAEN_bm; PORTD.OUTSET |= PIN1_bm; break;
 	}
 }
 

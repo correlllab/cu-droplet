@@ -14,11 +14,11 @@ typedef enum
 } State;
 State state;
 
-uint32_t state_start_time;
+uint32_t state_start_time, last_update_time;
 double listen_time;
 double b, eps;
 
-void change_state(State state);
+void change_state(State new_state);
 
 void init();
 void loop();

@@ -19,15 +19,15 @@ void loop()
         }
         break;
     case LISTEN:
-        if ((double)(get_time() - state_start_time) >= listen_time)
+        if (listen_time >= BASE_LISTEN_TIME)
         {
             change_state(TRANSMIT);
         }
+        listen_time += (double)(get_time() - last_update_time);
+        last_update_time = get_time();
         break;
     case TRANSMIT:
         change_state(SHINE);
-        break;
-    default:
         break;
     }
 
@@ -56,23 +56,25 @@ void handle_msg(ir_msg* msg_struct)
 //
 //}
 
-void change_state(State state)
+void change_state(State new_state)
 {
     state_start_time = get_time();
-
+    state = new_state;
+    
 	switch (state)
 	{
     case SHINE:
         set_hsv(30, 255, 120);
         break;
     case LISTEN:
-        listen_time = BASE_LISTEN_TIME;
+        //set_hsv(120, 255, 120);
+        listen_time = 0.;
+        last_update_time = state_start_time;
         break;
     case TRANSMIT:
         // Send a sync message
+        //set_hsv(210, 255, 120);
         ir_send(ALL_DIRS, "<3", 2);
-        break;
-    default:
         break;
 	}    
 }

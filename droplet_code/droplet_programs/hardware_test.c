@@ -30,7 +30,7 @@ void init()
 		//tetris_notes[i]-=0x10;
 	//}	
 	last_hue=((((uint16_t)rand_byte())<<8)|((uint16_t)rand_byte()))%360;
-	state = MIC_TEST;
+	state = MOTOR_TEST;
 	moving_left=0;
 	waiting=1;
 	state_changed_printout();	
@@ -69,9 +69,8 @@ void loop()
 		case MOTOR_TEST:
 			if(is_moving()<0)
 			{
-				move_steps(2,10);
-				//if(moving_left)	move_steps(0,20);
-				//else            move_steps(1,20);
+				if(moving_left)	move_steps(0,20);
+				else            move_steps(1,20);
 				moving_left = !moving_left;
 			}
 			delay_ms(150);			
@@ -136,9 +135,7 @@ void state_changed_printout()
 			motor_adjusts[0][1]=1000;
 			motor_adjusts[0][2]=0;
 			motor_adjusts[1][1]=0;
-			motor_adjusts[1][2]=1000;
-			motor_adjusts[2][1]=1000;
-			motor_adjusts[2][2]=-1000;			
+			motor_adjusts[1][2]=1000;	
 			moving_left=1;
 			return 1;	
 		case SPEAKER_TEST:

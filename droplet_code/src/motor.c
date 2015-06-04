@@ -51,7 +51,7 @@ void motor_init()
 
 uint8_t move_steps(uint8_t direction, uint16_t num_steps)
 {
-	//motor_adjusts[direction][0]=0; //AUDIO_DROPLET 
+	motor_adjusts[direction][0]=0; //AUDIO_DROPLET 
 	if(is_moving()>=0) return 0;
 	motor_status = MOTOR_STATUS_ON | (direction & MOTOR_STATUS_DIRECTION);
 	

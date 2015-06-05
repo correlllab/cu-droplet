@@ -13,8 +13,7 @@ void init()
  */
 void loop()
 {
-	//broadcast_rnb_data();
-	delay_ms(500);
+
 }
 
 /*

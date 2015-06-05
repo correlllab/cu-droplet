@@ -107,7 +107,6 @@ void use_rnb_data(uint8_t power)
 	last_good_rnb.brightness_matrix_ptr = brightness_matrix;
 	last_good_rnb.id_number = cmd_sender_id;
 	
-	printf("\n\n%8f %8f %8f\r\n\n", range, rad_to_deg(bearing), rad_to_deg(heading));
 	rnb_updated=1;
 }
 

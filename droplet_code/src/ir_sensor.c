@@ -68,7 +68,7 @@ uint8_t get_ir_sensor(uint8_t sensor_num)
 	{
 		ADCB.CH0.CTRL |= ADC_CH_START_bm;
 		while (ADCB.CH0.INTFLAGS==0){};		// wait for measurement to complete
-		meas[meas_count] = ((((int16_t)ADCB.CH0.RESH)<<8)|((int16_t)ADCB.CH0.RESL))>>3;	
+		meas[meas_count] = ((((int16_t)ADCB.CH0.RESH)<<8)|((int16_t)ADCB.CH0.RESL))>>2;	
 		ADCB.CH0.INTFLAGS=1; // clear the complete flag		
 	}
 	//printf("Median: %d", median);	

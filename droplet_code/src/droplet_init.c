@@ -21,7 +21,7 @@ void init_all_systems()
 	ir_comm_init();				if(INIT_DEBUG_MODE) printf("IR COM INIT\r\n");
 	ir_sensor_init();			if(INIT_DEBUG_MODE) printf("IR SENSE INIT\r\n");
 	motor_init();				if(INIT_DEBUG_MODE) printf("MOTOR INIT\r\n");
-	range_algs_init();	if(INIT_DEBUG_MODE) printf("RANGE ALGORITHMS INIT\r\n");
+	range_algs_init();			if(INIT_DEBUG_MODE) printf("RANGE ALGORITHMS INIT\r\n");
 
 	enable_interrupts();
 	startup_light_sequence();

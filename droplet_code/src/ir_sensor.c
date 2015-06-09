@@ -66,8 +66,11 @@ uint8_t get_ir_sensor(uint8_t sensor_num)
 	
 	for(uint8_t meas_count=0; meas_count<IR_MEAS_COUNT; meas_count++)
 	{
-		ADCB.CH0.CTRL |= ADC_CH_START_bm;
-		while (ADCB.CH0.INTFLAGS==0){};		// wait for measurement to complete
+		ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+		{
+			ADCB.CH0.CTRL |= ADC_CH_START_bm;
+			while (ADCB.CH0.INTFLAGS==0){};		// wait for measurement to complete
+		}
 		meas[meas_count] = ((((int16_t)ADCB.CH0.RESH)<<8)|((int16_t)ADCB.CH0.RESL))>>2;	
 		ADCB.CH0.INTFLAGS=1; // clear the complete flag		
 	}

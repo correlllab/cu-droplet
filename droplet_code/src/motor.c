@@ -19,7 +19,7 @@ void motor_init()
 	//end motor->speaker code
 	
     TCC0.CTRLA = TC_CLKSEL_DIV1024_gc;
-    TCC1.CTRLB = TC_WGMODE_SS_gc;
+    TCC0.CTRLB = TC_WGMODE_SS_gc;
 	
     TCC1.CTRLA = TC_CLKSEL_DIV1024_gc;
     TCC1.CTRLB = TC_WGMODE_SS_gc;

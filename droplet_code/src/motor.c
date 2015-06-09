@@ -5,19 +5,6 @@ void motor_init()
 	PORTC.DIRSET = /* PIN0_bm | PIN1_bm |*/ PIN4_bm | PIN5_bm; //AUDIO_DROPLET
 	PORTD.DIRSET = PIN0_bm | PIN1_bm; 
 
-	//Below code is for using a motor as a speaker.
-	//TCC0.CTRLA = TC_CLKSEL_DIV1024_gc;
-	//PORTC.PIN1CTRL = PORT_INVEN_bm;
-	//PORTC.PIN0CTRL = PORT_INVEN_bm;
-	//uint16_t period = 10;
-	//TCC0.PER=period;
-	//TCC0.CCA=period/2;
-	//TCC0.CCB=period/2;
-	//TCC0.CNT=0;
-	//TCC0.CTRLB = TC_WGMODE_SS_gc | TC0_CCBEN_bm;
-	//PORTC.OUTSET |= PIN0_bm;
-	//end motor->speaker code
-	
     //TCC0.CTRLA = TC_CLKSEL_DIV1024_gc; //AUDIO_DROPLET
     //TCC1.CTRLB = TC_WGMODE_SS_gc; //AUDIO_DROPLET
 	
@@ -33,15 +20,6 @@ void motor_init()
 	PORTD.PIN1CTRL = PORT_INVEN_bm;
 
 	motor_status = 0;
-
-	//motor_signs[0][0]=0;	motor_signs[0][1]=1;	motor_signs[0][2]=-1;  	//Towards motor 0.
-	//motor_signs[1][0]=-1;	motor_signs[1][1]=1;	motor_signs[1][2]=0;  	//Away from motor 2.
-	//motor_signs[2][0]=-1;	motor_signs[2][1]=0;	motor_signs[2][2]=1;  	//Towards motor 1.
-	//motor_signs[3][0]=0;	motor_signs[3][1]=-1;	motor_signs[3][2]=1;  	//Away from motor 0.
-	//motor_signs[4][0]=1;	motor_signs[4][1]=-1;	motor_signs[4][2]=0;  	//Towards motor 2.
-	//motor_signs[5][0]=1;	motor_signs[5][1]=0;	motor_signs[5][2]=-1;  	//Away from motor 1.
-	//motor_signs[6][0]=-1;	motor_signs[6][1]=-1;	motor_signs[6][2]=-1;  	//Clockwise spin.
-	//motor_signs[7][0]=1;	motor_signs[7][1]=1;	motor_signs[7][2]=1;  	//Anti-Clockwise spin.
 
 	motor_on_time = MOTOR_ON_TIME;
 	motor_off_time = MOTOR_OFF_TIME;
@@ -75,7 +53,7 @@ uint8_t move_steps(uint8_t direction, uint16_t num_steps)
 		}
 	}
 	printf("Moving in dir: %hu for %u steps. Mot_durs: {%u, %u, %u}. Total_time: %u.\r\n",direction, num_steps, mot_durs[0], mot_durs[1], mot_durs[2], total_time);
-	printf("Mot_dirs: {%hd, %hd, %hd}.\r\n", mot_dirs[0], mot_dirs[1], mot_dirs[2]);
+	//printf("Mot_dirs: {%hd, %hd, %hd}.\r\n", mot_dirs[0], mot_dirs[1], mot_dirs[2]);
 
 	/*TCC0.PER =*/ TCC1.PER = TCD0.PER = total_time; //AUDIO_DROPLET
 	//TCC0.CCA = TCC0.CCB = mot_durs[0]; //motor 0 //AUDIO_DROPLET
@@ -103,7 +81,7 @@ uint8_t move_steps(uint8_t direction, uint16_t num_steps)
 		else if(mot_dirs[mot]>0)	motor_forward(mot);
 	}
 	uint32_t total_movement_duration = (((uint32_t)total_time)*((uint32_t)num_steps))/32;
-	printf("Total duration: %lu ms.\r\n\n",total_movement_duration);
+	//printf("Total duration: %lu ms.\r\n\n",total_movement_duration);
 	current_motor_task = schedule_task(total_movement_duration, stop_move, NULL);
 	return 1;
 }
@@ -127,14 +105,6 @@ void stop_move()
 	
 	PORTC.OUTCLR = /*PIN0_bm | PIN1_bm |*/ PIN4_bm | PIN5_bm; //AUDIO_DROPLET
 	PORTD.OUTCLR = PIN0_bm | PIN1_bm; 
-	
-	//PORTC.PIN0CTRL = 0; //AUDIO_DROPLET
-	//PORTC.PIN1CTRL = 0; //AUDIO_DROPLET
-	//PORTC.PIN4CTRL = 0;
-	//PORTC.PIN5CTRL = 0;
-	//PORTD.PIN0CTRL = 0;
-	//PORTD.PIN1CTRL = 0; 
-
 	
 	motor_status = 0;
 	remove_task((Task_t*)current_motor_task);

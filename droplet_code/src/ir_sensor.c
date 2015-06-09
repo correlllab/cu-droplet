@@ -77,8 +77,11 @@ uint8_t get_ir_sensor(uint8_t sensor_num)
 	
 	for(uint8_t meas_count=0; meas_count<IR_MEAS_COUNT; meas_count++)
 	{
-		ir_sense_channels[sensor_num]->CTRL |= ADC_CH_START_bm;
-		while (ir_sense_channels[sensor_num]->INTFLAGS==0){};		// wait for measurement to complete
+		ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+		{
+			ir_sense_channels[sensor_num]->CTRL |= ADC_CH_START_bm;
+			while (ir_sense_channels[sensor_num]->INTFLAGS==0){};		// wait for measurement to complete
+		}
 		meas[meas_count] = ((((int16_t)(ir_sense_channels[sensor_num]->RESH))<<8)|((int16_t)(ir_sense_channels[sensor_num]->RESL)))>>3;	
 		ir_sense_channels[sensor_num]->INTFLAGS=1; // clear the complete flag		
 	}

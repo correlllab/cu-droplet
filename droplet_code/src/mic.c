@@ -9,7 +9,7 @@ void mic_init()
 	PORTD.PIN5CTRL = PORT_ISC_INPUT_DISABLE_gc;
 	////port d, pin 5
 	
-	ADCB.CH3.CTRL = ADC_CH_INPUTMODE_DIFFWGAIN_gc | ADC_CH_GAIN_8X_gc;
+	ADCB.CH3.CTRL = ADC_CH_INPUTMODE_DIFFWGAIN_gc | ADC_CH_GAIN_1X_gc;
 	ADCB.CH3.MUXCTRL = ADC_CH_MUXNEG_INTGND_MODE4_gc | ADC_CH_MUXPOS_PIN5_gc;
 	
 }
@@ -24,16 +24,40 @@ int16_t get_mic_reading()
 }
 
 //length can't be much higher than 1000 before we run out of memory.
-void mic_recording(uint16_t length)
+//Warning! I have not tested a sample rate higher than 10kHz.
+//Since each ADC measurement is 12 bits long, I'm packing 4 measurements in every 3 bytes, below.
+void mic_recording(uint16_t length, uint16_t sample_rate)
 {
 		uint32_t time_start = get_time();
-		int16_t recording[length];
-		for(uint16_t i=0;i<length;i++)
+		uint16_t sample_delay = ((uint16_t)(((uint32_t)1000000)/((uint32_t)sample_rate)));
+		uint16_t array_len = 3*(length/4);
+		int16_t recording[array_len];
+		int16_t mic_reading_temp;
+		for(uint16_t i=0;i<array_len;i+=3)
 		{
-			recording[i] = get_mic_reading();
-			delay_us(100);
+			recording[i] = (0x0FFF&get_mic_reading());
+			busy_delay_us(sample_delay);
+			mic_reading_temp = get_mic_reading();
+			recording[i] |= 0xF000&(mic_reading_temp<<12);
+			recording[i+1] = 0x00FF&(mic_reading_temp>>4);
+			busy_delay_us(sample_delay);
+			mic_reading_temp = get_mic_reading();
+			recording[i+1] |= 0xFF00&(mic_reading_temp<<8);
+			recording[i+2] = 0x000F&(mic_reading_temp>>8);
+			busy_delay_us(sample_delay);
+			recording[i+2] |= (0xFFF0&(get_mic_reading()<<4));
 		}
-		printf("Recording took %lu ms.\r\n{", get_time()-time_start);
-		for(uint16_t i=0;i<length-1;i++) printf("%d, ",recording[i]);
-		printf("%d}\r\n\n",recording[length-1]);
+		printf("{", get_time()-time_start);
+		for(uint16_t i=0;i<array_len-3;i+=3)
+		{
+			printf("%4d, ",((0x0FFF&recording[i])<<4)>>4);
+			printf("%4d, ", (((0x000F&(recording[i]>>12))|(0x0FF0&(recording[i+1]<<4)))<<4)>>4);
+			printf("%4d, ",(((0x00FF&(recording[i+1]>>8))|(0x0F00&(recording[i+2]<<8)))<<4)>>4);
+			printf("%4d, ", recording[i+2]>>4);
+			
+		}
+		printf("%4d, ",((0x0FFF&recording[array_len-3])<<4)>>4);
+		printf("%4d, ", (((0x000F&(recording[array_len-3]>>12))|(0x0FF0&(recording[array_len-2]<<4)))<<4)>>4);
+		printf("%4d, ",(((0x00FF&(recording[array_len-2]>>8))|(0x0F00&(recording[array_len-1]<<8)))<<4)>>4);
+		printf("%4d}\r\n", recording[array_len-1]>>4);
 }

@@ -7,11 +7,11 @@ uint8_t happened;
  */
 void init()
 {
-	motor_adjusts[0][1] = 10;
-	motor_adjusts[0][2] = -238;
+	motor_adjusts[0][1] = 500;
+	motor_adjusts[0][2] = -500;
 	
 	get_mic_reading(); //first reading tends to be very high?
-	//delay_ms(3000);
+	delay_ms(3000);
 	happened=0;
 }
 
@@ -20,21 +20,21 @@ void init()
  */
 void loop()
 {	
-	//if(happened) return;
+	if(happened) return;
 	delay_ms(500);
 	printf("{\r\n");
-	//mic_recording(2000,8000);
+	mic_recording(2000,2000);
 	printf(",\r\n");
 	delay_ms(1000);
-	move_steps(0,100);
+	if(is_moving()<0) move_steps(0,100);
 	//delay_ms(2000);
-	//mic_recording(2000,8000);
+	mic_recording(2000,2000);
 	printf("\r\n");
 	delay_ms(2000);
 	stop_move();
 	printf("\r\n");
 	happened=1;
-	delay_ms(5000);
+	delay_ms(200000);
 }
 
 /*

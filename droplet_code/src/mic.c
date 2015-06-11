@@ -9,7 +9,7 @@ void mic_init()
 	PORTD.PIN5CTRL = PORT_ISC_INPUT_DISABLE_gc;
 	////port d, pin 5
 	
-	ADCB.CH3.CTRL = ADC_CH_INPUTMODE_DIFFWGAIN_gc | ADC_CH_GAIN_1X_gc;
+	ADCB.CH3.CTRL = ADC_CH_INPUTMODE_DIFFWGAIN_gc | ADC_CH_GAIN_8X_gc;
 	ADCB.CH3.MUXCTRL = ADC_CH_MUXNEG_INTGND_MODE4_gc | ADC_CH_MUXPOS_PIN5_gc;
 	
 }
@@ -33,19 +33,22 @@ void mic_recording(uint16_t length, uint16_t sample_rate)
 		uint16_t array_len = 3*(length/4);
 		int16_t recording[array_len];
 		int16_t mic_reading_temp;
-		for(uint16_t i=0;i<array_len;i+=3)
+		ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 		{
-			recording[i] = (0x0FFF&get_mic_reading());
-			busy_delay_us(sample_delay);
-			mic_reading_temp = get_mic_reading();
-			recording[i] |= 0xF000&(mic_reading_temp<<12);
-			recording[i+1] = 0x00FF&(mic_reading_temp>>4);
-			busy_delay_us(sample_delay);
-			mic_reading_temp = get_mic_reading();
-			recording[i+1] |= 0xFF00&(mic_reading_temp<<8);
-			recording[i+2] = 0x000F&(mic_reading_temp>>8);
-			busy_delay_us(sample_delay);
-			recording[i+2] |= (0xFFF0&(get_mic_reading()<<4));
+			for(uint16_t i=0;i<array_len;i+=3)
+			{
+				recording[i] = (0x0FFF&get_mic_reading());
+				busy_delay_us(sample_delay);
+				mic_reading_temp = get_mic_reading();
+				recording[i] |= 0xF000&(mic_reading_temp<<12);
+				recording[i+1] = 0x00FF&(mic_reading_temp>>4);
+				busy_delay_us(sample_delay);
+				mic_reading_temp = get_mic_reading();
+				recording[i+1] |= 0xFF00&(mic_reading_temp<<8);
+				recording[i+2] = 0x000F&(mic_reading_temp>>8);
+				busy_delay_us(sample_delay);
+				recording[i+2] |= (0xFFF0&(get_mic_reading()<<4));
+			}
 		}
 		printf("{", get_time()-time_start);
 		for(uint16_t i=0;i<array_len-3;i+=3)

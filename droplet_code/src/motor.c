@@ -6,7 +6,7 @@ void motor_init()
 	PORTD.DIRSET = PIN0_bm | PIN1_bm; 
 
     //TCC0.CTRLA = TC_CLKSEL_DIV1024_gc; //AUDIO_DROPLET
-    //TCC1.CTRLB = TC_WGMODE_SS_gc; //AUDIO_DROPLET
+    //TCC0.CTRLB = TC_WGMODE_SS_gc; //AUDIO_DROPLET
 	
     TCC1.CTRLA = TC_CLKSEL_DIV1024_gc;
     TCC1.CTRLB = TC_WGMODE_SS_gc;
@@ -18,6 +18,9 @@ void motor_init()
 	PORTC.PIN5CTRL = PORT_INVEN_bm;
 	PORTD.PIN0CTRL = PORT_INVEN_bm;
 	PORTD.PIN1CTRL = PORT_INVEN_bm;
+	
+	PORTC.OUTCLR = PIN4_bm | PIN5_bm;
+	PORTD.OUTCLR = PIN0_bm | PIN1_bm;
 
 	motor_status = 0;
 
@@ -52,7 +55,7 @@ uint8_t move_steps(uint8_t direction, uint16_t num_steps)
 			total_time += mot_durs[mot] + 32*motor_off_time;
 		}
 	}
-	printf("Moving in dir: %hu for %u steps. Mot_durs: {%u, %u, %u}. Total_time: %u.\r\n",direction, num_steps, mot_durs[0], mot_durs[1], mot_durs[2], total_time);
+	//printf("Moving in dir: %hu for %u steps. Mot_durs: {%u, %u, %u}. Total_time: %u.\r\n",direction, num_steps, mot_durs[0], mot_durs[1], mot_durs[2], total_time);
 	//printf("Mot_dirs: {%hd, %hd, %hd}.\r\n", mot_dirs[0], mot_dirs[1], mot_dirs[2]);
 
 	/*TCC0.PER =*/ TCC1.PER = TCD0.PER = total_time; //AUDIO_DROPLET

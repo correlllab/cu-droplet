@@ -117,7 +117,10 @@ Task_t* schedule_task(volatile uint32_t time, void (*function)(void*), void* arg
 	new_task->arg = arg;
 	new_task->task_function = function;
 	
+	uint8_t r=get_red_led(), g=get_green_led(), b=get_blue_led();
+	
 	// Turn off interrupts so we don't muck up the task list during this function
+	set_rgb(255,30,0);	
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 	{
 		// Find the new task's proper spot in the list of tasks
@@ -126,7 +129,6 @@ Task_t* schedule_task(volatile uint32_t time, void (*function)(void*), void* arg
 		
 		// If the new task is the next to be executed, put it at the front of the list
 		if (task_list == NULL || new_task->scheduled_time <= task_list->scheduled_time)
-
 		{
 			task_list = new_task;
 			// If scheduled_time is in the current epoch, set the RTC compare interrupt
@@ -134,11 +136,11 @@ Task_t* schedule_task(volatile uint32_t time, void (*function)(void*), void* arg
 			{
 				while (RTC.STATUS & RTC_SYNCBUSY_bm);
 				RTC.COMP = (uint16_t)(new_task->scheduled_time);
-				RTC.INTCTRL |= RTC_COMPINTLVL_LO_gc;
-			}
+				RTC.INTCTRL |= RTC_COMPINTLVL_MED_gc;
+			}		
 			else
 			{
-				RTC.INTCTRL &= ~RTC_COMPINTLVL_LO_gc;
+				RTC.INTCTRL &= ~RTC_COMPINTLVL_MED_gc;
 			}
 		}
 		// If the new task is not the next to be executed, iterate through the task_list,
@@ -154,8 +156,17 @@ Task_t* schedule_task(volatile uint32_t time, void (*function)(void*), void* arg
 			tmp_task_ptr->next = new_task;
 		}
 
+		//Check if the front of the task_lsit should have already been run, and set the RTC.COMP for that if neessary.
+		if (task_list != NULL && task_list->scheduled_time < get_time()) //
+		{
+			while (RTC.STATUS & RTC_SYNCBUSY_bm);
+			RTC.COMP = RTC.CNT+5;
+			RTC.INTCTRL |= RTC_COMPINTLVL_MED_gc;			
+		}
 
 		num_tasks++;
+		
+		set_rgb(r,g,b);
 	}
 
 	return new_task;
@@ -228,16 +239,23 @@ void run_tasks()
 			cur_task = NULL;
 			num_tasks--;
 		}
-		// If the next task to be executed is in the current epoch, set the RTC compare register and interrupt
-		if (task_list != NULL && task_list->scheduled_time <= ((((uint32_t)rtc_epoch) << 16) | (uint32_t)RTC.PER))
-		{
+		//If the next task to be executed was in the past, set the RTC compare register for 5 so this task happens ASAP.
+		if (task_list != NULL && task_list->scheduled_time < get_time())
+		{	
+			while (RTC.STATUS & RTC_SYNCBUSY_bm);
+			RTC.COMP = RTC.CNT+5;
+			RTC.INTCTRL |= RTC_COMPINTLVL_MED_gc;			
+		}
+		// If the next task to be executed is in the current epoch, set the RTC compare register and interrupt		
+		else if (task_list != NULL && task_list->scheduled_time <= ((((uint32_t)rtc_epoch) << 16) | (uint32_t)RTC.PER))
+		{	
 			while (RTC.STATUS & RTC_SYNCBUSY_bm);
 			RTC.COMP = (uint16_t)(task_list->scheduled_time);
-			RTC.INTCTRL |= RTC_COMPINTLVL_LO_gc;
+			RTC.INTCTRL |= RTC_COMPINTLVL_MED_gc;
 		}
 		else
 		{
-			RTC.INTCTRL &= ~RTC_COMPINTLVL_LO_gc;
+			RTC.INTCTRL &= ~RTC_COMPINTLVL_MED_gc;
 		}
 	}
 	
@@ -260,13 +278,21 @@ ISR( RTC_OVF_vect )
 		// If the next task to run is in the current epoch, update the RTC compare value and interrupt
 		if (task_list != NULL && task_list->scheduled_time < ((((uint32_t)rtc_epoch) << 16) | (uint32_t)RTC.PER))
 		{
+			//The next task should have already happened! Lets do it now.
+			if(task_list->scheduled_time <= get_time())
+			{ //really, I should loop through everything in the list and update all of the scheduled task's scheduled_time values, or something..
+				while(RTC.STATUS & RTC_SYNCBUSY_bm);
+				RTC.COMP = 5;
+				RTC.INTCTRL |= RTC_COMPINTLVL_MED_gc;
+				return;
+			}
 			// updating RTC.COMP takes 2 RTC clock cycles, so only update the compare value and
 			// interrupt if the scheduled_time is more than 2ms away
-			if (task_list->scheduled_time > get_time() + 2)
+			else if (task_list->scheduled_time > get_time() + 2)
 			{
 				while (RTC.STATUS & RTC_SYNCBUSY_bm);
 				RTC.COMP = (uint16_t)(task_list->scheduled_time);
-				RTC.INTCTRL |= RTC_COMPINTLVL_LO_gc;
+				RTC.INTCTRL |= RTC_COMPINTLVL_MED_gc;
 				return; // return from ISR
 			}
 			// If we get here, that means there's a task to execute in less than 2ms.  Jump to the ISR

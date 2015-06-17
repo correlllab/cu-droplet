@@ -64,14 +64,14 @@ void check_messages ()
 		ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 		{
 			memcpy(msg_struct->msg, (const void*)msg_node[i].msg, msg_node[i].msg_length);
-			
-			msg_struct->msg[msg_node[i].msg_length]	= '\0';
 			msg_struct->arrival_time					= msg_node[i].arrival_time;
 			msg_struct->sender_ID						= msg_node[i].sender_ID;
 			msg_struct->dir_received					= msg_node[i].arrival_dir;
 			msg_struct->length							= msg_node[i].msg_length;
-			num_waiting_msgs--;
-		}
+		}			
+		msg_struct->msg[msg_node[i].msg_length]	= '\0';		
+		num_waiting_msgs--;
+
 
 		handle_msg(msg_struct);
 	}

@@ -330,9 +330,9 @@ void ir_range_meas()
 
 		while((get_time() - outer_pre_sync_op) < TIME_FOR_ALL_MEAS){};
 
-		set_green_led(100);		
+		//set_green_led(100);		
 		delay_ms(DELAY_BETWEEN_RB_TRANSMISSIONS);
-		set_green_led(0);
+		//set_green_led(0);
 	}
 	//printf("Argh!\r\n");
 }
@@ -351,9 +351,9 @@ void ir_range_blast(uint8_t power)
 		pre_sync_op = get_time();
 		ir_emit(dir, TIME_FOR_ALL_MEAS);
 		while((get_time() - pre_sync_op) < TIME_FOR_ALL_MEAS){};
-		set_green_led(100);
+		//set_green_led(100);
 		delay_ms(DELAY_BETWEEN_RB_TRANSMISSIONS);
-		set_green_led(0);
+		//set_green_led(0);
 	}
 }
 

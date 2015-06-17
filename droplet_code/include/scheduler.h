@@ -10,6 +10,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#include "rgb_led.h"
+
 #define MAX_NUM_SCHEDULED_TASKS 10
 
 // A task is a function, possibly with an argument, to be called at a specific time

@@ -81,6 +81,7 @@ void handle_cmd_wrapper()
 {
 	char local_msg_copy[cmd_length+1];	
 	uint16_t local_msg_len;
+	printf("\tIn handle_cmd_wrapper.\r\n");
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)  // Disable interrupts just in case we get another command in the middle of copying this one.
 	{
 		memcpy(local_msg_copy, (const void*)cmd_buffer, cmd_length+1);
@@ -97,43 +98,45 @@ void perform_ir_upkeep()
 	int8_t dir;
 	for(dir= 0; dir<6; dir++) //This first loop looks for a channel on which we got a good message.
 	{
-		ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+		if(ir_rxtx[dir].status&IR_STATUS_COMPLETE_bm)
 		{
-			if(ir_rxtx[dir].status&IR_STATUS_COMPLETE_bm)
-			{
-				crc_seen = 0;
-				for(check_dir=(dir-1) ;  check_dir>=0 ; check_dir--)
-					if(seen_crcs[check_dir]==ir_rxtx[dir].data_crc) crc_seen = 1;
-				seen_crcs[dir] = ir_rxtx[dir].data_crc;
+			crc_seen = 0;
+			for(check_dir=(dir-1) ;  check_dir>=0 ; check_dir--)
+				if(seen_crcs[check_dir]==ir_rxtx[dir].data_crc) crc_seen = 1;
+			seen_crcs[dir] = ir_rxtx[dir].data_crc;
 
-				if(crc_seen) clear_ir_buffer(dir);
-				else if(ir_rxtx[dir].status&IR_STATUS_COMMAND_bm)
+			if(crc_seen) clear_ir_buffer(dir);
+			else if(ir_rxtx[dir].status&IR_STATUS_COMMAND_bm)
+			{
+				printf("\tGot command in perform_ir_upkeep?\r\n");
+				//ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+					//memcpy((void *)cmd_buffer, (char*)ir_rxtx[dir].buf, ir_rxtx[dir].data_length);
+					//cmd_buffer[ir_rxtx[dir].data_length]='\0';
+					//cmd_length = ir_rxtx[dir].data_length;
+					//cmd_arrival_time = ir_rxtx[dir].last_byte;	//This is a 'global' value, referenced by other *.c files.
+					//cmd_sender_id = ir_rxtx[dir].sender_ID;		//This is a 'global' value, referenced by other *.c file.s
+				//}
+				//for(uint8_t other_dirs=dir ; other_dirs<6 ; other_dirs++) clear_ir_buffer(other_dirs); //clear the rest of the buffers first
+				//handle_cmd_wrapper();	
+				return; //commands can take awhile, so we gave up on the rest of these messages.
+			}
+			else //Normal message; add to message queue.
+			{
+				if(num_waiting_msgs>=MAX_USER_FACING_MESSAGES)
 				{
-					memcpy((void *)cmd_buffer, (char*)ir_rxtx[dir].buf, ir_rxtx[dir].data_length);
-					cmd_buffer[ir_rxtx[dir].data_length]='\0';
-					cmd_length = ir_rxtx[dir].data_length;
-					cmd_arrival_time = ir_rxtx[dir].last_byte;	//This is a 'global' value, referenced by other *.c files.
-					cmd_sender_id = ir_rxtx[dir].sender_ID;		//This is a 'global' value, referenced by other *.c files.
-					for(uint8_t other_dirs=dir ; other_dirs<6 ; other_dirs++) clear_ir_buffer(other_dirs); //clear the rest of the buffers first
-					schedule_task(5, handle_cmd_wrapper, NULL);
-					break; //commands can take awhile, so we gave up on the rest of these messages.
+					user_facing_messages_ovf = 1;
+					num_waiting_msgs=0;
 				}
-				else //Normal message; add to message queue.
-				{
-					if(num_waiting_msgs>=MAX_USER_FACING_MESSAGES)
-					{
-						user_facing_messages_ovf = 1;
-						num_waiting_msgs=0;
-					}
+				ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 					memcpy((void *)msg_node[num_waiting_msgs].msg, (char*)ir_rxtx[dir].buf, ir_rxtx[dir].data_length);
 					msg_node[num_waiting_msgs].msg[ir_rxtx[dir].data_length]='\0';
 					msg_node[num_waiting_msgs].arrival_time = ir_rxtx[dir].last_byte;
 					msg_node[num_waiting_msgs].arrival_dir = dir;
 					msg_node[num_waiting_msgs].sender_ID = ir_rxtx[dir].sender_ID;
 					msg_node[num_waiting_msgs].msg_length = ir_rxtx[dir].data_length;
-					num_waiting_msgs++;
-					clear_ir_buffer(dir);
 				}
+				num_waiting_msgs++;
+				clear_ir_buffer(dir);
 			}
 		}
 	}
@@ -328,6 +331,18 @@ void ir_receive(uint8_t dir)
 		else if(ir_rxtx[dir].sender_ID == get_droplet_id())							clear_ir_buffer(dir); //ignore a message if it is from me. Silly reflections.
 		else
 		{
+			if(ir_rxtx[dir].status & IR_STATUS_COMMAND_bm)
+			{
+				ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+					memcpy((void *)cmd_buffer, (char*)ir_rxtx[dir].buf, ir_rxtx[dir].data_length);
+					cmd_buffer[ir_rxtx[dir].data_length]='\0';
+					cmd_length = ir_rxtx[dir].data_length;
+					cmd_arrival_time = ir_rxtx[dir].last_byte;	//This is a 'global' value, referenced by other *.c files.
+					cmd_sender_id = ir_rxtx[dir].sender_ID;		//This is a 'global' value, referenced by other *.c file.s
+				}
+				for(uint8_t dir=0 ; dir<6 ; dir++) clear_ir_buffer(dir); //clear the rest of the buffers first
+				schedule_task(5, handle_cmd_wrapper, NULL);
+			}
 			ir_rxtx[dir].status |= IR_STATUS_COMPLETE_bm;
 			ir_rxtx[dir].status |= IR_STATUS_BUSY_bm; //mark as busy so we don't overwrite it.
 			channel[dir]->CTRLB &= ~USART_RXEN_bm; //Disable receiving messages on this channel until the message has been processed.
@@ -495,6 +510,18 @@ void wait_for_ir(uint8_t dirs)
 					busy=1;
 					break;
 				}
+			}
+		}
+		if(busy)
+		{
+			if(task_list->scheduled_time<get_time())
+			{
+				//It would be great if I could completely keep this from happening,
+				//For now detecting and correcting it is the best I can manage.				
+				printf("ERROR: Task List Out of Sync! Attempting to fix..\r\n"); 
+				while (RTC.STATUS & RTC_SYNCBUSY_bm);
+				RTC.COMP = RTC.CNT+5;
+				RTC.INTCTRL |= RTC_COMPINTLVL_MED_gc;
 			}
 		}
 	} while (busy);

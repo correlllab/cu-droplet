@@ -5,52 +5,7 @@
  */
 void init()
 {
-	task_one();
-	delay_ms(121);
-	task_two();	
-	delay_ms(121);
-	task_three();
-	delay_ms(121);
-	task_four();
-}
 
-const char* const_msg = "abcdefghijklmnopqrstuvwxyz";
-
-void task_one()
-{
-	printf("\tBroadcast Task\r\n");
-	broadcast_rnb_data();	
-	//ir_send(ALL_DIRS, const_msg, 26);
-	//wait_for_ir(ALL_DIRS);
-	schedule_task(512, task_one, NULL);
-}
-
-void task_two()
-{
-	printf("\tRnB Task\r\n");
-	broadcast_rnb_data();
-		////ir_send(ALL_DIRS, const_msg, 26);
-	//wait_for_ir(ALL_DIRS);		
-	schedule_task(2187,task_two,NULL);
-}
-
-void task_three()
-{
-	printf("\tTask Three\r\n");	
-		ir_send(ALL_DIRS, const_msg, 26);
-	//delay_ms(100);	
-	//handle_cmd_wrapper();
-	//wait_for_ir(ALL_DIRS);
-	schedule_task(625, task_three, NULL);
-}
-
-void task_four()
-{	
-	printf("\tTask Four\r\n");
-	ir_send(ALL_DIRS, const_msg, 26);
-	//delay_ms(100);	
-	//wait_for_ir(ALL_DIRS);
-	schedule_task(343,task_four,NULL);
 }
 
 /*
@@ -58,9 +13,7 @@ void task_four()
  */
 void loop()
 {
-	//printf("?\r\n");
-	delay_ms(500);
-	//delay_ms(2000);
+
 }
 
 /*

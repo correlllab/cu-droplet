@@ -68,7 +68,7 @@ void receive_rnb_data()
 	get_baseline_readings();
 	uint8_t power = 25; //TODO: get this from the message.
 	//schedule_task(10,brightness_meas_printout_mathematica,NULL);
-	schedule_task(10, use_rnb_data, (void*)(&power));
+	schedule_task(20, use_rnb_data, (void*)(&power));
 }
 
 void use_rnb_data(uint8_t power)

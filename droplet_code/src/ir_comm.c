@@ -73,8 +73,7 @@ void ir_comm_init()
 	cmd_arrival_time=0;
 	num_waiting_msgs=0;
 	user_facing_messages_ovf=0;
-	schedule_task(1000/IR_UPKEEP_FREQUENCY, perform_ir_upkeep, NULL);
-	
+	schedule_periodic_task(1000/IR_UPKEEP_FREQUENCY, perform_ir_upkeep, NULL);
 }
 
 void handle_cmd_wrapper()
@@ -141,7 +140,7 @@ void perform_ir_upkeep()
 		}
 	}
 	
-	schedule_task(1000/IR_UPKEEP_FREQUENCY, perform_ir_upkeep, NULL);
+	//schedule_task(1000/IR_UPKEEP_FREQUENCY, perform_ir_upkeep, NULL);
 }
 
 void send_msg(uint8_t dirs, char *data, uint8_t data_length)
@@ -512,18 +511,7 @@ void wait_for_ir(uint8_t dirs)
 				}
 			}
 		}
-		if(busy)
-		{
-			if(task_list->scheduled_time<get_time())
-			{
-				//It would be great if I could completely keep this from happening,
-				//For now detecting and correcting it is the best I can manage.				
-				printf("ERROR: Task List Out of Sync! Attempting to fix..\r\n"); 
-				while (RTC.STATUS & RTC_SYNCBUSY_bm);
-				RTC.COMP = RTC.CNT+5;
-				RTC.INTCTRL |= RTC_COMPINTLVL_MED_gc;
-			}
-		}
+		if(busy&&task_list_check()) task_list_cleanup();
 	} while (busy);
 }
 

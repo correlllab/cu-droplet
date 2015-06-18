@@ -103,6 +103,42 @@ void delay_ms(uint16_t ms)
 	}
 }
 
+//This function checks for errors or inconsistencies in the task list, and attempts to correct them.
+void task_list_cleanup()
+{
+	printf("\tPerforming task_list_cleanup!\r\n");
+	Task_t* cur_task = task_list;
+	Task_t* tmp_task_ptr;
+	Task_t* task_ptr_arr[MAX_NUM_SCHEDULED_TASKS];
+	uint8_t num_periodic_tasks = 0;
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+	{
+		while (cur_task != NULL)
+		{
+			if(cur_task->period==0)
+			{
+				tmp_task_ptr = cur_task->next;
+				remove_task(cur_task);
+				cur_task = tmp_task_ptr;
+			}
+			else
+			{
+				cur_task->scheduled_time=get_time()+cur_task->period;
+				task_ptr_arr[num_periodic_tasks] = cur_task;
+				cur_task = cur_task->next;
+				task_ptr_arr[num_periodic_tasks]->next=NULL;
+				num_periodic_tasks++;					
+			}
+			num_tasks=0;
+		}
+		task_list=NULL; //Now, the task list has been cleared out, but only non-periodic tasks have had their memory purged.
+		for(uint8_t i=0;i<num_periodic_tasks;i++)
+		{
+			add_task_to_list(task_ptr_arr[i]);
+		}
+	}
+}
+
 // Adds a new task to the task queue
 // time is number of milliseconds until function is executed
 // function is a function pointer to execute
@@ -116,28 +152,40 @@ Task_t* schedule_task(volatile uint32_t time, void (*function)(void*), void* arg
 	if ((uint16_t)(new_task->scheduled_time) < 2) new_task->scheduled_time += 4;
 	new_task->arg = arg;
 	new_task->task_function = function;
-	
-	uint8_t r=get_red_led(), g=get_green_led(), b=get_blue_led();
+	new_task->period = 0;
 	
 	// Turn off interrupts so we don't muck up the task list during this function
-	set_rgb(255,30,0);	
+	add_task_to_list(new_task);
+
+	return new_task;
+}
+
+Task_t* schedule_periodic_task(uint16_t period, void (*function)(void*), void* arg)
+{
+	Task_t* new_task = schedule_task(get_time()+(uint32_t)period, function, arg);
+	new_task->period=period;
+	return new_task;
+}
+
+void add_task_to_list(Task_t* task)
+{
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 	{
 		// Find the new task's proper spot in the list of tasks
 		// task_list is a linked list sorted by scheduled_time, smallest first
-		new_task->next = task_list;
+		task->next = task_list;
 		
 		// If the new task is the next to be executed, put it at the front of the list
-		if (task_list == NULL || new_task->scheduled_time <= task_list->scheduled_time)
+		if (task_list == NULL || task->scheduled_time <= task_list->scheduled_time)
 		{
-			task_list = new_task;
+			task_list = task;
 			// If scheduled_time is in the current epoch, set the RTC compare interrupt
-			if (new_task->scheduled_time <= ((((uint32_t)rtc_epoch) << 16) | (uint32_t)RTC.PER))
+			if (task->scheduled_time <= ((((uint32_t)rtc_epoch) << 16) | (uint32_t)RTC.PER))
 			{
 				while (RTC.STATUS & RTC_SYNCBUSY_bm);
-				RTC.COMP = (uint16_t)(new_task->scheduled_time);
+				RTC.COMP = (uint16_t)(task->scheduled_time);
 				RTC.INTCTRL |= RTC_COMPINTLVL_MED_gc;
-			}		
+			}
 			else
 			{
 				RTC.INTCTRL &= ~RTC_COMPINTLVL_MED_gc;
@@ -148,12 +196,12 @@ Task_t* schedule_task(volatile uint32_t time, void (*function)(void*), void* arg
 		else
 		{
 			Task_t* tmp_task_ptr = task_list;
-			while (tmp_task_ptr->next != NULL && new_task->scheduled_time > tmp_task_ptr->next->scheduled_time)
+			while (tmp_task_ptr->next != NULL && task->scheduled_time > tmp_task_ptr->next->scheduled_time)
 			{
 				tmp_task_ptr = tmp_task_ptr->next;
 			}
-			new_task->next = tmp_task_ptr->next;
-			tmp_task_ptr->next = new_task;
+			task->next = tmp_task_ptr->next;
+			tmp_task_ptr->next = task;
 		}
 
 		//Check if the front of the task_lsit should have already been run, and set the RTC.COMP for that if neessary.
@@ -161,15 +209,11 @@ Task_t* schedule_task(volatile uint32_t time, void (*function)(void*), void* arg
 		{
 			while (RTC.STATUS & RTC_SYNCBUSY_bm);
 			RTC.COMP = RTC.CNT+5;
-			RTC.INTCTRL |= RTC_COMPINTLVL_MED_gc;			
+			RTC.INTCTRL |= RTC_COMPINTLVL_MED_gc;
 		}
 
 		num_tasks++;
-		
-		set_rgb(r,g,b);
 	}
-
-	return new_task;
 }
 
 // Remove a task from the task queue
@@ -235,17 +279,22 @@ void run_tasks()
 			{
 				cur_task->task_function(cur_task->arg); // run the task
 			}
-			scheduler_free(cur_task);
-			cur_task = NULL;
-			num_tasks--;
+			if(cur_task->period>0)
+			{
+				cur_task->scheduled_time=get_time()+cur_task->period;
+				cur_task->next=NULL;
+				num_tasks--;
+				add_task_to_list(cur_task);
+			}
+			else
+			{
+				scheduler_free(cur_task);
+				cur_task = NULL;
+				num_tasks--;
+			}
 		}
-		//If the next task to be executed was in the past, set the RTC compare register for 5 so this task happens ASAP.
-		if (task_list != NULL && task_list->scheduled_time < get_time())
-		{	
-			while (RTC.STATUS & RTC_SYNCBUSY_bm);
-			RTC.COMP = RTC.CNT+5;
-			RTC.INTCTRL |= RTC_COMPINTLVL_MED_gc;			
-		}
+		//If the next task to be executed was in the past, do something???
+		if (task_list != NULL && task_list_check()) task_list_cleanup();
 		// If the next task to be executed is in the current epoch, set the RTC compare register and interrupt		
 		else if (task_list != NULL && task_list->scheduled_time <= ((((uint32_t)rtc_epoch) << 16) | (uint32_t)RTC.PER))
 		{	
@@ -279,13 +328,7 @@ ISR( RTC_OVF_vect )
 		if (task_list != NULL && task_list->scheduled_time < ((((uint32_t)rtc_epoch) << 16) | (uint32_t)RTC.PER))
 		{
 			//The next task should have already happened! Lets do it now.
-			if(task_list->scheduled_time <= get_time())
-			{ //really, I should loop through everything in the list and update all of the scheduled task's scheduled_time values, or something..
-				while(RTC.STATUS & RTC_SYNCBUSY_bm);
-				RTC.COMP = 5;
-				RTC.INTCTRL |= RTC_COMPINTLVL_MED_gc;
-				return;
-			}
+			if(task_list_check()) task_list_cleanup();
 			// updating RTC.COMP takes 2 RTC clock cycles, so only update the compare value and
 			// interrupt if the scheduled_time is more than 2ms away
 			else if (task_list->scheduled_time > get_time() + 2)

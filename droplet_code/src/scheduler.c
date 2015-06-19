@@ -1,4 +1,5 @@
 #include "scheduler.h"
+#include "rgb_led.h"
 
 /* To avoid issues caused by malloc, we're going to have some "fake" malloc functions.
  * We'll keep an array of MAX_NUM_SCHEDULED_TASKS Task_t structs, and fake_malloc()
@@ -145,24 +146,32 @@ void task_list_cleanup()
 // arg is the argument to supply to function
 Task_t* schedule_task(volatile uint32_t time, void (*function)(void*), void* arg)
 {
-	Task_t* new_task = (Task_t*)scheduler_malloc();
-	if (new_task == NULL) return NULL;
+	Task_t* new_task;
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+	{
+		new_task = (Task_t*)scheduler_malloc();
+		if (new_task == NULL) return NULL;
 	
-	new_task->scheduled_time = time + get_time();
-	if ((uint16_t)(new_task->scheduled_time) < 2) new_task->scheduled_time += 4;
-	new_task->arg = arg;
-	new_task->task_function = function;
-	new_task->period = 0;
-	
-	// Turn off interrupts so we don't muck up the task list during this function
+		new_task->scheduled_time = time + get_time();
+		if(0xFFFF&get_time()<2) new_task->scheduled_time += 10;
+		new_task->arg = arg;
+		new_task->task_function = function;
+		new_task->period = 0;
+		new_task->next = NULL; 		
+	}
 	add_task_to_list(new_task);
+	if(new_task->next==new_task){
+		printf("ERROR! New task has self-reference.\r\n");
+		print_task_queue();
+		return;				
+	}	
 
 	return new_task;
 }
 
-Task_t* schedule_periodic_task(uint16_t period, void (*function)(void*), void* arg)
+Task_t* schedule_periodic_task(uint32_t period, void (*function)(void*), void* arg)
 {
-	Task_t* new_task = schedule_task(get_time()+(uint32_t)period, function, arg);
+	Task_t* new_task = schedule_task(get_time()+period, function, arg);
 	new_task->period=period;
 	return new_task;
 }
@@ -183,7 +192,7 @@ void add_task_to_list(Task_t* task)
 			if (task->scheduled_time <= ((((uint32_t)rtc_epoch) << 16) | (uint32_t)RTC.PER))
 			{
 				while (RTC.STATUS & RTC_SYNCBUSY_bm);
-				RTC.COMP = (uint16_t)(task->scheduled_time);
+				RTC.COMP = (uint16_t)(0xFFFF&task->scheduled_time);
 				RTC.INTCTRL |= RTC_COMPINTLVL_MED_gc;
 			}
 			else
@@ -195,22 +204,33 @@ void add_task_to_list(Task_t* task)
 		// find its position in the linked list, and insert it there.
 		else
 		{
+			uint8_t g = get_green_led();
+			uint8_t r = get_red_led();
+			uint8_t b = get_blue_led();
+			set_rgb(255, 50, 0);
 			Task_t* tmp_task_ptr = task_list;
-			while (tmp_task_ptr->next != NULL && task->scheduled_time > tmp_task_ptr->next->scheduled_time)
+			while (tmp_task_ptr->next != NULL && task->scheduled_time > (tmp_task_ptr->next)->scheduled_time)
 			{
+				if(tmp_task_ptr->next==tmp_task_ptr){
+					printf("ERROR! Task list has self-reference.\r\n");
+					printf("New Task %p (%p) scheduled at %lu with period %lu, %lu current\r\n", task, task->task_function, task->period, task->scheduled_time, get_time());
+					print_task_queue();
+					return;				
+				}
 				tmp_task_ptr = tmp_task_ptr->next;
 			}
+			set_rgb(r, g, b);
 			task->next = tmp_task_ptr->next;
 			tmp_task_ptr->next = task;
 		}
-
-		//Check if the front of the task_lsit should have already been run, and set the RTC.COMP for that if neessary.
-		if (task_list != NULL && task_list->scheduled_time < get_time()) //
-		{
-			while (RTC.STATUS & RTC_SYNCBUSY_bm);
-			RTC.COMP = RTC.CNT+5;
-			RTC.INTCTRL |= RTC_COMPINTLVL_MED_gc;
-		}
+//
+		////Check if the front of the task_lsit should have already been run, and set the RTC.COMP for that if neessary.
+		//if (task_list != NULL && task_list->scheduled_time < get_time()) //
+		//{
+			//while (RTC.STATUS & RTC_SYNCBUSY_bm);
+			//RTC.COMP = RTC.CNT+5;
+			//RTC.INTCTRL |= RTC_COMPINTLVL_MED_gc;
+		//}
 
 		num_tasks++;
 	}
@@ -241,7 +261,6 @@ void remove_task(Task_t* task)
 				num_tasks--;
 			}
 		}
-
 	}
 
 }
@@ -257,7 +276,8 @@ void print_task_queue()
 		// Iterate through the list of tasks, printing name, function, and scheduled time of each
 		while (cur_task != NULL)
 		{
-			printf("\tTask %p (%p) scheduled at %lu, %lu current\r\n", cur_task, cur_task->task_function, cur_task->scheduled_time, get_time());
+			printf("\tTask %p (%p) scheduled at %lu with period %lu, %lu current\r\n", cur_task, cur_task->task_function, cur_task->period, cur_task->scheduled_time, get_time());
+			if(cur_task==cur_task->next) break;
 			cur_task = cur_task->next;
 		}
 	}
@@ -281,7 +301,15 @@ void run_tasks()
 			}
 			if(cur_task->period>0)
 			{
-				cur_task->scheduled_time=get_time()+cur_task->period;
+				uint32_t THE_TIME = get_time();
+				cur_task->scheduled_time=THE_TIME+cur_task->period;
+				//(cur_task->scheduled_time)=(get_time()+(0xFFFF&((uint32_t)cur_task->period)));						
+				//printf("??%lu\r\n",cur_task->scheduled_time);
+				//if(cur_task->scheduled_time>0x01000000){
+					//print_task_queue();
+					//printf("ERROR! Scheduled time waaay in the future.\r\n");
+				//}
+		
 				cur_task->next=NULL;
 				num_tasks--;
 				add_task_to_list(cur_task);

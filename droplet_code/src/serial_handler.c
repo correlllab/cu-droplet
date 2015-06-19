@@ -46,7 +46,6 @@ void handle_serial_command(char* command, uint16_t command_length)
 		}
 		else														printf("\tCommand ( %s ) not recognized.\r\n",command_word);
 	}
-	printf("\tBottom of hsc.\r\n");
 }
 
 void handle_check_collisions()
@@ -392,7 +391,7 @@ void handle_target(char* command_args)
 
 void get_command_word_and_args(char* command, uint16_t command_length, char* command_word, char* command_args)
 {
-	printf("\tIn gcwaa.\r\n");
+	//printf("\tIn gcwaa.\r\n");
 	uint16_t write_index = 0;
 	uint8_t writing_word_boole = 1;
 	for(uint16_t i=0 ; i<command_length ; i++)

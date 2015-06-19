@@ -40,7 +40,7 @@ void rgb_sensor_init()
 	r_baseline= r_avg/num_samples;
 	g_baseline= g_avg/num_samples;
 	b_baseline= b_avg/num_samples;
-	printf("Baselines:\r\n%3d  %3d  %3d\r\n", r_baseline, g_baseline, b_baseline);
+	//printf("Baselines:\r\n%3d  %3d  %3d\r\n", r_baseline, g_baseline, b_baseline);
 }
 
 // Still not convinced that we should have the conditional, instead of just telling people

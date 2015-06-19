@@ -131,7 +131,7 @@ uint8_t check_collisions(){
 			dirs = dirs|(1<<i);
 		}
 	}
-	printf("\r\n");
+	//printf("\r\n");
 	PORTC.OUTTGL = (PIN3_bm | PIN7_bm);
 	PORTD.OUTTGL =  PIN3_bm;
 	PORTE.OUTTGL = (PIN3_bm | PIN7_bm);

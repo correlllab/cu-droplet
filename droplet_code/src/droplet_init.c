@@ -7,6 +7,7 @@ uint16_t droplet_ID = 0;
 
 void init_all_systems()
 {
+	cli();
 	Config32MHzClock();
 	
 	calculate_id_number();

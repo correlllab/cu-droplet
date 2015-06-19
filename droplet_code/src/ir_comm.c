@@ -1,4 +1,5 @@
 #include "ir_comm.h"
+#include "rgb_led.h"
 
 //#define IR_IS_SPECIAL 1
 
@@ -340,7 +341,7 @@ void ir_receive(uint8_t dir)
 					cmd_sender_id = ir_rxtx[dir].sender_ID;		//This is a 'global' value, referenced by other *.c file.s
 				}
 				for(uint8_t dir=0 ; dir<6 ; dir++) clear_ir_buffer(dir); //clear the rest of the buffers first
-				schedule_task(5, handle_cmd_wrapper, NULL);
+				schedule_task(1000/IR_UPKEEP_FREQUENCY, handle_cmd_wrapper, NULL);
 			}
 			ir_rxtx[dir].status |= IR_STATUS_COMPLETE_bm;
 			ir_rxtx[dir].status |= IR_STATUS_BUSY_bm; //mark as busy so we don't overwrite it.
@@ -496,6 +497,10 @@ void ir_reset_rx(uint8_t dir)
 
 void wait_for_ir(uint8_t dirs)
 {
+	uint8_t r = get_red_led();
+	uint8_t g = get_green_led();
+	uint8_t b = get_blue_led();
+	set_rgb(255, 0, 255);
 	uint8_t busy;
 	do
 	{
@@ -511,8 +516,9 @@ void wait_for_ir(uint8_t dirs)
 				}
 			}
 		}
-		if(busy&&task_list_check()) task_list_cleanup();
+		if(busy&&task_list_check()) task_list_cleanup(); //if the scheduled time for the current task is past and we're busy, perform task list cleanup
 	} while (busy);
+	set_rgb(r, g, b);
 }
 
 // ISRs for IR channel 0

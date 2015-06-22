@@ -2,11 +2,17 @@
 
 void motor_init()
 {
-	PORTC.DIRSET = /* PIN0_bm | PIN1_bm |*/ PIN4_bm | PIN5_bm; //AUDIO_DROPLET
+	#ifdef AUDIO_DROPLET
+		PORTC.DIRSET = PIN4_bm | PIN5_bm;
+	#else
+		PORTC.DIRSET = PIN0_bm | PIN1_bm | PIN4_bm | PIN5_bm;
+	#endif
 	PORTD.DIRSET = PIN0_bm | PIN1_bm; 
 
-    //TCC0.CTRLA = TC_CLKSEL_DIV1024_gc; //AUDIO_DROPLET
-    //TCC0.CTRLB = TC_WGMODE_SS_gc; //AUDIO_DROPLET
+	#ifndef AUDIO_DROPLET
+		TCC0.CTRLA = TC_CLKSEL_DIV1024_gc;
+		TCC0.CTRLB = TC_WGMODE_SS_gc;
+	#endif
 	
     TCC1.CTRLA = TC_CLKSEL_DIV1024_gc;
     TCC1.CTRLB = TC_WGMODE_SS_gc;
@@ -32,7 +38,9 @@ void motor_init()
 
 uint8_t move_steps(uint8_t direction, uint16_t num_steps)
 {
-	motor_adjusts[direction][0]=0; //AUDIO_DROPLET 
+	#ifdef AUDIO_DROPLET
+		motor_adjusts[direction][0]=0;
+	#endif
 	if(is_moving()>=0) return 0;
 	motor_status = MOTOR_STATUS_ON | (direction & MOTOR_STATUS_DIRECTION);
 	
@@ -58,10 +66,16 @@ uint8_t move_steps(uint8_t direction, uint16_t num_steps)
 	//printf("Moving in dir: %hu for %u steps. Mot_durs: {%u, %u, %u}. Total_time: %u.\r\n",direction, num_steps, mot_durs[0], mot_durs[1], mot_durs[2], total_time);
 	//printf("Mot_dirs: {%hd, %hd, %hd}.\r\n", mot_dirs[0], mot_dirs[1], mot_dirs[2]);
 
-	/*TCC0.PER =*/ TCC1.PER = TCD0.PER = total_time; //AUDIO_DROPLET
-	//TCC0.CCA = TCC0.CCB = mot_durs[0]; //motor 0 //AUDIO_DROPLET
-	TCC1.CCA = TCC1.CCB = mot_durs[1]; //motor 1
-	TCD0.CCA = TCD0.CCB = mot_durs[2]; //motor 2
+	#ifdef AUDIO_DROPLET
+		TCC1.PER = TCD0.PER = total_time; 
+		TCC1.CCA = TCC1.CCB = mot_durs[1]; //motor 1
+		TCD0.CCA = TCD0.CCB = mot_durs[2]; //motor 2
+	#else
+		TCC0.PER = TCC1.PER = TCD0.PER = total_time;
+		TCC0.CCA = TCC0.CCB = mot_durs[0]; //motor 0
+		TCC1.CCA = TCC1.CCB = mot_durs[1]; //motor 1
+		TCD0.CCA = TCD0.CCB = mot_durs[2]; //motor 2
+	#endif
 	
 	uint16_t current_offset = 0;
 	
@@ -70,7 +84,11 @@ uint8_t move_steps(uint8_t direction, uint16_t num_steps)
 		if(mot_durs[mot]==0) continue;
 		switch(mot)
 		{
-			case 0: printf("ERROR! In move_steps, mot_durs[0]!=0\r\n"); break; //AUDIO_DROPLET
+			#ifdef AUDIO_DROPLET
+				case 0: printf("ERROR! In move_steps, mot_durs[0]!=0\r\n"); break;
+			#else
+				case 0: TCC0.CNT = ((total_time - current_offset)%total_time); break;
+			#endif
 			case 1: TCC1.CNT = ((total_time - current_offset)%total_time); break;
 			case 2: TCD0.CNT = ((total_time - current_offset)%total_time); break;
 		}
@@ -103,11 +121,17 @@ void stop_move()
 {
 	//printf("Stopping.\r\n");
 	
-	//TCC0.CTRLB = TC_WGMODE_SS_gc; //AUDIO_DROPLET
+	#ifndef AUDIO_DROPLET
+		TCC0.CTRLB = TC_WGMODE_SS_gc;
+	#endif
 	TCC1.CTRLB = TC_WGMODE_SS_gc;
 	TCD0.CTRLB = TC_WGMODE_SS_gc;
 	
-	PORTC.OUTCLR = /*PIN0_bm | PIN1_bm |*/ PIN4_bm | PIN5_bm; //AUDIO_DROPLET
+	#ifdef AUDIO_DROPLET
+		PORTC.OUTCLR = PIN4_bm | PIN5_bm;
+	#else
+		PORTC.OUTCLR = PIN0_bm | PIN1_bm | PIN4_bm | PIN5_bm;	
+	#endif	
 	PORTD.OUTCLR = PIN0_bm | PIN1_bm; 
 	
 	motor_status = 0;

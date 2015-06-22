@@ -18,7 +18,7 @@
 
 // Timing for taking a step:
 #define MOTOR_ON_TIME			20
-#define MOTOR_OFF_TIME			100
+#define MOTOR_OFF_TIME			40
 
 #include "droplet_init.h"
 #include "scheduler.h"
@@ -65,7 +65,11 @@ static inline void motor_forward(uint8_t num)
 {
 	switch(num)
 	{
-		case 0: printf("ERROR! motor_fw called with num=0\r\n"); break; //AUDIO_DROPLET
+		#ifdef AUDIO_DROPLET
+			case 0: printf("ERROR! motor_fw called with num=0\r\n"); break;
+		#else
+			case 0: TCC0.CTRLB |= TC0_CCBEN_bm; break;
+		#endif		
 		case 1: TCC1.CTRLB |= TC1_CCBEN_bm; break;
 		case 2: TCD0.CTRLB |= TC0_CCBEN_bm; break;
 	}
@@ -75,7 +79,11 @@ static inline void motor_backward(uint8_t num)
 {
 	switch(num)
 	{
-		case 0: printf("ERROR! motor_bw called with num=0\r\n"); break; //AUDIO_DROPLET
+		#ifdef AUDIO_DROPLET
+			case 0: printf("ERROR! motor_bw called with num=0\r\n"); break;
+		#else
+			case 0: TCC0.CTRLB |= TC0_CCAEN_bm; break;
+		#endif
 		case 1: TCC1.CTRLB |= TC1_CCAEN_bm; break;
 		case 2: TCD0.CTRLB |= TC0_CCAEN_bm; break;
 	}

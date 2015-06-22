@@ -25,7 +25,9 @@ void init_all_systems()
 	ir_sensor_init();			if(INIT_DEBUG_MODE) printf("IR SENSE INIT\r\n");	
 	ir_comm_init();				if(INIT_DEBUG_MODE) printf("IR COM INIT\r\n");
 	speaker_init();				if(INIT_DEBUG_MODE) printf("SPEAKER INIT\r\n");	
-	mic_init();					if(INIT_DEBUG_MODE) printf("MIC INIT\r\n"); //mic_init requires that ir_sensor_init() has been called.
+	#ifdef AUDIO_DROPLET
+		mic_init();					if(INIT_DEBUG_MODE) printf("MIC INIT\r\n"); //mic_init requires that ir_sensor_init() has been called.
+	#endif
 	motor_init();				if(INIT_DEBUG_MODE) printf("MOTOR INIT\r\n");	
 	random_init();				if(INIT_DEBUG_MODE) printf("RAND INIT\r\n"); //This uses ADC reading as a random seed, and so must be called after the ADCs are initialized.
 

@@ -33,7 +33,7 @@
 #define KEY_LEFT		((uint16_t)0xA659)
 #define KEY_RIGHT		((uint16_t)0x46B9)
 
-#define IR_BUFFER_SIZE			16 //bytes
+#define IR_BUFFER_SIZE			32 //bytes
 #define IR_UPKEEP_FREQUENCY		16 //Hz
 #define IR_MSG_TIMEOUT			20 //ms
 

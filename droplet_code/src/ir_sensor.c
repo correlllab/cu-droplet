@@ -4,15 +4,6 @@
 	ADC_CH_t* ir_sense_channels[6] = {&(ADCA.CH0), &(ADCA.CH1), &(ADCA.CH2), &(ADCB.CH0), &(ADCB.CH1), &(ADCB.CH2)};
 #else
 	const uint8_t mux_sensor_selectors[6] = {MUX_IR_SENSOR_0, MUX_IR_SENSOR_1, MUX_IR_SENSOR_2, MUX_IR_SENSOR_3, MUX_IR_SENSOR_4, MUX_IR_SENSOR_5};
-
-	USART_t* channel[] = {
-		&USARTC0,  //   -- Channel 0
-		&USARTC1,  //   -- Channel 1
-		&USARTD0,  //   -- Channel 2
-		&USARTE0,  //   -- Channel 3
-		&USARTE1,  //   -- Channel 4
-		&USARTF0   //   -- Channel 5
-	};
 #endif
 
 // IR sensors use ADCB channel 0, all the time

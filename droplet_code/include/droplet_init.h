@@ -10,8 +10,6 @@
 #ifndef DROPLET_INIT_H
 #define DROPLET_INIT_H
 
-#define AUDIO_DROPLET 1
-
 #include <avr/io.h>
 #include <util/crc16.h>
 #include <avr/interrupt.h>

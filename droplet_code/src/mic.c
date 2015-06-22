@@ -20,8 +20,11 @@ int16_t get_mic_reading()
 {
 	#ifdef AUDIO_DROPLET	
 		int16_t reading;
-		ADCB.CH3.CTRL |= ADC_CH_START_bm;
-		while (ADCB.CH3.INTFLAGS==0);
+		ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+		{
+			ADCB.CH3.CTRL |= ADC_CH_START_bm;
+			while (ADCB.CH3.INTFLAGS==0);
+		}
 		reading = (((((int16_t)(ADCB.CH3.RESH))<<8)|((int16_t)(ADCB.CH3.RESL))));
 		return reading;
 	#else

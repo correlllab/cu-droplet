@@ -1,5 +1,4 @@
 #include "droplet_init.h"
-//#include "sp_driver.h"
 
 static uint8_t INIT_DEBUG_MODE = 0;
 
@@ -7,6 +6,7 @@ uint16_t droplet_ID = 0;
 
 void init_all_systems()
 {
+	cli();
 	Config32MHzClock();
 	
 	calculate_id_number();
@@ -31,9 +31,7 @@ void init_all_systems()
 	motor_init();				if(INIT_DEBUG_MODE) printf("MOTOR INIT\r\n");	
 	random_init();				if(INIT_DEBUG_MODE) printf("RAND INIT\r\n"); //This uses ADC reading as a random seed, and so must be called after the ADCs are initialized.
 
-
 	startup_light_sequence();
-
 }
 
 int main()
@@ -72,14 +70,14 @@ void check_messages ()
 		ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 		{
 			memcpy(msg_struct->msg, (const void*)msg_node[i].msg, msg_node[i].msg_length);
-			
-			msg_struct->msg[msg_node[i].msg_length]	= '\0';
 			msg_struct->arrival_time					= msg_node[i].arrival_time;
 			msg_struct->sender_ID						= msg_node[i].sender_ID;
 			msg_struct->dir_received					= msg_node[i].arrival_dir;
 			msg_struct->length							= msg_node[i].msg_length;
-			num_waiting_msgs--;
-		}
+		}			
+		msg_struct->msg[msg_node[i].msg_length]	= '\0';		
+		num_waiting_msgs--;
+
 
 		handle_msg(msg_struct);
 	}

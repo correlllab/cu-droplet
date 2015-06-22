@@ -1,53 +1,80 @@
 #include "ir_sensor.h"
 
-ADC_CH_t* ir_sense_channels[6] = {&(ADCA.CH0), &(ADCA.CH1), &(ADCA.CH2), &(ADCB.CH0), &(ADCB.CH1), &(ADCB.CH2)};
+#ifdef AUDIO_DROPLET
+	ADC_CH_t* ir_sense_channels[6] = {&(ADCA.CH0), &(ADCA.CH1), &(ADCA.CH2), &(ADCB.CH0), &(ADCB.CH1), &(ADCB.CH2)};
+#else
+	const uint8_t mux_sensor_selectors[6] = {MUX_IR_SENSOR_0, MUX_IR_SENSOR_1, MUX_IR_SENSOR_2, MUX_IR_SENSOR_3, MUX_IR_SENSOR_4, MUX_IR_SENSOR_5};
+
+	USART_t* channel[] = {
+		&USARTC0,  //   -- Channel 0
+		&USARTC1,  //   -- Channel 1
+		&USARTD0,  //   -- Channel 2
+		&USARTE0,  //   -- Channel 3
+		&USARTE1,  //   -- Channel 4
+		&USARTF0   //   -- Channel 5
+	};
+#endif
 
 // IR sensors use ADCB channel 0, all the time
 void ir_sensor_init()
 {
-	/* SET INPUT PINS AS INPUTS */
-	PORTA.DIRCLR = PIN5_bm | PIN6_bm | PIN7_bm;
-	PORTB.DIRCLR = PIN4_bm | PIN2_bm | PIN3_bm;
+	#ifdef AUDIO_DROPLET
+		/* SET INPUT PINS AS INPUTS */
+		PORTA.DIRCLR = PIN5_bm | PIN6_bm | PIN7_bm;
+		PORTB.DIRCLR = PIN4_bm | PIN2_bm | PIN3_bm;
 	
-	//
-	//IR SENSORS ACTING WEIRD? TRY COMMENTING OUT THE BELOW.
-	//BELOW RECOMMENDED BY note on pg 153 of the manual
-	//
-	PORTA.PIN5CTRL = PORT_ISC_INPUT_DISABLE_gc;
-	PORTA.PIN6CTRL = PORT_ISC_INPUT_DISABLE_gc;
-	PORTA.PIN7CTRL = PORT_ISC_INPUT_DISABLE_gc;
-	PORTB.PIN4CTRL = PORT_ISC_INPUT_DISABLE_gc;
-	PORTB.PIN2CTRL = PORT_ISC_INPUT_DISABLE_gc;
-	PORTB.PIN3CTRL = PORT_ISC_INPUT_DISABLE_gc;		
+		//
+		//IR SENSORS ACTING WEIRD? TRY COMMENTING OUT THE BELOW.
+		//BELOW RECOMMENDED BY note on pg 153 of the manual
+		//
+		PORTA.PIN5CTRL = PORT_ISC_INPUT_DISABLE_gc;
+		PORTA.PIN6CTRL = PORT_ISC_INPUT_DISABLE_gc;
+		PORTA.PIN7CTRL = PORT_ISC_INPUT_DISABLE_gc;
+		PORTB.PIN4CTRL = PORT_ISC_INPUT_DISABLE_gc;
+		PORTB.PIN2CTRL = PORT_ISC_INPUT_DISABLE_gc;
+		PORTB.PIN3CTRL = PORT_ISC_INPUT_DISABLE_gc;
 	
-	ADCA.REFCTRL = ADC_REFSEL_INT1V_gc;
-	ADCA.CTRLB = ADC_RESOLUTION_12BIT_gc | ADC_CONMODE_bm;
-	ADCA.PRESCALER = ADC_PRESCALER_DIV512_gc;
-	ADCA.CALL = PRODSIGNATURES_ADCACAL0;
-	ADCA.CALH = PRODSIGNATURES_ADCACAL1;	
+		ADCA.REFCTRL = ADC_REFSEL_INT1V_gc;
+		ADCA.CTRLB = ADC_RESOLUTION_12BIT_gc | ADC_CONMODE_bm;
+		ADCA.PRESCALER = ADC_PRESCALER_DIV512_gc;
+		ADCA.CALL = PRODSIGNATURES_ADCACAL0;
+		ADCA.CALH = PRODSIGNATURES_ADCACAL1;
 	
-	ADCB.REFCTRL = ADC_REFSEL_INT1V_gc;
-	ADCB.CTRLB = ADC_RESOLUTION_12BIT_gc | ADC_CONMODE_bm; //12bit resolution, and sets it to signed mode.
-	ADCB.PRESCALER = ADC_PRESCALER_DIV512_gc;
-	ADCB.CALL = PRODSIGNATURES_ADCBCAL0;
-	ADCB.CALH = PRODSIGNATURES_ADCBCAL1;
+		ADCB.REFCTRL = ADC_REFSEL_INT1V_gc;
+		ADCB.CTRLB = ADC_RESOLUTION_12BIT_gc | ADC_CONMODE_bm; //12bit resolution, and sets it to signed mode.
+		ADCB.PRESCALER = ADC_PRESCALER_DIV512_gc;
+		ADCB.CALL = PRODSIGNATURES_ADCBCAL0;
+		ADCB.CALH = PRODSIGNATURES_ADCBCAL1;
 	
-	ADCA.CH0.CTRL = ADC_CH_INPUTMODE_DIFF_gc;	// differential input. requires signed mode (see sec. 28.6 in manual)
-	ADCA.CH0.MUXCTRL = ADC_CH_MUXNEG_INTGND_MODE3_gc | ADC_CH_MUXPOS_PIN5_gc;	// use VREF_IN for the negative input (0.54 V)
-	ADCA.CH1.CTRL = ADC_CH_INPUTMODE_DIFF_gc;	// differential input. requires signed mode (see sec. 28.6 in manual)
-	ADCA.CH1.MUXCTRL = ADC_CH_MUXNEG_INTGND_MODE3_gc | ADC_CH_MUXPOS_PIN6_gc;	// use VREF_IN for the negative input (0.54 V)
-	ADCA.CH2.CTRL = ADC_CH_INPUTMODE_DIFF_gc;	// differential input. requires signed mode (see sec. 28.6 in manual)
-	ADCA.CH2.MUXCTRL = ADC_CH_MUXNEG_INTGND_MODE3_gc | ADC_CH_MUXPOS_PIN7_gc;	// use VREF_IN for the negative input (0.54 V)	
-		
-	ADCB.CH0.CTRL = ADC_CH_INPUTMODE_DIFF_gc;	// differential input. requires signed mode (see sec. 28.6 in manual)
-	ADCB.CH0.MUXCTRL = ADC_CH_MUXNEG_INTGND_MODE3_gc | ADC_CH_MUXPOS_PIN4_gc;	// use VREF_IN for the negative input (0.54 V)
-	ADCB.CH1.CTRL = ADC_CH_INPUTMODE_DIFF_gc;	// differential input. requires signed mode (see sec. 28.6 in manual)
-	ADCB.CH1.MUXCTRL = ADC_CH_MUXNEG_INTGND_MODE3_gc | ADC_CH_MUXPOS_PIN2_gc;	// use VREF_IN for the negative input (0.54 V)
-	ADCB.CH2.CTRL = ADC_CH_INPUTMODE_DIFF_gc;	// differential input. requires signed mode (see sec. 28.6 in manual)
-	ADCB.CH2.MUXCTRL = ADC_CH_MUXNEG_INTGND_MODE3_gc | ADC_CH_MUXPOS_PIN3_gc;	// use VREF_IN for the negative input (0.54 V)		
+		ADCA.CH0.CTRL = ADC_CH_INPUTMODE_DIFF_gc;	// differential input. requires signed mode (see sec. 28.6 in manual)
+		ADCA.CH0.MUXCTRL = ADC_CH_MUXNEG_INTGND_MODE3_gc | ADC_CH_MUXPOS_PIN5_gc;	// use VREF_IN for the negative input (0.54 V)
+		ADCA.CH1.CTRL = ADC_CH_INPUTMODE_DIFF_gc;	// differential input. requires signed mode (see sec. 28.6 in manual)
+		ADCA.CH1.MUXCTRL = ADC_CH_MUXNEG_INTGND_MODE3_gc | ADC_CH_MUXPOS_PIN6_gc;	// use VREF_IN for the negative input (0.54 V)
+		ADCA.CH2.CTRL = ADC_CH_INPUTMODE_DIFF_gc;	// differential input. requires signed mode (see sec. 28.6 in manual)
+		ADCA.CH2.MUXCTRL = ADC_CH_MUXNEG_INTGND_MODE3_gc | ADC_CH_MUXPOS_PIN7_gc;	// use VREF_IN for the negative input (0.54 V)
+	
+		ADCB.CH0.CTRL = ADC_CH_INPUTMODE_DIFF_gc;	// differential input. requires signed mode (see sec. 28.6 in manual)
+		ADCB.CH0.MUXCTRL = ADC_CH_MUXNEG_INTGND_MODE3_gc | ADC_CH_MUXPOS_PIN4_gc;	// use VREF_IN for the negative input (0.54 V)
+		ADCB.CH1.CTRL = ADC_CH_INPUTMODE_DIFF_gc;	// differential input. requires signed mode (see sec. 28.6 in manual)
+		ADCB.CH1.MUXCTRL = ADC_CH_MUXNEG_INTGND_MODE3_gc | ADC_CH_MUXPOS_PIN2_gc;	// use VREF_IN for the negative input (0.54 V)
+		ADCB.CH2.CTRL = ADC_CH_INPUTMODE_DIFF_gc;	// differential input. requires signed mode (see sec. 28.6 in manual)
+		ADCB.CH2.MUXCTRL = ADC_CH_MUXNEG_INTGND_MODE3_gc | ADC_CH_MUXPOS_PIN3_gc;	// use VREF_IN for the negative input (0.54 V)
 
-	ADCA.CTRLA = ADC_ENABLE_bm;
-	ADCB.CTRLA = ADC_ENABLE_bm;	
+		ADCA.CTRLA = ADC_ENABLE_bm;
+		ADCB.CTRLA = ADC_ENABLE_bm;
+	#else
+		/* SET INPUT PINS AS INPUTS */
+		IR_SENSOR_PORT.DIRCLR = ALL_IR_SENSOR_PINS_bm;
+
+		ADCB.REFCTRL = ADC_REFSEL_INT1V_gc;
+		ADCB.CTRLB = ADC_RESOLUTION_12BIT_gc | ADC_CONMODE_bm; //12bit resolution, and sets it to signed mode.
+		ADCB.PRESCALER = ADC_PRESCALER_DIV512_gc;
+		ADCB.CH0.CTRL = ADC_CH_INPUTMODE_DIFF_gc;	// differential input. requires signed mode (see sec. 28.6 in manual)
+		ADCB.CH0.MUXCTRL = ADC_CH_MUXNEG_INTGND_MODE3_gc;	// use VREF_IN for the negative input (0.54 V)
+		ADCB.CALL = PRODSIGNATURES_ADCBCAL0;
+		ADCB.CALH = PRODSIGNATURES_ADCBCAL1;
+		ADCB.CTRLA = ADC_ENABLE_bm;
+	#endif
 
 	delay_us(5);
 	
@@ -70,21 +97,39 @@ void ir_sensor_init()
 }
 
 uint8_t get_ir_sensor(uint8_t sensor_num)
-{
-
-	
+{	
 	int16_t meas[IR_MEAS_COUNT];
 	
-	for(uint8_t meas_count=0; meas_count<IR_MEAS_COUNT; meas_count++)
-	{
-		ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+	#ifdef AUDIO_DROPLET
+	
+		for(uint8_t meas_count=0; meas_count<IR_MEAS_COUNT; meas_count++)
 		{
-			ir_sense_channels[sensor_num]->CTRL |= ADC_CH_START_bm;
-			while (ir_sense_channels[sensor_num]->INTFLAGS==0){};		// wait for measurement to complete
+			ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+			{
+				ir_sense_channels[sensor_num]->CTRL |= ADC_CH_START_bm;
+				while (ir_sense_channels[sensor_num]->INTFLAGS==0){};		// wait for measurement to complete
+			}
+			meas[meas_count] = ((((int16_t)(ir_sense_channels[sensor_num]->RESH))<<8)|((int16_t)(ir_sense_channels[sensor_num]->RESL)))>>3;	
+			ir_sense_channels[sensor_num]->INTFLAGS=1; // clear the complete flag		
 		}
-		meas[meas_count] = ((((int16_t)(ir_sense_channels[sensor_num]->RESH))<<8)|((int16_t)(ir_sense_channels[sensor_num]->RESL)))>>3;	
-		ir_sense_channels[sensor_num]->INTFLAGS=1; // clear the complete flag		
-	}
+	
+	#else
+	
+		ADCB.CH0.MUXCTRL &= MUX_SENSOR_CLR; //clear previous sensor selection
+		ADCB.CH0.MUXCTRL |= mux_sensor_selectors[sensor_num];
+	
+		for(uint8_t meas_count=0; meas_count<IR_MEAS_COUNT; meas_count++)
+		{
+			ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+			{
+				ADCB.CH0.CTRL |= ADC_CH_START_bm;
+				while (ADCB.CH0.INTFLAGS==0){};		// wait for measurement to complete
+			}
+			meas[meas_count] = ((((int16_t)ADCB.CH0.RESH)<<8)|((int16_t)ADCB.CH0.RESL))>>2;
+			ADCB.CH0.INTFLAGS=1; // clear the complete flag
+		}
+	#endif
+	
 	int16_t median = meas_find_median(&(meas[2]), IR_MEAS_COUNT-2);
 	//printf("\t");
 	//for(uint8_t i=0;i<IR_MEAS_COUNT;i++) printf("%u: %3d\t",i, meas[i]);

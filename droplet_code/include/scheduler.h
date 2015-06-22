@@ -9,8 +9,9 @@
 #include <util/delay.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include "rgb_led.h"
 
-#define MAX_NUM_SCHEDULED_TASKS 16
+#define MAX_NUM_SCHEDULED_TASKS 10
 
 // A task is a function, possibly with an argument, to be called at a specific time
 // scheduled_time is the 32-bit global time when the function should be called
@@ -20,9 +21,10 @@
 typedef struct task
 {
 	uint32_t scheduled_time;
+	uint32_t period;
 	void (*task_function)(void*);
 	void* arg;
-	struct task *next;
+	struct task* next;
 } Task_t;
 
 // Global task list
@@ -39,6 +41,9 @@ void scheduler_init();
 void Config32MHzClock(void);
 void delay_ms(uint16_t ms);
 static inline void delay_us(double __us){ _delay_us(__us); }
+//Returns '1' if the next task to run is scheduled for the past. If this occurs, call task_list_cleanup.
+inline uint8_t task_list_check(){ return task_list->scheduled_time < get_time(); }
+void task_list_cleanup();
 /* 
  * Adds a new task to the task queue
  * time is number of milliseconds from present until function is executed
@@ -49,6 +54,9 @@ static inline void delay_us(double __us){ _delay_us(__us); }
  * Returns a pointer to the task that can be used to remove the task from the queue
  */
 Task_t* schedule_task(uint32_t time, void (*function)(void*), void* arg);
+// This function primarily calls the above, but always to run 10ms in the future, and then repeat with a certain period.
+Task_t* schedule_periodic_task(uint32_t period, void (*function)(void*), void* arg);
+void add_task_to_lsit(Task_t* task);
 void remove_task(Task_t* task); // Removes a task from the queue
 void print_task_queue();
 

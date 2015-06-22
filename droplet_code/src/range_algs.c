@@ -66,12 +66,14 @@ void receive_rnb_data()
 {
 	ir_range_meas();
 	get_baseline_readings();
-	uint8_t power = 0; //TODO: get this from the message.
-	schedule_task(10, use_rnb_data, (void*)(&power));
+	uint8_t power = 25; //TODO: get this from the message.
+	//schedule_task(10,brightness_meas_printout_mathematica,NULL);
+	schedule_task(20, use_rnb_data, (void*)(&power));
 }
 
 void use_rnb_data(uint8_t power)
 {
+	power = 255;
 	uint8_t brightness_matrix[6][6];
 	uint8_t error = pack_measurements_into_matrix(brightness_matrix);
 	if(error) return;
@@ -86,7 +88,7 @@ void use_rnb_data(uint8_t power)
 		{0, 0, 0, 0, 0, 0}
 	};
 	*/
-	print_brightness_matrix(brightness_matrix);
+	//print_brightness_matrix(brightness_matrix);
 	
 	uint8_t emitter_total[6];
 	uint8_t sensor_total[6];
@@ -289,6 +291,7 @@ uint8_t pack_measurements_into_matrix(uint8_t brightness_matrix[6][6])
 			brightness_matrix[emitter_num][sensor_num] = val;
 		}
 	}
+	//print_brightness_matrix(brightness_matrix);
 	return (max_val<=BASELINE_NOISE_THRESHOLD);
 }
 
@@ -324,13 +327,14 @@ void ir_range_meas()
 			
 			if (meas_num < (NUMBER_OF_RB_MEASUREMENTS - 1))	delay_ms(DELAY_BETWEEN_RB_MEASUREMENTS);
 		}
+
 		while((get_time() - outer_pre_sync_op) < TIME_FOR_ALL_MEAS){};
 
-		//set_green_led(100);
+		//set_green_led(100);		
 		delay_ms(DELAY_BETWEEN_RB_TRANSMISSIONS);
 		//set_green_led(0);
 	}
-	printf("Argh!\r\n");
+	//printf("Argh!\r\n");
 }
 
 void ir_range_blast(uint8_t power)
@@ -440,7 +444,7 @@ float emitter_model(float beta)
 
 float amplitude_model(float r, uint8_t power)
 {
-	if(power==255)			return (1.36255 + (298.285/((0.691321+r)*(0.691321+r))));
+	if(power==255)			return 2*(1.36255 + (298.285/((0.691321+r)*(0.691321+r))));
 	//else if(power ==250)	return (1100./((r-4.)*(r-4.)))+12.5;
 	else					printf("ERROR: Unexpected power: %hhu\r\n",power);
 	return 0;
@@ -448,7 +452,7 @@ float amplitude_model(float r, uint8_t power)
 
 float inverse_amplitude_model(float ADC_val, uint8_t power)
 {
-	if(power == 255)		return (19.6587/sqrtf(ADC_val-1.36255)) - 1.19672;
+	if(power == 255)		return (19.6587/sqrtf(ADC_val/2.-1.36255)) - 1.19672;
 	//else if(power == 250) return (33.166/sqrtf(ADC_val - 12.5)) + 4;
 	else					printf("ERROR: Unexpected power: %hhu\r\n",power);
 	return 0;

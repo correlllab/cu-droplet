@@ -26,7 +26,7 @@
 #define TIME_FOR_ALL_MEAS 23
 #define DELAY_BETWEEN_RB_TRANSMISSIONS 15
 
-#define BASELINE_NOISE_THRESHOLD 3
+#define BASELINE_NOISE_THRESHOLD 1
 
 struct list_el {
 	float Rx;

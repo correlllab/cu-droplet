@@ -6,9 +6,10 @@ uint8_t user_handle_command(char* command_word, char* command_args) __attribute_
 
 void handle_serial_command(char* command, uint16_t command_length)
 {
-	//last_serial_command_time = command_time;
+	//printf("command_time: %lu | last_command_time: %lu\r\n", cmd_arrival_time, last_serial_command_time);	
 	//printf("Got command \"%s\".\r\n",command);
-	//printf("command_time: %lu | last_command_time: %lu\r\n", command_time, last_serial_command_time);
+	//printf("\tcommand_time: %lu | last_command_time: %lu\r\n", cmd_arrival_time, last_serial_command_time);
+	last_serial_command_time = cmd_arrival_time;	
 	if(command[0]!='\0') //Not much to handle if we get an empty string.
 	{
 		char command_word[BUFFER_SIZE];
@@ -94,8 +95,8 @@ void handle_walk(char* command_args)
 
 void handle_get_rgb()
 {
-	uint16_t r, g, b, c;
-	get_rgb(&r, &g, &b, &c);
+	uint16_t r, g, b;
+	get_rgb(&r, &g, &b);
 	printf("r: %hu, g: %hu, b: %hu\r\n", r, g, b);
 }
 
@@ -390,6 +391,7 @@ void handle_target(char* command_args)
 
 void get_command_word_and_args(char* command, uint16_t command_length, char* command_word, char* command_args)
 {
+	//printf("\tIn gcwaa.\r\n");
 	uint16_t write_index = 0;
 	uint8_t writing_word_boole = 1;
 	for(uint16_t i=0 ; i<command_length ; i++)

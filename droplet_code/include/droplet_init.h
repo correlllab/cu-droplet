@@ -10,6 +10,8 @@
 #ifndef DROPLET_INIT_H
 #define DROPLET_INIT_H
 
+#define AUDIO_DROPLET 1
+
 #include <avr/io.h>
 #include <util/crc16.h>
 #include <avr/interrupt.h>
@@ -36,7 +38,6 @@
 #include "power.h"
 #include "ecc.h"
 #include "i2c.h"
-#include "motor.h"
 #include "range_algs.h"
 #include "rgb_sensor.h"
 #include "ir_led.h"
@@ -44,6 +45,7 @@
 #include "ir_comm.h"
 #include "speaker.h"
 #include "mic.h"
+#include "motor.h"
 #include "random.h"
 
 #include "serial_handler.h"

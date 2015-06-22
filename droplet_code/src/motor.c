@@ -78,6 +78,7 @@ uint8_t move_steps(uint8_t direction, uint16_t num_steps)
 	}
 	
 	if(current_offset != total_time) printf("ERROR: current_offset: %hu and total_time: %hu not equal!\r\n", current_offset, total_time);
+	//printf("Just about to turn on motors: %lu\r\n",get_time());
 	for(uint8_t mot=0 ; mot<3 ; mot++) 	//Now we just need to tell the motors to go!
 	{
 		if(mot_dirs[mot]<0) motor_backward(mot); 

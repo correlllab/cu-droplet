@@ -32,7 +32,9 @@ void mic_recording(uint16_t length, uint16_t sample_rate)
 		uint16_t sample_delay = ((uint16_t)(((uint32_t)1000000)/((uint32_t)sample_rate)));
 		uint16_t array_len = 3*(length/4);
 		int16_t recording[array_len];
+		uint8_t delta_time_stamp[array_len/3];
 		int16_t mic_reading_temp;
+		uint32_t prev_time=get_time();
 		ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 		{
 			for(uint16_t i=0;i<array_len;i+=3)
@@ -48,6 +50,8 @@ void mic_recording(uint16_t length, uint16_t sample_rate)
 				recording[i+2] = 0x000F&(mic_reading_temp>>8);
 				busy_delay_us(sample_delay);
 				recording[i+2] |= (0xFFF0&(get_mic_reading()<<4));
+				busy_delay_us(sample_delay);
+				//if(i==0) printf("Just took first four measurements: %lu\r\n",get_time());
 			}
 		}
 		printf("{", get_time()-time_start);
@@ -62,5 +66,5 @@ void mic_recording(uint16_t length, uint16_t sample_rate)
 		printf("%4d, ",((0x0FFF&recording[array_len-3])<<4)>>4);
 		printf("%4d, ", (((0x000F&(recording[array_len-3]>>12))|(0x0FF0&(recording[array_len-2]<<4)))<<4)>>4);
 		printf("%4d, ",(((0x00FF&(recording[array_len-2]>>8))|(0x0F00&(recording[array_len-1]<<8)))<<4)>>4);
-		printf("%4d}\r\n", recording[array_len-1]>>4);
+		printf("%4d}", recording[array_len-1]>>4);
 }

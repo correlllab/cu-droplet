@@ -13,7 +13,6 @@
 #define SOUTH				3 
 #define SOUTHWEST			4
 #define NORTHWEST			5
-
 #define CLOCKWISE			6
 #define COUNTERCLOCKWISE	7
 

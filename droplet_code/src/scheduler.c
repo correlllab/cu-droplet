@@ -108,6 +108,7 @@ void delay_ms(uint16_t ms)
 void task_list_cleanup()
 {
 	printf("\tPerforming task_list_cleanup!\r\n");
+	print_task_queue();
 	Task_t* cur_task = task_list;
 	Task_t* tmp_task_ptr;
 	Task_t* task_ptr_arr[MAX_NUM_SCHEDULED_TASKS];
@@ -124,7 +125,7 @@ void task_list_cleanup()
 			}
 			else
 			{
-				cur_task->scheduled_time=get_time()+cur_task->period;
+				cur_task->scheduled_time=get_time()+cur_task->period+50; //TODO: Maybe remove this +50? We've added it to see if it fixes a bug.
 				task_ptr_arr[num_periodic_tasks] = cur_task;
 				cur_task = cur_task->next;
 				task_ptr_arr[num_periodic_tasks]->next=NULL;

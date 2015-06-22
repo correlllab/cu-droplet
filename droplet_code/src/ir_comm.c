@@ -146,6 +146,7 @@ void perform_ir_upkeep()
 
 void send_msg(uint8_t dirs, char *data, uint8_t data_length)
 {
+	if(data_length>IR_BUFFER_SIZE) printf("ERROR: Message exceeds IR_BUFFER_SIZE.\r\n");
 	
 	uint16_t crc = get_droplet_id();
 	for(uint8_t dir=0; dir<6; dir++)
@@ -516,6 +517,7 @@ void wait_for_ir(uint8_t dirs)
 				}
 			}
 		}
+		delay_us(100);
 		if(busy&&task_list_check()) task_list_cleanup(); //if the scheduled time for the current task is past and we're busy, perform task list cleanup
 	} while (busy);
 	set_rgb(r, g, b);

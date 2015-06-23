@@ -52,7 +52,7 @@ void set_all_ir_powers(uint16_t power)
 	uint8_t power_low = (power&0xFF);
 	volatile uint8_t write_buffer[6] = {0x00|power_high,power_low,0x10|power_high,power_low,0x60|power_high, power_low};
 		
-	uint8_t result;
+	uint8_t result;		
 	result = TWI_MasterWrite(IR_POWER_ADDR_A, write_buffer, 6);
 	if(!result) printf("First IR_POWER setting failed.\r\n");
 	delay_ms(5);

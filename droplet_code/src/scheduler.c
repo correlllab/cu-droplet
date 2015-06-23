@@ -213,7 +213,7 @@ void add_task_to_list(Task_t* task)
 			{
 				if(tmp_task_ptr->next==tmp_task_ptr){
 					printf("ERROR! Task list has self-reference.\r\n");
-					printf("New Task %p (%p) scheduled at %lu with period %lu, %lu current\r\n", task, task->task_function, task->period, task->scheduled_time, get_time());
+					printf("New Task %p (%p) scheduled at %lu with period %lu, %lu current\r\n", task, task->task_function, task->scheduled_time, task->period, get_time());
 					print_task_queue();
 					return;				
 				}

@@ -6,7 +6,7 @@
 volatile uint16_t	cmd_length;
 volatile char		cmd_buffer[BUFFER_SIZE];
 
-inline void clear_ir_buffer(uint8_t dir)
+void clear_ir_buffer(uint8_t dir)
 {
 	ir_rxtx[dir].data_crc		= 0;
 	ir_rxtx[dir].sender_ID		= 0;
@@ -14,6 +14,7 @@ inline void clear_ir_buffer(uint8_t dir)
 	ir_rxtx[dir].curr_pos		= 0;
 	ir_rxtx[dir].calc_crc		= 0;
 	ir_rxtx[dir].data_length	= 0;	
+	
 	ir_rxtx[dir].status			= 0;	
 	
 	channel[dir]->CTRLB |= USART_RXEN_bm; //this enables receive on the USART
@@ -55,13 +56,13 @@ void handle_cmd_wrapper()
 {
 	char local_msg_copy[cmd_length+1];	
 	uint16_t local_msg_len;
-	printf("\tIn handle_cmd_wrapper.\r\n");
+	//printf("\tIn handle_cmd_wrapper.\r\n");
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)  // Disable interrupts just in case we get another command in the middle of copying this one.
 	{
 		memcpy(local_msg_copy, (const void*)cmd_buffer, cmd_length+1);
 		local_msg_len = cmd_length;
 	}
-	handle_serial_command(local_msg_copy, local_msg_len);
+		handle_serial_command(local_msg_copy, local_msg_len);
 }
 
 void perform_ir_upkeep()
@@ -96,12 +97,30 @@ void perform_ir_upkeep()
 			}
 			else //Normal message; add to message queue.
 			{
+				if(ir_rxtx[dir].data_length>12)
+				{
+					uint8_t all_zero = 0;
+					for(uint8_t i=0; i<ir_rxtx[dir].data_length; i++)
+					{
+						if(ir_rxtx[dir].buf[i]!=0) break;
+						if(i==(ir_rxtx[dir].data_length-1)) all_zero=1;
+					}
+					if(all_zero){
+						printf("Possible error: message data all zeros.\r\n");
+					}
+				}
+
+				
 				if(num_waiting_msgs>=MAX_USER_FACING_MESSAGES)
 				{
 					user_facing_messages_ovf = 1;
 					num_waiting_msgs=0;
 				}
 				ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+					if(ir_rxtx[dir].data_length==0)
+					{
+						printf("ERROR: Message length 0 in perform_ir_upkeep.\r\n");
+					}
 					memcpy((void *)msg_node[num_waiting_msgs].msg, (char*)ir_rxtx[dir].buf, ir_rxtx[dir].data_length);
 					msg_node[num_waiting_msgs].msg[ir_rxtx[dir].data_length]='\0';
 					msg_node[num_waiting_msgs].arrival_time = ir_rxtx[dir].last_byte;
@@ -300,12 +319,15 @@ void ir_receive(uint8_t dir)
 	}
 	ir_rxtx[dir].curr_pos++;
 	if(ir_rxtx[dir].curr_pos>=(ir_rxtx[dir].data_length+HEADER_LEN))
-	{	
-		if(ir_rxtx[dir].calc_crc!=ir_rxtx[dir].data_crc)							clear_ir_buffer(dir); //crc check failed.
+	{			
+		if((ir_rxtx[dir].calc_crc!=ir_rxtx[dir].data_crc)||ir_rxtx[dir].calc_crc==0)clear_ir_buffer(dir); //crc check failed.
 		else if(ir_rxtx[dir].target_ID && ir_rxtx[dir].target_ID!=get_droplet_id()) clear_ir_buffer(dir); //msg targeted, but not to me.
 		else if(ir_rxtx[dir].sender_ID == get_droplet_id())							clear_ir_buffer(dir); //ignore a message if it is from me. Silly reflections.
 		else
 		{
+			if(ir_rxtx[dir].data_length==0){
+				printf("Error: Message length 0 in ir_receive.\r\n");			
+			}
 			if(ir_rxtx[dir].status & IR_STATUS_COMMAND_bm)
 			{
 				ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
@@ -315,12 +337,20 @@ void ir_receive(uint8_t dir)
 					cmd_arrival_time = ir_rxtx[dir].last_byte;	//This is a 'global' value, referenced by other *.c files.
 					cmd_sender_id = ir_rxtx[dir].sender_ID;		//This is a 'global' value, referenced by other *.c file.s
 				}
-				for(uint8_t dir=0 ; dir<6 ; dir++) clear_ir_buffer(dir); //clear the rest of the buffers first
-				schedule_task(1000/IR_UPKEEP_FREQUENCY, handle_cmd_wrapper, NULL);
+				for(uint8_t other_dir=0;other_dir<6;other_dir++)
+				{
+					if(ir_rxtx[other_dir].sender_ID==ir_rxtx[dir].sender_ID) clear_ir_buffer(dir);
+				}
+				schedule_task(500/IR_UPKEEP_FREQUENCY, handle_cmd_wrapper, NULL);
+				//handle_cmd_wrapper();
 			}
-			ir_rxtx[dir].status |= IR_STATUS_COMPLETE_bm;
-			ir_rxtx[dir].status |= IR_STATUS_BUSY_bm; //mark as busy so we don't overwrite it.
-			channel[dir]->CTRLB &= ~USART_RXEN_bm; //Disable receiving messages on this channel until the message has been processed.
+			else
+			{
+				ir_rxtx[dir].status |= IR_STATUS_COMPLETE_bm;
+				ir_rxtx[dir].status |= IR_STATUS_BUSY_bm; //mark as busy so we don't overwrite it.
+				channel[dir]->CTRLB &= ~USART_RXEN_bm; //Disable receiving messages on this channel until the message has been processed.
+			}
+
 			//printf("\r\n");
 		}
 	}

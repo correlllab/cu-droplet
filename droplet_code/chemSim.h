@@ -1,9 +1,8 @@
-#ifndef USER_TEMPLATE
-#define USER_TEMPLATE
+#ifndef CHEM_SIM
+#define CHEM_SIM
 
 #include "droplet_init.h"
 #include "Atom.h"
-#include "vector.h"
 
 #define RNB_BROADCAST_PERIOD 3000
 #define UPDATE_ATOMS_PERIOD 100

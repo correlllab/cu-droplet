@@ -57,7 +57,7 @@ void range_algs_init();
 void collect_rnb_data(uint16_t target_id, uint8_t power);
 void broadcast_rnb_data();
 void receive_rnb_data();
-void use_rnb_data(uint8_t power);
+void use_rnb_data();
 
 float get_bearing(uint8_t sensor_total[6]);
 float get_heading(uint8_t emitter_total[6], float bearing);

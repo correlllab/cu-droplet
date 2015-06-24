@@ -49,7 +49,7 @@ void collect_rnb_data(uint16_t target_id, uint8_t power)
 	delay_ms(POST_MESSAGE_DELAY);
 	ir_range_meas();
 	//brightness_meas_printout_mathematica();
-	use_rnb_data(power);
+	use_rnb_data();
 }
 
 //TODO: handle variable power.
@@ -68,12 +68,12 @@ void receive_rnb_data()
 	get_baseline_readings();
 	uint8_t power = 25; //TODO: get this from the message.
 	//schedule_task(10,brightness_meas_printout_mathematica,NULL);
-	schedule_task(20, use_rnb_data, (void*)(&power));
+	schedule_task(10, use_rnb_data, (void*)power);
 }
 
-void use_rnb_data(uint8_t power)
+void use_rnb_data()
 {
-	power = 255;
+	uint8_t power = 255;
 	uint8_t brightness_matrix[6][6];
 	uint8_t error = pack_measurements_into_matrix(brightness_matrix);
 	if(error) return;

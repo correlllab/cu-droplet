@@ -56,7 +56,7 @@ void task_list_cleanup();
 Task_t* schedule_task(uint32_t time, void (*function)(void*), void* arg);
 // This function primarily calls the above, but always to run 10ms in the future, and then repeat with a certain period.
 Task_t* schedule_periodic_task(uint32_t period, void (*function)(void*), void* arg);
-void add_task_to_lsit(Task_t* task);
+void add_task_to_list(Task_t* task);
 void remove_task(Task_t* task); // Removes a task from the queue
 void print_task_queue();
 
@@ -65,5 +65,7 @@ void print_task_queue();
 void run_tasks() __attribute__((OS_task));
 void restore_registers() __attribute__((naked));
 
+
+void task_list_checkup();
 
 #endif

@@ -69,6 +69,10 @@ void check_messages ()
 		//list of messages could get corrupted.
 		ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 		{
+			if(msg_node[i].msg_length==0)
+			{
+				printf("ERROR: Message length 0 for msg_node.\r\n");
+			}
 			memcpy(msg_struct->msg, (const void*)msg_node[i].msg, msg_node[i].msg_length);
 			msg_struct->arrival_time					= msg_node[i].arrival_time;
 			msg_struct->sender_ID						= msg_node[i].sender_ID;

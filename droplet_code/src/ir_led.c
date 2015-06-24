@@ -47,6 +47,7 @@ void ir_led_init()
 void set_all_ir_powers(uint16_t power)
 {
 	if(power>256) return;
+	if(curr_ir_power==power) return;
 	curr_ir_power = power;
 	uint8_t power_high = (power>>8);
 	uint8_t power_low = (power&0xFF);

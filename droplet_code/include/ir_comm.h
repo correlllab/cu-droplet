@@ -84,6 +84,8 @@ volatile uint8_t user_facing_messages_ovf;
 volatile uint32_t	cmd_arrival_time;
 volatile uint16_t	cmd_sender_id;
 
+void clear_ir_buffer(uint8_t dir);
+
 void ir_comm_init();
 
 void perform_ir_upkeep();

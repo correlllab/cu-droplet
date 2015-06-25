@@ -4,8 +4,10 @@
 #include "droplet_init.h"
 #include "Atom.h"
 
-#define RNB_BROADCAST_PERIOD 3000
+#define RNB_BROADCAST_PERIOD 5000
+#define DETECT_OTHER_DROPLETS_PERIOD 1000
 #define UPDATE_ATOMS_PERIOD 100
+#define LOOP_PERIOD 50
 
 typedef struct
 {
@@ -35,7 +37,7 @@ void found_diatomic_routine();
 void setAtomColor(Atom ID);
 void broadcastChemID(Atom ID);
 void sendChemID(Atom ID, uint8_t channels[]);
-uint8_t valenceFull();
+uint8_t valenceState();
 void detectOtherDroplets();
 void periodic_rnb_broadcast();
 void print_near_atoms();

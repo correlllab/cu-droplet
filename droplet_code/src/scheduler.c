@@ -175,6 +175,7 @@ void add_task_to_list(Task_t* task)
 			while (tmp_task_ptr->next != NULL && task->scheduled_time > (tmp_task_ptr->next)->scheduled_time)
 			{
 				if(tmp_task_ptr->next==tmp_task_ptr){
+					set_rgb(255, 50, 0);
 					printf("ERROR! Task list has self-reference.\r\n");
 					printf("New Task %p (%p) scheduled at %lu with period %lu, %lu current\r\n", task, (task->func).noarg_function, task->scheduled_time, task->period, get_time());
 					print_task_queue();
@@ -198,6 +199,64 @@ void add_task_to_list(Task_t* task)
 		num_tasks++;
 		
 		task_list_checkup();
+	}
+}
+
+void task_list_checkup()
+{
+	uint16_t task_mem_start = task_storage_arr;
+	uint16_t task_mem_end = task_mem_start+MAX_NUM_SCHEDULED_TASKS*sizeof(Task_t);
+	Task_t* seen_tasks[MAX_NUM_SCHEDULED_TASKS];
+	uint8_t num_tasks_seen=0;
+	uint8_t error_occurred=0;
+	Task_t* task_ptr = task_list;
+	if(task_ptr==NULL)
+	{
+		printf("Task list empty.\r\n");
+		return;
+	}
+	do{
+		seen_tasks[num_tasks_seen] = task_ptr;
+		num_tasks_seen++;		
+		
+		if(task_ptr<task_mem_start||task_ptr>task_mem_end){ 
+			printf("Task List Error: address ( %p ) out of bounds?\r\n", task_ptr); 
+			error_occurred=1; 
+		}
+		if(task_ptr->scheduled_time>0x01000000){			
+			printf("Task List Error: scheduled time (%lu) very large.\r\n", task_ptr->scheduled_time); 
+			error_occurred=1; 
+		}
+		if(task_ptr->period>0x01000000){
+			printf("Task List Error: Period (%lu) very large.\r\n", task_ptr->scheduled_time); 
+			error_occurred=1;
+		}
+		if(task_ptr->task_function==0){						
+			printf("Task List Error: Function handle is 0.\r\n"); 
+			error_occurred=1;
+		}
+		uint8_t repeated_task = 0;
+		uint8_t i;
+		for(i=0;i<num_tasks_seen;i++)
+		{
+			if(task_ptr->next==seen_tasks[i]){
+				repeated_task = 1;
+				error_occurred = 1;
+				break;
+			}
+		}
+		if(repeated_task)
+		{
+			 set_rgb(255, 50, 0);
+			 printf("Task List Error: Task list has a loop in it. %p -> %p\r\n",task_ptr, seen_tasks[i]);
+		}
+		task_ptr = task_ptr->next;
+	}while(task_ptr!=NULL);
+	
+	if(error_occurred)
+	{
+		printf("Attempting to print task queue.\r\n");
+		print_task_queue();
 	}
 }
 

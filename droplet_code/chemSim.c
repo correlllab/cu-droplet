@@ -458,7 +458,7 @@ uint8_t valenceFull()
 
 void detectOtherDroplets()
 {
-	//printf("detectOtherDroplets called");
+	printf("detectOtherDroplets called \r\n");
 	uint16_t received_id;
 	float received_range;
 	float received_bearing;
@@ -468,7 +468,7 @@ void detectOtherDroplets()
 	
 	if(rnb_updated)
 	{
-		printf("rnb_updated is true");
+		printf("***********************************rnb_updated is true");
 		received_id = last_good_rnb.id_number;
 		received_range = last_good_rnb.range;
 		received_bearing = last_good_rnb.bearing;
@@ -504,11 +504,12 @@ uint8_t checkPossibleBonds(Atom near_atom, uint16_t senderID)
 	uint8_t otherBonds = 0;
 	uint8_t my_empty = 0; //number of empty electron slots in my valence shell
 	uint8_t other_empty = 0; //number of empty electron slots in near_atom's valence shell
+	uint8_t nearAtomBonded = 0; //Flag that determines if near_atom is already bonded to me, and therefore a bond should form regardless of other checks
 	
 	float deltaChi;
 	if(myID.chi > near_atom.chi) deltaChi = myID.chi - near_atom.chi;
 	else deltaChi = near_atom.chi - myID.chi;
-	printf("********************* deltaChi is %f \r\n", deltaChi);
+	//printf("deltaChi is %f \r\n", deltaChi);
 	
 	for(uint8_t i = 0; i < 8; i++)
 	{
@@ -521,18 +522,29 @@ uint8_t checkPossibleBonds(Atom near_atom, uint16_t senderID)
 	myBonds/=2;
 	otherBonds/=2;
 	
+	//Check to see if this atom thinks he's bonded to me already, or if I'm already bonded to him
+	for(uint8_t i = 0; i < 6; i++)
+	{
+		if(near_atom.bonded_atoms[i] == get_droplet_id()) nearAtomBonded = 1;
+		if(myID.bonded_atoms[i] == senderID) return;
+	}
+	
+	printf("nearAtomBonded is %u \r\n", nearAtomBonded);
 	
 	//Check for full valence shell
 	if(my_empty == 0 || other_empty == 0) return 0;
 	
 	//Diatomic bond?
-	if(near_atom.diatomic == 1 && near_atom.atomicNum == myID.atomicNum && other_empty != 0 && my_empty != 0 && otherBonds == 0 && myBonds == 0) 
+	if(near_atom.diatomic == 1 && near_atom.atomicNum == myID.atomicNum && my_empty != 0 && ((other_empty != 0  && otherBonds == 0) || nearAtomBonded == 1) && myBonds == 0) 
 	{
 		printf("\tEntered diatomic if statement.\r\n");
 		diatomic[0] = 'd';
 		myID.bondType = 2;
 		uint8_t empty_slot_counter = other_empty;
 		uint8_t free_electron_counter = other_empty;
+		uint8_t empty_slot_counter_me = my_empty;
+		uint8_t free_electron_counter_me = my_empty;
+		//Fill the array diatomic to send to my partner
 		for(uint8_t i = 1; i < 9; i++)
 		{
 			//printf("near_atom.valence[i] = %hd \r\n ", near_atom.valence[i-1]);
@@ -544,23 +556,31 @@ uint8_t checkPossibleBonds(Atom near_atom, uint16_t senderID)
 			else if(near_atom.valence[i-1] == 1 && free_electron_counter > 0)
 			{
 				diatomic[i] = 2;
-				free_electron_counter = free_electron_counter - 1;
+				free_electron_counter --;
 			}
 			else diatomic[i] = near_atom.valence[i-1];
 		}
-		//printf("At the end of the diatomic statement in checkPossibleBonds, valence is: ");
-		//printValence(diatomic);
-		//for(uint8_t i=0; i<9; i++) printf(" %hd ", (int8_t)diatomic[i]); 
-		//printf("\r\n");
-		found_diatomic_routine();
-		for(uint8_t i = 0; i < 6; i++)
+		//Change my own valence shell
+		for(uint8_t i = 0; i < 8; i++)
 		{
-			if(myID.bonded_atoms[i] == 0 || myID.bonded_atoms == senderID)
+			if(myID.valence[i] == 0 && empty_slot_counter_me > 0)
 			{
-				myID.bonded_atoms[i] = senderID;
-				break;
+				myID.valence[i] = 2;
+				empty_slot_counter_me--;
+			}
+			else if(myID.valence[i] == 1 && free_electron_counter_me > 0)
+			{
+				myID.valence[i] = 2;
+				free_electron_counter_me --;
 			}
 		}
+		found_diatomic_routine();
+		//Add partner to my bonded_atoms array
+		printf("beginning \r\n");
+		print_near_atoms();
+		add_to_bonded_atoms(senderID);
+		printf("end \r\n");
+		print_near_atoms();
 		ir_targeted_send(ALL_DIRS, diatomic, 9, senderID);
 		return 1;
 	}
@@ -569,18 +589,24 @@ uint8_t checkPossibleBonds(Atom near_atom, uint16_t senderID)
 	else if(deltaChi >= 1.5)
 	{
 		newValence[0] = 'i';
-		if(near_atom.bondType == 2 || myID.bondType == 2) return 0; //near_atom is already bonded covalently, or I am
+		if(near_atom.bondType == 2 || myID.bondType == 2)
+		{ 
+			printf("near_atom is already bonded covalently, or I am. \r\n");
+			return 0; 
+		}
 		//How do I check if there's more than one type of cation to each anion?
 		printf("Inside deltaChi >= 1.5 loop. near_atom.name is %s \r\n", near_atom.name);
 		
-		if(my_empty != 0 && other_empty != 0) //CHANGE THIS CONDITION
+		if((my_empty != 0 && other_empty != 0) || nearAtomBonded == 1) 
 		{
-			add_to_bonded_atoms(senderID);
 			myID.bondType = 1;
 			uint8_t zero = 1;
 			uint8_t one = 1;
 			if(myID.chi > near_atom.chi)
 			{
+				uint8_t zero = 1;
+				uint8_t one = 1;
+
 				//Turn one of my electrons and one of my free slots into bonded electrons, and tell near_atom to remove a free electron
 				for(uint8_t i = 0; i < 8; i++)
 				{
@@ -597,17 +623,22 @@ uint8_t checkPossibleBonds(Atom near_atom, uint16_t senderID)
 				}
 				//Fill newValence by copying near_atom's current valence shell into newValence and removing one of its free electrons.
 				//newValence starts with the char 'i', so index 0 of near_atom.valence is index 1 of newValence
-				newValence[1] = near_atom.valence[0];
+				if(near_atom.valence[1] == 0 && near_atom.valence[0] == 1) newValence[1] = 0;
+				else newValence[1] = near_atom.valence[0];
 				for(uint8_t i = 1; i < 8; i++)
 				{
 					if(near_atom.valence[i] == 0 && near_atom.valence[i-1] == 1) newValence[i-1] = 0;
 					else newValence[i+1] = near_atom.valence[i];
 				}
+				add_to_bonded_atoms(senderID);
 				found_bond_routine();
 				ir_targeted_send(ALL_DIRS, newValence, 9, senderID);
 			}
 			else
 			{
+				uint8_t zero = 1;
+				uint8_t one = 1;
+				//Fill newValence with modified shell
 				for(uint8_t i = 0; i < 8; i++)
 				{
 					if(near_atom.valence[i] == 0 && zero != 0)
@@ -622,7 +653,8 @@ uint8_t checkPossibleBonds(Atom near_atom, uint16_t senderID)
 					}
 					else newValence[i+1] = near_atom.valence[i];
 				}
-				for(uint8_t i = 1; i < 8; i++)
+				//Take away an electron from me
+				for(uint8_t i = 0; i < 8; i++)
 				{
 					if(myID.valence[i+1] ==0 && myID.valence[i] == 1) 
 					{
@@ -630,6 +662,7 @@ uint8_t checkPossibleBonds(Atom near_atom, uint16_t senderID)
 						break;
 					}
 				}
+				add_to_bonded_atoms(senderID);
 				found_bond_routine();
 				ir_targeted_send(ALL_DIRS, newValence, 9, senderID);
 			}
@@ -637,11 +670,29 @@ uint8_t checkPossibleBonds(Atom near_atom, uint16_t senderID)
 	}
 }
 
+void repairBondedAtoms()
+{
+	uint8_t broken = 0;
+	for(uint8_t i = 0; i < 6; i++)
+	{
+		for(uint8_t j = i; j < 6; j++)
+		{
+			if(myID.bonded_atoms[i] == myID.bonded_atoms[j] && i != j && myID.bonded_atoms[i] != 0 && myID.bonded_atoms[j] != 0)
+			{
+				printf("ERROR: Bonded atoms has a repeated atom. \r\n");
+				broken = 1;
+				break;
+			}
+		}
+		if(broken == 1) break;
+	}
+}
+
 void repairValence()
 {
 	for(uint8_t i = 0; i < 8; i++)
 	{
-		if(myID.valence[i] != -1 || myID.valence[i] != 0 ||  myID.valence[i] != 1 || myID.valence[i] != 2)
+		if(!(myID.valence[i] == -1 || myID.valence[i] == 0 ||  myID.valence[i] == 1 || myID.valence[i] == 2))
 		{
 			printf("ERROR: Corrupted valence shell.");
 			printValence(myID.valence);
@@ -668,10 +719,16 @@ void add_to_bonded_atoms(uint16_t ID)
 		else if(myID.bonded_atoms[i] == ID) 
 		{
 			printf("ERROR: Tried to add ID to bonded_atoms while it was already there. \r\n");
+			set_rgb(255, 0, 255);
+			slotFound = 1;
 			break;
 		}
 	}
-	if(slotFound == 0) printf("ERROR: Tried to add an ID to bonded_atoms but the array was full. \r\n");
+	if(slotFound == 0) 
+	{
+		printf("ERROR: Tried to add an ID to bonded_atoms but the array was full. \r\n");
+		set_rgb(255, 0, 255);
+	}
 }
 
 void printValence(int8_t valence[])
@@ -681,6 +738,19 @@ void printValence(int8_t valence[])
 		printf(" %hd ", valence[i]);
 	}
 	printf("\r\n");
+}
+
+float getChiFromID(uint16_t ID)
+{
+	for(uint8_t i = 0; i < 12; i++)
+	{
+		if(near_atoms[i].id == ID)
+		{
+			return near_atoms[i].atom.chi;
+		}
+	}
+	printf("getChiFromId failed, I'm not forming the bond I was told to form until that atom is in my near_atoms array \r\n");
+	return -1.00;
 }
 
 /*
@@ -708,6 +778,8 @@ void init()
 	//set_rgb(10, 255, 255); //this is a test line
 	myID = getAtomFromAtomicNum(MY_CHEM_ID);
 	schedule_periodic_task(300, update_near_atoms, NULL);
+	bond_broken_flag = 1;
+	bond_broken_flag_2 = 1;
 }
 
 /*
@@ -734,6 +806,10 @@ void handle_msg(ir_msg* msg_struct)
 {
 	printf("Beginning handle_msg, valence is: \r\n");
 	printValence(myID.valence);
+	repairValence();
+	printf("Bonded atoms are: \r\n");
+	print_near_atoms();
+	repairBondedAtoms();
 	uint8_t r=get_red_led(), g=get_green_led(), b=get_blue_led();
 	//set_rgb(0,0,0);
 	delay_ms(50);
@@ -776,92 +852,155 @@ void handle_msg(ir_msg* msg_struct)
 	else if(msg_struct->msg[0] == 'd')
 	{
 		printf("Got 'diatomic bond made' message.\r\n");
-		found_diatomic_routine();
-		myID.bondType = 2;
-		for(uint8_t i = 0; i < 8; i++)
+		uint8_t bondAlreadyExists = 0;
+		for(uint8_t i = 0; i < 6; i++)
 		{
-			myID.valence[i] = msg_struct->msg[i+1];
+			if(myID.bonded_atoms[i] == msg_struct->sender_ID) bondAlreadyExists = 1;
 		}
-		//printf("After receiving the 'bond found' message, valence is: ");
-		//printValence(myID.valence);
-		add_to_bonded_atoms(msg_struct->sender_ID);
-		uint8_t found = 0;
-		for(uint8_t i = 0; i < 12; i++)
+		float senderChi = getChiFromID(msg_struct->sender_ID);
+		float deltaChi;
+		if(myID.chi < senderChi) deltaChi = senderChi-myID.chi;
+		else deltaChi = myID.chi-senderChi;
+		if(deltaChi >= 1.5 && myID.bondType == 2) return;
+		else if (deltaChi < 1.5 && myID.bondType == 1) return;
+		else if(bondAlreadyExists == 1) return;
+		else
 		{
-			if(near_atoms[i].id == msg_struct->sender_ID)
+			found_diatomic_routine();
+			myID.bondType = 2;
+			for(uint8_t i = 0; i < 8; i++)
 			{
-				found = 1;
-				near_atoms[i].bonded = 1;
-				break;
+				myID.valence[i] = msg_struct->msg[i+1];
 			}
+			//printf("After receiving the 'bond found' message, valence is: ");
+			//printValence(myID.valence);
+			add_to_bonded_atoms(msg_struct->sender_ID);
+			uint8_t found = 0;
+			for(uint8_t i = 0; i < 12; i++)
+			{
+				if(near_atoms[i].id == msg_struct->sender_ID)
+				{
+					found = 1;
+					near_atoms[i].bonded = 1;
+					break;
+				}
+			}
+			if(found == 0) printf("ERROR: Someone tried to bond with me who isn't in my near_atoms array.");
+			print_near_atoms();
 		}
-		if(found == 0) printf("ERROR: Someone tried to bond with me who isn't in my near_atoms array.");
-		print_near_atoms();
+		
 	}
 	
 	//Message is that a bond was formed
 	else if(msg_struct->msg[0] == 'c' || msg_struct->msg[0] == 'i')
 	{
 		printf("Got 'bond made' message.\r\n");
-		found_bond_routine();
-		if(msg_struct->msg[0] == 'c') myID.bondType = 2;
-		else myID.bondType = 1;
-		for(uint8_t i = 0; i < 8; i++)
+		uint8_t bondAlreadyExists = 0;
+		float senderChi = getChiFromID(msg_struct->sender_ID);
+		if (senderChi == -1) return;
+		float deltaChi;
+		if(myID.chi < senderChi) deltaChi = senderChi-myID.chi;
+		else deltaChi = myID.chi-senderChi;
+		for(uint8_t i = 0; i < 6; i++)
 		{
-			myID.valence[i] = msg_struct->msg[i+1];
+			if(myID.bonded_atoms[i] == msg_struct->sender_ID) bondAlreadyExists = 1;
 		}
-		//printf("After receiving the 'bond found' message, valence is: ");
-		//printValence(myID.valence);
-		add_to_bonded_atoms(msg_struct->sender_ID);
-		uint8_t found = 0;
-		for(uint8_t i = 0; i < 12; i++)
+		if(deltaChi >= 1.5 && myID.bondType == 2) return;
+		else if (deltaChi < 1.5 && myID.bondType == 1) return;
+		else if (bondAlreadyExists == 1) return;
+		else
 		{
-			if(near_atoms[i].id == msg_struct->sender_ID)
+			found_bond_routine();
+			if(msg_struct->msg[0] == 'c') myID.bondType = 2;
+			else myID.bondType = 1;
+			for(uint8_t i = 0; i < 8; i++)
 			{
-				found = 1;
-				near_atoms[i].bonded = 1;
-				break;
+				myID.valence[i] = msg_struct->msg[i+1];
 			}
+			//printf("After receiving the 'bond found' message, valence is: ");
+			//printValence(myID.valence);
+			add_to_bonded_atoms(msg_struct->sender_ID);
+			uint8_t found = 0;
+			for(uint8_t i = 0; i < 12; i++)
+			{
+				if(near_atoms[i].id == msg_struct->sender_ID)
+				{
+					found = 1;
+					near_atoms[i].bonded = 1;
+					break;
+				}
+			}
+			if(found == 0) printf("ERROR: Someone tried to bond with me who isn't in my near_atoms array.");
+			print_near_atoms();
 		}
-		if(found == 0) printf("ERROR: Someone tried to bond with me who isn't in my near_atoms array.");
-		print_near_atoms();
+		
 	}
 	
-	//Message is another Droplet's bonded_atoms array. This function may corrupt the valence shell.
+	//Message is another Droplet's bonded_atoms array. T
 	else if(msg_struct->length == sizeof(myID.bonded_atoms))
 	{
-		printf("Received bonded_atoms \r\n");
+		printf("Received bonded_atoms from %x \r\n", msg_struct->sender_ID);
 		//Check to see if I'm bonded to the droplet who just sent me his bonded_atoms array
 		uint8_t senderIDFound = 0;
+		uint8_t myIdFound = 0;
 		uint8_t i;
+		uint16_t* recast_bonded_atoms = (uint16_t*)(msg_struct->msg);
 		for(i = 0; i < 6; i++)
 		{
 			if(myID.bonded_atoms[i] == msg_struct->sender_ID)
 			{
+				printf("He's in my bonded_atoms array \r\n");
 				senderIDFound = 1;
 				break;
 			}
 		}
+		
 		//If so, check to see if he's bonded to me. If he isn't, break my bond.
-		if(senderIDFound == 1)
+		for(uint8_t j = 0; j < 6; j++)
 		{
-			uint8_t myIdFound = 0;
-			for(uint8_t j = 0; j < 6; j++)
+			if(recast_bonded_atoms[j] == get_droplet_id())
 			{
-				if(msg_struct->msg[j] == get_droplet_id())
-				{
-					myIdFound = 1;
-					break;
-				}
+				printf("\r\n I'm in his bonded_atoms array \r\n");
+				myIdFound = 1;
+				break;
 			}
-			if(myIdFound == 0)
+		}
+		
+		if(myIdFound == 1 && senderIDFound == 0)
+		{
+			if(bond_broken_flag_2 = 1)
 			{
-				printf("I think I'm bonded to a droplet who doesn't think he's bonded to me. I'm breaking that bond. \r\n");
+				printf("Droplet %x thinks he's bonded to me but I don't think I'm bonded to him. I'm sending my ID to see if we can bond. \r\n", msg_struct->sender_ID);
+				ir_targeted_send(ALL_DIRS, (char*)(&myID), sizeof(Atom), msg_struct->sender_ID);
+				bond_broken_flag_2 = 0;
+			}
+			else
+			{
+				printf("Droplet %x thinks he's bonded to me but I don't think I'm bonded to him. Flag was 0 so I'm sending my bonded_atoms to try to break the bond.\r\n", msg_struct->sender_ID);
+				ir_targeted_send(ALL_DIRS, myID.bonded_atoms, sizeof(myID.bonded_atoms), msg_struct->sender_ID);
+				bond_broken_flag_2 = 1;
+			}
+			
+		}
+		else if(myIdFound == 0 && senderIDFound == 1)
+		{
+			if(bond_broken_flag == 1)
+			{
+				printf("I think I'm bonded to a droplet who doesn't think he's bonded to me. I'm sending my ID to him to see if we can bond. \r\n");
+				ir_targeted_send(ALL_DIRS, (char*)(&myID), sizeof(Atom), msg_struct->sender_ID);
+				delay_ms(300);
+				bond_broken_flag = 0;
+			}
+			else
+			{
+				bond_broken_flag = 1;
+				printf("I think I'm bonded to a droplet who doesn't think he's bonded to me. Flag was 0 so now I'm breaking the bond. \r\n");
 				setAtomColor(myID);
 				//char make_bond[2] = {'m', myID.bondType};
 				//ir_targeted_send(ALL_DIRS, make_bond, 2, msg_struct->sender_ID);
 				//Remove other droplet from bonded_atoms and remove the bonded flag from near_atoms
 				myID.bonded_atoms[i] = 0;
+				print_near_atoms();
 				for(uint8_t k = 0; k < 12; k++)
 				{
 					if(near_atoms[k].id == msg_struct->sender_ID) 
@@ -874,7 +1013,7 @@ void handle_msg(ir_msg* msg_struct)
 				//If I'm a cation:
 				if(myID.chi <= 2)
 				{
-					for(uint8_t i = 1; i < 8; i++)
+					for(uint8_t i = 0; i < 8; i++)
 					{
 						if(myID.valence[i] == 0)
 						{
@@ -902,65 +1041,17 @@ void handle_msg(ir_msg* msg_struct)
 					}
 				}
 			}
+				
 		}
 		
 	}
-	//set_rgb(r,g,b);
-	/*else if(msg_struct->msg[0] == 'm')
-	{
-		add_to_bonded_atoms(msg_struct->sender_ID);
-		uint8_t zero = 1;
-		uint8_t one = 1;
-		switch(msg_struct->msg[1])
-		{case 0:
-			printf("Something's wrong. Probably bondType didn't get set on something somewhere.");
-			break;
-		case 1:
-			//Make an ionic bond. For now, we'll say if your chi < 2.00, you're the cation, if not, anion.
-			set_rgb(255, 0, 0);
-			if(myID.chi < 2.00)
-			{
-				for(uint8_t i = 1; i < 8; i++)
-				{
-					if(myID.valence[i] == 0 && myID.valence[i-1] == 1) myID.valence[i-1] = 0;
-				}
-			}
-			else
-			{
-				for(uint8_t i = 0; i < 8; i++)
-				{
-					if(myID.valence[i] == 0 && zero != 0)
-					{
-						myID.valence[i] = 2;
-						zero--;
-					}
-					else if(myID.valence[i] == 1 && one != 0)
-					{
-						myID.valence[i] = 2;
-						one--;
-					}
-				}
-			}
-		case 2:
-			set_rgb(255, 255, 0);
-			for(uint8_t i = 0; i < 8; i++)
-			{
-				if(myID.valence[i] == 0 && zero != 0)
-				{
-					myID.valence[i] = 2;
-					zero--;
-				}
-				else if(myID.valence[i] == 1 && one != 0)
-				{
-					myID.valence[i] = 2;
-					one--;
-				}
-			}
-		}
-		
-	}*/
+	
 	printf("Ending handle_msg, valence is: \r\n");
 	printValence(myID.valence);
+	repairValence();
+	printf("Bonded atoms are: \r\n");
+	print_near_atoms();
+	repairBondedAtoms();
 }
 
 

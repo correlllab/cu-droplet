@@ -337,12 +337,12 @@ void ir_receive(uint8_t dir)
 					cmd_arrival_time = ir_rxtx[dir].last_byte;	//This is a 'global' value, referenced by other *.c files.
 					cmd_sender_id = ir_rxtx[dir].sender_ID;		//This is a 'global' value, referenced by other *.c file.s
 				}
-				for(uint8_t other_dir=0;other_dir<6;other_dir++)
-				{
-					if(ir_rxtx[other_dir].sender_ID==ir_rxtx[dir].sender_ID) clear_ir_buffer(dir);
-				}
-				schedule_task(500/IR_UPKEEP_FREQUENCY, handle_cmd_wrapper, NULL);
-				//handle_cmd_wrapper();
+				for(uint8_t other_dir=0;other_dir<6;other_dir++) clear_ir_buffer(other_dir);
+				//{
+					//if(ir_rxtx[other_dir].sender_ID==ir_rxtx[dir].sender_ID) clear_ir_buffer(other_dir);
+				//}
+				schedule_task(10, handle_cmd_wrapper, NULL);
+				printf("Got cmd from %X.r\n", cmd_sender_id);
 			}
 			else
 			{

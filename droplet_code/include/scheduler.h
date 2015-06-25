@@ -7,11 +7,16 @@
 #include <avr/interrupt.h>
 #include <util/atomic.h>
 #include <util/delay.h>
-#include <stdlib.h>
 #include <stdio.h>
 #include "rgb_led.h"
 
 #define MAX_NUM_SCHEDULED_TASKS 10
+
+typedef union flex_function
+{
+	void (*arg_function)(void*);
+	void (*noarg_function)();	
+} flex_function;
 
 // A task is a function, possibly with an argument, to be called at a specific time
 // scheduled_time is the 32-bit global time when the function should be called
@@ -22,7 +27,7 @@ typedef struct task
 {
 	uint32_t scheduled_time;
 	uint32_t period;
-	void (*task_function)(void*);
+	flex_function func;
 	void* arg;
 	struct task* next;
 } Task_t;
@@ -65,6 +70,71 @@ void print_task_queue();
 void run_tasks() __attribute__((OS_task));
 void restore_registers() __attribute__((naked));
 
+/* To avoid issues caused by malloc, we're going to have some "fake" malloc functions.
+ * We'll keep an array of MAX_NUM_SCHEDULED_TASKS Task_t structs, and fake_malloc()
+ * will return pointers to those as appropriate.
+ */
+static Task_t task_storage_arr[MAX_NUM_SCHEDULED_TASKS];
+//static uint8_t curr_pointer;
+
+
+//static inline Task_t* scheduler_malloc()
+//{
+	//if(num_tasks>=MAX_NUM_SCHEDULED_TASKS) return NULL;
+	//
+	//uint8_t tmp;
+	//for(tmp=(curr_pointer+1)%MAX_NUM_SCHEDULED_TASKS ; tmp!=curr_pointer ; tmp=(tmp+1)%MAX_NUM_SCHEDULED_TASKS)
+	//{
+		////This code assumes that all tasks will have non-null function pointers.
+		//if((task_storage_arr[tmp].func).noarg_function == NULL) break;
+	//}
+	//curr_pointer = tmp;
+	//return &(task_storage_arr[curr_pointer]);
+//}
+
+static inline Task_t* scheduler_malloc()
+{
+	if(num_tasks>=MAX_NUM_SCHEDULED_TASKS) return NULL;
+
+	for(uint8_t tmp=0 ; tmp<MAX_NUM_SCHEDULED_TASKS ; tmp++)
+	{
+		//This code assumes that all tasks will have non-null function pointers.
+		if((task_storage_arr[tmp].func.noarg_function) == NULL)
+		{
+			return &(task_storage_arr[tmp]);
+		}
+	}
+	
+	printf("No empty spot found in scheduler_malloc, but num_tasks wasn't greater than or equal max_tasks.\r\n");
+	return NULL;
+
+}
+
+//static inline void scheduler_free(Task_t* tgt)
+//{
+	//for(uint8_t tmp=curr_pointer; tmp!=(curr_pointer+1)%MAX_NUM_SCHEDULED_TASKS; tmp = (tmp+(MAX_NUM_SCHEDULED_TASKS-1))%MAX_NUM_SCHEDULED_TASKS)
+	//{
+		//if(&(task_storage_arr[tmp])==tgt)
+		//{
+			//(task_storage_arr[tmp].func).noarg_function = NULL;
+			//curr_pointer = ((tmp+(MAX_NUM_SCHEDULED_TASKS-1))%MAX_NUM_SCHEDULED_TASKS);
+			//return;
+		//}
+	//}
+	//printf("In scheduler_free, task_storage_arr[tmp] was never equal to tgt.\r\n");
+//}
+
+static inline void scheduler_free(Task_t* tgt)
+{
+	tgt->arg = 0;
+	tgt->period = 0;
+	(tgt->func).noarg_function = NULL;
+	tgt->scheduled_time = 0;
+	tgt->next = NULL;
+}
+
+volatile static uint16_t seen_tasks[MAX_NUM_SCHEDULED_TASKS];
+volatile static Task_t* checkup_task_ptr;
 
 void task_list_checkup();
 

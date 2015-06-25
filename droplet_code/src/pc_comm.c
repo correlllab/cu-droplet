@@ -19,6 +19,7 @@ void pc_comm_init()
 	serial_in_index = 0;
 	
 	PC_USART.CTRLA = (uint8_t) USART_RXCINTLVL_LO_gc;
+	printf("\n");
 }
 
 ISR( USARTD1_RXC_vect ) { handle_serial_input(); }

@@ -14,6 +14,7 @@
 #include <util/crc16.h>
 #include <avr/interrupt.h>
 #include <avr/pgmspace.h>
+#include <stdio.h>
 
 #define DIR0		((uint8_t)0x01)
 #define DIR1		((uint8_t)0x02)

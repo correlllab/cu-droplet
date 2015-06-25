@@ -63,7 +63,7 @@ void update_near_atoms()
 		if(near_atoms[i].id != 0 && near_atoms[i].last_msg_t > 10000) //assuming this is in ms
 		{
 			near_atoms[i] = NULL_NEAR_ATOM;
-			printf("Removing %c \r\n", near_atoms[i].atom.name);
+			printf("Removing %c%c \r\n", near_atoms[i].atom.name[0], near_atoms[i].atom.name[1]);
 		}
 		else if(near_atoms[i].id != 0)
 		{
@@ -78,7 +78,6 @@ void update_near_atoms()
 //Units are kJ/mol, except for S, which is in kJ/mol*K
 float* getThermoInfo(uint8_t atomicNum, uint8_t phase, uint8_t diatomic)
 {
-	
 	if(diatomic == 0) //get the monotomic numbers
 	{
 		if(phase == 1) //element is a gas
@@ -789,10 +788,9 @@ void init()
 		case 0x6B6F: MY_CHEM_ID = 17; break;
 		case 0xBC6E: MY_CHEM_ID = 17; break;
 		case 0x46A1: MY_CHEM_ID = 3; break;
-		default:     MY_CHEM_ID = 3; break;
+		default:     MY_CHEM_ID = 17; break;
 	}
 	
-
 	for(uint8_t i = 0; i < 12; i++)
 	{
 		near_atoms[i] = NULL_NEAR_ATOM;
@@ -812,21 +810,13 @@ void loop()
 	delay_ms(50);
 	//broadcastChemID(myID);
 	detectOtherDroplets();
-	uint32_t time_floor = ((get_time()/500)*500);
-	if(time_floor%4000==0){
+	uint32_t time_floor = ((get_time()/500));
+	if((time_floor%10)==0){
 		//printf("\r\n sent bonded_atoms\r\n");
 		broadcast_rnb_data();
 		ir_send(ALL_DIRS, myID.bonded_atoms, 12); //Should this be here or inside the 5 second loop? Also, do I have the last parameter right? 12 bytes?
 	}
 }
-
-////this recursively schedules itself to happen every RNB_BROADCAST_PERIOD, which is defined in main.h. It broadcasts my range and bearing (rnb) data.
-//void periodic_rnb_broadcast()
-//{
-	////printf("periodic_rnb_broadcast \r\n");
-	//broadcast_rnb_data();
-	//schedule_task(RNB_BROADCAST_PERIOD, periodic_rnb_broadcast, NULL);
-//}
 
 /*
  * After each pass through loop(), the robot checks for all messages it has 

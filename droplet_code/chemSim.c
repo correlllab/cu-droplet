@@ -432,7 +432,7 @@ void broadcastChemID(Atom ID)
 	//For now, it needs to go to every droplet on the board. Later, possibly change that.
 	//global_Atom_str = (char*)(&ID);
 	//printf("\r\n broadcastChemID called \r\n");
-	uint8_t r=get_red_led(), g=get_green_led(), b=get_blue_led();
+	//uint8_t r=get_red_led(), g=get_green_led(), b=get_blue_led();
 	//set_rgb(255,255,255);	
 	ir_send(ALL_DIRS, (char*)(&ID), sizeof(Atom));
 	delay_ms(100);
@@ -807,11 +807,13 @@ void init()
  */
 void loop()
 {
-	delay_ms(50);
+	delay_ms(LOOP_PERIOD);
 	//broadcastChemID(myID);
-	detectOtherDroplets();
-	uint32_t time_floor = ((get_time()/500));
-	if((time_floor%10)==0){
+	uint32_t time_floor = ((get_time()/LOOP_PERIOD));
+	if((time_floor%(DETECT_OTHER_DROPLETS_PERIOD/LOOP_PERIOD))==0){
+		detectOtherDroplets();
+	}	
+	if((time_floor%(RNB_BROADCAST_PERIOD/LOOP_PERIOD))==0){
 		//printf("\r\n sent bonded_atoms\r\n");
 		broadcast_rnb_data();
 		ir_send(ALL_DIRS, myID.bonded_atoms, 12); //Should this be here or inside the 5 second loop? Also, do I have the last parameter right? 12 bytes?

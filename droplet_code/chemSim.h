@@ -4,8 +4,10 @@
 #include "droplet_init.h"
 #include "Atom.h"
 
-#define RNB_BROADCAST_PERIOD 3000
+#define RNB_BROADCAST_PERIOD 5000
+#define DETECT_OTHER_DROPLETS_PERIOD 1000
 #define UPDATE_ATOMS_PERIOD 100
+#define LOOP_PERIOD 50
 
 typedef struct
 {

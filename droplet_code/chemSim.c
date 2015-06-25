@@ -448,18 +448,21 @@ void sendChemID(Atom ID, uint8_t channels[])
 	ir_send(channels[1], (char*)(&ID), sizeof(Atom));
 }
 
-uint8_t valenceFull()
+uint8_t valenceState() //returns 0 if empty, 2 if full, 1 if in between
 {
+	uint8_t state = 0;
 	for(uint8_t i = 0; i < 8; i++)
 	{
-		if(myID.valence[i] == 0) return 0; //false
+		if(myID.valence[i] != 0) state++; 
 	}
-	return 1; //true
+	if(state == 8) return 2;
+	else if(state == 0) return 0;
+	else return 1;
 }
 
 void detectOtherDroplets()
 {
-	printf("detectOtherDroplets called \r\n");
+	//printf("detectOtherDroplets called \r\n");
 	uint16_t received_id;
 	float received_range;
 	float received_bearing;
@@ -539,6 +542,14 @@ uint8_t checkPossibleBonds(Atom near_atom, uint16_t senderID)
 	if(near_atom.diatomic == 1 && near_atom.atomicNum == myID.atomicNum && my_empty != 0 && ((other_empty != 0  && otherBonds == 0) || nearAtomBonded == 1) && myBonds == 0) 
 	{
 		printf("\tEntered diatomic if statement.\r\n");
+		for(uint8_t k = 0; k < 12; k++)
+		{
+			if(near_atoms[k].id == senderID)
+			{
+				near_atoms[k].bonded = 1;
+				break;
+			}
+		}
 		diatomic[0] = 'd';
 		myID.bondType = 2;
 		uint8_t empty_slot_counter = other_empty;
@@ -598,9 +609,18 @@ uint8_t checkPossibleBonds(Atom near_atom, uint16_t senderID)
 		//How do I check if there's more than one type of cation to each anion?
 		printf("Inside deltaChi >= 1.5 loop. near_atom.name is %s \r\n", near_atom.name);
 		
-		if((my_empty != 0 && other_empty != 0) || nearAtomBonded == 1) 
+		if(my_empty != 0 && (other_empty != 0 || nearAtomBonded == 1)) 
 		{
 			myID.bondType = 1;
+			for(uint8_t k = 0; k < 12; k++)
+			{
+				if(near_atoms[k].id == senderID)
+				{
+					near_atoms[k].bonded = 1;
+					break;
+				}
+			}
+			
 			uint8_t zero = 1;
 			uint8_t one = 1;
 			if(myID.chi > near_atom.chi)
@@ -789,7 +809,7 @@ void init()
  */
 void loop()
 {
-	delay_ms(500);
+	delay_ms(50);
 	//broadcastChemID(myID);
 	detectOtherDroplets();
 	uint32_t time_floor = ((get_time()/500)*500);
@@ -918,6 +938,7 @@ void handle_msg(ir_msg* msg_struct)
 		if(deltaChi >= 1.5 && myID.bondType == 2) return;
 		else if (deltaChi < 1.5 && myID.bondType == 1) return;
 		else if (bondAlreadyExists == 1) return;
+		else if (valenceState() == 2 || valenceState() == 0) return;
 		else
 		{
 			found_bond_routine();
@@ -978,23 +999,23 @@ void handle_msg(ir_msg* msg_struct)
 		
 		if(myIdFound == 1 && senderIDFound == 0)
 		{
-			if(bond_broken_flag_2 = 1)
+			/*if(bond_broken_flag_2 = 1)
 			{
 				printf("Droplet %x thinks he's bonded to me but I don't think I'm bonded to him. I'm sending my ID to see if we can bond. \r\n", msg_struct->sender_ID);
 				ir_targeted_send(ALL_DIRS, (char*)(&myID), sizeof(Atom), msg_struct->sender_ID);
 				bond_broken_flag_2 = 0;
 			}
 			else
-			{
+			{*/
 				printf("Droplet %x thinks he's bonded to me but I don't think I'm bonded to him. Flag was 0 so I'm sending my bonded_atoms to try to break the bond.\r\n", msg_struct->sender_ID);
 				ir_targeted_send(ALL_DIRS, myID.bonded_atoms, sizeof(myID.bonded_atoms), msg_struct->sender_ID);
-				bond_broken_flag_2 = 1;
-			}
+				//bond_broken_flag_2 = 1;
+			//}
 			
 		}
 		else if(myIdFound == 0 && senderIDFound == 1)
 		{
-			if(bond_broken_flag == 1)
+			/*if(bond_broken_flag == 1)
 			{
 				printf("I think I'm bonded to a droplet who doesn't think he's bonded to me. I'm sending my ID to him to see if we can bond. \r\n");
 				ir_targeted_send(ALL_DIRS, (char*)(&myID), sizeof(Atom), msg_struct->sender_ID);
@@ -1002,10 +1023,30 @@ void handle_msg(ir_msg* msg_struct)
 				bond_broken_flag = 0;
 			}
 			else
-			{
-				bond_broken_flag = 1;
+			{*/
+				//bond_broken_flag = 1;
 				printf("I think I'm bonded to a droplet who doesn't think he's bonded to me. Flag was 0 so now I'm breaking the bond. \r\n");
 				setAtomColor(myID);
+				//Set my bondType based on what bonds I have remaining
+				//Possible error here if a droplet I'm bonded to isn't in near_atoms, but unlikely.
+				uint8_t foundBond = 0;
+				for(uint8_t k = 0; k < 6; k++)
+				{
+					if(myID.bonded_atoms[k] != 0)
+					{
+						foundBond = 1;
+						float otherChi = getChiFromID(myID.bonded_atoms[k]); 
+						if(otherChi != -1)
+						{
+							float deltaChi;
+							if(myID.chi < otherChi) deltaChi = otherChi-myID.chi;
+							else deltaChi = myID.chi-otherChi;
+							if(deltaChi > 1.5) myID.bondType = 1;
+							else myID.bondType = 2;
+						}
+					}
+				}
+				if (foundBond == 0) myID.bondType == 0;
 				//char make_bond[2] = {'m', myID.bondType};
 				//ir_targeted_send(ALL_DIRS, make_bond, 2, msg_struct->sender_ID);
 				//Remove other droplet from bonded_atoms and remove the bonded flag from near_atoms
@@ -1050,7 +1091,7 @@ void handle_msg(ir_msg* msg_struct)
 						}
 					}
 				}
-			}
+			//}
 				
 		}
 		

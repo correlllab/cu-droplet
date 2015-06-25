@@ -35,7 +35,7 @@ void found_diatomic_routine();
 void setAtomColor(Atom ID);
 void broadcastChemID(Atom ID);
 void sendChemID(Atom ID, uint8_t channels[]);
-uint8_t valenceFull();
+uint8_t valenceState();
 void detectOtherDroplets();
 void periodic_rnb_broadcast();
 void print_near_atoms();

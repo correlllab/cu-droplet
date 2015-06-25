@@ -208,6 +208,7 @@ void add_task_to_list(Task_t* task)
 			while (tmp_task_ptr->next != NULL && task->scheduled_time > (tmp_task_ptr->next)->scheduled_time)
 			{
 				if(tmp_task_ptr->next==tmp_task_ptr){
+					set_rgb(255, 50, 0);
 					printf("ERROR! Task list has self-reference.\r\n");
 					printf("New Task %p (%p) scheduled at %lu with period %lu, %lu current\r\n", task, task->task_function, task->scheduled_time, task->period, get_time());
 					print_task_queue();
@@ -277,7 +278,11 @@ void task_list_checkup()
 				break;
 			}
 		}
-		if(repeated_task) printf("Task List Error: Task list has a loop in it. %p -> %p\r\n",task_ptr, seen_tasks[i]);
+		if(repeated_task)
+		{
+			 set_rgb(255, 50, 0);
+			 printf("Task List Error: Task list has a loop in it. %p -> %p\r\n",task_ptr, seen_tasks[i]);
+		}
 		task_ptr = task_ptr->next;
 	}while(task_ptr!=NULL);
 	

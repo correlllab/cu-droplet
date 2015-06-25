@@ -90,7 +90,7 @@ void task_list_cleanup()
 			}
 			else
 			{
-				cur_task->scheduled_time=get_time()+cur_task->period;
+				cur_task->scheduled_time=get_time()+cur_task->period+50;
 				task_ptr_arr[num_periodic_tasks] = cur_task;
 				cur_task = cur_task->next;
 				task_ptr_arr[num_periodic_tasks]->next=NULL;
@@ -300,7 +300,7 @@ void print_task_queue()
 		// Iterate through the list of tasks, printing name, function, and scheduled time of each
 		while (cur_task != NULL)
 		{
-			printf("\tTask %p (%p) scheduled at %lu with period %lu, %lu current\r\n", cur_task, (cur_task->func).noarg_function, cur_task->period, cur_task->scheduled_time, get_time());
+			printf("\tTask %p (%p) scheduled at %lu with period %lu, %lu current\r\n", cur_task, (cur_task->func).noarg_function, cur_task->scheduled_time, cur_task->period, get_time());
 			if(cur_task==cur_task->next) break;
 			cur_task = cur_task->next;
 		}

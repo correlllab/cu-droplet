@@ -1,9 +1,6 @@
 #ifndef HEADER_FILE
 #define HEADER_FILE
 
-#include <avr/io.h>
-
-
 typedef uint8_t bool;
 
 typedef struct

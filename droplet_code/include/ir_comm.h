@@ -88,6 +88,7 @@ void clear_ir_buffer(uint8_t dir);
 
 void ir_comm_init();
 
+void handle_cmd_wrapper();
 void perform_ir_upkeep();
 void ir_targeted_cmd(uint8_t dirs, char *data, uint16_t data_length, uint16_t target);
 void ir_cmd(uint8_t dirs, char *data, uint16_t data_length);

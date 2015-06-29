@@ -1,10 +1,13 @@
 #include "scheduler.h"
 
+static uint32_t last_schedule_task_call;
+
 void scheduler_init()
 {
 	task_list = NULL;
 	num_tasks = 0;
 	num_executing_tasks = 0;
+	last_schedule_task_call = 0;
 	//curr_pointer = 0;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)  // Disable interrupts during initialization
 	{
@@ -112,6 +115,9 @@ void task_list_cleanup()
 // arg is the argument to supply to function
 Task_t* schedule_task(volatile uint32_t time, void (*function)(void*), void* arg)
 {
+	if(get_time()-last_schedule_task_call<50) return NULL;
+	last_schedule_task_call = get_time();
+	
 	Task_t* new_task;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 	{
@@ -127,7 +133,7 @@ Task_t* schedule_task(volatile uint32_t time, void (*function)(void*), void* arg
 	}
 	add_task_to_list(new_task);
 	task_list_checkup();
-	printf("Task (%X->%X) scheduled for %lu\t[%hhu]\r\n", new_task, (new_task->func).noarg_function, new_task->scheduled_time, num_tasks);
+	//printf("Task (%X->%X) scheduled for %lu\t[%hhu]\r\n", new_task, (new_task->func).noarg_function, new_task->scheduled_time, num_tasks);
 
 	return new_task;
 }
@@ -253,15 +259,16 @@ void print_task_queue()
 // DO NOT CALL
 void run_tasks()
 {
+	Task_t* cur_task;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE) // Disable interrupts
 	{
 		// Run all tasks that are scheduled to execute in the next 2ms
 		// (The RTC compare register takes 2 RTC clock cycles to update)
 		while (task_list != NULL && task_list->scheduled_time <= get_time() + 2)
 		{
-			Task_t* cur_task = task_list;
+			cur_task = task_list;
 			task_list = cur_task->next;
-			if(cur_task->period==0) printf("Running task (%X) at %lu\t[%hhu]\r\n", cur_task, get_time(), num_tasks);				
+			//if(cur_task->period==0) printf("Running task (%X) at %lu\t[%hhu]\r\n", cur_task, get_time(), num_tasks);				
 			if(cur_task->arg==NULL)
 			{
 				NONATOMIC_BLOCK(NONATOMIC_FORCEOFF) // Enable interrupts during tasks
@@ -276,10 +283,12 @@ void run_tasks()
 					(cur_task->func).arg_function(cur_task->arg); // run the task
 				}
 			}
+			//I DON't UNDERSTAND WHATS GOING ON BUT THE CODE BELOW IS... SICK. 
+			//I WOULD GUESS STACK CORRUPTION FROM THE ABOVE, BUT I CANT FIGURE OUT EXACTLY WHY. YET.
 			if(cur_task->period>0)
 			{
-				uint32_t THE_TIME = get_time();
-				cur_task->scheduled_time=THE_TIME+cur_task->period;
+				//uint32_t THE_TIME = get_time();
+				cur_task->scheduled_time+=cur_task->period;
 				//(cur_task->scheduled_time)=(get_time()+(0xFFFF&((uint32_t)cur_task->period)));						
 				//printf("??%lu\r\n",cur_task->scheduled_time);
 				//if(cur_task->scheduled_time>0x01000000){
@@ -293,7 +302,7 @@ void run_tasks()
 			}
 			else
 			{
-				printf("Freeing task (%X) at %lu\t[%hhu]\r\n", cur_task, get_time(), (num_tasks-1));			
+				//printf("Freeing task (%X) at %lu\t[%hhu]\r\n", cur_task, get_time(), (num_tasks-1));			
 				scheduler_free(cur_task);
 				cur_task = NULL;
 				num_tasks--;
@@ -335,19 +344,19 @@ void task_list_checkup()
 		num_tasks_seen++;		
 		
 		if(checkup_task_ptr<task_mem_start||checkup_task_ptr>task_mem_end){ 
-			printf("task_list_error address out of bounds?\r\n"); 
+			printf("TASK LIST ERROR\tAddress out of bounds?\r\n"); 
 			error_occurred=1; 
 		}
 		if(checkup_task_ptr->scheduled_time>0x01000000){			
-			printf("task_list_error scheduled time very large.\r\n"); 
+			printf("TASK LIST ERROR\tScheduled time very large.\r\n"); 
 			error_occurred=1; 
 		}
 		if(checkup_task_ptr->period>0x01000000){
-			printf("task_list_error Period very large.\r\n"); 
+			printf("TASK LIST ERROR\tPeriod very large.\r\n"); 
 			error_occurred=1;
 		}
 		if((checkup_task_ptr->func).noarg_function==NULL){						
-			printf("task_list_error Function handle is 0.\r\n"); 
+			printf("TASK LIST ERROR\tFunction handle is 0.\r\n"); 
 		}
 		uint8_t repeated_task = 0;
 		uint8_t i;

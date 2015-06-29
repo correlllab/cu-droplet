@@ -49,6 +49,7 @@ void ir_comm_init()
 	cmd_arrival_time=0;
 	num_waiting_msgs=0;
 	user_facing_messages_ovf=0;
+
 	schedule_periodic_task(1000/IR_UPKEEP_FREQUENCY, perform_ir_upkeep, NULL);
 }
 
@@ -81,20 +82,6 @@ void perform_ir_upkeep()
 			seen_crcs[dir] = ir_rxtx[dir].data_crc;
 
 			if(crc_seen) clear_ir_buffer(dir);
-			else if(ir_rxtx[dir].status&IR_STATUS_COMMAND_bm)
-			{
-				printf("\tGot command in perform_ir_upkeep?\r\n");
-				//ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-					//memcpy((void *)cmd_buffer, (char*)ir_rxtx[dir].buf, ir_rxtx[dir].data_length);
-					//cmd_buffer[ir_rxtx[dir].data_length]='\0';
-					//cmd_length = ir_rxtx[dir].data_length;
-					//cmd_arrival_time = ir_rxtx[dir].last_byte;	//This is a 'global' value, referenced by other *.c files.
-					//cmd_sender_id = ir_rxtx[dir].sender_ID;		//This is a 'global' value, referenced by other *.c file.s
-				//}
-				//for(uint8_t other_dirs=dir ; other_dirs<6 ; other_dirs++) clear_ir_buffer(other_dirs); //clear the rest of the buffers first
-				//handle_cmd_wrapper();	
-				return; //commands can take awhile, so we gave up on the rest of these messages.
-			}
 			else //Normal message; add to message queue.
 			{
 				if(ir_rxtx[dir].data_length>12)
@@ -342,7 +329,7 @@ void ir_receive(uint8_t dir)
 					//if(ir_rxtx[other_dir].sender_ID==ir_rxtx[dir].sender_ID) clear_ir_buffer(other_dir);
 				//}
 				schedule_task(10, handle_cmd_wrapper, NULL);
-				printf("Got cmd from %X.r\n", cmd_sender_id);
+				printf("Got cmd from %X.\r\n", cmd_sender_id);
 			}
 			else
 			{

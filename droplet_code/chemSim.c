@@ -30,14 +30,19 @@ void print_near_atoms()
 	}
 	
 	printValence(myID.valence);
-	printf("\r\n");
-	printf("\r\n");
-	printf("\t Bonded droplets: \r\n");
+	//printf("\r\n");
+	//printf("\r\n");
+	printf("\tBonded droplets: ");
+	uint8_t any_bonded=0;
 	for(uint8_t i = 0; i < 6; i++)
 	{
-		printf("\t %04X \r\n", myID.bonded_atoms[i]);
-		//if(bonded_atoms[i] == 0) break;
+		if(myID.bonded_atoms[i]){
+			any_bonded=1;
+			printf("%04X, ", myID.bonded_atoms[i]);
+		}
 	}
+	if(any_bonded)	printf("\b\b\r\n");
+	else			printf("None\r\n");
 }
 
 void add_to_near_atoms(Near_Atom near_atom)
@@ -471,7 +476,7 @@ void detectOtherDroplets()
 	
 	if(rnb_updated)
 	{
-		printf("***********************************rnb_updated is true");
+		printf("***********************************rnb_updated is true\r\n");
 		received_id = last_good_rnb.id_number;
 		received_range = last_good_rnb.range;
 		received_bearing = last_good_rnb.bearing;
@@ -521,7 +526,7 @@ uint8_t checkPossibleBonds(Atom near_atom, uint16_t senderID)
 		if(near_atom.valence[i] == 2) otherBonds++;
 		if(myID.valence[i] == 2) myBonds++;
 	}
-	printf("myBonds is %u and otherBonds is %u \r\n", myBonds/2, otherBonds/2);
+	printf("\tmyBonds is %u and otherBonds is %u \r\n", myBonds/2, otherBonds/2);
 	myBonds/=2;
 	otherBonds/=2;
 	
@@ -532,7 +537,7 @@ uint8_t checkPossibleBonds(Atom near_atom, uint16_t senderID)
 		if(myID.bonded_atoms[i] == senderID) return;
 	}
 	
-	printf("nearAtomBonded is %u \r\n", nearAtomBonded);
+	printf("\tnearAtomBonded is %u \r\n", nearAtomBonded);
 	
 	//Check for full valence shell
 	if(my_empty == 0 || other_empty == 0) return 0;
@@ -540,7 +545,7 @@ uint8_t checkPossibleBonds(Atom near_atom, uint16_t senderID)
 	//Diatomic bond?
 	if(near_atom.diatomic == 1 && near_atom.atomicNum == myID.atomicNum && my_empty != 0 && ((other_empty != 0  && otherBonds == 0) || nearAtomBonded == 1) && myBonds == 0) 
 	{
-		printf("\tEntered diatomic if statement.\r\n");
+		printf("\t\tEntered diatomic if statement.\r\n");
 		for(uint8_t k = 0; k < 12; k++)
 		{
 			if(near_atoms[k].id == senderID)
@@ -587,10 +592,10 @@ uint8_t checkPossibleBonds(Atom near_atom, uint16_t senderID)
 		}
 		found_diatomic_routine();
 		//Add partner to my bonded_atoms array
-		printf("beginning \r\n");
+		printf("\t\tbeginning \r\n");
 		print_near_atoms();
 		add_to_bonded_atoms(senderID);
-		printf("end \r\n");
+		printf("\t\tend \r\n");
 		print_near_atoms();
 		ir_targeted_send(ALL_DIRS, diatomic, 9, senderID);
 		return 1;
@@ -753,6 +758,7 @@ void add_to_bonded_atoms(uint16_t ID)
 
 void printValence(int8_t valence[])
 {
+	printf("\tValence is:\t");
 	for(uint8_t i = 0; i < 8; i++)
 	{
 		printf(" %hd ", valence[i]);
@@ -788,6 +794,12 @@ void init()
 		case 0x6B6F: MY_CHEM_ID = 17; break;
 		case 0xBC6E: MY_CHEM_ID = 17; break;
 		case 0x46A1: MY_CHEM_ID = 3; break;
+		case 0x9495: MY_CHEM_ID = 3; break;
+		case 0x9420: MY_CHEM_ID = 3; break;	
+		case 0xD2D7: MY_CHEM_ID = 3; break;
+		case 0xEEB0: MY_CHEM_ID = 3; break;
+		case 0xF60A: MY_CHEM_ID = 3; break;
+		case 0xA5B5: MY_CHEM_ID = 3; break;		
 		default:     MY_CHEM_ID = 17; break;
 	}
 	
@@ -798,6 +810,7 @@ void init()
 	//set_rgb(10, 255, 255); //this is a test line
 	myID = getAtomFromAtomicNum(MY_CHEM_ID);
 	schedule_periodic_task(300, update_near_atoms, NULL);
+	enable_leg_status_interrupt();
 	bond_broken_flag = 1;
 	bond_broken_flag_2 = 1;
 }
@@ -826,10 +839,10 @@ void loop()
  */
 void handle_msg(ir_msg* msg_struct)
 {
-	printf("Beginning handle_msg, valence is: \r\n");
+	printf("Beginning handle_msg.\r\n");
 	printValence(myID.valence);
 	repairValence();
-	printf("Bonded atoms are: \r\n");
+	//printf("Bonded atoms are: \r\n");
 	print_near_atoms();
 	repairBondedAtoms();
 	uint8_t r=get_red_led(), g=get_green_led(), b=get_blue_led();
@@ -845,7 +858,7 @@ void handle_msg(ir_msg* msg_struct)
 	//Message is an Atom struct
 	if(msg_struct->length==sizeof(Atom))
 	{
-		printf("Received atom struct \r\n");
+		printf("\tReceived atom struct \r\n");
 		near_atom = (Atom*)(msg_struct->msg); //do some kind of check to make sure this is actually an atom.
 		
 		//If this droplet isn't in our list, add it. If it is, update its last_msg_t to 0.
@@ -873,7 +886,7 @@ void handle_msg(ir_msg* msg_struct)
 	//Message is that a diatomic bond was formed
 	else if(msg_struct->msg[0] == 'd')
 	{
-		printf("Got 'diatomic bond made' message.\r\n");
+		printf("\tGot 'diatomic bond made' message.\r\n");
 		uint8_t bondAlreadyExists = 0;
 		for(uint8_t i = 0; i < 6; i++)
 		{
@@ -916,7 +929,7 @@ void handle_msg(ir_msg* msg_struct)
 	//Message is that a bond was formed
 	else if(msg_struct->msg[0] == 'c' || msg_struct->msg[0] == 'i')
 	{
-		printf("Got 'bond made' message.\r\n");
+		printf("\tGot 'bond made' message.\r\n");
 		uint8_t bondAlreadyExists = 0;
 		float senderChi = getChiFromID(msg_struct->sender_ID);
 		if (senderChi == -1) return;
@@ -1089,10 +1102,10 @@ void handle_msg(ir_msg* msg_struct)
 		
 	}
 	
-	printf("Ending handle_msg, valence is: \r\n");
+	printf("Ending handle_msg.\r\n");
 	printValence(myID.valence);
 	repairValence();
-	printf("Bonded atoms are: \r\n");
+	//printf("Bonded atoms are: \r\n");
 	print_near_atoms();
 	repairBondedAtoms();
 }

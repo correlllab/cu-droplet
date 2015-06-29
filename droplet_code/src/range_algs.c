@@ -76,38 +76,41 @@ void use_rnb_data()
 	uint8_t power = 255;
 	uint8_t brightness_matrix[6][6];
 	uint8_t error = pack_measurements_into_matrix(brightness_matrix);
-	if(error) return;
-	/*
-	For testing, comment out the above and use a hardcoded matrix from the mathematica notebook.
-	uint8_t brightness_matrix[6][6] = {
-		{0, 0, 0, 0, 0, 0},
-		{0, 0, 0, 0, 0, 0},
-		{0, 0, 0, 0, 0, 0},
-		{0, 0, 0, 0, 0, 0},
-		{0, 0, 0, 0, 0, 0},
-		{0, 0, 0, 0, 0, 0}
-	};
-	*/
-	//print_brightness_matrix(brightness_matrix);
+	if(!error)
+	{
+		/*
+		For testing, comment out the above and use a hardcoded matrix from the mathematica notebook.
+		uint8_t brightness_matrix[6][6] = {
+			{0, 0, 0, 0, 0, 0},
+			{0, 0, 0, 0, 0, 0},
+			{0, 0, 0, 0, 0, 0},
+			{0, 0, 0, 0, 0, 0},
+			{0, 0, 0, 0, 0, 0},
+			{0, 0, 0, 0, 0, 0}
+		};
+		*/
+		//print_brightness_matrix(brightness_matrix);
 	
-	uint8_t emitter_total[6];
-	uint8_t sensor_total[6];
-	fill_S_and_T(brightness_matrix, sensor_total, emitter_total);
+		uint8_t emitter_total[6];
+		uint8_t sensor_total[6];
+		fill_S_and_T(brightness_matrix, sensor_total, emitter_total);
 	
-	float bearing = get_bearing(sensor_total);
-	float heading = get_heading(emitter_total, bearing);
+		float bearing = get_bearing(sensor_total);
+		float heading = get_heading(emitter_total, bearing);
 	
-	float initial_range = get_initial_range_guess(bearing, heading, power, sensor_total, emitter_total, brightness_matrix);
-	if(initial_range==0) return; //Some error occurred.
-	float range = range_estimate(initial_range, bearing, heading, power, brightness_matrix);
+		float initial_range = get_initial_range_guess(bearing, heading, power, sensor_total, emitter_total, brightness_matrix);
+		if(initial_range)
+		{
+			float range = range_estimate(initial_range, bearing, heading, power, brightness_matrix);
+			last_good_rnb.range = range;
+			last_good_rnb.bearing = bearing;
+			last_good_rnb.heading = heading;
+			last_good_rnb.brightness_matrix_ptr = brightness_matrix;
+			last_good_rnb.id_number = cmd_sender_id;
 	
-	last_good_rnb.range = range;
-	last_good_rnb.bearing = bearing;
-	last_good_rnb.heading = heading;
-	last_good_rnb.brightness_matrix_ptr = brightness_matrix;
-	last_good_rnb.id_number = cmd_sender_id;
-	
-	rnb_updated=1;
+			rnb_updated=1;
+		}
+	}
 }
 
 float get_bearing(uint8_t sensor_total[6])

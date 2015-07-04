@@ -1,10 +1,13 @@
-#ifndef rgb_sensor_h
-#define rgb_sensor_h
+#pragma once
+
+#include <avr/pgmspace.h>
 
 #include "avr/io.h" 
 #include "rgb_led.h"
 #include "scheduler.h"
 #include "i2c.h"
+
+static const char RGB_SENSE_POWERON_FAILURE[] PROGMEM = "RGB sense power-on failed %hu.\r\n";
 
 #ifdef AUDIO_DROPLET
 
@@ -50,5 +53,3 @@
 #endif
 
 	void get_rgb(uint16_t *r, uint16_t *g, uint16_t *b);
-
-#endif

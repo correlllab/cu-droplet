@@ -1,8 +1,8 @@
-#ifndef motor_h
-#define motor_h
+#pragma once
 
 #include <avr/io.h>
 #include <stdlib.h>
+#include <avr/pgmspace.h>
 
 #define MOTOR_STATUS_DIRECTION		0x07
 #define MOTOR_STATUS_ON				0x80
@@ -66,7 +66,7 @@ static inline void motor_forward(uint8_t num)
 	switch(num)
 	{
 		#ifdef AUDIO_DROPLET
-			case 0: printf("ERROR! motor_fw called with num=0\r\n"); break;
+			case 0: printf_P(PSTR("ERROR! motor_fw called with num=0\r\n")); break;
 		#else
 			case 0: TCC0.CTRLB |= TC0_CCBEN_bm; break;
 		#endif		
@@ -80,7 +80,7 @@ static inline void motor_backward(uint8_t num)
 	switch(num)
 	{
 		#ifdef AUDIO_DROPLET
-			case 0: printf("ERROR! motor_bw called with num=0\r\n"); break;
+			case 0: printf_P(PSTR("ERROR! motor_bw called with num=0\r\n")); break;
 		#else
 			case 0: TCC0.CTRLB |= TC0_CCAEN_bm; break;
 		#endif
@@ -88,5 +88,3 @@ static inline void motor_backward(uint8_t num)
 		case 2: TCD0.CTRLB |= TC0_CCAEN_bm; break;
 	}
 }
-
-#endif

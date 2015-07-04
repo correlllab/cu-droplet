@@ -7,14 +7,22 @@
  * 
  *
  *****************************************************************************/
-#ifndef DROPLET_INIT_H
-#define DROPLET_INIT_H
+#pragma once
+
+//#define INIT_DEBUG_MODE
+
+#ifdef INIT_DEBUG_MDOE
+#define INIT_DEBUG_PRINT(x) printf(x)
+#else
+#define INIT_DEBUG_PRINT(x)
+#endif
 
 #include <avr/io.h>
 #include <util/crc16.h>
 #include <avr/interrupt.h>
 #include <avr/pgmspace.h>
 #include <stdio.h>
+#include <avr/pgmspace.h>
 
 #define DIR0		((uint8_t)0x01)
 #define DIR1		((uint8_t)0x02)
@@ -34,6 +42,7 @@
 #include "scheduler.h"
 #include "pc_comm.h"
 #include "rgb_led.h"
+#include "rgb_sensor.h"
 #include "power.h"
 #include "ecc.h"
 #include "i2c.h"
@@ -48,6 +57,8 @@
 #include "random.h"
 
 #include "serial_handler.h"
+
+#include <avr/pgmspace.h>
 
 uint16_t droplet_ID;
 
@@ -93,6 +104,4 @@ void calculate_id_number();
 void enable_interrupts();
 void startup_light_sequence();
 
-uint8_t get_droplet_ord(uint16_t id);
-
-#endif
+//uint8_t get_droplet_ord(uint16_t id);

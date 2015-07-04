@@ -243,7 +243,7 @@ uint8_t TWI_MasterWriteRead(uint8_t address,
 		}
 		return 1;
 	} else {
-		printf("\tTWI wasn't ready.\r\n");
+		printf_P(PSTR("\tTWI wasn't ready.\r\n"));
 		return 0;
 	}
 }

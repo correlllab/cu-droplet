@@ -1,8 +1,8 @@
-#ifndef range_algs_H
-#define range_algs_H
+#pragma once
 
 #include <avr/io.h>
 #include <math.h>
+#include <avr/pgmspace.h>
 
 #include "droplet_init.h"
 #include "scheduler.h"
@@ -83,5 +83,3 @@ float inverse_amplitude_model(float ADC_val, uint8_t power);
 void debug_print_timer(uint32_t timer[19]);
 void print_brightness_matrix(uint8_t brightness_matrix[6][6]);
 void brightness_meas_printout_mathematica();
-
-#endif

@@ -32,6 +32,8 @@ void handle_msg(ir_msg* msg_struct);
 void periodic_rnb_broadcast();
 void add_to_near_atoms();
 void update_near_atoms();
+void add_to_bonded_atoms(uint16_t ID);
+void printValence(int8_t valence[]);
 Atom getAtomFromAtomicNum(uint8_t atomicNum);
 void found_diatomic_routine();
 void setAtomColor(Atom ID);

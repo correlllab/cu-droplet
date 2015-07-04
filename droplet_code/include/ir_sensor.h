@@ -2,8 +2,7 @@
  * Low level sensing functions using IR channels.
  * Note that there is no IR communication code in this file.
  *****************************************************************************/
-#ifndef ir_sensor_h
-#define ir_sensor_h
+#pragma once
 
 #include <avr/io.h>
 #include "scheduler.h"
@@ -58,4 +57,4 @@ int16_t meas_find_median(int16_t* meas, uint8_t arr_len); // Helper function for
 
 #endif
 
-#endif
+#pragma once

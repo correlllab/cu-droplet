@@ -150,7 +150,6 @@ float* getThermoInfo(uint8_t atomicNum, uint8_t phase, uint8_t diatomic)
 					return thermo;
 			}
 		}
-	
 		else if (phase == 2) //element is aqueous, which means it probably has a formal charge != 0. The most common formal charge has been assumed.
 		{
 			switch(atomicNum){
@@ -822,6 +821,13 @@ void loop()
 {
 	delay_ms(LOOP_PERIOD);
 	//broadcastChemID(myID);
+	
+	if(((int32_t)(get_time()-task_list->scheduled_time))>124)
+	{
+		printf("Task list got lost. :(\r\n");
+	}
+	
+	
 	uint32_t time_floor = ((get_time()/LOOP_PERIOD));
 	if((time_floor%(DETECT_OTHER_DROPLETS_PERIOD/LOOP_PERIOD))==0){
 		detectOtherDroplets();
@@ -829,7 +835,7 @@ void loop()
 	if((time_floor%(RNB_BROADCAST_PERIOD/LOOP_PERIOD))==0){
 		//printf("\r\n sent bonded_atoms\r\n");
 		broadcast_rnb_data();
-		ir_send(ALL_DIRS, myID.bonded_atoms, 12); //Should this be here or inside the 5 second loop? Also, do I have the last parameter right? 12 bytes?
+		ir_send(ALL_DIRS, (char*)(myID.bonded_atoms), 12); //Should this be here or inside the 5 second loop? Also, do I have the last parameter right? 12 bytes?
 	}
 }
 
@@ -1013,7 +1019,7 @@ void handle_msg(ir_msg* msg_struct)
 			else
 			{*/
 				printf("Droplet %x thinks he's bonded to me but I don't think I'm bonded to him. Flag was 0 so I'm sending my bonded_atoms to try to break the bond.\r\n", msg_struct->sender_ID);
-				ir_targeted_send(ALL_DIRS, myID.bonded_atoms, sizeof(myID.bonded_atoms), msg_struct->sender_ID);
+				ir_targeted_send(ALL_DIRS, (char*)(myID.bonded_atoms), sizeof(myID.bonded_atoms), msg_struct->sender_ID);
 				//bond_broken_flag_2 = 1;
 			//}
 			
@@ -1051,7 +1057,7 @@ void handle_msg(ir_msg* msg_struct)
 						}
 					}
 				}
-				if (foundBond == 0) myID.bondType == 0;
+				if (foundBond == 0) myID.bondType == 0; //!!!FROM JOHN: you probably want a single '=' there?
 				//char make_bond[2] = {'m', myID.bondType};
 				//ir_targeted_send(ALL_DIRS, make_bond, 2, msg_struct->sender_ID);
 				//Remove other droplet from bonded_atoms and remove the bonded flag from near_atoms

@@ -12,7 +12,7 @@ void mic_init()
 		ADCB.CH3.CTRL = ADC_CH_INPUTMODE_DIFFWGAIN_gc | ADC_CH_GAIN_8X_gc;
 		ADCB.CH3.MUXCTRL = ADC_CH_MUXNEG_INTGND_MODE4_gc | ADC_CH_MUXPOS_PIN5_gc;
 	#else
-		printf("ERROR: mic_init called, but this Droplet doesn't have a mic!\r\n");		
+		printf_P(PSTR("ERROR: mic_init called, but this Droplet doesn't have a mic!\r\n"));		
 	#endif
 }
 
@@ -28,7 +28,7 @@ int16_t get_mic_reading()
 		reading = (((((int16_t)(ADCB.CH3.RESH))<<8)|((int16_t)(ADCB.CH3.RESL))));
 		return reading;
 	#else
-		printf("ERROR: get_mic_reading called, but this Droplet doesn't have a mic!\r\n");
+		printf_P(PSTR("ERROR: get_mic_reading called, but this Droplet doesn't have a mic!\r\n"));
 		return 0;
 	#endif
 }
@@ -65,21 +65,21 @@ void mic_recording(uint16_t length, uint16_t sample_rate)
 				//if(i==0) printf("Just took first four measurements: %lu\r\n",get_time());
 			}
 		}
-		printf("{", get_time()-time_start);
+		printf("{");
 		for(uint16_t i=0;i<array_len-3;i+=3)
 		{
-			printf("%4d, ",((0x0FFF&recording[i])<<4)>>4);
-			printf("%4d, ", (((0x000F&(recording[i]>>12))|(0x0FF0&(recording[i+1]<<4)))<<4)>>4);
-			printf("%4d, ",(((0x00FF&(recording[i+1]>>8))|(0x0F00&(recording[i+2]<<8)))<<4)>>4);
-			printf("%4d, ", recording[i+2]>>4);
+			printf_P(FORMATTED_PRINT_STRING,((0x0FFF&recording[i])<<4)>>4);
+			printf_P(FORMATTED_PRINT_STRING, (((0x000F&(recording[i]>>12))|(0x0FF0&(recording[i+1]<<4)))<<4)>>4);
+			printf_P(FORMATTED_PRINT_STRING,(((0x00FF&(recording[i+1]>>8))|(0x0F00&(recording[i+2]<<8)))<<4)>>4);
+			printf_P(FORMATTED_PRINT_STRING, recording[i+2]>>4);
 			
 		}
-		printf("%4d, ",((0x0FFF&recording[array_len-3])<<4)>>4);
-		printf("%4d, ", (((0x000F&(recording[array_len-3]>>12))|(0x0FF0&(recording[array_len-2]<<4)))<<4)>>4);
-		printf("%4d, ",(((0x00FF&(recording[array_len-2]>>8))|(0x0F00&(recording[array_len-1]<<8)))<<4)>>4);
+		printf_P(FORMATTED_PRINT_STRING,((0x0FFF&recording[array_len-3])<<4)>>4);
+		printf_P(FORMATTED_PRINT_STRING, (((0x000F&(recording[array_len-3]>>12))|(0x0FF0&(recording[array_len-2]<<4)))<<4)>>4);
+		printf_P(FORMATTED_PRINT_STRING,(((0x00FF&(recording[array_len-2]>>8))|(0x0F00&(recording[array_len-1]<<8)))<<4)>>4);
 		printf("%4d}", recording[array_len-1]>>4);
 	#else
-		printf("ERROR: get_mic_reading called, but this Droplet doesn't have a mic!\r\n");
+		printf_P(PSTR("ERROR: get_mic_reading called, but this Droplet doesn't have a mic!\r\n"));
 		return 0;
 	#endif	
 }

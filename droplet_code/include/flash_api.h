@@ -5,10 +5,7 @@
  * <a href="https://github.com/alexforencich/xboot">xboot</a> project, on GitHub.
  *
  ************************************************************************/
-
-
-#ifndef FLASH_API_H
-#define FLASH_API_H
+#pragma once
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <util/atomic.h>
@@ -79,5 +76,3 @@ void erase_write_application_page(uint32_t address);
 void erase_flash_buffer();
 void read_flash_page(const uint8_t * data, uint32_t address);
 void erase_application_page(uint32_t address);
-
-#endif

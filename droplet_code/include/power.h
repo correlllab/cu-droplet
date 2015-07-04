@@ -1,5 +1,4 @@
-#ifndef power_h
-#define power_h
+#pragma once
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
@@ -21,5 +20,3 @@ void enable_leg_status_interrupt();
 void disable_leg_status_interrupt();
 
 uint32_t last_int_time;
-
-#endif

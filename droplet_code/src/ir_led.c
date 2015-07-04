@@ -55,8 +55,8 @@ void set_all_ir_powers(uint16_t power)
 		
 	uint8_t result;		
 	result = TWI_MasterWrite(IR_POWER_ADDR_A, write_buffer, 6);
-	if(!result) printf("First IR_POWER setting failed.\r\n");
+	if(!result) printf_P(PSTR("First IR_POWER setting failed.\r\n"));
 	delay_ms(5);
 	result = TWI_MasterWrite(IR_POWER_ADDR_B, write_buffer, 6);
-	if(!result) printf("Second IR_POWER setting failed.\r\n");
+	if(!result) printf_P(PSTR("Second IR_POWER setting failed.\r\n"));
 }

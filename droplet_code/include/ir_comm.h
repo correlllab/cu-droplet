@@ -2,13 +2,12 @@
  * \brief Droplet infrared communication subsystem functions are defined here.
  *
  *****************************************************************************/
-
-#ifndef IR_COMM_H
-#define IR_COMM_H
+#pragma once
 
 #include <avr/io.h>
 #include <util/crc16.h>
 #include <avr/interrupt.h>
+#include <avr/pgmspace.h>
 #include "droplet_init.h"
 #include "scheduler.h"
 #include "ir_led.h"
@@ -42,6 +41,7 @@
 #define IR_STATUS_ERROR_bm				0x04	// 0000 0100
 #define IR_STATUS_COMMAND_bm			0x08	// 0000 1000
 #define IR_STATUS_TARGETED_bm			0x10	// 0001 0000
+#define IR_STATUS_TRANSMITTING_bm		0x20    // 0010 0000
 #define IR_STATUS_UNAVAILABLE_bm		0x03	// Complete or Busy
 
 #define DATA_LEN_VAL_bm		0x7F
@@ -101,5 +101,3 @@ void ir_remote_send(uint8_t dir, uint16_t data);
 void ir_transmit_complete(uint8_t dir);
 void ir_reset_rx(uint8_t dir);
 void wait_for_ir(uint8_t dirs);
-
-#endif

@@ -3,9 +3,7 @@
  * \brief Code for Droplet bootloader. No longer in use.
  *
  *****************************************************************************/
-
-#ifndef BOOT_H
-#define BOOT_H
+#pragma once
 
 //#include <avr/io.h>
 //#include "flash_api.h"
@@ -39,5 +37,3 @@
 //void move_flash_and_reset() BOOTLOADER;
 //
 //uint32_t crc_flash();
-
- #endif

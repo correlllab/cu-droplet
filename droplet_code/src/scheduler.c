@@ -133,11 +133,6 @@ Task_t* schedule_task(uint32_t time, void (*function)(), void* arg)
 		new_task->next = NULL; 		
 	}
 	add_task_to_list(new_task);
-<<<<<<< HEAD
-	task_list_checkup();
-=======
-	//task_list_checkup();
->>>>>>> 72ea41a2c0fa14aab1b696c0109d74eba3019654
 	//printf("Task (%X->%X) scheduled for %lu\t[%hhu]\r\n", new_task, (new_task->func).noarg_function, new_task->scheduled_time, num_tasks);
 
 	return new_task;

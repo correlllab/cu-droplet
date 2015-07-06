@@ -77,197 +77,6 @@ void update_near_atoms()
 	}
 }
 
-//Returns a 3-char array containing [deltaH of formation, deltaG of formation, and S naught].
-//In other words, [enthalpy, gibbs free energy, entropy]
-//Note that this is for individual atoms, not diatomics. Case 1 returns for H, not H2
-//Units are kJ/mol, except for S, which is in kJ/mol*K
-float* getThermoInfo(uint8_t atomicNum, uint8_t phase, uint8_t diatomic)
-{
-	if(diatomic == 0) //get the monotomic numbers
-	{
-		if(phase == 1) //element is a gas
-		{
-			switch(atomicNum){
-				case 1:
-				{
-					float thermo[3] = {218.0, 203.30, 0.11460};
-					return thermo;
-				}
-				case 2:
-				{
-					//This is oversimplified, aka, wrong. Pending more research on Gibbs free energy and noble gases, it'll have to do.
-					float thermo[3] = {0, -1.000, 0.1262};
-					return thermo;
-				}
-				case 3:
-				{
-					float thermo[3] = {161.0, 128.0, 0.13867};
-					return thermo;
-				}
-				case 4:
-				{
-					float thermo[3] = {-1.000, -1.000, -1.000};
-					return thermo;
-				}
-				case 6:
-				{
-					float thermo[3] = {715.0, 669.6, 0.1580};
-					return thermo;
-				}
-				case 7:
-				{
-					float thermo[3] = {473.0, 456.0, 0.1532};
-					return thermo;
-				}
-				case 8:
-				{
-					float thermo[3] = {249.2, 231.7, 0.16095};
-					return thermo;
-				}
-				case 9:
-				{
-					float thermo[3] = {78.9, 61.8, 0.15864};
-					return thermo;
-				}
-				case 17:
-				{
-					float thermo[3] = {121.0, 105.0, 0.1651};
-					return thermo;
-				}
-				case 35:
-				{
-					float thermo[3] = {111.9, 82.40, 0.17490};
-					return thermo;	
-				}
-				case 53:
-				{
-					float thermo[3] = {106.8, 70.21, 0.18067};
-					return thermo;
-				}
-				default:
-					printf("No such element");
-					float thermo[3] = {-1.0, -1.0, -1.0};
-					return thermo;
-			}
-		}
-		else if (phase == 2) //element is aqueous, which means it probably has a formal charge != 0. The most common formal charge has been assumed.
-		{
-			switch(atomicNum){
-				case 1: //H+
-				{
-					float thermo[3] = {0, 0, 0};
-					return thermo;
-				}
-				case 3: //Li+
-				{
-					float thermo[3] = {-278.46, -293.8, 0.014};
-					return thermo;
-				}
-				case 9: //F-
-				{
-					float thermo[3] = {-329.1, -276.5, -0.0096};
-					return thermo;
-				}
-				case 17: //Cl-
-				{
-					float thermo[3] = {-167.46, -131.17, 0.05510};
-					return thermo;
-				}
-				case 35: //Br-
-				{
-					float thermo[3] = {-120.9,  -102.82, 0.08071};
-					return thermo;	
-				}
-				case 53: //I-
-				{
-					float thermo[3] = {-55.94, -51.67, 0.1094};
-					return thermo;
-				}
-				default:
-				{
-					printf("No such element in that state");
-					float thermo[3] = {-1.0, -1.0, -1.0};
-					return thermo;
-				}
-			}
-		}
-		else if(phase == 3) //element is solid
-		{
-			switch(atomicNum){
-				case 3: 
-				{
-					float thermo[3] = {0, 0, 0.02910};
-					return thermo;
-				}
-				default:
-				{
-					printf("No such element in that state");
-					float thermo[3] = {-1.0, -1.0, -1.0};
-					return thermo;
-				}
-		}
-	}
-	else //get the diatomic numbers
-	{
-		switch(atomicNum){
-			case 1: //H2
-			{
-				float thermo[3] = {0, 0, 0.1306};
-				return thermo;
-			}
-			case 7: //N2
-			{
-				float thermo[3] = {0, 0, 0.1915};
-				return thermo;
-			}
-			case 8: //O2
-			{
-				float thermo[3] = {0, 0, 0.2050};
-				return thermo;
-			}
-			case 9: //F2
-			{
-				float thermo[3] = {0, 0, 0.2027};
-				return thermo;
-			}
-			case 17: //Cl2
-			{
-				float thermo[3] = {0, 0, 0.2230};
-				return thermo;
-			}
-			case 35: //Br2
-			{
-				if(phase == 2) {
-					float thermo[3] = {0, 0, 0.15223};
-					return thermo;
-				}
-				else {
-					float thermo[3] = {30.91, 3.13, 0.24538};
-					return thermo;
-				}
-			}
-			case 53: //I2
-			{
-				if(phase == 3) {
-					float thermo[3] = {0, 0, 0.11614};
-					return thermo;
-				}
-				else {
-					float thermo[3] = {62.442, 19.38, 0.26058};
-					return thermo;
-				}
-			}
-			default:
-			{
-				printf("No such element in that state");
-				float thermo[3] = {-1.0, -1.0, -1.0};
-				return thermo;
-			}
-		}
-	}
-}
-}
-
 Atom getAtomFromAtomicNum(uint8_t atomicNum)
 {
 	switch(atomicNum){
@@ -498,7 +307,7 @@ void detectOtherDroplets()
 		}
 		checkPossibleBonds(near_atoms[i]);
 		print_near_atoms();
-		//broadcastChemID(myID);
+		broadcastChemID(myID);
 		rnb_updated=0;
 	}
 }
@@ -836,7 +645,7 @@ Atom getAtomFromID(uint16_t ID)
 
 void msgAtom(ir_msg* msg_struct)
 {
-	printf("Received atom struct \r\n");
+	printf("\t\t\t Received atom struct \r\n");
 	Atom* near_atom;
 	near_atom = (Atom*)(msg_struct->msg); //do some kind of check to make sure this is actually an atom.
 	
@@ -943,6 +752,7 @@ void msgBondMade(ir_msg* msg_struct)
 
 void msgPossibleBond(ir_msg* msg_struct)
 {
+	printf("msgPossibleBond called \r\n");
 	Atom senderAtom = getAtomFromID(msg_struct->sender_ID);
 	if(senderAtom.atomicNum == 0)
 	{
@@ -1044,21 +854,9 @@ void msgBondedAtoms(ir_msg* msg_struct)
 void init()
 {
 	switch(get_droplet_id()){
-		case 0xAFD8: MY_CHEM_ID = 3; break;
-		case 0x3062: MY_CHEM_ID = 17; break;
-		case 0xFA6F: MY_CHEM_ID = 6; break;
-		case 0x6C6F: MY_CHEM_ID = 3; break;
-		case 0xD86C: MY_CHEM_ID = 17; break;
-		case 0xB36F: MY_CHEM_ID = 17; break;
-		case 0x6B6F: MY_CHEM_ID = 17; break;
-		case 0xBC6E: MY_CHEM_ID = 17; break;
-		case 0x46A1: MY_CHEM_ID = 3; break;
-		case 0x9495: MY_CHEM_ID = 3; break;
-		case 0x9420: MY_CHEM_ID = 3; break;	
-		case 0xD2D7: MY_CHEM_ID = 3; break;
-		case 0xEEB0: MY_CHEM_ID = 3; break;
-		case 0xF60A: MY_CHEM_ID = 3; break;
-		case 0xA5B5: MY_CHEM_ID = 3; break;		
+		case 0xC806: MY_CHEM_ID = 3; break;
+		case 0x1F08: MY_CHEM_ID = 3; break;
+		case 0x4177: MY_CHEM_ID = 3; break;	
 		default:     MY_CHEM_ID = 17; break;
 	}
 	

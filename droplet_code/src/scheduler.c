@@ -127,7 +127,7 @@ Task_t* schedule_task(volatile uint32_t time, void (*function)(void*), void* arg
 	}
 	add_task_to_list(new_task);
 	task_list_checkup();
-	printf("Task (%X->%X) scheduled for %lu\t[%hhu]\r\n", new_task, (new_task->func).noarg_function, new_task->scheduled_time, num_tasks);
+	//printf("Task (%X->%X) scheduled for %lu\t[%hhu]\r\n", new_task, (new_task->func).noarg_function, new_task->scheduled_time, num_tasks);
 
 	return new_task;
 }
@@ -293,7 +293,7 @@ void run_tasks()
 			}
 			else
 			{
-				printf("Freeing task (%X) at %lu\t[%hhu]\r\n", cur_task, get_time(), (num_tasks-1));			
+				//printf("Freeing task (%X) at %lu\t[%hhu]\r\n", cur_task, get_time(), (num_tasks-1));			
 				scheduler_free(cur_task);
 				cur_task = NULL;
 				num_tasks--;

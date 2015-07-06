@@ -298,7 +298,7 @@ void ir_receive(uint8_t dir)
 		else
 		{
 			if(ir_rxtx[dir].data_length==0){
-				printf_P(PSTR("Error: Message length 0 in ir_receive.\r\n"));			
+				clear_ir_buffer(dir);		
 			}
 			if(ir_rxtx[dir].status & IR_STATUS_COMMAND_bm)
 			{

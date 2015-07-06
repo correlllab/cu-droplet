@@ -917,6 +917,7 @@ void handle_msg(ir_msg* msg_struct)
 	else if(msg_struct->msg[0] == 'p' && bondDelay == 0)  msgPossibleBond(msg_struct);
 	//Message is another Droplet's bonded_atoms array. T
 	else if(msg_struct->length == sizeof(myID.bonded_atoms)) msgBondedAtoms(msg_struct);
+
 	
 	printf("Ending handle_msg.\r\n");
 	printValence(myID.valence);

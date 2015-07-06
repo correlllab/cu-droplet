@@ -71,11 +71,10 @@ void delay_ms(uint16_t ms)
 //This function checks for errors or inconsistencies in the task list, and attempts to correct them.
 void task_list_cleanup()
 {
-	printf_P(PSTR("Error! We got ahead of the task list and now nothing will execute.\r\nDropping all non-periodic tasks.\r\nIf you only see this rarely, don't worry too much.\r\n"));
+	printf_P(PSTR("Error! We got ahead of the task list and now nothing will execute.\r\nDropping all non-periodic tasks.\r\nIf you only see this rarely, don't worry too much.\r\n\tTask executing: %hu\r\n"),task_executing);
 	
-	Task_t* cur_task = task_list;
-	Task_t* tmp_task_ptr;
-	Task_t* task_ptr_arr[MAX_NUM_SCHEDULED_TASKS];
+	volatile Task_t* cur_task = task_list;
+	volatile Task_t* task_ptr_arr[MAX_NUM_SCHEDULED_TASKS];
 	uint8_t num_periodic_tasks = 0;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 	{
@@ -84,9 +83,7 @@ void task_list_cleanup()
 		{
 			if(cur_task->period==0)
 			{
-				tmp_task_ptr = cur_task->next;
-				remove_task(cur_task);
-				cur_task = tmp_task_ptr;
+				cur_task = cur_task->next;
 			}
 			else
 			{
@@ -97,7 +94,25 @@ void task_list_cleanup()
 				num_periodic_tasks++;					
 			}
 		}
-		num_tasks=task_executing;		
+		uint8_t task_is_periodic = 0;
+		for(uint8_t i=0;i<MAX_NUM_SCHEDULED_TASKS;i++)
+		{
+			for(uint8_t j=0;j<num_periodic_tasks;j++)
+			{
+				if(&(task_storage_arr[i])==task_ptr_arr[j])
+				{
+					printf_P(PSTR("\tSaving task %X because it is periodic.\r\n"),&(task_storage_arr[i]));
+					task_is_periodic = 1;
+					break;
+				}
+			}	
+			if(!task_is_periodic)
+			{
+				printf_P(PSTR("\tClearing memory of task %X.\r\n"), &(task_storage_arr[i]));
+				remove_task(&(task_storage_arr[i]));
+			}
+			task_is_periodic = 0;
+		}
 		task_list=NULL; //Now, the task list has been cleared out, but only non-periodic tasks have had their memory purged.
 		for(uint8_t i=0;i<num_periodic_tasks;i++)
 		{
@@ -265,6 +280,8 @@ void print_task_queue()
 void run_tasks()
 {
 	volatile Task_t* cur_task;
+	volatile Task_t* pre_call_task;
+	volatile Task_t* post_call_task;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE) // Disable interrupts
 	{
 		// Run all tasks that are scheduled to execute in the next 2ms

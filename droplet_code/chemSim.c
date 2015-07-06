@@ -1051,7 +1051,7 @@ void handle_msg(ir_msg* msg_struct)
 						}
 					}
 				}
-				if (foundBond == 0) myID.bondType == 0; //!!!FROM JOHN: you probably want a single '=' there?
+				if (foundBond == 0) myID.bondType = 0;
 				//char make_bond[2] = {'m', myID.bondType};
 				//ir_targeted_send(ALL_DIRS, make_bond, 2, msg_struct->sender_ID);
 				//Remove other droplet from bonded_atoms and remove the bonded flag from near_atoms

@@ -137,6 +137,12 @@ inline uint8_t task_list_check()
 
 static inline void scheduler_free(Task_t* tgt)
 {
+	if((tgt<task_storage_arr)||(tgt>(&(task_storage_arr[MAX_NUM_SCHEDULED_TASKS]))))
+	{
+		printf_P(PSTR("In scheduler_free, tgt (%X) was outside valid Task* range.\r\n"),tgt);
+		set_rgb(0,0,255);
+		delay_ms(60000);
+	}
 	tgt->arg = 0;
 	tgt->period = 0;
 	(tgt->func).noarg_function = NULL;
@@ -145,3 +151,79 @@ static inline void scheduler_free(Task_t* tgt)
 }
 
 //void task_list_checkup();
+
+#define SAVE_CONTEXT()                                  \
+    asm volatile (  "push   r0                      \n\t"   \
+                    "in     r0, 0x003F				\n\t"   \
+                    "cli                            \n\t"   \
+                    "push   r0                      \n\t"   \
+                    "push   r1                      \n\t"   \
+                    "clr    r1                      \n\t"   \
+                    "push   r2                      \n\t"   \
+                    "push   r3                      \n\t"   \
+                    "push   r4                      \n\t"   \
+                    "push   r5                      \n\t"   \
+                    "push   r6                      \n\t"   \
+                    "push   r7                      \n\t"   \
+                    "push   r8                      \n\t"   \
+                    "push   r9                      \n\t"   \
+                    "push   r10                     \n\t"   \
+                    "push   r11                     \n\t"   \
+                    "push   r12                     \n\t"   \
+                    "push   r13                     \n\t"   \
+                    "push   r14                     \n\t"   \
+                    "push   r15                     \n\t"   \
+                    "push   r16                     \n\t"   \
+                    "push   r17                     \n\t"   \
+                    "push   r18                     \n\t"   \
+                    "push   r19                     \n\t"   \
+                    "push   r20                     \n\t"   \
+                    "push   r21                     \n\t"   \
+                    "push   r22                     \n\t"   \
+                    "push   r23                     \n\t"   \
+                    "push   r24                     \n\t"   \
+                    "push   r25                     \n\t"   \
+                    "push   r26                     \n\t"   \
+                    "push   r27                     \n\t"   \
+                    "push   r28                     \n\t"   \
+                    "push   r29                     \n\t"   \
+                    "push   r30                     \n\t"   \
+                    "push   r31                     \n\t"   \
+                );
+				
+#define RESTORE_CONTEXT()                               \
+    asm volatile (  "pop    r31                     \n\t"   \
+                    "pop    r30                     \n\t"   \
+                    "pop    r29                     \n\t"   \
+                    "pop    r28                     \n\t"   \
+                    "pop    r27                     \n\t"   \
+                    "pop    r26                     \n\t"   \
+                    "pop    r25                     \n\t"   \
+                    "pop    r24                     \n\t"   \
+                    "pop    r23                     \n\t"   \
+                    "pop    r22                     \n\t"   \
+                    "pop    r21                     \n\t"   \
+                    "pop    r20                     \n\t"   \
+                    "pop    r19                     \n\t"   \
+                    "pop    r18                     \n\t"   \
+                    "pop    r17                     \n\t"   \
+                    "pop    r16                     \n\t"   \
+                    "pop    r15                     \n\t"   \
+                    "pop    r14                     \n\t"   \
+                    "pop    r13                     \n\t"   \
+                    "pop    r12                     \n\t"   \
+                    "pop    r11                     \n\t"   \
+                    "pop    r10                     \n\t"   \
+                    "pop    r9                      \n\t"   \
+                    "pop    r8                      \n\t"   \
+                    "pop    r7                      \n\t"   \
+                    "pop    r6                      \n\t"   \
+                    "pop    r5                      \n\t"   \
+                    "pop    r4                      \n\t"   \
+                    "pop    r3                      \n\t"   \
+                    "pop    r2                      \n\t"   \
+                    "pop    r1                      \n\t"   \
+                    "pop    r0                      \n\t"   \
+                    "out    0x003F, r0            \n\t"   \
+                    "pop    r0                      \n\t"   \
+                );				

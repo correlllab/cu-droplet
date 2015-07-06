@@ -1,10 +1,12 @@
 #include <avr/io.h>
 
-.extern run_tasks
-.extern task_executing
+/*.extern run_tasks*/
+/*.extern task_executing*/
 .extern rtc_epoch
 
-.global rtc_compare_isr
+	out		_SFR_IO_ADDR(SREG), r16
+
+/*.global rtc_compare_isr
 
 ; RTC compare match interrupt vector
 ; Called when it's time for a scheduled task to run
@@ -59,7 +61,7 @@ rtc_compare_isr:
 	lds		r24, task_executing	; Increment num_executing_tasks
 	inc		r24
 	sts		task_executing, r24
-	ret								; reti returns from the ISR to the beginning of run_tasks
+	reti								; reti returns from the ISR to the beginning of run_tasks
 
 ; Restores the registers that were saved in RTC_COMP ISR and decrements the num_executing_tasks counter
 ; After popping the registers, the top of the stack points to the instruction that would have been next if 
@@ -105,11 +107,11 @@ restore_registers:
 	pop		r2
 	pop		r1
 	pop		r0
-	reti								; The top value of the stack was the code address that
+	ret								; The top value of the stack was the code address that
 										; was pushed when the interrupt occurred
 										; ret returns to where we were before the RTC_COMP interrupt happened
 
-
+*/
 ; Gets the time as an atomic operation
 .global get_time
 get_time:

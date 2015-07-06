@@ -390,7 +390,7 @@ void run_tasks()
 	// Jump to the code that restores the registers to the state they were in
 	// before the RTC interrupt.  Program control will return to where it was before the interrupt
 	// on return from restore_registers
-	asm("jmp restore_registers");	 // must include scheduler_asm.c in the project
+	//asm("jmp restore_registers");	 // must include scheduler_asm.c in the project
 }
 
 //volatile static uint16_t seen_tasks[MAX_NUM_SCHEDULED_TASKS];
@@ -457,6 +457,15 @@ void run_tasks()
 		//print_task_queue();
 	//}
 //}
+
+ISR(RTC_COMP_vect)
+{
+	task_executing=1;
+	SAVE_CONTEXT();
+	run_tasks();
+	RESTORE_CONTEXT();
+	task_executing=0;
+}
 
 // Increment rtc_epoch on RTC overflow
 // Must be atomic so no reads of get_time() occur between RTC overflow and updating of epoch

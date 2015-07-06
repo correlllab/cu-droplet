@@ -3,9 +3,6 @@
 /*.extern run_tasks*/
 /*.extern task_executing*/
 .extern rtc_epoch
-
-	out		_SFR_IO_ADDR(SREG), r16
-
 /*.global rtc_compare_isr
 
 ; RTC compare match interrupt vector

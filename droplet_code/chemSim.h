@@ -23,8 +23,7 @@ typedef struct
 Near_Atom near_atoms[12]; //this number is pretty arbitrary.
 Atom NULL_ATOM = {{0,0,0,0,0,0,0,0},{0,0,0,0,0,0},{0,0},0,0,0};
 Near_Atom NULL_NEAR_ATOM = {{{0,0,0,0,0,0,0,0},{0,0,0,0,0,0},{0,0},0,0,0}, 0, 0, 0, 0, 0};
-uint8_t bond_broken_flag;
-uint8_t bond_broken_flag_2;
+uint32_t bondDelay;
 void init();
 void loop();
 void handle_msg(ir_msg* msg_struct);

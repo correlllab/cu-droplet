@@ -1,16 +1,16 @@
 #include "scheduler.h"
 
+static uint32_t last_schedule_task_call;
+
 void scheduler_init()
 {
 	task_list = NULL;
 	num_tasks = 0;
-	num_executing_tasks = 0;
-	//curr_pointer = 0;
+	task_executing = 0;
+	last_schedule_task_call = 0;
+	for(uint8_t i=0; i<MAX_NUM_SCHEDULED_TASKS; i++) scheduler_free(&task_storage_arr[i]);
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)  // Disable interrupts during initialization
 	{
-		// Clear current task list, if necessary
-		// (Should only be necessary if scheduler is re-initialized at runtime)
-		
 		// Set up real-time clock
 		rtc_epoch = 0;
 		CLK.RTCCTRL = CLK_RTCSRC_RCOSC_gc | CLK_RTCEN_bm;
@@ -45,7 +45,6 @@ void Config32MHzClock(void)
 
 	// reset RTC to 0, important for after a reboot:
 	while(RTC.STATUS & RTC_SYNCBUSY_bm);	// wait for SYNCBUSY to clear
-	
 	RTC.CNT = 0;
 }
 
@@ -72,14 +71,15 @@ void delay_ms(uint16_t ms)
 //This function checks for errors or inconsistencies in the task list, and attempts to correct them.
 void task_list_cleanup()
 {
-	printf("\tPerforming task_list_cleanup!\r\n");
-	print_task_queue();
+	printf_P(PSTR("Error! We got ahead of the task list and now nothing will execute.\r\nDropping all non-periodic tasks.\r\nIf you only see this rarely, don't worry too much.\r\n"));
+	
 	Task_t* cur_task = task_list;
 	Task_t* tmp_task_ptr;
 	Task_t* task_ptr_arr[MAX_NUM_SCHEDULED_TASKS];
 	uint8_t num_periodic_tasks = 0;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 	{
+		RTC.INTCTRL &= ~RTC_COMP_INT_LEVEL;		
 		while (cur_task != NULL)
 		{
 			if(cur_task->period==0)
@@ -90,14 +90,14 @@ void task_list_cleanup()
 			}
 			else
 			{
-				cur_task->scheduled_time=get_time()+cur_task->period;
+				cur_task->scheduled_time=get_time()+cur_task->period+50;
 				task_ptr_arr[num_periodic_tasks] = cur_task;
 				cur_task = cur_task->next;
 				task_ptr_arr[num_periodic_tasks]->next=NULL;
 				num_periodic_tasks++;					
 			}
 		}
-		num_tasks=0;		
+		num_tasks=task_executing;		
 		task_list=NULL; //Now, the task list has been cleared out, but only non-periodic tasks have had their memory purged.
 		for(uint8_t i=0;i<num_periodic_tasks;i++)
 		{
@@ -110,31 +110,43 @@ void task_list_cleanup()
 // time is number of milliseconds until function is executed
 // function is a function pointer to execute
 // arg is the argument to supply to function
-Task_t* schedule_task(volatile uint32_t time, void (*function)(void*), void* arg)
+Task_t* schedule_task(uint32_t time, void (*function)(), void* arg)
 {
-	Task_t* new_task;
+	if(get_time()-last_schedule_task_call<50) return NULL;
+	last_schedule_task_call = get_time();
+	
+	volatile Task_t* new_task;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 	{
 		new_task = scheduler_malloc();
 		if (new_task == NULL) return NULL;
-	
+		else if((new_task<task_storage_arr)||(new_task>(&(task_storage_arr[MAX_NUM_SCHEDULED_TASKS-1]))))
+		{
+			printf_P(PSTR("ERROR: scheduler_malloc returned a new_task pointer outside of the task storage array.\r\n"));
+		}
+
+		time+=MIN_TASK_TIME_IN_FUTURE*(time<MIN_TASK_TIME_IN_FUTURE);	
 		new_task->scheduled_time = time + get_time();
-		if((0xFFFF&get_time())<2) new_task->scheduled_time += 10;
 		new_task->arg = arg;
-		new_task->func.arg_function = function;
+		new_task->func.noarg_function = function;
 		new_task->period = 0;
 		new_task->next = NULL; 		
 	}
 	add_task_to_list(new_task);
+<<<<<<< HEAD
 	task_list_checkup();
+=======
+	//task_list_checkup();
+>>>>>>> 72ea41a2c0fa14aab1b696c0109d74eba3019654
 	//printf("Task (%X->%X) scheduled for %lu\t[%hhu]\r\n", new_task, (new_task->func).noarg_function, new_task->scheduled_time, num_tasks);
 
 	return new_task;
 }
 
-Task_t* schedule_periodic_task(uint32_t period, void (*function)(void*), void* arg)
+Task_t* schedule_periodic_task(uint32_t period, void (*function)(), void* arg)
 {
-	Task_t* new_task = schedule_task(get_time()+period, function, arg);
+	period+=MIN_TASK_TIME_IN_FUTURE*(period<MIN_TASK_TIME_IN_FUTURE);	
+	volatile Task_t* new_task = schedule_task(period, function, arg);
 	new_task->period=period;
 	return new_task;
 }
@@ -152,15 +164,18 @@ void add_task_to_list(Task_t* task)
 		{
 			task_list = task;
 			// If scheduled_time is in the current epoch, set the RTC compare interrupt
-			if (task->scheduled_time <= ((((uint32_t)rtc_epoch) << 16) | (uint32_t)RTC.PER))
-			{
-				while (RTC.STATUS & RTC_SYNCBUSY_bm);
-				RTC.COMP = (uint16_t)(0xFFFF&(task->scheduled_time));
-				RTC.INTCTRL |= RTC_COMPINTLVL_MED_gc;
-			}
-			else
-			{
-				RTC.INTCTRL &= ~RTC_COMPINTLVL_MED_gc;
+			if(task_executing==0)
+			{			
+				if (task->scheduled_time <= ((((uint32_t)rtc_epoch) << 16) | (uint32_t)RTC.PER))
+				{
+					while (RTC.STATUS & RTC_SYNCBUSY_bm);
+					RTC.COMP = ((uint16_t)(task_list->scheduled_time))|0x8;
+					RTC.INTCTRL |= RTC_COMP_INT_LEVEL;
+				}
+				else
+				{
+					RTC.INTCTRL &= ~RTC_COMP_INT_LEVEL;					
+				}
 			}
 		}
 		// If the new task is not the next to be executed, iterate through the task_list,
@@ -176,8 +191,8 @@ void add_task_to_list(Task_t* task)
 			{
 				if(tmp_task_ptr->next==tmp_task_ptr){
 					set_rgb(255, 50, 0);
-					printf("ERROR! Task list has self-reference.\r\n");
-					printf("New Task %p (%p) scheduled at %lu with period %lu, %lu current\r\n", task, (task->func).noarg_function, task->scheduled_time, task->period, get_time());
+					printf_P(PSTR("ERROR! Task list has self-reference.\r\n"));
+					printf_P(PSTR("New Task %p (%p) scheduled at %lu with period %lu, %lu current\r\n"), task, (task->func).noarg_function, task->scheduled_time, task->period, get_time());
 					print_task_queue();
 					return;				
 				}
@@ -193,12 +208,12 @@ void add_task_to_list(Task_t* task)
 		//{
 			//while (RTC.STATUS & RTC_SYNCBUSY_bm);
 			//RTC.COMP = RTC.CNT+5;
-			//RTC.INTCTRL |= RTC_COMPINTLVL_MED_gc;
+			//RTC.INTCTRL |= RTC_COMP_INT_LEVEL;
 		//}
 
 		num_tasks++;
 		
-		task_list_checkup();
+		//task_list_checkup();
 	}
 }
 
@@ -227,7 +242,7 @@ void remove_task(Task_t* task)
 				num_tasks--;
 			}
 		}
-		task_list_checkup();
+		//task_list_checkup();
 	}
 }
 
@@ -237,12 +252,12 @@ void print_task_queue()
 	{
 		Task_t* cur_task = task_list;
 		
-		printf("Task Queue (%hhu tasks, %hhu executing):\r\n", num_tasks, num_executing_tasks);
+		printf_P(PSTR("Task Queue (%hhu tasks, %hhu executing):\r\n"), num_tasks, task_executing);
 		
 		// Iterate through the list of tasks, printing name, function, and scheduled time of each
 		while (cur_task != NULL)
 		{
-			printf("\tTask %p (%p) scheduled at %lu with period %lu, %lu current\r\n", cur_task, (cur_task->func).noarg_function, cur_task->period, cur_task->scheduled_time, get_time());
+			printf_P(PSTR("\tTask %p (%p) scheduled at %lu with period %lu, %lu current\r\n"), cur_task, (cur_task->func).noarg_function, cur_task->scheduled_time, cur_task->period, get_time());
 			if(cur_task==cur_task->next) break;
 			cur_task = cur_task->next;
 		}
@@ -253,33 +268,76 @@ void print_task_queue()
 // DO NOT CALL
 void run_tasks()
 {
+	volatile Task_t* cur_task;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE) // Disable interrupts
 	{
 		// Run all tasks that are scheduled to execute in the next 2ms
 		// (The RTC compare register takes 2 RTC clock cycles to update)
 		while (task_list != NULL && task_list->scheduled_time <= get_time() + 2)
 		{
-			Task_t* cur_task = task_list;
+			cur_task = task_list;
 			task_list = cur_task->next;
-			if(cur_task->period==0) printf("Running task (%X) at %lu\t[%hhu]\r\n", cur_task, get_time(), num_tasks);				
+			//if(cur_task->period==0) printf("Running task (%X) at %lu\t[%hhu]\r\n", cur_task, get_time(), num_tasks);
+			uint8_t num_slots_used = 0;
+			for(uint8_t i=0;i<MAX_NUM_SCHEDULED_TASKS;i++)
+			{
+				if(((uint16_t)(task_storage_arr[i].func.noarg_function))!=0)
+				{
+					num_slots_used++;
+					uint16_t next_ptr = ((uint16_t)task_storage_arr[i].next);
+					if((next_ptr!=0)&&((next_ptr<task_storage_arr)||(next_ptr>(&(task_storage_arr[MAX_NUM_SCHEDULED_TASKS-1])))))
+					{
+						printf_P(PSTR("Pre-call, task %X has next_ptr pointing outside of array.\r\n"),task_storage_arr[i]);
+						delay_ms(10);
+					}
+				}
+			}
+			//printf_P(PSTR("\tCalling %X. Tasks: %2hu. Slots Used: %2hu.\r\n"),cur_task->func.noarg_function, num_tasks, num_slots_used);
+			if(num_slots_used!=num_tasks)
+			{
+				printf_P(PSTR("Pre-call, task storage consistency check failure.\r\n"));
+				delay_ms(10);				
+			}
+			
+			
 			if(cur_task->arg==NULL)
 			{
-				NONATOMIC_BLOCK(NONATOMIC_FORCEOFF) // Enable interrupts during tasks
+				NONATOMIC_BLOCK(NONATOMIC_RESTORESTATE) // Enable interrupts during tasks
 				{
 					(cur_task->func).noarg_function(); // run the task
 				}
 			}
 			else
 			{
-				NONATOMIC_BLOCK(NONATOMIC_FORCEOFF) // Enable interrupts during tasks
+				NONATOMIC_BLOCK(NONATOMIC_RESTORESTATE) // Enable interrupts during tasks
 				{
 					(cur_task->func).arg_function(cur_task->arg); // run the task
 				}
 			}
+			num_slots_used = 0;
+			for(uint8_t i=0;i<MAX_NUM_SCHEDULED_TASKS;i++)
+			{
+				if(((uint16_t)(task_storage_arr[i].func.noarg_function))!=0)
+				{
+					num_slots_used++;
+					uint16_t next_ptr = ((uint16_t)task_storage_arr[i].next);
+					if((next_ptr!=0)&&((next_ptr<task_storage_arr)||(next_ptr>(&(task_storage_arr[MAX_NUM_SCHEDULED_TASKS-1])))))
+					{
+						printf_P(PSTR("Post-call, task %X has next_ptr pointing outside of array.\r\n"),task_storage_arr[i]);
+						delay_ms(10);
+					}
+				}
+			}
+			//printf_P(PSTR("\tReturned %X. Tasks: %2hu. Slots Used: %2hu.\r\n"),cur_task->func.noarg_function, num_tasks, num_slots_used);
+			if(num_slots_used!=num_tasks)
+			{
+				printf_P(PSTR("Post-return, task storage consistency check failure.\r\n"));
+				delay_ms(10);
+			}			
 			if(cur_task->period>0)
 			{
-				uint32_t THE_TIME = get_time();
-				cur_task->scheduled_time=THE_TIME+cur_task->period;
+				//uint32_t THE_TIME = get_time();
+				cur_task->scheduled_time+=cur_task->period;
 				//(cur_task->scheduled_time)=(get_time()+(0xFFFF&((uint32_t)cur_task->period)));						
 				//printf("??%lu\r\n",cur_task->scheduled_time);
 				//if(cur_task->scheduled_time>0x01000000){
@@ -300,79 +358,93 @@ void run_tasks()
 			}
 		}
 		//If the next task to be executed was in the past, do something???
-		if (task_list != NULL && task_list_check()) task_list_cleanup();
+		if (task_list != NULL && task_list_check()){
+			//printf("From run_tasks (%ld): ", get_time()-(task_list->scheduled_time));			
+			//task_list_cleanup();
+		}
 		// If the next task to be executed is in the current epoch, set the RTC compare register and interrupt		
 		else if (task_list != NULL && task_list->scheduled_time <= ((((uint32_t)rtc_epoch) << 16) | (uint32_t)RTC.PER))
 		{	
 			while (RTC.STATUS & RTC_SYNCBUSY_bm);
-			RTC.COMP = (uint16_t)(task_list->scheduled_time);
-			RTC.INTCTRL |= RTC_COMPINTLVL_MED_gc;
+			RTC.COMP = ((uint16_t)(task_list->scheduled_time))|0x8;
+			RTC.INTCTRL |= RTC_COMP_INT_LEVEL;
 		}
 		else
 		{
-			RTC.INTCTRL &= ~RTC_COMPINTLVL_MED_gc;
+			RTC.INTCTRL &= ~RTC_COMP_INT_LEVEL;
 		}
 	}
-	
+
 	// Jump to the code that restores the registers to the state they were in
 	// before the RTC interrupt.  Program control will return to where it was before the interrupt
 	// on return from restore_registers
 	asm("jmp restore_registers");	 // must include scheduler_asm.c in the project
 }
 
-void task_list_checkup()
-{
-	uint16_t task_mem_start = (uint16_t)(&(task_storage_arr[0]));
-	uint16_t task_mem_end = task_mem_start+MAX_NUM_SCHEDULED_TASKS*sizeof(Task_t);
-	uint16_t seen_tasks[MAX_NUM_SCHEDULED_TASKS];
-	for(uint8_t i=0;i<MAX_NUM_SCHEDULED_TASKS;i++) seen_tasks[i]=0;
-	uint8_t num_tasks_seen=0;
-	uint8_t error_occurred=0;
-	checkup_task_ptr = task_list;
-	while(checkup_task_ptr!=NULL)
-	{
-		seen_tasks[num_tasks_seen] = (uint16_t)checkup_task_ptr;
-		num_tasks_seen++;		
-		
-		if(checkup_task_ptr<task_mem_start||checkup_task_ptr>task_mem_end){ 
-			printf("task_list_error address out of bounds?\r\n"); 
-			error_occurred=1; 
-		}
-		if(checkup_task_ptr->scheduled_time>0x01000000){			
-			printf("task_list_error scheduled time very large.\r\n"); 
-			error_occurred=1; 
-		}
-		if(checkup_task_ptr->period>0x01000000){
-			printf("task_list_error Period very large.\r\n"); 
-			error_occurred=1;
-		}
-		if((checkup_task_ptr->func).noarg_function==NULL){						
-			printf("task_list_error Function handle is 0.\r\n"); 
-		}
-		uint8_t repeated_task = 0;
-		uint8_t i;
-		for(i=0;i<num_tasks_seen;i++){
-			if(checkup_task_ptr->next==seen_tasks[i]){
-				repeated_task = 1;
-				error_occurred = 1;
-				break;
-			}
-		}
-		if(repeated_task)
-		{
-			printf("Task list has a loop in it.\r\n");
-		}
-		else
-		{
-			checkup_task_ptr = checkup_task_ptr->next;
-		}	
-	}
- 	if(error_occurred)
-	{
-		printf("Attempting to print task queue.\r\n");
-		print_task_queue();
-	}
-}
+//volatile static uint16_t seen_tasks[MAX_NUM_SCHEDULED_TASKS];
+//volatile static Task_t* checkup_task_ptr;
+
+//void task_list_checkup()
+//{
+	//uint16_t task_mem_start = (uint16_t)(&(task_storage_arr[0]));
+	//uint16_t task_mem_end = task_mem_start+MAX_NUM_SCHEDULED_TASKS*sizeof(Task_t);
+	//uint16_t seen_tasks[MAX_NUM_SCHEDULED_TASKS];
+	//for(uint8_t i=0;i<MAX_NUM_SCHEDULED_TASKS;i++) seen_tasks[i]=0;
+	//uint8_t num_tasks_seen=0;
+	//uint8_t error_occurred=0;
+	//uint8_t num_slots_full=0;
+	//checkup_task_ptr = task_list;
+	//while(checkup_task_ptr!=NULL)
+	//{
+		//seen_tasks[num_tasks_seen] = (uint16_t)checkup_task_ptr;
+		//num_tasks_seen++;		
+		//
+		//if(checkup_task_ptr<task_mem_start||checkup_task_ptr>task_mem_end){ 
+			//printf_P(PSTR("TASK LIST ERROR\tAddress out of bounds?\r\n")); 
+			//error_occurred=1; 
+		//}
+		//if(checkup_task_ptr->scheduled_time>0x01000000){			
+			//printf_P(PSTR("TASK LIST ERROR\tScheduled time very large.\r\n")); 
+			//error_occurred=1; 
+		//}
+		//if(checkup_task_ptr->period>0x01000000){
+			//printf_P(PSTR("TASK LIST ERROR\tPeriod very large.\r\n")); 
+			//error_occurred=1;
+		//}
+		//if((checkup_task_ptr->func).noarg_function==NULL){						
+			//printf_P(PSTR("TASK LIST ERROR\tFunction handle is 0.\r\n")); 
+		//}
+		//
+		//uint8_t repeated_task = 0;
+		//uint8_t i;
+		//for(i=0;i<num_tasks_seen;i++){
+			//if(checkup_task_ptr->next==seen_tasks[i]){
+				//repeated_task = 1;
+				//error_occurred = 1;
+				//break;
+			//}
+		//}
+		//if(repeated_task)
+		//{
+			//printf_P(PSTR("Task list has a loop in it.\r\n"));
+		//}
+		//else
+		//{
+			//checkup_task_ptr = checkup_task_ptr->next;
+		//}	
+	//}
+	////for(uint8_t i=0;i<MAX_NUM_SCHEDULED_TASKS;i++) if(((uint16_t)(task_storage_arr[i].func.noarg_function))!=0) num_slots_full++;
+	////if(num_slots_full!=num_tasks)
+	////{
+		////printf("TASK LIST ERROR\tTask Storage Arr consistency error.\r\n");
+		////error_occurred = 1;	
+	////}
+ 	//if(error_occurred)
+	//{
+		//printf_P(PSTR("Attempting to print task queue.\r\n"));
+		//print_task_queue();
+	//}
+//}
 
 // Increment rtc_epoch on RTC overflow
 // Must be atomic so no reads of get_time() occur between RTC overflow and updating of epoch
@@ -381,31 +453,48 @@ ISR( RTC_OVF_vect )
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE) // Disable interrupts
 	{
 		rtc_epoch++;
-		//printf("RTC Overflow. Current time %u\n", get_time());
-		//print_task_queue();
-
 		// If the next task to run is in the current epoch, update the RTC compare value and interrupt
 		if (task_list != NULL && task_list->scheduled_time < ((((uint32_t)rtc_epoch) << 16) | (uint32_t)RTC.PER))
 		{
-			//The next task should have already happened! Lets do it now.
-			if(task_list_check()) task_list_cleanup();
-			// updating RTC.COMP takes 2 RTC clock cycles, so only update the compare value and
-			// interrupt if the scheduled_time is more than 2ms away
-			else if (task_list->scheduled_time > get_time() + 2)
+			if(!task_executing)
 			{
-				while (RTC.STATUS & RTC_SYNCBUSY_bm);
-				RTC.COMP = (uint16_t)(task_list->scheduled_time);
-				RTC.INTCTRL |= RTC_COMPINTLVL_MED_gc;
-				return; // return from ISR
+				if(task_list->scheduled_time < get_time())
+				{
+					printf("In overflow, tasks need to have been executed!\r\n");
+					print_task_queue();
+				}
+				else				
+				{		
+					while (RTC.STATUS & RTC_SYNCBUSY_bm);
+					RTC.COMP = ((uint16_t)(task_list->scheduled_time))|0x8;
+					RTC.INTCTRL |= RTC_COMP_INT_LEVEL;
+				}
 			}
-			// If we get here, that means there's a task to execute in less than 2ms.  Jump to the ISR
-			// to handle that.
-			else
-			{
-				//RTC.INTFLAGS |= RTC_COMPIF_bm;
-				asm("jmp rtc_compare_isr"); // must include scheduler_asm.S in the project
-				return;
-			}
+						////The next task should have already happened! Lets do it now.
+			//if(task_list_check()){
+				//printf("From overflow_ISR (%ld): ", get_time()-(task_list->scheduled_time));				
+				//task_list_cleanup();
+			//}
+			//// updating RTC.COMP takes 2 RTC clock cycles, so only update the compare value and
+			//// interrupt if the scheduled_time is more than 2ms away
+			//else if (task_list->scheduled_time > get_time() + 2)
+			//{
+			//if(task_executing==0)
+			//{				
+
+			//}
+			//}
+			//// If we get here, that means there's a task to execute in less than 2ms.  Jump to the ISR
+			//// to handle that.
+			//else
+			//{
+				////RTC.INTFLAGS |= RTC_COMPIF_bm;
+				//asm("jmp rtc_compare_isr"); // must include scheduler_asm.S in the project
+			//}
+		}
+		else
+		{
+			printf("Next task not in current epoch. Task executing: %hu. Next task scheduled time: %lu. Time: %lu.\r\n", task_executing, task_list->scheduled_time, get_time());
 		}
 	}
 }

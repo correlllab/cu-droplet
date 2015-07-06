@@ -1,8 +1,8 @@
-#ifndef power_h
-#define power_h
+#pragma once
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
+#include "scheduler.h"
 
 void power_init(); //just calls cap_monitor and leg_monitor init
 void cap_monitor_init();
@@ -16,4 +16,7 @@ int8_t leg_status(uint8_t leg);
 
 uint8_t legs_powered();
 
-#endif
+void enable_leg_status_interrupt();
+void disable_leg_status_interrupt();
+
+uint32_t last_int_time;

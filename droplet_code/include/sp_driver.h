@@ -59,8 +59,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
-#ifndef SP_DRIVER_H
-#define SP_DRIVER_H
+#pragma once
 
 //#include "avr_compiler.h"
 //#include "Flash_Defines.h"
@@ -289,5 +288,3 @@ void SP_LockSPM(void);
  *   This routine waits for the SPM to finish and clears the command register.
  */
 void SP_WaitForSPM(void);
-
-#endif /* SP_DRIVER_H */

@@ -2,8 +2,7 @@
  * Low level sensing functions using IR channels.
  * Note that there is no IR communication code in this file.
  *****************************************************************************/
-#ifndef ir_led_h
-#define ir_led_h
+#pragma once
 
 #include <avr/io.h>
 #include "scheduler.h"
@@ -21,5 +20,3 @@ uint16_t curr_ir_power;
 void ir_led_init();
 void set_all_ir_powers(uint16_t power);
 inline uint16_t get_all_ir_powers(){ return curr_ir_power; }
-
-#endif

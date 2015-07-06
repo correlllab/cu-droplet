@@ -85,7 +85,7 @@ uint8_t move_steps(uint8_t direction, uint16_t num_steps)
 		switch(mot)
 		{
 			#ifdef AUDIO_DROPLET
-				case 0: printf("ERROR! In move_steps, mot_durs[0]!=0\r\n"); break;
+				case 0: printf_P(PSTR("ERROR! In move_steps, mot_durs[0]!=0\r\n")); break;
 			#else
 				case 0: TCC0.CNT = ((total_time - current_offset)%total_time); break;
 			#endif
@@ -95,7 +95,7 @@ uint8_t move_steps(uint8_t direction, uint16_t num_steps)
 		current_offset += mot_durs[mot] + 32*motor_off_time;//If we left the motor on for longer to compensate, we should wait a little longer before starting again.
 	}
 	
-	if(current_offset != total_time) printf("ERROR: current_offset: %hu and total_time: %hu not equal!\r\n", current_offset, total_time);
+	if(current_offset != total_time) printf_P(PSTR("ERROR: current_offset: %hu and total_time: %hu not equal!\r\n"), current_offset, total_time);
 	//printf("Just about to turn on motors: %lu\r\n",get_time());
 	for(uint8_t mot=0 ; mot<3 ; mot++) 	//Now we just need to tell the motors to go!
 	{
@@ -113,7 +113,7 @@ void walk(uint8_t direction, uint16_t mm)
 	uint16_t mm_per_kilostep = get_mm_per_kilostep(direction);
 	float mm_per_step = (1.0*mm_per_kilostep)/1000.0;
 	float steps = (1.0*mm)/mm_per_step;
-	printf("In order to go in direction %u for %u mm, taking %u steps.\r\n",direction, mm, (uint16_t)steps);
+	printf_P(PSTR("In order to go in direction %u for %u mm, taking %u steps.\r\n"),direction, mm, (uint16_t)steps);
 	move_steps(direction, (uint16_t)steps);
 }
 
@@ -194,10 +194,10 @@ void write_motor_settings()
 
 void print_motor_values()
 {
-	printf("Motor Values\r\n");
+	printf_P(PSTR("Motor Values\r\n"));
 	for(uint8_t direction=0;direction<8;direction++)
 	{
-		printf("\tdir: %d\t",direction);
+		printf_P(PSTR("\tdir: %d\t"),direction);
 		for(uint8_t motor=0;motor<3;motor++)
 		{
 			printf("%d\t", motor_adjusts[direction][motor]);
@@ -213,9 +213,9 @@ void broadcast_motor_adjusts()
 
 void print_dist_per_step()
 {
-	printf("Dist (mm) per kilostep\r\n");
+	printf_P(PSTR("Dist (mm) per kilostep\r\n"));
 	for(uint8_t direction = 0 ; direction<8; direction++)
 	{
-		printf("\t%i\t%hu\r\n", direction, mm_per_kilostep[direction]);	
+		printf_P(PSTR("\t%i\t%hu\r\n"), direction, mm_per_kilostep[direction]);	
 	}
 }

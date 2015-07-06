@@ -12,16 +12,16 @@ void rgb_sensor_init()
 										0x80, 0x03};  // Write 0x03 to ENABLE register, activating the ADC (and leaving the oscillator on);
 
 		uint8_t result = TWI_MasterWrite(RGB_SENSE_ADDR, &(power_on_sequence[0]), 2);
-		if(!result)	printf("RGB sense power-on failed (1).\r\n");
+		if(!result)	printf_P(RGB_SENSE_POWERON_FAILURE,1);
 		delay_ms(5);
 		result = TWI_MasterWrite(RGB_SENSE_ADDR, &(power_on_sequence[2]), 2);
-		if(!result)	printf("RGB sense power-on failed (2).\r\n");
+		if(!result)	printf_P(RGB_SENSE_POWERON_FAILURE,2);
 		delay_ms(5);
 		result = TWI_MasterWrite(RGB_SENSE_ADDR, &(power_on_sequence[4]), 2);
-		if(!result)	printf("RGB sense power-on failed (3).\r\n");
+		if(!result)	printf_P(RGB_SENSE_POWERON_FAILURE,3);
 		delay_ms(5);
 		result = TWI_MasterWrite(RGB_SENSE_ADDR, &(power_on_sequence[6]), 2);
-		if(!result)	printf("RGB sense power-on failed (4).\r\n");
+		if(!result)	printf_P(RGB_SENSE_POWERON_FAILURE,4);
 		delay_ms(5);
 	#else		
 		RGB_SENSOR_PORT.DIRCLR = RGB_SENSOR_R_PIN_bm | RGB_SENSOR_G_PIN_bm | RGB_SENSOR_B_PIN_bm;
@@ -57,7 +57,7 @@ void rgb_sensor_init()
 			g_avg+=get_green_sensor();
 			b_avg+=get_blue_sensor();
 			delay_ms(10);
-			printf("\r\n");
+			//printf("\r\n");
 		}
 		r_baseline= r_avg/num_samples;
 		g_baseline= g_avg/num_samples;
@@ -138,7 +138,7 @@ void read_color_settings()
 		}
 		//printf("\r\n");
 	#else
-		printf("ERROR: Audio droplets don't use color_settings.\r\n");
+		printf_P(PSTR("ERROR: Audio droplets don't use color_settings.\r\n"));
 	#endif		
 }
 
@@ -156,7 +156,7 @@ void get_rgb(uint16_t *r, uint16_t *g, uint16_t *b)
 			*g=temp_values[2];
 			*b=temp_values[3];
 		}
-		else printf("Read failed.\r\n");
+		else printf_P(PSTR("Read failed.\r\n"));
 	#else
 		int16_t rTemp,gTemp,bTemp;
 	

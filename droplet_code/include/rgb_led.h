@@ -1,5 +1,4 @@
-#ifndef __rgb_led_H__
-#define __rgb_led_H__
+#pragma once
 
 #include "avr/io.h" //includes stdlib
 #include <stdlib.h>
@@ -34,5 +33,3 @@ void led_off();
 void set_rgb(uint8_t r, uint8_t g, uint8_t b);
 void set_hsv(uint16_t h, uint8_t s, uint8_t v);
 void hsv_to_rgb(uint16_t h, uint8_t s, uint8_t v, uint8_t* r, uint8_t* g, uint8_t* b);
-
-#endif

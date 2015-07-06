@@ -1,5 +1,4 @@
-#ifndef SCHEDULER_H
-#define SCHEDULER_H
+#pragma once
 
 #define F_CPU 32000000UL
 
@@ -8,9 +7,15 @@
 #include <util/atomic.h>
 #include <util/delay.h>
 #include <stdio.h>
+#include <avr/pgmspace.h>
 #include "rgb_led.h"
 
+
+#define RTC_COMP_INT_LEVEL RTC_COMPINTLVL_LO_gc;
+
 #define MAX_NUM_SCHEDULED_TASKS 10
+
+#define MIN_TASK_TIME_IN_FUTURE 20
 
 typedef union flex_function
 {
@@ -34,10 +39,10 @@ typedef struct task
 
 // Global task list
 // Linked list of tasks, sorted by time until execution
-Task_t *task_list;
+volatile Task_t *task_list;
 
 volatile uint16_t rtc_epoch;
-volatile uint8_t num_tasks, num_executing_tasks;
+volatile uint8_t num_tasks, task_executing;
 
 // Get the current 32-bit time, as measured in ms from the last reset
 inline volatile extern uint32_t get_time() __attribute__((OS_task));
@@ -46,9 +51,8 @@ void scheduler_init();
 void Config32MHzClock(void);
 void delay_ms(uint16_t ms);
 static inline void delay_us(double __us){ _delay_us(__us); }
-//Returns '1' if the next task to run is scheduled for the past. If this occurs, call task_list_cleanup.
-inline uint8_t task_list_check(){ return task_list->scheduled_time < get_time(); }
 void task_list_cleanup();
+
 /* 
  * Adds a new task to the task queue
  * time is number of milliseconds from present until function is executed
@@ -58,9 +62,9 @@ void task_list_cleanup();
  * will call foo(55) in one second
  * Returns a pointer to the task that can be used to remove the task from the queue
  */
-Task_t* schedule_task(uint32_t time, void (*function)(void*), void* arg);
+Task_t* schedule_task(uint32_t time, void (*function)(), void* arg);
 // This function primarily calls the above, but always to run 10ms in the future, and then repeat with a certain period.
-Task_t* schedule_periodic_task(uint32_t period, void (*function)(void*), void* arg);
+Task_t* schedule_periodic_task(uint32_t period, void (*function)(), void* arg);
 void add_task_to_list(Task_t* task);
 void remove_task(Task_t* task); // Removes a task from the queue
 void print_task_queue();
@@ -74,7 +78,7 @@ void restore_registers() __attribute__((naked));
  * We'll keep an array of MAX_NUM_SCHEDULED_TASKS Task_t structs, and fake_malloc()
  * will return pointers to those as appropriate.
  */
-static Task_t task_storage_arr[MAX_NUM_SCHEDULED_TASKS];
+static volatile Task_t task_storage_arr[MAX_NUM_SCHEDULED_TASKS];
 //static uint8_t curr_pointer;
 
 
@@ -105,9 +109,16 @@ static inline Task_t* scheduler_malloc()
 		}
 	}
 	
-	printf("No empty spot found in scheduler_malloc, but num_tasks wasn't greater than or equal max_tasks.\r\n");
+	printf_P(PSTR("No empty spot found in scheduler_malloc, but num_tasks wasn't greater than or equal max_tasks.\r\n"));
 	return NULL;
 
+}
+
+//Returns '1' if the next task to run is scheduled for more than 255ms in the past. If this occurs, call task_list_cleanup.
+inline uint8_t task_list_check()
+{ 
+	if(task_executing)	return 0;
+	else				return (((int32_t)(get_time()-(task_list->scheduled_time)))>255); 
 }
 
 //static inline void scheduler_free(Task_t* tgt)
@@ -133,9 +144,4 @@ static inline void scheduler_free(Task_t* tgt)
 	tgt->next = NULL;
 }
 
-volatile static uint16_t seen_tasks[MAX_NUM_SCHEDULED_TASKS];
-volatile static Task_t* checkup_task_ptr;
-
-void task_list_checkup();
-
-#endif
+//void task_list_checkup();

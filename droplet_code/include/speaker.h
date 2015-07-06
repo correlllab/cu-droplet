@@ -1,8 +1,8 @@
-#ifndef SPEAKER_H
-#define SPEAKER_H
+#pragma once
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
+#include <avr/pgmspace.h>
 #include "scheduler.h"
 
 #define MAX_NOTES_PER_SONG 128
@@ -104,5 +104,3 @@ void play_song(uint8_t* notes, uint16_t* durs, uint8_t song_len, uint8_t pauses)
 #define NOTE_C2		3821
 
 extern const uint16_t note_values[6][12]; // defined in speaker.c
-
-#endif

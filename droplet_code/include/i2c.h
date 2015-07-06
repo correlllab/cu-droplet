@@ -56,10 +56,10 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
-#ifndef TWI_MASTER_DRIVER_H
-#define TWI_MASTER_DRIVER_H
+#pragma once
 
 #include <avr/io.h>
+#include <avr/pgmspace.h>
 #include "scheduler.h"
 
 //#include "avr_compiler.h"
@@ -130,5 +130,3 @@ void TWI_MasterArbitrationLostBusErrorHandler();
 void TWI_MasterWriteHandler();
 void TWI_MasterReadHandler();
 void TWI_MasterTransactionFinished(uint8_t result);
-
-#endif /* TWI_MASTER_DRIVER_H */

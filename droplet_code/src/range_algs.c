@@ -76,38 +76,41 @@ void use_rnb_data()
 	uint8_t power = 255;
 	uint8_t brightness_matrix[6][6];
 	uint8_t error = pack_measurements_into_matrix(brightness_matrix);
-	if(error) return;
-	/*
-	For testing, comment out the above and use a hardcoded matrix from the mathematica notebook.
-	uint8_t brightness_matrix[6][6] = {
-		{0, 0, 0, 0, 0, 0},
-		{0, 0, 0, 0, 0, 0},
-		{0, 0, 0, 0, 0, 0},
-		{0, 0, 0, 0, 0, 0},
-		{0, 0, 0, 0, 0, 0},
-		{0, 0, 0, 0, 0, 0}
-	};
-	*/
-	//print_brightness_matrix(brightness_matrix);
+	if(!error)
+	{
+		/*
+		For testing, comment out the above and use a hardcoded matrix from the mathematica notebook.
+		uint8_t brightness_matrix[6][6] = {
+			{0, 0, 0, 0, 0, 0},
+			{0, 0, 0, 0, 0, 0},
+			{0, 0, 0, 0, 0, 0},
+			{0, 0, 0, 0, 0, 0},
+			{0, 0, 0, 0, 0, 0},
+			{0, 0, 0, 0, 0, 0}
+		};
+		*/
+		//print_brightness_matrix(brightness_matrix);
 	
-	uint8_t emitter_total[6];
-	uint8_t sensor_total[6];
-	fill_S_and_T(brightness_matrix, sensor_total, emitter_total);
+		uint8_t emitter_total[6];
+		uint8_t sensor_total[6];
+		fill_S_and_T(brightness_matrix, sensor_total, emitter_total);
 	
-	float bearing = get_bearing(sensor_total);
-	float heading = get_heading(emitter_total, bearing);
+		float bearing = get_bearing(sensor_total);
+		float heading = get_heading(emitter_total, bearing);
 	
-	float initial_range = get_initial_range_guess(bearing, heading, power, sensor_total, emitter_total, brightness_matrix);
-	if(initial_range==0) return; //Some error occurred.
-	float range = range_estimate(initial_range, bearing, heading, power, brightness_matrix);
+		float initial_range = get_initial_range_guess(bearing, heading, power, sensor_total, emitter_total, brightness_matrix);
+		if(initial_range)
+		{
+			float range = range_estimate(initial_range, bearing, heading, power, brightness_matrix);
+			last_good_rnb.range = range;
+			last_good_rnb.bearing = bearing;
+			last_good_rnb.heading = heading;
+			last_good_rnb.brightness_matrix_ptr = brightness_matrix;
+			last_good_rnb.id_number = cmd_sender_id;
 	
-	last_good_rnb.range = range;
-	last_good_rnb.bearing = bearing;
-	last_good_rnb.heading = heading;
-	last_good_rnb.brightness_matrix_ptr = brightness_matrix;
-	last_good_rnb.id_number = cmd_sender_id;
-	
-	rnb_updated=1;
+			rnb_updated=1;
+		}
+	}
 }
 
 float get_bearing(uint8_t sensor_total[6])
@@ -446,7 +449,7 @@ float amplitude_model(float r, uint8_t power)
 {
 	if(power==255)			return 2*(1.36255 + (298.285/((0.691321+r)*(0.691321+r))));
 	//else if(power ==250)	return (1100./((r-4.)*(r-4.)))+12.5;
-	else					printf("ERROR: Unexpected power: %hhu\r\n",power);
+	else					printf_P(PSTR("ERROR: Unexpected power: %hhu\r\n"),power);
 	return 0;
 }
 
@@ -454,18 +457,18 @@ float inverse_amplitude_model(float ADC_val, uint8_t power)
 {
 	if(power == 255)		return (19.6587/sqrtf(ADC_val/2.-1.36255)) - 1.19672;
 	//else if(power == 250) return (33.166/sqrtf(ADC_val - 12.5)) + 4;
-	else					printf("ERROR: Unexpected power: %hhu\r\n",power);
+	else					printf_P(PSTR("ERROR: Unexpected power: %hhu\r\n"),power);
 	return 0;
 }
 
 
 void debug_print_timer(uint32_t timer[14])
 {
-	printf("Duration: %lu\r\n",(timer[13] - timer[0]));
+	printf_P(PSTR("Duration: %lu\r\n"),(timer[13] - timer[0]));
 	printf("|  ");
 	for(uint8_t i=1 ; i<13 ; i++)
 	{
-		printf("%3lu  |  ",timer[i] - timer[i-1]);
+		printf_P(PSTR("%3lu  |  "),timer[i] - timer[i-1]);
 	}
 	printf("\r\n");
 }
@@ -489,13 +492,13 @@ void print_brightness_matrix(uint8_t brightness_matrix[6][6])
 
 void brightness_meas_printout_mathematica()
 {
-	printf("data = {");
+	printf_P(PSTR("data = {"));
 		for(uint8_t emitter_num = 0; emitter_num < 6; emitter_num++)
 		{
 			printf("\r\n{");
 				for(uint8_t sensor_num = 0; sensor_num < 6; sensor_num++)
 				{
-					printf("\r\n(*e%u,s%u*){", emitter_num, sensor_num);
+					printf_P(PSTR("\r\n(*e%u,s%u*){"), emitter_num, sensor_num);
 						for(uint8_t meas_num = 0; meas_num < NUMBER_OF_RB_MEASUREMENTS; meas_num++)
 						{
 							if(meas_num == 10)
@@ -506,5 +509,5 @@ void brightness_meas_printout_mathematica()
 				}
 			printf("\b},");
 		}
-	printf("\b};\r\n");
+	printf_P(PSTR("\b};\r\n"));
 }

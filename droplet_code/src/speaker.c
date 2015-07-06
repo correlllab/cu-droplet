@@ -87,7 +87,7 @@ void speaker_init()
 
 	song_playing = 0;
 	#else
-	printf("ERROR: speaker_init called, but this Droplet doesn't have a speaker.\r\n");
+	printf_P(PSTR("ERROR: speaker_init called, but this Droplet doesn't have a speaker.\r\n"));
 	#endif
 }
 
@@ -108,6 +108,6 @@ void play_song(uint8_t* notes, uint16_t* durs, uint8_t song_len, uint8_t pauses)
 	if(auto_pause) schedule_task(durs[0]-NOTE_SWITCH_DUR_MS, brief_pause, NULL);
 	schedule_task(durs[0], switch_sound, NULL);
 	#else
-	printf("ERROR: play_song called, but this Droplet doesn't have a speaker.\r\n");
+	printf_P(PSTR("ERROR: play_song called, but this Droplet doesn't have a speaker.\r\n"));
 	#endif
 }

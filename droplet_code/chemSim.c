@@ -822,12 +822,6 @@ void loop()
 	delay_ms(LOOP_PERIOD);
 	//broadcastChemID(myID);
 	
-	if(((int32_t)(get_time()-task_list->scheduled_time))>124)
-	{
-		printf("Task list got lost. :(\r\n");
-	}
-	
-	
 	uint32_t time_floor = ((get_time()/LOOP_PERIOD));
 	if((time_floor%(DETECT_OTHER_DROPLETS_PERIOD/LOOP_PERIOD))==0){
 		detectOtherDroplets();

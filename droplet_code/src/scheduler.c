@@ -120,6 +120,10 @@ Task_t* schedule_task(uint32_t time, void (*function)(), void* arg)
 	{
 		new_task = scheduler_malloc();
 		if (new_task == NULL) return NULL;
+		else if((new_task<task_storage_arr)||(new_task>(&(task_storage_arr[MAX_NUM_SCHEDULED_TASKS-1]))))
+		{
+			printf_P(PSTR("ERROR: scheduler_malloc returned a new_task pointer outside of the task storage array.\r\n"));
+		}
 
 		time+=MIN_TASK_TIME_IN_FUTURE*(time<MIN_TASK_TIME_IN_FUTURE);	
 		new_task->scheduled_time = time + get_time();
@@ -271,13 +275,27 @@ void run_tasks()
 			task_list = cur_task->next;
 			//if(cur_task->period==0) printf("Running task (%X) at %lu\t[%hhu]\r\n", cur_task, get_time(), num_tasks);
 			uint8_t num_slots_used = 0;
-			for(uint8_t i=0;i<MAX_NUM_SCHEDULED_TASKS;i++) if(((uint16_t)(task_storage_arr[i].func.noarg_function))!=0) num_slots_used++;	
+			for(uint8_t i=0;i<MAX_NUM_SCHEDULED_TASKS;i++)
+			{
+				if(((uint16_t)(task_storage_arr[i].func.noarg_function))!=0)
+				{
+					num_slots_used++;
+					uint16_t next_ptr = ((uint16_t)task_storage_arr[i].next);
+					if((next_ptr!=0)&&((next_ptr<task_storage_arr)||(next_ptr>(&(task_storage_arr[MAX_NUM_SCHEDULED_TASKS-1])))))
+					{
+						printf_P(PSTR("Pre-call, task %X has next_ptr pointing outside of array.\r\n"),task_storage_arr[i]);
+						delay_ms(10);
+					}
+				}
+			}
 			//printf_P(PSTR("\tCalling %X. Tasks: %2hu. Slots Used: %2hu.\r\n"),cur_task->func.noarg_function, num_tasks, num_slots_used);
 			if(num_slots_used!=num_tasks)
 			{
 				printf_P(PSTR("Pre-call, task storage consistency check failure.\r\n"));
 				delay_ms(10);				
 			}
+			
+			
 			if(cur_task->arg==NULL)
 			{
 				NONATOMIC_BLOCK(NONATOMIC_RESTORESTATE) // Enable interrupts during tasks
@@ -293,7 +311,19 @@ void run_tasks()
 				}
 			}
 			num_slots_used = 0;
-			for(uint8_t i=0;i<MAX_NUM_SCHEDULED_TASKS;i++) if(((uint16_t)(task_storage_arr[i].func.noarg_function))!=0) num_slots_used++;	
+			for(uint8_t i=0;i<MAX_NUM_SCHEDULED_TASKS;i++)
+			{
+				if(((uint16_t)(task_storage_arr[i].func.noarg_function))!=0)
+				{
+					num_slots_used++;
+					uint16_t next_ptr = ((uint16_t)task_storage_arr[i].next);
+					if((next_ptr!=0)&&((next_ptr<task_storage_arr)||(next_ptr>(&(task_storage_arr[MAX_NUM_SCHEDULED_TASKS-1])))))
+					{
+						printf_P(PSTR("Post-call, task %X has next_ptr pointing outside of array.\r\n"),task_storage_arr[i]);
+						delay_ms(10);
+					}
+				}
+			}
 			//printf_P(PSTR("\tReturned %X. Tasks: %2hu. Slots Used: %2hu.\r\n"),cur_task->func.noarg_function, num_tasks, num_slots_used);
 			if(num_slots_used!=num_tasks)
 			{
@@ -347,11 +377,11 @@ void run_tasks()
 	asm("jmp restore_registers");	 // must include scheduler_asm.c in the project
 }
 
-volatile static uint16_t seen_tasks[MAX_NUM_SCHEDULED_TASKS];
-volatile static Task_t* checkup_task_ptr;
+//volatile static uint16_t seen_tasks[MAX_NUM_SCHEDULED_TASKS];
+//volatile static Task_t* checkup_task_ptr;
 
-void task_list_checkup()
-{
+//void task_list_checkup()
+//{
 	//uint16_t task_mem_start = (uint16_t)(&(task_storage_arr[0]));
 	//uint16_t task_mem_end = task_mem_start+MAX_NUM_SCHEDULED_TASKS*sizeof(Task_t);
 	//uint16_t seen_tasks[MAX_NUM_SCHEDULED_TASKS];
@@ -410,7 +440,7 @@ void task_list_checkup()
 		//printf_P(PSTR("Attempting to print task queue.\r\n"));
 		//print_task_queue();
 	//}
-}
+//}
 
 // Increment rtc_epoch on RTC overflow
 // Must be atomic so no reads of get_time() occur between RTC overflow and updating of epoch
@@ -460,7 +490,7 @@ ISR( RTC_OVF_vect )
 		}
 		else
 		{
-			printf("Next task not in current epoch.\r\n");
+			printf("Next task not in current epoch. Task executing: %hu. Next task scheduled time: %lu. Time: %lu.\r\n", task_executing, task_list->scheduled_time, get_time());
 		}
 	}
 }

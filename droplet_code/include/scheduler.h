@@ -144,4 +144,4 @@ static inline void scheduler_free(Task_t* tgt)
 	tgt->next = NULL;
 }
 
-void task_list_checkup();
+//void task_list_checkup();

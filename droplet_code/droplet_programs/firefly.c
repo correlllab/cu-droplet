@@ -1,4 +1,4 @@
-#include "firefly.h"
+#include "droplet_programs/firefly.h"
 
 void init()
 {
@@ -35,15 +35,7 @@ void loop()
 
 void handle_msg(ir_msg* msg_struct)
 {
-	if (state == LISTEN) // Only parse messages when in LISTEN state
-    {
-        if(strcmp(msg_struct->msg, "<3") == 0)
-        {
-            double alpha = exp(b * eps);
-            double beta = (alpha - 1) / (exp(b) - 1);
-            listen_time = fmin(alpha * listen_time/BASE_LISTEN_TIME + beta, 1.) * BASE_LISTEN_TIME;
-        }
-    }
+
 }
 
 /*
@@ -51,10 +43,18 @@ void handle_msg(ir_msg* msg_struct)
 * it should return '1' if the command_word is a valid command, and '0', 
 * otherwise.
 */
-//uint8_t user_handle_command(char* command_word, char* command_args)
-//{
-//
-//}
+uint8_t user_handle_command(char* command_word, char* command_args)
+{
+	if (state == LISTEN) // Only parse messages when in LISTEN state
+	{
+		if(strcmp(command_word, "<3") == 0)
+		{
+			double alpha = exp(b * eps);
+			double beta = (alpha - 1) / (exp(b) - 1);
+			listen_time = fmin(alpha * listen_time/BASE_LISTEN_TIME + beta, 1.) * BASE_LISTEN_TIME;
+		}
+	}
+}
 
 void change_state(State new_state)
 {

@@ -1,5 +1,6 @@
 #ifndef FIREFLY_SYNC
 #define FIREFLY_SYNC
+
 #include "droplet_init.h"
 
 #define REF_DELAY	        512   // ms
@@ -15,8 +16,8 @@ typedef enum
 State state;
 
 uint32_t state_start_time, last_update_time;
-double listen_time;
-double b, eps;
+volatile float listen_time;
+float b, eps;
 
 void change_state(State new_state);
 

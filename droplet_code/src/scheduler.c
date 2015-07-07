@@ -101,18 +101,19 @@ void task_list_cleanup()
 			{
 				if(&(task_storage_arr[i])==task_ptr_arr[j])
 				{
-					printf_P(PSTR("\tSaving task %X because it is periodic.\r\n"),&(task_storage_arr[i]));
+					//printf_P(PSTR("\tSaving task %X because it is periodic.\r\n"),&(task_storage_arr[i]));
 					task_is_periodic = 1;
 					break;
 				}
 			}	
 			if(!task_is_periodic)
 			{
-				printf_P(PSTR("\tClearing memory of task %X.\r\n"), &(task_storage_arr[i]));
+				//printf_P(PSTR("\tClearing memory of task %X.\r\n"), &(task_storage_arr[i]));
 				remove_task(&(task_storage_arr[i]));
 			}
 			task_is_periodic = 0;
 		}
+		num_tasks = 0;
 		task_list=NULL; //Now, the task list has been cleared out, but only non-periodic tasks have had their memory purged.
 		for(uint8_t i=0;i<num_periodic_tasks;i++)
 		{

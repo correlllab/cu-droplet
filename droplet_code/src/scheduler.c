@@ -1,13 +1,10 @@
 #include "scheduler.h"
 
-static uint32_t last_schedule_task_call;
-
 void scheduler_init()
 {
 	task_list = NULL;
 	num_tasks = 0;
 	task_executing = 0;
-	last_schedule_task_call = 0;
 	for(uint8_t i=0; i<MAX_NUM_SCHEDULED_TASKS; i++) scheduler_free(&task_storage_arr[i]);
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)  // Disable interrupts during initialization
 	{
@@ -131,10 +128,7 @@ void task_list_cleanup()
 // function is a function pointer to execute
 // arg is the argument to supply to function
 Task_t* schedule_task(uint32_t time, void (*function)(), void* arg)
-{
-	if(get_time()-last_schedule_task_call<50) return NULL;
-	last_schedule_task_call = get_time();
-	
+{	
 	volatile Task_t* new_task;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 	{

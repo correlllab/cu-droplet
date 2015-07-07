@@ -118,7 +118,7 @@ static inline Task_t* scheduler_malloc()
 inline uint8_t task_list_check()
 { 
 	if(task_executing)	return 0;
-	else				return (((int32_t)(get_time()-(task_list->scheduled_time)))>255); 
+	else				return (((int32_t)(get_time()-(task_list->scheduled_time)))>3000); 
 }
 
 //static inline void scheduler_free(Task_t* tgt)

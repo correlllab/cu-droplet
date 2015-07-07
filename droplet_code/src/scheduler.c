@@ -71,8 +71,12 @@ void delay_ms(uint16_t ms)
 //This function checks for errors or inconsistencies in the task list, and attempts to correct them.
 void task_list_cleanup()
 {
-	printf_P(PSTR("Error! We got ahead of the task list and now nothing will execute.\r\nDropping all non-periodic tasks.\r\nIf you only see this rarely, don't worry too much.\r\n\tTask executing: %hu\r\n"),task_executing);
-	
+	printf_P(PSTR("Error! We got ahead of the task list and now nothing will execute.\r\n\tDropping all non-periodic tasks.\r\n\tIf you only see this rarely, don't worry too much.\r\n\tTask executing: %hu\r\n"),task_executing);
+	printf("\tTime Difference: %ld\r\n",((int32_t)(get_time()-(task_list->scheduled_time))));	
+	printf("\tTime: %\lu\r\n",get_time());
+	return;
+	delay_ms(50);
+	delay_ms(50);
 	volatile Task_t* cur_task = task_list;
 	volatile Task_t* task_ptr_arr[MAX_NUM_SCHEDULED_TASKS];
 	uint8_t num_periodic_tasks = 0;
@@ -300,7 +304,8 @@ void run_tasks()
 					uint16_t next_ptr = ((uint16_t)task_storage_arr[i].next);
 					if((next_ptr!=0)&&((next_ptr<task_storage_arr)||(next_ptr>(&(task_storage_arr[MAX_NUM_SCHEDULED_TASKS-1])))))
 					{
-						printf_P(PSTR("Pre-call, task %X has next_ptr pointing outside of array.\r\n"),task_storage_arr[i]);
+						printf_P(PSTR("Pre-call, task has next_ptr pointing outside of array.\r\n"));
+						printf("\t%X\r\n",&(task_storage_arr[i]));
 						delay_ms(10);
 					}
 				}

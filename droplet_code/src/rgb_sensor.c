@@ -1,113 +1,72 @@
 #include "rgb_sensor.h"
+#define RGB_SENSE_ADDR 0x29
+
+
 
 void rgb_sensor_init()
 {
-	RGB_SENSOR_PORT.DIRCLR = RGB_SENSOR_R_PIN_bm | RGB_SENSOR_G_PIN_bm | RGB_SENSOR_B_PIN_bm;
+	#ifdef AUDIO_DROPLET
+		uint8_t power_on_sequence[8] = {0x80, 0x01,  // Write 0x01 to ENABLE register, activating the device's oscillator.
+										0x8F, 0x01,  // Write 0x01 to CONTROL register, setting the gain to x4.
+										0x81, 0xD5,	 // Write 0xD5 to ATIME register, setting the integration time to 2.4ms*(256-ATIME)
+										0x80, 0x03};  // Write 0x03 to ENABLE register, activating the ADC (and leaving the oscillator on);
 
-	ADCA.REFCTRL = ADC_REFSEL_AREFA_gc;
-	ADCA.CTRLB = ADC_RESOLUTION_LEFT12BIT_gc | ADC_CONMODE_bm;
-	ADCA.PRESCALER = ADC_PRESCALER_DIV256_gc;
-	/* When differential input is used, signed mode must be used. (sec. 28.6 of Manual) */
+		uint8_t result = TWI_MasterWrite(RGB_SENSE_ADDR, &(power_on_sequence[0]), 2);
+		if(!result)	printf_P(RGB_SENSE_POWERON_FAILURE,1);
+		delay_ms(5);
+		result = TWI_MasterWrite(RGB_SENSE_ADDR, &(power_on_sequence[2]), 2);
+		if(!result)	printf_P(RGB_SENSE_POWERON_FAILURE,2);
+		delay_ms(5);
+		result = TWI_MasterWrite(RGB_SENSE_ADDR, &(power_on_sequence[4]), 2);
+		if(!result)	printf_P(RGB_SENSE_POWERON_FAILURE,3);
+		delay_ms(5);
+		result = TWI_MasterWrite(RGB_SENSE_ADDR, &(power_on_sequence[6]), 2);
+		if(!result)	printf_P(RGB_SENSE_POWERON_FAILURE,4);
+		delay_ms(5);
+	#else		
+		RGB_SENSOR_PORT.DIRCLR = RGB_SENSOR_R_PIN_bm | RGB_SENSOR_G_PIN_bm | RGB_SENSOR_B_PIN_bm;
 
-	ADCA.CH0.CTRL = ADC_CH_INPUTMODE_DIFFWGAIN_gc | ADC_CH_GAIN_1X_gc;	//Probably should turn the gain back up to 4X when we put the shells on.
-	ADCA.CH1.CTRL = ADC_CH_INPUTMODE_DIFFWGAIN_gc | ADC_CH_GAIN_1X_gc;	//Probably should turn the gain back up to 4X when we put the shells on.
-	ADCA.CH2.CTRL = ADC_CH_INPUTMODE_DIFFWGAIN_gc | ADC_CH_GAIN_2X_gc;	//Probably should turn the gain back up to 4X when we put the shells on.
-	
-	ADCA.CH0.MUXCTRL = ADC_CH_MUXPOS_PIN5_gc | ADC_CH_MUXNEG_INTGND_MODE4_gc;	// Red sensor on ADC A channel 0
-	ADCA.CH1.MUXCTRL = ADC_CH_MUXPOS_PIN6_gc | ADC_CH_MUXNEG_INTGND_MODE4_gc;	// Green sensor on ADC A channel 1
-	ADCA.CH2.MUXCTRL = ADC_CH_MUXPOS_PIN7_gc | ADC_CH_MUXNEG_INTGND_MODE4_gc;	// Blue sensor on ADC A channel 2
-	
-	ADCA.CALL = PRODSIGNATURES_ADCACAL0;
-	ADCA.CALH = PRODSIGNATURES_ADCACAL1;	
+		ADCA.REFCTRL = ADC_REFSEL_AREFA_gc;
+		ADCA.CTRLB = ADC_RESOLUTION_LEFT12BIT_gc | ADC_CONMODE_bm;
+		ADCA.PRESCALER = ADC_PRESCALER_DIV256_gc;
+		/* When differential input is used, signed mode must be used. (sec. 28.6 of Manual) */
 
-	ADCA.CTRLA = ADC_ENABLE_bm;
+		ADCA.CH0.CTRL = ADC_CH_INPUTMODE_DIFFWGAIN_gc | ADC_CH_GAIN_1X_gc;	//Probably should turn the gain back up to 4X when we put the shells on.
+		ADCA.CH1.CTRL = ADC_CH_INPUTMODE_DIFFWGAIN_gc | ADC_CH_GAIN_1X_gc;	//Probably should turn the gain back up to 4X when we put the shells on.
+		ADCA.CH2.CTRL = ADC_CH_INPUTMODE_DIFFWGAIN_gc | ADC_CH_GAIN_2X_gc;	//Probably should turn the gain back up to 4X when we put the shells on.
 	
-	//read_color_settings();
+		ADCA.CH0.MUXCTRL = ADC_CH_MUXPOS_PIN5_gc | ADC_CH_MUXNEG_INTGND_MODE4_gc;	// Red sensor on ADC A channel 0
+		ADCA.CH1.MUXCTRL = ADC_CH_MUXPOS_PIN6_gc | ADC_CH_MUXNEG_INTGND_MODE4_gc;	// Green sensor on ADC A channel 1
+		ADCA.CH2.MUXCTRL = ADC_CH_MUXPOS_PIN7_gc | ADC_CH_MUXNEG_INTGND_MODE4_gc;	// Blue sensor on ADC A channel 2
 	
-	delay_us(50);
-	const int8_t num_samples = 3;
-	get_red_sensor(); get_blue_sensor(); get_green_sensor();
-	delay_ms(10);
-	int16_t r_avg=0, g_avg=0, b_avg=0;
-	for(uint8_t i=0; i<num_samples; i++)
-	{
-		r_avg+=get_red_sensor();
-		g_avg+=get_green_sensor();
-		b_avg+=get_blue_sensor();
+		ADCA.CALL = PRODSIGNATURES_ADCACAL0;
+		ADCA.CALH = PRODSIGNATURES_ADCACAL1;
+
+		ADCA.CTRLA = ADC_ENABLE_bm;
+	
+		//read_color_settings();
+	
+		delay_us(50);
+		const int8_t num_samples = 3;
+		get_red_sensor(); get_blue_sensor(); get_green_sensor();
 		delay_ms(10);
-		printf("\r\n");
-	}
-	r_baseline= r_avg/num_samples;
-	g_baseline= g_avg/num_samples;
-	b_baseline= b_avg/num_samples;
-	printf("Baselines:\r\n%3d  %3d  %3d\r\n", r_baseline, g_baseline, b_baseline);
+		int16_t r_avg=0, g_avg=0, b_avg=0;
+		for(uint8_t i=0; i<num_samples; i++)
+		{
+			r_avg+=get_red_sensor();
+			g_avg+=get_green_sensor();
+			b_avg+=get_blue_sensor();
+			delay_ms(10);
+			//printf("\r\n");
+		}
+		r_baseline= r_avg/num_samples;
+		g_baseline= g_avg/num_samples;
+		b_baseline= b_avg/num_samples;
+		//printf("Baselines:\r\n%3d  %3d  %3d\r\n", r_baseline, g_baseline, b_baseline);	
+	#endif		
 }
 
-// Still not convinced that we should have the conditional, instead of just telling people
-// that if their lights are on they won't get good values, here.
-void get_rgb_sensors(int8_t* r, int8_t* g, int8_t* b)
-{
-	uint8_t led_r = get_red_led();
-	uint8_t led_g = get_green_led();
-	uint8_t led_b = get_blue_led();
-	
-	if(led_r || led_g || led_b)
-	{
-		set_rgb(0,0,0);
-		delay_ms(LED_OFF_DELAY_MS);
-	} 
-	
-	//*r = (int8_t)((((rResH&0x08)<<4)|((rResH&0x01)<<6))|((rResL&0xFC)>>2));
-	//*g = (int8_t)((((gResH&0x08)<<4)|((gResH&0x01)<<6))|((gResL&0xFC)>>2));	
-	//*b = (int8_t)((((bResH&0x08)<<4)|((bResH&0x01)<<6))|((bResL&0xFC)>>2));	
-
-	int8_t rTemp,gTemp,bTemp;
-	
-	rTemp = get_red_sensor();
-	gTemp = get_green_sensor();		
-	bTemp = get_blue_sensor();	
-
-	rTemp=rTemp-r_baseline;
-	gTemp=gTemp-g_baseline;
-	bTemp=bTemp-b_baseline;
-	if(rTemp>=127)			rTemp=127;
-	else if(rTemp<=-128)	rTemp=-128;
-	if(gTemp>=127)			gTemp=127;
-	else if(gTemp<=-128)	gTemp=-128;
-	if(bTemp>=127)			bTemp=127;
-	else if(bTemp<=-128)	bTemp=-128;		
-	if(r!=NULL) *r=(int8_t)rTemp;
-	if(g!=NULL) *g=(int8_t)gTemp;
-	if(b!=NULL) *b=(int8_t)bTemp;	
-		
-	if(led_r || led_g || led_b) set_rgb(led_r, led_g, led_b);
-}
-
-//void get_cal_rgb(uint8_t* r, uint8_t* g, uint8_t* b)
-//{
-	//uint8_t tmpR, tmpG, tmpB;
-	//get_rgb_sensors(&tmpR, &tmpG, &tmpB);
-	//
-	//float calcR, calcG, calcB;
-	//
-	//calcR = calib_matrix[R][R]*(tmpR*1.) + calib_matrix[R][G]*(tmpG*1.) + calib_matrix[R][B]*(tmpB*1.);
-	//calcG = calib_matrix[G][R]*(tmpR*1.) + calib_matrix[G][G]*(tmpG*1.) + calib_matrix[G][B]*(tmpB*1.);
-	//calcB = calib_matrix[B][R]*(tmpR*1.) + calib_matrix[B][G]*(tmpG*1.) + calib_matrix[B][B]*(tmpB*1.);
-	//
-	//if(calcR>255)		*r = 255;
-	//else if(calcR<0)	*r = 0;
-	//else				*r = (uint8_t)calcR;
-	//
-	//if(calcG>255)		*g = 255;
-	//else if(calcG<0)	*g = 0;
-	//else				*g = (uint8_t)calcG;
-	//
-	//if(calcB>255)		*b = 255;
-	//else if(calcB<0)	*b = 0;
-	//else				*b = (uint8_t)calcB;
-	//
-	////printf("%3hu %3hu %3hu\t->\t%3hu %3hu %3hu\r\n",tmpR,tmpG,tmpB,*r,*g,*b);
-//}
+#ifndef AUDIO_DROPLET
 
 int16_t get_red_sensor()
 {
@@ -157,42 +116,62 @@ int16_t get_blue_sensor()
 	return blue_val;
 }
 
+#endif
+
 void read_color_settings()
 {
-	//printf("Reading Color Calib Matrix:\r\n");
-	u dat;
-	for(uint8_t i=0;i<3;i++)
-	{
-		for(uint8_t j=0;j<3;j++)
+	#ifndef AUDIO_DROPLET
+		//printf("Reading Color Calib Matrix:\r\n");
+		u dat;
+		for(uint8_t i=0;i<3;i++)
 		{
-			dat.i =((uint32_t)EEPROM_read_byte(0x60 + 12*i + 4*j + 0))<<24;
-			dat.i|=((uint32_t)EEPROM_read_byte(0x60 + 12*i + 4*j + 1))<<16;
-			dat.i|=((uint32_t)EEPROM_read_byte(0x60 + 12*i + 4*j + 2))<<8;
-			dat.i|=((uint32_t)EEPROM_read_byte(0x60 + 12*i + 4*j + 3))<<0;
-			calib_matrix[i][j]=dat.f;
-			//printf("\t%f\t",dat.f);	
+			for(uint8_t j=0;j<3;j++)
+			{
+				dat.i =((uint32_t)EEPROM_read_byte(0x60 + 12*i + 4*j + 0))<<24;
+				dat.i|=((uint32_t)EEPROM_read_byte(0x60 + 12*i + 4*j + 1))<<16;
+				dat.i|=((uint32_t)EEPROM_read_byte(0x60 + 12*i + 4*j + 2))<<8;
+				dat.i|=((uint32_t)EEPROM_read_byte(0x60 + 12*i + 4*j + 3))<<0;
+				calib_matrix[i][j]=dat.f;
+				//printf("\t%f\t",dat.f);	
+			}
+			//printf("\r\n");		
 		}
-		//printf("\r\n");		
-	}
-	//printf("\r\n");
+		//printf("\r\n");
+	#else
+		printf_P(PSTR("ERROR: Audio droplets don't use color_settings.\r\n"));
+	#endif		
 }
 
-void write_color_settings(float cm[3][3])
+void get_rgb(uint16_t *r, uint16_t *g, uint16_t *b)
 {
-	printf("Writing Color Calib Matrix:\r\n");
-	u dat;
-	for(uint8_t i=0;i<3;i++)
-	{
-		for(uint8_t j=0;j<3;j++)
+	#ifdef AUDIO_DROPLET
+	
+		uint8_t write_sequence = 0xB4;
+		uint8_t result = TWI_MasterWriteRead(RGB_SENSE_ADDR, &write_sequence, 1, 8);
+		uint16_t* temp_values = (uint16_t*)(twi->readData);
+		if(result)
 		{
-			dat.f=cm[i][j];
-			printf("\t%f\t",dat.f);
-			EEPROM_write_byte(0x60 + 12*i + 4*j + 0, (uint8_t)((dat.i>>24)&0xFF));
-			EEPROM_write_byte(0x60 + 12*i + 4*j + 1, (uint8_t)((dat.i>>16)&0xFF));
-			EEPROM_write_byte(0x60 + 12*i + 4*j + 2, (uint8_t)((dat.i>>8)&0xFF));
-			EEPROM_write_byte(0x60 + 12*i + 4*j + 3, (uint8_t)((dat.i>>0)&0xFF));
+			//*c=temp_values[0];
+			*r=temp_values[1];
+			*g=temp_values[2];
+			*b=temp_values[3];
 		}
-		printf("\r\n");
-	}
-	printf("\r\n");
+		else printf_P(PSTR("Read failed.\r\n"));
+	#else
+		int16_t rTemp,gTemp,bTemp;
+	
+		rTemp = get_red_sensor();
+		gTemp = get_green_sensor();
+		bTemp = get_blue_sensor();
+
+		rTemp=rTemp-r_baseline;
+		gTemp=gTemp-g_baseline;
+		bTemp=bTemp-b_baseline;
+		if(rTemp<0)	rTemp=0;
+		if(gTemp<0)	gTemp=0;
+		if(bTemp<0)	bTemp=0;
+		if(r!=NULL) *r=(uint16_t)rTemp;
+		if(g!=NULL) *g=(uint16_t)gTemp;
+		if(b!=NULL) *b=(uint16_t)bTemp;
+	#endif
 }

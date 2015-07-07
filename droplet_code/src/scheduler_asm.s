@@ -1,10 +1,9 @@
 #include <avr/io.h>
 
-.extern run_tasks
-.extern num_executing_tasks
+/*.extern run_tasks*/
+/*.extern task_executing*/
 .extern rtc_epoch
-
-.global rtc_compare_isr
+/*.global rtc_compare_isr
 
 ; RTC compare match interrupt vector
 ; Called when it's time for a scheduled task to run
@@ -56,9 +55,9 @@ rtc_compare_isr:
 	push	ZL
 	push	ZH
 	push	r16
-	lds		r24, num_executing_tasks	; Increment num_executing_tasks
+	lds		r24, task_executing	; Increment num_executing_tasks
 	inc		r24
-	sts		num_executing_tasks, r24
+	sts		task_executing, r24
 	reti								; reti returns from the ISR to the beginning of run_tasks
 
 ; Restores the registers that were saved in RTC_COMP ISR and decrements the num_executing_tasks counter
@@ -68,9 +67,9 @@ rtc_compare_isr:
 ; had not occurred
 .global restore_registers
 restore_registers:
-	lds		r24, num_executing_tasks	; Decrement num_executing_tasks
+	lds		r24, task_executing	; Decrement num_executing_tasks
 	dec		r24
-	sts		num_executing_tasks, r24
+	sts		task_executing, r24
 	pop		r16							; Restore CPU status register
 	out		_SFR_IO_ADDR(SREG), r16
 	pop		r31								; Restore all registers
@@ -105,11 +104,11 @@ restore_registers:
 	pop		r2
 	pop		r1
 	pop		r0
-	ret									; The top value of the stack was the code address that
+	ret								; The top value of the stack was the code address that
 										; was pushed when the interrupt occurred
 										; ret returns to where we were before the RTC_COMP interrupt happened
 
-
+*/
 ; Gets the time as an atomic operation
 .global get_time
 get_time:

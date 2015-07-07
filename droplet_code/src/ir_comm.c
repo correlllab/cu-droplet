@@ -1,11 +1,12 @@
 #include "ir_comm.h"
+#include "rgb_led.h"
 
 //#define IR_IS_SPECIAL 1
 
 volatile uint16_t	cmd_length;
 volatile char		cmd_buffer[BUFFER_SIZE];
 
-inline void clear_ir_buffer(uint8_t dir)
+void clear_ir_buffer(uint8_t dir)
 {
 	ir_rxtx[dir].data_crc		= 0;
 	ir_rxtx[dir].sender_ID		= 0;
@@ -13,6 +14,7 @@ inline void clear_ir_buffer(uint8_t dir)
 	ir_rxtx[dir].curr_pos		= 0;
 	ir_rxtx[dir].calc_crc		= 0;
 	ir_rxtx[dir].data_length	= 0;	
+	
 	ir_rxtx[dir].status			= 0;	
 	
 	channel[dir]->CTRLB |= USART_RXEN_bm; //this enables receive on the USART
@@ -23,64 +25,39 @@ uint8_t ir_carrier_bm[] = { PIN0_bm, PIN1_bm, PIN4_bm, PIN5_bm, PIN6_bm, PIN7_bm
 
 void ir_comm_init()
 {
-	/* Initialize carrier waves */
-	uint8_t carrier_pins = PIN0_bm | PIN1_bm | PIN4_bm | PIN5_bm | PIN6_bm | PIN7_bm;
-	PORTF.DIRSET = carrier_pins;
-	
-	TCF2.CTRLE = TC_BYTEM_SPLITMODE_gc;		// "split mode" puts this timer counter into "Type 2 mode"
-	TCF2.CTRLA |= TC_CLKSEL_DIV4_gc;		// see CTRLA description in TC2 mode
-	//TCF2.CTRLB = carrier_pins;				// Set TC outputs on carrier wave pins (see CTRLA description in TC2 mode)
-	
-	TCF2.HPER = 211; TCF2.LPER = 211; // 32MHz / (4 * 211) = 38kHz
-	TCF2.HCMPA = 105; TCF2.HCMPB = 105; TCF2.HCMPC = 105; // 50% Duty Cycle
-	TCF2.HCMPD = 105; TCF2.LCMPA = 105; TCF2.LCMPB = 105; // 50% Duty Cycle
-	
 	/* Initialize UARTs */
 	// RX pins as inputs:
 	PORTC.DIRCLR = PIN2_bm | PIN6_bm;		// DIR 0,1							
 	PORTD.DIRCLR = PIN2_bm;					// DIR 2
 	PORTE.DIRCLR = PIN2_bm | PIN6_bm;		// DIR 3,4
 	PORTF.DIRCLR = PIN2_bm;					// DIR 5
-	
-	// TX pins as outputs:
-	PORTC.DIRSET = PIN3_bm | PIN7_bm;		// DIR 0,1									
-	PORTD.DIRSET = PIN3_bm;					// DIR 2
-	PORTE.DIRSET = PIN3_bm | PIN7_bm;		// DIR 3,4
-	PORTF.DIRSET = PIN3_bm;					// DIR 5
-	
-	// Invert the output pins:
-	PORTC.PIN3CTRL = PORT_INVEN_bm;												
-	PORTC.PIN7CTRL = PORT_INVEN_bm;
-	PORTD.PIN3CTRL = PORT_INVEN_bm;
-	PORTE.PIN3CTRL = PORT_INVEN_bm;
-	PORTE.PIN7CTRL = PORT_INVEN_bm;
-	PORTF.PIN3CTRL = PORT_INVEN_bm;
 
 	for (uint8_t i = 0; i < 6; i++)
 	{
 		channel[i]->CTRLA = (uint8_t) USART_RXCINTLVL_MED_gc | USART_TXCINTLVL_MED_gc;		// Set USART as med-level interrupts
 		channel[i]->CTRLC = (uint8_t) USART_CHSIZE_8BIT_gc | USART_PMODE_DISABLED_gc;		// 8 bits, no parity
 		
-		//channel[i]->BAUDCTRLA = 0b00000000; channel[i]->BAUDCTRLB = 0b11101101;	//2400 baud	
-		channel[i]->BAUDCTRLA = 0b01110000; channel[i]->BAUDCTRLB = 0b00000010;	//3200 baud
-		//channel[i]->BAUDCTRLA = 0b11000000; channel[i]->BAUDCTRLB = 0b00000100;		//9600 baud
+		channel[i]->BAUDCTRLA = 0b01110000; channel[i]->BAUDCTRLB = 0b00000010;	//3200 baud - we have an upper bound of 3800 baud because of the 38KHz carrier wave. The IR Receiver's data sheets say that frequency of the data should be a tenth or less than that of the carrier.
+		//channel[i]->BAUDCTRLA = 0b11000000; channel[i]->BAUDCTRLB = 0b00000100; //9600 baud - this would be the upper bound if we switched to TSDP34156-ND.
 		
 		channel[i]->CTRLB |= USART_RXEN_bm;		// Enable communication
 		channel[i]->CTRLB |= USART_TXEN_bm;
 	}
+	curr_ir_power=0;	
 	set_all_ir_powers(256);
 	for(uint8_t dir=0; dir<6; dir++) clear_ir_buffer(dir); //this initializes the buffer's values to 0.
 	cmd_arrival_time=0;
 	num_waiting_msgs=0;
 	user_facing_messages_ovf=0;
-	schedule_task(1000/IR_UPKEEP_FREQUENCY, perform_ir_upkeep, NULL);
-	
+
+	schedule_periodic_task(1000/IR_UPKEEP_FREQUENCY, perform_ir_upkeep, NULL);
 }
 
 void handle_cmd_wrapper()
 {
 	char local_msg_copy[cmd_length+1];	
 	uint16_t local_msg_len;
+	//printf("\tIn handle_cmd_wrapper.\r\n");
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)  // Disable interrupts just in case we get another command in the middle of copying this one.
 	{
 		memcpy(local_msg_copy, (const void*)cmd_buffer, cmd_length+1);
@@ -97,33 +74,25 @@ void perform_ir_upkeep()
 	int8_t dir;
 	for(dir= 0; dir<6; dir++) //This first loop looks for a channel on which we got a good message.
 	{
-		ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+		if(ir_rxtx[dir].status&IR_STATUS_COMPLETE_bm)
 		{
-			if(ir_rxtx[dir].status&IR_STATUS_COMPLETE_bm)
-			{
-				crc_seen = 0;
-				for(check_dir=(dir-1) ;  check_dir>=0 ; check_dir--)
-					if(seen_crcs[check_dir]==ir_rxtx[dir].data_crc) crc_seen = 1;
-				seen_crcs[dir] = ir_rxtx[dir].data_crc;
+			crc_seen = 0;
+			for(check_dir=(dir-1) ;  check_dir>=0 ; check_dir--)
+				if(seen_crcs[check_dir]==ir_rxtx[dir].data_crc) crc_seen = 1;
+			seen_crcs[dir] = ir_rxtx[dir].data_crc;
 
-				if(crc_seen) clear_ir_buffer(dir);
-				else if(ir_rxtx[dir].status&IR_STATUS_COMMAND_bm)
+			if(crc_seen) clear_ir_buffer(dir);
+			else //Normal message; add to message queue.
+			{				
+				if(num_waiting_msgs>=MAX_USER_FACING_MESSAGES)
 				{
-					memcpy((void *)cmd_buffer, (char*)ir_rxtx[dir].buf, ir_rxtx[dir].data_length);
-					cmd_buffer[ir_rxtx[dir].data_length]='\0';
-					cmd_length = ir_rxtx[dir].data_length;
-					cmd_arrival_time = ir_rxtx[dir].last_byte;	//This is a 'global' value, referenced by other *.c files.
-					cmd_sender_id = ir_rxtx[dir].sender_ID;		//This is a 'global' value, referenced by other *.c files.
-					for(uint8_t other_dirs=dir ; other_dirs<6 ; other_dirs++) clear_ir_buffer(other_dirs); //clear the rest of the buffers first
-					schedule_task(5, handle_cmd_wrapper, NULL);
-					break; //commands can take awhile, so we gave up on the rest of these messages.
+					user_facing_messages_ovf = 1;
+					num_waiting_msgs=0;
 				}
-				else //Normal message; add to message queue.
-				{
-					if(num_waiting_msgs>=MAX_USER_FACING_MESSAGES)
+				ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+					if(ir_rxtx[dir].data_length==0)
 					{
-						user_facing_messages_ovf = 1;
-						num_waiting_msgs=0;
+						printf_P(PSTR("ERROR: Message length 0 in perform_ir_upkeep.\r\n"));
 					}
 					memcpy((void *)msg_node[num_waiting_msgs].msg, (char*)ir_rxtx[dir].buf, ir_rxtx[dir].data_length);
 					msg_node[num_waiting_msgs].msg[ir_rxtx[dir].data_length]='\0';
@@ -131,18 +100,17 @@ void perform_ir_upkeep()
 					msg_node[num_waiting_msgs].arrival_dir = dir;
 					msg_node[num_waiting_msgs].sender_ID = ir_rxtx[dir].sender_ID;
 					msg_node[num_waiting_msgs].msg_length = ir_rxtx[dir].data_length;
-					num_waiting_msgs++;
-					clear_ir_buffer(dir);
 				}
+				num_waiting_msgs++;
+				clear_ir_buffer(dir);
 			}
 		}
 	}
-	
-	schedule_task(1000/IR_UPKEEP_FREQUENCY, perform_ir_upkeep, NULL);
 }
 
 void send_msg(uint8_t dirs, char *data, uint8_t data_length)
 {
+	if(data_length>IR_BUFFER_SIZE) printf_P(PSTR("ERROR: Message exceeds IR_BUFFER_SIZE.\r\n"));
 	
 	uint16_t crc = get_droplet_id();
 	for(uint8_t dir=0; dir<6; dir++)
@@ -159,6 +127,7 @@ void send_msg(uint8_t dirs, char *data, uint8_t data_length)
 	{
 		if(dirs&(1<<dir))
 		{
+			ir_rxtx[dir].status |= IR_STATUS_TRANSMITTING_bm;
 			ir_rxtx[dir].data_length = data_length;
 			ir_rxtx[dir].data_crc = crc;
 			ir_rxtx[dir].curr_pos = 0;
@@ -322,15 +291,38 @@ void ir_receive(uint8_t dir)
 	}
 	ir_rxtx[dir].curr_pos++;
 	if(ir_rxtx[dir].curr_pos>=(ir_rxtx[dir].data_length+HEADER_LEN))
-	{	
-		if(ir_rxtx[dir].calc_crc!=ir_rxtx[dir].data_crc)							clear_ir_buffer(dir); //crc check failed.
+	{			
+		if((ir_rxtx[dir].calc_crc!=ir_rxtx[dir].data_crc)||ir_rxtx[dir].calc_crc==0)clear_ir_buffer(dir); //crc check failed.
 		else if(ir_rxtx[dir].target_ID && ir_rxtx[dir].target_ID!=get_droplet_id()) clear_ir_buffer(dir); //msg targeted, but not to me.
 		else if(ir_rxtx[dir].sender_ID == get_droplet_id())							clear_ir_buffer(dir); //ignore a message if it is from me. Silly reflections.
 		else
 		{
-			ir_rxtx[dir].status |= IR_STATUS_COMPLETE_bm;
-			ir_rxtx[dir].status |= IR_STATUS_BUSY_bm; //mark as busy so we don't overwrite it.
-			channel[dir]->CTRLB &= ~USART_RXEN_bm; //Disable receiving messages on this channel until the message has been processed.
+			if(ir_rxtx[dir].data_length==0){
+				clear_ir_buffer(dir);		
+			}
+			if(ir_rxtx[dir].status & IR_STATUS_COMMAND_bm)
+			{
+				ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+					memcpy((void *)cmd_buffer, (char*)ir_rxtx[dir].buf, ir_rxtx[dir].data_length);
+					cmd_buffer[ir_rxtx[dir].data_length]='\0';
+					cmd_length = ir_rxtx[dir].data_length;
+					cmd_arrival_time = ir_rxtx[dir].last_byte;	//This is a 'global' value, referenced by other *.c files.
+					cmd_sender_id = ir_rxtx[dir].sender_ID;		//This is a 'global' value, referenced by other *.c file.s
+				}
+				for(uint8_t other_dir=0;other_dir<6;other_dir++) clear_ir_buffer(other_dir);
+				//{
+					//if(ir_rxtx[other_dir].sender_ID==ir_rxtx[dir].sender_ID) clear_ir_buffer(other_dir);
+				//}
+				schedule_task(10, handle_cmd_wrapper, NULL);
+				//printf("Got cmd from %X.\r\n", cmd_sender_id);
+			}
+			else
+			{
+				ir_rxtx[dir].status |= IR_STATUS_COMPLETE_bm;
+				ir_rxtx[dir].status |= IR_STATUS_BUSY_bm; //mark as busy so we don't overwrite it.
+				channel[dir]->CTRLB &= ~USART_RXEN_bm; //Disable receiving messages on this channel until the message has been processed.
+			}
+
 			//printf("\r\n");
 		}
 	}
@@ -374,14 +366,14 @@ void ir_remote_send(uint8_t dir, uint16_t data)
 	channel[dir]->CTRLB &= ~USART_TXEN_bm;
 	//printf("Sending:\t");
 	TCF2.CTRLB |= ir_carrier_bm[dir];
-	PORT_t* port;
-	if(dir==0|dir==1)		port=&PORTC;
+	PORT_t* port = 0;
+	if((dir==0)|(dir==1))		port=&PORTC;
 	else if(dir==2)			port=&PORTD;
-	else if(dir==3|dir==4)	port=&PORTE;
+	else if((dir==3)|(dir==4))	port=&PORTE;
 	else if(dir==5)			port=&PORTF;
-	uint8_t pin_mask;
-	if(dir==0|dir==2|dir==3|dir==5) pin_mask=PIN3_bm;
-	else if(dir==1|dir==4)			pin_mask=PIN7_bm;
+	uint8_t pin_mask=0;
+	if((dir==0)|(dir==2)|(dir==3)|(dir==5)) pin_mask=PIN3_bm;
+	else if((dir==1)|(dir==4))			pin_mask=PIN7_bm;
 	
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 	{
@@ -471,6 +463,7 @@ void ir_transmit_complete(uint8_t dir)
 	ir_rxtx[dir].curr_pos = 0;
 	ir_rxtx[dir].target_ID = 0;
 	ir_rxtx[dir].sender_ID = 0;
+	
 	channel[dir]->STATUS |= USART_TXCIF_bm;		// writing a 1 to this bit manually clears the TXCIF flag
 	channel[dir]->CTRLB |= USART_RXEN_bm;	// this enables receive on the USART
 }
@@ -482,6 +475,10 @@ void ir_reset_rx(uint8_t dir)
 
 void wait_for_ir(uint8_t dirs)
 {
+	uint8_t r = get_red_led();
+	uint8_t g = get_green_led();
+	uint8_t b = get_blue_led();
+	set_rgb(255, 0, 255);
 	uint8_t busy;
 	do
 	{
@@ -490,14 +487,24 @@ void wait_for_ir(uint8_t dirs)
 		{
 			if(dirs&(1<<dir))
 			{
-				if(ir_rxtx[dir].status & IR_STATUS_UNAVAILABLE_bm)
+				if(ir_rxtx[dir].status & IR_STATUS_TRANSMITTING_bm)
 				{
 					busy=1;
-					break;
 				}
+				//else
+				//{
+					//clear_ir_buffer(dir);
+				//}
 			}
 		}
+		delay_us(100);	
+		//if(busy&&task_list_check())
+		//{
+			//printf("!!!!\r\n!!!!\r\nFrom wait_for_ir (%ld): should perform task_list_cleanup.\r\n!!!!\r\n!!!!\r\n", get_time()-(task_list->scheduled_time));
+			////task_list_cleanup(); //if the scheduled time for the current task is past and we're busy, perform task list cleanup	
+		//}
 	} while (busy);
+	set_rgb(r, g, b);
 }
 
 // ISRs for IR channel 0

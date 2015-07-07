@@ -2,8 +2,7 @@
  * \brief Code for Droplet IR communication message error detection and correction 
  *
  *****************************************************************************/
-#ifndef ECC_H
-#define ECC_H
+#pragma once
 
 #include <avr/io.h>
 #include <stdint.h>
@@ -48,5 +47,3 @@ uint8_t golay_verify(uint32_t cw);
 // Returns 1 if parity error
 // Returns 2 if syndrome error
 uint8_t golay_find_errors(uint32_t cw);
-
-#endif

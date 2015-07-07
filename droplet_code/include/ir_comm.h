@@ -2,15 +2,15 @@
  * \brief Droplet infrared communication subsystem functions are defined here.
  *
  *****************************************************************************/
-
-#ifndef IR_COMM_H
-#define IR_COMM_H
+#pragma once
 
 #include <avr/io.h>
 #include <util/crc16.h>
 #include <avr/interrupt.h>
+#include <avr/pgmspace.h>
 #include "droplet_init.h"
 #include "scheduler.h"
+#include "ir_led.h"
 
 // FYI, the XMEGA128A3U has:
 //		128 KB flash (program memory)
@@ -32,7 +32,7 @@
 #define KEY_LEFT		((uint16_t)0xA659)
 #define KEY_RIGHT		((uint16_t)0x46B9)
 
-#define IR_BUFFER_SIZE			16 //bytes
+#define IR_BUFFER_SIZE			32 //bytes
 #define IR_UPKEEP_FREQUENCY		16 //Hz
 #define IR_MSG_TIMEOUT			20 //ms
 
@@ -41,6 +41,7 @@
 #define IR_STATUS_ERROR_bm				0x04	// 0000 0100
 #define IR_STATUS_COMMAND_bm			0x08	// 0000 1000
 #define IR_STATUS_TARGETED_bm			0x10	// 0001 0000
+#define IR_STATUS_TRANSMITTING_bm		0x20    // 0010 0000
 #define IR_STATUS_UNAVAILABLE_bm		0x03	// Complete or Busy
 
 #define DATA_LEN_VAL_bm		0x7F
@@ -54,8 +55,6 @@
 #define HEADER_POS_TARGET_ID_LOW 5
 #define HEADER_POS_TARGET_ID_HIGH 6
 #define HEADER_LEN 7
-
-extern USART_t* channel[];
 
 volatile struct
 {	
@@ -85,8 +84,11 @@ volatile uint8_t user_facing_messages_ovf;
 volatile uint32_t	cmd_arrival_time;
 volatile uint16_t	cmd_sender_id;
 
+void clear_ir_buffer(uint8_t dir);
+
 void ir_comm_init();
 
+void handle_cmd_wrapper();
 void perform_ir_upkeep();
 void ir_targeted_cmd(uint8_t dirs, char *data, uint16_t data_length, uint16_t target);
 void ir_cmd(uint8_t dirs, char *data, uint16_t data_length);
@@ -99,7 +101,3 @@ void ir_remote_send(uint8_t dir, uint16_t data);
 void ir_transmit_complete(uint8_t dir);
 void ir_reset_rx(uint8_t dir);
 void wait_for_ir(uint8_t dirs);
-
-void print_received_message(void* dir_star); //DEBUG -> Remove later
-
-#endif

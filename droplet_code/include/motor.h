@@ -1,8 +1,8 @@
-#ifndef motor_h
-#define motor_h
+#pragma once
 
 #include <avr/io.h>
 #include <stdlib.h>
+#include <avr/pgmspace.h>
 
 #define MOTOR_STATUS_DIRECTION		0x07
 #define MOTOR_STATUS_ON				0x80
@@ -13,13 +13,12 @@
 #define SOUTH				3 
 #define SOUTHWEST			4
 #define NORTHWEST			5
-
 #define CLOCKWISE			6
 #define COUNTERCLOCKWISE	7
 
 // Timing for taking a step:
 #define MOTOR_ON_TIME			20
-#define MOTOR_OFF_TIME			30
+#define MOTOR_OFF_TIME			40
 
 #include "droplet_init.h"
 #include "scheduler.h"
@@ -47,7 +46,7 @@ uint8_t	move_steps(uint8_t direction, uint16_t num_steps);
 void walk(uint8_t direction, uint16_t mm);
 
 // Stops all motors
-void stop();
+void stop_move();
 
 int8_t is_moving(); // returns 0 if droplet is not moving, otherwise returns the direction of motion (1-6)
 
@@ -66,9 +65,13 @@ static inline void motor_forward(uint8_t num)
 {
 	switch(num)
 	{
-		case 0: TCC0.CTRLB = TC_WGMODE_SS_gc | TC0_CCBEN_bm; PORTC.PIN1CTRL = PORT_INVEN_bm; PORTC.OUTSET |= PIN0_bm; break;
-		case 1: TCC1.CTRLB = TC_WGMODE_SS_gc | TC1_CCBEN_bm; PORTC.PIN5CTRL = PORT_INVEN_bm; PORTC.OUTSET |= PIN4_bm; break;
-		case 2: TCD0.CTRLB = TC_WGMODE_SS_gc | TC0_CCBEN_bm; PORTD.PIN1CTRL = PORT_INVEN_bm; PORTD.OUTSET |= PIN0_bm; break;
+		#ifdef AUDIO_DROPLET
+			case 0: printf_P(PSTR("ERROR! motor_fw called with num=0\r\n")); break;
+		#else
+			case 0: TCC0.CTRLB |= TC0_CCBEN_bm; break;
+		#endif		
+		case 1: TCC1.CTRLB |= TC1_CCBEN_bm; break;
+		case 2: TCD0.CTRLB |= TC0_CCBEN_bm; break;
 	}
 }
 
@@ -76,10 +79,12 @@ static inline void motor_backward(uint8_t num)
 {
 	switch(num)
 	{
-		case 0: TCC0.CTRLB = TC_WGMODE_SS_gc | TC0_CCAEN_bm; PORTC.PIN0CTRL = PORT_INVEN_bm; PORTC.OUTSET |= PIN1_bm; break;
-		case 1: TCC1.CTRLB = TC_WGMODE_SS_gc | TC1_CCAEN_bm; PORTC.PIN4CTRL = PORT_INVEN_bm; PORTC.OUTSET |= PIN5_bm; break;
-		case 2: TCD0.CTRLB = TC_WGMODE_SS_gc | TC0_CCAEN_bm; PORTD.PIN0CTRL = PORT_INVEN_bm; PORTD.OUTSET |= PIN1_bm; break;
+		#ifdef AUDIO_DROPLET
+			case 0: printf_P(PSTR("ERROR! motor_bw called with num=0\r\n")); break;
+		#else
+			case 0: TCC0.CTRLB |= TC0_CCAEN_bm; break;
+		#endif
+		case 1: TCC1.CTRLB |= TC1_CCAEN_bm; break;
+		case 2: TCD0.CTRLB |= TC0_CCAEN_bm; break;
 	}
 }
-
-#endif

@@ -28,8 +28,7 @@
 * SOFTWARE.                                                            
 *                                                                      
 ************************************************************************/
-#ifndef __EEPROM_DRIVER_H
-#define __EEPROM_DRIVER_H
+#pragma once
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
@@ -68,5 +67,3 @@ void EEPROM_erase_page(uint16_t addr);
 #endif // __AVR_XMEGA__
 
 void EEPROM_erase_all(void);
-
-#endif // __EEPROM_DRIVER_H

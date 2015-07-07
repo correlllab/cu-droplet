@@ -53,8 +53,7 @@
   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
   POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
-#ifndef _AVR_DELAY_X_H_
-#define _AVR_DELAY_X_H_ 1
+#pragma once
 
 #include <inttypes.h>
 
@@ -277,6 +276,3 @@ _delay_cycles(const double __ticks_d)
     if( __padding == 11 ) _NOP11();
     if( __padding == 12 ) _NOP12();
 }
-
-
-#endif /* _AVR_DELAY_X_H_ */

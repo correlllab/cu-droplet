@@ -18,7 +18,8 @@ void pc_comm_init()
 	stdout = &mystdout;
 	serial_in_index = 0;
 	
-	PC_USART.CTRLA = (uint8_t) USART_RXCINTLVL_LO_gc;
+	PC_USART.CTRLA = (uint8_t) USART_RXCINTLVL_MED_gc;
+	printf("\n");
 }
 
 ISR( USARTD1_RXC_vect ) { handle_serial_input(); }
@@ -60,7 +61,7 @@ void handle_serial_input()
 	}
 	else if(serial_in_index==BUFFER_SIZE) //Buffer overflow
 	{
-		printf("\r\nERROR: Serial input buffer capacity of %u characters exceeded.\r\n",BUFFER_SIZE);
+		printf_P(PSTR("\r\nERROR: Serial input buffer capacity of %u characters exceeded.\r\n"),BUFFER_SIZE);
 		serial_in_index = 0;
 	}
 	else //Everything is fine. Add the character to the buffer.

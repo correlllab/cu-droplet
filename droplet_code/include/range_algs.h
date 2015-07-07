@@ -1,8 +1,8 @@
-#ifndef range_algs_H
-#define range_algs_H
+#pragma once
 
 #include <avr/io.h>
 #include <math.h>
+#include <avr/pgmspace.h>
 
 #include "droplet_init.h"
 #include "scheduler.h"
@@ -26,7 +26,7 @@
 #define TIME_FOR_ALL_MEAS 23
 #define DELAY_BETWEEN_RB_TRANSMISSIONS 15
 
-#define BASELINE_NOISE_THRESHOLD 3
+#define BASELINE_NOISE_THRESHOLD 1
 
 struct list_el {
 	float Rx;
@@ -57,7 +57,7 @@ void range_algs_init();
 void collect_rnb_data(uint16_t target_id, uint8_t power);
 void broadcast_rnb_data();
 void receive_rnb_data();
-void use_rnb_data(uint8_t power);
+void use_rnb_data();
 
 float get_bearing(uint8_t sensor_total[6]);
 float get_heading(uint8_t emitter_total[6], float bearing);
@@ -83,5 +83,3 @@ float inverse_amplitude_model(float ADC_val, uint8_t power);
 void debug_print_timer(uint32_t timer[19]);
 void print_brightness_matrix(uint8_t brightness_matrix[6][6]);
 void brightness_meas_printout_mathematica();
-
-#endif

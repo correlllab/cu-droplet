@@ -6,7 +6,6 @@ void power_init()
 	leg_monitor_init();
 }
 
-
 void cap_monitor_init()
 {
 	PORTB.DIRCLR = PIN0_bm | PIN1_bm;
@@ -48,6 +47,40 @@ uint8_t cap_status()
 	return -2;
 }
 
+void enable_leg_status_interrupt()
+{
+	last_int_time=get_time();
+	ACA.WINCTRL |= AC_WINTMODE_INSIDE_gc | 0x01;
+}
+
+void disable_leg_status_interrupt()
+{
+	ACA.WINCTRL &= ~(AC_WINTMODE_INSIDE_gc | AC_WINTMODE_OUTSIDE_gc);
+}
+
+ISR(ACA_ACW_vect)
+{
+	uint32_t now = get_time();
+	if(ACA.WINCTRL & 0x8)
+	{
+		if((now-last_int_time)>200)
+		{
+			printf("I'm down!\r\n");
+			last_int_time=now;
+		}
+		ACA.WINCTRL = AC_WEN_bm | 0x01 | AC_WINTMODE_INSIDE_gc;
+	}
+	else
+	{
+		if((now-last_int_time)>200)
+		{
+			printf("I'm up!\r\n");
+			last_int_time=now;
+		}
+		ACA.WINCTRL = AC_WEN_bm | 0x01 | AC_WINTMODE_OUTSIDE_gc;
+	}
+}
+
 int8_t leg_status(uint8_t leg)
 {
 	switch (leg)
@@ -72,6 +105,10 @@ int8_t leg_status(uint8_t leg)
 	if ((status & AC_WSTATE_gm) == AC_WSTATE_INSIDE_gc) { return 0; }
 	if ((status & AC_WSTATE_gm) == AC_WSTATE_BELOW_gc) { return -1; }
 		return 127;
+	
+	//Set MUX back to leg 1.
+	ACA.AC0MUXCTRL |= AC_MUXPOS_PIN2_gc;	
+	ACA.AC1MUXCTRL |= AC_MUXPOS_PIN2_gc;		
 }
 
 uint8_t legs_powered()

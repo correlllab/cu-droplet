@@ -6,44 +6,45 @@ uint8_t user_handle_command(char* command_word, char* command_args) __attribute_
 
 void handle_serial_command(char* command, uint16_t command_length)
 {
-	//last_serial_command_time = command_time;
+	//printf("command_time: %lu | last_command_time: %lu\r\n", cmd_arrival_time, last_serial_command_time);	
 	//printf("Got command \"%s\".\r\n",command);
-	//printf("command_time: %lu | last_command_time: %lu\r\n", command_time, last_serial_command_time);
+	//printf("\tcommand_time: %lu | last_command_time: %lu\r\n", cmd_arrival_time, last_serial_command_time);
+	last_serial_command_time = cmd_arrival_time;	
 	if(command[0]!='\0') //Not much to handle if we get an empty string.
 	{
 		char command_word[BUFFER_SIZE];
 		char command_args[BUFFER_SIZE];
 		get_command_word_and_args(command,command_length,command_word,command_args);
-		if(strcmp(command_word,"move_steps")==0)					handle_move_steps(command_args);
-		else if(strcmp(command_word,"walk")==0)						handle_walk(command_args);
-		else if(strcmp(command_word, "get_rgb")==0)					handle_get_rgb();
-		else if(strcmp(command_word,"set_ir")==0)					handle_set_ir(command_args);
-		else if(strcmp(command_word,"coll")==0)						handle_check_collisions();
-		else if(strcmp(command_word,"stop_walk")==0)				handle_stop_walk();
-		else if(strcmp(command_word,"set_motors")==0)				handle_set_motors(command_args);
-		else if(strcmp(command_word,"set_dist_per_step")==0)		handle_set_mm_per_kilostep(command_args);
-		else if(strcmp(command_word,"rnb_b")==0)					handle_rnb_broadcast();
-		else if(strcmp(command_word,"rnb_c")==0)					handle_rnb_collect(command_args);
-		else if(strcmp(command_word, "rnb_t")==0)					handle_rnb_transmit(command_args);
-		else if(strcmp(command_word,"rnb_r")==0)					handle_rnb_receive();
-		else if(strcmp(command_word,"set_led")==0)					handle_set_led(command_args);
-		else if(strcmp(command_word,"get_id")==0)					handle_get_id();
-		else if(strcmp(command_word,"broadcast_id")==0)				handle_broadcast_id();
-		else if(strcmp(command_word,"cmd")==0)						handle_cmd(command_args);
-		else if(strcmp(command_word,"tgt_cmd")==0)					handle_targeted_cmd(command_args);
-		else if(strcmp(command_word,"msg")==0)						handle_shout(command_args);
-		else if(strcmp(command_word,"tgt")==0)						handle_target(command_args);
-		else if(strcmp(command_word,"tasks")==0)					print_task_queue();
-		else if(strcmp(command_word,"reset")==0)					handle_reset();
-		else if(strcmp(command_word,"write_motor_settings")==0)		write_motor_settings();
-		else if(strcmp(command_word,"print_motor_settings")==0){
-																	print_motor_values();
-																	print_dist_per_step();																	
+			 if(strcmp_P(command_word,PSTR("move_steps"))==0)			handle_move_steps(command_args);
+		else if(strcmp_P(command_word,PSTR("walk"))==0)					handle_walk(command_args);
+		else if(strcmp_P(command_word,PSTR("get_rgb"))==0)				handle_get_rgb();
+		else if(strcmp_P(command_word,PSTR("set_ir"))==0)				handle_set_ir(command_args);
+		else if(strcmp_P(command_word,PSTR("coll"))==0)					handle_check_collisions();
+		else if(strcmp_P(command_word,PSTR("stop_walk"))==0)			handle_stop_walk();
+		else if(strcmp_P(command_word,PSTR("set_motors"))==0)			handle_set_motors(command_args);
+		else if(strcmp_P(command_word,PSTR("set_dist_per_step"))==0)	handle_set_mm_per_kilostep(command_args);
+		else if(strcmp_P(command_word,PSTR("rnb_b"))==0)				handle_rnb_broadcast();
+		else if(strcmp_P(command_word,PSTR("rnb_c"))==0)				handle_rnb_collect(command_args);
+		else if(strcmp_P(command_word,PSTR("rnb_t"))==0)				handle_rnb_transmit(command_args);
+		else if(strcmp_P(command_word,PSTR("rnb_r"))==0)				handle_rnb_receive();
+		else if(strcmp_P(command_word,PSTR("set_led"))==0)				handle_set_led(command_args);
+		else if(strcmp_P(command_word,PSTR("get_id"))==0)				handle_get_id();
+		else if(strcmp_P(command_word,PSTR("broadcast_id"))==0)			handle_broadcast_id();
+		else if(strcmp_P(command_word,PSTR("cmd"))==0)					handle_cmd(command_args);
+		else if(strcmp_P(command_word,PSTR("tgt_cmd"))==0)				handle_targeted_cmd(command_args);
+		else if(strcmp_P(command_word,PSTR("msg"))==0)					handle_shout(command_args);
+		else if(strcmp_P(command_word,PSTR("tgt"))==0)					handle_target(command_args);
+		else if(strcmp_P(command_word,PSTR("tasks"))==0)				print_task_queue();
+		else if(strcmp_P(command_word,PSTR("reset"))==0)				handle_reset();
+		else if(strcmp_P(command_word,PSTR("write_motor_settings"))==0)	write_motor_settings();
+		else if(strcmp_P(command_word,PSTR("print_motor_settings"))==0){
+																		print_motor_values();
+																		print_dist_per_step();																	
 		}else if(user_handle_command) //First, make sure the function is defined
 		{
-			if(!user_handle_command(command_word, command_args))	printf("\tCommand ( %s ) not recognized.\r\n",command_word);
+			if(!user_handle_command(command_word, command_args))	printf_P(CMD_NOT_RECOGNIZED_STR,command_word);
 		}
-		else														printf("\tCommand ( %s ) not recognized.\r\n",command_word);
+		else														printf_P(CMD_NOT_RECOGNIZED_STR,command_word);
 	}
 }
 
@@ -73,7 +74,7 @@ void handle_move_steps(char* command_args)
 	if (num_steps > 0)
 	{
 		set_rgb(0,0,200);		
-		printf("walk direction %u, num_steps %u\r\n", direction, num_steps);	
+		printf_P(PSTR("walk direction %u, num_steps %u\r\n"), direction, num_steps);	
 		move_steps(direction, num_steps);
 		set_rgb(0,0,0);
 	}	
@@ -94,9 +95,9 @@ void handle_walk(char* command_args)
 
 void handle_get_rgb()
 {
-	uint8_t r, g, b;
-	get_rgb_sensors(&r, &g, &b);
-	printf("r: %hu, g: %hu, b: %hu\r\n", r, g, b);
+	uint16_t r, g, b;
+	get_rgb(&r, &g, &b);
+	printf_P(PSTR("r: %hu, g: %hu, b: %hu\r\n"), r, g, b);
 }
 
 void handle_set_ir(char* command_args)
@@ -112,7 +113,7 @@ void handle_set_ir(char* command_args)
 void handle_stop_walk()
 {
 	set_rgb(180,0,0);
-	stop(0);
+	stop_move(0);
 	set_rgb(0,0,0);
 }
 //
@@ -143,23 +144,23 @@ void handle_set_motors(char* command_args)
 	const char delim[2] = " ";
 	
 	char* token = strtok(command_args,delim);
-	if(token==NULL){ printf("strtok returned NULL on direction.\r\n"); return;}
+	if(token==NULL){ printf_P(PSTR("strtok returned NULL on direction.\r\n")); return;}
 	uint8_t direction = atoi(token);
-	if(direction> 7){ printf("Bad direction. Got: %hhu.\r\n", direction); return;}
+	if(direction> 7){ printf_P(PSTR("Bad direction. Got: %hhu.\r\n"), direction); return;}
 
 	token = strtok(NULL,delim);
-	if(token==NULL){ printf("strtok returned NULL on first val.\r\n"); return;}	
+	if(token==NULL){ printf_P(PSTR("strtok returned NULL on first val.\r\n")); return;}	
 	motor_adjusts[direction][0] = atoi(token);
 	
 	token = strtok(NULL,delim);
-	if(token==NULL){ printf("strtok returned NULL on second val.\r\n"); return;}
+	if(token==NULL){ printf_P(PSTR("strtok returned NULL on second val.\r\n")); return;}
 	motor_adjusts[direction][1] = atoi(token);
 	
 	token = strtok(NULL,delim);
-	if(token==NULL){ printf("strtok returned NULL on third val.\r\n"); return;}
+	if(token==NULL){ printf_P(PSTR("strtok returned NULL on third val.\r\n")); return;}
 	motor_adjusts[direction][2] = atoi(token);	
 
-	printf("Got set_motors command. direction: %hhu, vals: (%d, %d, %d)\r\n", direction, motor_adjusts[direction][0], motor_adjusts[direction][1], motor_adjusts[direction][2]);
+	printf_P(PSTR("Got set_motors command. direction: %hhu, vals: (%d, %d, %d)\r\n"), direction, motor_adjusts[direction][0], motor_adjusts[direction][1], motor_adjusts[direction][2]);
 }
 
 void handle_set_mm_per_kilostep(char* command_args)
@@ -285,10 +286,10 @@ void handle_set_led(char* command_args)
 
 	if(successful_read!=1)
 	{
-		printf("\tGot command set_led, but arguments (%s) were invalid. Format should be:\r\n",command_args);
-		printf("\t Letters r,g,b, in any order, followed by values 0-255, in same \r\n");
-		printf("\t order, indicating the brightness of the associated LEDs. Example: \r\n");
-		printf("\t \"set_led bgr 5 30 0\" gives a bluish green.\r\n");
+		printf_P(PSTR("\tGot command set_led, but arguments (%s) were invalid. Format should be:\r\n"),command_args);
+		printf_P(PSTR("\t Letters r,g,b, in any order, followed by values 0-255, in same \r\n"));
+		printf_P(PSTR("\t order, indicating the brightness of the associated LEDs. Example: \r\n"));
+		printf_P(PSTR("\t \"set_led bgr 5 30 0\" gives a bluish green.\r\n"));
 	}
 }
 void handle_broadcast_id()
@@ -298,7 +299,7 @@ void handle_broadcast_id()
 
 void handle_get_id()
 {
-	printf("My ID is: %04X\r\n",get_droplet_id());
+	printf_P(PSTR("My ID is: %04X\r\n"),get_droplet_id());
 }
 
 void send_id()
@@ -317,7 +318,7 @@ void send_id()
 
 void handle_cmd(char* command_args)
 {
-	printf("Broadcasting command: \"%s\", of length %i.\r\n",(uint8_t*)command_args, strlen(command_args));
+	printf_P(PSTR("Broadcasting command: \"%s\", of length %i.\r\n"),(uint8_t*)command_args, strlen(command_args));
 	#ifdef IS_SPECIAL
 	ir_cmd(DIR0|DIR1|DIR3|DIR4, command_args,strlen(command_args));
 	#else
@@ -344,7 +345,7 @@ void handle_targeted_cmd(char* command_args)
 	strcpy(cmdString, command_args+loc+1);
 	
 	uint16_t target = strtoul(targetString, NULL, 16);
-	printf("command string: %s, length: %d\r\n",cmdString, strlen(cmdString));
+	printf_P(PSTR("command string: %s, length: %d\r\n"),cmdString, strlen(cmdString));
 	#ifdef IS_SPECIAL
 	ir_targeted_cmd(DIR0|DIR1|DIR3|DIR4, cmdString,strlen(cmdString), target);
 	#else
@@ -357,7 +358,7 @@ void handle_shout(char* command_args)
 	if(strlen(command_args)==0) command_args = "Unique New York.";
 	else if(strlen(command_args)>IR_BUFFER_SIZE)
 	{ 
-		printf("Message length was %d chars, which exceeds the maximum of %d", strlen(command_args), IR_BUFFER_SIZE);
+		printf_P(PSTR("Message length was %d chars, which exceeds the maximum of %d"), strlen(command_args), IR_BUFFER_SIZE);
 		return;
 	}
 	#ifdef IS_SPECIAL
@@ -390,6 +391,7 @@ void handle_target(char* command_args)
 
 void get_command_word_and_args(char* command, uint16_t command_length, char* command_word, char* command_args)
 {
+	//printf("\tIn gcwaa.\r\n");
 	uint16_t write_index = 0;
 	uint8_t writing_word_boole = 1;
 	for(uint16_t i=0 ; i<command_length ; i++)

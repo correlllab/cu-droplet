@@ -11,6 +11,7 @@
 #include "droplet_init.h"
 #include "scheduler.h"
 #include "ir_led.h"
+#include "firefly_sync.h"
 
 // FYI, the XMEGA128A3U has:
 //		128 KB flash (program memory)

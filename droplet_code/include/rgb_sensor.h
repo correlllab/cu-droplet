@@ -9,6 +9,8 @@
 
 static const char RGB_SENSE_POWERON_FAILURE[] PROGMEM = "RGB sense power-on failed %hu.\r\n";
 
+	void rgb_sensor_init();
+
 #ifdef AUDIO_DROPLET
 
 	#define RGB_SENSE_ADDR 0x29
@@ -23,8 +25,6 @@ static const char RGB_SENSE_POWERON_FAILURE[] PROGMEM = "RGB sense power-on fail
 	#define RGB_SENSOR_R_PIN_bm PIN5_bm
 	#define RGB_SENSOR_G_PIN_bm PIN6_bm
 	#define RGB_SENSOR_B_PIN_bm PIN7_bm
-
-	void rgb_sensor_init();
 
 	int16_t r_baseline, g_baseline, b_baseline;
 	//void get_cal_rgb(uint8_t* r, uint8_t* g, uint8_t* b);

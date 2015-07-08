@@ -2,40 +2,32 @@
 
 void init()
 {
-    b = 2.;
-    eps = .25;
-    change_state(SHINE);
+	float b=2.;
+	float eps = .25;
+	
+	TCD1.CTRLA = TC_CLKSEL_DIV1024_gc;
+	TCD1.CTRLB = TC_WGMODE_NORMAL_gc;
+	TCD1.CCA = 0;
+	TCD1.CCB = 0;
+	TCD1.CNT = 0;
+	TCD1.PER =  63323;	
+	TCD1.INTCTRLA = TC_OVFINTLVL_MED_gc;
+}
+
+ISR(TCD1_OVF_vect)
+{
+	ir_cmd(ALL_DIRS, "<3", 2);
+	set_hsv(30, 255, 120);
 }
 
 void loop()
 {
-	switch (state)
-    {
-    case SHINE:
-        if (get_time() - state_start_time >= REF_DELAY)
-        {
-            led_off();
-            change_state(LISTEN);
-        }
-        break;
-    case LISTEN:
-        if (listen_time >= BASE_LISTEN_TIME)
-        {
-            change_state(TRANSMIT);
-        }
-        listen_time += (double)(get_time() - last_update_time);
-        last_update_time = get_time();
-        break;
-    case TRANSMIT:
-        change_state(SHINE);
-        break;
-    }
-
+	if(TCD1.CNT>REFRACTORY_PERIOD) led_off();
 }
 
 void handle_msg(ir_msg* msg_struct)
 {
-
+	
 }
 
 /*
@@ -45,36 +37,17 @@ void handle_msg(ir_msg* msg_struct)
 */
 uint8_t user_handle_command(char* command_word, char* command_args)
 {
-	if (state == LISTEN) // Only parse messages when in LISTEN state
+	if(strcmp(command_word, "<3") == 0)
 	{
-		if(strcmp(command_word, "<3") == 0)
+		uint16_t the_count = TCD1.CNT;
+		if(the_count>REFRACTORY_PERIOD)
 		{
 			double alpha = exp(b * eps);
 			double beta = (alpha - 1) / (exp(b) - 1);
-			listen_time = fmin(alpha * listen_time/BASE_LISTEN_TIME + beta, 1.) * BASE_LISTEN_TIME;
+			uint16_t new_count = (uint16_t)(fmin(alpha * the_count/FULL_PERIOD + beta, 1.) * ((float)FULL_PERIOD));
+			TCD1.CNT = new_count;
 		}
+		return 1;
 	}
-}
-
-void change_state(State new_state)
-{
-    state_start_time = get_time();
-    state = new_state;
-    
-	switch (state)
-	{
-    case SHINE:
-        set_hsv(30, 255, 120);
-        break;
-    case LISTEN:
-        //set_hsv(120, 255, 120);
-        listen_time = 0.;
-        last_update_time = state_start_time;
-        break;
-    case TRANSMIT:
-        // Send a sync message
-        //set_hsv(210, 255, 120);
-        ir_send(ALL_DIRS, "<3", 2);
-        break;
-	}    
+	return 0;
 }

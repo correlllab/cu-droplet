@@ -29,7 +29,7 @@ void Config32MHzClock(void)
 	while(!(OSC.STATUS & OSC_RC32MRDY_bm));
 	CCP = CCP_IOREG_gc;
 	CLK.CTRL = 0x01;
-	
+	//OSC.RC32KCAL = PRODSIGNATURES_RCOSC32K;
 	// Set up real-time clock
 	CLK.RTCCTRL = CLK_RTCSRC_RCOSC_gc | CLK_RTCEN_bm;	// per Dustin: RTCSRC is a 1 kHz oscillator, needs to be verified
 	//RTC.INTCTRL = RTC_OVFINTLVL_LO_gc;
@@ -70,10 +70,8 @@ void task_list_cleanup()
 {
 	printf_P(PSTR("Error! We got ahead of the task list and now nothing will execute.\r\n\tDropping all non-periodic tasks.\r\n\tIf you only see this rarely, don't worry too much.\r\n\tTask executing: %hu\r\n"),task_executing);
 	printf("\tTime Difference: %ld\r\n",((int32_t)(get_time()-(task_list->scheduled_time))));	
-	printf("\tTime: %\lu\r\n",get_time());
-	return;
-	delay_ms(50);
-	delay_ms(50);
+	printf("\tTime: %lu\r\n",get_time());
+
 	volatile Task_t* cur_task = task_list;
 	volatile Task_t* task_ptr_arr[MAX_NUM_SCHEDULED_TASKS];
 	uint8_t num_periodic_tasks = 0;

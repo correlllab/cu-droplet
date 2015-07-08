@@ -55,6 +55,7 @@
 #include "mic.h"
 #include "motor.h"
 #include "random.h"
+#include "firefly_sync.h"
 
 #include "serial_handler.h"
 

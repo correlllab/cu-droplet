@@ -29,10 +29,8 @@ void init_all_systems()
 	motor_init();				INIT_DEBUG_PRINT("MOTOR INIT\r\n");
 	random_init();				INIT_DEBUG_PRINT("RAND INIT\r\n"); //This uses adc readings for a random seed, and so requires that the adcs have been initialized.
 
-	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
-	{
-		startup_light_sequence();
-	}
+	startup_light_sequence();
+
 }
 
 int main()

@@ -13,7 +13,7 @@ void init()
  */
 void loop()
 {
-	
+
 }
 
 /*
@@ -25,12 +25,13 @@ void handle_msg(ir_msg* msg_struct)
 	
 }
 
-/*
- * The function below is optional, and need not be included. If included,
- * it should return '1' if the command_word is a valid command, and '0', 
- * otherwise.
- */
-uint8_t user_handle_command(char* command_word, char* command_args)
-{
+///*
+ //* The function below is optional, and need not be included. If included,
+ //* it should return '1' if the command_word is a valid command, and '0', 
+ //* otherwise.
+ //*/
+//uint8_t user_handle_command(char* command_word, char* command_args)
+//{
+	//return 0;
+//}
 
-}

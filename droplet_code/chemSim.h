@@ -23,7 +23,8 @@ typedef struct
 Near_Atom near_atoms[12]; //this number is pretty arbitrary.
 Atom NULL_ATOM = {{0,0,0,0,0,0,0,0},{0,0,0,0,0,0},{0,0},0,0,0};
 Near_Atom NULL_NEAR_ATOM = {{{0,0,0,0,0,0,0,0},{0,0,0,0,0,0},{0,0},0,0,0}, 0, 0, 0, 0, 0};
-uint32_t bondDelay;
+volatile uint32_t bondDelay;
+volatile uint16_t potentialPartner;
 void init();
 void loop();
 void handle_msg(ir_msg* msg_struct);
@@ -34,7 +35,7 @@ void update_near_atoms();
 void add_to_bonded_atoms(uint16_t ID);
 void printValence(int8_t valence[]);
 Atom getAtomFromAtomicNum(uint8_t atomicNum);
-void found_diatomic_routine();
+void found_bond_routine(char flag);
 void setAtomColor(Atom ID);
 void broadcastChemID(Atom ID);
 void sendChemID(Atom ID, uint8_t channels[]);

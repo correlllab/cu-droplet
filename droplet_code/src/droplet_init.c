@@ -44,6 +44,7 @@ int main()
 		loop();
 		check_messages();
 		if(task_list_check()) task_list_cleanup();
+		delay_ms(1);
 	}
 	return 0;
 }

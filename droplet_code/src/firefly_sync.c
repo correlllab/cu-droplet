@@ -40,7 +40,7 @@ ISR(TCE0_OVF_vect)
 		RTC.COMP = (RTC.COMP+change);
 	}
 	
-	//change represents different the RTC clock's measure of 2048ms differs from the synchronization's measure.
+	//change represents how the RTC clock's measure of 2048ms differs from the synchronization's measure.
 	//If change is quite large, then probably we're still getting sync'd - so no implications about the RTC clock.
 	//If it's smallish, though, the code below adjusts the factory-set calibration value to minimize this difference.
 	//(From observations, changing the calibration by one seemed to effect the change by about 10ms, so if we're within

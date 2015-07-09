@@ -1,13 +1,11 @@
 #include "user_template.h"
 
-static uint32_t last_time;
-
 /*
  * Any code in this function will be run once, when the robot starts.
  */
 void init()
 {
-	last_time = get_time();
+	
 }
 
 
@@ -17,20 +15,6 @@ void init()
 void loop()
 {
 	
-	if(get_time()%2048<512){
-		if(!get_red_led())		set_red_led(255);
-	}else if(get_time()%2048<1024){
-		if(get_red_led())		set_red_led(0);
-	}else if(get_time()%2048<1536){
-		if(!get_green_led())	set_green_led(255);
-	}else if(get_green_led())	set_green_led(0);
-
-	//if((TCE0.CNT>REFRACTORY_PERIOD)&&get_red_led()){
-		//led_off();
-		//uint32_t the_time = get_time();
-		//printf("!! %lu !!\r\n",the_time-last_time);
-		//last_time = the_time;
-	//}
 }
 
 /*

@@ -20,13 +20,13 @@ ISR(TCE0_OVF_vect)
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 	{
 		uint16_t the_count = RTC.CNT;
-		uint16_t remainder = the_count%2048;
+		uint16_t remainder = the_count%(FIREFLY_SYNC_FULL_PERIOD/32);
 		//printf("Count: %u. Remainder: %u.\r\n", the_count, remainder);
 
-		if(remainder>1024)
+		if(remainder>(FIREFLY_SYNC_FULL_PERIOD/64))
 		{
-			change = 2048-remainder;
-			if((0xFFFF-change)<the_count) rtc_epoch++;
+			change = (FIREFLY_SYNC_FULL_PERIOD/32)-remainder;
+			if((0xFFFF-change)<the_count) rtc_epoch++;			//0xFFFF: RTC.PER
 		}
 		else
 		{
@@ -40,13 +40,16 @@ ISR(TCE0_OVF_vect)
 		RTC.COMP = (RTC.COMP+change);
 	}
 	
-
+	//change represents different the RTC clock's measure of 2048ms differs from the synchronization's measure.
+	//If change is quite large, then probably we're still getting sync'd - so no implications about the RTC clock.
+	//If it's smallish, though, the code below adjusts the factory-set calibration value to minimize this difference.
+	//(From observations, changing the calibration by one seemed to effect the change by about 10ms, so if we're within
+	//11ms, we won't get any better.)
 	if(abs(change)<100)
 	{
 		if(change>0) OSC.RC32KCAL++;
 		else if(change<-11) OSC.RC32KCAL--;
 	}
-
-	printf("Delta Count: %d\r\n",change);
+	//printf("Delta Count: %d\r\n",change);
 }
 

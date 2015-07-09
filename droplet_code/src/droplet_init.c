@@ -43,17 +43,14 @@ int main()
 	init();
 	while(1)
 	{
-		#ifdef SYNCHRONIZED
-			loop();
-			check_messages();
-			if(task_list_check()) task_list_cleanup();
-			delay_ms(1);		
-		#else
-			loop();
-			check_messages();
-			if(task_list_check()) task_list_cleanup();
-			delay_ms(1);
-		#endif
+		loop();
+		check_messages();
+		if(task_list_check())
+		{
+			printf_P(PSTR("Error! We got ahead of the task list and now nothing will execute.\r\n"));
+			task_list_cleanup();
+		}
+		delay_ms(1);	
 	}
 	return 0;
 }

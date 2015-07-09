@@ -34,7 +34,7 @@ typedef struct task
 	uint32_t period;
 	flex_function func;
 	void* arg;
-	struct task* next;
+	volatile struct task* next;
 } Task_t;
 
 // Global task list
@@ -65,14 +65,13 @@ void task_list_cleanup();
 Task_t* schedule_task(uint32_t time, void (*function)(), void* arg);
 // This function primarily calls the above, but always to run 10ms in the future, and then repeat with a certain period.
 Task_t* schedule_periodic_task(uint32_t period, void (*function)(), void* arg);
-void add_task_to_list(Task_t* task);
+void add_task_to_list(volatile Task_t* task);
 void remove_task(Task_t* task); // Removes a task from the queue
 void print_task_queue();
 
 // TO BE CALLED FROM INTERRUPT HANDLER ONLY
 // DO NOT CALL
-void run_tasks() __attribute__((OS_task));
-void restore_registers() __attribute__((naked));
+int8_t run_tasks();
 
 /* To avoid issues caused by malloc, we're going to have some "fake" malloc functions.
  * We'll keep an array of MAX_NUM_SCHEDULED_TASKS Task_t structs, and fake_malloc()
@@ -96,23 +95,22 @@ static volatile Task_t task_storage_arr[MAX_NUM_SCHEDULED_TASKS];
 	//return &(task_storage_arr[curr_pointer]);
 //}
 
-static inline Task_t* scheduler_malloc()
-{
-	if(num_tasks>=MAX_NUM_SCHEDULED_TASKS) return NULL;
-
-	for(uint8_t tmp=0 ; tmp<MAX_NUM_SCHEDULED_TASKS ; tmp++)
-	{
-		//This code assumes that all tasks will have non-null function pointers.
-		if((task_storage_arr[tmp].func.noarg_function) == NULL)
-		{
-			return &(task_storage_arr[tmp]);
-		}
-	}
-	
-	printf_P(PSTR("No empty spot found in scheduler_malloc, but num_tasks wasn't greater than or equal max_tasks.\r\n"));
-	return NULL;
-
-}
+//static inline volatile Task_t* scheduler_malloc()
+//{
+	//if(num_tasks>=MAX_NUM_SCHEDULED_TASKS) return NULL;
+//
+	//for(uint8_t tmp=0 ; tmp<MAX_NUM_SCHEDULED_TASKS ; tmp++)
+	//{
+		////This code assumes that all tasks will have non-null function pointers.
+		//if((task_storage_arr[tmp].func.noarg_function) == NULL)
+		//{
+			//return &(task_storage_arr[tmp]);
+		//}
+	//}
+	//
+	//return (volatile Task_t*)0xFFFF;
+//
+//}
 
 //Returns '1' if the next task to run is scheduled for more than 255ms in the past. If this occurs, call task_list_cleanup.
 inline uint8_t task_list_check()
@@ -135,20 +133,20 @@ inline uint8_t task_list_check()
 	//printf("In scheduler_free, task_storage_arr[tmp] was never equal to tgt.\r\n");
 //}
 
-static inline void scheduler_free(Task_t* tgt)
-{
-	if((tgt<task_storage_arr)||(tgt>(&(task_storage_arr[MAX_NUM_SCHEDULED_TASKS]))))
-	{
-		printf_P(PSTR("In scheduler_free, tgt (%X) was outside valid Task* range.\r\n"),tgt);
-		set_rgb(0,0,255);
-		delay_ms(60000);
-	}
-	tgt->arg = 0;
-	tgt->period = 0;
-	(tgt->func).noarg_function = NULL;
-	tgt->scheduled_time = 0;
-	tgt->next = NULL;
-}
+//static void scheduler_free(volatile Task_t* tgt)
+//{
+	//if((tgt<task_storage_arr)||(tgt>(&(task_storage_arr[MAX_NUM_SCHEDULED_TASKS]))))
+	//{
+		//printf_P(PSTR("In scheduler_free, tgt (%X) was outside valid Task* range.\r\n"),tgt);
+		//set_rgb(0,0,255);
+		//delay_ms(60000);
+	//}
+	//tgt->arg = 0;
+	//tgt->period = 0;
+	//(tgt->func).noarg_function = NULL;
+	//tgt->scheduled_time = 0;
+	//tgt->next = NULL;
+//}
 
 //void task_list_checkup();
 

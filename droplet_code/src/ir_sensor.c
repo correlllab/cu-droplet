@@ -100,7 +100,7 @@ uint8_t get_ir_sensor(uint8_t sensor_num)
 				ir_sense_channels[sensor_num]->CTRL |= ADC_CH_START_bm;
 				while (ir_sense_channels[sensor_num]->INTFLAGS==0){};		// wait for measurement to complete
 			}
-			meas[meas_count] = ((((int16_t)(ir_sense_channels[sensor_num]->RESH))<<8)|((int16_t)(ir_sense_channels[sensor_num]->RESL)))>>3;	
+			meas[meas_count] = ((((int16_t)(ir_sense_channels[sensor_num]->RESH))<<8)|((int16_t)(ir_sense_channels[sensor_num]->RESL)));	
 			ir_sense_channels[sensor_num]->INTFLAGS=1; // clear the complete flag		
 		}
 	
@@ -170,7 +170,7 @@ uint8_t check_collisions(){
 		//get_ir_sensor(i);
 		measured_vals[i] = get_ir_sensor(i);
 		//printf("%1hu:%d\t", i, measured_vals[i]);		
-		int16_t temp = measured_vals[i]-baseline_meas[i];
+		//int16_t temp = measured_vals[i]-baseline_meas[i];
 		//printf("\t%3d", temp);
 		if((measured_vals[i]-baseline_meas[i])>16){
 			dirs = dirs|(1<<i);

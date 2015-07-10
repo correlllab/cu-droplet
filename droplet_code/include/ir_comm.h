@@ -11,6 +11,7 @@
 #include "droplet_init.h"
 #include "scheduler.h"
 #include "ir_led.h"
+#include "firefly_sync.h"
 
 // FYI, the XMEGA128A3U has:
 //		128 KB flash (program memory)
@@ -56,6 +57,8 @@
 #define HEADER_POS_TARGET_ID_HIGH 6
 #define HEADER_LEN 7
 
+#define MAX_WAIT_FOR_IR_TIME ((5*(IR_BUFFER_SIZE+HEADER_LEN))/2)
+
 volatile struct
 {	
 	uint32_t last_byte;			// TX time or RX time of last received byte	
@@ -100,4 +103,4 @@ void ir_transmit(uint8_t dir);
 void ir_remote_send(uint8_t dir, uint16_t data);
 void ir_transmit_complete(uint8_t dir);
 void ir_reset_rx(uint8_t dir);
-void wait_for_ir(uint8_t dirs);
+uint8_t wait_for_ir(uint8_t dirs);

@@ -72,11 +72,9 @@ void handle_move_steps(char* command_args)
 	token = strtok(NULL,delim);
 	uint16_t num_steps = (uint16_t)atoi(token);
 	if (num_steps > 0)
-	{
-		set_rgb(0,0,200);		
+	{	
 		printf_P(PSTR("walk direction %u, num_steps %u\r\n"), direction, num_steps);	
 		move_steps(direction, num_steps);
-		set_rgb(0,0,0);
 	}	
 }	
 
@@ -141,6 +139,8 @@ void handle_stop_walk()
 
 void handle_set_motors(char* command_args)
 {	
+	uint8_t r = get_red_led(), g = get_green_led(), b = get_blue_led();
+	set_rgb(0,0,255);
 	const char delim[2] = " ";
 	
 	char* token = strtok(command_args,delim);
@@ -161,6 +161,7 @@ void handle_set_motors(char* command_args)
 	motor_adjusts[direction][2] = atoi(token);	
 
 	printf_P(PSTR("Got set_motors command. direction: %hhu, vals: (%d, %d, %d)\r\n"), direction, motor_adjusts[direction][0], motor_adjusts[direction][1], motor_adjusts[direction][2]);
+	set_rgb(r,g,b);
 }
 
 void handle_set_mm_per_kilostep(char* command_args)

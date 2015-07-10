@@ -29,6 +29,10 @@ void init_all_systems()
 	motor_init();				INIT_DEBUG_PRINT("MOTOR INIT\r\n");
 	random_init();				INIT_DEBUG_PRINT("RAND INIT\r\n"); //This uses adc readings for a random seed, and so requires that the adcs have been initialized.
 
+	#ifdef SYNCHRONIZED
+		firefly_sync_init();
+	#endif
+
 	startup_light_sequence();
 
 }
@@ -41,8 +45,12 @@ int main()
 	{
 		loop();
 		check_messages();
-		if(task_list_check()) task_list_cleanup();
-		delay_ms(1);
+		if(task_list_check())
+		{
+			printf_P(PSTR("Error! We got ahead of the task list and now nothing will execute.\r\n"));
+			task_list_cleanup();
+		}
+		delay_ms(1);	
 	}
 	return 0;
 }

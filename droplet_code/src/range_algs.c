@@ -57,7 +57,7 @@ void broadcast_rnb_data()
 {
 	uint8_t power = 255;
 	ir_cmd(ALL_DIRS, "rnb_r", 5);
-	wait_for_ir(ALL_DIRS);
+	if(!wait_for_ir(ALL_DIRS)) return;
 	delay_ms(POST_MESSAGE_DELAY);	
 	ir_range_blast(power);
 }

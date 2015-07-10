@@ -55,6 +55,7 @@
 #include "mic.h"
 #include "motor.h"
 #include "random.h"
+#include "firefly_sync.h"
 
 #include "serial_handler.h"
 
@@ -75,6 +76,7 @@ extern void init();
 extern void loop();
 extern void handle_msg(ir_msg* msg_struct);
 extern uint8_t user_handle_command(char* command_word, char* command_args);
+extern void	user_leg_status_interrupt();
 
 /**
  * \brief Returns this Droplet's unique 16-bit identifier. 0 will never be an identifier.

@@ -1,5 +1,37 @@
 #include "scheduler.h"
 
+static volatile Task_t* scheduler_malloc()
+{
+	if(num_tasks>=MAX_NUM_SCHEDULED_TASKS) return NULL;
+
+	for(uint8_t tmp=0 ; tmp<MAX_NUM_SCHEDULED_TASKS ; tmp++)
+	{
+		//This code assumes that all tasks will have non-null function pointers.
+		if((task_storage_arr[tmp].func.noarg_function) == NULL)
+		{
+			return &(task_storage_arr[tmp]);
+		}
+	}
+	
+	return (volatile Task_t*)0xFFFF;
+
+}
+
+static void scheduler_free(volatile Task_t* tgt)
+{
+	if((tgt<task_storage_arr)||(tgt>(&(task_storage_arr[MAX_NUM_SCHEDULED_TASKS]))))
+	{
+		printf_P(PSTR("ERROR: In scheduler_free, tgt (%X) was outside valid Task* range.\r\n"),tgt);
+		set_rgb(0,0,255);
+		delay_ms(60000);
+	}
+	tgt->arg = 0;
+	tgt->period = 0;
+	(tgt->func).noarg_function = NULL;
+	tgt->scheduled_time = 0;
+	tgt->next = NULL;
+}
+
 void scheduler_init()
 {
 	task_list = NULL;
@@ -29,7 +61,7 @@ void Config32MHzClock(void)
 	while(!(OSC.STATUS & OSC_RC32MRDY_bm));
 	CCP = CCP_IOREG_gc;
 	CLK.CTRL = 0x01;
-	
+	//OSC.RC32KCAL = PRODSIGNATURES_RCOSC32K;
 	// Set up real-time clock
 	CLK.RTCCTRL = CLK_RTCSRC_RCOSC_gc | CLK_RTCEN_bm;	// per Dustin: RTCSRC is a 1 kHz oscillator, needs to be verified
 	//RTC.INTCTRL = RTC_OVFINTLVL_LO_gc;
@@ -68,12 +100,8 @@ void delay_ms(uint16_t ms)
 //This function checks for errors or inconsistencies in the task list, and attempts to correct them.
 void task_list_cleanup()
 {
-	printf_P(PSTR("Error! We got ahead of the task list and now nothing will execute.\r\n\tDropping all non-periodic tasks.\r\n\tIf you only see this rarely, don't worry too much.\r\n\tTask executing: %hu\r\n"),task_executing);
-	printf("\tTime Difference: %ld\r\n",((int32_t)(get_time()-(task_list->scheduled_time))));	
-	printf("\tTime: %\lu\r\n",get_time());
-	return;
-	delay_ms(50);
-	delay_ms(50);
+	printf_P(PSTR("\tAttempting to restore task_list (by dropping all non-periodic tasks.\r\n\tIf you only see this message rarely, don't worry too much.\r\n"));
+
 	volatile Task_t* cur_task = task_list;
 	volatile Task_t* task_ptr_arr[MAX_NUM_SCHEDULED_TASKS];
 	uint8_t num_periodic_tasks = 0;
@@ -134,6 +162,11 @@ Task_t* schedule_task(uint32_t time, void (*function)(), void* arg)
 	{
 		new_task = scheduler_malloc();
 		if (new_task == NULL) return NULL;
+		else if(new_task == ((volatile Task_t*)0xFFFF)) 
+		{
+			printf_P(PSTR("ERROR: No empty spot found in scheduler_malloc, but num_tasks wasn't greater than or equal max_tasks.\r\n"));
+			task_list_cleanup();
+		}
 		else if((new_task<task_storage_arr)||(new_task>(&(task_storage_arr[MAX_NUM_SCHEDULED_TASKS-1]))))
 		{
 			printf_P(PSTR("ERROR: scheduler_malloc returned a new_task pointer outside of the task storage array.\r\n"));
@@ -160,7 +193,7 @@ Task_t* schedule_periodic_task(uint32_t period, void (*function)(), void* arg)
 	return new_task;
 }
 
-void add_task_to_list(Task_t* task)
+void add_task_to_list(volatile Task_t* task)
 {
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 	{
@@ -195,7 +228,7 @@ void add_task_to_list(Task_t* task)
 			uint8_t r = get_red_led();
 			uint8_t b = get_blue_led();
 			set_rgb(255, 50, 0);
-			Task_t* tmp_task_ptr = task_list;
+			volatile Task_t* tmp_task_ptr = task_list;
 			while (tmp_task_ptr->next != NULL && task->scheduled_time > (tmp_task_ptr->next)->scheduled_time)
 			{
 				if(tmp_task_ptr->next==tmp_task_ptr){
@@ -229,29 +262,29 @@ void add_task_to_list(Task_t* task)
 // Remove a task from the task queue
 void remove_task(Task_t* task)
 {
+	if((task<task_storage_arr)||(task>(&(task_storage_arr[MAX_NUM_SCHEDULED_TASKS-1]))))
+	{
+		printf("ERROR: Asked to remove_task for task pointer outside the bounds of task_storage_arr.\r\n");
+		return;
+	}	
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 	{
-		if(task_list==NULL) return;
 		if(task_list==task)
 		{
 			task_list=task->next;
-			scheduler_free(task);
-			task = NULL;
 			num_tasks--;
 		}
-		else
+		else 
 		{
-			Task_t* tmp_task = task_list;
+			volatile Task_t* tmp_task = task_list;
 			while (tmp_task->next != NULL && tmp_task->next != task) tmp_task = tmp_task->next;
 			if (tmp_task->next != NULL)
 			{
 				tmp_task->next = task->next;
-				scheduler_free(task);
-				task = NULL;
 				num_tasks--;
 			}
 		}
-		//task_list_checkup();
+		scheduler_free(task);		
 	}
 }
 
@@ -259,7 +292,7 @@ void print_task_queue()
 {
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)  // Disable interrupts during printing
 	{
-		Task_t* cur_task = task_list;
+		volatile Task_t* cur_task = task_list;
 		
 		printf_P(PSTR("Task Queue (%hhu tasks, %hhu executing):\r\n"), num_tasks, task_executing);
 		
@@ -275,7 +308,7 @@ void print_task_queue()
 
 // TO BE CALLED FROM INTERRUPT HANDLER ONLY
 // DO NOT CALL
-void run_tasks()
+int8_t run_tasks()
 {
 	volatile Task_t* cur_task;
 	volatile Task_t* pre_call_task;
@@ -286,20 +319,17 @@ void run_tasks()
 		// (The RTC compare register takes 2 RTC clock cycles to update)
 		while (task_list != NULL && task_list->scheduled_time <= get_time() + 2)
 		{
-			cur_task = task_list;
-			task_list = cur_task->next;
-			//if(cur_task->period==0) printf("Running task (%X) at %lu\t[%hhu]\r\n", cur_task, get_time(), num_tasks);
 			uint8_t num_slots_used = 0;
 			for(uint8_t i=0;i<MAX_NUM_SCHEDULED_TASKS;i++)
 			{
 				if(((uint16_t)(task_storage_arr[i].func.noarg_function))!=0)
 				{
 					num_slots_used++;
-					uint16_t next_ptr = ((uint16_t)task_storage_arr[i].next);
+					volatile Task_t* next_ptr = task_storage_arr[i].next;
 					if((next_ptr!=0)&&((next_ptr<task_storage_arr)||(next_ptr>(&(task_storage_arr[MAX_NUM_SCHEDULED_TASKS-1])))))
 					{
 						printf_P(PSTR("Pre-call, task has next_ptr pointing outside of array.\r\n"));
-						printf("\t%X\r\n",&(task_storage_arr[i]));
+						printf("\t%X\r\n",((uint16_t)(&(task_storage_arr[i]))));
 						delay_ms(10);
 					}
 				}
@@ -307,11 +337,12 @@ void run_tasks()
 			//printf_P(PSTR("\tCalling %X. Tasks: %2hu. Slots Used: %2hu.\r\n"),cur_task->func.noarg_function, num_tasks, num_slots_used);
 			if(num_slots_used!=num_tasks)
 			{
-				printf_P(PSTR("Pre-call, task storage consistency check failure.\r\n"));
-				delay_ms(10);				
-			}
-			
-			
+				printf_P(PSTR("ERROR: Pre-call, task storage consistency check failure.\r\n"));
+				return -1;
+			}			
+			cur_task = task_list;
+			task_list = cur_task->next;
+
 			if(cur_task->arg==NULL)
 			{
 				NONATOMIC_BLOCK(NONATOMIC_RESTORESTATE) // Enable interrupts during tasks
@@ -326,13 +357,28 @@ void run_tasks()
 					(cur_task->func).arg_function(cur_task->arg); // run the task
 				}
 			}
+			
+			if(cur_task->period>0)
+			{
+				cur_task->scheduled_time+=cur_task->period;
+				cur_task->next=NULL;
+				num_tasks--;
+				add_task_to_list(cur_task);
+			}
+			else
+			{		
+				scheduler_free(cur_task);
+				cur_task = NULL;
+				num_tasks--;
+			}
+			
 			num_slots_used = 0;
 			for(uint8_t i=0;i<MAX_NUM_SCHEDULED_TASKS;i++)
 			{
 				if(((uint16_t)(task_storage_arr[i].func.noarg_function))!=0)
 				{
 					num_slots_used++;
-					uint16_t next_ptr = ((uint16_t)task_storage_arr[i].next);
+					volatile Task_t* next_ptr = task_storage_arr[i].next;
 					if((next_ptr!=0)&&((next_ptr<task_storage_arr)||(next_ptr>(&(task_storage_arr[MAX_NUM_SCHEDULED_TASKS-1])))))
 					{
 						printf_P(PSTR("Post-call, task %X has next_ptr pointing outside of array.\r\n"),task_storage_arr[i]);
@@ -343,39 +389,12 @@ void run_tasks()
 			//printf_P(PSTR("\tReturned %X. Tasks: %2hu. Slots Used: %2hu.\r\n"),cur_task->func.noarg_function, num_tasks, num_slots_used);
 			if(num_slots_used!=num_tasks)
 			{
-				printf_P(PSTR("Post-return, task storage consistency check failure.\r\n"));
-				delay_ms(10);
+				printf_P(PSTR("ERROR: Post-return, task storage consistency check failure.\r\n"));
+				return -1;
 			}			
-			if(cur_task->period>0)
-			{
-				//uint32_t THE_TIME = get_time();
-				cur_task->scheduled_time+=cur_task->period;
-				//(cur_task->scheduled_time)=(get_time()+(0xFFFF&((uint32_t)cur_task->period)));						
-				//printf("??%lu\r\n",cur_task->scheduled_time);
-				//if(cur_task->scheduled_time>0x01000000){
-					//print_task_queue();
-					//printf("ERROR! Scheduled time waaay in the future.\r\n");
-				//}
-				
-				cur_task->next=NULL;
-				num_tasks--;
-				add_task_to_list(cur_task);
-			}
-			else
-			{
-				//printf("Freeing task (%X) at %lu\t[%hhu]\r\n", cur_task, get_time(), (num_tasks-1));			
-				scheduler_free(cur_task);
-				cur_task = NULL;
-				num_tasks--;
-			}
-		}
-		//If the next task to be executed was in the past, do something???
-		if (task_list != NULL && task_list_check()){
-			//printf("From run_tasks (%ld): ", get_time()-(task_list->scheduled_time));			
-			//task_list_cleanup();
 		}
 		// If the next task to be executed is in the current epoch, set the RTC compare register and interrupt		
-		else if (task_list != NULL && task_list->scheduled_time <= ((((uint32_t)rtc_epoch) << 16) | (uint32_t)RTC.PER))
+		if (task_list != NULL && task_list->scheduled_time <= ((((uint32_t)rtc_epoch) << 16) | (uint32_t)RTC.PER))
 		{	
 			while (RTC.STATUS & RTC_SYNCBUSY_bm);
 			RTC.COMP = ((uint16_t)(task_list->scheduled_time))|0x8;
@@ -386,11 +405,7 @@ void run_tasks()
 			RTC.INTCTRL &= ~RTC_COMP_INT_LEVEL;
 		}
 	}
-
-	// Jump to the code that restores the registers to the state they were in
-	// before the RTC interrupt.  Program control will return to where it was before the interrupt
-	// on return from restore_registers
-	//asm("jmp restore_registers");	 // must include scheduler_asm.c in the project
+	return 0;
 }
 
 //volatile static uint16_t seen_tasks[MAX_NUM_SCHEDULED_TASKS];
@@ -460,11 +475,13 @@ void run_tasks()
 
 ISR(RTC_COMP_vect)
 {
+	SAVE_CONTEXT();	
 	task_executing=1;
-	SAVE_CONTEXT();
-	run_tasks();
-	RESTORE_CONTEXT();
+	int8_t result = run_tasks();
 	task_executing=0;
+	//if(result<0)
+		//task_list_cleanup();		
+	RESTORE_CONTEXT();	
 }
 
 // Increment rtc_epoch on RTC overflow
@@ -481,8 +498,8 @@ ISR( RTC_OVF_vect )
 			{
 				if(task_list->scheduled_time < get_time())
 				{
-					printf("In overflow, tasks need to have been executed!\r\n");
-					print_task_queue();
+					//printf("In overflow, tasks need to have been executed!\r\n");
+					//print_task_queue();
 				}
 				else				
 				{		

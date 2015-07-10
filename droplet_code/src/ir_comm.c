@@ -223,8 +223,9 @@ inline void all_ir_sends(uint8_t dirs, char* data, uint8_t data_length, uint16_t
 inline void all_ir_sends(uint8_t dirs_to_go, char* data, uint8_t data_length, uint16_t target, uint8_t cmd_flag)
 {
 	
-	wait_for_ir(dirs_to_go);
-	for(uint8_t dir=0;dir<6;dir++)
+	if(!wait_for_ir(dirs_to_go)) return;
+	for(uint8_t dir
+	=0;dir<6;dir++)
 	{
 		if(dirs_to_go&(1<<dir))
 		{
@@ -480,12 +481,13 @@ void ir_reset_rx(uint8_t dir)
 	ir_transmit_complete(dir); //main reason I can see not to this is that when we're receiving we don't need to turn off the carrier wave. Doing shouldn't hurt, however?
 }
 
-void wait_for_ir(uint8_t dirs)
+uint8_t wait_for_ir(uint8_t dirs)
 {
 	uint8_t r = get_red_led();
 	uint8_t g = get_green_led();
 	uint8_t b = get_blue_led();
 	set_rgb(255, 0, 255);
+	uint32_t time_wait_start = get_time();
 	uint8_t busy;
 	do
 	{
@@ -510,8 +512,10 @@ void wait_for_ir(uint8_t dirs)
 			//printf("!!!!\r\n!!!!\r\nFrom wait_for_ir (%ld): should perform task_list_cleanup.\r\n!!!!\r\n!!!!\r\n", get_time()-(task_list->scheduled_time));
 			////task_list_cleanup(); //if the scheduled time for the current task is past and we're busy, perform task list cleanup	
 		//}
-	} while (busy);
+	} while (busy&&((get_time()-time_wait_start)<MAX_WAIT_FOR_IR_TIME));
 	set_rgb(r, g, b);
+	if((get_time()-time_wait_start)>=MAX_WAIT_FOR_IR_TIME) return 0;
+	return 1;
 }
 
 // ISRs for IR channel 0

@@ -100,7 +100,7 @@ uint8_t get_ir_sensor(uint8_t sensor_num)
 				ir_sense_channels[sensor_num]->CTRL |= ADC_CH_START_bm;
 				while (ir_sense_channels[sensor_num]->INTFLAGS==0){};		// wait for measurement to complete
 			}
-			meas[meas_count] = ((((int16_t)(ir_sense_channels[sensor_num]->RESH))<<8)|((int16_t)(ir_sense_channels[sensor_num]->RESL)))>>3;	
+			meas[meas_count] = ((((int16_t)(ir_sense_channels[sensor_num]->RESH))<<8)|((int16_t)(ir_sense_channels[sensor_num]->RESL)));	
 			ir_sense_channels[sensor_num]->INTFLAGS=1; // clear the complete flag		
 		}
 	

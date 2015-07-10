@@ -20,12 +20,12 @@ ISR(TCE0_OVF_vect)
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 	{
 		uint16_t the_count = RTC.CNT;
-		uint16_t remainder = the_count%(FIREFLY_SYNC_FULL_PERIOD/32);
+		uint16_t remainder = the_count%FIREFLY_SYNC_MS_PERIOD;
 		//printf("Count: %u. Remainder: %u.\r\n", the_count, remainder);
 
-		if(remainder>(FIREFLY_SYNC_FULL_PERIOD/64))
+		if(remainder>(FIREFLY_SYNC_MS_PERIOD/2))
 		{
-			change = (FIREFLY_SYNC_FULL_PERIOD/32)-remainder;
+			change = FIREFLY_SYNC_MS_PERIOD-remainder;
 			if((0xFFFF-change)<the_count) rtc_epoch++;			//0xFFFF: RTC.PER
 		}
 		else

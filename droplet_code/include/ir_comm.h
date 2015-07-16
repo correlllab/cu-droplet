@@ -57,7 +57,7 @@
 #define HEADER_POS_TARGET_ID_HIGH 6
 #define HEADER_LEN 7
 
-#define MAX_WAIT_FOR_IR_TIME ((5*(IR_BUFFER_SIZE+HEADER_LEN))/2)
+#define MAX_WAIT_FOR_IR_TIME (5*(IR_BUFFER_SIZE+HEADER_LEN))
 
 volatile struct
 {	

@@ -5,7 +5,7 @@
  */
 void init()
 {
-
+	enable_leg_status_interrupt();
 }
 
 /*
@@ -13,7 +13,8 @@ void init()
  */
 void loop()
 {
-
+	delay_ms(1);
+	if(leg_status_updated)
 }
 
 /*
@@ -34,12 +35,12 @@ void handle_msg(ir_msg* msg_struct)
 	//return 0;
 //}
 
-///*
- //*	The function below is optional - if it is commented in, and the leg interrupts have been turned on
- //*	with enable_leg_status_interrupt(), this function will get called when that interrupt triggers.
- //*/
-//void	user_leg_status_interrupt()
-//{
-	//
-//}
+/*
+ *	the function below is optional - if it is commented in, and the leg interrupts have been turned on
+ *	with enable_leg_status_interrupt(), this function will get called when that interrupt triggers.
+ */
+void user_leg_status_interrupt()
+{
+	
+}
 

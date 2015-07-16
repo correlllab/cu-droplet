@@ -222,7 +222,6 @@ inline void all_ir_sends(uint8_t dirs, char* data, uint8_t data_length, uint16_t
 //SIMPLEST POSSIBLE ALL_IR_SENDS.
 inline void all_ir_sends(uint8_t dirs_to_go, char* data, uint8_t data_length, uint16_t target, uint8_t cmd_flag)
 {
-	
 	if(!wait_for_ir(dirs_to_go)) return;
 	for(uint8_t dir
 	=0;dir<6;dir++)
@@ -514,7 +513,11 @@ uint8_t wait_for_ir(uint8_t dirs)
 		//}
 	} while (busy&&((get_time()-time_wait_start)<MAX_WAIT_FOR_IR_TIME));
 	set_rgb(r, g, b);
-	if((get_time()-time_wait_start)>=MAX_WAIT_FOR_IR_TIME) return 0;
+	if((get_time()-time_wait_start)>=MAX_WAIT_FOR_IR_TIME)
+	{
+		printf("wait_for_ir timed out.\r\n");
+		return 0;
+	}
 	return 1;
 }
 

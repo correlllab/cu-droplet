@@ -4,7 +4,9 @@
 #include "droplet_init.h"
 #include "Atom.h"
 
-#define RNB_BROADCAST_PERIOD 5500
+#define RNB_BROADCAST_PERIOD 11000
+#define BLINK_PERIOD 2500
+#define MIN_INTER_CHEM_ID_BROADCAST_DELAY 3000
 #define DETECT_OTHER_DROPLETS_PERIOD 1000
 #define UPDATE_ATOMS_PERIOD 100
 #define LOOP_PERIOD 50
@@ -20,6 +22,12 @@ typedef struct
 	uint8_t bonded;
 }Near_Atom;
 
+typedef struct 
+{
+	uint16_t bonded_atoms[6];
+	uint16_t blink_timer;
+}Bonded_Atoms_Msg;
+
 Near_Atom near_atoms[12]; //this number is pretty arbitrary.
 Atom NULL_ATOM = {{0,0,0,0,0,0,0,0},{0,0,0,0,0,0},{'0','0'},0,0,0};
 Near_Atom NULL_NEAR_ATOM = {{{0,0,0,0,0,0,0,0},{0,0,0,0,0,0},{'0','0'},0,0,0}, 0, 0, 0, 0, 0};
@@ -27,6 +35,10 @@ volatile uint32_t bondDelay;
 volatile uint16_t potentialPartner;
 volatile uint32_t tap_delay;
 volatile uint32_t bonded_atoms_delay;
+
+uint32_t last_chem_ID_broadcast;
+
+uint16_t global_blink_timer;
 void init();
 void loop();
 void handle_msg(ir_msg* msg_struct);

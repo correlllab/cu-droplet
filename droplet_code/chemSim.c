@@ -148,6 +148,9 @@ Atom getAtomFromAtomicNum(uint8_t atomicNum)
 
 void found_bond_routine(char flag)
 {
+	uint8_t r = get_red_led();
+	uint8_t g = get_green_led();
+	uint8_t b = get_blue_led();
 	switch(flag)
 	{
 		case 'i':
@@ -180,6 +183,7 @@ void found_bond_routine(char flag)
 			delay_ms(300);
 			break;
 	}
+	set_rgb(r, g, b);
 	
 }
 
@@ -254,10 +258,13 @@ void setAtomColor(Atom ID)
 
 void broadcastChemID(Atom ID)
 {
+	if(get_time()-last_chem_ID_broadcast<MIN_INTER_CHEM_ID_BROADCAST_DELAY)	return;
+	last_chem_ID_broadcast = get_time();	
 	//send the character array associated with this atom to all nearby droplets
 	//For now, it needs to go to every droplet on the board. Later, possibly change that.
 	//global_Atom_str = (char*)(&ID);
 	printf("\r\n broadcastChemID called \r\n");
+
 	//uint8_t r=get_red_led(), g=get_green_led(), b=get_blue_led();
 	//set_rgb(255,255,255);
 	ir_send(ALL_DIRS, (char*)(&ID), sizeof(Atom));
@@ -287,46 +294,15 @@ uint8_t valenceState() //returns 0 if empty, 2 if full, 1 if in between
 
 void detectOtherDroplets()
 {
-	uint16_t received_id;
-	float received_range;
-	float received_bearing;
-	float received_heading;
+
 	uint8_t dir_mask = check_collisions();
 	//printf("Collisions: %02hX \r\n", dir_mask);
-	
-	if(rnb_updated)
-	{
-		received_id = last_good_rnb.id_number;
-		received_range = last_good_rnb.range;
-		received_bearing = last_good_rnb.bearing;
-		received_heading = last_good_rnb.heading;
-		//convert to degrees from radians
-		received_bearing = rad_to_deg(received_bearing);
-		received_heading = rad_to_deg(received_heading);
-		//scaling the range to mm.
-		received_range = received_range*10;
-		//printf("range: %f\r\n", received_range);
-		uint8_t i;
-		for(i = 0; i < 12; i++)
-		{
-			if(near_atoms[i].id == received_id)
-			{
-				near_atoms[i].bearing = (int16_t)received_bearing;
-				near_atoms[i].heading = (int16_t)received_heading;
-				near_atoms[i].range = (uint8_t)received_range;
-				checkPossibleBonds(&(near_atoms[i].atom), received_id);
-				delay_ms(200); //probably remove this at some point
-				//print_near_atoms();
-				break;
-			}
-		}
-		broadcastChemID(myID);
-		rnb_updated=0;
-	}
 }
 
 void formDiatomicBond(uint16_t senderID, Atom near_atom, uint8_t my_empty, uint8_t other_empty)
 {
+	if(global_blink_timer > get_droplet_id() || global_blink_timer == 0) global_blink_timer = get_droplet_id();
+	printf("\r\n global_blink is %X in a form bond function \r\n", global_blink_timer);
 	bonded_atoms_delay = 0;
 	char diatomic[9];
 	diatomic[0] = 'd';
@@ -382,6 +358,8 @@ void formDiatomicBond(uint16_t senderID, Atom near_atom, uint8_t my_empty, uint8
 
 void formIonicBond(uint16_t senderID, Atom near_atom)
 {
+	if(global_blink_timer > get_droplet_id() || global_blink_timer == 0) global_blink_timer = get_droplet_id();
+	printf("\r\n global_blink is %X in a form bond function \r\n", global_blink_timer);
 	bonded_atoms_delay = 0;
 	unsigned char newValence[9];
 	newValence[0] = 'i';
@@ -460,6 +438,8 @@ void formIonicBond(uint16_t senderID, Atom near_atom)
 
 void formCovalentBond(uint16_t senderID, Atom near_atom)
 {
+	if(global_blink_timer > get_droplet_id() || global_blink_timer == 0) global_blink_timer = get_droplet_id();
+	printf("\r\n global_blink is %X in a form bond function \r\n", global_blink_timer);
 	bonded_atoms_delay = 0;
 	unsigned char newValence[9];
 	newValence[0] = 'c';
@@ -904,15 +884,25 @@ void msgBondedAtoms(ir_msg* msg_struct)
 			myIdFound = 1;
 			break;
 		}
-	}	
+	}
+	if(myIdFound && senderIDFound)	{
+		if(global_blink_timer > recast_bonded_atoms[6] || global_blink_timer == 0)  {
+			global_blink_timer = recast_bonded_atoms[6];
+			printf("\r\n SQUIDSQUIDSQUIDSQUID \r\n");
+		}
+	}
 	if(myIdFound == 1 && senderIDFound == 0)  {
 		printf("Droplet %x thinks he's bonded to me but I don't think I'm bonded to him. I'm sending my bonded_atoms to try to break the bond.\r\n", msg_struct->sender_ID);
-		ir_targeted_send(ALL_DIRS, (char*)(myID.bonded_atoms), 12, msg_struct->sender_ID);
+		Bonded_Atoms_Msg message;
+		for(uint8_t j = 0; j < 6; j++) message.bonded_atoms[j] = myID.bonded_atoms[j];
+		message.blink_timer = global_blink_timer;
+		ir_targeted_send(ALL_DIRS, (char*)(&message), 14, msg_struct->sender_ID);
 	}
 	else if(myIdFound == 0 && senderIDFound == 1)
 	{
 		printf("I think I'm bonded to a droplet who doesn't think he's bonded to me. I'm breaking the bond. \r\n");
 		setAtomColor(myID);
+		global_blink_timer = 0; //If the atom has multiple bonds, this will be fixed the next time one of its other partners sends its bonded_atoms. Not sure what else to do.
 		//Set my bondType based on what bonds I have remaining
 		//Possible error here if a droplet I'm bonded to isn't in near_atoms, but unlikely.
 		uint8_t foundBond = 0;
@@ -988,6 +978,8 @@ void init()
 	schedule_periodic_task(300, update_near_atoms, NULL);
 	enable_leg_status_interrupt();
 	bonded_atoms_delay = 0;
+	global_blink_timer = 0;
+	last_chem_ID_broadcast = 0;
 }
 
 /*
@@ -996,24 +988,68 @@ void init()
 
 void loop()
 {
-	delay_ms(1);
 	delay_ms(LOOP_PERIOD);
 	//broadcastChemID(myID);
-	uint32_t time_floor = ((get_time()/LOOP_PERIOD));
-	if((time_floor%(DETECT_OTHER_DROPLETS_PERIOD/LOOP_PERIOD))==0){
-		detectOtherDroplets();
-	}
-	if((get_time()-bondDelay) > 100) {
+	if((get_time()-bondDelay) > 1000) {
 		bondDelay = 0;
 		potentialPartner = 0;	
 	}
-	if((get_time()-bonded_atoms_delay) > 4000) {
+	if((get_time()-bonded_atoms_delay) > 1000) {
 		bonded_atoms_delay = 0;
 	}
+	uint32_t time_floor = ((get_time()/LOOP_PERIOD));
+	if((time_floor%(DETECT_OTHER_DROPLETS_PERIOD/LOOP_PERIOD))==0){
+		detectOtherDroplets();
+	}	
 	if((time_floor%(RNB_BROADCAST_PERIOD/LOOP_PERIOD))==0){
 		broadcast_rnb_data();
-		ir_send(ALL_DIRS, (char*)(myID.bonded_atoms), 12); 
+		Bonded_Atoms_Msg message;
+		for(uint8_t j = 0; j < 6; j++) message.bonded_atoms[j] = myID.bonded_atoms[j];
+		message.blink_timer = global_blink_timer;
+		ir_send(ALL_DIRS, (char*)(&message), sizeof(Bonded_Atoms_Msg)); 
+		printf("\r\n\r\n global_blink_timer is %X \r\n \r\n", global_blink_timer);
 	}
+	//There should be a better way to do this than delay_ms.
+	//if((global_blink_timer!=0)&&((time_floor%(BLINK_PERIOD/LOOP_PERIOD))==((global_blink_timer/50)%(BLINK_PERIOD/LOOP_PERIOD))))
+	////if(global_blink_timer != 0 && get_time()%(global_blink_timer/5) > 0 && get_time()%(global_blink_timer/5) < 50)
+	if(time_floor%(BLINK_PERIOD/LOOP_PERIOD)==0)
+	{
+		uint8_t r = get_red_led();
+		uint8_t g = get_green_led();
+		uint8_t b = get_blue_led();
+		set_rgb(255, 255, 0);
+		delay_ms(300);
+		set_rgb(r, g, b);
+	}
+	if(rnb_updated)
+	{
+		uint16_t received_id = last_good_rnb.id_number;
+		float received_range = last_good_rnb.range;
+		float received_bearing = last_good_rnb.bearing;
+		float received_heading = last_good_rnb.heading;
+		//convert to degrees from radians
+		received_bearing = rad_to_deg(received_bearing);
+		received_heading = rad_to_deg(received_heading);
+		//scaling the range to mm.
+		received_range = received_range*10;
+		//printf("range: %f\r\n", received_range);
+		uint8_t i;
+		for(i = 0; i < 12; i++)
+		{
+			if(near_atoms[i].id == received_id)
+			{
+				near_atoms[i].bearing = (int16_t)received_bearing;
+				near_atoms[i].heading = (int16_t)received_heading;
+				near_atoms[i].range = (uint8_t)received_range;
+				checkPossibleBonds(&(near_atoms[i].atom), received_id);
+				delay_ms(200); //probably remove this at some point
+				//print_near_atoms();
+				break;
+			}
+		}
+		broadcastChemID(myID);
+		rnb_updated=0;
+	}	
 }
 
 /*
@@ -1045,7 +1081,7 @@ void handle_msg(ir_msg* msg_struct)
 	else if(msg_struct->msg[0] == 'p' && (bondDelay == 0 || potentialPartner == msg_struct->sender_ID))
 		msgPossibleBond(msg_struct);
 	//Message is another Droplet's bonded_atoms array. T
-	else if((msg_struct->length == sizeof(myID.bonded_atoms)) && bonded_atoms_delay == 0) msgBondedAtoms(msg_struct);
+	else if((msg_struct->length == sizeof(Bonded_Atoms_Msg)) && bonded_atoms_delay == 0) msgBondedAtoms(msg_struct);
 	
 	printf("\nPrinting message of length %u.\r\n\t",msg_struct->length);
 	for(uint8_t i=0;i<msg_struct->length;i++)
@@ -1079,7 +1115,16 @@ void user_leg_status_interrupt()
 		else newNum = myID.atomicNum + 1;
 		myID = getAtomFromAtomicNum(newNum);
 		setAtomColor(myID);
-		ir_send(ALL_DIRS, myID.bonded_atoms, 12);
+		for(uint8_t i = 0; i < 12; i++)  {
+			if(i < 6) myID.bonded_atoms[i] = 0;
+			near_atoms->bonded = 0;
+		}
+		bonded_atoms_delay = 0;
+		global_blink_timer = 0;
+		Bonded_Atoms_Msg message;
+		for(uint8_t j = 0; j < 6; j++) message.bonded_atoms[j] = myID.bonded_atoms[j];
+		message.blink_timer = global_blink_timer;
+		ir_send(ALL_DIRS, (char*)(&message), sizeof(Bonded_Atoms_Msg));
 	}
 	tap_delay = get_time();
 }

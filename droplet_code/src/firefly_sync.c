@@ -8,7 +8,7 @@ void firefly_sync_init()
 	TCE0.CTRLB = TC_WGMODE_NORMAL_gc;
 	TCE0.CNT = 0;
 	TCE0.PER =  FIREFLY_SYNC_FULL_PERIOD;
-	TCE0.INTCTRLA = TC_OVFINTLVL_MED_gc;
+	TCE0.INTCTRLA = TC_OVFINTLVL_HI_gc;
 	TCE0.CCA = FIREFLY_SYNC_WAIT_TIME;
 
 }
@@ -21,7 +21,7 @@ ISR(TCE0_OVF_vect)
 	{
 		uint16_t the_count = RTC.CNT;
 		uint16_t remainder = the_count%FIREFLY_SYNC_MS_PERIOD;
-		//printf("Count: %u. Remainder: %u.\r\n", the_count, remainder);
+		printf("Count: %u. Remainder: %u.\r\n", the_count, remainder);
 
 		if(remainder>(FIREFLY_SYNC_MS_PERIOD/2))
 		{
@@ -50,6 +50,6 @@ ISR(TCE0_OVF_vect)
 		if(change>0) OSC.RC32KCAL++;
 		else if(change<-11) OSC.RC32KCAL--;
 	}
-	//printf("Delta Count: %d\r\n",change);
+	printf("Delta Count: %d\r\n",change);
 }
 

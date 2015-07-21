@@ -415,12 +415,10 @@ void formIonicBond(uint16_t senderID, Atom near_atom)
 		}
 		//Fill newValence by copying near_atom's current valence shell into newValence and removing one of its free electrons.
 		//newValence starts with the char 'i', so index 0 of near_atom.valence is index 1 of newValence
-		if(near_atom.valence[1] == 0 && near_atom.valence[0] == 1) newValence[1] = 0;
-		else newValence[1] = near_atom.valence[0];
-		for(uint8_t i = 1; i < 8; i++)
+		for(uint8_t i = 1; i < 9; i++)
 		{
-			if(near_atom.valence[i] == 0 && near_atom.valence[i-1] == 1) newValence[i-1] = 0;
-			else newValence[i+1] = near_atom.valence[i];
+			if(near_atom.valence[i] == 0 && near_atom.valence[i-1] == 1) newValence[i] = 0;
+			else newValence[i] = near_atom.valence[i-1];
 		}
 		add_to_bonded_atoms(senderID);
 		found_bond_routine('i');
@@ -791,7 +789,7 @@ void msgAtom(ir_msg* msg_struct)
 
 void msgBondMade(ir_msg* msg_struct, char flag)
 {
-	//printf("Got 'bond made' message.\r\n");
+	printf("Got 'bond made' message.\r\n");
 	uint8_t bondAlreadyExists = 0;
 	for(uint8_t i = 0; i < 6; i++)
 	{
@@ -799,7 +797,10 @@ void msgBondMade(ir_msg* msg_struct, char flag)
 	}
 	if(bondAlreadyExists == 1 || (flag == 'c' && myID.bondType == 1) || (flag == 'i' && myID.bondType == 2)) return;
 	else if (flag == 'i')  {
-		if (valenceState() == 2 || valenceState() == 0) return;
+		if (valenceState() == 2 || valenceState() == 0)  {
+			 printf("in msgBondMade, someone tried to bond with me, but I'm already full or empty");
+			 return;
+		}
 		found_bond_routine('i');
 		if(msg_struct->msg[0] == 'c') myID.bondType = 2;
 		else myID.bondType = 1;

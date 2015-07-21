@@ -532,7 +532,7 @@ void makePossibleBonds(Atom near_atom, char flag, uint16_t senderID)
 	}
 	
 	//Check for full valence shell
-	if(my_empty == 0 || other_empty == 0) return;
+	if(my_empty == 0 || other_empty == 0 || my_empty == 8 || other_empty == 8) return;
 	
 	//Diatomic bond
 	if(flag == 'd')  {
@@ -591,7 +591,7 @@ void checkPossibleBonds(Atom* near_atom, uint16_t senderID)
 		if(myID.bonded_atoms[i] == senderID) return;
 	}
 	//Check for full or empty valence shell
-	if(my_empty == 0 || my_empty == 8) return;
+	if(my_empty == 0 || my_empty == 8 || other_empty == 0 || other_empty == 8) return;
 	//Diatomic bond
 	if(near_atom->diatomic == 1 && near_atom->atomicNum == myID.atomicNum && (otherBonds == 0 || nearAtomBonded == 1) && myBonds == 0) {
 		bondDelay = get_time();
@@ -764,17 +764,22 @@ void msgAtom(ir_msg* msg_struct)
 			found = 1;
 			break;
 		}
-	}		
+	}
+	checkPossibleBonds(near_atom, msg_struct->sender_ID);		
 	if (found == 0) { //add new droplet to near_atoms 
 		Near_Atom close_atom = {*near_atom, msg_struct->sender_ID, 0, 0, 0, 0, 0};
 		add_to_near_atoms(close_atom);
 	}
 	else if(found == 1) {
-		if(bondDelay == 0 || potentialPartner == msg_struct->sender_ID)
-		checkPossibleBonds(near_atom, msg_struct->sender_ID);		
+		if(bondDelay == 0 || potentialPartner == msg_struct->sender_ID)		
 		for(uint8_t j = 0; j < 6; j++) near_atoms[i].atom.bonded_atoms[j] = near_atom->bonded_atoms[i];
 		for(uint8_t j = 0; j < 8; j++) near_atoms[i].atom.valence[j] = near_atom->valence[j];
 		near_atoms[i].atom.bondType = near_atom->bondType;
+		near_atoms[i].atom.atomicNum = near_atom->atomicNum;
+		near_atoms[i].atom.diatomic = near_atom->diatomic;
+		near_atoms[i].atom.name[0] = near_atom->name[0];
+		near_atoms[i].atom.name[1] = near_atom->name[1];
+		near_atoms[i].atom.chi = near_atom->chi;
 		near_atoms[i].last_msg_t = 0;
 	}
 	else

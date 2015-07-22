@@ -1,11 +1,11 @@
-#include "user_template.h"
+#include "full_task_alloc.h"
 
 /*
  * Any code in this function will be run once, when the robot starts.
  */
 void init()
 {
-
+    state = NOTHING;
 }
 
 /*
@@ -30,31 +30,31 @@ void handle_msg(ir_msg* msg_struct)
     uint8_t num_steps = 1000;
     switch (state)
     {
-        WALK_FORWARD:
+        case WALK_FORWARD:
         dir = 0;
         break;
         
-        WALK_BACKWARD:
+        case WALK_BACKWARD:
         dir = 3;
         break;
         
-        TURN_LEFT_SHORT:
+        case TURN_LEFT_SHORT:
         num_steps = 10;
-        TURN_LEFT_LONG:
+        case TURN_LEFT_LONG:
         dir = 7;
         break;
         
-        TURN_RIGHT_SHORT:
+        case TURN_RIGHT_SHORT:
         num_steps = 10;
-        TURN_RIGHT_LONG:
+        case TURN_RIGHT_LONG:
         dir = 6;
         break;
 
-        LED_ON:
+        case LED_ON:
         set_blue_led(50);
         break;
         
-        NOTHING:
+        case NOTHING:
         led_off();
     }
     
@@ -65,6 +65,6 @@ void handle_msg(ir_msg* msg_struct)
             stop_move();
         }
         led_off();
-        move_steps(dir, num_steps)
+        move_steps(dir, num_steps);
     }
 }

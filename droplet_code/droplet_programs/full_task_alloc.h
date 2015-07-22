@@ -2,7 +2,7 @@
 
 #include "droplet_init.h"
 
-enum State
+enum
 {
     WALK_FORWARD,
     WALK_BACKWARD,

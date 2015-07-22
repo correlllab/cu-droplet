@@ -48,7 +48,7 @@ void walk(uint8_t direction, uint16_t mm);
 // Stops all motors
 void stop_move();
 
-int8_t is_moving(); // returns 0 if droplet is not moving, otherwise returns the direction of motion (1-6)
+int8_t is_moving(); // returns -1 if droplet is not moving, movement dir otherwise.
 
 uint16_t	get_mm_per_kilostep(uint8_t direction);
 void		set_mm_per_kilostep(uint8_t direction, uint16_t dist);

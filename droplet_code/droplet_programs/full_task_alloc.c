@@ -23,6 +23,9 @@ void loop()
 void handle_msg(ir_msg* msg_struct)
 {
     uint8_t my_index = get_droplet_ord(get_droplet_id()) - 100;
+    uint8_t *commands = (uint8_t *)msg_struct->msg;
+    state = commands[my_index];
+    
     uint8_t dir = 1; // Because they can't actually move in dir = 1
     uint8_t num_steps = 1000;
     switch (state)

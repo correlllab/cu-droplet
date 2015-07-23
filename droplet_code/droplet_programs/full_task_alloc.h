@@ -2,17 +2,19 @@
 
 #include "droplet_init.h"
 
-enum
+enum States
 {
+    NOTHING,
     WALK_FORWARD,
     WALK_BACKWARD,
     TURN_LEFT_SHORT,
     TURN_RIGHT_SHORT,
     TURN_LEFT_LONG,
     TURN_RIGHT_LONG,
-    LED_ON,
-    NOTHING
-} state;
+    LED_ON
+};
+
+enum States state;
 
 void		init();
 void		loop();

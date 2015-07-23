@@ -393,9 +393,13 @@ void formIonicBond(uint16_t senderID, Atom near_atom)
 		}
 		//Fill newValence by copying near_atom's current valence shell into newValence and removing one of its free electrons.
 		//newValence starts with the char 'i', so index 0 of near_atom.valence is index 1 of newValence
+		uint8_t count = 1;
 		for(uint8_t i = 1; i < 9; i++)
 		{
-			if(near_atom.valence[i] == 0 && near_atom.valence[i-1] == 1) newValence[i] = 0;
+			if(near_atom.valence[i] == 0 && near_atom.valence[i-1] == 1 && count == 1)  {
+				count = 0;
+				newValence[i] = 0;
+			}
 			else newValence[i] = near_atom.valence[i-1];
 		}
 		add_to_bonded_atoms(senderID);
@@ -470,15 +474,15 @@ void formCovalentBond(uint16_t senderID, Atom near_atom)
 	zero = 1;
 	for(uint8_t i = 0; i < 8; i++)  {
 		if(near_atom.valence[i] == 0 && zero > 0)  {
-			newValence[i] = 2;
+			newValence[i+1] = 2;
 			zero--;
 		}
 		else if(near_atom.valence[i] == 1 && one > 0)  {
-			newValence[i] = 2;
+			newValence[i+1] = 2;
 			one--;
 		}
 		else  {
-			newValence[i] = near_atom.valence[i];
+			newValence[i+1] = near_atom.valence[i];
 		}
 	}
 	found_bond_routine('c');
@@ -506,7 +510,10 @@ void makePossibleBonds(Atom near_atom, char flag, uint16_t senderID)
 	//Check to see if this atom thinks he's bonded to me already, or if I'm already bonded to him
 	for(uint8_t i = 0; i < 6; i++) {
 		if(near_atom.bonded_atoms[i] == get_droplet_id()) nearAtomBonded = 1;
-		if(myID.bonded_atoms[i] == senderID) return;
+		if(myID.bonded_atoms[i] == senderID)  { 
+			printf("temp statement");
+			return;
+		}
 	}
 	
 	//Check for full valence shell
@@ -956,16 +963,43 @@ void msgBondedAtoms(ir_msg* msg_struct)
 	}
 }
 
+void orbital_order(uint8_t *valence) 
+{
+	uint8_t one = 0;
+	uint8_t zero = 0;
+	uint8_t two = 0;
+	uint8_t n_one = 0;
+	uint8_t new_valence[8];
+	for(uint8_t i = 0; i < 8; i++)  {
+		if(valence[i] == 0) zero++;
+		if(valence[i] == 1) one++;
+		if(valence[i] == 2) two++;
+		if(valence[i] == -1) n_one++;
+		new_valence[i] = -2;
+	}
+	if(two%2 != 0) printf("ERROR: In orbital_order, number of bonded e-1s not divisible by two. \r\n");
+	for(uint8_t t = 0; t < 8; t++) if(two > 0) new_valence[t] = 2;
+	for(uint8_t j = 0; j < 8; j+=2) if(one > 0 && new_valence[j] == -2) new_valence[j] = 1;
+	if(one > 0)  {
+		for(uint8_t j = 1; j < 8; j+=2) if(one > 0 && new_valence[j] == -2) new_valence[j] = 1;
+	}
+	for(uint8_t j = 1; j < 8; j+=2) if(zero > 0 && new_valence[j] == -2) new_valence[j] = 0;
+	if(zero > 0)  {
+		for(uint8_t j = 1; j < 8; j+=2) if(zero > 0 && new_valence[j] == -2) new_valence[j] = 0;
+	}
+	for(uint8_t j = 0; j < 8; j++) if(n_one > 0 && new_valence[j] == -2) new_valence[j] = -1;
+}
+
 /*
  * Any code in this function will be run once, when the robot starts.
  */
 void init()
 {
 	switch(get_droplet_id()){
-		case 0xC806: MY_CHEM_ID = 3; break;
-		case 0x1F08: MY_CHEM_ID = 3; break;
+		case 0xC806: MY_CHEM_ID = 1; break;
+		case 0x1F08: MY_CHEM_ID = 1; break;
 		case 0x4177: MY_CHEM_ID = 3; break;	
-		case 0x43BA: MY_CHEM_ID = 17; break;
+		case 0x43BA: MY_CHEM_ID = 8; break;
 		default:     MY_CHEM_ID = 17; break;
 	}
 	
@@ -1010,14 +1044,13 @@ void loop()
 		printf("\r\n\r\n global_blink_timer is %X \r\n \r\n", global_blink_timer);
 	}
 	//There should be a better way to do this than delay_ms.
-	//if((global_blink_timer!=0)&&((time_floor%(BLINK_PERIOD/LOOP_PERIOD))==((global_blink_timer/50)%(BLINK_PERIOD/LOOP_PERIOD))))
-	////if(global_blink_timer != 0 && get_time()%(global_blink_timer/5) > 0 && get_time()%(global_blink_timer/5) < 50)
-	if(time_floor%(BLINK_PERIOD/LOOP_PERIOD)==0)
+	if((global_blink_timer!=0)&&((time_floor%(BLINK_PERIOD/LOOP_PERIOD))==((global_blink_timer/50)%(BLINK_PERIOD/LOOP_PERIOD))))
+	//if(time_floor%(BLINK_PERIOD/LOOP_PERIOD)==0)
 	{
 		uint8_t r = get_red_led();
 		uint8_t g = get_green_led();
 		uint8_t b = get_blue_led();
-		set_rgb(255, 255, 0);
+		set_rgb(255, 0, 0);
 		delay_ms(300);
 		set_rgb(r, g, b);
 	}
@@ -1071,11 +1104,16 @@ void handle_msg(ir_msg* msg_struct)
 		msgAtom(msg_struct);
 	}
 	//Message is diatomic bond was formed
-	else if(msg_struct->msg[0] == 'd')  msgBondMade(msg_struct, 'd');
+	else if(msg_struct->msg[0] == 'd')  
+		msgBondMade(msg_struct, 'd');
 	//Message is ionic bond was formed
-	else if(msg_struct->msg[0] == 'i')  msgBondMade(msg_struct, 'i');
+	else if(msg_struct->msg[0] == 'i') 
+		 msgBondMade(msg_struct, 'i');
 	//Message is covalent bond formed
-	else if(msg_struct->msg[0] == 'c')  msgBondMade(msg_struct, 'c');
+	else if(msg_struct->msg[0] == 'c')  {
+		printf("THE EAGLES ARE COMING! THE EAGLES ARE COMING!!! \r\n");
+		msgBondMade(msg_struct, 'c');
+	}
 	
 	//Message is a possible bond
 	else if(msg_struct->msg[0] == 'p' && (bondDelay == 0 || potentialPartner == msg_struct->sender_ID))

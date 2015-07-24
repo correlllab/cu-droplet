@@ -126,6 +126,7 @@ void enable_interrupts()
 	PMIC.CTRL |= PMIC_LOLVLEN_bm;	// enable low level interrupts
 	PMIC.CTRL |= PMIC_MEDLVLEN_bm;	// enable medium level interrupts	(e.g. TXCIF)
 	PMIC.CTRL |= PMIC_HILVLEN_bm;	// enable high level interrupts		(e.g. RTC_OVF)
+	PMIC.CTRL |= PMIC_RREN_bm;
 	sei();
 }
 

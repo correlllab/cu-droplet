@@ -4,29 +4,29 @@
 void firefly_sync_init()
 {
 	
-	TCE0.CTRLA = TC_CLKSEL_DIV1024_gc;
+	EVSYS.CH0MUX = EVSYS_CHMUX_PRESCALER_4096_gc;
+	
+	TCE0.CTRLA = TC_CLKSEL_EVCH0_gc;
 	TCE0.CTRLB = TC_WGMODE_NORMAL_gc;
-	TCE0.CNT = 0;
-	TCE0.PER =  FIREFLY_SYNC_FULL_PERIOD;
+	TCE0.PER =  FFSYNC_FULL_PERIOD;
 	TCE0.INTCTRLA = TC_OVFINTLVL_MED_gc;
-	TCE0.CCA = FIREFLY_SYNC_WAIT_TIME;
-
+	TCE0.CNT = 0;	
+	//TCE0.CCA = FIREFLY_SYNC_WAIT_TIME;
 }
 
 ISR(TCE0_OVF_vect)
 {
-	ir_cmd(ALL_DIRS, NULL, 0);
 	int16_t change;	
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 	{
 		uint16_t the_count = RTC.CNT;
-		uint16_t remainder = the_count%FIREFLY_SYNC_MS_PERIOD;
+		uint16_t remainder = the_count%FFSYNC_FULL_PERIOD_MS;
 		//printf("Count: %u. Remainder: %u.\r\n", the_count, remainder);
 
-		if(remainder>(FIREFLY_SYNC_MS_PERIOD/2))
+		if(remainder>(FFSYNC_FULL_PERIOD_MS/2))
 		{
-			change = FIREFLY_SYNC_MS_PERIOD-remainder;
-			if((0xFFFF-change)<the_count) rtc_epoch++;			//0xFFFF: RTC.PER
+			change = FFSYNC_FULL_PERIOD_MS-remainder;
+			if((RTC.PER-change)<the_count) rtc_epoch++;			//0xFFFF: RTC.PER
 		}
 		else
 		{
@@ -45,11 +45,13 @@ ISR(TCE0_OVF_vect)
 	//If it's smallish, though, the code below adjusts the factory-set calibration value to minimize this difference.
 	//(From observations, changing the calibration by one seemed to effect the change by about 10ms, so if we're within
 	//11ms, we won't get any better.)
-	if(abs(change)<100)
+	if(abs(change)<(FFSYNC_MAX_DEVIATION*10))
 	{
 		if(change>0) OSC.RC32KCAL++;
-		else if(change<-11) OSC.RC32KCAL--;
+		else if(change<-FFSYNC_MAX_DEVIATION) OSC.RC32KCAL--;
 	}
+	printf("->\r\n");
+	hp_ir_cmd(ALL_DIRS, NULL, 0);
 	//printf("Delta Count: %d\r\n",change);
 }
 

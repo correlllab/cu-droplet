@@ -44,7 +44,7 @@ void collect_rnb_data(uint16_t target_id, uint8_t power)
 	cmd[6] = power;
 	get_baseline_readings(bright_meas);
 	
-	ir_targeted_cmd(ALL_DIRS, cmd, 7, target_id);
+	hp_ir_targeted_cmd(ALL_DIRS, cmd, 7, target_id);
 	wait_for_ir(ALL_DIRS);
 	delay_ms(POST_MESSAGE_DELAY);
 	ir_range_meas();
@@ -56,8 +56,7 @@ void collect_rnb_data(uint16_t target_id, uint8_t power)
 void broadcast_rnb_data()
 {
 	uint8_t power = 255;
-	ir_cmd(ALL_DIRS, "rnb_r", 5);
-	if(!wait_for_ir(ALL_DIRS)) return;
+	hp_ir_cmd(ALL_DIRS, "rnb_r", 5);
 	delay_ms(POST_MESSAGE_DELAY);	
 	ir_range_blast(power);
 }

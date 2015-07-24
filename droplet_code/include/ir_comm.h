@@ -97,7 +97,9 @@ void ir_targeted_cmd(uint8_t dirs, char *data, uint16_t data_length, uint16_t ta
 void ir_cmd(uint8_t dirs, char *data, uint16_t data_length);
 void ir_targeted_send(uint8_t dirs, char *data, uint16_t data_length, uint16_t target);
 void ir_send(uint8_t dirs, char *data, uint8_t data_length);
-void ir_send_imp(uint8_t dirs, char* data, uint8_t data_length);
+void hp_ir_cmd(uint8_t dirs, char *data, uint16_t data_length);
+void hp_ir_targeted_cmd(uint8_t dirs, char *data, uint16_t data_length, uint16_t target);
+
 void ir_receive(uint8_t dir); //Called by Interrupt Handler Only
 void ir_transmit(uint8_t dir);
 void ir_remote_send(uint8_t dir, uint16_t data);

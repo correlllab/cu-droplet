@@ -21,7 +21,7 @@ ISR(TCE0_OVF_vect)
 	{
 		uint16_t the_count = RTC.CNT;
 		uint16_t remainder = the_count%FIREFLY_SYNC_MS_PERIOD;
-		printf("Count: %u. Remainder: %u.\r\n", the_count, remainder);
+		//printf("Count: %u. Remainder: %u.\r\n", the_count, remainder);
 
 		if(remainder>(FIREFLY_SYNC_MS_PERIOD/2))
 		{
@@ -50,6 +50,6 @@ ISR(TCE0_OVF_vect)
 		if(change>0) OSC.RC32KCAL++;
 		else if(change<-11) OSC.RC32KCAL--;
 	}
-	printf("Delta Count: %d\r\n",change);
+	//printf("Delta Count: %d\r\n",change);
 }
 

@@ -1,6 +1,6 @@
 #include "chemSim.h"
 
-uint8_t MY_CHEM_ID; //This will eventually be written to the file by writeFiles.c!
+uint8_t MY_CHEM_ID; 
 char* global_Atom_str;
 
 //This is a list of Atoms. Should they be static or constant or something?
@@ -8,13 +8,13 @@ char* global_Atom_str;
 Atom H =  {{1, 0, -1, -1, -1, -1, -1, -1}, {0,0,0,0,0,0}, 2.25, "H", 0, 1, 1};
 Atom He = {{1, 1, -1, -1, -1, -1, -1, -1}, {0,0,0,0,0,0}, 3.49, "He", 0, 0, 2};
 Atom Li = {{1, 0, 0, 0, 0, 0, 0, 0},{0,0,0,0,0,0}, 0.97, "Li", 0, 0, 3};
-Atom Be = {{1, 1, 0, 0, 0, 0, 0, 0}, {0,0,0,0,0,0}, 1.54, "Be", 0, 0, 4};
-Atom C =  {{1, 1, 1, 1, 0, 0, 0, 0}, {0,0,0,0,0,0}, 2.48, "C", 0, 0, 6};
-Atom N =  {{1, 1, 1, 1, 1, 0, 0, 0}, {0,0,0,0,0,0}, 2.90, "N", 0, 1, 7};
-Atom O =  {{1, 1, 1, 1, 1, 1, 0, 0}, {0,0,0,0,0,0}, 3.41, "O", 0, 1, 8};
+Atom Be = {{1, 0, 1, 0, 0, 0, 0, 0}, {0,0,0,0,0,0}, 1.54, "Be", 0, 0, 4};
+Atom C =  {{1, 0, 1, 0, 1, 0, 1, 0}, {0,0,0,0,0,0}, 2.48, "C", 0, 0, 6};
+Atom N =  {{1, 1, 1, 0, 1, 0, 1, 0}, {0,0,0,0,0,0}, 2.90, "N", 0, 1, 7};
+Atom O =  {{1, 1, 1, 1, 1, 0, 1, 0}, {0,0,0,0,0,0}, 3.41, "O", 0, 1, 8};
 Atom F =  {{1, 1, 1, 1, 1, 1, 1, 0}, {0,0,0,0,0,0}, 3.91, "F", 0, 1, 9};
 Atom Na = {{1, 0, 0, 0, 0, 0, 0, 0}, {0,0,0,0,0,0}, 0.91, "Na", 0, 0, 11};
-Atom Mg = {{1, 1, 0, 0, 0, 0, 0, 0}, {0,0,0,0,0,0}, 1.37, "Mg", 0, 0, 12};
+Atom Mg = {{1, 0, 1, 0, 0, 0, 0, 0}, {0,0,0,0,0,0}, 1.37, "Mg", 0, 0, 12};
 Atom Cl = {{1, 1, 1, 1, 1, 1, 1, 0}, {0,0,0,0,0,0}, 3.10, "Cl", 0, 1, 17};
 Atom Br = {{1, 1, 1, 1, 1, 1, 1, 0}, {0,0,0,0,0,0}, 2.95, "Br", 0, 1, 35};
 Atom I =  {{1, 1, 1, 1, 1, 1, 1, 0}, {0,0,0,0,0,0}, 2.74, "I", 0, 1, 53};
@@ -273,13 +273,6 @@ void broadcastChemID(Atom ID)
 	//printf("sending chem ID \r\n");
 }
 
-void sendChemID(Atom ID, uint8_t channels[])
-{
-	global_Atom_str = (char*)(&ID);
-	ir_send(channels[0], (char*)(&ID), sizeof(Atom));
-	ir_send(channels[1], (char*)(&ID), sizeof(Atom));
-}
-
 uint8_t valenceState() //returns 0 if empty, 2 if full, 1 if in between
 {
 	uint8_t state = 0;
@@ -299,6 +292,7 @@ void detectOtherDroplets()
 	//printf("Collisions: %02hX \r\n", dir_mask);
 }
 
+//Pre condition: both atoms must be unbonded
 void formDiatomicBond(uint16_t senderID, Atom near_atom, uint8_t my_empty, uint8_t other_empty)
 {
 	if(global_blink_timer > get_droplet_id() || global_blink_timer == 0) global_blink_timer = get_droplet_id();
@@ -313,46 +307,34 @@ void formDiatomicBond(uint16_t senderID, Atom near_atom, uint8_t my_empty, uint8
 			break;
 		}
 	}
-	myID.bondType = 2;
-	uint8_t empty_slot_counter = other_empty;
-	uint8_t free_electron_counter = other_empty;
-	uint8_t empty_slot_counter_me = my_empty;
-	uint8_t free_electron_counter_me = my_empty;
 	//Update bonded flag in near_atoms
 	for(uint8_t i = 0; i < 12; i++) {
 		if(senderID == near_atoms[i].id) near_atoms[i].bonded = 0;
 	}
 	//Fill the array diatomic to send to my partner
-	for(uint8_t i = 1; i < 9; i++)
+	for(uint8_t i = 0; i < 8; i++) diatomic[i+1] = near_atom.valence[i];
+	for(uint8_t i = 1; i < 7; i+=2)
 	{
-		if(near_atom.valence[i-1] == 0 && empty_slot_counter > 0)
-		{
+		if(near_atom.valence[i] == 0 && near_atom.valence[i-1] == 1) {
+			diatomic[i+1] = 2;
 			diatomic[i] = 2;
-			empty_slot_counter--;
 		}
-		else if(near_atom.valence[i-1] == 1 && free_electron_counter > 0)
-		{
-			diatomic[i] = 2;
-			free_electron_counter --;
-		}
-		else diatomic[i] = near_atom.valence[i-1];
 	}
 	//Change my own valence shell
-	for(uint8_t i = 0; i < 8; i++)
+	for(uint8_t i = 1; i < 7; i+=2)
 	{
-		if(myID.valence[i] == 0 && empty_slot_counter_me > 0)
-		{
+		if(myID.valence[i] == 0 && myID.valence[i-1] == 1) {
 			myID.valence[i] = 2;
-			empty_slot_counter_me--;
-		}
-		else if(myID.valence[i] == 1 && free_electron_counter_me > 0)
-		{
-			myID.valence[i] = 2;
-			free_electron_counter_me --;
+			myID.valence[i-1] = 2;
 		}
 	}
 	found_bond_routine('d');
 	add_to_bonded_atoms(senderID);
+	printf("Ending formDiatomicBond function. My valence is: ");
+	printValence(myID.valence);
+	printf("\r\n And newValence is: ");
+	for(uint8_t i = 1; i < 9; i++) printf(" %hu ", diatomic[i]);
+	printf("\r\n");
 	ir_targeted_send(ALL_DIRS, diatomic, 9, senderID);
 }
 
@@ -378,32 +360,31 @@ void formIonicBond(uint16_t senderID, Atom near_atom)
 		uint8_t one = 1;
 
 		//Turn one of my electrons and one of my free slots into bonded electrons, and tell near_atom to remove a free electron
-		for(uint8_t i = 0; i < 8; i++)
+		for(uint8_t i = 1; i < 8; i+=2)
 		{
-			if(myID.valence[i] == 0 && zero != 0)
-			{
+			if(myID.valence[i] == 0 && myID.valence[i-1] == 1) {
 				myID.valence[i] = 2;
-				zero--;
-			}
-			else if(myID.valence[i] == 1 && one != 0)
-			{
-				myID.valence[i] = 2;
-				one--;
+				myID.valence[i-1] = 2;
+				break;
 			}
 		}
 		//Fill newValence by copying near_atom's current valence shell into newValence and removing one of its free electrons.
 		//newValence starts with the char 'i', so index 0 of near_atom.valence is index 1 of newValence
-		uint8_t count = 1;
-		for(uint8_t i = 1; i < 9; i++)
+		for(uint8_t i = 0; i < 8; i++) newValence[i+1] = near_atom.valence[i];
+		for(int8_t i = 7; i >= 0; i-=2)
 		{
-			if(near_atom.valence[i] == 0 && near_atom.valence[i-1] == 1 && count == 1)  {
-				count = 0;
+			if(near_atom.valence[i] == 0 && near_atom.valence[i-1] == 1)  {
 				newValence[i] = 0;
+				break;
 			}
-			else newValence[i] = near_atom.valence[i-1];
 		}
 		add_to_bonded_atoms(senderID);
 		found_bond_routine('i');
+		printf("Ending formIonicBond function, mychi > otherchi. My valence is: ");
+		printValence(myID.valence);
+		printf("\r\n And newValence is: ");
+		for(uint8_t i = 1; i < 9; i++) printf(" %hu ", newValence[i]);
+		printf("\r\n");
 		ir_targeted_send(ALL_DIRS, newValence, 9, senderID);
 	}
 	else
@@ -411,31 +392,31 @@ void formIonicBond(uint16_t senderID, Atom near_atom)
 		uint8_t zero = 1;
 		uint8_t one = 1;
 		//Fill newValence with modified shell
-		for(uint8_t i = 0; i < 8; i++)
+		for(uint8_t i = 0; i < 8; i++) newValence[i+1] = near_atom.valence[i];
+		for(uint8_t i = 0; i < 7; i+=2)
 		{
-			if(near_atom.valence[i] == 0 && zero != 0)
-			{
+			if(near_atom.valence[i] == 1 && near_atom.valence[i+1] == 0)  {
 				newValence[i+1] = 2;
-				zero--;
+				newValence[i+2] = 2;
+				break;
 			}
-			else if(near_atom.valence[i] == 1 && one != 0)
-			{
-				newValence[i+1] = 2;
-				one--;
-			}
-			else newValence[i+1] = near_atom.valence[i];
 		}
 		//Take away an electron from me
-		for(uint8_t i = 0; i < 8; i++)
+		for(int8_t i = 7; i > 0; i-=2)
 		{
-			if(myID.valence[i+1] ==0 && myID.valence[i] == 1)
+			if(myID.valence[i] ==0 && myID.valence[i-1] == 1)
 			{
-				myID.valence[i] = 0;
+				myID.valence[i-1] = 0;
 				break;
 			}
 		}
 		add_to_bonded_atoms(senderID);
 		found_bond_routine('i');
+		printf("Ending formIonicBond function, otherchi > mychi. My valence is: ");
+		printValence(myID.valence);
+		printf("\r\n And newValence is: ");
+		for(uint8_t i = 1; i < 9; i++) printf(" %hu ", newValence[i]);
+		printf("\r\n");
 		ir_targeted_send(ALL_DIRS, newValence, 9, senderID);
 	}
 }
@@ -456,36 +437,47 @@ void formCovalentBond(uint16_t senderID, Atom near_atom)
 		}
 	}
 	add_to_bonded_atoms(senderID);
-	uint8_t one = 1;
-	uint8_t zero = 1;
-	//Update one free electron and one empty slot to be bonded in my valence shell
-	for(uint8_t i = 0; i < 8; i++)  {
-		if(myID.valence[i] == 0 && zero > 0)  {
-			myID.valence[i] = 2;
-			zero--;
-		}
-		if(myID.valence[i] == 1 && one > 0)  {
-			myID.valence[i] = 2;
-			one--;
+	uint8_t my_bonds = 0;
+	uint8_t other_bonds = 0;
+	uint8_t total_bonds = 0;
+	//Figure out how many bonds we can make
+	for(uint8_t i = 0; i < 7; i+=2)
+	{
+		if(near_atom.valence[i] == 1 && near_atom.valence[i+1] == 0) other_bonds++;
+		if(myID.valence[i] == 1 && myID.valence[i+1] == 0) my_bonds++;
+	}
+	if(my_bonds < other_bonds) total_bonds = my_bonds;
+	else total_bonds = other_bonds;
+	uint8_t type = 0;
+	if(total_bonds == 1)		type = 2;
+	else if (total_bonds == 2)	type = 3;
+	else if (total_bonds == 4)	total_bonds = 3; //even if two atoms have the orbitals to make 4 bonds, they won't.
+	else if (total_bonds == 3)	type = 4;
+	//Update equal numbers of free electrons and empty slots to be bonded in my valence shell
+	for(uint8_t i = 0; i < 7; i+=2)  {
+		if(myID.valence[i] == 1 && myID.valence[i+1] == 0 && total_bonds > 0)  {
+			myID.valence[i] = type;
+			myID.valence[i+1] = type;
+			total_bonds--;
 		}
 	}
+	if(my_bonds < other_bonds) total_bonds = my_bonds;
+	else total_bonds = other_bonds;
 	//Update one free electron and one empty slot to be bonded in my partner's valence shell
-	one = 1;
-	zero = 1;
-	for(uint8_t i = 0; i < 8; i++)  {
-		if(near_atom.valence[i] == 0 && zero > 0)  {
-			newValence[i+1] = 2;
-			zero--;
-		}
-		else if(near_atom.valence[i] == 1 && one > 0)  {
-			newValence[i+1] = 2;
-			one--;
-		}
-		else  {
-			newValence[i+1] = near_atom.valence[i];
+	for(uint8_t i = 1; i < 9; i++) newValence[i] = near_atom.valence[i-1];
+	for(uint8_t i = 0; i < 7; i+=2)  {
+		if(near_atom.valence[i] == 1 && near_atom.valence[i+1] == 0 && total_bonds > 0)  {
+			newValence[i+1] = type;
+			newValence[i+2] = type;
+			total_bonds--;
 		}
 	}
 	found_bond_routine('c');
+	printf("Ending formCovalentBond function. My valence is: ");
+	printValence(myID.valence);
+	printf("\r\n And newValence is: ");
+	for(uint8_t i = 1; i < 9; i++) printf(" %hu ", newValence[i]);
+	printf("\r\n");
 	ir_targeted_send(ALL_DIRS, newValence, 9, senderID);
 }
 
@@ -793,6 +785,9 @@ void msgBondMade(ir_msg* msg_struct, char flag)
 		else myID.bondType = 1;
 		for(uint8_t i = 0; i < 8; i++)
 		{
+			if(msg_struct->msg[i+1] > 4 || msg_struct->msg[i+1] < -1)
+				printf("ERROR: In msgBondMade, received corrupted valence shell. Valence[%hu] is %hu \r\n", i, msg_struct->msg[i+1]);
+				delay_ms(10); //this is for printing while debugging only
 			myID.valence[i] = msg_struct->msg[i+1];
 		}
 		add_to_bonded_atoms(msg_struct->sender_ID);
@@ -812,7 +807,13 @@ void msgBondMade(ir_msg* msg_struct, char flag)
 	else if  (flag == 'd')  {
 		found_bond_routine('d');
 		myID.bondType = 2;
-		for(uint8_t i = 0; i < 8; i++) myID.valence[i] = msg_struct->msg[i+1];
+		for(uint8_t i = 0; i < 8; i++)
+		{
+			if(msg_struct->msg[i+1] > 4 || msg_struct->msg[i+1] < -1)
+			printf("ERROR: In msgBondMade, received corrupted valence shell. Valence[%hu] is %hu \r\n", i+1, msg_struct->msg[i+1]);
+			delay_ms(10); //this is for printing while debugging only
+			myID.valence[i] = msg_struct->msg[i+1];
+		}
 		add_to_bonded_atoms(msg_struct->sender_ID);
 		uint8_t found = 0;
 		for(uint8_t i = 0; i < 12; i++) {
@@ -828,7 +829,13 @@ void msgBondMade(ir_msg* msg_struct, char flag)
 	else if(flag == 'c')  {
 		found_bond_routine('c');
 		myID.bondType = 2;
-		for(uint8_t i = 0; i < 8; i++) myID.valence[i] = msg_struct->msg[i+1];
+		for(uint8_t i = 0; i < 8; i++)
+		{
+			if(msg_struct->msg[i+1] > 4 || msg_struct->msg[i+1] < -1)
+			printf("ERROR: In msgBondMade, received corrupted valence shell. Valence[%hu] is %hu \r\n", i+1, msg_struct->msg[i+1]);
+			delay_ms(10); //this is for printing while debugging only
+			myID.valence[i] = msg_struct->msg[i+1];
+		}
 		add_to_bonded_atoms(msg_struct->sender_ID);
 		uint8_t found = 0;
 		for(uint8_t i = 0; i < 12; i++) {
@@ -963,21 +970,27 @@ void msgBondedAtoms(ir_msg* msg_struct)
 	}
 }
 
-void orbital_order(uint8_t *valence) 
+uint8_t* orbital_order(uint8_t *valence) 
 {
-	uint8_t one = 0;
-	uint8_t zero = 0;
-	uint8_t two = 0;
 	uint8_t n_one = 0;
+	uint8_t zero = 0;
+	uint8_t one = 0;
+	uint8_t two = 0;
+	uint8_t three = 0;
+	uint8_t four = 0;
 	uint8_t new_valence[8];
 	for(uint8_t i = 0; i < 8; i++)  {
-		if(valence[i] == 0) zero++;
-		if(valence[i] == 1) one++;
-		if(valence[i] == 2) two++;
-		if(valence[i] == -1) n_one++;
+		if(valence[i] == 0)		zero++;
+		if(valence[i] == 1)		one++;
+		if(valence[i] == 2)		two++;
+		if(valence[i] == -1)	n_one++;
+		if(valence[i] == 3)		three++;
+		if(valence[i] == 4)		four++;
 		new_valence[i] = -2;
 	}
-	if(two%2 != 0) printf("ERROR: In orbital_order, number of bonded e-1s not divisible by two. \r\n");
+	//if(two%2 != 0) printf("ERROR: In orbital_order, number of bonded e-1s not divisible by two. \r\n");
+	for(uint8_t t = 0; t < 8; t++) if(four > 0) new_valence[t] = 4;
+	for(uint8_t t = 0; t < 8; t++) if(three > 0) new_valence[t] = 3;
 	for(uint8_t t = 0; t < 8; t++) if(two > 0) new_valence[t] = 2;
 	for(uint8_t j = 0; j < 8; j+=2) if(one > 0 && new_valence[j] == -2) new_valence[j] = 1;
 	if(one > 0)  {
@@ -988,6 +1001,8 @@ void orbital_order(uint8_t *valence)
 		for(uint8_t j = 1; j < 8; j+=2) if(zero > 0 && new_valence[j] == -2) new_valence[j] = 0;
 	}
 	for(uint8_t j = 0; j < 8; j++) if(n_one > 0 && new_valence[j] == -2) new_valence[j] = -1;
+	
+	return new_valence;
 }
 
 /*
@@ -1093,6 +1108,13 @@ void loop()
 void handle_msg(ir_msg* msg_struct)
 {
 	printf("Beginning handle_msg.\r\n");
+	printf("\nPrinting message of length %u.\r\n\t",msg_struct->length);
+	for(uint8_t i=0;i<msg_struct->length;i++)
+	{
+		printf("%02hX",msg_struct->msg[i]);
+	}
+	printf("\r\n\n");
+		
 	printValence(myID.valence);
 	repairValence();
 	print_near_atoms();
@@ -1111,7 +1133,6 @@ void handle_msg(ir_msg* msg_struct)
 		 msgBondMade(msg_struct, 'i');
 	//Message is covalent bond formed
 	else if(msg_struct->msg[0] == 'c')  {
-		printf("THE EAGLES ARE COMING! THE EAGLES ARE COMING!!! \r\n");
 		msgBondMade(msg_struct, 'c');
 	}
 	
@@ -1120,13 +1141,6 @@ void handle_msg(ir_msg* msg_struct)
 		msgPossibleBond(msg_struct);
 	//Message is another Droplet's bonded_atoms array. T
 	else if((msg_struct->length == sizeof(Bonded_Atoms_Msg)) && bonded_atoms_delay == 0) msgBondedAtoms(msg_struct);
-	
-	printf("\nPrinting message of length %u.\r\n\t",msg_struct->length);
-	for(uint8_t i=0;i<msg_struct->length;i++)
-	{
-		printf("%hX",msg_struct->msg[i]);
-	}
-	printf("\r\n\n");
 	
 	printf("Ending handle_msg.\r\n");
 	printValence(myID.valence);

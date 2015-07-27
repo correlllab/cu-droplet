@@ -35,29 +35,40 @@ volatile uint32_t bondDelay;
 volatile uint16_t potentialPartner;
 volatile uint32_t tap_delay;
 volatile uint32_t bonded_atoms_delay;
-
 uint32_t last_chem_ID_broadcast;
-
 uint16_t global_blink_timer;
+
 void init();
 void loop();
 void handle_msg(ir_msg* msg_struct);
+void user_leg_status_interrupt();
 
-void periodic_rnb_broadcast();
-void add_to_near_atoms();
-void update_near_atoms();
 void add_to_bonded_atoms(uint16_t ID);
-void printValence(int8_t valence[]);
-Atom getAtomFromAtomicNum(uint8_t atomicNum);
-void checkPossibleBonds(Atom* near_atom, uint16_t senderID);
-void found_bond_routine(char flag);
-void setAtomColor(Atom ID);
+void add_to_near_atoms();
 void broadcastChemID(Atom ID);
-void sendChemID(Atom ID, uint8_t channels[]);
-uint8_t valenceState();
+void checkPossibleBonds(Atom* near_atom, uint16_t senderID);
 void detectOtherDroplets();
-void periodic_rnb_broadcast();
+void formCovalentBond(uint16_t senderID, Atom near_atom);
+void formDiatomicBond(uint16_t senderID, Atom near_atom, uint8_t my_empty, uint8_t other_empty);
+void formIonicBond(uint16_t senderID, Atom near_atom);
+void found_bond_routine(char flag);
+Atom getAtomFromAtomicNum(uint8_t atomicNum);
+Atom getAtomFromID(uint16_t ID);
+float getChiFromID(uint16_t ID);
+void makePossibleBonds(Atom near_atom, char flag, uint16_t senderID);
+void msgAtom(ir_msg* msg_struct);
+void msgBondedAtoms(ir_msg* msg_struct);
+void msgBondMade(ir_msg* msg_struct, char flag);
+void msgPossibleBond(ir_msg* msg_struct);
+uint8_t* orbital_order(uint8_t *valence);
 void print_near_atoms();
+void printValence(int8_t valence[]);
+void repairBondedAtoms();
+void repairValence();
+void setAtomColor(Atom ID);
+void update_near_atoms();
+uint8_t valenceState();
+
 
 Atom myID;
 

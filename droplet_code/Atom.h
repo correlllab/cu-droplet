@@ -3,7 +3,6 @@
 
 #include <avr/io.h>
 
-typedef uint8_t bool;
 
 typedef struct
 {
@@ -12,7 +11,7 @@ typedef struct
 	float chi; //this number represents Mulliken-Jaffe electronegativity on a Pauling scale: X = 3.48[(IEv + EAv)/2 - 0.602], where EAv = electron affinity and IEv = first ionization energy
 	char name[2]; 
 	uint8_t bondType; //0 = no bonds, 1 = ionic bonds, 2 = covalent bonds. Necessary because an alkali can't (usually doesn't?) bond to a covalent molecule.
-	bool diatomic;	
+	uint8_t diatomic;	
 	uint8_t atomicNum;
 }Atom;
 

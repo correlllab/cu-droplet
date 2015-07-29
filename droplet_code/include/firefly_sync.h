@@ -20,7 +20,7 @@ void firefly_sync_init();
 
 inline void update_firefly_counter()
 {
-	printf("Updating firefly counter.\r\n");
+	//printf("Updating firefly counter.\r\n");
 	uint16_t the_count = TCE0.CNT;
 	if(the_count>REFRACTORY_PERIOD)
 		TCE0.CNT =  (uint16_t)(fmin(FIREFLY_SYNC_ALPHA * the_count/FIREFLY_SYNC_FULL_PERIOD + FIREFLY_SYNC_BETA, 1.) * ((float)FIREFLY_SYNC_FULL_PERIOD));

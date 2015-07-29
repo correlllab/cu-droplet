@@ -2,7 +2,6 @@
 #define CHEM_SIM
 
 #include "droplet_init.h"
-#include "Atom.h"
 
 #define RNB_BROADCAST_PERIOD 11000
 #define BLINK_PERIOD 2500
@@ -10,6 +9,17 @@
 #define DETECT_OTHER_DROPLETS_PERIOD 1000
 #define UPDATE_ATOMS_PERIOD 100
 #define LOOP_PERIOD 50
+
+typedef struct
+{
+	int8_t valence[8]; //cut down data to 3 bits each? -1 for no slot (H and He), 0 for empty, 1 for free electron, 2 for single bond, 3 for double bond, 4 for triple bond
+	uint16_t bonded_atoms[6];
+	float chi; //this number represents Mulliken-Jaffe electronegativity on a Pauling scale: X = 3.48[(IEv + EAv)/2 - 0.602], where EAv = electron affinity and IEv = first ionization energy
+	char name[2]; 
+	uint8_t bondType; //0 = no bonds, 1 = ionic bonds, 2 = covalent bonds. Necessary because an alkali can't (usually doesn't?) bond to a covalent molecule.
+	uint8_t diatomic;	
+	uint8_t atomicNum;
+}Atom;
 
 typedef struct
 {
@@ -28,6 +38,25 @@ typedef struct
 	uint16_t blink_timer;
 }Bonded_Atoms_Msg;
 
+typedef struct  
+{
+	uint16_t ID;
+	int8_t type; 
+	/*
+	Type refers to the hybridization. The code is as follows:
+		-1 = nonexistent orbital
+		0 = s
+		1 = p
+		2 = sp
+		3 = sp2
+		4 = sp3
+		5 = dsp3
+		6 = d2sp3
+		7 = d
+		8 = f
+	*/
+}Orbital;
+
 Near_Atom near_atoms[12]; //this number is pretty arbitrary.
 Atom NULL_ATOM = {{0,0,0,0,0,0,0,0},{0,0,0,0,0,0},{'0','0'},0,0,0};
 Near_Atom NULL_NEAR_ATOM = {{{0,0,0,0,0,0,0,0},{0,0,0,0,0,0},{'0','0'},0,0,0}, 0, 0, 0, 0, 0};
@@ -37,6 +66,8 @@ volatile uint32_t tap_delay;
 volatile uint32_t bonded_atoms_delay;
 uint32_t last_chem_ID_broadcast;
 uint16_t global_blink_timer;
+Orbital my_orbitals[6];
+Atom myID;
 
 void init();
 void loop();
@@ -44,18 +75,19 @@ void handle_msg(ir_msg* msg_struct);
 void user_leg_status_interrupt();
 
 void add_to_bonded_atoms(uint16_t ID);
+void add_to_my_orbitals(uint16_t ID, uint8_t num_bonds);
 void add_to_near_atoms();
 void broadcastChemID(Atom ID);
-void checkPossibleBonds(Atom* near_atom, uint16_t senderID);
 void detectOtherDroplets();
-void formCovalentBond(uint16_t senderID, Atom near_atom);
-void formDiatomicBond(uint16_t senderID, Atom near_atom, uint8_t my_empty, uint8_t other_empty);
-void formIonicBond(uint16_t senderID, Atom near_atom);
+void formBond(uint16_t senderID, Atom near_atom, char flag);
 void found_bond_routine(char flag);
 Atom getAtomFromAtomicNum(uint8_t atomicNum);
 Atom getAtomFromID(uint16_t ID);
 float getChiFromID(uint16_t ID);
+void getOrbitals(Atom atom);
 void makePossibleBonds(Atom near_atom, char flag, uint16_t senderID);
+void modify_valences_ionic(char* newValence, Atom near_atom, uint16_t senderID);
+void modify_valences_covalent(char* newValence, Atom near_atom, uint16_t senderID);
 void msgAtom(ir_msg* msg_struct);
 void msgBondedAtoms(ir_msg* msg_struct);
 void msgBondMade(ir_msg* msg_struct, char flag);
@@ -69,7 +101,5 @@ void setAtomColor(Atom ID);
 void update_near_atoms();
 uint8_t valenceState();
 
-
-Atom myID;
 
 #endif

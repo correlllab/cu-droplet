@@ -149,9 +149,18 @@ void send_msg(uint8_t dirs, char *data, uint8_t data_length, uint8_t hp_flag)
 	/* The whole transmission will now occur in interrupts. */
 }
 
-inline void all_ir_sends(uint8_t dirs_to_go, char* data, uint8_t data_length, uint16_t target, uint8_t cmd_flag)
+/*
+ * This function returns '0' if no message was sent because the channels were busy, and '1' if it was successful 
+ * in claiming channels and starting the message send process. Note that this function returning '1' doesn't
+ * guarantee a successful transmission, as it's still possible for something to go wrong with the send.
+ */
+inline uint8_t all_ir_sends(uint8_t dirs_to_go, char* data, uint8_t data_length, uint16_t target, uint8_t cmd_flag)
 {
-	if(!wait_for_ir(dirs_to_go)) return;
+	if(!ir_is_available(dirs_to_go))
+    {
+        printf_P(PSTR("Aborting IR send; channels are likely busy transmitting your previous message.\r\n"));
+        return 0;
+    }        
 	
 	for(uint8_t dir=0;dir<6;dir++)
 	{
@@ -164,59 +173,59 @@ inline void all_ir_sends(uint8_t dirs_to_go, char* data, uint8_t data_length, ui
 		}
 	}
 	send_msg(dirs_to_go, data, data_length, 0);
+    return 1;
+}
 
+uint8_t ir_targeted_cmd(uint8_t dirs, char *data, uint16_t data_length, uint16_t target)
+{
+	return all_ir_sends(dirs, data, data_length, target, 1);
+}
+
+uint8_t ir_cmd(uint8_t dirs, char *data, uint16_t data_length)
+{	
+	return all_ir_sends(dirs, data, data_length, 0, 1);
+}
+
+uint8_t ir_targeted_send(uint8_t dirs, char *data, uint16_t data_length, uint16_t target)
+{
+	return all_ir_sends(dirs, data, data_length, target, 0);
+}
+
+uint8_t ir_send(uint8_t dirs, char *data, uint8_t data_length)
+{
+	return all_ir_sends(dirs, data, data_length, 0, 0);
 }
 
 inline void all_hp_ir_cmds(uint8_t dirs, char* data, uint8_t data_length, uint16_t target)
 {
-	perform_ir_upkeep();
-	for(uint8_t dir=0;dir<6;dir++)
-	{
-		if(dirs&(1<<dir))
-		{
-			channel[dir]->CTRLB &= ~USART_RXEN_bm;
-			ir_rxtx[dir].status = IR_STATUS_BUSY_bm;
-			ir_rxtx[dir].status |= IR_STATUS_COMMAND_bm;
-			ir_rxtx[dir].target_ID=target;
-		}
-	}
-	send_msg(dirs, data, data_length, 1);
-	uint8_t busy;
-	do
-	{
-		busy=0;
-		for(uint8_t dir=0; dir<6; dir++)
-		{
-			if(dirs&(1<<dir))
-			{
-				if(ir_rxtx[dir].status & IR_STATUS_TRANSMITTING_bm)
-				{
-					busy=1;
-				}
-			}
-		}
-		delay_us(100);
-	} while (busy);
-}
-
-void ir_targeted_cmd(uint8_t dirs, char *data, uint16_t data_length, uint16_t target)
-{
-	all_ir_sends(dirs, data, data_length, target, 1);
-}
-
-void ir_cmd(uint8_t dirs, char *data, uint16_t data_length)
-{	
-	all_ir_sends(dirs, data, data_length, 0, 1);
-}
-
-void ir_targeted_send(uint8_t dirs, char *data, uint16_t data_length, uint16_t target)
-{
-	all_ir_sends(dirs, data, data_length, target, 0);
-}
-
-void ir_send(uint8_t dirs, char *data, uint8_t data_length)
-{
-	all_ir_sends(dirs, data, data_length, 0, 0);
+    perform_ir_upkeep();
+    for(uint8_t dir=0;dir<6;dir++)
+    {
+        if(dirs&(1<<dir))
+        {
+            channel[dir]->CTRLB &= ~USART_RXEN_bm;
+            ir_rxtx[dir].status = IR_STATUS_BUSY_bm;
+            ir_rxtx[dir].status |= IR_STATUS_COMMAND_bm;
+            ir_rxtx[dir].target_ID=target;
+        }
+    }
+    send_msg(dirs, data, data_length, 1);
+    uint8_t busy;
+    do
+    {
+        busy=0;
+        for(uint8_t dir=0; dir<6; dir++)
+        {
+            if(dirs&(1<<dir))
+            {
+                if(ir_rxtx[dir].status & IR_STATUS_TRANSMITTING_bm)
+                {
+                    busy=1;
+                }
+            }
+        }
+        delay_us(100);
+    } while (busy);
 }
 
 void hp_ir_cmd(uint8_t dirs, char *data, uint16_t data_length)
@@ -274,7 +283,7 @@ void ir_receive(uint8_t dir)
 					#ifdef SYNCHRONIZED
 						update_firefly_counter();
 					#endif
-					for(uint8_t other_dir=0;other_dir<6;other_dir++) clear_ir_buffer(other_dir);
+					clear_ir_buffer(dir);
 				}
 				else
 				{
@@ -337,10 +346,6 @@ void ir_transmit(uint8_t dir)
 
 void ir_remote_send(uint8_t dir, uint16_t data)
 {	
-	//printf("In ir_remote_send.\r\n");
-	//wait_for_ir(1<<dir);
-	//printf("ir_remote_send, post wait_for_ir.\r\n");
-	//ir_rxtx[dir].status = IR_STATUS_BUSY_bm;	
 	channel[dir]->CTRLB &= ~USART_RXEN_bm;
 	channel[dir]->CTRLB &= ~USART_TXEN_bm;
 	//printf("Sending:\t");
@@ -412,45 +417,60 @@ void ir_reset_rx(uint8_t dir)
 	ir_transmit_complete(dir); //main reason I can see not to this is that when we're receiving we don't need to turn off the carrier wave. Doing shouldn't hurt, however?
 }
 
-uint8_t wait_for_ir(uint8_t dirs)
+uint8_t ir_is_available(uint8_t dirs_mask)
 {
-	uint8_t r = get_red_led();
-	uint8_t g = get_green_led();
-	uint8_t b = get_blue_led();
-	set_rgb(255, 0, 255);
-	uint32_t time_wait_start = get_time();
-	uint8_t busy;
-	do
+	for(uint8_t dir=0; dir<6; dir++)
 	{
-		busy=0;
-		for(uint8_t dir=0; dir<6; dir++)
-		{
-			if(dirs&(1<<dir))
-			{
-				if(ir_rxtx[dir].status & IR_STATUS_TRANSMITTING_bm)
-				{
-					busy=1;
-				}
-				//else
-				//{
-					//clear_ir_buffer(dir);
-				//}
-			}
-		}
-		delay_us(100);	
-		//if(busy&&task_list_check())
-		//{
-			//printf("!!!!\r\n!!!!\r\nFrom wait_for_ir (%ld): should perform task_list_cleanup.\r\n!!!!\r\n!!!!\r\n", get_time()-(task_list->scheduled_time));
-			////task_list_cleanup(); //if the scheduled time for the current task is past and we're busy, perform task list cleanup	
-		//}
-	} while (busy&&((get_time()-time_wait_start)<MAX_WAIT_FOR_IR_TIME));
-	set_rgb(r, g, b);
-	if((get_time()-time_wait_start)>=MAX_WAIT_FOR_IR_TIME)
-	{
-		for(uint8_t i=0;i<6;i++) clear_ir_buffer(i);
+    	if(dirs_mask&(1<<dir))
+    	{
+        	if(ir_rxtx[dir].status & IR_STATUS_TRANSMITTING_bm)
+        	{
+            	return 0;
+        	}
+    	}
 	}
-	return 1;
+    return 0;
 }
+//
+//uint8_t wait_for_ir(uint8_t dirs)
+//{
+	//uint8_t r = get_red_led();
+	//uint8_t g = get_green_led();
+	//uint8_t b = get_blue_led();
+	//set_rgb(255, 0, 255);
+	//uint32_t time_wait_start = get_time();
+	//uint8_t busy;
+	//do
+	//{
+		//busy=0;
+		//for(uint8_t dir=0; dir<6; dir++)
+		//{
+			//if(dirs&(1<<dir))
+			//{
+				//if(ir_rxtx[dir].status & IR_STATUS_TRANSMITTING_bm)
+				//{
+					//busy=1;
+				//}
+				////else
+				////{
+					////clear_ir_buffer(dir);
+				////}
+			//}
+		//}
+		//delay_us(100);	
+		////if(busy&&task_list_check())
+		////{
+			////printf("!!!!\r\n!!!!\r\nFrom wait_for_ir (%ld): should perform task_list_cleanup.\r\n!!!!\r\n!!!!\r\n", get_time()-(task_list->scheduled_time));
+			//////task_list_cleanup(); //if the scheduled time for the current task is past and we're busy, perform task list cleanup	
+		////}
+	//} while (busy&&((get_time()-time_wait_start)<MAX_WAIT_FOR_IR_TIME));
+	//set_rgb(r, g, b);
+	//if((get_time()-time_wait_start)>=MAX_WAIT_FOR_IR_TIME)
+	//{
+		//for(uint8_t i=0;i<6;i++) clear_ir_buffer(i);
+	//}
+	//return 1;
+//}
 
 // ISRs for IR channel 0
 ISR( USARTC0_RXC_vect ) { ir_receive(0); }

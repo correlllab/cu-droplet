@@ -1,8 +1,5 @@
 #include "user_template.h"
 
-#define LOOP_PERIOD 50
-#define BLINK_PERIOD 3000
-#define BLINK_DURATION 300
 /*
  * Any code in this function will be run once, when the robot starts.
  */
@@ -16,15 +13,7 @@ void init()
  */
 void loop()
 {
-	if((get_time()/LOOP_PERIOD)%(BLINK_PERIOD/LOOP_PERIOD)==0)
-	{
-		set_rgb(255,255,255);
-	}
-	else if((get_time()/LOOP_PERIOD)%(BLINK_PERIOD/LOOP_PERIOD)==(BLINK_DURATION/LOOP_PERIOD))
-	{
-		set_rgb(0,0,0);	
-	}
-	delay_ms(LOOP_PERIOD);
+
 }
 
 /*

@@ -1,3 +1,7 @@
+/*
+*  Written by Audrey Randall
+*  Begun 5/25/15
+*/
 #include "chemSim.h"
 
 uint8_t MY_CHEM_ID; 

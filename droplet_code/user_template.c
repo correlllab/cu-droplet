@@ -23,7 +23,7 @@ void loop()
  */
 void handle_msg(ir_msg* msg_struct)
 {
-	
+
 }
 
 ///*
@@ -35,12 +35,12 @@ void handle_msg(ir_msg* msg_struct)
 	//return 0;
 //}
 
-/*
- *	the function below is optional - if it is commented in, and the leg interrupts have been turned on
- *	with enable_leg_status_interrupt(), this function will get called when that interrupt triggers.
- */
-void user_leg_status_interrupt()
-{
-	
-}
 
+///*
+ //*	The function below is optional - if it is commented in, and the leg interrupts have been turned on
+ //*	with enable_leg_status_interrupt(), this function will get called when that interrupt triggers.
+ //*/	
+//void	user_leg_status_interrupt()
+//{
+	//
+//}

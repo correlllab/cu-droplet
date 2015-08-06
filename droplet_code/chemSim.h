@@ -40,6 +40,12 @@ typedef struct
 
 typedef struct  
 {
+	char flag_array[9];
+	int8_t orbitals[6]; //-1 for empty orbital, 0 for orbital that the recipient doesn't occupy, 1 for an orbital it does occupy.
+}Bond_Made_Msg;
+
+typedef struct  
+{
 	uint16_t ID;
 	int8_t type; 
 	/*
@@ -66,6 +72,7 @@ volatile uint32_t tap_delay;
 volatile uint32_t bonded_atoms_delay;
 uint32_t last_chem_ID_broadcast;
 uint16_t global_blink_timer;
+uint8_t my_molecule[32];  //this differs from bonded_atoms in that it includes all atoms in the molecule, not just ones directly bonded to self. Also, it's atomic nums not IDs
 Orbital my_orbitals[6];
 Atom myID;
 
@@ -78,9 +85,11 @@ void add_to_bonded_atoms(uint16_t ID);
 void add_to_my_orbitals(uint16_t ID, uint8_t num_bonds);
 void add_to_near_atoms();
 void broadcastChemID(Atom ID);
+void calculate_path(char* orbitals, uint16_t ID);
 void detectOtherDroplets();
 void formBond(uint16_t senderID, Atom near_atom, char flag);
 void found_bond_routine(char flag);
+uint8_t getAtomicNumFromID(uint16_t ID);
 Atom getAtomFromAtomicNum(uint8_t atomicNum);
 Atom getAtomFromID(uint16_t ID);
 float getChiFromID(uint16_t ID);
@@ -99,6 +108,7 @@ void repairBondedAtoms();
 void repairValence();
 void setAtomColor(Atom ID);
 void update_near_atoms();
+void update_molecule(char* atNums, uint8_t length, uint16_t sender);
 uint8_t valenceState();
 
 

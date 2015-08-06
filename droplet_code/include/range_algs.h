@@ -28,26 +28,22 @@
 
 #define BASELINE_NOISE_THRESHOLD 1
 
-struct list_el {
+typedef struct list_el {
 	float Rx;
 	float Ry;
 	float rijMag;
 	uint8_t e;
 	uint8_t s;
 	struct list_el *next;
-};
+} rVectorNode;
 
-typedef struct list_el rVectorNode;
-
-struct rnb_data {
+typedef struct rnb_data {
 	float range;
 	float bearing;
 	float heading;
 	uint8_t (*brightness_matrix_ptr)[6]; //almost definitely take this out, later
 	uint16_t id_number;
-};
-
-typedef struct rnb_data rnb;
+} rnb;
 
 rnb last_good_rnb;
 volatile uint8_t rnb_updated;

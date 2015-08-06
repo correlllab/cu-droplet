@@ -3,25 +3,30 @@
 #include <avr/io.h>
 #include "droplet_init.h"
 
+#define FFSYNC_FULL_PERIOD_MS		2000
+#define FFSYNC_REFR_PERIOD_MS		150
+#define FFSYNC_TRANSMIT_DELAY_MS	16
 
+#define FFSYNC_MS_CONVERSION_FACTOR 7.8125
 
-#define REFRACTORY_PERIOD			0x1FFF	//~(1/32)ms
-#define FIREFLY_SYNC_FULL_PERIOD	0xFFFF	//~(1/32)ms
-#define FIREFLY_SYNC_MS_PERIOD		(FIREFLY_SYNC_FULL_PERIOD/32)
-#define TRANSMIT_AND_DECODE_DELAY	560 //~(1/32)ms
-#define FIREFLY_SYNC_WAIT_TIME		(FIREFLY_SYNC_FULL_PERIOD-TRANSMIT_AND_DECODE_DELAY)
+#define FFSYNC_FULL_PERIOD			(uint16_t)(FFSYNC_FULL_PERIOD_MS*FFSYNC_MS_CONVERSION_FACTOR)
+#define FFSYNC_REFR_PERIOD			(uint16_t)(FFSYNC_REFR_PERIOD_MS*FFSYNC_MS_CONVERSION_FACTOR)
+#define FFSYNC_TRANSMIT_DELAY		(uint16_t)(FFSYNC_TRANSMIT_DELAY_MS*FFSYNC_MS_CONVERSION_FACTOR)
 
-#define FIREFLY_SYNC_B 2.75
-#define FIREFLY_SYNC_EPS 0.1
-#define FIREFLY_SYNC_ALPHA exp(FIREFLY_SYNC_B*FIREFLY_SYNC_EPS)
-#define FIREFLY_SYNC_BETA ((FIREFLY_SYNC_ALPHA - 1) / (exp(FIREFLY_SYNC_B) - 1))
+#define FFSYNC_MAX_DEVIATION		(((uint16_t)(FFSYNC_FULL_PERIOD_MS/182))+1)
+
+#define FFSYNC_EPSILON 0.1
+
+volatile uint16_t next_count_start;     
+
+volatile uint32_t light_start;
 
 void firefly_sync_init();
 
+
 inline void update_firefly_counter()
 {
-	//printf("Updating firefly counter.\r\n");
-	uint16_t the_count = TCE0.CNT;
-	if(the_count>REFRACTORY_PERIOD)
-		TCE0.CNT =  (uint16_t)(fmin(FIREFLY_SYNC_ALPHA * the_count/FIREFLY_SYNC_FULL_PERIOD + FIREFLY_SYNC_BETA, 1.) * ((float)FIREFLY_SYNC_FULL_PERIOD));
+	uint16_t the_count = (TCE0.CNT-FFSYNC_TRANSMIT_DELAY)%FFSYNC_FULL_PERIOD;
+    if(the_count<FFSYNC_REFR_PERIOD)
+        next_count_start += (uint16_t)(the_count*FFSYNC_EPSILON); 
 }

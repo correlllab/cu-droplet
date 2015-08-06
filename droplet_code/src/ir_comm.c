@@ -429,7 +429,7 @@ uint8_t ir_is_available(uint8_t dirs_mask)
         	}
     	}
 	}
-    return 0;
+    return 1;
 }
 //
 //uint8_t wait_for_ir(uint8_t dirs)

@@ -1096,19 +1096,19 @@ void loop()
 		for(uint8_t j = 0; j < 6; j++) message.bonded_atoms[j] = myID.bonded_atoms[j];
 		message.blink_timer = global_blink_timer;
 		ir_send(ALL_DIRS, (char*)(&message), sizeof(Bonded_Atoms_Msg)); 
-		printf("global_blink_timer is %X \r\n", global_blink_timer);
+		//printf("global_blink_timer is %X \r\n", global_blink_timer);
 	}
 	//There should be a better way to do this than delay_ms.
-	if((global_blink_timer!=0)&&((time_floor%(BLINK_PERIOD/LOOP_PERIOD))==((global_blink_timer/50)%(BLINK_PERIOD/LOOP_PERIOD))))
+	//if((global_blink_timer!=0)&&((time_floor%(BLINK_PERIOD/LOOP_PERIOD))==((global_blink_timer/50)%(BLINK_PERIOD/LOOP_PERIOD))))
 	//if(time_floor%(BLINK_PERIOD/LOOP_PERIOD)==0)
-	{
-		uint8_t r = get_red_led();
-		uint8_t g = get_green_led();
-		uint8_t b = get_blue_led();
-		set_rgb(255, 0, 0);
-		delay_ms(300);
-		set_rgb(r, g, b);
-	}
+	//{
+		//uint8_t r = get_red_led();
+		//uint8_t g = get_green_led();
+		//uint8_t b = get_blue_led();
+		//set_rgb(255, 0, 0);
+		//delay_ms(300);
+		//set_rgb(r, g, b);
+	//}
 	if(rnb_updated)
 	{
 		uint16_t received_id = last_good_rnb.id_number;

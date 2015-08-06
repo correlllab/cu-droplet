@@ -158,7 +158,12 @@ inline uint8_t all_ir_sends(uint8_t dirs_to_go, char* data, uint8_t data_length,
 {
 	if(!ir_is_available(dirs_to_go))
     {
-        printf_P(PSTR("Aborting IR send; channels are likely busy transmitting your previous message.\r\n"));
+        printf_P(PSTR("Aborting IR send while trying:\r\n\t"));
+		for(uint8_t i=0;i<data_length;i++)
+		{
+			printf("%02hX ",data[i]);
+		}
+		printf_P(PSTR("\r\nChannels are probably blocked by your previous message.\r\n"));
         return 0;
     }        
 	
@@ -429,7 +434,7 @@ uint8_t ir_is_available(uint8_t dirs_mask)
         	}
     	}
 	}
-    return 0;
+    return 1;
 }
 
 //

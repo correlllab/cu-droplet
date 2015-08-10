@@ -5,7 +5,7 @@
 
 #define RNB_BROADCAST_PERIOD 11000
 #define BLINK_PERIOD 2500
-#define MIN_INTER_CHEM_ID_BROADCAST_DELAY 3000
+#define CHEM_ID_BROADCAST_PERIOD 1900
 #define DETECT_OTHER_DROPLETS_PERIOD 1000
 #define UPDATE_ATOMS_PERIOD 100
 #define LOOP_PERIOD 50
@@ -72,7 +72,8 @@ volatile uint32_t tap_delay;
 volatile uint32_t bonded_atoms_delay;
 uint32_t last_chem_ID_broadcast;
 uint16_t global_blink_timer;
-uint8_t my_molecule[32];  //this differs from bonded_atoms in that it includes all atoms in the molecule, not just ones directly bonded to self. Also, it's atomic nums not IDs
+uint16_t my_molecule[15];  //this differs from bonded_atoms in that it includes all atoms in the molecule, not just ones directly bonded to self. Also, it's atomic nums not IDs
+uint8_t my_molecule_length;
 Orbital my_orbitals[6];
 Atom myID;
 
@@ -81,11 +82,12 @@ void loop();
 void handle_msg(ir_msg* msg_struct);
 void user_leg_status_interrupt();
 
+uint8_t add_atom_to_molecule(uint16_t atom_id);
 void add_to_bonded_atoms(uint16_t ID);
 void add_to_my_orbitals(uint16_t ID, uint8_t num_bonds);
 void add_to_near_atoms();
-void broadcastChemID(Atom ID);
-void calculate_path(char* orbitals, uint16_t ID);
+//void broadcastChemID(Atom ID);
+void calculate_path(uint16_t target, uint16_t ID);
 void detectOtherDroplets();
 void formBond(uint16_t senderID, Atom near_atom, char flag);
 void found_bond_routine(char flag);
@@ -94,6 +96,7 @@ Atom getAtomFromAtomicNum(uint8_t atomicNum);
 Atom getAtomFromID(uint16_t ID);
 float getChiFromID(uint16_t ID);
 void getOrbitals(Atom atom);
+void init_atom_state();
 void makePossibleBonds(Atom near_atom, char flag, uint16_t senderID);
 void modify_valences_ionic(char* newValence, Atom near_atom, uint16_t senderID);
 void modify_valences_covalent(char* newValence, Atom near_atom, uint16_t senderID);
@@ -104,11 +107,13 @@ void msgPossibleBond(ir_msg* msg_struct);
 uint8_t* orbital_order(uint8_t *valence);
 void print_near_atoms();
 void printValence(int8_t valence[]);
+void remove_atom_from_molecule(uint16_t atom_id);
 void repairBondedAtoms();
 void repairValence();
 void setAtomColor(Atom ID);
+void transmit_molecule_struct(uint16_t exclude_id);
+void update_molecule(uint16_t* atNums, uint8_t length, uint16_t sender);
 void update_near_atoms();
-void update_molecule(char* atNums, uint8_t length, uint16_t sender);
 uint8_t valenceState();
 
 

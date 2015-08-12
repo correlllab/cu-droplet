@@ -3,7 +3,7 @@
 
 #include "droplet_init.h"
 
-#define RNB_BROADCAST_PERIOD 11000
+#define RNB_BROADCAST_PERIOD 5000
 #define BLINK_PERIOD 2500
 #define CHEM_ID_BROADCAST_PERIOD 1900
 #define DETECT_OTHER_DROPLETS_PERIOD 1000
@@ -25,9 +25,9 @@ typedef struct
 {
 	Atom atom;
 	uint16_t id;
-	uint8_t range; //in theory you should reorder this at some point.
-	int16_t bearing;
-	int16_t heading;
+	uint16_t range; //in theory you should reorder this at some point.
+	float bearing;
+	float heading;
 	uint8_t last_msg_t; //time that this atom last sent a message to me
 	uint8_t bonded;
 }Near_Atom;
@@ -70,10 +70,14 @@ volatile uint32_t bondDelay;
 volatile uint16_t potentialPartner;
 volatile uint32_t tap_delay;
 volatile uint32_t bonded_atoms_delay;
+volatile uint32_t sent_atom_delay;
 uint32_t last_chem_ID_broadcast;
 uint16_t global_blink_timer;
-uint16_t my_molecule[15];  //this differs from bonded_atoms in that it includes all atoms in the molecule, not just ones directly bonded to self. Also, it's atomic nums not IDs
+uint16_t my_molecule[15];  //this differs from bonded_atoms in that it includes all atoms in the molecule, not just ones directly bonded to self. 
 uint8_t my_molecule_length;
+uint8_t collided;
+float target_spot;
+uint16_t target_id;
 Orbital my_orbitals[6];
 Atom myID;
 
@@ -87,7 +91,9 @@ void add_to_bonded_atoms(uint16_t ID);
 void add_to_my_orbitals(uint16_t ID, uint8_t num_bonds);
 void add_to_near_atoms();
 //void broadcastChemID(Atom ID);
-void calculate_path(uint16_t target, uint16_t ID);
+void calculate_path(float target, uint16_t ID);
+uint8_t convert_bearing_to_IR_dir(float bearing);
+uint8_t* convert_IR_dir_to_array(uint8_t dirs);
 void detectOtherDroplets();
 void formBond(uint16_t senderID, Atom near_atom, char flag);
 void found_bond_routine(char flag);
@@ -97,12 +103,16 @@ Atom getAtomFromID(uint16_t ID);
 float getChiFromID(uint16_t ID);
 void getOrbitals(Atom atom);
 void init_atom_state();
+void init_random_move(uint8_t direc);
 void makePossibleBonds(Atom near_atom, char flag, uint16_t senderID);
 void modify_valences_ionic(char* newValence, Atom near_atom, uint16_t senderID);
 void modify_valences_covalent(char* newValence, Atom near_atom, uint16_t senderID);
+void move_to_target(uint16_t rng, float bearing);
 void msgAtom(ir_msg* msg_struct);
 void msgBondedAtoms(ir_msg* msg_struct);
 void msgBondMade(ir_msg* msg_struct, char flag);
+void msgContactFirst(uint16_t senderID);
+void msgContactSecond(char* msg, uint16_t senderID);
 void msgPossibleBond(ir_msg* msg_struct);
 uint8_t* orbital_order(uint8_t *valence);
 void print_near_atoms();

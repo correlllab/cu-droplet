@@ -12,8 +12,8 @@
 #include "i2c.h"
 #include "delay_x.h"
 
-#define DROPLET_RADIUS 2.0828
-#define DROPLET_SENSOR_RADIUS 2.0828
+#define DROPLET_RADIUS 2.0828  //cm
+#define DROPLET_SENSOR_RADIUS 2.0828 //cm
 #define BRIGHTNESS_THRESHOLD 1
 
 #define POST_MESSAGE_DELAY ((3*((1000/IR_UPKEEP_FREQUENCY)))/2)

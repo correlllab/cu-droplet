@@ -10,6 +10,17 @@
 #define UPDATE_ATOMS_PERIOD 100
 #define LOOP_PERIOD 50
 
+typedef struct  
+{
+	uint16_t bonded_atoms[4];
+	uint16_t blink_timer; //only if in molecule	
+	uint8_t molecule_nums[15];	
+	uint8_t atomicNum;	
+	uint8_t valence[3];	
+	uint8_t bondType;
+	char msgFlag;	
+}StateMsg;
+
 typedef struct
 {
 	int8_t valence[8]; //cut down data to 3 bits each? -1 for no slot (H and He), 0 for empty, 1 for free electron, 2 for single bond, 3 for double bond, 4 for triple bond
@@ -71,6 +82,7 @@ volatile uint16_t potentialPartner;
 volatile uint32_t tap_delay;
 volatile uint32_t bonded_atoms_delay;
 volatile uint32_t sent_atom_delay;
+volatile uint32_t last_rnb;
 uint32_t last_chem_ID_broadcast;
 uint16_t global_blink_timer;
 uint16_t my_molecule[15];  //this differs from bonded_atoms in that it includes all atoms in the molecule, not just ones directly bonded to self. 
@@ -104,6 +116,7 @@ float getChiFromID(uint16_t ID);
 void getOrbitals(Atom atom);
 void init_atom_state();
 void init_random_move(uint8_t direc);
+uint8_t is_good_rnb(float rng, float bearing, uint16_t ID);
 void makePossibleBonds(Atom near_atom, char flag, uint16_t senderID);
 void modify_valences_ionic(char* newValence, Atom near_atom, uint16_t senderID);
 void modify_valences_covalent(char* newValence, Atom near_atom, uint16_t senderID);

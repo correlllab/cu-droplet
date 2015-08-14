@@ -7,22 +7,64 @@
 uint8_t MY_CHEM_ID; 
 char* global_Atom_str;
 
-//This is a list of Atoms. Should they be static or constant or something?
-//Variables are valence shell, current bonded atoms, Mulliken electronegativity, symbol, diatomic, atomic number
-Atom H =  {{1, 0, -1, -1, -1, -1, -1, -1}, {0,0,0,0,0,0}, 2.25, "H", 0, 1, 1};
-Atom He = {{1, 1, -1, -1, -1, -1, -1, -1}, {0,0,0,0,0,0}, 3.49, "He", 0, 0, 2};
-Atom Li = {{1, 0, 0, 0, 0, 0, 0, 0},{0,0,0,0,0,0}, 0.97, "Li", 0, 0, 3};
-Atom Be = {{1, 0, 1, 0, 0, 0, 0, 0}, {0,0,0,0,0,0}, 1.54, "Be", 0, 0, 4};
-Atom C =  {{1, 0, 1, 0, 1, 0, 1, 0}, {0,0,0,0,0,0}, 2.48, "C", 0, 0, 6};
-Atom N =  {{1, 1, 1, 0, 1, 0, 1, 0}, {0,0,0,0,0,0}, 2.90, "N", 0, 1, 7};
-Atom O =  {{1, 1, 1, 1, 1, 0, 1, 0}, {0,0,0,0,0,0}, 3.41, "O", 0, 1, 8};
-Atom F =  {{1, 1, 1, 1, 1, 1, 1, 0}, {0,0,0,0,0,0}, 3.91, "F", 0, 1, 9};
-Atom Na = {{1, 0, 0, 0, 0, 0, 0, 0}, {0,0,0,0,0,0}, 0.91, "Na", 0, 0, 11};
-Atom Mg = {{1, 0, 1, 0, 0, 0, 0, 0}, {0,0,0,0,0,0}, 1.37, "Mg", 0, 0, 12};
-Atom Cl = {{1, 1, 1, 1, 1, 1, 1, 0}, {0,0,0,0,0,0}, 3.10, "Cl", 0, 1, 17};
-Atom Br = {{1, 1, 1, 1, 1, 1, 1, 0}, {0,0,0,0,0,0}, 2.95, "Br", 0, 1, 35};
-Atom I =  {{1, 1, 1, 1, 1, 1, 1, 0}, {0,0,0,0,0,0}, 2.74, "I", 0, 1, 53};
+//enum Atoms_enum{
+	//H, He, Li, Be, C, N, O, F, Na, Mg, Cl, Br, I
+	//};
+//
+////This is a list of Atoms. Should they be static or constant or something?
+////Variables are valence shell, current bonded atoms, Mulliken electronegativity, symbol, diatomic, atomic number
+//Atom PeriodicTable[13]=
+//{
+///*Atom H = */ {{1, 0, -1, -1, -1, -1, -1, -1}, {0,0,0,0,0,0}, 2.25, "H", 0, 1, 1}	,/*;*/
+///*Atom He =*/ {{1, 1, -1, -1, -1, -1, -1, -1}, {0,0,0,0,0,0}, 3.49, "He", 0, 0, 2}	,/*;*/
+///*Atom Li =*/ {{1, 0, 0, 0, 0, 0, 0, 0},{0,0,0,0,0,0}, 0.97, "Li", 0, 0, 3}			,/*;*/
+///*Atom Be =*/ {{1, 0, 1, 0, 0, 0, 0, 0}, {0,0,0,0,0,0}, 1.54, "Be", 0, 0, 4}		,/*;*/
+///*Atom C = */ {{1, 0, 1, 0, 1, 0, 1, 0}, {0,0,0,0,0,0}, 2.48, "C", 0, 0, 6}			,/*;*/
+///*Atom N = */ {{1, 1, 1, 0, 1, 0, 1, 0}, {0,0,0,0,0,0}, 2.90, "N", 0, 1, 7}			,/*;*/
+///*Atom O = */ {{1, 1, 1, 1, 1, 0, 1, 0}, {0,0,0,0,0,0}, 3.41, "O", 0, 1, 8}			,/*;*/
+///*Atom F = */ {{1, 1, 1, 1, 1, 1, 1, 0}, {0,0,0,0,0,0}, 3.91, "F", 0, 1, 9}			,/*;*/
+///*Atom Na =*/ {{1, 0, 0, 0, 0, 0, 0, 0}, {0,0,0,0,0,0}, 0.91, "Na", 0, 0, 11}		,/*;*/
+///*Atom Mg =*/ {{1, 0, 1, 0, 0, 0, 0, 0}, {0,0,0,0,0,0}, 1.37, "Mg", 0, 0, 12}		,/*;*/
+///*Atom Cl =*/ {{1, 1, 1, 1, 1, 1, 1, 0}, {0,0,0,0,0,0}, 3.10, "Cl", 0, 1, 17}		,/*;*/
+///*Atom Br =*/ {{1, 1, 1, 1, 1, 1, 1, 0}, {0,0,0,0,0,0}, 2.95, "Br", 0, 1, 35}		,/*;*/
+///*Atom I = */ {{1, 1, 1, 1, 1, 1, 1, 0}, {0,0,0,0,0,0}, 2.74, "I", 0, 1, 53}		};/*;*/
+Atom H =  {{1, 0, -1, -1, -1, -1, -1, -1}, {0,0,0,0,0,0}, 2.25, "H", 0, 1, 1}	;
+Atom He = {{1, 1, -1, -1, -1, -1, -1, -1}, {0,0,0,0,0,0}, 3.49, "He", 0, 0, 2}	;
+Atom Li = {{1, 0, 0, 0, 0, 0, 0, 0},{0,0,0,0,0,0}, 0.97, "Li", 0, 0, 3}			;
+Atom Be = {{1, 0, 1, 0, 0, 0, 0, 0}, {0,0,0,0,0,0}, 1.54, "Be", 0, 0, 4}		;
+Atom C =  {{1, 0, 1, 0, 1, 0, 1, 0}, {0,0,0,0,0,0}, 2.48, "C", 0, 0, 6}			;
+Atom N =  {{1, 1, 1, 0, 1, 0, 1, 0}, {0,0,0,0,0,0}, 2.90, "N", 0, 1, 7}			;
+Atom O =  {{1, 1, 1, 1, 1, 0, 1, 0}, {0,0,0,0,0,0}, 3.41, "O", 0, 1, 8}			;
+Atom F =  {{1, 1, 1, 1, 1, 1, 1, 0}, {0,0,0,0,0,0}, 3.91, "F", 0, 1, 9}			;
+Atom Na = {{1, 0, 0, 0, 0, 0, 0, 0}, {0,0,0,0,0,0}, 0.91, "Na", 0, 0, 11}		;
+Atom Mg = {{1, 0, 1, 0, 0, 0, 0, 0}, {0,0,0,0,0,0}, 1.37, "Mg", 0, 0, 12}		;
+Atom Cl = {{1, 1, 1, 1, 1, 1, 1, 0}, {0,0,0,0,0,0}, 3.10, "Cl", 0, 1, 17}		;
+Atom Br = {{1, 1, 1, 1, 1, 1, 1, 0}, {0,0,0,0,0,0}, 2.95, "Br", 0, 1, 35}		;
+Atom I =  {{1, 1, 1, 1, 1, 1, 1, 0}, {0,0,0,0,0,0}, 2.74, "I", 0, 1, 53}		;
 
+
+#define CNV_SHELL(n) ((uint8_t)(n+1))
+
+void pack_valences(uint8_t* packed_shells, int8_t* shells)
+{
+	packed_shells[0] = CNV_SHELL(shells[0])|(CNV_SHELL(shells[1])<<3)|((CNV_SHELL(shells[2])<<6)&0xC0);
+	packed_shells[1] = (CNV_SHELL(shells[2])>>2)|(CNV_SHELL(shells[3])<<1)|(CNV_SHELL(shells[4])<<4)|((CNV_SHELL(shells[5])<<7)&0x80);
+	packed_shells[2] = (CNV_SHELL(shells[5])>>1)|(CNV_SHELL(shells[6])<<2)|(CNV_SHELL(shells[7])<<5);
+}
+
+void unpack_valences(uint8_t* packed_shells, int8_t* shells)
+{
+	shells[0]=packed_shells[0]&0x7;
+	shells[1]=(packed_shells[0]>>3)&0x7;
+	shells[2]=((packed_shells[0]>>6)&0x3)|((packed_shells[1]&0x1)<<2);
+	shells[3]=(packed_shells[1]>>1)&0x7;
+	shells[4]=(packed_shells[1]>>4)&0x7;
+	shells[5]=((packed_shells[1]>>7)&0x1)|((packed_shells[2]&0x3)<<1);
+	shells[6]=(packed_shells[2]>>2)&0x7;
+	shells[7]=(packed_shells[2]>>5)&0x7;
+	for(uint8_t i=0;i<8;i++)
+		shells[i]--;
+}
 
 void init_random_move(uint8_t direc) 
 {
@@ -109,58 +151,58 @@ Atom getAtomFromAtomicNum(uint8_t atomicNum)
 		case 1:
 		{
 			set_rgb(255, 200, 0); //yellow
-			return H;
+			return PeriodicTable[H];
 		}
 		case 2:
 		{
 			set_rgb(255, 50, 0); //orange
-			return He;
+			return PeriodicTable[He];
 		}
 		case 3:
 		{
 			set_rgb(100, 100, 255); //ice white
-			return Li;
+			return PeriodicTable[Li];
 		}
 		case 4:
 		{
 			set_rgb(100, 255, 100); //ice green
-			return Be;
+			return PeriodicTable[Be];
 		}
 		case 6:
 		{
 			set_rgb(100, 0, 255); //indigo
-			return C;
+			return PeriodicTable[C];
 		}
 		case 7:
 		{
 			set_rgb(200, 10, 10); //red-pink
-			return N;
+			return PeriodicTable[N];
 		}
 		case 8:
 		{
 			set_rgb(0, 0, 255); //blue
-			return O;
+			return PeriodicTable[O];
 		}
 		//All halogens are green
 		case 9:
 		{
 			set_rgb(0, 255, 0); //green
-			return F;
+			return PeriodicTable[F];
 		}
 		case 17:
 		{
 			set_rgb(0, 255, 0); //green
-			return Cl;
+			return PeriodicTable[Cl];
 		}
 		case 35:
 		{
 			set_rgb(0, 255, 0); //green
-			return Br;
+			return PeriodicTable[Br];
 		}
 		case 53:
 		{
 			set_rgb(0, 255, 0); //green
-			return I;
+			return PeriodicTable[I];
 		}
 		default:
 			printf("No such element");
@@ -369,16 +411,16 @@ void modify_valences_ionic(char* newValence, Atom near_atom, uint16_t senderID)
 
 void modify_valences_covalent(char* newValence, Atom near_atom, uint16_t senderID)
 {
-	printf("My Valence:\r\n");
-	printValence(myID.valence);
-	printf("Their Valence:\r\n");
-	printValence(near_atom.valence);
+	//printf("My Valence:\r\n");
+	//printValence(myID.valence);
+	//printf("Their Valence:\r\n");
+	//printValence(near_atom.valence);
 	newValence[0] = 'c';
 	uint8_t my_bonds = 0;
 	volatile uint8_t other_bonds = 0;
 	volatile uint8_t total_bonds = 0;
-	delay_ms(10);
-	printf("Total Bonds: %hu\r\n", total_bonds);
+	//delay_ms(10);
+	//printf("Total Bonds: %hu\r\n", total_bonds);
 	uint8_t type = 0;
 	myID.bondType = 2;
 	//Figure out how many bonds we can make
@@ -388,49 +430,49 @@ void modify_valences_covalent(char* newValence, Atom near_atom, uint16_t senderI
 	}
 	if(my_bonds < other_bonds) total_bonds = my_bonds;
 	else total_bonds = other_bonds;
-	delay_ms(10);
-	printf("Total Bonds: %hu\r\n", total_bonds);	
+	//delay_ms(10);
+	//printf("Total Bonds: %hu\r\n", total_bonds);	
 	uint8_t total_b_temp = total_bonds;
 	
 	if(total_bonds == 1)		type = 2;
 	else if (total_bonds == 2)	type = 3;
 	else if (total_bonds == 4)	total_bonds = 3; //even if two atoms have the orbitals to make 4 bonds, they won't.
 	if (total_bonds == 3)	type = 4;
-	delay_ms(10);
-	printf("Total Bonds: %hu\r\n", total_bonds);	
-	printf("For loop (filling my valence shell)\r\n");
+	//delay_ms(10);
+	//printf("Total Bonds: %hu\r\n", total_bonds);	
+	//printf("For loop (filling my valence shell)\r\n");
 	//Update equal numbers of free electrons and empty slots to be bonded in my valence shell
 	for(uint8_t i = 0; i < 7; i+=2)  {
-		delay_ms(10);
-		printf("\tTotal Bonds: %hu\r\n", total_bonds);		
+		//delay_ms(10);
+		//printf("\tTotal Bonds: %hu\r\n", total_bonds);		
 		if(myID.valence[i] == 1 && myID.valence[i+1] == 0 && total_bonds > 0)  {
 			myID.valence[i] = type;
 			myID.valence[i+1] = type;
 			total_bonds--;
-			delay_ms(10);
-			printf("Decrementing total_bonds");
+			//delay_ms(10);
+			//printf("Decrementing total_bonds");
 		}
 	}
 	total_bonds = total_b_temp;
 	//Update free electrons and empty slots to be bonded in my partner's valence shell
 	for(uint8_t i = 1; i < 9; i++) newValence[i] = near_atom.valence[i-1];
-	delay_ms(10);
-	printf("\r\nTotal Bonds: %hu\r\n", total_bonds);	
-	printf("For loop (filling newValence)\r\n");	
+	//delay_ms(10);
+	//printf("\r\nTotal Bonds: %hu\r\n", total_bonds);	
+	//printf("For loop (filling newValence)\r\n");	
 	for(uint8_t i = 0; i < 7; i+=2)  {
-		delay_ms(10);
-		printf("\tTotal Bonds: %hu\r\n", total_bonds);		
+		//delay_ms(10);
+		//printf("\tTotal Bonds: %hu\r\n", total_bonds);		
 		if(near_atom.valence[i] == 1 && near_atom.valence[i+1] == 0 && total_bonds > 0)  {
 			newValence[i+1] = type;
 			newValence[i+2] = type;
 			total_bonds--;
-			delay_ms(10);
-			printf("Decrementing total_bonds");
+			//delay_ms(10);
+			//printf("Decrementing total_bonds");
 		}
 	}
 	total_bonds = total_b_temp;
-	delay_ms(10);
-	printf("\r\nTotal Bonds: %hu\r\n", total_bonds);	
+	//delay_ms(10);
+	//printf("\r\nTotal Bonds: %hu\r\n", total_bonds);	
 	add_to_my_orbitals(senderID, total_bonds);
 }
 
@@ -689,7 +731,7 @@ void add_to_my_orbitals(uint16_t ID, uint8_t num_bonds)
 
 void update_molecule(uint16_t* atoms, uint8_t length, uint16_t sender)
 {
-	printf("update_molecule. Sender: %x", sender);
+	//printf("update_molecule. Sender: %x", sender);
 	
 	for (uint8_t i = 0; i <length; i++){
 		add_atom_to_molecule(atoms[i]);
@@ -712,7 +754,7 @@ void transmit_molecule_struct(uint16_t exclude_id)
 			ir_targeted_send(ALL_DIRS, msg, msg_length, myID.bonded_atoms[i]);
 		}
 	}
-	printf("We sent the thing after %lu ms.\r\n", get_time()-pre_time);
+	//printf("We sent the thing after %lu ms.\r\n", get_time()-pre_time);
 }
 
 void print_molecule() 
@@ -1093,21 +1135,21 @@ void move_to_target(uint16_t rng, float bearing)
 	if (rng<(DROPLET_RADIUS*5))  {
 		printf("Range is too small. Not moving.\r\n");
 	}else{
-		if (abs(degree_bearing)<=15)  {
+		if (abs(degree_bearing)<=30)  {
 			printf("moving forward.\r\n");
 			walk(0, rng);
 		}
-		else if (abs(degree_bearing)>=165)  {
+		else if (abs(degree_bearing)>=150)  {
 			printf("moving backward.\r\n");
 			walk(3, rng);
 		}
 		else if (degree_bearing>0)  {
 			printf("moving ccw.\r\n");
-			walk(7, degree_bearing);
+			walk(7, abs(degree_bearing));
 		}		
 		else if (degree_bearing<0)  {
 			printf("moving cw.\r\n");
-			walk(6, degree_bearing);
+			walk(6, abs(degree_bearing));
 		}
 	}
 }
@@ -1171,7 +1213,9 @@ void msgOrbital(ir_msg* msg_struct)
 			break;
 	}
 	//Gives the orbital on my new partner that I should be moving to
-	target_spot = index*angle;
+	float heading;
+	for(uint8_t i = 0; i < 12; i++) if(near_atoms[i].id == msg_struct->sender_ID) heading = near_atoms[i].heading;
+	target_spot = index*angle + heading;
 	target_id = msg_struct->sender_ID;
 	calculate_path(target_spot, target_id);
 }
@@ -1225,173 +1269,214 @@ void msgContactSecond(char* msg, uint16_t senderID)
 	if(collided && orig_ID == get_droplet_id()) ir_targeted_send(ALL_DIRS, (char*)(&myID), sizeof(Atom), senderID);
 }
 
-/*
- * Any code in this function will be run once, when the robot starts.
- */
-void init()
+uint8_t is_good_rnb(float n_rng, float n_bearing, uint16_t ID)
 {
-	printf("INITIALIZING DROPLET. \r\n");
-	switch(get_droplet_id()){
-		case 0x2B4E: MY_CHEM_ID = 6; break;
-		case 0xC24B: MY_CHEM_ID = 6; break;
-		case 0xC806: MY_CHEM_ID = 6; break;
-		case 0x1F08: MY_CHEM_ID = 7; break;
-		case 0x4177: MY_CHEM_ID = 1; break;	
-		case 0x43BA: MY_CHEM_ID = 1; break;
-		default:     MY_CHEM_ID = 1; break;
+	float p_rng;
+	float p_bearing;
+	for(uint8_t i = 0; i < 12; i++)  {
+		if(near_atoms[i].id == ID)  {
+			p_rng = near_atoms[i].range;
+			p_bearing = near_atoms[i].bearing;
+		}
 	}
-	init_atom_state();
+	uint32_t time_elapsed = get_time()-last_rnb;
+	float velocity = 1000*(float)(abs(n_rng-p_rng))/(float)(time_elapsed); //in mm/s 
+	float delta_brng = 1000*abs(n_bearing - p_bearing)/time_elapsed; //in rad/s
+	if(velocity > 20)  {
+		printf("Inaccurate RNB data received, judged based on range. Function is_good_rnb returning false. \r\n");
+		return 0;
+	}
+	else if (delta_brng > 0.3)  {
+		printf("Inaccurate RNB data received, judged based on bearing (but not range). Function is_good_rnb returning false. \r\n");
+		return 0;
+	}
+	return 1;
 }
 
-/*
- * The code in this function will be called repeatedly, as fast as it can execute.
- */
-
-void loop()
-{
-	delay_ms(LOOP_PERIOD);
-	//broadcastChemID(myID);
-	if((get_time()-bondDelay) > 1000) {
-		bondDelay = 0;
-		potentialPartner = 0;	
-	}
-	if((get_time()-sent_atom_delay) > 1000) {
-		sent_atom_delay = 0;
-	}
-	if((get_time()-bonded_atoms_delay) > 1000) {
-		bonded_atoms_delay = 0;
-	}
-	uint32_t time_floor = ((get_time()/LOOP_PERIOD));
-	if((time_floor%(DETECT_OTHER_DROPLETS_PERIOD/LOOP_PERIOD))==0){
-		detectOtherDroplets();
-	}	
-	if((time_floor%(RNB_BROADCAST_PERIOD/LOOP_PERIOD))==0){
-		broadcast_rnb_data();
-		Bonded_Atoms_Msg message;
-		for(uint8_t j = 0; j < 6; j++) message.bonded_atoms[j] = myID.bonded_atoms[j];
-		message.blink_timer = global_blink_timer;
-		ir_send(ALL_DIRS, (char*)(&message), sizeof(Bonded_Atoms_Msg)); 
-		//printf("global_blink_timer is %X \r\n", global_blink_timer);
-	}
-	if((time_floor%(CHEM_ID_BROADCAST_PERIOD/LOOP_PERIOD))==0){
-		ir_send(ALL_DIRS, (char*)(&myID), sizeof(Atom));
-	}
-	//There should be a better way to do this than delay_ms.
-	//if((global_blink_timer!=0)&&((time_floor%(BLINK_PERIOD/LOOP_PERIOD))==((global_blink_timer/50)%(BLINK_PERIOD/LOOP_PERIOD))))
-	//if(time_floor%(BLINK_PERIOD/LOOP_PERIOD)==0)
+///*
+ //* Any code in this function will be run once, when the robot starts.
+ //*/
+//void init()
+//{
+	//printf("INITIALIZING DROPLET. \r\n");
+	//switch(get_droplet_id()){
+		//case 0x2B4E: MY_CHEM_ID = 6; break;
+		//case 0xC24B: MY_CHEM_ID = 6; break;
+		//case 0xC806: MY_CHEM_ID = 6; break;
+		//case 0x1F08: MY_CHEM_ID = 7; break;
+		//case 0x4177: MY_CHEM_ID = 1; break;	
+		//case 0x43BA: MY_CHEM_ID = 1; break;
+		//default:     MY_CHEM_ID = 1; break;
+	//}
+	//init_atom_state();
+//}
+//
+///*
+ //* The code in this function will be called repeatedly, as fast as it can execute.
+ //*/
+//
+//void loop()
+//{
+	//delay_ms(LOOP_PERIOD);
+	////broadcastChemID(myID);
+	//if((get_time()-bondDelay) > 1000) {
+		//bondDelay = 0;
+		//potentialPartner = 0;	
+	//}
+	//if((get_time()-sent_atom_delay) > 1000) {
+		//sent_atom_delay = 0;
+	//}
+	//if((get_time()-bonded_atoms_delay) > 1000) {
+		//bonded_atoms_delay = 0;
+	//}
+	//uint32_t time_floor = ((get_time()/LOOP_PERIOD));
+	//if((time_floor%(DETECT_OTHER_DROPLETS_PERIOD/LOOP_PERIOD))==0){
+		//detectOtherDroplets();
+	//}	
+	//if((time_floor%(RNB_BROADCAST_PERIOD/LOOP_PERIOD))==0){
+		//broadcast_rnb_data();
+		//Bonded_Atoms_Msg message;
+		//for(uint8_t j = 0; j < 6; j++) message.bonded_atoms[j] = myID.bonded_atoms[j];
+		//message.blink_timer = global_blink_timer;
+		//ir_send(ALL_DIRS, (char*)(&message), sizeof(Bonded_Atoms_Msg)); 
+		////printf("global_blink_timer is %X \r\n", global_blink_timer);
+	//}
+	//if((time_floor%(CHEM_ID_BROADCAST_PERIOD/LOOP_PERIOD))==0){
+		//ir_send(ALL_DIRS, (char*)(&myID), sizeof(Atom));
+	//}
+	////There should be a better way to do this than delay_ms.
+	////if((global_blink_timer!=0)&&((time_floor%(BLINK_PERIOD/LOOP_PERIOD))==((global_blink_timer/50)%(BLINK_PERIOD/LOOP_PERIOD))))
+	////if(time_floor%(BLINK_PERIOD/LOOP_PERIOD)==0)
+	////{
+		////uint8_t r = get_red_led();
+		////uint8_t g = get_green_led();
+		////uint8_t b = get_blue_led();
+		////set_rgb(255, 0, 0);
+		////delay_ms(300);
+		////set_rgb(r, g, b);
+	////}
+	//if(rnb_updated)
 	//{
+		//uint16_t received_id = last_good_rnb.id_number;
+		//float received_range = last_good_rnb.range;
+		//float received_bearing = last_good_rnb.bearing;
+		//float received_heading = last_good_rnb.heading;
+		////scaling the range to mm.
+		//received_range = received_range*10;
+		//printf("*****************************************************************range: %f\r\n", received_range);
+		//
+		//uint8_t i;
+		//for(i = 0; i < 12; i++)
+		//{
+			//if(near_atoms[i].id == received_id &&(is_good_rnb(received_range, received_bearing, received_id) || (near_atoms[i].bearing == 0 && near_atoms[i].heading == 0 && near_atoms[i].range == 0)))
+			//{
+				//near_atoms[i].bearing = received_bearing;
+				//near_atoms[i].heading = received_heading;
+				//near_atoms[i].range = (uint16_t)received_range;
+				//if(target_spot != -1) calculate_path(target_spot, target_id);
+				//makePossibleBonds(near_atoms[i].atom, 'n', received_id);
+				//delay_ms(200); //probably remove this at some point
+				////print_near_atoms();
+				//
+				//break;
+			//}
+		//}
+		////broadcastChemID(myID);
+		//rnb_updated=0;
+		//last_rnb = get_time();
+	//}
+	//uint8_t bonded = 0;
+	//for(uint8_t i = 0; i < 6; i++) if(myID.bonded_atoms[i]) bonded = 1;
+	////if(is_moving == -1 && !bonded)	init_random_move(0);
+//}
+//
+///*
+ //* After each pass through loop(), the robot checks for all messages it has 
+ //* received, and calls this function once for each message.
+ //*/
+//
+//void handle_msg(ir_msg* msg_struct)
+//{
+	//printf("\nHandle_msg: Printing message of length %u.\r\n\t",msg_struct->length);
+	//for(uint8_t i=0;i<msg_struct->length;i++)
+	//{
+		//printf("%02hX",msg_struct->msg[i]);
+	//}
+	//printf("\r\n\n");
+	//if(msg_struct->length==0)  printf("ERROR: Message length 0.\r\n");
+	////print_near_atoms();
+	//
+	////Message is an Atom struct
+	//if(msg_struct->length==sizeof(Atom))  { 
+		//Atom* near_atom;
+		//near_atom = (Atom*)(msg_struct->msg); //do some kind of check to make sure this is actually an atom. 
+		//for(uint8_t i = 0; i < 8; i++)  {
+			//if(near_atom->valence[i] < -1 || near_atom->valence[i] > 4)  {
+				//printf("In handle_msg, msg received that was the size of an atom but wasn't. Calling return. \r\n");
+				//return;
+			//}
+		//}
+		//msgAtom(msg_struct);
+	//}
+	////Message is bond formed
+	//else if(msg_struct->length == sizeof(Bond_Made_Msg))  {
+		//Bond_Made_Msg* msg;
+		//msg = (Bond_Made_Msg*)(msg_struct->msg);
+		//if(!(msg->flag_array[0] == 'i' || msg->flag_array[0] == 'c'))  {
+			//printf("In handle_msg, msg received that was the size of a Bond_Made_Msg but wasn't. Calling return. Sizeof(Bond_Made_Msg) = %hu \r\n", sizeof(Bond_Made_Msg));
+			//return;
+		//}
+		//if(msg_struct->msg[0] == 'i') 
+			//msgBondMade(msg_struct, 'i');
+		//else if(msg_struct->msg[0] == 'c')  
+			//msgBondMade(msg_struct, 'c');
+		//msgOrbital(msg_struct);
+	//}
+	//
+	////Message is a possible bond
+	//else if(msg_struct->msg[0] == 'p' && (bondDelay == 0 || potentialPartner == msg_struct->sender_ID))
+		//msgPossibleBond(msg_struct);
+	////Message is another Droplet's bonded_atoms array. T
+	//else if((msg_struct->length == sizeof(Bonded_Atoms_Msg)) && bonded_atoms_delay == 0) msgBondedAtoms(msg_struct);
+	////Message is that an atom joined the molecule
+	//else if(msg_struct->msg[0] == 'm') {
 		//uint8_t r = get_red_led();
 		//uint8_t g = get_green_led();
 		//uint8_t b = get_blue_led();
-		//set_rgb(255, 0, 0);
-		//delay_ms(300);
+		//set_rgb(0, 255, 0);
+		//uint8_t other_molecule_length = msg_struct->length/2;
+		//uint16_t other_molecule[other_molecule_length];
+		//memcpy(other_molecule, msg_struct->msg+1, other_molecule_length*2);
+		//update_molecule(other_molecule, other_molecule_length, msg_struct->sender_ID);
+		//print_molecule();
+		//delay_ms(200);
 		//set_rgb(r, g, b);
 	//}
-	if(rnb_updated)
-	{
-		uint16_t received_id = last_good_rnb.id_number;
-		float received_range = last_good_rnb.range;
-		float received_bearing = last_good_rnb.bearing;
-		float received_heading = last_good_rnb.heading;
-		//scaling the range to mm.
-		received_range = received_range*10;
-		printf("*****************************************************************range: %f\r\n", received_range);
-		uint8_t i;
-		for(i = 0; i < 12; i++)
-		{
-			if(near_atoms[i].id == received_id)
-			{
-				near_atoms[i].bearing = received_bearing;
-				near_atoms[i].heading = received_heading;
-				near_atoms[i].range = (uint16_t)received_range;
-				makePossibleBonds(near_atoms[i].atom, 'n', received_id);
-				delay_ms(200); //probably remove this at some point
-				//print_near_atoms();
-				break;
-			}
-		}
-		//broadcastChemID(myID);
-		if(target_spot != -1) calculate_path(target_spot, target_id);
-		rnb_updated=0;
-	}
-	uint8_t bonded = 0;
-	for(uint8_t i = 0; i < 6; i++) if(myID.bonded_atoms[i]) bonded = 1;
-	//if(is_moving == -1 && !bonded)	init_random_move(0);
+	////Message is the first step in recognizing a collision with another droplet
+	//else if(msg_struct->msg[0] == 'h') msgContactFirst(msg_struct->sender_ID);
+	//else if(msg_struct->msg[0] == 'f' && msg_struct->length == 3) msgContactSecond(msg_struct->msg, msg_struct->sender_ID);
+	//
+	//printf("Ending handle_msg.\r\n");
+	//repairValence();
+	////print_near_atoms();
+	//print_molecule();
+	//repairBondedAtoms();
+//}
+
+void init()
+{
+	walk(6, 90);
 }
 
-/*
- * After each pass through loop(), the robot checks for all messages it has 
- * received, and calls this function once for each message.
- */
+void loop()
+{
+	delay_ms(1);
+}
 
 void handle_msg(ir_msg* msg_struct)
 {
-	printf("\nHandle_msg: Printing message of length %u.\r\n\t",msg_struct->length);
-	for(uint8_t i=0;i<msg_struct->length;i++)
-	{
-		printf("%02hX",msg_struct->msg[i]);
-	}
-	printf("\r\n\n");
-	if(msg_struct->length==0)  printf("ERROR: Message length 0.\r\n");
-	print_near_atoms();
 	
-	//Message is an Atom struct
-	if(msg_struct->length==sizeof(Atom))  { 
-		Atom* near_atom;
-		near_atom = (Atom*)(msg_struct->msg); //do some kind of check to make sure this is actually an atom. 
-		for(uint8_t i = 0; i < 8; i++)  {
-			if(near_atom->valence[i] < -1 || near_atom->valence[i] > 4)  {
-				printf("In handle_msg, msg received that was the size of an atom but wasn't. Calling return. \r\n");
-				return;
-			}
-		}
-		msgAtom(msg_struct);
-	}
-	//Message is bond formed
-	else if(msg_struct->length == sizeof(Bond_Made_Msg))  {
-		Bond_Made_Msg* msg;
-		msg = (Bond_Made_Msg*)(msg_struct->msg);
-		if(!(msg->flag_array[0] == 'i' || msg->flag_array[0] == 'c'))  {
-			printf("In handle_msg, msg received that was the size of a Bond_Made_Msg but wasn't. Calling return. Sizeof(Bond_Made_Msg) = %hu \r\n", sizeof(Bond_Made_Msg));
-			return;
-		}
-		if(msg_struct->msg[0] == 'i') 
-			msgBondMade(msg_struct, 'i');
-		else if(msg_struct->msg[0] == 'c')  
-			msgBondMade(msg_struct, 'c');
-		msgOrbital(msg_struct);
-	}
-	
-	//Message is a possible bond
-	else if(msg_struct->msg[0] == 'p' && (bondDelay == 0 || potentialPartner == msg_struct->sender_ID))
-		msgPossibleBond(msg_struct);
-	//Message is another Droplet's bonded_atoms array. T
-	else if((msg_struct->length == sizeof(Bonded_Atoms_Msg)) && bonded_atoms_delay == 0) msgBondedAtoms(msg_struct);
-	//Message is that an atom joined the molecule
-	else if(msg_struct->msg[0] == 'm') {
-		uint8_t r = get_red_led();
-		uint8_t g = get_green_led();
-		uint8_t b = get_blue_led();
-		set_rgb(0, 255, 0);
-		uint8_t other_molecule_length = msg_struct->length/2;
-		uint16_t other_molecule[other_molecule_length];
-		memcpy(other_molecule, msg_struct->msg+1, other_molecule_length*2);
-		update_molecule(other_molecule, other_molecule_length, msg_struct->sender_ID);
-		print_molecule();
-		delay_ms(200);
-		set_rgb(r, g, b);
-	}
-	//Message is the first step in recognizing a collision with another droplet
-	else if(msg_struct->msg[0] == 'h') msgContactFirst(msg_struct->sender_ID);
-	else if(msg_struct->msg[0] == 'f' && msg_struct->length == 3) msgContactSecond(msg_struct->msg, msg_struct->sender_ID);
-	
-	printf("Ending handle_msg.\r\n");
-	repairValence();
-	print_near_atoms();
-	print_molecule();
-	repairBondedAtoms();
 }
-
 /*
  *	The function below is optional - if it is commented in, and the leg interrupts have been turned on
  *	with enable_leg_status_interrupt(), this function will get called when that interrupt triggers.
@@ -1437,6 +1522,7 @@ void init_atom_state()
 	bonded_atoms_delay = 0;
 	global_blink_timer = 0;
 	sent_atom_delay = 0;
+	last_rnb = 0;
 	last_chem_ID_broadcast = 0;
 	target_id = 0;
 	target_spot = -1;

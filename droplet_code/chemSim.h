@@ -5,10 +5,11 @@
 
 #define RNB_BROADCAST_PERIOD 5000
 #define BLINK_PERIOD 2500
-#define CHEM_ID_BROADCAST_PERIOD 1900
+#define CHEM_ID_BROADCAST_PERIOD 3900
 #define DETECT_OTHER_DROPLETS_PERIOD 1000
 #define UPDATE_ATOMS_PERIOD 100
 #define LOOP_PERIOD 50
+#define MOLECULE_BROADCAST_PERIOD 4123
 
 typedef struct  
 {
@@ -19,7 +20,7 @@ typedef struct
 	uint8_t valence[3];	
 	uint8_t bondType;
 	char msgFlag;	
-}StateMsg;
+}State_Msg;
 
 typedef struct
 {
@@ -99,44 +100,47 @@ void handle_msg(ir_msg* msg_struct);
 void user_leg_status_interrupt();
 
 uint8_t add_atom_to_molecule(uint16_t atom_id);
-void add_to_bonded_atoms(uint16_t ID);
+void add_to_bonded_atoms(uint16_t ID, uint8_t index, uint8_t num_bonds);
 void add_to_my_orbitals(uint16_t ID, uint8_t num_bonds);
 void add_to_near_atoms();
 //void broadcastChemID(Atom ID);
 void calculate_path(float target, uint16_t ID);
 uint8_t convert_bearing_to_IR_dir(float bearing);
-uint8_t* convert_IR_dir_to_array(uint8_t dirs);
+uint8_t* convert_IR_dir_to_array(uint8_t dirs, uint8_t* bits);
+void create_state_message(State_Msg* msg, char flag);
 void detectOtherDroplets();
-void formBond(uint16_t senderID, Atom near_atom, char flag);
+void formBond(uint16_t senderID, Atom* near_atom, char flag);
 void found_bond_routine(char flag);
 uint8_t getAtomicNumFromID(uint16_t ID);
-Atom getAtomFromAtomicNum(uint8_t atomicNum);
-Atom getAtomFromID(uint16_t ID);
+Atom* getAtomFromAtomicNum(uint8_t atomicNum);
+Atom* getAtomFromID(uint16_t ID);
 float getChiFromID(uint16_t ID);
-void getOrbitals(Atom atom);
+void getOrbitals(Atom* atom);
 void init_atom_state();
 void init_random_move(uint8_t direc);
 uint8_t is_good_rnb(float rng, float bearing, uint16_t ID);
-void makePossibleBonds(Atom near_atom, char flag, uint16_t senderID);
-void modify_valences_ionic(char* newValence, Atom near_atom, uint16_t senderID);
-void modify_valences_covalent(char* newValence, Atom near_atom, uint16_t senderID);
+void makePossibleBonds(Atom* near_atom_ptr, char flag, uint16_t senderID);
+void modify_valences_ionic(char* newValence, Atom* near_atom_ptr, uint16_t senderID);
+void modify_valences_covalent(char* newValence, Atom* near_atom_ptr, uint16_t senderID);
 void move_to_target(uint16_t rng, float bearing);
-void msgAtom(ir_msg* msg_struct);
-void msgBondedAtoms(ir_msg* msg_struct);
+void msgBondedAtoms(uint16_t* recast_bonded_atoms, uint16_t new_blink, uint16_t sender_ID);
 void msgBondMade(ir_msg* msg_struct, char flag);
 void msgContactFirst(uint16_t senderID);
 void msgContactSecond(char* msg, uint16_t senderID);
+void msgOrbital(uint16_t* other_bonded_atoms, uint16_t senderID);
 void msgPossibleBond(ir_msg* msg_struct);
 uint8_t* orbital_order(uint8_t *valence);
+void pack_valences(uint8_t* packed_shells, int8_t* shells);
 void print_near_atoms();
 void printValence(int8_t valence[]);
 void remove_atom_from_molecule(uint16_t atom_id);
 void repairBondedAtoms();
 void repairValence();
-void setAtomColor(Atom ID);
+void setAtomColor(Atom* ID);
 void transmit_molecule_struct(uint16_t exclude_id);
+void unpack_valences(uint8_t* packed_shells, int8_t* shells);
 void update_molecule(uint16_t* atNums, uint8_t length, uint16_t sender);
-void update_near_atoms();
+void update_near_atoms(Atom* near_atom, uint16_t senderID);
 uint8_t valenceState();
 
 

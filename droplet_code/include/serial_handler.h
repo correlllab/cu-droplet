@@ -23,6 +23,7 @@ void handle_get_rgb();
 void handle_set_ir(char* command_args);
 void handle_stop_walk();
 void handle_set_motors(char* command_args);
+void handle_adjust_motors(char* command_args);
 void handle_set_mm_per_kilostep(char* command_args);
 void handle_rnb_broadcast();
 void handle_rnb_collect(char* command_args);

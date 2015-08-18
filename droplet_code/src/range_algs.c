@@ -22,7 +22,7 @@ float basis[6][2] = {	{0.866025 , -0.5},
 float basis_angle[6] = {-0.523599, -1.5708, -2.61799, 2.61799, 1.5708, 0.523599};
 	
 //Should maybe be elsewhere?
-uint8_t bright_meas[6][6][NUMBER_OF_RB_MEASUREMENTS];
+int16_t bright_meas[NUMBER_OF_RB_MEASUREMENTS][6][6];
 
 void range_algs_init()
 {
@@ -32,7 +32,7 @@ void range_algs_init()
 		{
 			for(uint8_t k=0 ; k<6 ; k++)
 			{
-				bright_meas[j][k][i] = 0;
+				bright_meas[i][j][k] = 0;
 			}
 		}
 	}
@@ -64,16 +64,18 @@ void receive_rnb_data()
 {
 	ir_range_meas();
 	get_baseline_readings();
-	uint8_t power = 25; //TODO: get this from the message.
+	//uint8_t power = 25; //TODO: get this from the message.
 	//schedule_task(10,brightness_meas_printout_mathematica,NULL);
+	//printf("Finished collecting data.\r\n");
 	schedule_task(10, use_rnb_data, NULL);
 }
 
 void use_rnb_data()
 {
 	uint8_t power = 255;
-	uint8_t brightness_matrix[6][6];
+	int16_t brightness_matrix[6][6];
 	uint8_t error = pack_measurements_into_matrix(brightness_matrix);
+	brightness_meas_printout_mathematica();
 	if(!error)
 	{
 		/*
@@ -89,8 +91,8 @@ void use_rnb_data()
 		*/
 		//print_brightness_matrix(brightness_matrix);
 	
-		uint8_t emitter_total[6];
-		uint8_t sensor_total[6];
+		int16_t emitter_total[6];
+		int16_t sensor_total[6];
 		fill_S_and_T(brightness_matrix, sensor_total, emitter_total);
 	
 		float bearing = get_bearing(sensor_total);
@@ -111,7 +113,7 @@ void use_rnb_data()
 	}
 }
 
-float get_bearing(uint8_t sensor_total[6])
+float get_bearing(int16_t sensor_total[6])
 {
 	float x_sum = 0.0;
 	float y_sum = 0.0;
@@ -125,7 +127,7 @@ float get_bearing(uint8_t sensor_total[6])
 	return atan2f(y_sum, x_sum);
 }
 
-float get_heading(uint8_t emitter_total[6], float bearing)
+float get_heading(int16_t emitter_total[6], float bearing)
 {
 	volatile float x_sum = 0.0;
 	volatile float y_sum = 0.0;
@@ -145,11 +147,11 @@ float get_heading(uint8_t emitter_total[6], float bearing)
 	return pretty_angle(heading);
 }
 
-float get_initial_range_guess(float bearing, float heading, uint8_t power, uint8_t sensor_total[6], uint8_t emitter_total[6], uint8_t brightness_matrix[6][6])
+float get_initial_range_guess(float bearing, float heading, uint8_t power, int16_t sensor_total[6], int16_t emitter_total[6], int16_t brightness_matrix[6][6])
 {
-	uint8_t best_e=255, best_s=255;
-	uint16_t biggest_e_val = 0;
-	uint16_t biggest_s_val = 0;
+	int16_t best_e=-32768, best_s=-32768;
+	int16_t biggest_e_val = 0;
+	int16_t biggest_s_val = 0;
 
 	for(uint8_t i = 0; i < 6; i++)
 	{
@@ -198,7 +200,7 @@ float get_initial_range_guess(float bearing, float heading, uint8_t power, uint8
 	return inverse_amplitude_model(amplitude, power) + 2*DROPLET_RADIUS;
 }
 
-float range_estimate(float init_range, float bearing, float heading, uint8_t power, uint8_t brightness_matrix[6][6])
+float range_estimate(float init_range, float bearing, float heading, uint8_t power, int16_t brightness_matrix[6][6])
 {
 	float range_matrix[6][6];
 	
@@ -206,9 +208,9 @@ float range_estimate(float init_range, float bearing, float heading, uint8_t pow
 	float alpha, beta, sense_emit_contr;
 	float calcRIJmag, calcRx, calcRy;
 
-	uint8_t maxBright = 0;
-	uint8_t maxE=255;
-	uint8_t maxS=255;
+	int16_t maxBright = 0;
+	int16_t maxE=-32768;
+	int16_t maxS=-32768;
 	for(uint8_t e = 0; e < 6; e++)
 	{
 		for(uint8_t s = 0; s < 6; s++)
@@ -249,7 +251,7 @@ float range_estimate(float init_range, float bearing, float heading, uint8_t pow
 	return range;
 }
 
-void fill_S_and_T(uint8_t brightness_matrix[6][6], uint8_t sensor_total[6], uint8_t emitter_total[6])
+void fill_S_and_T(int16_t brightness_matrix[6][6], int16_t sensor_total[6], int16_t emitter_total[6])
 {
 	
 	for(uint8_t i = 0; i < 6; i++)
@@ -270,20 +272,20 @@ void fill_S_and_T(uint8_t brightness_matrix[6][6], uint8_t sensor_total[6], uint
 	}
 }
 
-uint8_t pack_measurements_into_matrix(uint8_t brightness_matrix[6][6])
+uint8_t pack_measurements_into_matrix(int16_t brightness_matrix[6][6])
 {
-	uint8_t val, meas, min_meas, max_meas;
-	uint8_t max_val=0;
+	int16_t val, meas, min_meas, max_meas;
+	int16_t max_val=0;
 	for(uint8_t emitter_num = 0; emitter_num < 6; emitter_num++)
 	{
 		for(uint8_t sensor_num = 0; sensor_num < 6; sensor_num++)
 		{
-			min_meas = 255;
+			min_meas = 32767;
 			max_meas = 0;
 
 			for(uint8_t meas_num = 0; meas_num < NUMBER_OF_RB_MEASUREMENTS; meas_num++)
 			{
-				meas = bright_meas[emitter_num][sensor_num][meas_num];
+				meas = bright_meas[meas_num][emitter_num][sensor_num];
 				if(meas<min_meas) min_meas=meas;
 				if(meas>max_meas) max_meas=meas; 
 			}
@@ -302,10 +304,7 @@ void get_baseline_readings()
 	uint8_t meas_num = 0;
 	for (uint8_t emitter_num = 0; emitter_num < 6; emitter_num++)
 	{
-		for (uint8_t sensor_num = 0; sensor_num < 6; sensor_num++)
-		{
-			bright_meas[emitter_num][sensor_num][meas_num] = get_ir_sensor(sensor_num);
-		}			
+		get_ir_sensors(bright_meas[meas_num][emitter_num], 5);
 	}
 }
 
@@ -320,10 +319,7 @@ void ir_range_meas()
 		for(uint8_t meas_num = 1; meas_num < NUMBER_OF_RB_MEASUREMENTS; meas_num++)
 		{
 			uint32_t inner_pre_sync_op = get_time();
-			for (uint8_t sensor_num = 0; sensor_num < 6; sensor_num++)
-			{
-				bright_meas[emitter_dir][sensor_num][meas_num] = get_ir_sensor(sensor_num);
-			}
+			get_ir_sensors(bright_meas[meas_num][emitter_dir] , 5);
 			while((get_time() - inner_pre_sync_op) < TIME_FOR_GET_IR_VALS){};
 			
 			if (meas_num < (NUMBER_OF_RB_MEASUREMENTS - 1))	delay_ms(DELAY_BETWEEN_RB_MEASUREMENTS);
@@ -350,51 +346,13 @@ void ir_range_blast(uint8_t power)
 	for(uint8_t dir = 0; dir < 6; dir++)
 	{
 		pre_sync_op = get_time();
-		ir_emit(dir, TIME_FOR_ALL_MEAS);
+		ir_led_on(dir);
 		while((get_time() - pre_sync_op) < TIME_FOR_ALL_MEAS){};
+		ir_led_off(dir);
 		//set_green_led(100);
 		delay_ms(DELAY_BETWEEN_RB_TRANSMISSIONS);
 		//set_green_led(0);
 	}
-}
-
-void ir_emit(uint8_t direction, uint8_t duration)
-{
-	uint8_t USART_CTRLB_save;
-
-	uint8_t carrier_wave_bm=0;
-	uint8_t TX_pin_bm=0;
-
-	PORT_t * the_UART_port=0;
-	USART_t * the_USART=0;
-
-	switch(direction)
-	{
-		case 0: carrier_wave_bm = PIN0_bm; TX_pin_bm = PIN3_bm; the_UART_port = &PORTC; the_USART = &USARTC0; break;
-		case 1:	carrier_wave_bm = PIN1_bm; TX_pin_bm = PIN7_bm; the_UART_port = &PORTC; the_USART = &USARTC1; break;
-		case 2:	carrier_wave_bm = PIN4_bm; TX_pin_bm = PIN3_bm; the_UART_port = &PORTD; the_USART = &USARTD0; break;
-		case 3:	carrier_wave_bm = PIN5_bm; TX_pin_bm = PIN3_bm; the_UART_port = &PORTE; the_USART = &USARTE0; break;
-		case 4:	carrier_wave_bm = PIN7_bm; TX_pin_bm = PIN7_bm; the_UART_port = &PORTE; the_USART = &USARTE1; break;
-		case 5:	carrier_wave_bm = PIN6_bm; TX_pin_bm = PIN3_bm; the_UART_port = &PORTF; the_USART = &USARTF0; break;
-	}
-
-	//Turning on the light.
-	USART_CTRLB_save	  = the_USART->CTRLB;	// record the current state of the USART
-	TCF2.CTRLB			 &= ~carrier_wave_bm;	// disable carrier wave output
-	PORTF.DIRSET		  =  carrier_wave_bm;	// enable user output on this pin
-	PORTF.OUT			 |=  carrier_wave_bm;	// high signal on this pin
-	the_USART->CTRLB  	  =  0;					// disable USART
-	the_UART_port->DIRSET =  TX_pin_bm;			// enable user output on this pin
-	the_UART_port->OUT	 &= ~TX_pin_bm;			// low signal on TX pin (remember: these pins were inverted during init)
-
-	// Light is on now, wait..
-	busy_delay_ms(duration);
-	
-	//Turning off the light.
-	the_UART_port->OUT  |=  TX_pin_bm;			// high signal on TX pin (turns IR blast OFF)
-	the_USART->CTRLB	 =  USART_CTRLB_save;	// re-enable USART (restore settings as it was before)
-	PORTF.OUT			&= ~carrier_wave_bm;	// low signal on the carrier wave pin, just in casies.
-	TCF2.CTRLB			|=  carrier_wave_bm;	// re-enable carrier wave output
 }
 
 float pretty_angle(float alpha)
@@ -471,7 +429,7 @@ void debug_print_timer(uint32_t timer[14])
 	printf("\r\n");
 }
 
-void print_brightness_matrix(uint8_t brightness_matrix[6][6])
+void print_brightness_matrix(int16_t brightness_matrix[6][6])
 {
 	printf("{");
 	for(uint8_t emitter_num=0 ; emitter_num<6 ; emitter_num++)
@@ -479,7 +437,7 @@ void print_brightness_matrix(uint8_t brightness_matrix[6][6])
 		printf("{");
 		for(uint8_t sensor_num=0 ; sensor_num<6 ; sensor_num++)
 		{
-			printf("%u",brightness_matrix[emitter_num][sensor_num]);
+			printf("%d",brightness_matrix[emitter_num][sensor_num]);
 			if(sensor_num<5) printf(",");
 		}
 		printf("}");
@@ -501,7 +459,7 @@ void brightness_meas_printout_mathematica()
 						{
 							if(meas_num == 10)
 							printf("\r\n");
-							printf("%u,",bright_meas[emitter_num][sensor_num][meas_num]);
+							printf("%d,",bright_meas[meas_num][emitter_num][sensor_num]);
 						}
 					printf("\b},");
 				}

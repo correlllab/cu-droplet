@@ -106,4 +106,4 @@ void calculate_id_number();
 void enable_interrupts();
 void startup_light_sequence();
 
-//uint8_t get_droplet_ord(uint16_t id);
+uint8_t get_droplet_ord(uint16_t id);

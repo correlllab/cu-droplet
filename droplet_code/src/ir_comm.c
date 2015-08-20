@@ -91,7 +91,7 @@ float closestSensorAngle(float alpha)
 	return val;
 }
 
-void getIrCommRnBEst()
+void getIrCommRnBEst(uint8_t* range, float* bearing, float* heading)
 {
 	int16_t totals[6];
 	int16_t srcTotals[6];
@@ -136,10 +136,12 @@ void getIrCommRnBEst()
 	float amplitude = bestTotal/exp_con;
 	//float range_est = inverse_amplitude_model(amplitude, 255)+2*DROPLET_RADIUS;
 	//float range_est = inverse_amplitude_model(bestTotal, 255);
-	printf("comm bearing: %f, comm heading: %f, ", rad_to_deg(bearing_est), rad_to_deg(heading_est));
-	if(amplitude>2000)		printf("very close.\r\n");
-	else if(amplitude>1000) printf(" close.\r\n");
-	else					printf(" far.\r\n");
+	//printf("comm bearing: %f, comm heading: %f, ", rad_to_deg(bearing_est), rad_to_deg(heading_est));
+	if(amplitude>2000)		*range = 0xFF;
+	else if(amplitude>1000) *range = 0x01;
+	else					*range = 0x00;
+	*bearing = bearing_est;
+	*heading = heading_est;
 }
 
 void perform_ir_upkeep()
@@ -160,10 +162,6 @@ void perform_ir_upkeep()
 			if(crc_seen) clear_ir_buffer(dir);
 			else //Normal message; add to message queue.
 			{			
-				ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
-				{
-					getIrCommRnBEst();
-				}
 				if(num_waiting_msgs>=MAX_USER_FACING_MESSAGES)
 				{
 					user_facing_messages_ovf = 1;
@@ -180,7 +178,7 @@ void perform_ir_upkeep()
 					msg_node[num_waiting_msgs].arrival_dir = dir;
 					msg_node[num_waiting_msgs].sender_ID = ir_rxtx[dir].sender_ID;
 					msg_node[num_waiting_msgs].msg_length = ir_rxtx[dir].data_length;
-
+					getIrCommRnBEst(&(msg_node[num_waiting_msgs].range),&(msg_node[num_waiting_msgs].bearing),&(msg_node[num_waiting_msgs].heading));
 				}
 				num_waiting_msgs++;
 				clear_ir_buffer(dir);

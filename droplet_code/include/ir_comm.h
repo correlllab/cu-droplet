@@ -83,10 +83,13 @@ volatile struct
 volatile struct
 {
 	uint32_t	arrival_time;
+	float		bearing;
+	float		heading;
 	uint16_t	sender_ID;
 	char		msg[IR_BUFFER_SIZE];		
 	uint8_t		arrival_dir;
 	uint8_t		msg_length;
+	uint8_t		range;
 } msg_node[MAX_USER_FACING_MESSAGES];
 
 volatile uint8_t num_waiting_msgs;

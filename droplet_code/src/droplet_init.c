@@ -87,6 +87,9 @@ void check_messages ()
 			msg_struct->sender_ID						= msg_node[i].sender_ID;
 			msg_struct->dir_received					= msg_node[i].arrival_dir;
 			msg_struct->length							= msg_node[i].msg_length;
+			msg_struct->range							= msg_node[i].range;
+			msg_struct->bearing							= msg_node[i].bearing;
+			msg_struct->heading							= msg_node[i].heading;
 		}			
 		msg_struct->msg[msg_node[i].msg_length]	= '\0';		
 		num_waiting_msgs--;

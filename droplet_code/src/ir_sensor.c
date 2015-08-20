@@ -106,8 +106,9 @@ void get_ir_baselines(int16_t* baseline_arr)
 
 void get_ir_sensors(int16_t* output_arr, uint8_t meas_per_ch)
 {			
+	int16_t meas[6][meas_per_ch];	
 	#ifdef AUDIO_DROPLET
-		int16_t meas[6][meas_per_ch];
+
 		for(uint8_t meas_count=0;meas_count<meas_per_ch;meas_count++)
 		{
 			ADCA.CTRLA |= 0x7<<2;
@@ -120,18 +121,23 @@ void get_ir_sensors(int16_t* output_arr, uint8_t meas_per_ch)
 			}
 		}
 	#else
-		ADCB.CH0.MUXCTRL &= MUX_SENSOR_CLR; //clear previous sensor selection
-		ADCB.CH0.MUXCTRL |= mux_sensor_selectors[sensor_num];
+
 	
-		for(uint8_t meas_count=0; meas_count<ir_meas_count; meas_count++)
+		for(uint8_t dir=0;dir<6;dir++)
 		{
-			ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+			ADCB.CH0.MUXCTRL &= MUX_SENSOR_CLR; //clear previous sensor selection
+			ADCB.CH0.MUXCTRL |= mux_sensor_selectors[dir];			
+			for(uint8_t meas_count=0; meas_count<meas_per_ch; meas_count++)
 			{
-				ADCB.CH0.CTRL |= ADC_CH_START_bm;
-				while (ADCB.CH0.INTFLAGS==0){};		// wait for measurement to complete
-				meas[meas_count] = ((((int16_t)ADCB.CH0.RESH)<<8)|((int16_t)ADCB.CH0.RESL))>>2;
-				ADCB.CH0.INTFLAGS=1; // clear the complete flag					
-			}
+				ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+				{			
+					ADCB.CH0.CTRL |= ADC_CH_START_bm;
+					while (ADCB.CH0.INTFLAGS==0){};		// wait for measurement to complete
+					meas[dir][meas_count] = ADCB.CH0RES;
+					ADCB.CH0.INTFLAGS=1; // clear the complete flag					
+
+				}
+			}			
 		}
 	#endif	
 	

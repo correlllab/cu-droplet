@@ -34,6 +34,7 @@ void handle_serial_command(char* command, uint16_t command_length)
 		else if(strcmp_P(command_word,PSTR("cmd"))==0)					handle_cmd(command_args);
 		else if(strcmp_P(command_word,PSTR("tgt_cmd"))==0)				handle_targeted_cmd(command_args);
 		else if(strcmp_P(command_word,PSTR("msg"))==0)					handle_shout(command_args);
+		else if(strcmp_P(command_word,PSTR("msg_tst"))==0)				handle_msg_test(command_args);
 		else if(strcmp_P(command_word,PSTR("tgt"))==0)					handle_target(command_args);
 		else if(strcmp_P(command_word,PSTR("tasks"))==0)				print_task_queue();
 		else if(strcmp_P(command_word,PSTR("reset"))==0)				handle_reset();
@@ -395,11 +396,15 @@ void handle_shout(char* command_args)
 		printf_P(PSTR("Message length was %d chars, which exceeds the maximum of %d"), strlen(command_args), IR_BUFFER_SIZE);
 		return;
 	}
-	#ifdef IS_SPECIAL
-	ir_send(DIR0|DIR1|DIR3|DIR4, command_args,strlen(command_args));
-	#else
 	ir_send(ALL_DIRS, command_args,strlen(command_args));
-	#endif
+}
+
+void handle_msg_test(char* command_args)
+{
+	uint8_t dir_mask = atoi(command_args);
+	char msg[16] = "Unique New York.";
+	
+	ir_send(dir_mask, msg,16);
 }
 
 void handle_target(char* command_args)

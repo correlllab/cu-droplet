@@ -37,6 +37,7 @@ void send_id();
 void handle_cmd(char* command_args);
 void handle_targeted_cmd(char* command_args);
 void handle_shout(char* command_args);
+void handle_msg_test(char* command_args);
 void handle_target(char* command_args);
 void handle_reset();
 void get_command_word_and_args(char* command, uint16_t command_length, char* command_word, char* command_args);

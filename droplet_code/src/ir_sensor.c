@@ -27,32 +27,33 @@ void ir_sensor_init()
 		PORTB.PIN3CTRL = PORT_ISC_INPUT_DISABLE_gc;
 	
 		ADCA.REFCTRL = ADC_REFSEL_INT1V_gc;
-		ADCA.CTRLB = ADC_RESOLUTION_12BIT_gc | ADC_CONMODE_bm;
+		ADCA.CTRLB = ADC_RESOLUTION_12BIT_gc | ADC_CONMODE_bm/* | ADC_FREERUN_bm*/;
 		//ADCA.EVCTRL = ADC_SWEEP_012_gc;
 		ADCA.PRESCALER = ADC_PRESCALER_DIV512_gc;
 		ADCA.CALL = PRODSIGNATURES_ADCACAL0;
 		ADCA.CALH = PRODSIGNATURES_ADCACAL1;
 	
 		ADCB.REFCTRL = ADC_REFSEL_INT1V_gc;
-		ADCB.CTRLB = ADC_RESOLUTION_12BIT_gc | ADC_CONMODE_bm; //12bit resolution, and sets it to signed mode.
+		ADCB.CTRLB = ADC_RESOLUTION_12BIT_gc | ADC_CONMODE_bm/* | ADC_FREERUN_bm*/; //12bit resolution, and sets it to signed mode.
 		//ADCB.EVCTRL = ADC_SWEEP_012_gc;		
 		ADCB.PRESCALER = ADC_PRESCALER_DIV512_gc;
 		ADCB.CALL = PRODSIGNATURES_ADCBCAL0;
 		ADCB.CALH = PRODSIGNATURES_ADCBCAL1;
 	
-		ADCA.CH0.CTRL = ADC_CH_INPUTMODE_SINGLEENDED_gc;	// differential input. requires signed mode (see sec. 28.6 in manual)
-		ADCA.CH0.MUXCTRL = ADC_CH_MUXPOS_PIN5_gc;	// use VREF_IN for the negative input (0.54 V)
-		ADCA.CH1.CTRL = ADC_CH_INPUTMODE_SINGLEENDED_gc;	// differential input. requires signed mode (see sec. 28.6 in manual)
-		ADCA.CH1.MUXCTRL = ADC_CH_MUXPOS_PIN6_gc;	// use VREF_IN for the negative input (0.54 V)
+		ADCA.CH0.CTRL = ADC_CH_INPUTMODE_DIFF_gc;	// differential input. requires signed mode (see sec. 28.6 in manual)
+		ADCA.CH0.MUXCTRL = ADC_CH_MUXNEG_INTGND_MODE3_gc | ADC_CH_MUXPOS_PIN5_gc;	// use VREF_IN for the negative input (0.54 V)
+		ADCA.CH1.CTRL = ADC_CH_INPUTMODE_DIFF_gc;	// differential input. requires signed mode (see sec. 28.6 in manual)
+		ADCA.CH1.MUXCTRL = ADC_CH_MUXNEG_INTGND_MODE3_gc | ADC_CH_MUXPOS_PIN6_gc;	// use VREF_IN for the negative input (0.54 V)
 		ADCA.CH2.CTRL = ADC_CH_INPUTMODE_DIFF_gc;	// differential input. requires signed mode (see sec. 28.6 in manual)
-		ADCA.CH2.MUXCTRL = ADC_CH_MUXPOS_PIN7_gc;	// use VREF_IN for the negative input (0.54 V)
-	
-		ADCB.CH0.CTRL = ADC_CH_INPUTMODE_SINGLEENDED_gc;	// differential input. requires signed mode (see sec. 28.6 in manual)
-		ADCB.CH0.MUXCTRL = ADC_CH_MUXPOS_PIN4_gc;	// use VREF_IN for the negative input (0.54 V)
-		ADCB.CH1.CTRL = ADC_CH_INPUTMODE_SINGLEENDED_gc;	// differential input. requires signed mode (see sec. 28.6 in manual)
-		ADCB.CH1.MUXCTRL = ADC_CH_MUXPOS_PIN2_gc;	// use VREF_IN for the negative input (0.54 V)
-		ADCB.CH2.CTRL = ADC_CH_INPUTMODE_SINGLEENDED_gc;	// differential input. requires signed mode (see sec. 28.6 in manual)
-		ADCB.CH2.MUXCTRL = ADC_CH_MUXPOS_PIN3_gc;	// use VREF_IN for the negative input (0.54 V)
+		ADCA.CH2.MUXCTRL = ADC_CH_MUXNEG_INTGND_MODE3_gc | ADC_CH_MUXPOS_PIN7_gc;	// use VREF_IN for the negative input (0.54 V)
+
+		ADCB.CH0.CTRL = ADC_CH_INPUTMODE_DIFF_gc;	// differential input. requires signed mode (see sec. 28.6 in manual)
+		ADCB.CH0.MUXCTRL = ADC_CH_MUXNEG_INTGND_MODE3_gc | ADC_CH_MUXPOS_PIN4_gc;	// use VREF_IN for the negative input (0.54 V)
+		ADCB.CH1.CTRL = ADC_CH_INPUTMODE_DIFF_gc;	// differential input. requires signed mode (see sec. 28.6 in manual)
+		ADCB.CH1.MUXCTRL = ADC_CH_MUXNEG_INTGND_MODE3_gc | ADC_CH_MUXPOS_PIN2_gc;	// use VREF_IN for the negative input (0.54 V)
+		ADCB.CH2.CTRL = ADC_CH_INPUTMODE_DIFF_gc;	// differential input. requires signed mode (see sec. 28.6 in manual)
+		ADCB.CH2.MUXCTRL = ADC_CH_MUXNEG_INTGND_MODE3_gc | ADC_CH_MUXPOS_PIN3_gc;	// use VREF_IN for the negative input (0.54 V)
+
 
 		ADCA.CTRLA = ADC_ENABLE_bm;
 		ADCB.CTRLA = ADC_ENABLE_bm;
@@ -81,42 +82,71 @@ void ir_sensor_init()
 		ir_sense_baseline[dir] = 0; //zeroing the baseline array.
 	}	
 	
+	get_ir_baselines(ir_sense_baseline);
+}
+
+void get_ir_baselines(int16_t* baseline_arr)
+{
 	int16_t dat_arr[6];
 	int16_t means[6];
 	for(uint8_t i=0;i<6;i++) means[i]=0;
-	for(uint8_t meas_count=0; meas_count<16; meas_count++)
+	for(uint8_t meas_count=0; meas_count<15; meas_count++)
 	{
-		get_ir_sensors(dat_arr, 3);
+		get_ir_sensors(dat_arr, 5);
+		//printf("\r\n");
 		for(uint8_t i=0;i<6;i++) means[i]+= dat_arr[i];
 	}
 	for(uint8_t i=0;i<6;i++) ir_sense_baseline[i] = means[i]/16;
 
-	printf("Baselines:");
-	for(uint8_t dir=0; dir<6 ; dir++)
-		printf(" %4d", ir_sense_baseline[dir]);
-	printf("\r\n");
+	//printf("Baselines:");
+	//for(uint8_t dir=0; dir<6 ; dir++)
+	//printf(" %4d", ir_sense_baseline[dir]);
+	//printf("\r\n");
 }
 
 void get_ir_sensors(int16_t* output_arr, uint8_t meas_per_ch)
 {			
-	int16_t meas[6][meas_per_ch];
-	for(uint8_t meas_count=0;meas_count<meas_per_ch;meas_count++)
-	{
-		ADCA.CTRLA |= 0x7<<2;
-		ADCB.CTRLA |= 0x7<<2;
-		for(uint8_t dir=0;dir<6;dir++)
+	#ifdef AUDIO_DROPLET
+		int16_t meas[6][meas_per_ch];
+		for(uint8_t meas_count=0;meas_count<meas_per_ch;meas_count++)
 		{
-			while(ir_sense_channels[dir]->INTFLAGS==0);
-			meas[dir][meas_count] = (ir_sense_channels[dir]->RES-ir_sense_baseline[dir]);
-			ir_sense_channels[dir]->INTFLAGS=1;
+			ADCA.CTRLA |= 0x7<<2;
+			ADCB.CTRLA |= 0x7<<2;
+			for(uint8_t dir=0;dir<6;dir++)
+			{
+				while(ir_sense_channels[dir]->INTFLAGS==0);
+				meas[dir][meas_count] = (ir_sense_channels[dir]->RES);
+				ir_sense_channels[dir]->INTFLAGS=1;
+			}
 		}
-	}
+	#else
+		ADCB.CH0.MUXCTRL &= MUX_SENSOR_CLR; //clear previous sensor selection
+		ADCB.CH0.MUXCTRL |= mux_sensor_selectors[sensor_num];
+	
+		for(uint8_t meas_count=0; meas_count<ir_meas_count; meas_count++)
+		{
+			ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+			{
+				ADCB.CH0.CTRL |= ADC_CH_START_bm;
+				while (ADCB.CH0.INTFLAGS==0){};		// wait for measurement to complete
+				meas[meas_count] = ((((int16_t)ADCB.CH0.RESH)<<8)|((int16_t)ADCB.CH0.RESL))>>2;
+				ADCB.CH0.INTFLAGS=1; // clear the complete flag					
+			}
+		}
+	#endif	
+	
+	
 	for(uint8_t dir=0;dir<6;dir++)
 	{
-		if(meas_per_ch>1)
-		output_arr[dir] = meas_find_median(&meas[dir],meas_per_ch);
+		if(meas_per_ch>2){
+			int16_t median = meas_find_median(&(meas[dir][2]),meas_per_ch-2);
+			//printf("%d ",median);
+			output_arr[dir] = median-ir_sense_baseline[dir];
+		}			
+		else if(meas_per_ch==2)
+			output_arr[dir] = meas_find_median(&(meas[dir][1]),meas_per_ch-1)-ir_sense_baseline[dir];
 		else
-		output_arr[dir] = meas[dir][0];
+			output_arr[dir] = meas[dir][0];
 	}
 	//for(uint8_t i=0;i<6;i++) printf("%d ", output_arr[i]);
 	//printf("\r\n");	
@@ -194,25 +224,28 @@ uint8_t check_collisions(){
 	for(uint8_t i=0;i<6;i++) ir_rxtx[i].status = IR_STATUS_BUSY_bm;	
 	uint16_t curr_power = get_all_ir_powers();
 	set_all_ir_powers(256);
-	get_ir_sensors(baseline_meas, 3);
-	
-	for(uint8_t i=0;i<6;i++) ir_led_off(i);
+	//printf("coll base: ");
+	get_ir_sensors(baseline_meas, 5);
+	//printf("\r\n");
+	for(uint8_t i=0;i<6;i++) ir_led_on(i);
 	busy_delay_us(250);	
 	//delay_ms(250);
-	get_ir_sensors(measured_vals, 3);
-	for(uint8_t i=0;i<6;i++) ir_led_on(i);
+	//printf("Coll results: ");
+	get_ir_sensors(measured_vals, 5);
+	//printf("\r\n");
+	for(uint8_t i=0;i<6;i++) ir_led_off(i);
 	
 	for(uint8_t i=0;i<6;i++)
 	{
 		int16_t measure_above_base = measured_vals[i]-baseline_meas[i];
-		printf("%4d ", measure_above_base);
-		//if(measure_above_base<min_collision_vals[i]) min_collision_vals[i]=measure_above_base;
+		//printf("%4d ", measure_above_base);
+		if(measure_above_base<min_collision_vals[i]) min_collision_vals[i]=measure_above_base;
 		//printf("%4d ", measure_above_base-min_collision_vals[i]);
-		//if((measure_above_base-min_collision_vals[i])>30){
-			//dirs = dirs|(1<<i);
-		//}
+		if((measure_above_base-min_collision_vals[i])>20){
+			dirs = dirs|(1<<i);
+		}
 	}
-	printf("\r\n");
+	//printf("\r\n");
 	set_all_ir_powers(curr_power);
 	for(uint8_t i=0;i<6;i++) ir_rxtx[i].status = 0;		
 	return dirs;

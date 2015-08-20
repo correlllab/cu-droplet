@@ -46,8 +46,8 @@
 #define IR_STATUS_TRANSMITTING_bm		0x20    // 0010 0000
 #define IR_STATUS_UNAVAILABLE_bm		0x03	// Complete or Busy
 
-#define DATA_LEN_VAL_bm		0x1F
-#define DATA_LEN_CMD_bm		0xE0
+#define DATA_LEN_VAL_bm		0x7F
+#define DATA_LEN_CMD_bm		0x80
 
 #define HEADER_POS_SENDER_ID_LOW 0
 #define HEADER_POS_SENDER_ID_HIGH 1
@@ -56,7 +56,8 @@
 #define HEADER_POS_CRC_HIGH 4
 #define HEADER_POS_TARGET_ID_LOW 5
 #define HEADER_POS_TARGET_ID_HIGH 6
-#define HEADER_LEN 7
+#define HEADER_POS_SOURCE_DIR 7
+#define HEADER_LEN 8
 
 #define MAX_WAIT_FOR_IR_TIME ((5*(IR_BUFFER_SIZE+HEADER_LEN))/2)
 
@@ -75,7 +76,7 @@ volatile struct
 	uint16_t calc_crc;
 	char   buf[IR_BUFFER_SIZE];	// Transmit / receive buffer		
 	uint8_t  data_length;	
-	uint8_t inc_dir;
+	int8_t inc_dir;
 	volatile uint8_t status;		// Transmit:
 } ir_rxtx[6];
 

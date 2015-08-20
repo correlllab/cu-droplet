@@ -75,7 +75,8 @@ void use_rnb_data()
 	uint8_t power = 255;
 	int16_t brightness_matrix[6][6];
 	uint8_t error = pack_measurements_into_matrix(brightness_matrix);
-	brightness_meas_printout_mathematica();
+	//brightness_meas_printout_mathematica();
+	//print_brightness_matrix(brightness_matrix);
 	if(!error)
 	{
 		/*
@@ -196,7 +197,7 @@ float get_initial_range_guess(float bearing, float heading, uint8_t power, int16
 		//printf("ERROR: exp_con (%f) is negative (or zero)!\r\n", exp_con); 
 		return 0;
 	}
-
+	//printf("amplitude_for_inv: %f\r\n",amplitude);
 	return inverse_amplitude_model(amplitude, power) + 2*DROPLET_RADIUS;
 }
 
@@ -281,7 +282,7 @@ uint8_t pack_measurements_into_matrix(int16_t brightness_matrix[6][6])
 		for(uint8_t sensor_num = 0; sensor_num < 6; sensor_num++)
 		{
 			min_meas = 32767;
-			max_meas = 0;
+			max_meas = -32768;
 
 			for(uint8_t meas_num = 0; meas_num < NUMBER_OF_RB_MEASUREMENTS; meas_num++)
 			{
@@ -322,9 +323,9 @@ void ir_range_meas()
 			get_ir_sensors(bright_meas[meas_num][emitter_dir] , 5);
 			while((get_time() - inner_pre_sync_op) < TIME_FOR_GET_IR_VALS){};
 			
-			if (meas_num < (NUMBER_OF_RB_MEASUREMENTS - 1))	delay_ms(DELAY_BETWEEN_RB_MEASUREMENTS);
+			delay_ms(DELAY_BETWEEN_RB_MEASUREMENTS);
 		}
-
+		//printf("Dur: %lu.\r\n",get_time()-outer_pre_sync_op);
 		while((get_time() - outer_pre_sync_op) < TIME_FOR_ALL_MEAS){};
 
 		//set_green_led(100);		
@@ -336,8 +337,9 @@ void ir_range_meas()
 
 void ir_range_blast(uint8_t power)
 {
+	//set_blue_led(255);
 	delay_ms(POST_BROADCAST_DELAY);
-	
+	//set_blue_led(0);
 	uint32_t pre_sync_op = get_time();
 	//set_all_ir_powers(((uint16_t)power)+1);
 	set_all_ir_powers(256);
@@ -403,7 +405,7 @@ float emitter_model(float beta)
 
 float amplitude_model(float r, uint8_t power)
 {
-	if(power==255)			return 2*(1.36255 + (298.285/((0.691321+r)*(0.691321+r))));
+	if(power==255)			return 6.109+(724.879/((0.567+r)*(0.567+r)));
 	//else if(power ==250)	return (1100./((r-4.)*(r-4.)))+12.5;
 	else					printf_P(PSTR("ERROR: Unexpected power: %hhu\r\n"),power);
 	return 0;
@@ -411,7 +413,7 @@ float amplitude_model(float r, uint8_t power)
 
 float inverse_amplitude_model(float ADC_val, uint8_t power)
 {
-	if(power == 255)		return (19.6587/sqrtf(ADC_val/2.-1.36255)) - 1.19672;
+	if(power == 255)		return (-1.450 + 39.919/(sqrtf(ADC_val+2.640)));
 	//else if(power == 250) return (33.166/sqrtf(ADC_val - 12.5)) + 4;
 	else					printf_P(PSTR("ERROR: Unexpected power: %hhu\r\n"),power);
 	return 0;
@@ -454,11 +456,11 @@ void brightness_meas_printout_mathematica()
 			printf("\r\n{");
 				for(uint8_t sensor_num = 0; sensor_num < 6; sensor_num++)
 				{
-					printf_P(PSTR("\r\n(*e%u,s%u*){"), emitter_num, sensor_num);
+					printf_P(PSTR("\r\n(*e%hu,s%hu*){"), emitter_num, sensor_num);
 						for(uint8_t meas_num = 0; meas_num < NUMBER_OF_RB_MEASUREMENTS; meas_num++)
 						{
-							if(meas_num == 10)
-							printf("\r\n");
+							//if(meas_num == 10)
+							//printf("\r\n");
 							printf("%d,",bright_meas[meas_num][emitter_num][sensor_num]);
 						}
 					printf("\b},");

@@ -72,7 +72,7 @@ typedef struct ir_msg_struct
 	char* msg;				// The message.
 	uint8_t dir_received;	// Which side was this message received on?
 	uint8_t length;			// Message length.
-	
+	uint8_t range;
 } ir_msg;
 
 extern void init();

@@ -1,7 +1,6 @@
 #pragma once
 
 #include "droplet_init.h"
-#include "moleculesData.h"
 
 void		init();
 void		loop();

@@ -3,6 +3,7 @@
 *  Begun 5/25/15
 */
 #include "chemSim.h"
+#include "moleculesData.h"
 
 uint8_t MY_CHEM_ID; 
 char* global_Atom_str;
@@ -85,7 +86,7 @@ void init_random_move(uint8_t direc)
 	else if (direc == 0) newDirec = 7;
 	else newDirec = 0;
 	uint8_t bonded = 0;
-	for(uint8_t i = 0; i < 6; i++) if(myID.bonded_atoms[i] != 0) bonded = 1;
+	for(uint8_t i = 0; i < 6; i++) if(myID.bonded_atoms[i] != 0 && myID.bonded_atoms[i] != -1) bonded = 1;
 	if(is_moving() == -1 && !bonded)  {
 		schedule_task(t+10, init_random_move, newDirec);
 		walk(direc, r);
@@ -108,7 +109,7 @@ void print_near_atoms()
 	printf("\tBonded droplets: ");
 	uint8_t any_bonded=0;
 	for(uint8_t i = 0; i < 6; i++)  {
-		if(myID.bonded_atoms[i])  {
+		if(myID.bonded_atoms[i]!= -1 && myID.bonded_atoms[i] != 0)  {
 			any_bonded=1;
 			printf("%04X, ", myID.bonded_atoms[i]);
 		}
@@ -411,6 +412,7 @@ void modify_valences_ionic(char* newValence, Atom* near_atom_ptr, uint16_t sende
 			}
 		}
 	}
+	index/=2;
 	add_to_bonded_atoms(senderID, index, 1);
 	add_to_my_orbitals(senderID, 1);
 }
@@ -418,16 +420,16 @@ void modify_valences_ionic(char* newValence, Atom* near_atom_ptr, uint16_t sende
 void modify_valences_covalent(char* newValence, Atom* near_atom_ptr, uint16_t senderID)
 {
 	Atom near_atom = *near_atom_ptr;
-	printf("My Valence:\r\n");
-	printValence(myID.valence);
-	printf("Their Valence:\r\n");
-	printValence(near_atom.valence);
+	//printf("My Valence:\r\n");
+	//printValence(myID.valence);
+	//printf("Their Valence:\r\n");
+	//printValence(near_atom.valence);
 	newValence[0] = 'c';
 	uint8_t my_bonds = 0;
 	volatile uint8_t other_bonds = 0;
 	volatile uint8_t total_bonds = 0;
-	delay_ms(10);
-	printf("Total Bonds: %hu\r\n", total_bonds);
+	//delay_ms(10);
+	//printf("Total Bonds: %hu\r\n", total_bonds);
 	uint8_t type = 0;
 	myID.bondType = 2;
 	//Figure out how many bonds we can make
@@ -437,23 +439,23 @@ void modify_valences_covalent(char* newValence, Atom* near_atom_ptr, uint16_t se
 	}
 	if(my_bonds < other_bonds) total_bonds = my_bonds;
 	else total_bonds = other_bonds;
-	delay_ms(10);
-	printf("Total Bonds: %hu\r\n", total_bonds);	
+	//delay_ms(10);
+	//printf("Total Bonds: %hu\r\n", total_bonds);	
 	uint8_t total_b_temp = total_bonds;
 	
 	if(total_bonds == 1)		type = 2;
 	else if (total_bonds == 2)	type = 3;
 	else if (total_bonds == 4)	total_bonds = 3; //even if two atoms have the orbitals to make 4 bonds, they won't.
 	if (total_bonds == 3)	type = 4;
-	delay_ms(10);
-	printf("Total Bonds: %hu\r\n", total_bonds);	
-	printf("For loop (filling my valence shell)\r\n");
+	//delay_ms(10);
+	//printf("Total Bonds: %hu\r\n", total_bonds);	
+	//printf("For loop (filling my valence shell)\r\n");
 	//Update equal numbers of free electrons and empty slots to be bonded in my valence shell
 	uint8_t found = 0;
 	uint8_t index = -1;
 	for(uint8_t i = 0; i < 7; i+=2)  {
-		delay_ms(10);
-		printf("\tTotal Bonds: %hu\r\n", total_bonds);		
+		//delay_ms(10);
+		//printf("\tTotal Bonds: %hu\r\n", total_bonds);		
 		if(myID.valence[i] == 1 && myID.valence[i+1] == 0 && total_bonds > 0)  {
 			myID.valence[i] = type;
 			myID.valence[i+1] = type;
@@ -462,31 +464,32 @@ void modify_valences_covalent(char* newValence, Atom* near_atom_ptr, uint16_t se
 				found = 1;
 				index = i;
 			}
-			delay_ms(10);
-			printf("Decrementing total_bonds");
+			//delay_ms(10);
+			//printf("Decrementing total_bonds");
 		}
 	}
 	if(index == -1) printf("ERROR: modify_valences_covalent called with no room in my valence shell \r\n");
 	total_bonds = total_b_temp;
 	//Update free electrons and empty slots to be bonded in my partner's valence shell
 	for(uint8_t i = 1; i < 9; i++) newValence[i] = near_atom.valence[i-1];
-	delay_ms(10);
-	printf("\r\nTotal Bonds: %hu\r\n", total_bonds);	
-	printf("For loop (filling newValence)\r\n");	
+	//delay_ms(10);
+	//printf("\r\nTotal Bonds: %hu\r\n", total_bonds);	
+	//printf("For loop (filling newValence)\r\n");	
 	for(uint8_t i = 0; i < 7; i+=2)  {
-		delay_ms(10);
-		printf("\tTotal Bonds: %hu\r\n", total_bonds);		
+		//delay_ms(10);
+		//printf("\tTotal Bonds: %hu\r\n", total_bonds);		
 		if(near_atom.valence[i] == 1 && near_atom.valence[i+1] == 0 && total_bonds > 0)  {
 			newValence[i+1] = type;
 			newValence[i+2] = type;
 			total_bonds--;
-			delay_ms(10);
-			printf("Decrementing total_bonds");
+			//delay_ms(10);
+			//printf("Decrementing total_bonds");
 		}
 	}
 	total_bonds = total_b_temp;
-	delay_ms(10);
-	printf("\r\nTotal Bonds: %hu\r\n", total_bonds);
+	//delay_ms(10);
+	//printf("\r\nTotal Bonds: %hu\r\n", total_bonds);
+	index /= 2;
 	add_to_bonded_atoms(senderID, index, total_bonds);	
 	add_to_my_orbitals(senderID, total_bonds);
 }
@@ -553,11 +556,15 @@ void formBond(uint16_t senderID, Atom* near_atom, char flag)
 		modify_valences_covalent(newValence, near_atom, senderID);
 		found_bond_routine('c');
 	}
-	add_atom_to_molecule(senderID);
-	transmit_molecule_struct(0);
-	delay_ms(50);
-	printValence(newValence);
+
+	//stability = calculate_my_stability();
+	//update_stability(stability);
+	while(!ir_is_available(ALL_DIRS));
+	//printValence(newValence);
 	ir_targeted_send(ALL_DIRS, newValence, 9, senderID);
+	add_atom_to_molecule(senderID);
+	while(!ir_is_available(ALL_DIRS));
+	transmit_molecule_struct(0, 'm');	
 }
 
 /* Flag will be either 'i' for ionic bond, 'c' for covalent bond, or 'n' for "not called because of a possible bond message"
@@ -629,6 +636,7 @@ void makePossibleBonds(Atom* near_atom_ptr, char flag, uint16_t senderID)
 				bondDelay = get_time();
 				potentialPartner = senderID;
 				char msg[2] = {'p', 'i'};
+				while(!ir_is_available(ALL_DIRS));
 				ir_targeted_send(ALL_DIRS, msg, sizeof(msg), senderID);
 				return;
 			}
@@ -643,6 +651,7 @@ void makePossibleBonds(Atom* near_atom_ptr, char flag, uint16_t senderID)
 				bondDelay = get_time();
 				potentialPartner = senderID;
 				char msg[2] = {'p', 'c'};
+				while(!ir_is_available(ALL_DIRS));
 				ir_targeted_send(ALL_DIRS, msg, sizeof(msg), senderID);
 				return;
 			}
@@ -704,17 +713,20 @@ void repairValence()
 void add_to_bonded_atoms(uint16_t ID, uint8_t index, uint8_t num_bonds)
 {
 	uint8_t slotFound = 0;
-	for(uint8_t i = index; i < (num_bonds*2+index); i+=2)  {
-		if(myID.bonded_atoms[index] == 0)
+	for(uint8_t i = index; i < (num_bonds+index); i++)  {
+		if(myID.bonded_atoms[i] == 0)
 		{
 			myID.bonded_atoms[i] = ID;
 			slotFound = 1;
-			break;
 		}
 	}
 	if(slotFound == 0) 
 	{
-		printf("ERROR: Tried to add an ID to bonded_atoms but the array was full. \r\n");
+		delay_ms(10);
+		printf("ERROR: Tried to add an ID to bonded_atoms %hu times at index %hu.  \r\n", num_bonds, index);
+		for(uint8_t i = 0; i < 6; i++)  {
+			printf(" %x ", myID.bonded_atoms[i]);
+		}
 		set_rgb(255, 0, 255);
 	}
 }
@@ -730,6 +742,32 @@ void add_to_my_orbitals(uint16_t ID, uint8_t num_bonds)
 	}
 }
 
+void match_molecule(uint16_t* other_molecule, uint8_t length, uint16_t exclude_id)
+{
+	printf("match_molecule \r\n");
+	for(uint8_t i = 0; i < my_molecule_length; i++)  {
+		uint8_t found = 0;
+		uint8_t found_2 = 0;
+		for(uint8_t j = 0; j < length; j++)  {
+			if(my_molecule[i] == other_molecule[j]) found = 1;
+			if(my_molecule_stability[i].ID == other_molecule[j]) found_2 = 1;
+		}
+		if(!found)  {
+			for(uint8_t k = i; k < my_molecule_length; k++)  {
+				my_molecule[i] = my_molecule[i+1];
+			}
+			my_molecule[my_molecule_length-1]=0;
+			my_molecule_length--;
+		}
+		if(!found_2)  {
+			my_molecule_stability[i].ID = 0;
+			my_molecule_stability[i].stability = 0;
+			update_stability();
+		}
+	}
+	transmit_molecule_struct(exclude_id, 'r');
+}
+
 void update_molecule(uint16_t* atoms, uint8_t length, uint16_t sender)
 {
 	//printf("update_molecule. Sender: %x", sender);
@@ -737,20 +775,22 @@ void update_molecule(uint16_t* atoms, uint8_t length, uint16_t sender)
 	for (uint8_t i = 0; i <length; i++){
 		add_atom_to_molecule(atoms[i]);
 	}
-	transmit_molecule_struct(sender);
+	//uint8_t my_s = calculate_my_stability();
+	//update_stability(my_s);
+	transmit_molecule_struct(sender, 'm');
 }		
 
-void transmit_molecule_struct(uint16_t exclude_id)
+void transmit_molecule_struct(uint16_t exclude_id, char flag)
 {
 	uint8_t msg_length = my_molecule_length*2+1;
 	char msg[msg_length];
-	msg[0] = 'm';
+	msg[0] = flag;
 	memcpy((msg+1), my_molecule, msg_length-1);
 	//for(uint8_t i = 0; i < my_length; i++) msg[i+1] = my_molecule[i];
 	//send new molecule struct to all atoms bonded to me EXCEPT the one who sent me this message. This stops the update from bouncing around infinitely, right?
 	uint32_t pre_time = get_time();
 	for(uint8_t i = 0; i < 6; i++) {
-		if(myID.bonded_atoms[i] != 0 && myID.bonded_atoms[i] != exclude_id)  {
+		if(myID.bonded_atoms[i] != 0 && myID.bonded_atoms[i] != exclude_id && myID.bonded_atoms[i] != -1)  {
 			while(!ir_is_available(ALL_DIRS));			
 			ir_targeted_send(ALL_DIRS, msg, msg_length, myID.bonded_atoms[i]);
 		}
@@ -801,51 +841,39 @@ Atom* getAtomFromID(uint16_t ID)
 
 void init_bonded_atoms(Atom atom)
 {
-	uint8_t orbitals = 0;
-	uint8_t free_orbitals = 0;  //orbitals w/ unpaired e-s
-	uint8_t n_one = 0;
-	uint8_t zero = 0;
-	uint8_t one = 0;
-	for(uint8_t i = 0; i < 8; i++)  {
-		if(atom.valence[i] == 0) zero++;
-		if(atom.valence[i] == 1) one++;
-		if(atom.valence[i] == -1) n_one++;
-	}
-	for(uint8_t i = 0; i < 7; i+=2)  {
-		if(atom.valence[i+1] == 0 && atom.valence[i] == 1)  {
-			free_orbitals++;
-			orbitals++;
-		}
-		else if(atom.valence[i+1] == 1 && atom.valence[i] == 1) orbitals++;
-	}
-	uint8_t null_orbs = 6-orbitals;
-	//Fill my_orbitals
-	for(uint8_t i = 5; i <= 0; i--)  {
-		if(null_orbs > 0)  {
-			myID.bonded_atoms[i] = -1;
-			null_orbs--;
-		}
-		else myID.bonded_atoms[i] = 0;
-	}
-	//for(uint8_t i = 0; i < 6; i++) my_orbitals[i].ID = 0;
-	//for(uint8_t i = 4; i < 6; i++) my_orbitals[i].type = -1;
-	//switch(orbitals)  {
-		//case 4:
-			//for(uint8_t i = 0; i < 4; i++) my_orbitals[i].type = 4;
-			//break;
-		//case 3:
-			//for(uint8_t i = 0; i < 3; i++) my_orbitals[i].type = 3;
-			//my_orbitals[3].type = -1;
-			//break;
-		//case 2:
-			//for(uint8_t i = 0; i < 2; i++) my_orbitals[i].type = 2;
-			//my_orbitals[2].type = -1;
-			//my_orbitals[3].type = -1;
-			//break;
-		//case 1:
-			//my_orbitals[0].type = 1;
-			//for(uint8_t i = 1; i < 4; i++) my_orbitals[i].type = -1;
+	//uint8_t orbitals = 0;
+	//uint8_t free_orbitals = 0;  //orbitals w/ unpaired e-s
+	//uint8_t n_one = 0;
+	//uint8_t zero = 0;
+	//uint8_t one = 0;
+	//for(uint8_t i = 0; i < 8; i++)  {
+		//if(atom.valence[i] == 0) zero++;
+		//if(atom.valence[i] == 1) one++;
+		//if(atom.valence[i] == -1) n_one++;
 	//}
+	//for(uint8_t i = 0; i < 7; i+=2)  {
+		//if(atom.valence[i+1] == 0 && atom.valence[i] == 1)  {
+			//free_orbitals++;
+			//orbitals++;
+		//}
+		//else if(atom.valence[i+1] == 1 && atom.valence[i] == 1) orbitals++;
+	//}
+	//uint8_t null_orbs = 6-orbitals;
+	////Fill my_orbitals
+	//for(int8_t i = 5; i >= 0; i--)  {
+		//if(null_orbs > 0)  {
+			//myID.bonded_atoms[i] = -1;
+			//null_orbs--;
+		//}
+		//else myID.bonded_atoms[i] = 0;
+	//}
+	for(uint8_t i = 0; i < 8; i+=2)  {
+		if(myID.valence[i] == 1 && myID.valence[i+1] == 0) myID.bonded_atoms[i/2] = 0;
+		else if (myID.valence[i] == 1 && myID.valence[i+1] == 1) myID.bonded_atoms[i/2] = 0;
+		else if(myID.valence[i] == -1 && myID.valence[i+1] == -1) myID.bonded_atoms[i/2] = -1;
+	}
+	myID.bonded_atoms[4] = -1;
+	myID.bonded_atoms[5] = -1;
 }
 
 void getOrbitals(Atom* atom)
@@ -892,6 +920,7 @@ void getOrbitals(Atom* atom)
 	}
 }
 
+//Pre-condition: near_atom.bondType is comprised of the bitmask of bondType (2 least significant bits) and stability (6 most significant bits) as it's transmitted in the state msg
 void update_near_atoms(Atom* near_atom, uint16_t sender_ID)
 {
 	printf("update_near_atoms \r\n");
@@ -907,19 +936,20 @@ void update_near_atoms(Atom* near_atom, uint16_t sender_ID)
 		}
 	}		
 	if (found == 0) { //add new droplet to near_atoms 
-		Near_Atom close_atom = {*near_atom, sender_ID, 0, 0, 0, 0, 0};
+		Near_Atom close_atom = {*near_atom, sender_ID, 0, 0, 0, 0, 0, 0};
 		add_to_near_atoms(close_atom);
 	}
 	else if(found == 1) {
 		if(bondDelay == 0 || potentialPartner == sender_ID)		
 		for(uint8_t j = 0; j < 6; j++) near_atoms[i].atom.bonded_atoms[j] = near_atom->bonded_atoms[j];
 		for(uint8_t j = 0; j < 8; j++) near_atoms[i].atom.valence[j] = near_atom->valence[j];
-		near_atoms[i].atom.bondType = near_atom->bondType;
+		near_atoms[i].atom.bondType = (near_atom->bondType)&3;
 		near_atoms[i].atom.atomicNum = near_atom->atomicNum;
 		near_atoms[i].atom.name[0] = near_atom->name[0];
 		near_atoms[i].atom.name[1] = near_atom->name[1];
 		near_atoms[i].atom.chi = near_atom->chi;
 		near_atoms[i].last_msg_t = 0;
+		near_atoms[i].stability = (near_atom->bondType)>>2;
 	}
 	else
 	{
@@ -962,6 +992,7 @@ void msgBondMade(ir_msg* msg_struct, char flag)
 			}
 			myID.valence[i] = msg[i+1];
 		}
+		ind/=2;
 		add_to_bonded_atoms(msg_struct->sender_ID, ind, numBonds);
 		uint8_t found = 0;
 		for(uint8_t i = 0; i < 12; i++)
@@ -995,6 +1026,7 @@ void msgBondMade(ir_msg* msg_struct, char flag)
 			}
 			myID.valence[i] = msg[i+1];
 		}
+		ind/=2;
 		for(uint8_t i = 0; i < 8; i+=2) if(myID.valence[i] >=2 && myID.valence[i] <= 4) bonds_after++;
 		add_to_bonded_atoms(msg_struct->sender_ID, ind, numBonds);
 		uint8_t found = 0;
@@ -1012,13 +1044,10 @@ void msgBondMade(ir_msg* msg_struct, char flag)
 	bonded_atoms_delay = 0;
 
 	add_atom_to_molecule(msg_struct->sender_ID);
-	transmit_molecule_struct(0);
-
-	//uint8_t my_length = 0;
-	//for(uint8_t i = 0; i < 15; i++) if(my_molecule[i] != 0) my_length++;
-	//char atNums[my_length];
-	//for(uint8_t i = 0; i < my_length; i++) atNums[i] = my_molecule[i]; 
-	//update_molecule(atNums, my_length, 0); //this tells update_molecule not to skip one of the atoms in bonded_atoms
+	transmit_molecule_struct(0, 'm');
+	//stability = calculate_my_stability();
+	//update_stability(stability);
+	//if(target_id == 0) target_id = msg_struct->sender_ID;   //Put this back in when movement is working
 	
 }
 
@@ -1030,6 +1059,65 @@ uint8_t getAtomicNumFromID(uint16_t ID)
 	return 0;
 }
 
+uint8_t get_filled_orbs()
+{
+	uint8_t filled_orbs = 0;
+	if(myID.atomicNum <= 4 || myID.atomicNum == 11 || myID.atomicNum == 12)  {
+		if(myID.valence[1] > 0) filled_orbs++;
+	}
+	else  {
+		for(uint8_t i = 1; i < 8; i+=2)  {
+			if(myID.valence[i] > 0) filled_orbs++;
+		}
+	}
+	printf("In get_filled_orbs, filled_orbs is %hu \r\n", filled_orbs);
+	return filled_orbs;
+}
+
+uint8_t calculate_my_stability()
+{
+	uint8_t filled = get_filled_orbs();
+	uint8_t total = 0;
+	for(uint8_t i = 0; i < 6; i++)  {
+		printf("myID.bonded_atoms[i] = %hu \r\n", myID.bonded_atoms[i]);
+		if(myID.bonded_atoms[i] != 0xFFFF) total++;
+	}
+	uint8_t my_stability = (uint8_t)(((float)(filled))/((float)(total))*64);
+	printf("In calculate_my_stability, filled_orbs is %hu and total is %hu, so MY_STABILITY IS %hu \r\n", filled, total, my_stability);
+	if(my_stability == 64) my_stability = 63;
+	return my_stability;
+}
+
+void update_stability()
+{
+	printf("update_stability \r\n");
+	uint16_t my_s = (uint16_t)calculate_my_stability();
+	for(uint8_t i = 1; i < my_molecule_length; i++)  {
+		uint8_t current_s;
+		for(uint8_t j = 0; j < 12; j++)  {
+			if(near_atoms[j].id == my_molecule[i])  {
+				current_s = near_atoms[j].stability;
+			}
+		}
+		printf("\t\t Adding %hu to %u and", current_s, my_s);
+		my_s+=current_s;
+		printf(" my_s is now %u \r\n", my_s);
+	}
+	my_s/= my_molecule_length;
+	stability = (uint8_t)my_s;
+	//uint16_t my_s = (uint16_t)calculate_my_stability();
+	//uint8_t i;
+	//for(i = 0; i < 15; i++)  {
+		//if(my_molecule_stability[i].ID != 0)  {
+			//printf("my_molecule_stability: ID = %x and stability = %hu \r\n", my_molecule_stability[i].ID, my_molecule_stability[i].stability);
+			//my_s += my_molecule_stability[i].stability;
+		//}
+		//else break;
+	//}
+	//my_s /= i+1;
+	//stability = my_s;
+}
+
 void create_state_message(State_Msg* msg, char flag)
 {
 	printf("create_state_msg \r\n");
@@ -1037,10 +1125,10 @@ void create_state_message(State_Msg* msg, char flag)
 	msg->blink_timer = global_blink_timer;
 	for(uint8_t i = 0; i < 4; i++) msg->bonded_atoms[i] = myID.bonded_atoms[i];
 	pack_valences(msg->valence, myID.valence);
-	msg->bondType = myID.bondType;
+	uint8_t my_stability = calculate_my_stability();
+	msg->bondType = (myID.bondType&3) | (my_stability<<2);
 	msg->msgFlag = flag;	
 	//TODO: msg.moleculeNums is what?
-	printf("Inside create_state_msg, msg->atomicnum = %hu and atomicNum is %hu\r\n", msg->atomicNum, myID.atomicNum);
 }
 
 void msgPossibleBond(ir_msg* msg_struct)
@@ -1093,6 +1181,7 @@ void msgBondedAtoms(uint16_t* recast_bonded_atoms, uint16_t new_blink, uint16_t 
 		printf("BOND ERROR: %x is bonded to me but I'm not bonded to him. Sending bonded_atoms. \r\n", sender_ID);
 		State_Msg message;
 		create_state_message(&message, 'b');
+		while(!ir_is_available(ALL_DIRS));
 		ir_targeted_send(ALL_DIRS, (char*)(&message), sizeof(State_Msg), sender_ID);
 	}
 	else if(myIdFound == 0 && senderIDFound == 1)
@@ -1104,7 +1193,7 @@ void msgBondedAtoms(uint16_t* recast_bonded_atoms, uint16_t new_blink, uint16_t 
 		//Possible error here if a droplet I'm bonded to isn't in near_atoms, but unlikely.
 		uint8_t foundBond = 0;
 		for(uint8_t k = 0; k < 6; k++)  {
-			if(myID.bonded_atoms[k] != 0)  {
+			if(myID.bonded_atoms[k] != 0 && myID.bonded_atoms[k] != -1)  {
 				foundBond = 1;
 				float otherChi = getChiFromID(myID.bonded_atoms[k]); 
 				if(otherChi != -1)  {
@@ -1130,16 +1219,19 @@ void msgBondedAtoms(uint16_t* recast_bonded_atoms, uint16_t new_blink, uint16_t 
 		uint8_t elec_type = 0;
 		uint8_t found = 0;
 		uint8_t index = 0;
-		for(uint8_t i = 0; i < 6; i++) if(myID.bonded_atoms[i] == sender_ID)  {
-			bond_num++;
-			if(!found) {
-				found = 1;
-				index = i;
+		for(uint8_t i = 0; i < 6; i++)  {
+			if(myID.bonded_atoms[i] == sender_ID)  {
+				bond_num++;
+				myID.bonded_atoms[i] = 0;
+				if(!found) {
+					found = 1;
+					index = i;
+				}
 			}
-			myID.bonded_atoms[i] = 0;
 		}
 		elec_type = bond_num + 1;
 		bond_num *= 2;
+		index *= 2;
 		for(int8_t i = index; i < 8; i++)  {
 			if(myID.valence[i] == elec_type && bond_num > 0)  {
 				if(i%2 == 1) myID.valence[i] = 0;
@@ -1149,7 +1241,7 @@ void msgBondedAtoms(uint16_t* recast_bonded_atoms, uint16_t new_blink, uint16_t 
 		}
 		
 		remove_atom_from_molecule(sender_ID);
-		transmit_molecule_struct(0);
+		transmit_molecule_struct(0, 'r');
 	}
 }
 
@@ -1205,6 +1297,36 @@ void calculate_path(float target, uint16_t ID)
 	uint16_t new_rng = (uint16_t)hypotf(new_x, new_y);
 	printf("new_rng: %u, new_bearing: %f\r\n", new_rng, new_bearing);	
 	move_to_target(new_rng, new_bearing);
+}
+
+void msgState(Atom* near_atom, uint8_t* mc_other, uint8_t o_molecule_length, uint16_t sender)
+{
+	int16_t deltaGrxn;
+	int16_t deltaGself;
+	int16_t deltaGother;
+	int16_t deltaGself_p;
+	int16_t deltaGother_p;
+	int8_t mc_self[my_molecule_length];
+	int8_t mc_self_p[my_molecule_length+1];
+	int8_t mc_other_p[o_molecule_length+1];
+	for(uint8_t i = 0; i < my_molecule_length; i++)  {
+		if(getAtomicNumFromID(my_molecule[i]) == 0)  {
+			printf("getAtomicNumFromID failed in msgState. No intermolecular reaction taking place. \r\n");
+			return;
+		}
+		mc_self_p[i] = getAtomicNumFromID(my_molecule[i]);
+		mc_self[i] = getAtomicNumFromID(my_molecule[i]);
+	}
+	mc_self_p[my_molecule_length] = near_atom->atomicNum;
+	for(uint8_t i = 0; i < o_molecule_length; i++)  {
+		mc_other_p[i] = mc_other[i];
+	}
+	mc_other_p[o_molecule_length] = myID.atomicNum;
+	if(!molecule_search(mc_self, &deltaGself,my_molecule_length)) deltaGself = createFalseDeltaG(mc_self);
+	if(!molecule_search(mc_other, &deltaGother, o_molecule_length))	deltaGother = createFalseDeltaG(mc_other);
+	if(!molecule_search(mc_other_p, &deltaGother_p, o_molecule_length+1)) deltaGother_p = createFalseDeltaG(mc_other_p);
+	if(!molecule_search(mc_self_p, &deltaGself_p, my_molecule_length+1)) deltaGself_p = createFalseDeltaG(mc_self_p);
+	
 }
 
 void msgOrbital(uint16_t* other_bonded_atoms, uint16_t senderID)
@@ -1286,6 +1408,7 @@ void msgContactFirst(uint16_t senderID)
 		msg[0] = 'f'; //for "found a collision in your direction"
 		msg[1] = senderID & 0xFF;
 		msg[2] = senderID>>8;
+		while(!ir_is_available(ALL_DIRS));
 		ir_targeted_send(ALL_DIRS, msg, 3, senderID);
 	}
 }
@@ -1337,6 +1460,11 @@ void init()
 	}
 	printf("%hu \r\n", sizeof(State_Msg));
 	init_atom_state();
+	
+	//int16_t deltaG;
+	//uint8_t atoms[12] = {6,1,1,1,1,8,8,8,8,8,8,8};
+	//molecule_search(atoms, &deltaG, 12);
+	//printf("Search result: %d\r\n",deltaG);
 }
 
 /*
@@ -1368,11 +1496,11 @@ void loop()
 	if((time_floor%(CHEM_ID_BROADCAST_PERIOD/LOOP_PERIOD))==0){
 		State_Msg message;	
 		create_state_message(&message, 'p');
-		printf("message->bonded_atoms[0] is %x, message->atomicNum is %hu \r\n", message.bonded_atoms[0], message.atomicNum);
+		//printf("message->bonded_atoms[0] is %x, message->atomicNum is %hu \r\n", message.bonded_atoms[0], message.atomicNum);
 		ir_send(ALL_DIRS, (char*)(&message), sizeof(State_Msg));
 	}
 	if((time_floor%(MOLECULE_BROADCAST_PERIOD/LOOP_PERIOD))==0){
-		transmit_molecule_struct(0);
+		transmit_molecule_struct(0, 'm');
 	}
 	//There should be a better way to do this than delay_ms.
 	//if((global_blink_timer!=0)&&((time_floor%(BLINK_PERIOD/LOOP_PERIOD))==((global_blink_timer/50)%(BLINK_PERIOD/LOOP_PERIOD))))
@@ -1393,12 +1521,12 @@ void loop()
 		float received_heading = last_good_rnb.heading;
 		//scaling the range to mm.
 		received_range = received_range*10;
-		printf("*****************************************************************range: %f\r\n", received_range);
+		//printf("*****************************************************************range: %f\r\n", received_range);
 		
 		uint8_t i;
 		for(i = 0; i < 12; i++)
 		{
-			if(near_atoms[i].id == received_id &&(is_good_rnb(received_range, received_bearing, received_id) || (near_atoms[i].bearing == 0 && near_atoms[i].heading == 0 && near_atoms[i].range == 0)))
+			if(near_atoms[i].id == received_id /*&&(is_good_rnb(received_range, received_bearing, received_id) || (near_atoms[i].bearing == 0 && near_atoms[i].heading == 0 && near_atoms[i].range == 0))*/)
 			{
 				near_atoms[i].bearing = received_bearing;
 				near_atoms[i].heading = received_heading;
@@ -1416,7 +1544,7 @@ void loop()
 		last_rnb = get_time();
 	}
 	uint8_t bonded = 0;
-	for(uint8_t i = 0; i < 6; i++) if(myID.bonded_atoms[i]) bonded = 1;
+	for(uint8_t i = 0; i < 6; i++) if(myID.bonded_atoms[i] != 0 && myID.bonded_atoms[i] != -1) bonded = 1;
 	//if(is_moving == -1 && !bonded)	init_random_move(0);
 }
 
@@ -1427,7 +1555,7 @@ void loop()
 
 void handle_msg(ir_msg* msg_struct)
 {
-	printf("\nHandle_msg: Printing message of length %u.\r\n\t",msg_struct->length);
+	printf("\nHandle_msg: Printing message of length %u from %x.\r\n\t",msg_struct->length, msg_struct->sender_ID);
 	for(uint8_t i=0;i<msg_struct->length;i++)
 	{
 		printf("%02hX",msg_struct->msg[i]);
@@ -1442,7 +1570,9 @@ void handle_msg(ir_msg* msg_struct)
 		if(bonded_atoms_delay == 0) msgBondedAtoms(state.bonded_atoms, state.blink_timer, msg_struct->sender_ID);
 		Atom near_atom;
 		near_atom.atomicNum = state.atomicNum;
-		near_atom.bondType = state.bondType;
+		near_atom.bondType = state.bondType; //this still has the stability value in it so that update_near_atoms works as expected
+		uint8_t received_stability = (state.bondType)>>2;
+		printf("*********Received_stability: %hu \r\n", received_stability);
 		unpack_valences(state.valence, near_atom.valence);
 		for(uint8_t i = 0; i < 4; i++) near_atom.bonded_atoms[i] = state.bonded_atoms[i];
 		Atom* base_atom = getAtomFromAtomicNum(near_atom.atomicNum);
@@ -1453,6 +1583,30 @@ void handle_msg(ir_msg* msg_struct)
 		//for(uint8_t i = 0; i < 8; i++) printf("Valence shell[%hu] after unpacking is: %hd \r\n", i, near_atom.valence[i]);
 		update_near_atoms(&near_atom, msg_struct->sender_ID);
 		if(!sent_atom_delay) makePossibleBonds(&near_atom, 'n', msg_struct->sender_ID);
+		uint8_t found = 0;
+		for (uint8_t i = 0; i < 15; i++) if(my_molecule[i] == msg_struct->sender_ID) found = 1;
+		if(found)  {
+			update_stability();
+			//for(uint8_t i = 0; i < 15; i++)  {
+				//if(my_molecule_stability[i].ID == msg_struct->sender_ID)  {
+					//if(my_molecule_stability[i].stability != received_stability) {
+						//my_molecule_stability[i].stability = received_stability;
+						//update_stability();
+						////stability = (size*stability-val)/(size-1);
+						////stability = stability*(my_molecule_length/(size+1))+(received_stability/(size+1));
+						////size++;
+					//}
+					//break;
+				//}
+				//else if(my_molecule_stability[i].ID == 0) {
+					//my_molecule_stability[i].ID = msg_struct->sender_ID;
+					//my_molecule_stability[i].stability = received_stability;
+					//update_stability();
+					//break;
+				//}
+			//}
+		}
+		printf("********************************************************************************Stability = %hu \r\n", stability);
 	}
 	//Message is an Atom struct
 	//else if(msg_struct->length==sizeof(Atom))  { 
@@ -1481,18 +1635,22 @@ void handle_msg(ir_msg* msg_struct)
 	//Message is a possible bond
 	else if(msg_struct->msg[0] == 'p' && (bondDelay == 0 || potentialPartner == msg_struct->sender_ID))
 		msgPossibleBond(msg_struct);
-	//Message is that an atom joined the molecule
-	else if(msg_struct->msg[0] == 'm') {
+	//Message is that the molecule changed
+	else if(msg_struct->msg[0] == 'm' || msg_struct->msg[0] == 'r') {
 		//uint8_t r = get_red_led();
 		//uint8_t g = get_green_led();
 		//uint8_t b = get_blue_led();
 		//set_rgb(0, 255, 0);
-		uint8_t other_molecule_length = msg_struct->length/2;
-		uint16_t other_molecule[other_molecule_length];
-		memcpy(other_molecule, msg_struct->msg+1, other_molecule_length*2);
-		update_molecule(other_molecule, other_molecule_length, msg_struct->sender_ID);
-		print_molecule();
-		delay_ms(200);
+		uint8_t found = 0;
+		for(uint8_t i = 0; i < 6; i++) if(myID.bonded_atoms[i] == msg_struct->sender_ID) found = 1;
+		if(found)  {
+			uint8_t other_molecule_length = msg_struct->length/2;
+			uint16_t other_molecule[other_molecule_length];
+			memcpy(other_molecule, msg_struct->msg+1, other_molecule_length*2);
+			if(msg_struct->msg[0] == 'm') update_molecule(other_molecule, other_molecule_length, msg_struct->sender_ID);
+			else match_molecule(other_molecule, other_molecule_length, msg_struct->sender_ID);
+			print_molecule();
+		}
 		//set_rgb(r, g, b);
 	}
 	//Message is the first step in recognizing a collision with another droplet
@@ -1503,7 +1661,7 @@ void handle_msg(ir_msg* msg_struct)
 	repairValence();
 	print_near_atoms();
 	print_molecule();
-	repairBondedAtoms();
+	//repairBondedAtoms();
 }
 
 /*
@@ -1558,7 +1716,14 @@ void init_atom_state()
 	my_molecule[0] = get_droplet_id();
 	my_molecule_length = 1;	
 	collided = 0;
-	init_bonded_atoms(myID);	
+	for(uint8_t i = 0; i < 15; i++)  {
+		my_molecule_stability[i].ID = 0;
+		my_molecule_stability[i].stability = 0;
+		used_in_stability[i] = 0;
+	}
+	init_bonded_atoms(myID);
+	stability = calculate_my_stability();
+	printf("My stability is: %hu", stability);	
 	//init_random_move(0);
 }
 

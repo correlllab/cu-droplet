@@ -7,9 +7,3 @@ void		loop();
 void		handle_msg			(ir_msg* msg_struct);
 
 
-
-
-
-
-
-

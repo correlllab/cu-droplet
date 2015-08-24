@@ -15,9 +15,10 @@
 
 #define FFSYNC_MAX_DEVIATION		(((uint16_t)(FFSYNC_FULL_PERIOD_MS/182))+1)
 
-#define FFSYNC_EPSILON 0.1
-
-volatile uint16_t next_count_start;     
+#define FIREFLY_SYNC_B 2.75
+#define FIREFLY_SYNC_EPS 0.25
+#define FIREFLY_SYNC_ALPHA exp(FIREFLY_SYNC_B*FIREFLY_SYNC_EPS)
+#define FIREFLY_SYNC_BETA ((FIREFLY_SYNC_ALPHA - 1) / (exp(FIREFLY_SYNC_B) - 1))
 
 volatile uint32_t light_start;
 
@@ -26,7 +27,8 @@ void firefly_sync_init();
 
 inline void update_firefly_counter()
 {
-	uint16_t the_count = (TCE0.CNT-FFSYNC_TRANSMIT_DELAY)%FFSYNC_FULL_PERIOD;
-    if(the_count<FFSYNC_REFR_PERIOD)
-        next_count_start += (uint16_t)(the_count*FFSYNC_EPSILON); 
+	//printf("<-\r\n");
+	uint16_t the_count = TCE0.CNT;
+	if(the_count>FFSYNC_REFR_PERIOD)
+	TCE0.CNT =  (uint16_t)(fmin(FIREFLY_SYNC_ALPHA * the_count/FFSYNC_FULL_PERIOD + FIREFLY_SYNC_BETA, 1.) * ((float)FFSYNC_FULL_PERIOD));
 }

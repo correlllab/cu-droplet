@@ -1,6 +1,6 @@
 #include "ir_led.h"
 
-USART_t* channel[] = {
+USART_t* channel[6] = {
 	&USARTC0,  //   -- Channel 0
 	&USARTC1,  //   -- Channel 1
 	&USARTD0,  //   -- Channel 2
@@ -8,6 +8,11 @@ USART_t* channel[] = {
 	&USARTE1,  //   -- Channel 4
 	&USARTF0   //   -- Channel 5
 };
+
+uint8_t carrier_wave_pins[6] = { PIN0_bm, PIN1_bm, PIN4_bm, PIN5_bm, PIN7_bm, PIN6_bm};
+uint8_t tx_pins[6] = {PIN3_bm, PIN7_bm, PIN3_bm, PIN3_bm, PIN7_bm, PIN3_bm};
+PORT_t* uart_ch[6] = {&PORTC, &PORTC, &PORTD, &PORTE, &PORTE, &PORTF};
+uint8_t saved_usart_ctrlb_vals[6] = {0,0,0,0,0,0};
 
 void ir_led_init()
 {
@@ -44,6 +49,28 @@ void ir_led_init()
 	set_all_ir_powers(256);
 }
 
+void ir_led_on(uint8_t direction)
+{
+	//Turning on the light.
+	saved_usart_ctrlb_vals[direction]	  = channel[direction]->CTRLB;	// record the current state of the USART
+	TCF2.CTRLB			 &= ~carrier_wave_pins[direction];	// disable carrier wave output
+	PORTF.DIRSET		  =  carrier_wave_pins[direction];	// enable user output on this pin
+	PORTF.OUT			 |=  carrier_wave_pins[direction];	// high signal on this pin
+	channel[direction]->CTRLB  	  =  0;					// disable USART
+	uart_ch[direction]->DIRSET =  tx_pins[direction];			// enable user output on this pin
+	uart_ch[direction]->OUT	 &= ~tx_pins[direction];			// low signal on TX pin (remember: these pins were inverted during init)
+
+}
+
+void ir_led_off(uint8_t direction)
+{
+	//Turning off the light.
+	uart_ch[direction]->OUT  |=  tx_pins[direction];			// high signal on TX pin (turns IR blast OFF)
+	channel[direction]->CTRLB	 =  saved_usart_ctrlb_vals[direction];	// re-enable USART (restore settings as it was before)
+	PORTF.OUT			&= ~carrier_wave_pins[direction];	// low signal on the carrier wave pin, just in casies.
+	TCF2.CTRLB			|=  carrier_wave_pins[direction];	// re-enable carrier wave output
+}
+
 void set_all_ir_powers(uint16_t power)
 {
 	if(power>256) return;
@@ -55,8 +82,18 @@ void set_all_ir_powers(uint16_t power)
 		
 	uint8_t result;		
 	result = TWI_MasterWrite(IR_POWER_ADDR_A, write_buffer, 6);
-	if(!result) printf_P(PSTR("First IR_POWER setting failed.\r\n"));
+	while(!result)
+	{
+		printf_P(PSTR("First IR_POWER setting failed. Retrying..\r\n"));
+		delay_ms(5);
+		result = TWI_MasterWrite(IR_POWER_ADDR_A, write_buffer, 6);
+	}
 	delay_ms(5);
-	result = TWI_MasterWrite(IR_POWER_ADDR_B, write_buffer, 6);
-	if(!result) printf_P(PSTR("Second IR_POWER setting failed.\r\n"));
+	result = TWI_MasterWrite(IR_POWER_ADDR_B, write_buffer, 6);	
+	while(!result)
+	{
+		printf_P(PSTR("Second IR_POWER setting failed. Retrying..\r\n"));
+		delay_ms(5);
+		result = TWI_MasterWrite(IR_POWER_ADDR_B, write_buffer, 6);
+	}
 }

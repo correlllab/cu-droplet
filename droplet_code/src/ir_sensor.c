@@ -1,7 +1,8 @@
 #include "ir_sensor.h"
 
+
 #ifdef AUDIO_DROPLET
-	ADC_CH_t* ir_sense_channels[6] = {&(ADCA.CH0), &(ADCA.CH1), &(ADCA.CH2), &(ADCB.CH0), &(ADCB.CH1), &(ADCB.CH2)};
+	ADC_CH_t* ir_sense_channels[6]  = {&(ADCA.CH0), &(ADCA.CH1), &(ADCA.CH2), &(ADCB.CH0), &(ADCB.CH1), &(ADCB.CH2)};
 #else
 	const uint8_t mux_sensor_selectors[6] = {MUX_IR_SENSOR_0, MUX_IR_SENSOR_1, MUX_IR_SENSOR_2, MUX_IR_SENSOR_3, MUX_IR_SENSOR_4, MUX_IR_SENSOR_5};
 #endif
@@ -26,13 +27,15 @@ void ir_sensor_init()
 		PORTB.PIN3CTRL = PORT_ISC_INPUT_DISABLE_gc;
 	
 		ADCA.REFCTRL = ADC_REFSEL_INT1V_gc;
-		ADCA.CTRLB = ADC_RESOLUTION_12BIT_gc | ADC_CONMODE_bm;
+		ADCA.CTRLB = ADC_RESOLUTION_12BIT_gc | ADC_CONMODE_bm/* | ADC_FREERUN_bm*/;
+		//ADCA.EVCTRL = ADC_SWEEP_012_gc;
 		ADCA.PRESCALER = ADC_PRESCALER_DIV512_gc;
 		ADCA.CALL = PRODSIGNATURES_ADCACAL0;
 		ADCA.CALH = PRODSIGNATURES_ADCACAL1;
 	
 		ADCB.REFCTRL = ADC_REFSEL_INT1V_gc;
-		ADCB.CTRLB = ADC_RESOLUTION_12BIT_gc | ADC_CONMODE_bm; //12bit resolution, and sets it to signed mode.
+		ADCB.CTRLB = ADC_RESOLUTION_12BIT_gc | ADC_CONMODE_bm/* | ADC_FREERUN_bm*/; //12bit resolution, and sets it to signed mode.
+		//ADCB.EVCTRL = ADC_SWEEP_012_gc;		
 		ADCB.PRESCALER = ADC_PRESCALER_DIV512_gc;
 		ADCB.CALL = PRODSIGNATURES_ADCBCAL0;
 		ADCB.CALH = PRODSIGNATURES_ADCBCAL1;
@@ -43,7 +46,7 @@ void ir_sensor_init()
 		ADCA.CH1.MUXCTRL = ADC_CH_MUXNEG_INTGND_MODE3_gc | ADC_CH_MUXPOS_PIN6_gc;	// use VREF_IN for the negative input (0.54 V)
 		ADCA.CH2.CTRL = ADC_CH_INPUTMODE_DIFF_gc;	// differential input. requires signed mode (see sec. 28.6 in manual)
 		ADCA.CH2.MUXCTRL = ADC_CH_MUXNEG_INTGND_MODE3_gc | ADC_CH_MUXPOS_PIN7_gc;	// use VREF_IN for the negative input (0.54 V)
-	
+
 		ADCB.CH0.CTRL = ADC_CH_INPUTMODE_DIFF_gc;	// differential input. requires signed mode (see sec. 28.6 in manual)
 		ADCB.CH0.MUXCTRL = ADC_CH_MUXNEG_INTGND_MODE3_gc | ADC_CH_MUXPOS_PIN4_gc;	// use VREF_IN for the negative input (0.54 V)
 		ADCB.CH1.CTRL = ADC_CH_INPUTMODE_DIFF_gc;	// differential input. requires signed mode (see sec. 28.6 in manual)
@@ -51,8 +54,12 @@ void ir_sensor_init()
 		ADCB.CH2.CTRL = ADC_CH_INPUTMODE_DIFF_gc;	// differential input. requires signed mode (see sec. 28.6 in manual)
 		ADCB.CH2.MUXCTRL = ADC_CH_MUXNEG_INTGND_MODE3_gc | ADC_CH_MUXPOS_PIN3_gc;	// use VREF_IN for the negative input (0.54 V)
 
+
 		ADCA.CTRLA = ADC_ENABLE_bm;
 		ADCB.CTRLA = ADC_ENABLE_bm;
+		
+		ADCA.EVCTRL |= ADC_EVSEL_1234_gc | ADC_EVACT_CH012_gc;
+		ADCB.EVCTRL |= ADC_EVSEL_567_gc | ADC_EVACT_CH012_gc;
 	#else
 		/* SET INPUT PINS AS INPUTS */
 		IR_SENSOR_PORT.DIRCLR = ALL_IR_SENSOR_PINS_bm;
@@ -66,126 +73,191 @@ void ir_sensor_init()
 		ADCB.CALH = PRODSIGNATURES_ADCBCAL1;
 		ADCB.CTRLA = ADC_ENABLE_bm;
 	#endif
-
-	delay_us(5);
 	
-	for(uint8_t dir=0; dir<6; dir++) ir_sense_baseline[dir] = 0;
+	delay_ms(10);
 	
-	delay_ms(5);
-	get_ir_sensor(0);
-	uint8_t min_val, val;
 	for(uint8_t dir=0; dir<6; dir++)
 	{
-		min_val=255;
-		for(uint8_t meas_count=0; meas_count<5; meas_count++)
-		{
-			val = get_ir_sensor(dir);
-			if(val<min_val) min_val = val;
-		}
-		ir_sense_baseline[dir] = min_val;
+		min_collision_vals[dir] = 32767;
+		ir_sense_baseline[dir] = 0; //zeroing the baseline array.
+	}	
+	
+	get_ir_baselines(ir_sense_baseline);
+}
+
+void get_ir_baselines(int16_t* baseline_arr)
+{
+	int16_t dat_arr[6];
+	int16_t means[6];
+	for(uint8_t i=0;i<6;i++) means[i]=0;
+	for(uint8_t meas_count=0; meas_count<15; meas_count++)
+	{
+		get_ir_sensors(dat_arr, 5);
+		//printf("\r\n");
+		for(uint8_t i=0;i<6;i++) means[i]+= dat_arr[i];
 	}
+	for(uint8_t i=0;i<6;i++) ir_sense_baseline[i] = means[i]/16;
+
+	//printf("Baselines:");
+	//for(uint8_t dir=0; dir<6 ; dir++)
+	//printf(" %4d", ir_sense_baseline[dir]);
 	//printf("\r\n");
 }
 
-uint8_t get_ir_sensor(uint8_t sensor_num)
-{	
-	int16_t meas[IR_MEAS_COUNT];
-	
+void get_ir_sensors(int16_t* output_arr, uint8_t meas_per_ch)
+{			
+	int16_t meas[6][meas_per_ch];	
 	#ifdef AUDIO_DROPLET
-	
-		for(uint8_t meas_count=0; meas_count<IR_MEAS_COUNT; meas_count++)
+
+		for(uint8_t meas_count=0;meas_count<meas_per_ch;meas_count++)
 		{
-			ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+			ADCA.CTRLA |= 0x7<<2;
+			ADCB.CTRLA |= 0x7<<2;
+			for(uint8_t dir=0;dir<6;dir++)
 			{
-				ir_sense_channels[sensor_num]->CTRL |= ADC_CH_START_bm;
-				while (ir_sense_channels[sensor_num]->INTFLAGS==0){};		// wait for measurement to complete
+				while(ir_sense_channels[dir]->INTFLAGS==0);
+				meas[dir][meas_count] = (ir_sense_channels[dir]->RES);
+				ir_sense_channels[dir]->INTFLAGS=1;
 			}
-			meas[meas_count] = ((((int16_t)(ir_sense_channels[sensor_num]->RESH))<<8)|((int16_t)(ir_sense_channels[sensor_num]->RESL)));	
-			ir_sense_channels[sensor_num]->INTFLAGS=1; // clear the complete flag		
 		}
-	
 	#else
+
 	
-		ADCB.CH0.MUXCTRL &= MUX_SENSOR_CLR; //clear previous sensor selection
-		ADCB.CH0.MUXCTRL |= mux_sensor_selectors[sensor_num];
-	
-		for(uint8_t meas_count=0; meas_count<IR_MEAS_COUNT; meas_count++)
+		for(uint8_t dir=0;dir<6;dir++)
 		{
-			ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+			ADCB.CH0.MUXCTRL &= MUX_SENSOR_CLR; //clear previous sensor selection
+			ADCB.CH0.MUXCTRL |= mux_sensor_selectors[dir];			
+			for(uint8_t meas_count=0; meas_count<meas_per_ch; meas_count++)
 			{
-				ADCB.CH0.CTRL |= ADC_CH_START_bm;
-				while (ADCB.CH0.INTFLAGS==0){};		// wait for measurement to complete
-			}
-			meas[meas_count] = ((((int16_t)ADCB.CH0.RESH)<<8)|((int16_t)ADCB.CH0.RESL))>>2;
-			ADCB.CH0.INTFLAGS=1; // clear the complete flag
+				ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+				{			
+					ADCB.CH0.CTRL |= ADC_CH_START_bm;
+					while (ADCB.CH0.INTFLAGS==0){};		// wait for measurement to complete
+					meas[dir][meas_count] = ADCB.CH0RES;
+					ADCB.CH0.INTFLAGS=1; // clear the complete flag					
+
+				}
+			}			
 		}
-	#endif
+	#endif	
 	
-	int16_t median = meas_find_median(&(meas[2]), IR_MEAS_COUNT-2);
-	//printf("\t");
-	//for(uint8_t i=0;i<IR_MEAS_COUNT;i++) printf("%u: %3d\t",i, meas[i]);
+	
+	for(uint8_t dir=0;dir<6;dir++)
+	{
+		if(meas_per_ch>2){
+			int16_t median = meas_find_median(&(meas[dir][2]),meas_per_ch-2);
+			//printf("%d ",median);
+			output_arr[dir] = median-ir_sense_baseline[dir];
+		}			
+		else if(meas_per_ch==2)
+			output_arr[dir] = meas_find_median(&(meas[dir][1]),meas_per_ch-1)-ir_sense_baseline[dir];
+		else
+			output_arr[dir] = meas[dir][0];
+	}
+	//for(uint8_t i=0;i<6;i++) printf("%d ", output_arr[i]);
 	//printf("\r\n");	
-	if(median<ir_sense_baseline[sensor_num])	return 0;
-	else										return (median-ir_sense_baseline[sensor_num]);
 }
+
+//int16_t get_ir_sensor(uint8_t sensor_num, uint8_t ir_meas_count)
+//{	
+	//int16_t meas[ir_meas_count];
+	//
+	//#ifdef AUDIO_DROPLET
+	//
+		//for(uint8_t meas_count=0; meas_count<ir_meas_count; meas_count++)
+		//{
+			//if(meas_count!=0) delay_us(120);
+			//meas[meas_count]=ir_sense_channels[sensor_num]->RES;
+			//ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+			//{
+				//ir_sense_channels[sensor_num]->CTRL |= ADC_CH_START_bm;
+				//while (ir_sense_channels[sensor_num]->INTFLAGS==0){};		// wait for measurement to complete
+			//}
+			//meas[meas_count] = ir_sense_channels[sensor_num]->RES;
+			////((((int16_t)(ir_sense_channels[sensor_num]->RESH))<<8)|((int16_t)(ir_sense_channels[sensor_num]->RESL)));	
+			//ir_sense_channels[sensor_num]->INTFLAGS=1; // clear the complete flag		
+		//}
+	//
+	//#else
+	//
+		//ADCB.CH0.MUXCTRL &= MUX_SENSOR_CLR; //clear previous sensor selection
+		//ADCB.CH0.MUXCTRL |= mux_sensor_selectors[sensor_num];
+	//
+		//for(uint8_t meas_count=0; meas_count<ir_meas_count; meas_count++)
+		//{
+			//ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+			//{
+				//ADCB.CH0.CTRL |= ADC_CH_START_bm;
+				//while (ADCB.CH0.INTFLAGS==0){};		// wait for measurement to complete
+			//}
+			//meas[meas_count] = ((((int16_t)ADCB.CH0.RESH)<<8)|((int16_t)ADCB.CH0.RESL))>>2;
+			//ADCB.CH0.INTFLAGS=1; // clear the complete flag
+		//}
+		//
+	//#endif
+	//
+	//int16_t median;
+	//#ifdef AUDIO_DROPLET
+		//if(ir_meas_count>1)
+			//median = meas_find_median(meas,ir_meas_count);
+		//else
+			//median = meas[0];
+	//#else
+		//if(ir_meas_count>3)
+			//median = meas_find_median(&(meas[2]),ir_meas_count-2);
+		//else if(ir_meas_count==3)
+			//median = meas_find_median(&(meas[1]),ir_meas_count-1);
+		//else if(ir_meas_count==2)
+			//median = meas[1];
+		//else
+			//median = meas[0];
+	//#endif
+	//printf("%4d ", median-ir_sense_baseline[sensor_num]);
+	//if(sensor_num==5)
+		//printf("\r\n");
+	//if(median<ir_sense_baseline[sensor_num])	return 0;
+	//else										
+	//return (median-ir_sense_baseline[sensor_num]);
+//}
+
+
 
 uint8_t check_collisions(){
 	int16_t baseline_meas[6];
-	uint8_t channelCtrlBVals[6];
-	volatile int16_t measured_vals[6];
+	int16_t measured_vals[6];
 	uint8_t dirs=0;
 	//wait_for_ir(ALL_DIRS);
 	for(uint8_t i=0;i<6;i++) ir_rxtx[i].status = IR_STATUS_BUSY_bm;	
 	uint16_t curr_power = get_all_ir_powers();
 	set_all_ir_powers(256);
-	for(uint8_t i=0;i<6;i++)
-	{
-		busy_delay_us(50);
-		//get_ir_sensor(i);
-		baseline_meas[i] = get_ir_sensor(i);
-	}
-	TCF2.CTRLB &= ~ALL_EMITTERS_CARWAV_bm;	//disable carrier wave output
-	PORTF.OUTSET = ALL_EMITTERS_CARWAV_bm;
-	for(uint8_t i=0;i<6;i++)
-	{
-		channelCtrlBVals[i] = channel[i]->CTRLB;
-		channel[i]->CTRLB=0;
-	}	
-	PORTC.DIRSET = (PIN3_bm | PIN7_bm);
-	PORTD.DIRSET =  PIN3_bm;
-	PORTE.DIRSET = (PIN3_bm | PIN7_bm);
-	PORTF.DIRSET =  PIN3_bm;
-	PORTC.OUTCLR = (PIN3_bm | PIN7_bm);
-	PORTD.OUTCLR = PIN3_bm;
-	PORTE.OUTCLR = (PIN3_bm | PIN7_bm);
-	PORTF.OUTCLR = PIN3_bm;
-
-	busy_delay_us(250);
-	ADCA.CTRLA |= ADC_FLUSH_bm;
-	ADCB.CTRLA |= ADC_FLUSH_bm;
+	//printf("coll base: ");
+	get_ir_sensors(baseline_meas, 5);
+	//printf("\r\n");
+	for(uint8_t i=0;i<6;i++) ir_led_on(i);
+	busy_delay_us(250);	
 	//delay_ms(250);
+	//printf("Coll results: ");
+	get_ir_sensors(measured_vals, 5);
+	//printf("\r\n");
+	for(uint8_t i=0;i<6;i++) ir_led_off(i);
+	
 	for(uint8_t i=0;i<6;i++)
 	{
-		busy_delay_us(250);
-		//get_ir_sensor(i);
-		measured_vals[i] = get_ir_sensor(i);
-		//printf("%1hu:%d\t", i, measured_vals[i]);		
-		//int16_t temp = measured_vals[i]-baseline_meas[i];
-		//printf("\t%3d", temp);
-		if((measured_vals[i]-baseline_meas[i])>16){
+		int16_t measure_above_base = measured_vals[i]-baseline_meas[i];
+		//printf("%4d ", measure_above_base);
+		if(measure_above_base<min_collision_vals[i]) min_collision_vals[i]=measure_above_base;
+		//printf("%4d ", measure_above_base-min_collision_vals[i]);
+		if((measure_above_base-min_collision_vals[i])>20){
 			dirs = dirs|(1<<i);
 		}
 	}
 	//printf("\r\n");
-	PORTF.OUTCLR = ALL_EMITTERS_CARWAV_bm;
-	for(uint8_t i=0;i<6;i++) channel[i]->CTRLB = channelCtrlBVals[i];
-	TCF2.CTRLB |= ALL_EMITTERS_CARWAV_bm; //reenable carrier wave output
 	set_all_ir_powers(curr_power);
 	for(uint8_t i=0;i<6;i++) ir_rxtx[i].status = 0;		
 	return dirs;
 }	
 
-// Finds the median of 3 numbers by finding the max, finding the min, and returning the other value
+// Finds the median of arr_len numbers by finding the max, finding the min, and returning the other value
 // WARNING! This function modifies the array!
 int16_t meas_find_median(int16_t* meas, uint8_t arr_len)
 {

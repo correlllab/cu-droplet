@@ -22,6 +22,7 @@ void handle_serial_command(char* command, uint16_t command_length)
 		else if(strcmp_P(command_word,PSTR("coll"))==0)					handle_check_collisions();
 		else if(strcmp_P(command_word,PSTR("stop_walk"))==0)			handle_stop_walk();
 		else if(strcmp_P(command_word,PSTR("set_motors"))==0)			handle_set_motors(command_args);
+		else if(strcmp_P(command_word,PSTR("adj_motors"))==0)			handle_adjust_motors(command_args);
 		else if(strcmp_P(command_word,PSTR("set_dist_per_step"))==0)	handle_set_mm_per_kilostep(command_args);
 		else if(strcmp_P(command_word,PSTR("rnb_b"))==0)				handle_rnb_broadcast();
 		else if(strcmp_P(command_word,PSTR("rnb_c"))==0)				handle_rnb_collect(command_args);
@@ -33,6 +34,7 @@ void handle_serial_command(char* command, uint16_t command_length)
 		else if(strcmp_P(command_word,PSTR("cmd"))==0)					handle_cmd(command_args);
 		else if(strcmp_P(command_word,PSTR("tgt_cmd"))==0)				handle_targeted_cmd(command_args);
 		else if(strcmp_P(command_word,PSTR("msg"))==0)					handle_shout(command_args);
+		else if(strcmp_P(command_word,PSTR("msg_tst"))==0)				handle_msg_test(command_args);
 		else if(strcmp_P(command_word,PSTR("tgt"))==0)					handle_target(command_args);
 		else if(strcmp_P(command_word,PSTR("tasks"))==0)				print_task_queue();
 		else if(strcmp_P(command_word,PSTR("reset"))==0)				handle_reset();
@@ -161,6 +163,42 @@ void handle_set_motors(char* command_args)
 	motor_adjusts[direction][2] = atoi(token);	
 
 	printf_P(PSTR("Got set_motors command. direction: %hhu, vals: (%d, %d, %d)\r\n"), direction, motor_adjusts[direction][0], motor_adjusts[direction][1], motor_adjusts[direction][2]);
+	set_rgb(r,g,b);
+}
+
+void handle_adjust_motors(char* command_args)
+{
+	uint8_t r = get_red_led(), g = get_green_led(), b = get_blue_led();
+	set_rgb(0,0,255);
+	const char delim[2] = " ";
+	
+	char* token = strtok(command_args,delim);
+	if(token==NULL){ printf_P(PSTR("strtok returned NULL on direction.\r\n")); return;}
+	uint8_t direction = atoi(token);
+	if(direction> 7){ printf_P(PSTR("Bad direction. Got: %hhu.\r\n"), direction); return;}
+
+	token = strtok(NULL,delim);
+	if(token==NULL){ printf_P(PSTR("strtok returned NULL on first val.\r\n")); return;}
+	if(motor_adjusts[direction][0]>=0)
+		motor_adjusts[direction][0]+= atoi(token);
+	else
+		motor_adjusts[direction][0]-= atoi(token);
+	
+	token = strtok(NULL,delim);
+	if(token==NULL){ printf_P(PSTR("strtok returned NULL on second val.\r\n")); return;}
+	if(motor_adjusts[direction][1]>=0)
+	motor_adjusts[direction][1]+= atoi(token);
+	else
+	motor_adjusts[direction][1]-= atoi(token);
+	
+	token = strtok(NULL,delim);
+	if(token==NULL){ printf_P(PSTR("strtok returned NULL on third val.\r\n")); return;}
+	if(motor_adjusts[direction][2]>=0)
+	motor_adjusts[direction][2]+= atoi(token);
+	else
+	motor_adjusts[direction][2]-= atoi(token);
+
+	printf_P(PSTR("Got adjust_motors command. direction: %hhu, New Settings: (%d, %d, %d)\r\n"), direction, motor_adjusts[direction][0], motor_adjusts[direction][1], motor_adjusts[direction][2]);
 	set_rgb(r,g,b);
 }
 
@@ -347,11 +385,7 @@ void handle_targeted_cmd(char* command_args)
 	
 	uint16_t target = strtoul(targetString, NULL, 16);
 	printf_P(PSTR("command string: %s, length: %d\r\n"),cmdString, strlen(cmdString));
-	#ifdef IS_SPECIAL
-	ir_targeted_cmd(DIR0|DIR1|DIR3|DIR4, cmdString,strlen(cmdString), target);
-	#else
 	ir_targeted_cmd(ALL_DIRS, cmdString,strlen(cmdString), target);
-	#endif	
 }
 
 void handle_shout(char* command_args)
@@ -362,11 +396,15 @@ void handle_shout(char* command_args)
 		printf_P(PSTR("Message length was %d chars, which exceeds the maximum of %d"), strlen(command_args), IR_BUFFER_SIZE);
 		return;
 	}
-	#ifdef IS_SPECIAL
-	ir_send(DIR0|DIR1|DIR3|DIR4, command_args,strlen(command_args));
-	#else
 	ir_send(ALL_DIRS, command_args,strlen(command_args));
-	#endif
+}
+
+void handle_msg_test(char* command_args)
+{
+	uint8_t dir_mask = atoi(command_args);
+	char msg[16] = "Unique New York.";
+	
+	ir_send(dir_mask, msg,16);
 }
 
 void handle_target(char* command_args)

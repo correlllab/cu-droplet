@@ -11,6 +11,7 @@
 #include "droplet_init.h"
 #include "scheduler.h"
 #include "ir_led.h"
+#include "ir_sensor.h"
 #include "firefly_sync.h"
 
 // FYI, the XMEGA128A3U has:
@@ -33,7 +34,7 @@
 #define KEY_LEFT		((uint16_t)0xA659)
 #define KEY_RIGHT		((uint16_t)0x46B9)
 
-#define IR_BUFFER_SIZE			32 //bytes
+#define IR_BUFFER_SIZE			31 //bytes
 #define IR_UPKEEP_FREQUENCY		16 //Hz
 #define IR_MSG_TIMEOUT			20 //ms
 
@@ -55,30 +56,40 @@
 #define HEADER_POS_CRC_HIGH 4
 #define HEADER_POS_TARGET_ID_LOW 5
 #define HEADER_POS_TARGET_ID_HIGH 6
-#define HEADER_LEN 7
+#define HEADER_POS_SOURCE_DIR 7
+#define HEADER_LEN 8
 
 #define MAX_WAIT_FOR_IR_TIME (5*(IR_BUFFER_SIZE+HEADER_LEN))
+
+#ifdef AUDIO_DROPLET
+	extern ADC_CH_t* ir_sense_channels[6];
+#endif
 
 volatile struct
 {	
 	uint32_t last_byte;			// TX time or RX time of last received byte	
-	char   buf[IR_BUFFER_SIZE];	// Transmit / receive buffer	
+	int16_t ir_meas[IR_BUFFER_SIZE+HEADER_LEN];		
 	uint16_t data_crc;
 	uint16_t sender_ID;
 	uint16_t target_ID;
 	uint16_t curr_pos;				// Current position in buffer
 	uint16_t calc_crc;
-	uint8_t  data_length;
+	char   buf[IR_BUFFER_SIZE];	// Transmit / receive buffer		
+	uint8_t  data_length;	
+	int8_t inc_dir;
 	volatile uint8_t status;		// Transmit:
 } ir_rxtx[6];
 
 volatile struct
 {
 	uint32_t	arrival_time;
+	float		bearing;
+	float		heading;
 	uint16_t	sender_ID;
 	char		msg[IR_BUFFER_SIZE];		
 	uint8_t		arrival_dir;
 	uint8_t		msg_length;
+	uint8_t		range;
 } msg_node[MAX_USER_FACING_MESSAGES];
 
 volatile uint8_t num_waiting_msgs;
@@ -100,6 +111,8 @@ uint8_t ir_send(uint8_t dirs, char *data, uint8_t data_length);
 void hp_ir_cmd(uint8_t dirs, char *data, uint16_t data_length);
 void hp_ir_targeted_cmd(uint8_t dirs, char *data, uint16_t data_length, uint16_t target);
 
+void handle_rx_length_byte(uint8_t in_byte, uint8_t dir);
+uint8_t handle_tx_length_byte(uint8_t dir);
 void ir_receive(uint8_t dir); //Called by Interrupt Handler Only
 void ir_transmit(uint8_t dir);
 void ir_remote_send(uint8_t dir, uint16_t data);

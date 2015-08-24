@@ -102,6 +102,9 @@ float target_spot;
 uint16_t target_id;
 Orbital my_orbitals[6];
 uint8_t stability;
+int16_t deltaGself;		//my molecule's deltaG
+int16_t deltaGself_p;	//my molecule's deltaG if the atom I'm talking to were to bond with me
+int16_t deltaGself_m;	//my molecule's deltaG without me
 Atom myID;
 
 void init();
@@ -110,10 +113,12 @@ void handle_msg(ir_msg* msg_struct);
 void user_leg_status_interrupt();
 
 uint8_t add_atom_to_molecule(uint16_t atom_id);
+int16_t add_atom_to_stability(uint16_t ID, int16_t cur_s, uint8_t cur_s_size);
 void add_to_bonded_atoms(uint16_t ID, uint8_t index, uint8_t num_bonds);
 void add_to_my_orbitals(uint16_t ID, uint8_t num_bonds);
 void add_to_near_atoms();
 //void broadcastChemID(Atom ID);
+void break_bond(uint16_t sender_ID);
 uint8_t calculate_my_stability();
 void calculate_path(float target, uint16_t ID);
 uint8_t convert_bearing_to_IR_dir(float bearing);
@@ -131,7 +136,7 @@ void getOrbitals(Atom* atom);
 void init_atom_state();
 void init_random_move(uint8_t direc);
 uint8_t is_good_rnb(float rng, float bearing, uint16_t ID);
-void makePossibleBonds(Atom* near_atom_ptr, char flag, uint16_t senderID);
+void makePossibleBonds(Atom* near_atom_ptr, char flag, int16_t deltaGother, int16_t deltaGother_p, int16_t deltaGother_m, uint16_t senderID);
 void match_molecule(uint16_t* other_molecule, uint8_t length, uint16_t exclude_id);
 void modify_valences_ionic(char* newValence, Atom* near_atom_ptr, uint16_t senderID);
 void modify_valences_covalent(char* newValence, Atom* near_atom_ptr, uint16_t senderID);
@@ -142,7 +147,7 @@ void msgContactFirst(uint16_t senderID);
 void msgContactSecond(char* msg, uint16_t senderID);
 void msgOrbital(uint16_t* other_bonded_atoms, uint16_t senderID);
 void msgPossibleBond(ir_msg* msg_struct);
-void msgState(Atom* near_atom, uint8_t* o_molecule, uint8_t o_molecule_length, uint16_t sender);
+char IMR_test(Atom* near_atom, int16_t deltaGother, int16_t deltaGother_p, int16_t deltaGother_m, uint16_t senderID);
 uint8_t* orbital_order(uint8_t *valence);
 void pack_valences(uint8_t* packed_shells, int8_t* shells);
 void print_near_atoms();
@@ -153,6 +158,7 @@ void repairValence();
 void setAtomColor(Atom* ID);
 void transmit_molecule_struct(uint16_t exclude_id, char flag);
 void unpack_valences(uint8_t* packed_shells, int8_t* shells);
+void update_delta_Gs();
 void update_molecule(uint16_t* atNums, uint8_t length, uint16_t sender);
 void update_near_atoms(Atom* near_atom, uint16_t senderID);
 void update_stability();

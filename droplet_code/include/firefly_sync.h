@@ -22,8 +22,6 @@
 #define FIREFLY_SYNC_ALPHA exp(FIREFLY_SYNC_B*FIREFLY_SYNC_EPS)
 #define FIREFLY_SYNC_BETA ((FIREFLY_SYNC_ALPHA - 1) / (exp(FIREFLY_SYNC_B) - 1))
 
-volatile uint32_t light_start;
-
 void firefly_sync_init();
 
 

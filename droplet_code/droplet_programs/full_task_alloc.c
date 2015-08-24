@@ -13,22 +13,10 @@ void init()
  */
 void loop()
 {
-	if((get_time()-light_start)>300){
-		set_rgb(0,0,0);
-	}
 	if(rnb_updated)
 	{
 		printf("%X: %4.3f %3.1f %3.1f\r\n", last_good_rnb.id_number, last_good_rnb.range, rad_to_deg(last_good_rnb.bearing), rad_to_deg(last_good_rnb.heading));
 		rnb_updated=0;
-	}
-	if((rand_byte()==0)&&(rand_byte()<=32)){
-		if(rand_byte()&0x1){
-			printf("Sending that message.\r\n");
-			char msg[10] = "moosemoose";
-			ir_send(ALL_DIRS, msg, 10);
-		}else{
-			broadcast_rnb_data();	
-		}
 	}
 }
 

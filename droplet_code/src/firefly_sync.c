@@ -13,11 +13,7 @@ void firefly_sync_init()
 	TCE0.INTCTRLA = TC_OVFINTLVL_MED_gc;
 	TCE0.CNT = 0;
     light_start = 0;
-<<<<<<< HEAD
-    next_count_start=0;
-	
-=======
->>>>>>> efc46b49ff03173437bb9ccf5f35b15289feb884
+
 }
 
 ISR(TCE0_OVF_vect)
@@ -60,8 +56,5 @@ ISR(TCE0_OVF_vect)
 	set_rgb(255,255,255);		
 	light_start = get_time();
 	//printf("Delta Count: %d\r\n",change);
-<<<<<<< HEAD
-=======
 
->>>>>>> efc46b49ff03173437bb9ccf5f35b15289feb884
 }

@@ -57,24 +57,24 @@ typedef struct
 	int8_t orbitals[6]; //-1 for empty orbital, 0 for orbital that the recipient doesn't occupy, 1 for an orbital it does occupy.
 }Bond_Made_Msg;
 
-typedef struct  
-{
-	uint16_t ID;
-	int8_t type; 
-	/*
-	Type refers to the hybridization. The code is as follows:
-		-1 = nonexistent orbital
-		0 = s
-		1 = p
-		2 = sp
-		3 = sp2
-		4 = sp3
-		5 = dsp3
-		6 = d2sp3
-		7 = d
-		8 = f
-	*/
-}Orbital;
+//typedef struct  
+//{
+	//uint16_t ID;
+	//int8_t type; 
+	///*
+	//Type refers to the hybridization. The code is as follows:
+		//-1 = nonexistent orbital
+		//0 = s
+		//1 = p
+		//2 = sp
+		//3 = sp2
+		//4 = sp3
+		//5 = dsp3
+		//6 = d2sp3
+		//7 = d
+		//8 = f
+	//*/
+//}Orbital;
 
 typedef struct  
 {
@@ -100,7 +100,7 @@ uint8_t my_molecule_length;
 uint8_t collided;
 float target_spot;
 uint16_t target_id;
-Orbital my_orbitals[6];
+//Orbital my_orbitals[6];
 uint8_t stability;
 int16_t deltaGself;		//my molecule's deltaG
 int16_t deltaGself_p;	//my molecule's deltaG if the atom I'm talking to were to bond with me
@@ -115,7 +115,7 @@ void user_leg_status_interrupt();
 uint8_t add_atom_to_molecule(uint16_t atom_id);
 int16_t add_atom_to_stability(uint16_t ID, int16_t cur_s, uint8_t cur_s_size);
 void add_to_bonded_atoms(uint16_t ID, uint8_t index, uint8_t num_bonds);
-void add_to_my_orbitals(uint16_t ID, uint8_t num_bonds);
+//void add_to_my_orbitals(uint16_t ID, uint8_t num_bonds);
 void add_to_near_atoms();
 //void broadcastChemID(Atom ID);
 void break_bond(uint16_t sender_ID);
@@ -134,7 +134,7 @@ float getChiFromID(uint16_t ID);
 uint8_t get_filled_orbs();
 void getOrbitals(Atom* atom);
 void init_atom_state();
-void init_random_move(uint8_t direc);
+void init_random_move(uint16_t direc);
 uint8_t is_good_rnb(float rng, float bearing, uint16_t ID);
 void makePossibleBonds(Atom* near_atom_ptr, char flag, int16_t deltaGother, int16_t deltaGother_p, int16_t deltaGother_m, uint16_t senderID);
 void match_molecule(uint16_t* other_molecule, uint8_t length, uint16_t exclude_id);

@@ -12,8 +12,6 @@ void firefly_sync_init()
 	TCE0.PER =  FFSYNC_FULL_PERIOD;
 	TCE0.INTCTRLA = TC_OVFINTLVL_MED_gc;
 	TCE0.CNT = 0;
-    light_start = 0;
-
 }
 
 ISR(TCE0_OVF_vect)
@@ -53,8 +51,8 @@ ISR(TCE0_OVF_vect)
 		else if(change<-FFSYNC_MAX_DEVIATION) OSC.RC32KCAL--;
 	}
 	hp_ir_cmd(ALL_DIRS, NULL, 0);
-	set_rgb(255,255,255);		
-	light_start = get_time();
+	//set_rgb(255,255,255);		
+	//light_start = get_time();
 	//printf("Delta Count: %d\r\n",change);
 
 }

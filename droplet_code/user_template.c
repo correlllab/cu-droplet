@@ -4,8 +4,8 @@
  * Any code in this function will be run once, when the robot starts.
  */
 void init()
-{
-
+{	
+	set_rgb(0,0,100);
 }
 
 /*

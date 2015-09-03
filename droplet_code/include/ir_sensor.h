@@ -25,6 +25,7 @@ void get_ir_sensors(int16_t* output_arr, uint8_t meas_per_ch);
 //int16_t get_ir_sensor(uint8_t sensor_num, uint8_t ir_meas_count);
 uint8_t check_collisions();
 int16_t meas_find_median(int16_t* meas, uint8_t arr_len); // Helper function for getting the middle of the 3 measurements
+void get_ir_baselines(int16_t* baseline_arr);
 
 #ifndef AUDIO_DROPLET
 	#define IR_SENSOR_PORT PORTB

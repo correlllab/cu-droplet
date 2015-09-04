@@ -184,6 +184,9 @@ void perform_ir_upkeep()
 					#ifdef AUDIO_DROPLET
 						getIrCommRnBEst(&(msg_node[num_waiting_msgs].range),&(msg_node[num_waiting_msgs].bearing),&(msg_node[num_waiting_msgs].heading));
 					#endif
+					if(msg_node[num_waiting_msgs].msg_length > IR_BUFFER_SIZE){
+						printf("ERROR! Message too long?\r\n");
+					}
 				}
 				num_waiting_msgs++;
 				clear_ir_buffer(dir);
@@ -363,6 +366,7 @@ void ir_receive(uint8_t dir)
 										if(in_byte&DATA_LEN_CMD_bm) ir_rxtx[dir].status		   |= IR_STATUS_COMMAND_bm;
 										ir_rxtx[dir].calc_crc		= _crc16_update(ir_rxtx[dir].calc_crc, ir_rxtx[dir].status & IR_STATUS_COMMAND_bm);
 										ir_rxtx[dir].data_length	= in_byte&DATA_LEN_VAL_bm;
+										if(ir_rxtx[dir].data_length>IR_BUFFER_SIZE) ir_rxtx[dir].data_length=0; //basically, this will cause the message to get aborted.
 																								break;
 		case HEADER_POS_CRC_LOW:		ir_rxtx[dir].data_crc		= (uint16_t)in_byte;		break;
 		case HEADER_POS_CRC_HIGH:		ir_rxtx[dir].data_crc	   |= (((uint16_t)in_byte)<<8); break;

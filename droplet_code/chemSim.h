@@ -3,7 +3,7 @@
 
 #include "droplet_init.h"
 
-#define RNB_BROADCAST_PERIOD 5000
+#define RNB_BROADCAST_PERIOD 50000
 #define BLINK_PERIOD 2500
 #define CHEM_ID_BROADCAST_PERIOD 3900
 #define DETECT_OTHER_DROPLETS_PERIOD 1000
@@ -122,7 +122,7 @@ void break_bond(uint16_t sender_ID);
 uint8_t calculate_my_stability();
 void calculate_path(float target, uint16_t ID);
 uint8_t convert_bearing_to_IR_dir(float bearing);
-uint8_t* convert_IR_dir_to_array(uint8_t dirs, uint8_t* bits);
+void convert_IR_dir_to_array(uint8_t dirs, uint8_t* bits);
 void create_state_message(State_Msg* msg, char flag);
 void detectOtherDroplets();
 void formBond(uint16_t senderID, Atom* near_atom, char flag);
@@ -132,7 +132,7 @@ Atom* getAtomFromAtomicNum(uint8_t atomicNum);
 Atom* getAtomFromID(uint16_t ID);
 float getChiFromID(uint16_t ID);
 uint8_t get_filled_orbs();
-void getOrbitals(Atom* atom);
+//void getOrbitals(Atom* atom);
 void init_atom_state();
 void init_random_move(uint16_t direc);
 uint8_t is_good_rnb(float rng, float bearing, uint16_t ID);
@@ -143,8 +143,8 @@ void modify_valences_covalent(char* newValence, Atom* near_atom_ptr, uint16_t se
 void move_to_target(uint16_t rng, float bearing);
 void msgBondedAtoms(uint16_t* recast_bonded_atoms, uint16_t new_blink, uint16_t sender_ID);
 void msgBondMade(ir_msg* msg_struct, char flag);
-void msgContactFirst(uint16_t senderID);
-void msgContactSecond(char* msg, uint16_t senderID);
+//void msgContactFirst(uint16_t senderID);
+//void msgContactSecond(char* msg, uint16_t senderID);
 void msgOrbital(uint16_t* other_bonded_atoms, uint16_t senderID);
 void msgPossibleBond(ir_msg* msg_struct);
 char IMR_test(Atom* near_atom, int16_t deltaGother, int16_t deltaGother_p, int16_t deltaGother_m, uint16_t senderID);
@@ -164,5 +164,11 @@ void update_near_atoms(Atom* near_atom, uint16_t senderID);
 void update_stability();
 uint8_t valenceState();
 
+
+/*
+ int8_t bear = (int8_t)ceilf((3.0*last_good_rnb.bearing)/M_PI);
+ uint8_t newDir = ((6-bear)%6);
+
+*/
 
 #endif

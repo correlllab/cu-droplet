@@ -92,7 +92,15 @@ void use_rnb_data()
 		*/
 		//print_brightness_matrix(brightness_matrix);
 	
-		int16_t emitter_total[6];
+		uint8_t numNonZero=0;
+		for(uint8_t e=0;e<6;e++){
+			for(uint8_t s=0;s<6;s++){
+				if(brightness_matrix[e][s]!=0) numNonZero++;
+			}
+		}
+		if(numNonZero<=1) return;
+	
+		int16_t emitter_total[6];	
 		int16_t sensor_total[6];
 		fill_S_and_T(brightness_matrix, sensor_total, emitter_total);
 	

@@ -1,54 +1,50 @@
+#pragma once
+
 #include "droplet_init.h"
 
-#define HEARTBEAT_PERIOD 3000	//ms
-#define GROUP_TIMEOUT 15000		//ms
-#define BALL_PERIOD 300			//ms
+//#define GOODBYE_FLAG			'!'
+#define BALL_BOUNCE_FLAG		'B'
+#define LOOP_PERIOD_MS			200
+#define RNB_BC_PERIOD_MS		19600
+#define LOOPS_PER_RNB			(RNB_BC_PERIOD_MS/LOOP_PERIOD_MS)
+#define GROUP_TIMEOUT_MS		40000
+#define MIN_GOODBYE_INTERVAL	10000
+#define NEIGHBORHOOD_SIZE		6
 
-#define LOW_PRIORITY_IR_POWER 90
-#define HIGH_PRIORITY_IR_POWER 256
+typedef struct ball_bounce{
+	char flag;
+	uint16_t id;
+	uint8_t seqPos;
+}BallBounceMsg;
+
+typedef enum{
+	NOT_BALL,
+	NOT_BALL_ALERT,
+	BALL
+} State;
+	
+State myState;
+uint8_t ballSeqPos;
+uint8_t missedBroadcast;
 
 typedef struct neighbor_struct
 {
+	float posError;
+	uint32_t lastSeen;
 	uint16_t ID;
-	uint16_t ms_age;
-} neighbor;
-neighbor neighbors[6];
+	uint8_t noCollCount;
+} Neighbor;
+Neighbor neighbors[NEIGHBORHOOD_SIZE];
 
-typedef enum
-{
-	BALL,
-	NOT_BALL
-} State;
-State	state;
-
-typedef struct throw_ball_msg_struct
-{
-	char msg_flag;
-	uint16_t soft_tgt_id;
-} throw_ball_msg;
-
-throw_ball_msg*	outgoing_ball;
-uint32_t		last_loop_time;
-uint32_t		last_heartbeat_time;
-uint32_t		last_ball_time;
-uint8_t			num_neighbors;
-
-uint8_t ball_in_dir;
-char* heartbeat_msg;
-
+uint16_t myRNBLoop;
+uint16_t loopCount;
+uint8_t outwardDir;
+uint16_t outwardDirID;
+uint32_t lastGoodbye;
 
 void		init();
 void		loop();
-void		handle_msg		(ir_msg* msg_struct);
-uint8_t		check_bounce	(uint8_t dir_in);
-void		add_group_member(uint16_t senderID, uint8_t dir);
-uint8_t		update_group	(uint32_t time_to_add);
+void		handle_msg			(ir_msg* msg_struct);
 
-void        wait_waiting		();
-
-void		change_state		( State		new_state	);
-
-
-
-
-
+void use_new_rnb();
+uint8_t check_bounce(uint8_t in_dir);

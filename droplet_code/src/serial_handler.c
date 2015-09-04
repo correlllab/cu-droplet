@@ -112,9 +112,7 @@ void handle_set_ir(char* command_args)
 
 void handle_stop_walk()
 {
-	set_rgb(180,0,0);
 	stop_move(0);
-	set_rgb(0,0,0);
 }
 //
 //extern int16_t tau;

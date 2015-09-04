@@ -224,15 +224,15 @@ void add_task_to_list(volatile Task_t* task)
 		// find its position in the linked list, and insert it there.
 		else
 		{
-			uint8_t g = get_green_led();
-			uint8_t r = get_red_led();
-			uint8_t b = get_blue_led();
-			set_rgb(255, 50, 0);
+			//uint8_t g = get_green_led();
+			//uint8_t r = get_red_led();
+			//uint8_t b = get_blue_led();
+			//set_rgb(255, 50, 0);
 			volatile Task_t* tmp_task_ptr = task_list;
 			while (tmp_task_ptr->next != NULL && task->scheduled_time > (tmp_task_ptr->next)->scheduled_time)
 			{
 				if(tmp_task_ptr->next==tmp_task_ptr){
-					set_rgb(255, 50, 0);
+					//set_rgb(255, 50, 0);
 					printf_P(PSTR("ERROR! Task list has self-reference.\r\n"));
 					printf_P(PSTR("New Task %p (%p) scheduled at %lu with period %lu, %lu current\r\n"), task, (task->func).noarg_function, task->scheduled_time, task->period, get_time());
 					print_task_queue();
@@ -240,7 +240,7 @@ void add_task_to_list(volatile Task_t* task)
 				}
 				tmp_task_ptr = tmp_task_ptr->next;
 			}
-			set_rgb(r, g, b);
+			//set_rgb(r, g, b);
 			task->next = tmp_task_ptr->next;
 			tmp_task_ptr->next = task;
 		}

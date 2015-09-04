@@ -245,7 +245,7 @@ inline uint8_t all_ir_sends(uint8_t dirs_to_go, char* data, uint8_t data_length,
 	for(uint8_t dir=0;dir<6;dir++)
 	{
 		if(dirs_to_go&(1<<dir))
-		{
+		{		
 			channel[dir]->CTRLB &= ~USART_RXEN_bm;
 			ir_rxtx[dir].status = IR_STATUS_BUSY_bm;
 			if(cmd_flag) ir_rxtx[dir].status |= IR_STATUS_COMMAND_bm;

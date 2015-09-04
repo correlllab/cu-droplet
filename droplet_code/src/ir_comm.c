@@ -6,6 +6,10 @@ volatile char		cmd_buffer[BUFFER_SIZE];
 
 void clear_ir_buffer(uint8_t dir)
 {
+	#ifdef AUDIO_DROPLET
+		ir_sense_channels[dir]->INTCTRL = ADC_CH_INTLVL_OFF_gc;
+	#endif
+		
 	ir_rxtx[dir].data_crc		= 0;
 	ir_rxtx[dir].sender_ID		= 0;
 	ir_rxtx[dir].target_ID		= 0;	
@@ -16,6 +20,7 @@ void clear_ir_buffer(uint8_t dir)
 	ir_rxtx[dir].status			= 0;	
 	
 	channel[dir]->CTRLB |= USART_RXEN_bm; //this enables receive on the USART
+
 }
 
 /* Hardware addresses for the port pins with the carrier wave */
@@ -91,7 +96,7 @@ float closestSensorAngle(float alpha)
 	return val;
 }
 
-void getIrCommRnBEst(uint8_t* range, float* bearing, float* heading)
+void getIrCommRnBEst(volatile uint8_t* range, volatile float* bearing, volatile float* heading)
 {
 	int16_t totals[6];
 	int16_t srcTotals[6];
@@ -111,23 +116,21 @@ void getIrCommRnBEst(uint8_t* range, float* bearing, float* heading)
 	{
 		if((ir_rxtx[i].inc_dir>=0)&&(ir_rxtx[i].inc_dir<6)){
 			srcTotals[ir_rxtx[i].inc_dir]+=totals[i];
-			}else{
-			totals[i]=0;
-			}
+		}
+			//else{
+			//totals[i]=0;
+			//}
 	}
-	int16_t bestTotal;
-	int16_t bestTotalIdx;
-	bestTotal=-32768;
+	int16_t bestTotal=-1;
 	for(uint8_t i=0;i<6;i++){
 		if(totals[i]<0) totals[i]=0;
 		if(srcTotals[i]<0) srcTotals[i]=0;
 		//printf("From %hd on %hu: %5d (%5d)\r\n", ir_rxtx[i].inc_dir, i, totals[i], srcTotals[i]);		
 		if(totals[i]>bestTotal){
 			bestTotal=totals[i];
-			bestTotalIdx=i;
 		}
 	}
-	//printf("\n");
+	printf("\n");
 	float bearing_est = get_bearing(totals);
 	float heading_est = get_heading(srcTotals, bearing_est);
 	float alpha = closestSensorAngle(bearing_est-M_PI/6.);
@@ -136,7 +139,7 @@ void getIrCommRnBEst(uint8_t* range, float* bearing, float* heading)
 	float amplitude = bestTotal/exp_con;
 	//float range_est = inverse_amplitude_model(amplitude, 255)+2*DROPLET_RADIUS;
 	//float range_est = inverse_amplitude_model(bestTotal, 255);
-	//printf("comm bearing: %f, comm heading: %f, ", rad_to_deg(bearing_est), rad_to_deg(heading_est));
+	//printf("comm bearing: %f, comm heading: %f\r\n", rad_to_deg(bearing_est), rad_to_deg(heading_est));
 	if(amplitude>2000)		*range = 0xFF;
 	else if(amplitude>1000) *range = 0x01;
 	else					*range = 0x00;
@@ -178,7 +181,9 @@ void perform_ir_upkeep()
 					msg_node[num_waiting_msgs].arrival_dir = dir;
 					msg_node[num_waiting_msgs].sender_ID = ir_rxtx[dir].sender_ID;
 					msg_node[num_waiting_msgs].msg_length = ir_rxtx[dir].data_length;
-					getIrCommRnBEst(&(msg_node[num_waiting_msgs].range),&(msg_node[num_waiting_msgs].bearing),&(msg_node[num_waiting_msgs].heading));
+					#ifdef AUDIO_DROPLET
+						getIrCommRnBEst(&(msg_node[num_waiting_msgs].range),&(msg_node[num_waiting_msgs].bearing),&(msg_node[num_waiting_msgs].heading));
+					#endif
 				}
 				num_waiting_msgs++;
 				clear_ir_buffer(dir);
@@ -239,7 +244,12 @@ inline uint8_t all_ir_sends(uint8_t dirs_to_go, char* data, uint8_t data_length,
 {
 	if(!ir_is_available(dirs_to_go))
     {
-        printf_P(PSTR("Aborting IR send; channels are likely busy transmitting your previous message.\r\n"));
+        printf_P(PSTR("Aborting IR send while trying:\r\n\t"));
+		for(uint8_t i=0;i<data_length;i++)
+		{
+			printf("%02hX ",data[i]);
+		}
+		printf_P(PSTR("\r\nChannels are probably blocked by your previous message.\r\n"));
         return 0;
     }        
 	for(uint8_t dir=0;dir<6;dir++)
@@ -335,9 +345,7 @@ void ir_receive(uint8_t dir)
 {
 	uint8_t in_byte = channel[dir]->DATA;				// Some data just came in
 	#ifdef AUDIO_DROPLET
-		while(ir_sense_channels[dir]->INTFLAGS==0);
-		ir_rxtx[dir].ir_meas[ir_rxtx[dir].curr_pos] =  (ir_sense_channels[dir]->RES-ir_sense_baseline[dir]);
-		ir_sense_channels[dir]->INTFLAGS=1;
+		ir_sense_channels[dir]->INTCTRL = ADC_CH_INTLVL_HI_gc;
 	#endif	
 	//if(dir==2)printf("%02hhx ", in_byte); //Used for debugging - prints raw bytes as we get them.
 
@@ -530,6 +538,7 @@ uint8_t ir_is_available(uint8_t dirs_mask)
 	}
     return 1;
 }
+
 //
 //uint8_t wait_for_ir(uint8_t dirs)
 //{
@@ -600,3 +609,15 @@ ISR( USARTE1_DRE_vect ) { ir_transmit(4); }
 ISR( USARTF0_RXC_vect ) { ir_receive(5); }
 ISR( USARTF0_TXC_vect ) { ir_transmit_complete(5); }
 ISR( USARTF0_DRE_vect ) { ir_transmit(5); }
+	
+static void inline on_demand_ir_meas(uint8_t dir){
+	ir_rxtx[dir].ir_meas[ir_rxtx[dir].curr_pos] =  (ir_sense_channels[dir]->RES-ir_sense_baseline[dir]);
+	ir_sense_channels[dir]->INTCTRL = ADC_CH_INTLVL_OFF_gc;
+}
+	
+ISR( ADCA_CH0_vect ) { on_demand_ir_meas(0); }
+ISR( ADCA_CH1_vect ) { on_demand_ir_meas(1); }
+ISR( ADCA_CH2_vect ) { on_demand_ir_meas(2); }
+ISR( ADCB_CH0_vect ) { on_demand_ir_meas(3); }
+ISR( ADCB_CH1_vect ) { on_demand_ir_meas(4); }
+ISR( ADCB_CH2_vect ) { on_demand_ir_meas(5); }	

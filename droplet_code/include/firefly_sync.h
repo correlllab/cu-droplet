@@ -3,8 +3,6 @@
 #include <avr/io.h>
 #include "droplet_init.h"
 
-
-
 #define FFSYNC_FULL_PERIOD_MS		2000
 #define FFSYNC_REFR_PERIOD_MS		150
 #define FFSYNC_TRANSMIT_DELAY_MS	16

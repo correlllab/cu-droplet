@@ -64,6 +64,16 @@ void disable_leg_status_interrupt()
 	ACA.WINCTRL &= ~(AC_WINTMODE_INSIDE_gc | AC_WINTMODE_OUTSIDE_gc | AES_INTLVL_LO_gc);
 }
 
+void leg_float()
+{
+	//disable_leg_status_interrupt();
+	if(leg_status(0) != 0 ||leg_status(1) != 0 || leg_status(2) != 0) return;
+	printf("!\r\n");
+	if(user_leg_status_interrupt) user_leg_status_interrupt();
+	//enable_leg_status_interrupt();
+}
+
+
 ISR(ACA_ACW_vect)
 {
 	uint32_t now = get_time();
@@ -71,23 +81,25 @@ ISR(ACA_ACW_vect)
 	{	
 		if(ACA.WINCTRL & 0x8)
 		{
-			//printf("I'm down!");
-			//delay_ms(10);
-			//printf("\tLeg Status': %hd\t%hd\t%hd\r\n", leg_status(0),leg_status(1),leg_status(2));
+			printf("I'm down!");
+			delay_ms(10);
+			printf("\tLeg Status': %hd\t%hd\t%hd\r\n", leg_status(0),leg_status(1),leg_status(2));
 			last_int_time=now;
-			ACA.WINCTRL = AC_WEN_bm | AES_INTLVL_LO_gc | AC_WINTMODE_INSIDE_gc;			
+			ACA.WINCTRL = AC_WEN_bm | AES_INTLVL_LO_gc | AC_WINTMODE_INSIDE_gc;
+			remove_task(leg_task);				
+			leg_task = schedule_task(500, leg_float, NULL);	
 		}
 		else
 		{
-			//printf("I'm up!\t");
-			//delay_ms(10);			
-			//printf("\tLeg Status': %hd\t%hd\t%hd\r\n", leg_status(0),leg_status(1),leg_status(2));
+			printf("I'm up!\t");
+			delay_ms(10);			
+			printf("\tLeg Status': %hd\t%hd\t%hd\r\n", leg_status(0),leg_status(1),leg_status(2));
 			last_int_time=now;
 			ACA.WINCTRL = AC_WEN_bm | AES_INTLVL_LO_gc | AC_WINTMODE_OUTSIDE_gc;
+			remove_task(leg_task);
+			leg_task = schedule_task(500, leg_float, NULL);
 		}
 	}
-	
-	if(user_leg_status_interrupt) user_leg_status_interrupt();
 }
 
 int8_t leg_status(uint8_t leg)

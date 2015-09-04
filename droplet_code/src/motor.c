@@ -105,7 +105,7 @@ uint8_t move_steps(uint8_t direction, uint16_t num_steps)
 	uint32_t total_movement_duration = (((uint32_t)total_time)*((uint32_t)num_steps))/32;
 	//printf("Total duration: %lu ms.\r\n\n",total_movement_duration);
 	current_motor_task = schedule_task(total_movement_duration, stop_move, NULL);
-	if(current_motor_task==NULL) printf("Error! Couldn't schedule stop_move.\r\n");
+	if(current_motor_task==NULL) printf("Error! Failed to schedule stop_move task.");
 	return 1;
 }
 
@@ -114,7 +114,9 @@ void walk(uint8_t direction, uint16_t mm)
 	uint16_t mm_per_kilostep = get_mm_per_kilostep(direction);
 	float mm_per_step = (1.0*mm_per_kilostep)/1000.0;
 	float steps = (1.0*mm)/mm_per_step;
-	printf_P(PSTR("In order to go in direction %u for %u mm, taking %u steps.\r\n"),direction, mm, (uint16_t)steps);
+	delay_ms(10);
+	printf_P(PSTR("In order to go in direction %hu for %u mm, taking %u steps.\r\n"),direction, mm, (uint16_t)steps);
+	delay_ms(10);
 	move_steps(direction, (uint16_t)steps);
 }
 

@@ -59,7 +59,7 @@
 #define HEADER_POS_SOURCE_DIR 7
 #define HEADER_LEN 8
 
-#define MAX_WAIT_FOR_IR_TIME ((5*(IR_BUFFER_SIZE+HEADER_LEN))/2)
+#define MAX_WAIT_FOR_IR_TIME (5*(IR_BUFFER_SIZE+HEADER_LEN))
 
 #ifdef AUDIO_DROPLET
 	extern ADC_CH_t* ir_sense_channels[6];

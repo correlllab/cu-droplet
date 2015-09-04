@@ -19,4 +19,7 @@ uint8_t legs_powered();
 void enable_leg_status_interrupt();
 void disable_leg_status_interrupt();
 
+volatile Task_t* leg_task;
+volatile uint8_t leg_status_updated;
+
 uint32_t last_int_time;

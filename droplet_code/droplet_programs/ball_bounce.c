@@ -1,10 +1,12 @@
 #include "droplet_programs/ball_bounce.h"
 
-#define F(x) ((6-x)%6)
+#if (NEIGHBORHOOD_SIZE==6)
+	float dirAngleMap[6] = {-(M_PI/6.0), -M_PI_2, -((5.0/6.0)*M_PI), ((5.0/6.0)*M_PI), M_PI_2, (M_PI/6.0)};
+#else if (NEIGHBORHOOD_SIZE==8)
+	float dirAngleMap[8] = {0.0, -(M_PI_4), -(M_PI_2), -(3.0*M_PI_4), M_PI, 3.0*M_PI_4, M_PI_2, M_PI_4};
+#endif
 
 void init(){	
-	printf("%hd %hd %hd %hd %hd %hd\r\n", F(0), F(-1),F(-2),F(3),F(2),F(1));
-	delay_ms(1000);
 	for(uint8_t i=0;i<6;i++) neighbors[i].ID=0;	
 	loopCount = 0;
 	outwardDir = 0;
@@ -93,16 +95,21 @@ float calculatePosError(float thT, float rT, float thP, float rP){
 
 void use_new_rnb(){
 	rnb_updated=0;	
-	int8_t bear = (int8_t)ceilf((3.0*last_good_rnb.bearing)/M_PI);
-	uint8_t newDir = ((6-bear)%6);
 	
+	#if (NEIGHBORHOOD_SIZE==6)
+	int8_t bear = (int8_t)ceilf((3.0*last_good_rnb.bearing)/M_PI);
+	#else if(NEIGHBORHOOD_SIZE==8)
+	int8_t bear = (int8_t)ceilf((4.0*(last_good_rnb.bearing-M_PI/8.0))/M_PI);
+	#endif
+	uint8_t newDir = ((NEIGHBORHOOD_SIZE-bear)%NEIGHBORHOOD_SIZE);
+	//printf("bear: %hd, newDir: %hu\r\n", bear, newDir);
 	uint16_t newID = last_good_rnb.id_number;
 	float posError, angleError;
-	posError = calculatePosError(basis_angle[newDir], 2.0*DROPLET_RADIUS, last_good_rnb.bearing, last_good_rnb.range);
-	angleError = fabsf(basis_angle[newDir]-last_good_rnb.bearing);
-	//printf("%X %hu | R:%f\tBearing: %f\tError: %f, %f\r\n", last_good_rnb.id_number, newDir, last_good_rnb.range, rad_to_deg(last_good_rnb.bearing), posError, rad_to_deg(angleError));	
+	posError = calculatePosError(dirAngleMap[newDir], 2.0*DROPLET_RADIUS, last_good_rnb.bearing, last_good_rnb.range);
+	angleError = fabsf(dirAngleMap[newDir]-last_good_rnb.bearing);
+	printf("%X %hu | R:%f\tBearing: %f\tError: %f, %f\r\n", last_good_rnb.id_number, newDir, last_good_rnb.range, rad_to_deg(last_good_rnb.bearing), posError, rad_to_deg(angleError));	
 	
-	if((posError>2.0)||(angleError>(M_PI/18.0))){
+	if((posError>3.0)||(angleError>(M_PI/10.0))){
 		for(uint8_t dir=0;dir<6;dir++){
 			if(neighbors[dir].ID==newID){
 				removeNeighbor(dir);
@@ -179,6 +186,7 @@ void handle_msg(ir_msg* msg_struct){
 	//}
 }
 
+#if (NEIGHBORHOOD_SIZE==6)
 //Code below assumes neighborhood size of 6.
 uint8_t check_bounce(uint8_t in_dir){
 	//note: directions below are relative to the direction from which the ball came in.
@@ -217,6 +225,41 @@ uint8_t check_bounce(uint8_t in_dir){
 		else					return left_dir;
 	}
 }
+#else if (NEIGHBORHOOD_SIZE==8)
+uint8_t check_bounce(uint8_t inDir){
+	//note: directions below are relative to the direction from which the ball came in.
+	uint8_t inLeftDir		= (inDir+1)%8;
+	uint8_t leftDir			= (inDir+2)%8;
+	uint8_t oppLeftDir		= (inDir+3)%8;
+	uint8_t oppDir			= (inDir+4)%8;	
+	uint8_t oppRightDir		= (inDir+5)%8;
+	uint8_t rightDir		= (inDir+6)%8;
+	uint8_t inRightDir		= (inDir+7)%8;
+	
+	uint16_t in			= neighbors[inDir].ID;
+	uint16_t inLeft		= neighbors[inLeftDir].ID;
+	uint16_t left		= neighbors[leftDir].ID;
+	uint16_t oppLeft	= neighbors[oppLeftDir].ID;
+	uint16_t opp		= neighbors[oppDir].ID;
+	uint16_t oppRight	= neighbors[oppRightDir].ID;
+	uint16_t right		= neighbors[rightDir].ID;
+	uint16_t inRight	= neighbors[inRightDir].ID;
+	
+	if(opp != 0)				return oppDir;								//go straight.
+	else if( (oppRight==0) && (right==0)){
+		if(left!=0)				return leftDir;
+		else if(oppLeft!=0)		return oppLeftDir;
+		else if(inLeft!=0)		return inLeftDir;
+		else if(inRight!=0)		return inRightDir;
+	}else if( (oppLeft==0) && (left==0)){
+		if(right!=0)				return rightDir;
+		else if(oppRight!=0)		return oppRightDir;
+		else if(inRight!=0)			return inRightDir;
+		else if(inLeft!=0)			return inLeftDir;
+	}
+	return inDir;
+}
+#endif
 
 /*
  *	The function below is optional - commenting it in can be useful for debugging if you want to query

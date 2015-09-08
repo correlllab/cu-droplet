@@ -609,15 +609,18 @@ ISR( USARTE1_DRE_vect ) { ir_transmit(4); }
 ISR( USARTF0_RXC_vect ) { ir_receive(5); }
 ISR( USARTF0_TXC_vect ) { ir_transmit_complete(5); }
 ISR( USARTF0_DRE_vect ) { ir_transmit(5); }
-	
+
+#ifdef AUDIO_DROPLET
 static void inline on_demand_ir_meas(uint8_t dir){
 	ir_rxtx[dir].ir_meas[ir_rxtx[dir].curr_pos] =  (ir_sense_channels[dir]->RES-ir_sense_baseline[dir]);
 	ir_sense_channels[dir]->INTCTRL = ADC_CH_INTLVL_OFF_gc;
 }
-	
+
 ISR( ADCA_CH0_vect ) { on_demand_ir_meas(0); }
 ISR( ADCA_CH1_vect ) { on_demand_ir_meas(1); }
 ISR( ADCA_CH2_vect ) { on_demand_ir_meas(2); }
 ISR( ADCB_CH0_vect ) { on_demand_ir_meas(3); }
 ISR( ADCB_CH1_vect ) { on_demand_ir_meas(4); }
 ISR( ADCB_CH2_vect ) { on_demand_ir_meas(5); }	
+	
+#endif

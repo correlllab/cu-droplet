@@ -9,13 +9,27 @@
 #define LOOPS_PER_RNB			(RNB_BC_PERIOD_MS/LOOP_PERIOD_MS)
 #define GROUP_TIMEOUT_MS		40000
 #define MIN_GOODBYE_INTERVAL	10000
-#define NEIGHBORHOOD_SIZE		6
+#define NEIGHBORHOOD_SIZE		8
 
 typedef struct ball_bounce{
 	char flag;
 	uint16_t id;
 	uint8_t seqPos;
 }BallBounceMsg;
+
+typedef struct packed_bot_pos{
+	uint16_t id;
+	uint8_t rangeMM;
+	uint8_t rangeBearingPacked[3];
+}PackedBotPos;
+
+typedef struct pos_info{
+	char		flag;
+	uint16_t	IDs[6];
+	uint16_t	range[6];
+	uint16_t	bearing[6];
+	uint16_t	heading[6];
+}PosInfoMsg;
 
 typedef enum{
 	NOT_BALL,

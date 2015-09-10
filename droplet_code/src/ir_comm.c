@@ -4,14 +4,19 @@
 volatile uint16_t	cmd_length;
 volatile char		cmd_buffer[BUFFER_SIZE];
 
+//#define HARDCORE_DEBUG_DIR 1
+
 void clear_ir_buffer(uint8_t dir)
 {
 	#ifdef AUDIO_DROPLET
 		ir_sense_channels[dir]->INTCTRL = ADC_CH_INTLVL_OFF_gc;
 	#endif
-		
+	#ifdef HARDCORE_DEBUG_DIR
+		if(dir==HARDCORE_DEBUG_DIR) printf("\r\n");
+	#endif
 	ir_rxtx[dir].data_crc		= 0;
 	ir_rxtx[dir].sender_ID		= 0;
+	
 	ir_rxtx[dir].target_ID		= 0;	
 	ir_rxtx[dir].curr_pos		= 0;
 	ir_rxtx[dir].calc_crc		= 0;
@@ -181,6 +186,7 @@ void perform_ir_upkeep()
 					msg_node[num_waiting_msgs].arrival_dir = dir;
 					msg_node[num_waiting_msgs].sender_ID = ir_rxtx[dir].sender_ID;
 					msg_node[num_waiting_msgs].msg_length = ir_rxtx[dir].data_length;
+					msg_node[num_waiting_msgs].wasTargeted = !!(ir_rxtx[dir].status&IR_STATUS_TARGETED_bm);
 					#ifdef AUDIO_DROPLET
 						getIrCommRnBEst(&(msg_node[num_waiting_msgs].range),&(msg_node[num_waiting_msgs].bearing),&(msg_node[num_waiting_msgs].heading));
 					#endif
@@ -267,6 +273,7 @@ inline uint8_t all_ir_sends(uint8_t dirs_to_go, char* data, uint8_t data_length,
 
 	}
 	send_msg(dirs_to_go, data, data_length, 0);
+	//printf("Sent msg of length %hu at time%%10000: %u.\r\n", data_length, (uint16_t)(get_time()%10000));
     return 1;
 }
 
@@ -350,11 +357,13 @@ void ir_receive(uint8_t dir)
 	#ifdef AUDIO_DROPLET
 		ir_sense_channels[dir]->INTCTRL = ADC_CH_INTLVL_HI_gc;
 	#endif	
-	//if(dir==2)printf("%02hhx ", in_byte); //Used for debugging - prints raw bytes as we get them.
-
+	
 	uint32_t now = get_time();
-	if(now-ir_rxtx[dir].last_byte > IR_MSG_TIMEOUT)	clear_ir_buffer(dir);
+	if(now-ir_rxtx[dir].last_byte > IR_MSG_TIMEOUT)	clear_ir_buffer(dir);	
 	ir_rxtx[dir].last_byte = now;
+	#ifdef HARDCORE_DEBUG_DIR
+		if(dir==HARDCORE_DEBUG_DIR) printf("%02hhx ", in_byte); //Used for debugging - prints raw bytes as we get them.
+	#endif	
 	switch(ir_rxtx[dir].curr_pos)
 	{
 		case HEADER_POS_SENDER_ID_LOW:	ir_rxtx[dir].sender_ID		= (uint16_t)in_byte;		break;

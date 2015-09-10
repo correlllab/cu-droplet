@@ -90,6 +90,7 @@ void check_messages ()
 			msg_struct->range							= msg_node[i].range;
 			msg_struct->bearing							= msg_node[i].bearing;
 			msg_struct->heading							= msg_node[i].heading;
+			msg_struct->wasTargeted						= msg_node[i].wasTargeted;
 		}			
 		msg_struct->msg[msg_node[i].msg_length]	= '\0';		
 		num_waiting_msgs--;

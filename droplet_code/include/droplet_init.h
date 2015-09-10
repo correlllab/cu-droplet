@@ -11,7 +11,7 @@
 
 //#define INIT_DEBUG_MODE
 
-#ifdef INIT_DEBUG_MDOE
+#ifdef INIT_DEBUG_MODE
 #define INIT_DEBUG_PRINT(x) printf(x)
 #else
 #define INIT_DEBUG_PRINT(x)
@@ -73,6 +73,7 @@ typedef struct ir_msg_struct
 	uint8_t dir_received;	// Which side was this message received on?
 	uint8_t length;			// Message length.
 	uint8_t range;
+	uint8_t wasTargeted;
 } ir_msg;
 
 extern void init();

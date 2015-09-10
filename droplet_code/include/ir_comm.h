@@ -90,6 +90,7 @@ volatile struct
 	uint8_t		arrival_dir;
 	uint8_t		msg_length;
 	uint8_t		range;
+	uint8_t		wasTargeted;
 } msg_node[MAX_USER_FACING_MESSAGES];
 
 volatile uint8_t num_waiting_msgs;

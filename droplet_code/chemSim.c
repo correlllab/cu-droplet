@@ -103,7 +103,7 @@ void print_near_atoms()
 		//printf_P(PSTR("Atom: %c%c  Rng: %hu ID: %04X \r\n"), near_atoms[i].atom.name[0],near_atoms[i].atom.name[1], near_atoms[i].range, near_atoms[i].id);
 	//}
 	//
-	//printValence(myID.valence);
+	printValence(myID.valence);
 	//printf("\r\n");
 	//printf("\r\n");
 	printf_P(PSTR("\tBonded droplets: "));
@@ -436,10 +436,14 @@ void modify_valences_covalent(char* newValence, Atom* near_atom_ptr, uint16_t se
 		if(near_atom.valence[i] == 1 && near_atom.valence[i+1] == 0)	other_bonds++;
 		if(myID.valence[i] == 1 && myID.valence[i+1] == 0)				my_bonds++;
 	}
+	for(uint8_t i = 0; i < 4; i++) {
+		if(near_atom.bonded_atoms[i] == get_droplet_id()) other_bonds++;
+	}
 	if(my_bonds < other_bonds) total_bonds = my_bonds;
 	else total_bonds = other_bonds;
+	//total_bonds = 1;
 	//delay_ms(10);
-	//printf("Total Bonds: %hu\r\n", total_bonds);	
+	printf("Total Bonds: %hu\r\n", total_bonds);	
 	volatile uint8_t total_b_temp = total_bonds;
 	
 	if(total_bonds == 1)		type = 2;
@@ -467,6 +471,7 @@ void modify_valences_covalent(char* newValence, Atom* near_atom_ptr, uint16_t se
 			//printf("Decrementing total_bonds");
 		}
 	}
+	printValence(myID.valence);
 	//if(index == -1) printf_P(PSTR("ERROR: modify_valences_covalent called with no room in my valence shell \r\n"));
 	total_bonds = total_b_temp;
 	//Update free electrons and empty slots to be bonded in my partner's valence shell
@@ -550,12 +555,12 @@ void sendTargetedMsg(char* msg, uint8_t msgLength, uint16_t target)
 
 void formBond(uint16_t senderID, Atom* near_atom, char flag)
 {
-	//printf_P(PSTR("formBond \r\n"));
+	printf_P(PSTR("formBond \r\n"));
 	//Update near_atom's bonded flag
+	bonded_atoms_delay = get_time();
 	for(uint8_t k = 0; k < 12; k++)  {
 		if(near_atoms[k].id == senderID)  {
 			near_atoms[k].bonded = 1;
-			
 			break;
 		}
 	}
@@ -574,12 +579,11 @@ void formBond(uint16_t senderID, Atom* near_atom, char flag)
 
 	//printValence(newValence);
 	
-	printf("About to send formBond message.\r\n");
-	sendTargetedMsg(newValence, 9, senderID);
-	delay_ms(200);
+	//printf("About to send formBond message.\r\n");
+	//sendTargetedMsg(newValence, 9, senderID);
+	//delay_ms(200);
 	add_atom_to_molecule(senderID);
 	transmit_molecule_struct(0, 'm');	
-	bonded_atoms_delay = 0;
 }
 
 /*  Flag will be either 'i' for ionic bond or 'c' for covalent bond
@@ -588,7 +592,6 @@ void formBond(uint16_t senderID, Atom* near_atom, char flag)
 void makePossibleBonds(Atom* near_atom_ptr, char flag, int16_t deltaGother, int16_t deltaGother_p, int16_t deltaGother_m, uint16_t senderID)
 {
 	printf_P(PSTR("makePossibleBonds \r\n"));
-	bonded_atoms_delay = get_time();
 	Atom near_atom = *near_atom_ptr;
 	uint8_t my_orbs = 0; //number of orbitals that can form bonds in my valence shell
 	uint8_t other_orbs = 0; //number of orbitals that can form bonds in near_atom's valence shell
@@ -596,6 +599,9 @@ void makePossibleBonds(Atom* near_atom_ptr, char flag, int16_t deltaGother, int1
 	//float deltaChi;
 	//if(myID.chi > near_atom.chi) deltaChi = myID.chi - near_atom.chi;
 	//else deltaChi = near_atom.chi - myID.chi;
+	for(uint8_t i = 0; i < 4; i++)  {
+		if(near_atom.bonded_atoms[i] == get_droplet_id()) nearAtomBonded = 1;
+	}
 	
 	for(uint8_t i = 0; i < 8; i+=2) {
 		if(near_atom.valence[i] == 1 && near_atom.valence[i+1] == 0) other_orbs++;
@@ -615,9 +621,9 @@ void makePossibleBonds(Atom* near_atom_ptr, char flag, int16_t deltaGother, int1
 	//printf("self_monatomic: %hu other_monatomic: %hu \r\n", self_monatomic, other_monatomic);
 	if(!(self_monatomic && other_monatomic)) IMR_flag = IMR_test(&near_atom, deltaGother, deltaGother_p, deltaGother_m, senderID);
 	else IMR_flag = 'n';
-	//printf_P(PSTR("IMR_flag is %c \r\n"), IMR_flag);
+	printf_P(PSTR("IMR_flag is %c \r\n"), IMR_flag);
 	if (IMR_flag == 'x')  {
-		//printf_P(PSTR("BOND NOT FORMED: Delta G was unfavorable. \r\n"));
+		printf_P(PSTR("BOND NOT FORMED: Delta G was unfavorable. \r\n"));
 		return;
 	}
 	else if(IMR_flag == 'n')  { //If other checks hold, I need to break my current bonds, then bond to sender.
@@ -625,16 +631,16 @@ void makePossibleBonds(Atom* near_atom_ptr, char flag, int16_t deltaGother, int1
 			//printf("%x ", myID.bonded_atoms[i]);
 			//if(near_atom.bonded_atoms[i] == get_droplet_id()) nearAtomBonded = 1;
 			if(myID.bonded_atoms[i] == senderID)  {
-				//printf_P(PSTR("BOND NOT FORMED: sender of atom struct is already in my bonded_atoms. myID.bonded_atoms[i] = %x. senderID is %x. makePossibleBonds. \r\n"), myID.bonded_atoms[i], senderID);
+				printf_P(PSTR("BOND NOT FORMED: sender of atom struct is already in my bonded_atoms. myID.bonded_atoms[i] = %x. senderID is %x. makePossibleBonds. \r\n"), myID.bonded_atoms[i], senderID);
 				return; //this may not work when bonding gets more complicated
 			}
 		}
-		for(uint8_t i = 0; i < 6; i++) {
-			if(near_atom.bonded_atoms[i] == get_droplet_id())  {
-				//printf_P(PSTR("BOND NOT FORMED: self is in sender's bonded_atoms but sender is not in self's. A half-formed bond hasn't been corrected yet. \r\n"), myID.bonded_atoms[i], senderID);
-				return;
-			}
-		}
+		//for(uint8_t i = 0; i < 6; i++) {
+			//if(near_atom.bonded_atoms[i] == get_droplet_id())  {
+				////printf_P(PSTR("BOND NOT FORMED: self is in sender's bonded_atoms but sender is not in self's. A half-formed bond hasn't been corrected yet. \r\n"), myID.bonded_atoms[i], senderID);
+				//return;
+			//}
+		//}
 		my_orbs = 0;
 		Atom base_state = *(getAtomFromAtomicNum(myID.atomicNum));
 		for(uint8_t i = 0; i < 8; i+=2)  {
@@ -642,9 +648,9 @@ void makePossibleBonds(Atom* near_atom_ptr, char flag, int16_t deltaGother, int1
 		}
 		
 		//Check for no available orbitals
-		if(my_orbs == 0 || other_orbs == 0) {
-			//if(my_orbs == 0) printf_P(PSTR("BOND NOT FORMED: I have no empty orbitals. makePossibleBonds. \r\n"));
-			//else printf_P(PSTR("BOND NOT FORMED: Sender has no empty orbitals. makePossibleBonds. \r\n"));
+		if(my_orbs == 0 && (other_orbs == 0 && !nearAtomBonded)) {
+			if(my_orbs == 0) printf_P(PSTR("BOND NOT FORMED: I have no empty orbitals. makePossibleBonds. \r\n"));
+			else printf_P(PSTR("BOND NOT FORMED 1: Sender has no empty orbitals. makePossibleBonds. \r\n"));
 			return;
 		}
 		//If neither of these checks are hit, break all my bonds and bond to sender.
@@ -661,8 +667,8 @@ void makePossibleBonds(Atom* near_atom_ptr, char flag, int16_t deltaGother, int1
 		
 		if(flag == 'i') { //Ionic bond
 			if(near_atom.bondType == 2 || myID.bondType == 2) {
-				//if(near_atom.bondType == 2) printf_P(PSTR("BOND NOT FORMED: sender is already bonded covalently and I'm ionic. makePossibleBonds. \r\n"));
-				//else printf_P(PSTR("BOND NOT FORMED: I am already bonded covalently and sender is ionic. makePossibleBonds. \r\n"));
+				if(near_atom.bondType == 2) printf_P(PSTR("BOND NOT FORMED: sender is already bonded covalently and I'm ionic. makePossibleBonds. \r\n"));
+				else printf_P(PSTR("BOND NOT FORMED: I am already bonded covalently and sender is ionic. makePossibleBonds. \r\n"));
 				return;
 			}
 			//How do I check if there's more than one type of cation to each anion?
@@ -670,17 +676,19 @@ void makePossibleBonds(Atom* near_atom_ptr, char flag, int16_t deltaGother, int1
 				formBond(senderID, &near_atom, 'i');
 				return;
 			}
+			else printf("Blargh! \r\n");
 		}
 		else if (flag == 'c') {
 			if(near_atom.bondType == 1 || myID.bondType == 1) {
-				//if(near_atom.bondType == 1) printf_P(PSTR("BOND NOT FORMED: sender is already bonded ionically and I'm covalent. makePossibleBonds. \r\n"));
-				//else printf_P(PSTR("BOND NOT FORMED: I am already bonded ionically and sender is covalent. makePossibleBonds. \r\n"));
+				if(near_atom.bondType == 1) printf_P(PSTR("BOND NOT FORMED: sender is already bonded ionically and I'm covalent. makePossibleBonds. \r\n"));
+				else printf_P(PSTR("BOND NOT FORMED: I am already bonded ionically and sender is covalent. makePossibleBonds. \r\n"));
 				return;
 			}
-			if(my_orbs != 0 && (other_orbs != 0 || nearAtomBonded == 1) && myID.chi > 1.70) {
+			if(my_orbs != 0 && (other_orbs != 0 || nearAtomBonded == 1)) {
 				formBond(senderID, &near_atom, 'c');
 				return;
 			}
+			else printf("Blargh! \r\n");
 		}
 	}
 	else if(IMR_flag == 'f')  {
@@ -688,16 +696,16 @@ void makePossibleBonds(Atom* near_atom_ptr, char flag, int16_t deltaGother, int1
 			//printf("%x ", myID.bonded_atoms[i]);
 			//if(near_atom.bonded_atoms[i] == get_droplet_id()) nearAtomBonded = 1;
 			if(myID.bonded_atoms[i] == senderID)  {
-				//printf_P(PSTR("BOND NOT FORMED: sender of atom struct is already in my bonded_atoms. myID.bonded_atoms[i] = %x. senderID is %x. makePossibleBonds. \r\n"), myID.bonded_atoms[i], senderID);
-				return; //this may not work when bonding gets more complicated
+				printf_P(PSTR("BOND NOT FORMED: sender of atom struct is already in my bonded_atoms. myID.bonded_atoms[i] = %x. senderID is %x. makePossibleBonds. \r\n"), myID.bonded_atoms[i], senderID);
+				return; 
 			}
 		}
-		for(uint8_t i = 0; i < 6; i++) {
-			if(near_atom.bonded_atoms[i] == get_droplet_id())  {
-				//printf_P(PSTR("BOND NOT FORMED: self is in sender's bonded_atoms but sender is not in self's. A half-formed bond hasn't been corrected yet. \r\n"), myID.bonded_atoms[i], senderID);
-				return;
-			}
-		}
+		//for(uint8_t i = 0; i < 6; i++) {
+			//if(near_atom.bonded_atoms[i] == get_droplet_id())  {
+				////printf_P(PSTR("BOND NOT FORMED: self is in sender's bonded_atoms but sender is not in self's. A half-formed bond hasn't been corrected yet. \r\n"), myID.bonded_atoms[i], senderID);
+				//return;
+			//}
+		//}
 		other_orbs = 0;
 		Atom o_base_state = *(getAtomFromAtomicNum(near_atom.atomicNum));
 		for(uint8_t i = 0; i < 8; i+=2)  {
@@ -705,15 +713,16 @@ void makePossibleBonds(Atom* near_atom_ptr, char flag, int16_t deltaGother, int1
 		}
 		
 		//Check for no available orbitals
-		if(my_orbs == 0 || other_orbs == 0) {
-			//if(my_orbs == 0) printf_P(PSTR("BOND NOT FORMED: I have no empty orbitals. makePossibleBonds. \r\n"));
-			//else printf_P(PSTR("BOND NOT FORMED: Sender has no empty orbitals. makePossibleBonds. \r\n"));
+		if(my_orbs == 0 && (other_orbs == 0 || nearAtomBonded == 1)) {
+			if(my_orbs == 0) printf_P(PSTR("BOND NOT FORMED: I have no empty orbitals. makePossibleBonds. \r\n"));
+			else printf_P(PSTR("BOND NOT FORMED 2: Sender has no empty orbitals. makePossibleBonds. nearAtomBonded = %hu \r\n"),nearAtomBonded);
 			return;
 		}
 		//Tell other to break all bonds then bond to me.
 		State_Msg msg;
 		create_state_message(&msg, 'm');
 		sendTargetedMsg((char*)(&msg), sizeof(State_Msg), senderID);
+		formBond(senderID, &near_atom, flag);
 	}
 }
 
@@ -1317,9 +1326,17 @@ void create_state_message(State_Msg* msg, char flag)
 	uint8_t my_stability = calculate_my_stability();
 	msg->bondType = (myID.bondType&3) | (my_stability<<2);
 	msg->msgFlag = flag;	
-	for(uint8_t i = 0; i < my_molecule_length; i++)  {
+	msg->molecule_nums[0] = myID.atomicNum;
+	for(uint8_t x = 1; x < 15; x++) {
+		msg->molecule_nums[x] = 0;
+	}
+	for(uint8_t k = 1; k < my_molecule_length; k++)  {
 		for(int8_t j = 0; j < 12; j++)  {
-			if(near_atoms[j].id == my_molecule[i]) msg->molecule_nums[i] = near_atoms[j].atom.atomicNum;
+			//printf("csm: k = %hu && near_atoms[j].atomicNum = %hu \r\n", k, near_atoms[j].atom.atomicNum);
+			if(near_atoms[j].id == my_molecule[k])  {
+				msg->molecule_nums[k] = near_atoms[j].atom.atomicNum;
+				//printf("csm: msg->molecule_nums[k] = %hu && near_atoms[j].atomicNum = %hu \r\n", msg->molecule_nums[k], near_atoms[j].atom.atomicNum);
+			}
 		}
 	}
 }
@@ -1348,7 +1365,7 @@ void msgPossibleBond(ir_msg* msg_struct)
 
 void msgBondedAtoms(uint16_t* recast_bonded_atoms, uint16_t new_blink, uint16_t sender_ID)
 {
-	//printf_P(PSTR("msgBondedAtoms. Sender: %04x \r\n"), sender_ID);
+	printf_P(PSTR("msgBondedAtoms. Sender: %04x \r\n"), sender_ID);
 	//Check to see if I'm bonded to the droplet who just sent me his bonded_atoms array
 	uint8_t senderIDFound = 0;
 	uint8_t myIdFound = 0;
@@ -1374,10 +1391,10 @@ void msgBondedAtoms(uint16_t* recast_bonded_atoms, uint16_t new_blink, uint16_t 
 		}
 	}
 	if(!(myIdFound || senderIDFound)) {
-		//printf_P(PSTR("I'm not bonded to sender and sender isn't bonded to me.\r\n"));
+		printf_P(PSTR("I'm not bonded to sender and sender isn't bonded to me.\r\n"));
 	}
 	else if(myIdFound == 1 && senderIDFound == 0 && bonded_atoms_delay == 0)  {
-		//printf_P(PSTR("BOND ERROR: %x is bonded to me but I'm not bonded to him. Sending bonded_atoms. \r\n"), sender_ID);
+		printf_P(PSTR("BOND ERROR: %x is bonded to me but I'm not bonded to him. Sending bonded_atoms. \r\n"), sender_ID);
 		State_Msg message;
 		create_state_message(&message, 'b');
 		sendTargetedMsg((char*)(&message), sizeof(State_Msg), sender_ID);
@@ -1567,6 +1584,32 @@ char IMR_test(Atom* near_atom, int16_t deltaGother, int16_t deltaGother_p, int16
 	else return 'x';  //for "no reaction at all"
 }
 
+void get_other_delta_Gs(uint8_t *mc, uint8_t mc_length, int16_t deltaGother, int16_t deltaGother_p, int16_t deltaGother_m)
+{
+	uint8_t mc_plus[mc_length+1];
+	uint8_t mc_minus[mc_length-1];
+	for(uint8_t i = 0; i < mc_length; i++) {
+		//printf("mc[i] is %hu \r\n", mc[i]);
+		mc_plus[i] = mc[i];
+		if(i != mc_length-1) mc_minus[i] = mc[i+1];
+	}
+	mc_plus[mc_length] = myID.atomicNum;
+	if(!molecule_search(mc, &deltaGother, mc_length))  {
+		printf_P(PSTR("deltaGother not found. \r\n"));
+		//deltaGself = convert_stability_to_deltaG(stability);
+	}
+	if(!molecule_search(mc_plus, &deltaGother_p, mc_length+1))	{
+		printf_P(PSTR("deltaGother_p not found. \r\n"));
+		//int16_t s = add_atom_to_stability(sender, stability, my_molecule_length);
+		//deltaGself_p = convert_stability_to_deltaG(s);
+	}
+	if(!molecule_search(mc_minus, &deltaGother_m, mc_length-1))  {
+		printf_P(PSTR("deltaGother_m not found. \r\n"));
+		//int16_t n_s = remove_atom_from_stability(sender, stability, my_molecule_length);
+		//deltaGself_m = convert_stability_to_deltaG(n_s);
+	}
+}
+
 void msgState(ir_msg* msg_struct)
 {
 	State_Msg state;
@@ -1587,12 +1630,26 @@ void msgState(ir_msg* msg_struct)
 	for(uint8_t i = 0; i < 15; i++) if(state.molecule_nums[i] != 0) count++;
 	if(state.msgFlag == 'm') break_and_form_bonds(&near_atom, msg_struct->sender_ID);
 	uint8_t bonded = 0;
-	for(uint8_t i = 0; i < 4; i++) if(myID.bonded_atoms[i] == msg_struct->sender_ID) bonded = 1;
-	if(!bonded) sendPossibleBondMsg(&near_atom,  msg_struct->sender_ID);
+	for(uint8_t i = 0; i < 4; i++) {
+		if(myID.bonded_atoms[i] == msg_struct->sender_ID) {
+			printf("in msgState, bonded to sender, not calling makePoss \r\n");
+			bonded = 1;
+		}
+	}
+	float deltaChi = fabsf(myID.chi - near_atom.chi);
+	char flag;
+	if(deltaChi > 1.70) flag = 'i';
+	else flag = 'c';
+	int16_t dGo;
+	int16_t dGo_p;
+	int16_t dGo_m;
+	get_other_delta_Gs(state.molecule_nums, count, dGo, dGo_p, dGo_m);
+	if(!bonded) makePossibleBonds(&near_atom, flag, dGo, dGo_p, dGo_m, msg_struct->sender_ID);  //sendPossibleBondMsg(&near_atom,  msg_struct->sender_ID);
 	uint8_t found = 0;
 	for (uint8_t i = 0; i < 15; i++) if(my_molecule[i] == msg_struct->sender_ID) found = 1;
 	if(found)  update_stability();
-	if(bonded_atoms_delay == 0 && bonded)  {
+	printf("****************************************************msgState: bonded_atoms_delay = %u \r\n", bonded_atoms_delay);
+	if(bonded_atoms_delay == 0)  {
 		msgBondedAtoms(state.bonded_atoms, state.blink_timer, msg_struct->sender_ID);
 	}
 	for(uint8_t i = 0; i < 4; i++) if(msg_struct->sender_ID == myID.bonded_atoms[i]) return;

@@ -665,6 +665,12 @@ void makePossibleBonds(Atom* near_atom_ptr, char flag, int16_t deltaGother, int1
 			}
 		}
 		
+		//AUDREY LOOK HERE
+		my_orbs = 0;
+		for(uint8_t i = 0; i < 8; i+=2)  {
+			if(base_state.valence[i] == 1 && base_state.valence[i+1] == 0) my_orbs++;
+		}		
+		
 		if(flag == 'i') { //Ionic bond
 			if(near_atom.bondType == 2 || myID.bondType == 2) {
 				if(near_atom.bondType == 2) printf_P(PSTR("BOND NOT FORMED: sender is already bonded covalently and I'm ionic. makePossibleBonds. \r\n"));
@@ -1531,7 +1537,6 @@ void update_delta_Gs(Atom* near_atom, uint16_t sender) {
 	uint8_t mc_self_p[my_molecule_length+1];
 	uint8_t mc_self_m[my_molecule_length-1];
 	mc_self[0] = myID.atomicNum;
-	mc_self_m[0] = myID.atomicNum;
 	mc_self_p[0] = myID.atomicNum;
 	for(uint8_t i = 1; i < my_molecule_length; i++)  {
 		if(getAtomicNumFromID(my_molecule[i]) == 0)  {
@@ -1540,23 +1545,26 @@ void update_delta_Gs(Atom* near_atom, uint16_t sender) {
 		}
 		mc_self_p[i] = getAtomicNumFromID(my_molecule[i]);
 		mc_self[i] = getAtomicNumFromID(my_molecule[i]);
-		if(i != my_molecule_length-1) mc_self_m[i] = getAtomicNumFromID(my_molecule[i]);
+		mc_self_m[i-1] = getAtomicNumFromID(my_molecule[i]);
 	}
 	mc_self_p[my_molecule_length] = near_atom->atomicNum;
 	
 	if(!molecule_search(mc_self, &deltaGself, my_molecule_length))  {
 		//printf_P(PSTR("deltaGself using stability. \r\n"));
-		deltaGself = convert_stability_to_deltaG(stability);
+		//deltaGself = convert_stability_to_deltaG(stability);
+		deltaGself = 32767;
 	}
 	if(!molecule_search(mc_self_p, &deltaGself_p, my_molecule_length+1))	{
 		//printf_P(PSTR("deltaGself_p using stability. \r\n"));
-		int16_t s = add_atom_to_stability(sender, stability, my_molecule_length);
-		deltaGself_p = convert_stability_to_deltaG(s);
+		//int16_t s = add_atom_to_stability(sender, stability, my_molecule_length);
+		//deltaGself_p = convert_stability_to_deltaG(s);
+		deltaGself_p = 32767;
 	}
 	if(!molecule_search(mc_self_m, &deltaGself_m, my_molecule_length-1))  {
 		//printf_P(PSTR("deltaGself_m using stability. \r\n"));
-		int16_t n_s = remove_atom_from_stability(sender, stability, my_molecule_length);
-		deltaGself_m = convert_stability_to_deltaG(n_s);
+		//int16_t n_s = remove_atom_from_stability(sender, stability, my_molecule_length);
+		//deltaGself_m = convert_stability_to_deltaG(n_s);
+		deltaGself_m = 32767;
 	}
 }
 
@@ -1584,7 +1592,7 @@ char IMR_test(Atom* near_atom, int16_t deltaGother, int16_t deltaGother_p, int16
 	else return 'x';  //for "no reaction at all"
 }
 
-void get_other_delta_Gs(uint8_t *mc, uint8_t mc_length, int16_t deltaGother, int16_t deltaGother_p, int16_t deltaGother_m)
+void get_other_delta_Gs(uint8_t *mc, uint8_t mc_length, int16_t* deltaGother, int16_t* deltaGother_p, int16_t* deltaGother_m)
 {
 	uint8_t mc_plus[mc_length+1];
 	uint8_t mc_minus[mc_length-1];
@@ -1594,19 +1602,22 @@ void get_other_delta_Gs(uint8_t *mc, uint8_t mc_length, int16_t deltaGother, int
 		if(i != mc_length-1) mc_minus[i] = mc[i+1];
 	}
 	mc_plus[mc_length] = myID.atomicNum;
-	if(!molecule_search(mc, &deltaGother, mc_length))  {
+	if(!molecule_search(mc, deltaGother, mc_length))  {
 		printf_P(PSTR("deltaGother not found. \r\n"));
-		//deltaGself = convert_stability_to_deltaG(stability);
+		*deltaGother = 32767;
+		//deltaGother = convert_stability_to_deltaG(stability);
 	}
-	if(!molecule_search(mc_plus, &deltaGother_p, mc_length+1))	{
+	if(!molecule_search(mc_plus, deltaGother_p, mc_length+1))	{
 		printf_P(PSTR("deltaGother_p not found. \r\n"));
 		//int16_t s = add_atom_to_stability(sender, stability, my_molecule_length);
-		//deltaGself_p = convert_stability_to_deltaG(s);
+		//deltaGother_p = convert_stability_to_deltaG(s);
+		*deltaGother_p = 32767;
 	}
-	if(!molecule_search(mc_minus, &deltaGother_m, mc_length-1))  {
+	if(!molecule_search(mc_minus, deltaGother_m, mc_length-1))  {
 		printf_P(PSTR("deltaGother_m not found. \r\n"));
 		//int16_t n_s = remove_atom_from_stability(sender, stability, my_molecule_length);
-		//deltaGself_m = convert_stability_to_deltaG(n_s);
+		//deltaGother_m = convert_stability_to_deltaG(n_s);
+		*deltaGother_m = 32767;
 	}
 }
 
@@ -1643,12 +1654,12 @@ void msgState(ir_msg* msg_struct)
 	int16_t dGo;
 	int16_t dGo_p;
 	int16_t dGo_m;
-	get_other_delta_Gs(state.molecule_nums, count, dGo, dGo_p, dGo_m);
+	get_other_delta_Gs(state.molecule_nums, count, &dGo, &dGo_p, &dGo_m);
 	if(!bonded) makePossibleBonds(&near_atom, flag, dGo, dGo_p, dGo_m, msg_struct->sender_ID);  //sendPossibleBondMsg(&near_atom,  msg_struct->sender_ID);
 	uint8_t found = 0;
 	for (uint8_t i = 0; i < 15; i++) if(my_molecule[i] == msg_struct->sender_ID) found = 1;
 	if(found)  update_stability();
-	printf("****************************************************msgState: bonded_atoms_delay = %u \r\n", bonded_atoms_delay);
+	printf("****************************************************msgState: bonded_atoms_delay = %lu \r\n", bonded_atoms_delay);
 	if(bonded_atoms_delay == 0)  {
 		msgBondedAtoms(state.bonded_atoms, state.blink_timer, msg_struct->sender_ID);
 	}
@@ -1804,6 +1815,15 @@ void returnLightToDefault(){
 void loop()
 {
 	delay_ms(LOOP_PERIOD);
+	uint32_t time_floor = ((get_time()/LOOP_PERIOD));
+	if(global_blink_timer!=0)
+	{
+		if( (time_floor%(BLINK_PERIOD/LOOP_PERIOD)) == ((global_blink_timer/LOOP_PERIOD)%(BLINK_PERIOD/LOOP_PERIOD)) )
+		{
+			set_rgb(255, 0, 0);
+			schedule_task(300, returnLightToDefault, NULL);
+		}
+	}
 	//if((get_time()-light_start)<=LOOP_PERIOD) setAtomColor(&myID);
 	//broadcastChemID(myID);
 	if((get_time()-bondDelay) > 1000) {
@@ -1816,7 +1836,6 @@ void loop()
 	if((get_time()-bonded_atoms_delay) > 4000) {
 		bonded_atoms_delay = 0;
 	}
-	uint32_t time_floor = ((get_time()/LOOP_PERIOD));
 	//if((time_floor%(DETECT_OTHER_DROPLETS_PERIOD/LOOP_PERIOD))==0){
 		////detectOtherDroplets();
 	//}	

@@ -8,7 +8,8 @@ enum States
     WALK_FORWARD,
     WALK_BACKWARD,
 	TURN_RIGHT,
-	TURN_LEFT
+	TURN_LEFT,
+	LED_ON
 };
 
 enum Adjusts

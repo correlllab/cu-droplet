@@ -3,8 +3,8 @@
 #include <avr/io.h>
 #include "droplet_init.h"
 
-#define FFSYNC_FULL_PERIOD_MS		2000
-#define FFSYNC_REFR_PERIOD_MS		150
+#define FFSYNC_FULL_PERIOD_MS		2333
+#define FFSYNC_REFR_PERIOD_MS		221
 #define FFSYNC_TRANSMIT_DELAY_MS	16
 
 #define FFSYNC_MS_CONVERSION_FACTOR 7.8125
@@ -30,3 +30,5 @@ inline void update_firefly_counter()
 	if(the_count>FFSYNC_REFR_PERIOD)
 	TCE0.CNT =  (uint16_t)(fmin(FIREFLY_SYNC_ALPHA * the_count/FFSYNC_FULL_PERIOD + FIREFLY_SYNC_BETA, 1.) * ((float)FFSYNC_FULL_PERIOD));
 }
+
+volatile uint32_t lightStart;

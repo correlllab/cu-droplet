@@ -3,7 +3,6 @@
 
 void firefly_sync_init()
 {
-	
 	EVSYS.CH0MUX = EVSYS_CHMUX_PRESCALER_4096_gc;
 	
 	TCE0.CTRLA = TC_CLKSEL_EVCH0_gc;
@@ -51,8 +50,8 @@ ISR(TCE0_OVF_vect)
 		else if(change<-FFSYNC_MAX_DEVIATION) OSC.RC32KCAL--;
 	}
 	hp_ir_cmd(ALL_DIRS, NULL, 0);
-	//set_rgb(255,255,255);		
-	//light_start = get_time();
+	set_rgb(255,255,255);		
+	lightStart = get_time();
 	//printf("Delta Count: %d\r\n",change);
 
 }

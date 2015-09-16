@@ -106,6 +106,7 @@ int16_t deltaGself;		//my molecule's deltaG
 int16_t deltaGself_p;	//my molecule's deltaG if the atom I'm talking to were to bond with me
 int16_t deltaGself_m;	//my molecule's deltaG without me
 Atom myID;
+float target_bearing_to_me;
 
 void init();
 void loop();
@@ -118,9 +119,12 @@ void add_to_bonded_atoms(uint16_t ID, uint8_t index, uint8_t num_bonds);
 //void add_to_my_orbitals(uint16_t ID, uint8_t num_bonds);
 void add_to_near_atoms();
 //void broadcastChemID(Atom ID);
-void break_bond(uint16_t sender_ID);
+void break_bond(Atom* near_atom, uint16_t sender_ID);
 uint8_t calculate_my_stability();
-void calculate_path(float target, uint16_t ID);
+void calculate_path(float target, uint16_t range, float bearing);
+void calculate_target(Atom* nearAtom, uint16_t range, float bearing);
+uint8_t cleanOtherMolecule(Atom* near_atom, uint8_t* dirtyMolecule, uint8_t* cleanMolecule, uint8_t count);
+int comparison(uint8_t* aPtr, uint8_t* bPtr);
 uint8_t convert_bearing_to_IR_dir(float bearing);
 void convert_IR_dir_to_array(uint8_t dirs, uint8_t* bits);
 void create_state_message(State_Msg* msg, char flag);
@@ -141,17 +145,17 @@ void match_molecule(uint16_t* other_molecule, uint8_t length, uint16_t exclude_i
 void modify_valences_ionic(char* newValence, Atom* near_atom_ptr, uint16_t senderID);
 void modify_valences_covalent(char* newValence, Atom* near_atom_ptr, uint16_t senderID);
 void move_to_target(uint16_t rng, float bearing);
-void msgBondedAtoms(uint16_t* recast_bonded_atoms, uint16_t new_blink, uint16_t sender_ID);
+void msgBondedAtoms(Atom* near_atom, uint16_t new_blink, uint16_t sender_ID);
 void msgBondMade(ir_msg* msg_struct, char flag);
 //void msgContactFirst(uint16_t senderID);
 //void msgContactSecond(char* msg, uint16_t senderID);
-void msgOrbital(uint16_t* other_bonded_atoms, uint16_t senderID);
+//void msgOrbital(uint16_t* other_bonded_atoms, uint16_t senderID);
 void msgPossibleBond(ir_msg* msg_struct);
 void msgState(ir_msg* msg_struct);
 char IMR_test(Atom* near_atom, int16_t deltaGother, int16_t deltaGother_p, int16_t deltaGother_m, uint16_t senderID);
 uint8_t* orbital_order(uint8_t *valence);
 void pack_valences(uint8_t* packed_shells, int8_t* shells);
-void print_near_atoms();
+void print_bonded_atoms();
 void printValence(int8_t valence[]);
 void remove_atom_from_molecule(uint16_t atom_id);
 void repairBondedAtoms();
@@ -162,6 +166,7 @@ void transmit_molecule_struct(uint16_t exclude_id, char flag);
 void unpack_valences(uint8_t* packed_shells, int8_t* shells);
 void update_delta_Gs();
 void update_molecule(uint16_t* atNums, uint8_t length, uint16_t sender);
+void update_molecule_two(Atom* near_atom, uint16_t senderID);
 void update_near_atoms(Atom* near_atom, ir_msg* msg_struct);
 void update_stability();
 uint8_t valenceState();

@@ -15,9 +15,9 @@
  *          DIR3: 0b00001000 = 0x08     (7 o'clock)       /                \
  *          DIR4: 0b00010000 = 0x10     (9 o'clock)      | DIR4        DIR1 |
  *          DIR5: 0b00100000 = 0x20     (11 o'clock)      \    	           /
- *          ALL_DIRS: 0b00111111 = 0x3F  	           	   \DIR3      DIR2/
- *														    \            /
- *	            					   					      -_________-
+ *          ALL_DIRS: 0b00111111 = 0x3F                    \DIR3      DIR2/
+ *                                                          \            /
+ *                                                            -_________-
  *
  *      If you wanted a dir mask for directions 1 and 4, say, you could just write:
  *          (DIR1|DIR4)

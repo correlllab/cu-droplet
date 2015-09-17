@@ -1,7 +1,7 @@
 // SUPER AWESOME DROPLET API!
 
 /* 
- *  IR Directions:
+ *  IR (Infrared) Directions:
  *      For several different IR functions, we use a 'dir mask', a single byte
  *      (ie, uint8_t) which can mark each of the six directions as 'on' or 'off'. 
  *      A few values are defined in the code to make using these dir_masks easier. 
@@ -9,13 +9,16 @@
  *      a 12-hour clock face, with the arrow on the shell at 12 o'clock. With 
  *      this, each direction has the hour position on the clock which corresponds 
  *      with that direction.
- *          DIR0: 0b00000001 = 0x01     (1 o'clock)
- *          DIR1: 0b00000010 = 0x02     (3 o'clock)
- *          DIR2: 0b00000100 = 0x04     (5 o'clock)
- *          DIR3: 0b00001000 = 0x08     (7 o'clock)
- *          DIR4: 0b00010000 = 0x10     (9 o'clock)
- *          DIR5: 0b00100000 = 0x20     (11 o'clock)
- *          ALL_DIRS: 0b00111111 = 0x3F
+ *          DIR0: 0b00000001 = 0x01     (1 o'clock)           _--------_
+ *          DIR1: 0b00000010 = 0x02     (3 o'clock)         /            \
+ *          DIR2: 0b00000100 = 0x04     (5 o'clock)        /DIR5     DIR0 \
+ *          DIR3: 0b00001000 = 0x08     (7 o'clock)       /                \
+ *          DIR4: 0b00010000 = 0x10     (9 o'clock)      | DIR4        DIR1 |
+ *          DIR5: 0b00100000 = 0x20     (11 o'clock)      \    	           /
+ *          ALL_DIRS: 0b00111111 = 0x3F  	           	   \DIR3      DIR2/
+ *														    \            /
+ *	            					   					      -_________-
+ *
  *      If you wanted a dir mask for directions 1 and 4, say, you could just write:
  *          (DIR1|DIR4)
  */
@@ -54,24 +57,37 @@ uint8_t ir_send(uint8_t dir_mask, char* data, uint8_t data_length);
 uint8_t ir_targeted_send(uint8_t dir_mask, char *data, uint16_t data_length, uint16_t target);
 
 
-// RGB LED
+/*
+ * Functions below are used to set the intensity of the red, green, and blue
+ * LEDs respectively. Range is 0-255. Setting an LED to 0 turns it off.
+ */
+void set_red_led(uint8_t intensity); 
+void set_green_led(uint8_t intensity);
+void set_blue_led(uint8_t intensity);
+
+/*
+ * These functions are used to get the intensity that the red, green, or blue
+ * LED was last set to.
+ */
 uint8_t get_red_led();
-void set_red_led(uint8_t saturation);
-uint8_t get_blue_led();
-void set_blue_led(uint8_t saturation);
 uint8_t get_green_led();
-void set_green_led(uint8_t saturation);
+uint8_t get_blue_led();
 void led_off();
+
+/*
+ * This function simply calls set_red_led, set_green_led, and set_blue_led with
+ * the values passed it. If r=g=b, the light will be white.
+ */
 void set_rgb(uint8_t r, uint8_t g, uint8_t b);
 /*
  *  set_hsv simply calls set_rgb, after performing a color conversion
- *  from hsv color space to rgb color space.
+ *  from hsv color space to rgb color space. For more information on HSV
+ * color space, see: wikipedia.org/wiki/HSL_and_HSV
  *  h:  The hue. Should be between 0 and 360.
  *  s:  Saturation. Should be between 0 (0%) and 255 (100%)
  *  v:  Value, or Brightness. Should be beteen 0 (0%) and 255 (100%)
  */
 void set_hsv(uint16_t h, uint8_t s, uint8_t v);
-
 
 /*
  *  You should pass this function pointers to uint16_ts where the
@@ -135,6 +151,7 @@ collect_rnb_data(uint8_t power);
 uint8_t	move_steps(uint8_t direction, uint16_t num_steps);
 void walk(uint8_t direction, uint16_t mm);
 void stop();
+
 //This function returns -1 if the Droplet is not moving, or the direction 
 //the Droplet is moving in otherwise.
 int8_t is_moving(void);
@@ -145,7 +162,14 @@ int8_t leg_status(uint8_t leg);
 uint8_t legs_powered();
 
 // Utilities
-uint8_t rand_byte()
+/*
+ * This function returns a single, psuedorandom byte, uniformly distributed between 0 and 255 inclusive.
+ */
+uint8_t rand_byte();
+/*
+ * Every droplet has a unique, sixteen-bit ID number. 
+ * This function returns the ID number of the Droplet which calls it.
+ */
 uint16_t get_droplet_id();
 
 // Scheduler
@@ -157,3 +181,4 @@ uint32_t get_time();
 
 // Initialization
 void droplet_reboot();
+

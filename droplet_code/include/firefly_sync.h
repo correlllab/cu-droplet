@@ -25,7 +25,6 @@ void firefly_sync_init();
 
 inline void update_firefly_counter()
 {
-	//printf("<-\r\n");
 	uint16_t the_count = TCE0.CNT;
 	if(the_count>FFSYNC_REFR_PERIOD)
 	TCE0.CNT =  (uint16_t)(fmin(FIREFLY_SYNC_ALPHA * the_count/FFSYNC_FULL_PERIOD + FIREFLY_SYNC_BETA, 1.) * ((float)FFSYNC_FULL_PERIOD));

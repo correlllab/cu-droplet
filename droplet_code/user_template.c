@@ -1,16 +1,20 @@
 //#include "user_template.h"
 //
-//
-//int comparison(uint8_t* aPtr, uint8_t* bPtr){
-	//uint8_t a = *aPtr;
-	//uint8_t b = *bPtr;
-	//if(a<b){
-		//return 1;
-	//}else if(a==b){
-		//return 0;
-	//}else if(a>b){
-		//return -1;
+//uint8_t getFixedIndex(uint16_t id){
+	//switch(id){
+		//case 0xA0D8: return 0;
+		//case 0xCBAB: return 1;
+		//case 0xDF64: return 2;
+		//case 0xBC63: return 3;
+		//case 0xC32D: return 4;
+		//case 0xB561: return 5;
+		//case 0x896F: return 6;
+		//case 0xDD21: return 7;
 	//}
+	//printf("ERROR: Unexpected RNB ID: %04X\r\n",id);
+	////set_rgb(255,0,255);
+	////delay_ms(2000);
+	//return 255;
 //}
 //
 ///*
@@ -18,25 +22,7 @@
  //*/
 //void init()
 //{
-	//printf("Hello!\r\n");
-	//uint8_t cleanMolecule[15] = {0,6,0,0,6,0,0,0,6,0,0,0,0,0,0};
-	//qsort(cleanMolecule, 15, 1, comparison);
-	////uint8_t swapped=0;
-	////do{
-		////swapped=0;
-		////for(uint8_t i=0;i<14;i++){
-			////if(cleanMolecule[i]==0){
-				////cleanMolecule[i]=cleanMolecule[i+1];
-				////cleanMolecule[i+1]=0;
-				////swapped=1;
-			////}
-		////}
-	////}while(swapped);
-	//printf("After:\t");
-	//for(uint8_t i=0;i<15;i++){
-		//printf("%hu ", cleanMolecule[i]);
-	//}
-	//printf("\r\n");
+	//set_rgb(30,0,35);
 //}
 //
 ///*
@@ -44,7 +30,13 @@
  //*/
 //void loop()
 //{
-//
+	//uint32_t time_floor = (get_time()/300);
+	//if(((time_floor+6*getFixedIndex(get_droplet_id()))%50)==0){
+		//set_rgb(30,0,35);
+		//broadcast_rnb_data();
+	//}else{
+		//delay_ms(300);	
+	//}
 //}
 //
 ///*

@@ -1812,27 +1812,6 @@ void msgState(ir_msg* msg_struct)
 		msgBondedAtoms(&near_atom, state.blink_timer, msg_struct->sender_ID);
 	}
 	update_target_id();
-	if(target_id==msg_struct->sender_ID){
-		////uint16_t mmRange;
-		////if(msg_struct->range==0xFF)			mmRange = 100;
-		////else if(msg_struct->range==0x01)	mmRange = 40;
-		////else								mmRange = 25;
-		////calculate_target(&near_atom, mmRange, msg_struct->bearing);
-		//
-		//if(myXPos!=0x7FFF&&near_atoms[nearAtomsIdx].xPos!=0x7FFF){
-			//uint16_t range = (uint16_t)hypotf(near_atoms[nearAtomsIdx].xPos-myXPos,near_atoms[nearAtomsIdx].yPos-myYPos);
-			//float heading = near_atoms[nearAtomsIdx].orient- myOrient;			
-			//float bearing = heading+atan2(near_atoms[nearAtomsIdx].yPos-myYPos,near_atoms[nearAtomsIdx].xPos-myXPos)-M_PI_2;
-//
-			//printf("About to calculate target with R: %hu\tB: %f\tH: %f\r\n", range, rad_to_deg(bearing), rad_to_deg(heading));
-			//uint32_t timeSinceLastMoved = get_time()-timeLastMoved;
-			//if(timeSinceLastMoved>RNB_BROADCAST_PERIOD){
-				//calculate_target(&near_atom, range, bearing, heading);
-			//}
-//
-		//}
-
-	}
 }
 
 void update_target_id(){
@@ -2175,7 +2154,38 @@ void loop()
 			//printf("Got RNB from: %04X (%hu)\r\n", last_good_rnb.id_number, idx);			
 			//updatePositionEstimate();
 		}else{
-			
+			uint16_t id = last_good_rnb.id_number;
+			uint8_t i;
+			for(i=0;i<12;i++){
+				if(near_atoms[i].id==id) break;
+			}
+			if(i<12){
+				near_atoms[i].range = last_good_rnb.range;
+				near_atoms[i].bearing = last_good_rnb.bearing;
+				near_atoms[i].heading = last_good_rnb.heading;
+				if(target_id==last_good_rnb.id_number){
+					calculate_target(&(near_atoms[i]), near_atoms[i].range, near_atoms[i].bearing, near_atoms[i].heading);
+					////uint16_t mmRange;
+					////if(msg_struct->range==0xFF)			mmRange = 100;
+					////else if(msg_struct->range==0x01)	mmRange = 40;
+					////else								mmRange = 25;
+					////calculate_target(&near_atom, mmRange, msg_struct->bearing);
+					//
+					//if(myXPos!=0x7FFF&&near_atoms[nearAtomsIdx].xPos!=0x7FFF){
+					//uint16_t range = (uint16_t)hypotf(near_atoms[nearAtomsIdx].xPos-myXPos,near_atoms[nearAtomsIdx].yPos-myYPos);
+					//float heading = near_atoms[nearAtomsIdx].orient- myOrient;
+					//float bearing = heading+atan2(near_atoms[nearAtomsIdx].yPos-myYPos,near_atoms[nearAtomsIdx].xPos-myXPos)-M_PI_2;
+					//
+					//printf("About to calculate target with R: %hu\tB: %f\tH: %f\r\n", range, rad_to_deg(bearing), rad_to_deg(heading));
+					//uint32_t timeSinceLastMoved = get_time()-timeLastMoved;
+					//if(timeSinceLastMoved>RNB_BROADCAST_PERIOD){
+					//calculate_target(&near_atom, range, bearing, heading);
+					//}
+					//
+					//}
+
+				}
+			}
 		}
 		rnb_updated = 0;
 	}

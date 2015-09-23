@@ -35,7 +35,9 @@ void range_algs_init()
 				bright_meas[i][j][k] = 0;
 			}
 		}
-	}
+}
+	cmdID=0;
+	processingFlag=0;
 }
 
 void collect_rnb_data(uint16_t target_id, uint8_t power)
@@ -62,12 +64,16 @@ void broadcast_rnb_data()
 
 void receive_rnb_data()
 {
-	ir_range_meas();
-	get_baseline_readings();
-	//uint8_t power = 25; //TODO: get this from the message.
-	//schedule_task(10,brightness_meas_printout_mathematica,NULL);
-	//printf("Finished collecting data.\r\n");
-	schedule_task(10, use_rnb_data, NULL);
+	if(!processingFlag){
+		cmdID=cmd_sender_id;
+		processingFlag=1;
+		ir_range_meas();
+		get_baseline_readings();
+		//uint8_t power = 25; //TODO: get this from the message.
+		//schedule_task(10,brightness_meas_printout_mathematica,NULL);
+		//printf("Finished collecting data.\r\n");
+		schedule_task(10, use_rnb_data, NULL);
+	}
 }
 
 void use_rnb_data()
@@ -107,11 +113,12 @@ void use_rnb_data()
 			last_good_rnb.bearing = bearing;
 			last_good_rnb.heading = heading;
 			last_good_rnb.brightness_matrix_ptr = brightness_matrix;
-			last_good_rnb.id_number = cmd_sender_id;
+			last_good_rnb.id_number = cmdID;
 	
 			rnb_updated=1;
 		}
 	}
+	processingFlag=0;
 }
 
 float get_bearing(int16_t sensor_total[6])

@@ -3,8 +3,8 @@
 #include <avr/io.h>
 #include "droplet_init.h"
 
-#define FFSYNC_FULL_PERIOD_MS		2000
-#define FFSYNC_REFR_PERIOD_MS		150
+#define FFSYNC_FULL_PERIOD_MS		2333
+#define FFSYNC_REFR_PERIOD_MS		221
 #define FFSYNC_TRANSMIT_DELAY_MS	16
 
 #define FFSYNC_MS_CONVERSION_FACTOR 7.8125
@@ -22,6 +22,7 @@
 
 void firefly_sync_init();
 
+uint32_t light_start;
 
 inline void update_firefly_counter()
 {

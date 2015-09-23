@@ -4,14 +4,19 @@
 volatile uint16_t	cmd_length;
 volatile char		cmd_buffer[BUFFER_SIZE];
 
+//#define HARDCORE_DEBUG_DIR 1
+
 void clear_ir_buffer(uint8_t dir)
 {
 	#ifdef AUDIO_DROPLET
 		ir_sense_channels[dir]->INTCTRL = ADC_CH_INTLVL_OFF_gc;
 	#endif
-		
+	#ifdef HARDCORE_DEBUG_DIR
+		if(dir==HARDCORE_DEBUG_DIR) printf("\r\n");
+	#endif
 	ir_rxtx[dir].data_crc		= 0;
 	ir_rxtx[dir].sender_ID		= 0;
+	
 	ir_rxtx[dir].target_ID		= 0;	
 	ir_rxtx[dir].curr_pos		= 0;
 	ir_rxtx[dir].calc_crc		= 0;
@@ -181,9 +186,13 @@ void perform_ir_upkeep()
 					msg_node[num_waiting_msgs].arrival_dir = dir;
 					msg_node[num_waiting_msgs].sender_ID = ir_rxtx[dir].sender_ID;
 					msg_node[num_waiting_msgs].msg_length = ir_rxtx[dir].data_length;
+					msg_node[num_waiting_msgs].wasTargeted = !!(ir_rxtx[dir].status&IR_STATUS_TARGETED_bm);
 					#ifdef AUDIO_DROPLET
 						getIrCommRnBEst(&(msg_node[num_waiting_msgs].range),&(msg_node[num_waiting_msgs].bearing),&(msg_node[num_waiting_msgs].heading));
 					#endif
+					if(msg_node[num_waiting_msgs].msg_length > IR_BUFFER_SIZE){
+						printf("ERROR! Message too long?\r\n");
+					}
 				}
 				num_waiting_msgs++;
 				clear_ir_buffer(dir);
@@ -264,6 +273,7 @@ inline uint8_t all_ir_sends(uint8_t dirs_to_go, char* data, uint8_t data_length,
 
 	}
 	send_msg(dirs_to_go, data, data_length, 0);
+	//printf("Sent msg of length %hu at time%%10000: %u.\r\n", data_length, (uint16_t)(get_time()%10000));
     return 1;
 }
 
@@ -329,17 +339,6 @@ void hp_ir_targeted_cmd(uint8_t dirs, char *data, uint16_t data_length, uint16_t
 	all_hp_ir_cmds(dirs, data, data_length, target);
 }
 
-inline void handle_rx_length_byte(uint8_t in_byte, uint8_t dir)
-{
-	if(in_byte&DATA_LEN_CMD_bm){
-		ir_rxtx[dir].status |= IR_STATUS_COMMAND_bm;
-	}
-	ir_rxtx[dir].calc_crc = _crc16_update(ir_rxtx[dir].calc_crc, ir_rxtx[dir].status & IR_STATUS_COMMAND_bm);		
-	ir_rxtx[dir].data_length = in_byte&DATA_LEN_VAL_bm;
-}
-
-
-
 // To be called from interrupt handler only. Do not call.
 void ir_receive(uint8_t dir)
 {
@@ -347,11 +346,13 @@ void ir_receive(uint8_t dir)
 	#ifdef AUDIO_DROPLET
 		ir_sense_channels[dir]->INTCTRL = ADC_CH_INTLVL_HI_gc;
 	#endif	
-	//if(dir==2)printf("%02hhx ", in_byte); //Used for debugging - prints raw bytes as we get them.
-
+	
 	uint32_t now = get_time();
-	if(now-ir_rxtx[dir].last_byte > IR_MSG_TIMEOUT)	clear_ir_buffer(dir);
+	if(now-ir_rxtx[dir].last_byte > IR_MSG_TIMEOUT)	clear_ir_buffer(dir);	
 	ir_rxtx[dir].last_byte = now;
+	#ifdef HARDCORE_DEBUG_DIR
+		if(dir==HARDCORE_DEBUG_DIR) printf("%02hhx ", in_byte); //Used for debugging - prints raw bytes as we get them.
+	#endif	
 	switch(ir_rxtx[dir].curr_pos)
 	{
 		case HEADER_POS_SENDER_ID_LOW:	ir_rxtx[dir].sender_ID		= (uint16_t)in_byte;		break;
@@ -363,16 +364,17 @@ void ir_receive(uint8_t dir)
 										if(in_byte&DATA_LEN_CMD_bm) ir_rxtx[dir].status		   |= IR_STATUS_COMMAND_bm;
 										ir_rxtx[dir].calc_crc		= _crc16_update(ir_rxtx[dir].calc_crc, ir_rxtx[dir].status & IR_STATUS_COMMAND_bm);
 										ir_rxtx[dir].data_length	= in_byte&DATA_LEN_VAL_bm;
+										if(ir_rxtx[dir].data_length>IR_BUFFER_SIZE) ir_rxtx[dir].data_length=0; //basically, this will cause the message to get aborted.
 																								break;
 		case HEADER_POS_CRC_LOW:		ir_rxtx[dir].data_crc		= (uint16_t)in_byte;		break;
 		case HEADER_POS_CRC_HIGH:		ir_rxtx[dir].data_crc	   |= (((uint16_t)in_byte)<<8); break;
 
 		case HEADER_POS_TARGET_ID_LOW:  ir_rxtx[dir].target_ID		= (uint16_t)in_byte;		break;
 		case HEADER_POS_TARGET_ID_HIGH: ir_rxtx[dir].target_ID	   |= (((uint16_t)in_byte)<<8); break;
-		case HEADER_POS_SOURCE_DIR:     ir_rxtx[dir].inc_dir		= in_byte-1;					break;
+		case HEADER_POS_SOURCE_DIR:     ir_rxtx[dir].inc_dir		= in_byte-1;				break;
 		default:
-		ir_rxtx[dir].buf[ir_rxtx[dir].curr_pos-HEADER_LEN] = in_byte;
-		ir_rxtx[dir].calc_crc = _crc16_update(ir_rxtx[dir].calc_crc, in_byte);
+			ir_rxtx[dir].buf[ir_rxtx[dir].curr_pos-HEADER_LEN] = in_byte;
+			ir_rxtx[dir].calc_crc = _crc16_update(ir_rxtx[dir].calc_crc, in_byte);
 	}
 	ir_rxtx[dir].curr_pos++;
 	if(ir_rxtx[dir].curr_pos>=(ir_rxtx[dir].data_length+HEADER_LEN))
@@ -398,7 +400,7 @@ void ir_receive(uint8_t dir)
 						cmd_buffer[ir_rxtx[dir].data_length]='\0';
 						cmd_length = ir_rxtx[dir].data_length;
 						cmd_arrival_time = ir_rxtx[dir].last_byte;	//This is a 'global' value, referenced by other *.c files.
-						cmd_sender_id = ir_rxtx[dir].sender_ID;		//This is a 'global' value, referenced by other *.c file.s
+						cmd_sender_id = ir_rxtx[dir].sender_ID;		//This is a 'global' value, referenced by other *.c files.
 					}
 					for(uint8_t other_dir=0;other_dir<6;other_dir++) clear_ir_buffer(other_dir);
 					//{
@@ -429,11 +431,11 @@ void ir_transmit(uint8_t dir)
 {
 	switch(ir_rxtx[dir].curr_pos)
 	{
+		case HEADER_POS_SENDER_ID_LOW:  next_byte  = (uint8_t)(ir_rxtx[dir].sender_ID&0xFF);		break;
+		case HEADER_POS_SENDER_ID_HIGH: next_byte  = (uint8_t)((ir_rxtx[dir].sender_ID>>8)&0xFF);	break;		
 		case HEADER_POS_MSG_LENGTH:		next_byte  = ir_rxtx[dir].data_length; if(ir_rxtx[dir].status & IR_STATUS_COMMAND_bm) next_byte|= DATA_LEN_CMD_bm; break;
 		case HEADER_POS_CRC_LOW:		next_byte  = (uint8_t)(ir_rxtx[dir].data_crc&0xFF);			break;
 		case HEADER_POS_CRC_HIGH:		next_byte  = (uint8_t)((ir_rxtx[dir].data_crc>>8)&0xFF);	break;
-		case HEADER_POS_SENDER_ID_LOW:  next_byte  = (uint8_t)(ir_rxtx[dir].sender_ID&0xFF);		break;
-		case HEADER_POS_SENDER_ID_HIGH: next_byte  = (uint8_t)((ir_rxtx[dir].sender_ID>>8)&0xFF);	break;
 		case HEADER_POS_TARGET_ID_LOW:  next_byte  = (uint8_t)(ir_rxtx[dir].target_ID&0xFF);		break;
 		case HEADER_POS_TARGET_ID_HIGH: next_byte  = (uint8_t)((ir_rxtx[dir].target_ID>>8)&0xFF);	break;
 		case HEADER_POS_SOURCE_DIR:		next_byte  = dir+1;											break;
@@ -612,16 +614,17 @@ ISR( USARTF0_DRE_vect ) { ir_transmit(5); }
 
 #ifdef AUDIO_DROPLET
 
-static void inline on_demand_ir_meas(uint8_t dir){
-	ir_rxtx[dir].ir_meas[ir_rxtx[dir].curr_pos] =  (ir_sense_channels[dir]->RES-ir_sense_baseline[dir]);
-	ir_sense_channels[dir]->INTCTRL = ADC_CH_INTLVL_OFF_gc;
-}
+	static void inline on_demand_ir_meas(uint8_t dir){
+		ir_rxtx[dir].ir_meas[ir_rxtx[dir].curr_pos] =  (ir_sense_channels[dir]->RES-ir_sense_baseline[dir]);
+		ir_sense_channels[dir]->INTCTRL = ADC_CH_INTLVL_OFF_gc;
+	}
 	
-ISR( ADCA_CH0_vect ) { on_demand_ir_meas(0); }
-ISR( ADCA_CH1_vect ) { on_demand_ir_meas(1); }
-ISR( ADCA_CH2_vect ) { on_demand_ir_meas(2); }
-ISR( ADCB_CH0_vect ) { on_demand_ir_meas(3); }
-ISR( ADCB_CH1_vect ) { on_demand_ir_meas(4); }
-ISR( ADCB_CH2_vect ) { on_demand_ir_meas(5); }	
+	ISR( ADCA_CH0_vect ) { on_demand_ir_meas(0); }
+	ISR( ADCA_CH1_vect ) { on_demand_ir_meas(1); }
+	ISR( ADCA_CH2_vect ) { on_demand_ir_meas(2); }
+	ISR( ADCB_CH0_vect ) { on_demand_ir_meas(3); }
+	ISR( ADCB_CH1_vect ) { on_demand_ir_meas(4); }
+	ISR( ADCB_CH2_vect ) { on_demand_ir_meas(5); }
 
 #endif
+

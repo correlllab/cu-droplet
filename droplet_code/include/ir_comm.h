@@ -34,7 +34,7 @@
 #define KEY_LEFT		((uint16_t)0xA659)
 #define KEY_RIGHT		((uint16_t)0x46B9)
 
-#define IR_BUFFER_SIZE			31 //bytes
+#define IR_BUFFER_SIZE			40 //bytes
 #define IR_UPKEEP_FREQUENCY		16 //Hz
 #define IR_MSG_TIMEOUT			20 //ms
 
@@ -90,6 +90,7 @@ volatile struct
 	uint8_t		arrival_dir;
 	uint8_t		msg_length;
 	uint8_t		range;
+	uint8_t		wasTargeted;
 } msg_node[MAX_USER_FACING_MESSAGES];
 
 volatile uint8_t num_waiting_msgs;

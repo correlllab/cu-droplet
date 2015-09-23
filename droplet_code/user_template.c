@@ -6,7 +6,7 @@
  */
 void init()
 {
-
+	enable_sync_blink(100);
 }
 
 /*

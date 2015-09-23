@@ -1,9 +1,50 @@
 #include "firefly_sync.h"
 
 
+void set_sync_blink_default(uint8_t r, uint8_t g, uint8_t b){
+	sync_def_r = r;
+	sync_def_g = g;
+	sync_def_b = b;
+}
+
+void set_sync_blink_color(uint8_t r, uint8_t g, uint8_t b){
+	sync_blink_r = r;
+	sync_blink_g = g;
+	sync_blink_b = b;
+}
+
+void enable_sync_blink(uint16_t phase_offset_ms){
+	sync_blink_cca = ((uint16_t)(phase_offset_ms*FFSYNC_MS_CONVERSION_FACTOR)%FFSYNC_FULL_PERIOD);
+	TCE0.CCA = sync_blink_cca;
+	TCE0.INTCTRLB = TC_CCAINTLVL_MED_gc;
+	sync_blink_state = 1;
+}
+
+void disable_sync_blink(){
+	TCE0.INTCTRLB = TC_CCAINTLVL_OFF_gc;
+	TCE0.CCA = 0;
+}
+
+ISR(TCE0_CCA_vect){
+	if(sync_blink_state){
+		set_rgb(sync_blink_r,sync_blink_g,sync_blink_b);
+		TCE0.CCA = (sync_blink_cca+((uint16_t)(200*FFSYNC_MS_CONVERSION_FACTOR)))%FFSYNC_FULL_PERIOD;
+		sync_blink_state = 0;
+	}else{
+		set_rgb(sync_def_r, sync_def_g, sync_def_b);
+		TCE0.CCA = sync_blink_cca;
+		sync_blink_state = 1;
+	}
+}
+
 void firefly_sync_init()
 {
-	
+	sync_blink_r = 255;
+	sync_blink_g = 255;
+	sync_blink_b = 255;
+	sync_def_r = 0;
+	sync_def_g = 0;
+	sync_def_b = 0;
 	EVSYS.CH0MUX = EVSYS_CHMUX_PRESCALER_4096_gc;
 	
 	TCE0.CTRLA = TC_CLKSEL_EVCH0_gc;

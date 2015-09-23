@@ -50,6 +50,9 @@ typedef struct rnb_data {
 rnb last_good_rnb;
 volatile uint8_t rnb_updated;
 
+volatile uint16_t cmdID;
+volatile uint8_t processingFlag;
+
 void range_algs_init();
 
 void collect_rnb_data(uint16_t target_id, uint8_t power);

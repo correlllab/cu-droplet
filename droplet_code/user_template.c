@@ -1,11 +1,12 @@
 //#include "user_template.h"
 //
+
 ///*
  //* Any code in this function will be run once, when the robot starts.
  //*/
 //void init()
 //{
-	//
+//
 //}
 //
 ///*
@@ -13,7 +14,13 @@
  //*/
 //void loop()
 //{
-//
+	//uint32_t time_floor = (get_time()/300);
+	//if(((time_floor+6*getFixedIndex(get_droplet_id()))%50)==0){
+		//set_rgb(30,0,35);
+		//broadcast_rnb_data();
+	//}else{
+		//delay_ms(300);	
+	//}
 //}
 //
 ///*

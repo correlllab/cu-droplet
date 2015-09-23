@@ -3,7 +3,7 @@
 
 #include "droplet_init.h"
 
-#define RNB_BROADCAST_PERIOD 50000
+#define RNB_BROADCAST_PERIOD 15000
 #define BLINK_PERIOD 2350
 #define CHEM_ID_BROADCAST_PERIOD 3900
 #define DETECT_OTHER_DROPLETS_PERIOD 1000
@@ -82,6 +82,25 @@ typedef struct
 	uint8_t stability;
 }Stability_Tool;
 
+#define NUM_FIXED_DROPLETS 8
+
+typedef struct{
+	int16_t x;
+	int16_t y;
+}FixedRNBPos;
+
+FixedRNBPos fixedRNBPositions[NUM_FIXED_DROPLETS] = {{0,0},{-80,90},{-80,230},{260,260},{260,160},{260,60},{200,0},{100,0},{100,150}};
+
+typedef struct
+{
+	float range;
+	float bearing;
+	float heading;
+	uint32_t time;
+}FixedRNBMeas;
+
+FixedRNBMeas fixedRNBMeasurements[NUM_FIXED_DROPLETS];
+
 Near_Atom near_atoms[12]; //this number is pretty arbitrary.
 Atom NULL_ATOM = {{0,0,0,0,0,0,0,0},{0,0,0,0,0,0},{'0','0'},0,0,0};
 Near_Atom NULL_NEAR_ATOM = {{{0,0,0,0,0,0,0,0},{0,0,0,0,0,0},{'0','0'},0,0,0}, 0, 0, 0, 0, 0, 0};
@@ -102,11 +121,12 @@ float target_spot;
 uint16_t target_id;
 //Orbital my_orbitals[6];
 uint8_t stability;
+uint32_t timeLastMoved;
 int16_t deltaGself;		//my molecule's deltaG
 int16_t deltaGself_p;	//my molecule's deltaG if the atom I'm talking to were to bond with me
 int16_t deltaGself_m;	//my molecule's deltaG without me
 Atom myID;
-float target_bearing_to_me;
+uint32_t lastPositionUpdateCall;
 
 uint8_t turning_on;
 uint16_t main_cca;
@@ -120,12 +140,12 @@ uint8_t add_atom_to_molecule(uint16_t atom_id);
 int16_t add_atom_to_stability(uint16_t ID, int16_t cur_s, uint8_t cur_s_size);
 void add_to_bonded_atoms(uint16_t ID, uint8_t index, uint8_t num_bonds);
 //void add_to_my_orbitals(uint16_t ID, uint8_t num_bonds);
-void add_to_near_atoms();
+uint8_t add_to_near_atoms();
 //void broadcastChemID(Atom ID);
 void break_bond(Atom* near_atom, uint16_t sender_ID);
 uint8_t calculate_my_stability();
 void calculate_path(float target, uint16_t range, float bearing);
-void calculate_target(Atom* nearAtom, uint16_t range, float bearing);
+void calculate_target(Atom* nearAtom, uint16_t range, float bearing, float heading);
 uint8_t cleanOtherMolecule(Atom* near_atom, uint8_t* dirtyMolecule, uint8_t* cleanMolecule, uint8_t count);
 int comparison(uint8_t* aPtr, uint8_t* bPtr);
 uint8_t convert_bearing_to_IR_dir(float bearing);
@@ -141,6 +161,7 @@ Atom* getAtomFromAtomicNum(uint8_t atomicNum);
 Atom* getAtomFromID(uint16_t ID);
 float getChiFromID(uint16_t ID);
 uint8_t get_filled_orbs();
+//uint8_t getFixedIndex(uint16_t id);
 //void getOrbitals(Atom* atom);
 void init_atom_state();
 void init_random_move(uint16_t direc);
@@ -171,7 +192,8 @@ void unpack_valences(uint8_t* packed_shells, int8_t* shells);
 void update_delta_Gs();
 void update_molecule(uint16_t* atNums, uint8_t length, uint16_t sender);
 void update_molecule_two(Atom* near_atom, uint16_t senderID);
-void update_near_atoms(Atom* near_atom, ir_msg* msg_struct);
+uint8_t update_near_atoms(Atom* near_atom, ir_msg* msg_struct);
+//void updatePositionEstimate();
 void update_stability();
 uint8_t valenceState();
 

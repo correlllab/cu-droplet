@@ -22,12 +22,16 @@ void init_all_systems()
 	ir_led_init();				INIT_DEBUG_PRINT("IR LED INIT\r\n");
 	ir_sensor_init();			INIT_DEBUG_PRINT("IR SENSE INIT\r\n");
 	ir_comm_init();				INIT_DEBUG_PRINT("IR COM INIT\r\n");
+	
 	#ifdef AUDIO_DROPLET
 		speaker_init();			INIT_DEBUG_PRINT("SPEAKER INIT\r\n");
 		mic_init();				INIT_DEBUG_PRINT("MIC INIT\r\n"); //Must occur after ir_comm_init.
 	#endif
+	
 	motor_init();				INIT_DEBUG_PRINT("MOTOR INIT\r\n");
 	random_init();				INIT_DEBUG_PRINT("RAND INIT\r\n"); //This uses adc readings for a random seed, and so requires that the adcs have been initialized.
+
+
 
 	#ifdef SYNCHRONIZED
 		firefly_sync_init();
@@ -90,6 +94,7 @@ void check_messages ()
 			msg_struct->range							= msg_node[i].range;
 			msg_struct->bearing							= msg_node[i].bearing;
 			msg_struct->heading							= msg_node[i].heading;
+			msg_struct->wasTargeted						= msg_node[i].wasTargeted;
 		}			
 		msg_struct->msg[msg_node[i].msg_length]	= '\0';		
 		num_waiting_msgs--;

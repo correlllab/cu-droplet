@@ -22,13 +22,20 @@
 
 void firefly_sync_init();
 
-
 inline void update_firefly_counter()
 {
-	//printf("<-\r\n");
 	uint16_t the_count = TCE0.CNT;
 	if(the_count>FFSYNC_REFR_PERIOD)
 	TCE0.CNT =  (uint16_t)(fmin(FIREFLY_SYNC_ALPHA * the_count/FFSYNC_FULL_PERIOD + FIREFLY_SYNC_BETA, 1.) * ((float)FFSYNC_FULL_PERIOD));
 }
 
+<<<<<<< HEAD
 volatile uint32_t lightStart;
+=======
+uint8_t sync_blink_r, sync_blink_g, sync_blink_b;
+uint8_t sync_def_r, sync_def_g, sync_def_b;
+void set_sync_blink_default(uint8_t r, uint8_t g, uint8_t b);
+void set_sync_blink_color(uint8_t r, uint8_t g, uint8_t b);
+void enable_sync_blink(uint16_t phase_offset_ms);
+void disable_sync_blink();
+>>>>>>> 514cdc8daee1822f543b65000feef87a4419a489

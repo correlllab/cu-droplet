@@ -14,27 +14,25 @@ void set_sync_blink_color(uint8_t r, uint8_t g, uint8_t b){
 }
 
 void enable_sync_blink(uint16_t phase_offset_ms){
-	sync_blink_cca = ((uint16_t)(phase_offset_ms*FFSYNC_MS_CONVERSION_FACTOR)%FFSYNC_FULL_PERIOD);
-	TCE0.CCA = sync_blink_cca;
-	TCE0.INTCTRLB = TC_CCAINTLVL_MED_gc;
-	sync_blink_state = 1;
+	uint16_t turn_on_cc = (((uint16_t)(phase_offset_ms*FFSYNC_MS_CONVERSION_FACTOR))%FFSYNC_FULL_PERIOD);
+	uint16_t turn_off_cc = (turn_on_cc+((uint16_t)(200*FFSYNC_MS_CONVERSION_FACTOR)))%FFSYNC_FULL_PERIOD;
+	TCE0.CCA = turn_on_cc;
+	TCE0.CCB = turn_off_cc;
+	TCE0.INTCTRLB = TC_CCAINTLVL_HI_gc | TC_CCBINTLVL_HI_gc;
 }
 
 void disable_sync_blink(){
-	TCE0.INTCTRLB = TC_CCAINTLVL_OFF_gc;
+	TCE0.INTCTRLB = TC_CCAINTLVL_OFF_gc | TC_CCBINTLVL_OFF_gc;
 	TCE0.CCA = 0;
+	TCE0.CCB = 0;
 }
 
 ISR(TCE0_CCA_vect){
-	if(sync_blink_state){
-		set_rgb(sync_blink_r,sync_blink_g,sync_blink_b);
-		TCE0.CCA = (sync_blink_cca+((uint16_t)(200*FFSYNC_MS_CONVERSION_FACTOR)))%FFSYNC_FULL_PERIOD;
-		sync_blink_state = 0;
-	}else{
-		set_rgb(sync_def_r, sync_def_g, sync_def_b);
-		TCE0.CCA = sync_blink_cca;
-		sync_blink_state = 1;
-	}
+	set_rgb(sync_blink_r,sync_blink_g,sync_blink_b);
+}
+
+ISR(TCE0_CCB_vect){
+	set_rgb(sync_def_r, sync_def_g, sync_def_b);	
 }
 
 void firefly_sync_init()

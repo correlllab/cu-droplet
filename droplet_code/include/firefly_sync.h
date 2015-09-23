@@ -22,10 +22,6 @@
 
 void firefly_sync_init();
 
-uint16_t sync_blink_cca;
-uint8_t sync_blink_state;
-uint32_t light_start;
-
 inline void update_firefly_counter()
 {
 	uint16_t the_count = TCE0.CNT;

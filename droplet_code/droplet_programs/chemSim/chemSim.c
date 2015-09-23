@@ -12,30 +12,6 @@ enum Atoms_enum{
 	H, He, Li, Be, C, N, O, F, Na, Mg, Cl, Br, I
 	};
 
-void enable_sync_blink(uint16_t phase_offset_ms){
-	main_cca = ((uint16_t)(phase_offset_ms*FFSYNC_MS_CONVERSION_FACTOR)%FFSYNC_FULL_PERIOD);
-	TCE0.CCA = main_cca;
-	TCE0.INTCTRLB = TC_CCAINTLVL_MED_gc;
-	turning_on = 1;
-}
-
-void disable_sync_blink(){
-	TCE0.INTCTRLB = TC_CCAINTLVL_OFF_gc;
-	TCE0.CCA = 0;
-}
-
-ISR(TCE0_CCA_vect){
-	if(turning_on){
-		set_rgb(255,0,0);
-		TCE0.CCA = (TCE0.CCA+((uint16_t)(200*FFSYNC_MS_CONVERSION_FACTOR)))%FFSYNC_FULL_PERIOD;
-		turning_on = 0;
-	}else{
-		setAtomColor(&myID);
-		TCE0.CCA = main_cca;
-		turning_on = 1;
-	}
-}
-
 //This is a list of Atoms. Should they be static or constant or something?
 //Variables are valence shell, current bonded atoms, Mulliken electronegativity, symbol, diatomic, atomic number
 Atom PeriodicTable[13]=
@@ -257,69 +233,75 @@ void found_bond_routine(char flag)
 	
 }
 
-void setAtomColor(Atom* ID)
+void getAtomColor(Atom* ID, uint8_t* r, uint8_t* g, uint8_t* b)
 {
 	uint8_t atomicNum = ID->atomicNum;
 	switch(atomicNum){
 		case 1:
-		{
-			set_rgb(255, 200, 0); //yellow
-			//set_rgb(255, 0, 0);
-			break;
-		}
+			*r = 255;
+			*g = 200;
+			*b = 0;
+			return;
 		case 2:
-		{
-			set_rgb(255, 50, 0); //orange
-			break;
-		}
+			*r = 255;
+			*g = 50;
+			*b = 0;
+			return;
 		case 3:
-		{
-			set_rgb(100, 100, 255); //purple
-			break;
-		}
+			*r = 100;
+			*g = 100;
+			*b = 255;
+			return;
 		case 4:
-		{
-			set_rgb(100, 255, 100); //green
-			break;
-		}
+			*r = 100;
+			*g = 255;
+			*b = 100;
+			return;
 		case 6:
-		{
-			set_rgb(100, 0, 255); //indigo
-			break;
-		}
+			*r = 100;
+			*g = 0;
+			*b = 255;
+			return;
 		case 7:
-		{
-			set_rgb(200, 10, 10); //red-pink
-			break;
-		}
+			*r = 200;
+			*g = 10;
+			*b = 10;
+			return;
 		case 8:
-		{
-			set_rgb(0, 0, 255); //blue
-			break;
-		}
+			*r = 0;
+			*g = 0;
+			*b = 255;
+			return;
 		//All halogens are green
 		case 9:
-		{
-			set_rgb(0, 255, 0); //green 
-			break;
-		}
+			*r = 0;
+			*g = 255;
+			*b = 0;
+			return;
 		case 17:
-		{
-			set_rgb(0, 255, 0); //green
-			break;
-		}
+			*r = 0;
+			*g = 255;
+			*b = 0;
+			return;
 		case 35:
-		{
-			set_rgb(0, 255, 0); //green
-			break;
-		}
+			*r = 0;
+			*g = 255;
+			*b = 0;
+			return;
 		case 53:
-		{
-			set_rgb(0, 255, 0); //green
-			break;
-		}
+			*r = 0;
+			*g = 255;
+			*b = 0;
+			return;
 		default: printf_P(PSTR("No such element in setAtomColor \r\n"));
 	}
+}
+
+void setAtomColor(Atom* ID)
+{
+	uint8_t r,g,b;
+	getAtomColor(ID, &r, &g, &b);
+	set_rgb(r,g,b);
 }
 
 uint8_t valenceState() //returns 0 if empty, 2 if full, 1 if in between
@@ -1987,7 +1969,7 @@ void init()
 	switch(get_droplet_id()){
 		case 0x2B4E: MY_CHEM_ID = 6; break;
 		case 0xC24B: MY_CHEM_ID = 6; break;
-		case 0xC806: MY_CHEM_ID = 1; break;
+		case 0xC806: MY_CHEM_ID = 8; break;
 		case 0x0A0B: MY_CHEM_ID = 8; break;
 		case 0x1F08: MY_CHEM_ID = 7; break;
 		case 0x4177: MY_CHEM_ID = 8; break;
@@ -2189,8 +2171,13 @@ void init_atom_state()
 		fixedRNBMeasurements[i].time=0;
 	}
 	//
-	//myID = *getAtomFromAtomicNum(MY_CHEM_ID);
-	setAtomColor(&myID);
+	//myID = *getAtomFromAtomicNum(MY_CHEM_ID); 
+
+	set_sync_blink_color(255,0,0);
+	uint8_t r, g, b;
+	getAtomColor(&myID, &r, &g, &b);
+	set_rgb(r,g,b);
+	set_sync_blink_default(r, g, b);
 	disable_sync_blink();
 	for(uint8_t i = 0; i < 15; i++) my_molecule[i] = 0;
 	//schedule_periodic_task(300, update_near_atoms, NULL);

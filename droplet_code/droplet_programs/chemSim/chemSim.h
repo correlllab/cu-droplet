@@ -108,6 +108,9 @@ int16_t deltaGself_m;	//my molecule's deltaG without me
 Atom myID;
 float target_bearing_to_me;
 
+uint8_t turning_on;
+uint16_t main_cca;
+
 void init();
 void loop();
 void handle_msg(ir_msg* msg_struct);
@@ -129,6 +132,8 @@ uint8_t convert_bearing_to_IR_dir(float bearing);
 void convert_IR_dir_to_array(uint8_t dirs, uint8_t* bits);
 void create_state_message(State_Msg* msg, char flag);
 void detectOtherDroplets();
+void enable_sync_blink(uint16_t phase_offset_ms);
+void disable_sync_blink();
 void formBond(uint16_t senderID, Atom* near_atom, char flag);
 void found_bond_routine(char flag);
 uint8_t getAtomicNumFromID(uint16_t ID);
@@ -160,7 +165,6 @@ void printValence(int8_t valence[]);
 void remove_atom_from_molecule(uint16_t atom_id);
 void repairBondedAtoms();
 void repairValence();
-void returnLightToDefault();
 void setAtomColor(Atom* ID);
 void transmit_molecule_struct(uint16_t exclude_id, char flag);
 void unpack_valences(uint8_t* packed_shells, int8_t* shells);

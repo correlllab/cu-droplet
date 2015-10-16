@@ -67,10 +67,10 @@ void ir_sensor_init()
 		ADCB.REFCTRL = ADC_REFSEL_INT1V_gc;
 		ADCB.CTRLB = ADC_RESOLUTION_12BIT_gc | ADC_CONMODE_bm; //12bit resolution, and sets it to signed mode.
 		ADCB.PRESCALER = ADC_PRESCALER_DIV512_gc;
-		ADCB.CH0.CTRL = ADC_CH_INPUTMODE_DIFF_gc;	// differential input. requires signed mode (see sec. 28.6 in manual)
-		ADCB.CH0.MUXCTRL = ADC_CH_MUXNEG_INTGND_MODE3_gc;	// use VREF_IN for the negative input (0.54 V)
-		ADCB.CALL = PRODSIGNATURES_ADCBCAL0;
-		ADCB.CALH = PRODSIGNATURES_ADCBCAL1;
+		ADCB.CH0.CTRL = ADC_CH_INPUTMODE_DIFFWGAIN_gc | ADC_CH_GAIN2_bm;	// differential input. requires signed mode (see sec. 28.6 in manual)
+		ADCB.CH0.MUXCTRL = ADC_CH_MUXNEG_INTGND_MODE4_gc;	// use VREF_IN for the negative input (0.54 V)
+		//ADCB.CALL = PRODSIGNATURES_ADCBCAL0;
+		//ADCB.CALH = PRODSIGNATURES_ADCBCAL1;
 		ADCB.CTRLA = ADC_ENABLE_bm;
 	#endif
 	

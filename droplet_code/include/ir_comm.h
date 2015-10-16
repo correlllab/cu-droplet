@@ -83,13 +83,13 @@ volatile struct
 volatile struct
 {
 	uint32_t	arrival_time;
+	float		range;
 	float		bearing;
 	float		heading;
 	uint16_t	sender_ID;
 	char		msg[IR_BUFFER_SIZE];		
 	uint8_t		arrival_dir;
 	uint8_t		msg_length;
-	uint8_t		range;
 	uint8_t		wasTargeted;
 } msg_node[MAX_USER_FACING_MESSAGES];
 
@@ -121,3 +121,7 @@ void ir_transmit_complete(uint8_t dir);
 void ir_reset_rx(uint8_t dir);
 uint8_t ir_is_available(uint8_t dirs_mask);
 //uint8_t wait_for_ir(uint8_t dirs);
+static inline float comm_inverse_amplitude_model(float comm_amp)
+{
+	return 17.25+(6292.0/powf(comm_amp+12,2));
+}

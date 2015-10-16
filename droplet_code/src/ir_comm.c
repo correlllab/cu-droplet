@@ -21,6 +21,7 @@ void clear_ir_buffer(uint8_t dir)
 	ir_rxtx[dir].curr_pos		= 0;
 	ir_rxtx[dir].calc_crc		= 0;
 	ir_rxtx[dir].data_length	= 0;	
+	ir_rxtx[dir].inc_dir =		= 0;
 	
 	ir_rxtx[dir].status			= 0;	
 	
@@ -101,55 +102,38 @@ float closestSensorAngle(float alpha)
 	return val;
 }
 
-void getIrCommRnBEst(volatile uint8_t* range, volatile float* bearing, volatile float* heading)
+void getIrCommRnBEst(volatile float* range, volatile float* bearing, volatile float* heading)
 {
-	int16_t totals[6];
-	int16_t srcTotals[6];
-	for(uint8_t i=0 ;i<6;i++){
-		totals[i]=0;
-		srcTotals[i]=0;
-	}
-	for(uint8_t i=0;i<(IR_BUFFER_SIZE+HEADER_LEN);i++){
-		for(uint8_t j=0;j<6;j++){
-			//printf("%4d\t", ir_rxtx[j].ir_meas[i]);
-			totals[j] += ir_rxtx[j].ir_meas[i];
-			ir_rxtx[j].ir_meas[i]=0;
+	float bearingX = 0;
+	float bearingY = 0;
+	float headingX = 0;
+	float headingY = 0;
+	uint8_t e=255;
+	int16_t meas;
+	uint16_t numMeas=0;
+	for(uint8_t s=0;s<6;s++){
+		if((ir_rxtx[s].inc_dir>=0)&&(ir_rxtx[s].inc_dir<6)){
+			e = ir_rxtx[s].inc_dir;
+		}else{
+			e=255;
 		}
-		//printf("\r\n");
-	}
-	for(uint8_t i=0;i<6;i++)
-	{
-		if((ir_rxtx[i].inc_dir>=0)&&(ir_rxtx[i].inc_dir<6)){
-			srcTotals[ir_rxtx[i].inc_dir]+=totals[i];
-		}
-			//else{
-			//totals[i]=0;
-			//}
-	}
-	int16_t bestTotal=-1;
-	for(uint8_t i=0;i<6;i++){
-		if(totals[i]<0) totals[i]=0;
-		if(srcTotals[i]<0) srcTotals[i]=0;
-		//printf("From %hd on %hu: %5d (%5d)\r\n", ir_rxtx[i].inc_dir, i, totals[i], srcTotals[i]);		
-		if(totals[i]>bestTotal){
-			bestTotal=totals[i];
+		for(uint8_t i=0;i<(IR_BUFFER_SIZE+HEADER_LEN);i++){
+			meas = ir_rxtx[s].ir_meas[i];
+			if(meas!=0){
+				numMeas++;
+				bearingX += meas*getCosBearingBasis(0,s);
+				bearingY += meas*getSinBearingBasis(0,s);
+				if(e!=255){
+					headingX += meas*getCosHeadingBasis(e,s);
+					headingY += meas*getSinHeadingBasis(e,s);
+				}
+				ir_rxtx[s].ir_meas[i]=0;
+			}
 		}
 	}
-	printf("\n");
-	float bearing_est = get_bearing(totals);
-	float heading_est = get_heading(srcTotals, bearing_est);
-	float alpha = closestSensorAngle(bearing_est-M_PI/6.);
-	float beta = closestSensorAngle(bearing_est-heading_est-M_PI-M_PI/6.);
-	float exp_con = sensor_model(alpha)*emitter_model(beta);
-	float amplitude = bestTotal/exp_con;
-	//float range_est = inverse_amplitude_model(amplitude, 255)+2*DROPLET_RADIUS;
-	//float range_est = inverse_amplitude_model(bestTotal, 255);
-	//printf("comm bearing: %f, comm heading: %f\r\n", rad_to_deg(bearing_est), rad_to_deg(heading_est));
-	if(amplitude>2000)		*range = 0xFF;
-	else if(amplitude>1000) *range = 0x01;
-	else					*range = 0x00;
-	*bearing = bearing_est;
-	*heading = heading_est;
+	*range = comm_inverse_amplitude_model(hypotf(bearingX, bearingY)/numMeas);
+	*bearing = atan2f(bearingY, bearingX);
+	*heading = atan2f(headingY, headingX);
 }
 
 void perform_ir_upkeep()

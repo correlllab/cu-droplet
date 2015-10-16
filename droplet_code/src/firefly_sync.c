@@ -14,6 +14,7 @@ void set_sync_blink_color(uint8_t r, uint8_t g, uint8_t b){
 }
 
 void enable_sync_blink(uint16_t phase_offset_ms){
+	printf("Beep.\r\n");
 	uint16_t turn_on_cc = (((uint16_t)(phase_offset_ms*FFSYNC_MS_CONVERSION_FACTOR))%FFSYNC_FULL_PERIOD);
 	uint16_t turn_off_cc = (turn_on_cc+((uint16_t)(200*FFSYNC_MS_CONVERSION_FACTOR)))%FFSYNC_FULL_PERIOD;
 	TCE0.CCA = turn_on_cc;
@@ -44,6 +45,7 @@ void firefly_sync_init()
 	sync_def_g = 0;
 	sync_def_b = 0;
 
+	disable_sync_blink();
 	EVSYS.CH0MUX = EVSYS_CHMUX_PRESCALER_4096_gc;
 	
 	TCE0.CTRLA = TC_CLKSEL_EVCH0_gc;
@@ -97,8 +99,6 @@ ISR(TCE0_OVF_vect)
 		else if(change<-FFSYNC_MAX_DEVIATION) OSC.RC32KCAL--;
 	}
 	hp_ir_cmd(ALL_DIRS, NULL, 0);
-	set_rgb(255,255,255);		
-	lightStart = get_time();
 	//printf("Delta Count: %d\r\n",change);
 
 }

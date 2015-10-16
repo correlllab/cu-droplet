@@ -2,17 +2,14 @@
 
 #include "droplet_init.h"
 
-#define BOT_DATA_FLAG			'D'
+//#define GOODBYE_FLAG			'!'
 #define BALL_BOUNCE_FLAG		'B'
-
 #define LOOP_PERIOD_MS			200
-#define RNB_BC_PERIOD_MS		19600
+#define RNB_BC_PERIOD_MS		2400
 #define LOOPS_PER_RNB			(RNB_BC_PERIOD_MS/LOOP_PERIOD_MS)
 #define GROUP_TIMEOUT_MS		40000
 #define MIN_GOODBYE_INTERVAL	10000
-
-#define NUM_TRACKED_BOTS		12
-#define NUM_SENT_BOTS			6
+#define NEIGHBORHOOD_SIZE		8
 
 typedef struct ball_bounce{
 	char flag;
@@ -20,36 +17,30 @@ typedef struct ball_bounce{
 	uint8_t seqPos;
 }BallBounceMsg;
 
-typedef struct packed_bot_datum{
+typedef struct packed_bot_pos{
 	uint16_t id;
 	uint8_t rangeMM;
-	int8_t bearingOver2;
-	int8_t headingOver2;
-}PackedBotDatum;
-
-typedef struct bot_datum{
-	uint16_t id;
-	uint16_t range;
-	int16_t bearing;
-	int16_t heading;
-}BotDatum;
-
-typedef struct pos_info{
-	char			flag;
-	uint8_t			numBots;
-	PackedBotDatum	bots[NUM_SENT_BOTS];
-}PosInfoMsg;
+	uint8_t rangeBearingPacked[3];
+}PackedBotPos;
 
 typedef enum{
 	NOT_BALL,
 	NOT_BALL_ALERT,
 	BALL
 } State;
-	
-BotDatum nearbyBotsData[NUM_TRACKED_BOTS];
+
 State myState;
 uint8_t ballSeqPos;
 uint8_t missedBroadcast;
+
+typedef struct neighbor_struct
+{
+	float posError;
+	uint32_t lastSeen;
+	uint16_t ID;
+	uint8_t noCollCount;
+} Neighbor;
+Neighbor neighbors[NEIGHBORHOOD_SIZE];
 
 uint16_t myRNBLoop;
 uint16_t loopCount;

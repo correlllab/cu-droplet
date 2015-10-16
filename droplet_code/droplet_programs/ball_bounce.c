@@ -1,13 +1,20 @@
 #include "droplet_programs/ball_bounce.h"
 
-void init(){
+#if (NEIGHBORHOOD_SIZE==6)
+	float dirAngleMap[6] = {-(M_PI/6.0), -M_PI_2, -((5.0/6.0)*M_PI), ((5.0/6.0)*M_PI), M_PI_2, (M_PI/6.0)};
+#else if (NEIGHBORHOOD_SIZE==8)
+	float dirAngleMap[8] = {0.0, -(M_PI_4), -(M_PI_2), -(3.0*M_PI_4), M_PI, 3.0*M_PI_4, M_PI_2, M_PI_4};
+#endif
+
+void init(){	
 	for(uint8_t i=0;i<6;i++) neighbors[i].ID=0;	
 	loopCount = 0;
 	outwardDir = 0;
 	lastGoodbye=0;	
-	myRNBLoop = (uint16_t)((((float)rand_byte())/255.0)*(RNB_BC_PERIOD_MS/LOOP_PERIOD_MS));
+	myRNBLoop = (get_droplet_id()%LOOPS_PER_RNB);
 	missedBroadcast = 0;
 	myState=NOT_BALL;
+	printf("myRNBLoop: %d\r\n", myRNBLoop);
 	//enable_leg_status_interrupt();
 }
 
@@ -17,22 +24,6 @@ void sendBallMsg(){
 	msg.id = outwardDirID;
 	msg.seqPos = ballSeqPos;
 	ir_send(ALL_DIRS, (char*)(&msg), sizeof(BallBounceMsg));
-}
-
-void sendBotDataMsg(){
-	PosInfoMsg msg;
-	msg.flag = BOT_DATA_FLAG;
-	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
-		if(nearbyBotsData[i].id==0) continue;
-		msg.bots[msg.numBots].id = nearbyBotsData[i].id;
-		msg.bots[msg.numBots].rangeMM = nearbyBotsData[i].range/10;
-		msg.bots[msg.numBots].bearingOver2 = nearbyBotsData[i].bearing/2;
-		msg.bots[msg.numBots].headingOver2 = nearbyBotsData[i].heading/2;
-		msg.numBots++;
-		//TODO: Instead of just sending the first 6, send the 'best' 6. Though, need to define best.
-		if(msg.numBots>=NUM_SENT_BOTS) break; 
-	}
-	ir_send(ALL_DIRS, (char*)(&msg), sizeof(PosInfoMsg));
 }
 
 void loop(){
@@ -58,8 +49,7 @@ void loop(){
 			set_rgb(0,0,0);
 			if((loopCount==myRNBLoop)||missedBroadcast){
 				delay_ms(LOOP_PERIOD_MS/2);
-				broadcast_rnb_data();
-				printf("T: %lu\r\n", get_time());
+				printf("\nT: %lu\r\n", get_time());
 				for(uint8_t dir=0;dir<NEIGHBORHOOD_SIZE;dir++)
 				{
 					if(neighbors[dir].ID!=0)
@@ -67,7 +57,7 @@ void loop(){
 					else
 					printf("%hu: -\r\n",dir);
 				}
-				printf("\r\n");
+				printf("\r\n\n");
 				missedBroadcast=0;
 			}
 		}
@@ -87,10 +77,77 @@ void removeNeighbor(uint8_t dir){
 	neighbors[dir].noCollCount=0;
 }
 
+float calculatePosError(float thT, float rT, float thP, float rP){
+	float xT, yT, xP, yP, xDiff, yDiff, thDiff, rDiff;
+	xT = rT*cos(thT);
+	yT = rT*sin(thT);
+	xP = rP*cos(thP);
+	yP = rP*sin(thP);
+	
+	xDiff = xP-xT;
+	yDiff = yP-yT;
+	
+	thDiff = atan2(yDiff, xDiff);
+	rDiff  = hypot(xDiff, yDiff); 
+	
+	return rDiff;
+}
+
 void use_new_rnb(){
 	rnb_updated=0;	
 	
-	
+	#if (NEIGHBORHOOD_SIZE==6)
+		int8_t bear = (int8_t)ceilf((3.0*last_good_rnb.bearing)/M_PI);
+	#else if(NEIGHBORHOOD_SIZE==8)
+		int8_t bear = (int8_t)ceilf((4.0*(last_good_rnb.bearing-M_PI/8.0))/M_PI);
+	#endif
+	uint8_t newDir = ((NEIGHBORHOOD_SIZE-bear)%NEIGHBORHOOD_SIZE);
+	//printf("bear: %hd, newDir: %hu\r\n", bear, newDir);
+	uint16_t newID = last_good_rnb.id_number;
+	float posError, bearingError, headingError;
+	posError = calculatePosError(dirAngleMap[newDir], 2.0*DROPLET_RADIUS, last_good_rnb.bearing, last_good_rnb.range);
+	bearingError = fabsf(dirAngleMap[newDir]-last_good_rnb.bearing);
+	headingError = fabsf(last_good_rnb.heading);
+	printf("%04X %hu | R:%f\tBearing: %f\tError: %f, %f\r\n", last_good_rnb.id_number, newDir, last_good_rnb.range, rad_to_deg(last_good_rnb.bearing), posError, rad_to_deg(angleError));	
+	float maxHeadingError = (M_PI/24.0);
+	#if (NEIGHBORHOOD_SIZE==8)
+		if(newDir==1||newDir==3||newDir==5||newDir==7){
+			maxHeadingError = (M_PI/15.0);
+		}
+	#endif
+	//printf("%04X\t%hu\t%f\r\n\n", last_good_rnb.id_number, newDir, posError);		
+	if((posError>7.5)||(bearingError>(M_PI/10.0))||headingError>(M_PI/9.0)){
+		for(uint8_t dir=0;dir<6;dir++){
+			if(neighbors[dir].ID==newID){
+				removeNeighbor(dir);
+				break;
+			}
+		}
+	}else if((bearingError>(M_PI/36.0))||(headingError>(M_PI/24.0))){
+		//Do nothing		
+	}else{
+		for(uint8_t dir=0;dir<NEIGHBORHOOD_SIZE;dir++){
+			if(neighbors[dir].ID==newID){ //If this ID is already in the neighbors array.
+				if(dir!=newDir){ //We already have this bot as a neighbor. can't be in two spots.
+					uint8_t myAngleWorse = posError>neighbors[dir].posError;
+					uint8_t otherSpotNotTimedOut = (get_time()-neighbors[dir].lastSeen)<=GROUP_TIMEOUT_MS;
+					if(myAngleWorse&&otherSpotNotTimedOut) return; //Sticking with the old dir. 
+					//otherwise, we're going to store this ID at the newID and so wipe the old.
+					removeNeighbor(dir);
+				}
+				break; //Since we insure that each ID is only in here once, we can stop after we find it once.
+			}	
+		}
+		if((neighbors[newDir].ID!=0)&&(neighbors[newDir].ID!=newID)){ //If another bot at this dir and not this one.
+			uint8_t myAngleWorse = posError>neighbors[newDir].posError;
+			uint8_t otherBotNotTimedOut = (get_time()-neighbors[newDir].lastSeen)<=GROUP_TIMEOUT_MS;
+			if(myAngleWorse&&otherBotNotTimedOut) return;
+		}
+		neighbors[newDir].posError = posError;
+		neighbors[newDir].ID = newID;
+		neighbors[newDir].lastSeen = get_time();
+		neighbors[newDir].noCollCount = 0;	
+	}
 }
 
 void calculateOutboundDir(uint16_t inID){
@@ -125,6 +182,12 @@ void handle_msg(ir_msg* msg_struct){
 		}else{
 			//printf("Someone else getting a ball. Could maybe use this for lost ball handling later.\r\n");	
 		}
+	}else{
+		printf("Got: ");
+		for(uint8_t i=0;i<msg_struct->length;i++){
+			printf("%c", msg_struct->msg[i]);
+		}
+		printf("\r\n");
 	}
 	//else if(msg_struct->msg[0]==GOODBYE_FLAG){
 		//for(uint8_t dir=0;dir<NEIGHBORHOOD_SIZE;dir++){

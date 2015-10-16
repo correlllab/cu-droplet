@@ -22,13 +22,52 @@
 #define DELAY_BETWEEN_RB_MEASUREMENTS 5
 #define POST_BROADCAST_DELAY 20
 #define TIME_FOR_SET_IR_POWERS 2
-#define TIME_FOR_GET_IR_VALS 2
+#define TIME_FOR_GET_IR_VALS 3
 #define TIME_FOR_ALL_MEAS (NUMBER_OF_RB_MEASUREMENTS*(TIME_FOR_GET_IR_VALS+DELAY_BETWEEN_RB_MEASUREMENTS))
 #define DELAY_BETWEEN_RB_TRANSMISSIONS 10
 
-#define BASELINE_NOISE_THRESHOLD 1
+#define DC_NOISE_REMOVAL_AMOUNT		0
+#define MIN_MATRIX_SUM_THRESH		115
+#define SKEPTIC_MATRIX_SUM_THRESH	160
+#define OVER_DOMINANT_ROW_THRESH	0.75
 
 extern float basis_angle[6];
+
+#define SQRT3_OVER2 (sqrtf(3.0)/2.0)
+
+static const float bearingBasis[6][2]=	{
+	{SQRT3_OVER2 , -0.5},
+	{0           , -1  },
+	{-SQRT3_OVER2, -0.5},
+	{-SQRT3_OVER2,  0.5},
+	{0           ,  1  },
+	{SQRT3_OVER2 ,  0.5}
+};
+
+static const float headingBasis[6][2]={
+	{-1          ,  0  },
+	{-0.5,  SQRT3_OVER2},		
+	{ 0.5,  SQRT3_OVER2},	
+	{ 1          ,  0  },
+	{ 0.5, -SQRT3_OVER2},
+	{-0.5, -SQRT3_OVER2}
+};
+
+static inline float getCosBearingBasis(uint8_t i, uint8_t j){
+	return bearingBasis[j][0];
+}
+
+static inline float getSinBearingBasis(uint8_t i, uint8_t j){
+	return bearingBasis[j][1];
+}
+
+static inline float getCosHeadingBasis(uint8_t i, uint8_t j){
+	return headingBasis[(j+(6-i))%6][0];
+}
+
+static inline float getSinHeadingBasis(uint8_t i, uint8_t j){
+	return headingBasis[(j+(6-i))%6][1];
+}
 
 typedef struct list_el {
 	float Rx;
@@ -43,7 +82,6 @@ typedef struct rnb_data {
 	float range;
 	float bearing;
 	float heading;
-	int16_t (*brightness_matrix_ptr)[6]; //almost definitely take this out, later
 	uint16_t id_number;
 } rnb;
 
@@ -60,13 +98,12 @@ void broadcast_rnb_data();
 void receive_rnb_data();
 void use_rnb_data();
 
-float get_bearing(int16_t sensor_total[6]);
-float get_heading(int16_t emitter_total[6], float bearing);
-float get_initial_range_guess(float bearing, float heading, uint8_t power, int16_t sensor_total[6], int16_t emitter_total[6], int16_t brightness_matrix[6][6]);
+void calculate_bearing_and_heading(int16_t brightness_matrix[6][6], float* bearing, float* heading);
+float get_initial_range_guess(float bearing, float heading, uint8_t power, int16_t brightness_matrix[6][6]);
 float range_estimate(float init_range, float bearing, float heading, uint8_t power, int16_t brightness_matrix[6][6]);
 
 void fill_S_and_T(int16_t brightness_matrix[6][6], int16_t sensor_total[6], int16_t emitter_total[6]);
-uint8_t pack_measurements_into_matrix( int16_t brightness_matrix[6][6]);
+int16_t pack_measurements_into_matrix( int16_t brightness_matrix[6][6]);
 
 void get_baseline_readings();
 void ir_range_meas();
@@ -81,5 +118,5 @@ float amplitude_model(float r, uint8_t power);
 float inverse_amplitude_model(float ADC_val, uint8_t power);
 
 void debug_print_timer(uint32_t timer[19]);
-void print_brightness_matrix(int16_t brightness_matrix[6][6]);
+void print_brightness_matrix(int16_t brightness_matrix[6][6], int16_t sum);
 void brightness_meas_printout_mathematica();

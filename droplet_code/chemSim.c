@@ -2054,19 +2054,22 @@ void returnLightToDefault(){
  */
 void init()
 {
-	//printf_P(PSTR("INITIALIZING DROPLET. \r\n"));
-	switch(get_droplet_id()){
-		case 0x2B4E: MY_CHEM_ID = 6; break;
-		case 0xC24B: MY_CHEM_ID = 6; break;
-		case 0xC806: MY_CHEM_ID = 1; break;
-		case 0x0A0B: MY_CHEM_ID = 6; break;
-		case 0x1F08: MY_CHEM_ID = 7; break;
-		case 0x7D78: MY_CHEM_ID = 2; break;
-		case 0x3B49: MY_CHEM_ID = 2; break;
-		case 0x5161: MY_CHEM_ID = 8; break;	
-		case 0x1B4B: MY_CHEM_ID = 6; break;
-		default:     MY_CHEM_ID = 1; break;
-	}
+	uint16_t temp = get_droplet_id()%10;
+	if(temp<6) MY_CHEM_ID = 1;
+	else MY_CHEM_ID = temp;
+	////printf_P(PSTR("INITIALIZING DROPLET. \r\n"));
+	//switch(get_droplet_id()){
+		//case 0x2B4E: MY_CHEM_ID = 6; break;
+		//case 0xC24B: MY_CHEM_ID = 6; break;
+		//case 0xC806: MY_CHEM_ID = 1; break;
+		//case 0x0A0B: MY_CHEM_ID = 6; break;
+		//case 0x1F08: MY_CHEM_ID = 7; break;
+		//case 0x7D78: MY_CHEM_ID = 2; break;
+		//case 0x3B49: MY_CHEM_ID = 2; break;
+		//case 0x5161: MY_CHEM_ID = 8; break;	
+		//case 0x1B4B: MY_CHEM_ID = 6; break;
+		//default:     MY_CHEM_ID = 1; break;
+	//}
 	//printf("%hu \r\n", sizeof(State_Msg));
 	init_atom_state();
 	

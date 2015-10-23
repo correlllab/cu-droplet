@@ -21,7 +21,7 @@ void clear_ir_buffer(uint8_t dir)
 	ir_rxtx[dir].curr_pos		= 0;
 	ir_rxtx[dir].calc_crc		= 0;
 	ir_rxtx[dir].data_length	= 0;	
-	ir_rxtx[dir].inc_dir =		= 0;
+	ir_rxtx[dir].inc_dir 		= 0;
 	
 	ir_rxtx[dir].status			= 0;	
 	

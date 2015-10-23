@@ -17,7 +17,7 @@
 #define BRIGHTNESS_THRESHOLD 1
 
 #define POST_MESSAGE_DELAY ((3*((1000/IR_UPKEEP_FREQUENCY)))/2)
-
+#define R_VAR_SCALE_FACTOR 162.05
 #define NUMBER_OF_RB_MEASUREMENTS 5
 #define DELAY_BETWEEN_RB_MEASUREMENTS 5
 #define POST_BROADCAST_DELAY 20
@@ -82,6 +82,7 @@ typedef struct rnb_data {
 	float range;
 	float bearing;
 	float heading;
+	float conf;
 	uint16_t id_number;
 } rnb;
 

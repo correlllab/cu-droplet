@@ -4,12 +4,13 @@
 
 //#define GOODBYE_FLAG			'!'
 #define BALL_BOUNCE_FLAG		'B'
+#define BOT_POS_FLAG			'P'
 #define LOOP_PERIOD_MS			200
-#define RNB_BC_PERIOD_MS		2400
+#define RNB_BC_PERIOD_MS		8600
 #define LOOPS_PER_RNB			(RNB_BC_PERIOD_MS/LOOP_PERIOD_MS)
 #define GROUP_TIMEOUT_MS		40000
 #define MIN_GOODBYE_INTERVAL	10000
-#define NEIGHBORHOOD_SIZE		8
+#define NEIGHBORHOOD_SIZE		6
 
 typedef struct ball_bounce{
 	char flag;
@@ -22,6 +23,11 @@ typedef struct packed_bot_pos{
 	uint8_t rangeMM;
 	uint8_t rangeBearingPacked[3];
 }PackedBotPos;
+
+typedef struct bot_pos_msg{
+	char flag;
+	PackedBotPos bots[6];
+}BotPosMsg;
 
 typedef enum{
 	NOT_BALL,

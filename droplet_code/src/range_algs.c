@@ -86,19 +86,19 @@ void use_rnb_data()
 	float bearing, heading;
 	calculate_bearing_and_heading(brightness_matrix, &bearing, &heading);
 		
-		
 	float initial_range = get_initial_range_guess(bearing, heading, power, brightness_matrix);
-	printf("%04X | B: %f\tH: %f\tiR: %f\t", last_good_rnb.id_number, rad_to_deg(bearing), rad_to_deg(heading), initial_range);		
-	if(initial_range)
-	{
+	if(initial_range!=0&&!isnanf(initial_range))
+	{	
 		float range = range_estimate(initial_range, bearing, heading, power, brightness_matrix);
-		last_good_rnb.range = (range+initial_range)/2.0;
-		last_good_rnb.bearing = bearing;
-		last_good_rnb.heading = heading;
-		last_good_rnb.id_number = cmdID;	
-		rnb_updated=1;
-	}else{
-		printf("R: %f (ERROR)\r\n\n", initial_range);
+		if(!isnanf(range)){
+			//printf("%04X   | B: % -3.1f\tH: % -3.1f\tiR: % -2.2f\tR:% -2.2f\r\n", cmdID, rad_to_deg(bearing), rad_to_deg(heading), initial_range, range);					
+			last_good_rnb.id_number = cmdID;
+			last_good_rnb.range = range;
+			last_good_rnb.bearing = bearing;
+			last_good_rnb.heading = heading;
+			last_good_rnb.conf	  = sqrtf(matrixSum);
+			rnb_updated=1;
+		}
 	}
 	processingFlag=0;
 }
@@ -229,9 +229,9 @@ float range_estimate(float init_range, float bearing, float heading, uint8_t pow
 			range+= rangeMatSubset[e][s]*powf(brightMatSubset[e][s]/froebNorm,2);
 		}
 	}
-	printf("R: %f\r\n", range);	
-	print_range_matrix(range_matrix);
-	printf("\n");
+	//printf("R: %f\r\n", range);	
+	//print_range_matrix(range_matrix);
+	//printf("\n");
 	return range;
 }
 

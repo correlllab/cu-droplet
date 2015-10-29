@@ -10,6 +10,7 @@
 #define UPDATE_ATOMS_PERIOD 100
 #define LOOP_PERIOD 50
 #define MOLECULE_BROADCAST_PERIOD 4150
+#define NUM_FIXED_DROPLETS 8
 
 typedef struct  
 {
@@ -57,32 +58,11 @@ typedef struct
 	int8_t orbitals[6]; //-1 for empty orbital, 0 for orbital that the recipient doesn't occupy, 1 for an orbital it does occupy.
 }Bond_Made_Msg;
 
-//typedef struct  
-//{
-	//uint16_t ID;
-	//int8_t type; 
-	///*
-	//Type refers to the hybridization. The code is as follows:
-		//-1 = nonexistent orbital
-		//0 = s
-		//1 = p
-		//2 = sp
-		//3 = sp2
-		//4 = sp3
-		//5 = dsp3
-		//6 = d2sp3
-		//7 = d
-		//8 = f
-	//*/
-//}Orbital;
-
 typedef struct  
 {
 	uint16_t ID;
 	uint8_t stability;
 }Stability_Tool;
-
-#define NUM_FIXED_DROPLETS 8
 
 typedef struct{
 	int16_t x;
@@ -119,7 +99,6 @@ uint8_t my_molecule_length;
 uint8_t collided;
 float target_spot;
 uint16_t target_id;
-//Orbital my_orbitals[6];
 uint8_t stability;
 uint32_t timeLastMoved;
 int16_t deltaGself;		//my molecule's deltaG
@@ -128,44 +107,48 @@ int16_t deltaGself_m;	//my molecule's deltaG without me
 Atom myID;
 uint32_t lastPositionUpdateCall;
 
+uint8_t turning_on;
+uint16_t main_cca;
+
 void init();
 void loop();
 void handle_msg(ir_msg* msg_struct);
 void user_leg_status_interrupt();
 
-uint8_t add_atom_to_molecule(uint16_t atom_id);
-int16_t add_atom_to_stability(uint16_t ID, int16_t cur_s, uint8_t cur_s_size);
-void add_to_bonded_atoms(uint16_t ID, uint8_t index, uint8_t num_bonds);
+uint8_t addAtomToMolecule(uint16_t atom_id);
+int16_t addAtomToStability(uint16_t ID, int16_t cur_s, uint8_t cur_s_size);
+void addToBondedAtoms(uint16_t ID, uint8_t index, uint8_t num_bonds);
 //void add_to_my_orbitals(uint16_t ID, uint8_t num_bonds);
-uint8_t add_to_near_atoms();
+uint8_t addToNearAtoms();
 //void broadcastChemID(Atom ID);
-void break_bond(Atom* near_atom, uint16_t sender_ID);
-uint8_t calculate_my_stability();
-void calculate_path(float target, uint16_t range, float bearing);
-void calculate_target(Atom* nearAtom, uint16_t range, float bearing, float heading);
+void breakBond(Atom* near_atom, uint16_t sender_ID);
+uint8_t calculateMyStability();
+void calculatePath(float target, uint16_t range, float bearing);
+void calculateTarget(Atom* nearAtom, uint16_t range, float bearing, float heading);
 uint8_t cleanOtherMolecule(Atom* near_atom, uint8_t* dirtyMolecule, uint8_t* cleanMolecule, uint8_t count);
 int comparison(uint8_t* aPtr, uint8_t* bPtr);
-uint8_t convert_bearing_to_IR_dir(float bearing);
-void convert_IR_dir_to_array(uint8_t dirs, uint8_t* bits);
-void create_state_message(State_Msg* msg, char flag);
+uint8_t convertBearingToEmitorDir(float bearing);
+void convertEmitorDirToArray(uint8_t dirs, uint8_t* bits);
+void createStateMessage(State_Msg* msg, char flag);
 void detectOtherDroplets();
 void formBond(uint16_t senderID, Atom* near_atom, char flag);
-void found_bond_routine(char flag);
+void foundBondRoutine(char flag);
 uint8_t getAtomicNumFromID(uint16_t ID);
+void getAtomColor(Atom* ID, uint8_t* r, uint8_t* g, uint8_t* b);
 Atom* getAtomFromAtomicNum(uint8_t atomicNum);
 Atom* getAtomFromID(uint16_t ID);
 float getChiFromID(uint16_t ID);
-uint8_t get_filled_orbs();
+uint8_t getFilledOrbs();
 //uint8_t getFixedIndex(uint16_t id);
 //void getOrbitals(Atom* atom);
-void init_atom_state();
-void init_random_move(uint16_t direc);
-uint8_t is_good_rnb(float rng, float bearing, uint16_t ID);
+void initAtomState();
+void initRandomMove(uint16_t direc);
+uint8_t isGoodRNB(float rng, float bearing, uint16_t ID);
 void makePossibleBonds(Atom* near_atom_ptr, char flag, int16_t deltaGother, int16_t deltaGother_p, int16_t deltaGother_m, uint16_t senderID);
-void match_molecule(uint16_t* other_molecule, uint8_t length, uint16_t exclude_id);
-void modify_valences_ionic(char* newValence, Atom* near_atom_ptr, uint16_t senderID);
-void modify_valences_covalent(char* newValence, Atom* near_atom_ptr, uint16_t senderID);
-void move_to_target(uint16_t rng, float bearing);
+void matchMolecule(uint16_t* other_molecule, uint8_t length, uint16_t exclude_id);
+void modifyValencesIonic(char* newValence, Atom* near_atom_ptr, uint16_t senderID);
+void modifyValencesCovalent(char* newValence, Atom* near_atom_ptr, uint16_t senderID);
+void moveToTarget(uint16_t rng, float bearing);
 void msgBondedAtoms(Atom* near_atom, uint16_t new_blink, uint16_t sender_ID);
 void msgBondMade(ir_msg* msg_struct, char flag);
 //void msgContactFirst(uint16_t senderID);
@@ -173,24 +156,23 @@ void msgBondMade(ir_msg* msg_struct, char flag);
 //void msgOrbital(uint16_t* other_bonded_atoms, uint16_t senderID);
 void msgPossibleBond(ir_msg* msg_struct);
 void msgState(ir_msg* msg_struct);
-char IMR_test(Atom* near_atom, int16_t deltaGother, int16_t deltaGother_p, int16_t deltaGother_m, uint16_t senderID);
-uint8_t* orbital_order(uint8_t *valence);
-void pack_valences(uint8_t* packed_shells, int8_t* shells);
-void print_bonded_atoms();
+char IMRTest(Atom* near_atom, int16_t deltaGother, int16_t deltaGother_p, int16_t deltaGother_m, uint16_t senderID);
+uint8_t* orbitalOrder(uint8_t *valence);
+void packValences(uint8_t* packed_shells, int8_t* shells);
+void printBondedAtoms();
 void printValence(int8_t valence[]);
-void remove_atom_from_molecule(uint16_t atom_id);
+void removeAtomFromMolecule(uint16_t atom_id);
 void repairBondedAtoms();
 void repairValence();
-void returnLightToDefault();
 void setAtomColor(Atom* ID);
-void transmit_molecule_struct(uint16_t exclude_id, char flag);
-void unpack_valences(uint8_t* packed_shells, int8_t* shells);
-void update_delta_Gs();
-void update_molecule(uint16_t* atNums, uint8_t length, uint16_t sender);
-void update_molecule_two(Atom* near_atom, uint16_t senderID);
-uint8_t update_near_atoms(Atom* near_atom, ir_msg* msg_struct);
+void transmitMoleculeStruct(uint16_t exclude_id, char flag);
+void unpackValences(uint8_t* packed_shells, int8_t* shells);
+void updateDeltaGs();
+void updateMolecule(uint16_t* atNums, uint8_t length, uint16_t sender);
+void updateMoleculeTwo(Atom* near_atom, uint16_t senderID);
+uint8_t updateNearAtoms(Atom* near_atom, ir_msg* msg_struct);
 //void updatePositionEstimate();
-void update_stability();
+void updateStability();
 uint8_t valenceState();
 
 

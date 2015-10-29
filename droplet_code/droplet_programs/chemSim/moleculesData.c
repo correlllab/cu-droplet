@@ -1,4 +1,4 @@
-#include "moleculesData.h"
+#include "droplet_programs/chemSim/moleculesData.h"
 
 const uint8_t MOLECULE_LOOKUP[2719] PROGMEM = {
 	0X84,0XA,0XD1,0XF8,0X0,0X2,0X8,0X3,0X2,0X48,0X3,0XD4,0X5,0X2,0X48,0X3,0X2,0X7,0X5,0X2,

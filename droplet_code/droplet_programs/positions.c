@@ -4,11 +4,23 @@
 
 //#define POS_DEBUG_MODE
 
+#define PARTICLE
+#define KALMAN
+//#define MLE
+
+
 #ifdef POS_DEBUG_MODE
 #define POS_DEBUG_PRINT(format, ...) printf(format, ##__VA_ARGS__)
 #else
 #define POS_DEBUG_PRINT(format, ...)
 #endif
+
+
+#ifdef PARTICLE
+float randFloat(){
+	uint16_t uniformInt = ((uint16_t)rand_byte())<<8|((uint16_t)rand_byte());
+	return ((float)uniformInt)/65535.0;;	
+}
 
 float cauchyPDF(float theta, float mean, float var){
 	var = 1.0+var;
@@ -16,43 +28,70 @@ float cauchyPDF(float theta, float mean, float var){
 	return M_1_PI*fabsf(1-var*var)/(2*(1+var*var-(2*var)*cosf(theta-mean)));
 }
 
+float gaussianPDF(float x, float mean, float var){
+	return expf(((-x+mean)*(x-mean))/(2*var))/sqrtf(2*var*M_PI);
+}
+
+float otherRand=NAN;
+float getNormalRandVar(float mean, float var){
+	float val;
+	if(!isnanf(otherRand)){
+		val = otherRand;
+		otherRand = NAN;
+	}else{
+		float u1, u2, tmp;
+		do{
+			u1 = 2*randFloat()-1.0;
+			u2 = 2*randFloat()-1.0;
+			tmp = u1*u1+u2*u2;
+		}while(tmp>=1.0);
+		
+		tmp = sqrtf((-2.0*logf(tmp))/tmp);
+		val = u1*tmp;
+		otherRand = u2*tmp;
+	}
+	return val*sqrtf(var) + mean;
+}
+
 float getCauchyRandVar(float mean, float var){
 	if(mean<-M_PI||mean>M_PI||var<0||var>(2*M_PI)) return NAN;
-	uint16_t uniformInt = ((uint16_t)rand_byte())<<8|((uint16_t)rand_byte());
-	float uniformFloat = ((float)uniformInt)/65535.0;
+	var = 1.0+var;	
 	float sign;
-	var = 1.0+var;
 	if(var*var-1>=0)		sign = 1;
 	else if(var*var-1<0)	sign = -1;
 	else					sign = 0;
-	float val = mean+2*atan2f((var-1)*tanf(atan2f((var+1)/tanf(mean/2.0),var-1)+M_PI*uniformFloat*sign),var+1);
+	float val = mean+2*atan2f((var-1)*tanf(atan2f((var+1)/tanf(mean/2.0),var-1)+M_PI*randFloat()*sign),var+1);
 	return pretty_angle(val);
 }
-void init(){
-	printf("\r\n");
-	float val;
-	for(uint16_t i=0;i<1000;i++){
-		val = M_PI*((((float)i)/500.0)-1.0);
-		printf("%f, ", cauchyPDF(val,-M_PI*0.6,M_PI/6.0));
-	}
-	delay_ms(5000);	
+#endif
 
-	uint32_t time_before = get_time();
-	volatile float var = 0.0;
-	for(uint32_t i=0;i<100000;i++){
-		var = getCauchyRandVar(M_PI_2,M_PI/10.0);
-	}
-	uint32_t dur = get_time()-time_before;
-	printf("\b}\r\nTook: %lu\r\n", dur);
-	
-	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-		time_before = get_time();
-		for(uint32_t i=0;i<100000;i++){
-			var = getCauchyRandVar(M_PI_2,M_PI/10.0);
-		}
-		dur = get_time()-time_before;
-	}
-	printf("\b}\r\nTook: %lu\r\n", dur);
+void init(){
+	//float valA, valB;
+	//printf("dat = {");	
+	//for(uint16_t i=0;i<9999;i++){
+		//if(rand()&0x1){
+			//valA = getNormalRandVar(1.2, M_PI);
+			//valB = getNormalRandVar(-3, 16);
+		//}else{
+			//valB = getNormalRandVar(-3, 16);	
+			//valA = getNormalRandVar(1.2, M_PI);								
+		//}
+		//printf("{%f, %f},", valA, valB);
+	//}
+	//if(rand()&0x1){
+		//valA = getNormalRandVar(1.2, M_PI);
+		//valB = getNormalRandVar(-3, 16);
+	//}else{
+		//valB = getNormalRandVar(-3, 16);
+		//valA = getNormalRandVar(1.2, M_PI);
+	//}	
+	//printf("{%f, %f}};\r\n", valA, valB);		
+	//float val;
+	//for(uint16_t i=0;i<999;i++){	
+		//val = ( ((float)i)/250.0 ) - 2.0;	
+		//printf("%f, ", gaussianPDF(val, 1.2,M_PI));
+	//}
+	//printf("%f};\r\n",gaussianPDF(2.0,1.2,M_PI));
 	
 	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++) cleanNeighbor(i);	
 	loopCount = 0;
@@ -116,7 +155,6 @@ void useNewRnbMeas(){
 	}else{
 		printf("Error: Unexpected botPos->ID in use_new_rnb_meas.\r\n");
 	}
-	
 }
 
 int cmpFunc(const void* a, const void* b){
@@ -212,34 +250,37 @@ void combineVars(float Rms, float Bms, float Hms, float vRms, float vBms, float 
 	*vHmo = vHms+vHso;
 }
 
-//void fuseData(BotPos* currPos, float otherR, float otherB, float otherH, float otherRvar, float otherBvar, float otherHvar){
-	////MLE VERSION
-	//float vals[3] = {currPos->r, currPos->b, currPos->h};
-	//float vars[3] = {currPos->rV, currPos->bV, currPos->hV};
-	//float otherVals[3] = {otherR, otherB, otherH};
-	//float otherVars[3] = {otherRvar, otherBvar, otherHvar};
-	//
-	//float newVals[3];
-	//float newVars[3];
-	//
-	//for(uint8_t i=0;i<3;i++){
-		//newVars[i] = 1.0/((1.0/vars[i])+(1.0/otherVars[i]));
-		//if(i==0){
-			//newVals[i] = (vals[i]/vars[i]+otherVals[i]/otherVars[i])*newVars[i];
-		//}else{
-			//newVals[i] = atan2(sin(vals[i])/vars[i]+sin(otherVals[i])/otherVars[i], cos(vals[i])/vars[i]+cos(otherVals[i])/otherVars[i]);
-		//}
-	//}
-	//
-	//currPos->r = newVals[0];
-	//currPos->b = newVals[1];
-	//currPos->h = newVals[2];
-	//currPos->rV = newVars[0];
-	//currPos->bV = newVars[1];
-	//currPos->hV = newVars[2];
-	//POS_DEBUG_PRINT("\tFUSED | R: % 6.2fñ%-6.3f B: % 6.1fñ%-6.3f H: % 6.1fñ%-6.3f\r\n", newVals[0], newVars[0], rad_to_deg(newVals[1]), rad_to_deg(newVars[1]), rad_to_deg(newVals[2]), rad_to_deg(newVars[2]));						
-//}
+#ifdef MLE
+void fuseData(BotPos* currPos, float otherR, float otherB, float otherH, float otherRvar, float otherBvar, float otherHvar){
+	//MLE VERSION
+	float vals[3] = {currPos->r, currPos->b, currPos->h};
+	float vars[3] = {currPos->rV, currPos->bV, currPos->hV};
+	float otherVals[3] = {otherR, otherB, otherH};
+	float otherVars[3] = {otherRvar, otherBvar, otherHvar};
+	
+	float newVals[3];
+	float newVars[3];
+	
+	for(uint8_t i=0;i<3;i++){
+		newVars[i] = 1.0/((1.0/vars[i])+(1.0/otherVars[i]));
+		if(i==0){
+			newVals[i] = (vals[i]/vars[i]+otherVals[i]/otherVars[i])*newVars[i];
+		}else{
+			newVals[i] = atan2(sin(vals[i])/vars[i]+sin(otherVals[i])/otherVars[i], cos(vals[i])/vars[i]+cos(otherVals[i])/otherVars[i]);
+		}
+	}
+	
+	currPos->r = newVals[0];
+	currPos->b = newVals[1];
+	currPos->h = newVals[2];
+	currPos->rV = newVars[0];
+	currPos->bV = newVars[1];
+	currPos->hV = newVars[2];
+	POS_DEBUG_PRINT("\tFUSED | R: % 6.2fñ%-6.3f B: % 6.1fñ%-6.3f H: % 6.1fñ%-6.3f\r\n", newVals[0], newVars[0], rad_to_deg(newVals[1]), rad_to_deg(newVars[1]), rad_to_deg(newVals[2]), rad_to_deg(newVars[2]));						
+}
+#endif
 
+#ifdef KALMAN
 //If moving:
 const float PROC_NOISE[3] = {powf(1.0,2.0), powf(M_PI/18.0,2.0), powf(M_PI/18.0,2.0)};
 //If not moving:
@@ -277,6 +318,7 @@ void fuseData(BotPos* currPos, float otherR, float otherB, float otherH, float o
 	currPos->hV = newVars[2];
 	POS_DEBUG_PRINT("\tFUSED | R: % 6.2fñ%-6.3f B: % 6.1fñ%-6.3f H: % 6.1fñ%-6.3f\r\n", newVals[0], newVars[0], rad_to_deg(newVals[1]), rad_to_deg(newVars[1]), rad_to_deg(newVals[2]), rad_to_deg(newVars[2]));						
 }
+#endif
 
 void handle_msg(ir_msg* msg_struct){
 	if(((BotPosMsg*)(msg_struct->msg))->flag==BOT_POS_FLAG){

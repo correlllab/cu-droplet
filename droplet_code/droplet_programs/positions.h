@@ -2,6 +2,11 @@
 
 #include "droplet_init.h"
 
+#define PARTICLE
+//#define KALMAN
+//#define MLE
+#define NUM_PARTICLES 10
+
 //#define GOODBYE_FLAG			'!'
 #define BALL_BOUNCE_FLAG		'B'
 #define BOT_POS_FLAG			'P'
@@ -30,6 +35,14 @@ typedef struct bot_pos_msg{
 	char flag;	
 }BotPosMsg;
 
+#ifdef PARTICLE
+typedef struct particle_struct
+{
+	float r;
+	float b;
+	float h;
+} Particle;
+
 typedef struct bot_pos_struct
 {
 	uint16_t id;	
@@ -39,8 +52,22 @@ typedef struct bot_pos_struct
 	float rV;
 	float bV;
 	float hV;
+	Particle particles[NUM_PARTICLES];
 } BotPos;
+#else
+typedef struct bot_pos_struct
+{
+	uint16_t id;
+	float r;
+	float b;
+	float h;
+	float rV;
+	float bV;
+	float hV;
+} BotPos;
+#endif	
 BotPos neighbors[NUM_TRACKED_BOTS];
+
 
 typedef enum{
 	NOT_BALL,

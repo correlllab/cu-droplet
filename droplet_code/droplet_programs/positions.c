@@ -4,11 +4,6 @@
 
 //#define POS_DEBUG_MODE
 
-#define PARTICLE
-#define KALMAN
-//#define MLE
-
-
 #ifdef POS_DEBUG_MODE
 #define POS_DEBUG_PRINT(format, ...) printf(format, ##__VA_ARGS__)
 #else
@@ -33,7 +28,7 @@ float gaussianPDF(float x, float mean, float var){
 }
 
 float otherRand=NAN;
-float getNormalRandVar(float mean, float var){
+float getGaussRandVar(float mean, float var){
 	float val;
 	if(!isnanf(otherRand)){
 		val = otherRand;
@@ -149,6 +144,13 @@ void useNewRnbMeas(){
 		botPos->bV  = bVar;
 		botPos->h	= last_good_rnb.heading;
 		botPos->hV  = hVar;
+		#ifdef PARTICLE
+		for(uint8_t i=0;i<NUM_PARTICLES;i++){
+			botPos->particles[i].r = getGaussRandVar(botPos->r, botPos->rV);
+			botPos->particles[i].b = getCauchyRandVar(botPos->b, botPos->bV);
+			botPos->particles[i].h = getCauchyRandVar(botPos->h, botPos->hV);
+		}
+		#endif
 	}else if(botPos->id == last_good_rnb.id_number){
 		POS_DEBUG_PRINT("\tRmo: % 5.1fñ%-4.1f Bmo: % 6.1fñ%-4.1f Hmo: % 6.1fñ%-4.1f\r\n", botPos->r, botPos->rV, rad_to_deg(botPos->b), rad_to_deg(botPos->bV), rad_to_deg(botPos->h), rad_to_deg(botPos->hV));
 		fuseData(botPos, last_good_rnb.range, last_good_rnb.bearing, last_good_rnb.heading, rVar, bVar, hVar);
@@ -249,6 +251,84 @@ void combineVars(float Rms, float Bms, float Hms, float vRms, float vBms, float 
 	*vBmo = (2*powf(Rms,4.0)*vBms+2*powf(Rso,4.0)*(vBso+vHms)+Rso2*vRms+Rms2*(Rso2*(vBms+vBso+vHms)+vRso)+cosTerm+4*Rms*Rso*(Rms2*vBms+Rso2*(vBso+vHms))*cosf(Bms-Bso-Hms))/(2.0*powf(denominator,2.0));
 	*vHmo = vHms+vHso;
 }
+
+//for each tracked robot, we have N points.
+//whenever we get a new measurement of a tracked robot's position, we calculate how likely each point is, given the new measurement.
+//These calculated likelihoods are put in an array of weights. We should also calculate the maximum weight (ie, most likely particle)
+
+#ifdef PARTICLE
+void fuseData(BotPos* currPos, float otherR, float otherB, float otherH, float otherRvar, float otherBvar, float otherHvar){
+	//PARTICLE VERSION
+	float otherVals[3] = {otherR, otherB, otherH};
+	float otherVars[3] = {otherRvar, otherBvar, otherHvar};
+		
+	float weights[NUM_PARTICLES];
+	for(uint8_t i=0;i<NUM_PARTICLES;i++) weights[i]=1.0;
+	float maxWeight = -1;
+	uint8_t maxWeightIdx = 0;
+	
+	//TODO: If we know how the bot is moving we can add that here.
+	Particle resampledParticles[NUM_PARTICLES];
+	for(uint8_t i=0;i<NUM_PARTICLES;i++){
+		resampledParticles[i].r = getGaussRandVar(currPos->particles[i].r, currPos->rV);
+		resampledParticles[i].b = getCauchyRandVar(currPos->particles[i].b, currPos->bV);
+		resampledParticles[i].h = getCauchyRandVar(currPos->particles[i].h, currPos->hV);
+	}	
+	
+	for(uint8_t i=0;i<NUM_PARTICLES;i++){
+		float vals[3] = {resampledParticles[i].r, resampledParticles[i].b, resampledParticles[i].h};
+		for(uint8_t j=0;j<3;j++){
+			if(j==0){
+				weights[i] *= gaussianPDF(vals[j], otherVals[j], otherVars[j]);
+			}else{
+				weights[i] *= cauchyPDF(vals[j], otherVals[j], otherVars[j]);
+			}
+		}
+		if(weights[i]>maxWeight){
+			maxWeight = weights[i];
+			maxWeightIdx = i;
+		}		
+	}
+	
+	uint8_t idx = rand_byte()%NUM_PARTICLES;
+	float beta = 0.0;
+	float newVals[3] = {0.0,0.0,0.0};
+	for(uint8_t i=0;i<NUM_PARTICLES;i++){
+			beta+=randFloat()*2.0*maxWeight;
+			while(beta > weights[idx]){
+				beta-=weights[idx];
+				idx = (idx+1)%NUM_PARTICLES;
+			}
+			currPos->particles[i].r = resampledParticles[idx].r;
+			currPos->particles[i].b = resampledParticles[idx].b;
+			currPos->particles[i].h = resampledParticles[idx].h;
+			newVals[0]+= currPos->particles[i].r;
+			newVals[1]+= currPos->particles[i].b;
+			newVals[2]+= currPos->particles[i].h;
+	}
+	for(uint8_t i=0;i<3;i++){
+		newVals[i] = newVals[i]/NUM_PARTICLES;
+	}
+	
+	float newVars[3] = {0.0,0.0,0.0};	
+	for(uint8_t i=0;i<NUM_PARTICLES;i++){
+		newVars[0] += powf(currPos->particles[i].r-newVals[0],2.0);
+		newVars[1] += powf(currPos->particles[i].b-newVals[1],2.0);
+		newVars[2] += powf(currPos->particles[i].h-newVals[2],2.0);
+	}
+	for(uint8_t i=0;i<3;i++){
+		newVars[i] = newVars[i]/NUM_PARTICLES;	
+	}
+	
+	currPos->r = newVals[0];
+	currPos->b = newVals[1];
+	currPos->h = newVals[2];
+	currPos->rV = newVars[0];
+	currPos->bV = newVars[1];
+	currPos->hV = newVars[2];
+	POS_DEBUG_PRINT("\tFUSED | R: % 6.2fñ%-6.3f B: % 6.1fñ%-6.3f H: % 6.1fñ%-6.3f\r\n", newVals[0], newVars[0], rad_to_deg(newVals[1]), rad_to_deg(newVars[1]), rad_to_deg(newVals[2]), rad_to_deg(newVars[2]));						
+}
+#endif
 
 #ifdef MLE
 void fuseData(BotPos* currPos, float otherR, float otherB, float otherH, float otherRvar, float otherBvar, float otherHvar){

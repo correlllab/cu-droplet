@@ -2,7 +2,7 @@
 #include "stdio.h"
 #include "stdarg.h"
 
-//#define POS_DEBUG_MODE
+#define POS_DEBUG_MODE
 
 #ifdef POS_DEBUG_MODE
 #define POS_DEBUG_PRINT(format, ...) printf(format, ##__VA_ARGS__)
@@ -61,6 +61,13 @@ float getCauchyRandVar(float mean, float var){
 #endif
 
 void init(){
+	uint16_t packedLength = 600;
+	uint16_t unpackedLength = (packedLength/3)*4;
+	uint16_t recording[packedLength];
+	mic_recording(recording, packedLength, 8000);
+	uint16_t unpackedRecording[unpackedLength];
+	unpackMicRecording(unpackedRecording, unpackedLength, recording, packedLength);
+	
 	//float valA, valB;
 	//printf("dat = {");	
 	//for(uint16_t i=0;i<9999;i++){
@@ -273,7 +280,7 @@ void fuseData(BotPos* currPos, float otherR, float otherB, float otherH, float o
 		resampledParticles[i].r = getGaussRandVar(currPos->particles[i].r, currPos->rV);
 		resampledParticles[i].b = getCauchyRandVar(currPos->particles[i].b, currPos->bV);
 		resampledParticles[i].h = getCauchyRandVar(currPos->particles[i].h, currPos->hV);
-	}	
+	}
 	
 	for(uint8_t i=0;i<NUM_PARTICLES;i++){
 		float vals[3] = {resampledParticles[i].r, resampledParticles[i].b, resampledParticles[i].h};
@@ -289,6 +296,10 @@ void fuseData(BotPos* currPos, float otherR, float otherB, float otherH, float o
 			maxWeightIdx = i;
 		}		
 	}
+	POS_DEBUG_PRINT("\tResampled Particles:\r\n");
+	for(uint8_t i=0;i<NUM_PARTICLES;i++){
+		POS_DEBUG_PRINT("\t\tR: % 6.2f B: %6.1f H: %6.1f W: % 7.3f\r\n", resampledParticles[i].r, rad_to_deg(resampledParticles[i].b), rad_to_deg(resampledParticles[i].h), weights[i]);
+	}	
 	
 	uint8_t idx = rand_byte()%NUM_PARTICLES;
 	float beta = 0.0;
@@ -307,8 +318,13 @@ void fuseData(BotPos* currPos, float otherR, float otherB, float otherH, float o
 			newVals[2]+= currPos->particles[i].h;
 	}
 	for(uint8_t i=0;i<3;i++){
-		newVals[i] = newVals[i]/NUM_PARTICLES;
+		newVals[i] = newVals[i]/((float)NUM_PARTICLES);
 	}
+	
+	POS_DEBUG_PRINT("\tNew Particles:\r\n");	
+	for(uint8_t i=0;i<NUM_PARTICLES;i++){
+		POS_DEBUG_PRINT("\t\tR: % 6.2f B: %6.1f H: %6.1f\r\n", currPos->particles[i].r, rad_to_deg(currPos->particles[i].b), rad_to_deg(currPos->particles[i].h));
+	}	
 	
 	float newVars[3] = {0.0,0.0,0.0};	
 	for(uint8_t i=0;i<NUM_PARTICLES;i++){
@@ -317,8 +333,10 @@ void fuseData(BotPos* currPos, float otherR, float otherB, float otherH, float o
 		newVars[2] += powf(currPos->particles[i].h-newVals[2],2.0);
 	}
 	for(uint8_t i=0;i<3;i++){
-		newVars[i] = newVars[i]/NUM_PARTICLES;	
+		newVars[i] = newVars[i]/((float)NUM_PARTICLES);	
 	}
+	
+
 	
 	currPos->r = newVals[0];
 	currPos->b = newVals[1];

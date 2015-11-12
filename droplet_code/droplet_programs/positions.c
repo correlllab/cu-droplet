@@ -2,7 +2,7 @@
 #include "stdio.h"
 #include "stdarg.h"
 
-#define POS_DEBUG_MODE
+//#define POS_DEBUG_MODE
 
 #ifdef POS_DEBUG_MODE
 #define POS_DEBUG_PRINT(format, ...) printf(format, ##__VA_ARGS__)
@@ -10,11 +10,10 @@
 #define POS_DEBUG_PRINT(format, ...)
 #endif
 
-
 #ifdef PARTICLE
 float randFloat(){
 	uint16_t uniformInt = ((uint16_t)rand_byte())<<8|((uint16_t)rand_byte());
-	return ((float)uniformInt)/65535.0;;	
+	return ((float)uniformInt)/65535.0;;
 }
 
 float cauchyPDF(float theta, float mean, float var){
@@ -60,14 +59,7 @@ float getCauchyRandVar(float mean, float var){
 }
 #endif
 
-void init(){
-	uint16_t packedLength = 600;
-	uint16_t unpackedLength = (packedLength/3)*4;
-	uint16_t recording[packedLength];
-	mic_recording(recording, packedLength, 8000);
-	uint16_t unpackedRecording[unpackedLength];
-	unpackMicRecording(unpackedRecording, unpackedLength, recording, packedLength);
-	
+void init(){	
 	//float valA, valB;
 	//printf("dat = {");	
 	//for(uint16_t i=0;i<9999;i++){
@@ -102,34 +94,36 @@ void init(){
 	lastGoodbye = 0;	
 	myRNBLoop = (get_droplet_id()%LOOPS_PER_RNB);
 	myMsgLoop = ((get_droplet_id()+LOOPS_PER_RNB/2)%LOOPS_PER_RNB);
-	missedBroadcast = 0;
-	missedMsg		= 0;
 	myState=NOT_BALL;
+	firstLoop = 1;
 	printf("myRNBLoop: %d\r\n", myRNBLoop);
 }
 
 void loop(){
-	if((get_time()%LOOP_PERIOD_MS)<(LOOP_PERIOD_MS/10)){
+	if((get_time()%LOOP_PERIOD_MS)<(LOOP_PERIOD_MS/50)){
 		set_rgb(0,0,0);
-		if((loopCount==myRNBLoop)||missedBroadcast){
-			delay_ms(LOOP_PERIOD_MS/2);
+		if((!firstLoop)&&(loopCount==myRNBLoop)){
+			delay_ms(5);
 			broadcast_rnb_data();
+			myRNBLoop=(myRNBLoop)%LOOPS_PER_RNB;
+		}else if((!firstLoop)&&(loopCount==myMsgLoop)){
+			delay_ms(30);
+			//sendBotPosMsg();
+			myMsgLoop=(myMsgLoop)%LOOPS_PER_RNB;			
+		}else if((!firstLoop)&&(loopCount==LOOPS_PER_RNB-1)){
 			printf("\nT: %lu\r\n", get_time());
 			printf("  ID  |   R   |   rV   |   B   |   bV   |   H   |   hV   |\r\n");
 			for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++)
 			{
 				if(neighbors[i].id!=0)
-				printf(" %04X | % -6.2f| %6.3f | % -6.1f| %6.3f | % -6.1f| %6.3f |\r\n", neighbors[i].id, neighbors[i].r, neighbors[i].rV, rad_to_deg(neighbors[i].b), rad_to_deg(neighbors[i].bV), rad_to_deg(neighbors[i].h), rad_to_deg(neighbors[i].hV));					
+				printf(" %04X | % -6.2f| %6.3f | % -6.1f| %6.3f | % -6.1f| %6.3f |\r\n", neighbors[i].id, neighbors[i].r, neighbors[i].rV, rad_to_deg(neighbors[i].b), rad_to_deg(neighbors[i].bV), rad_to_deg(neighbors[i].h), rad_to_deg(neighbors[i].hV));
 			}
 			printf("\n\n");
-			missedBroadcast=0;
-		}else if((loopCount==myMsgLoop)||missedMsg){
-			delay_ms(10);
-			sendBotPosMsg();
-			missedMsg = 0;
-		}		
+		}
+		
+		if(loopCount==(LOOPS_PER_RNB-1)){ firstLoop = 0;}
 		loopCount=((loopCount+1)%LOOPS_PER_RNB);
-		delay_ms(LOOP_PERIOD_MS/10);
+		delay_ms(LOOP_PERIOD_MS/50);
 	}
 	if(rnb_updated){
 		useNewRnbMeas();
@@ -172,9 +166,9 @@ int cmpFunc(const void* a, const void* b){
 	float xConf = getConfFromVars(x->rV, x->bV, x->hV);
 	float yConf = getConfFromVars(y->rV, y->bV, y->hV);
 	if(xConf==INFINITY&&yConf==INFINITY)	return 0;
-	else if(xConf==INFINITY)					return 1;
-	else if(yConf==INFINITY)					return -1;
-	return (xConf - yConf);
+	else if(xConf==INFINITY)					return -1;
+	else if(yConf==INFINITY)					return 1;
+	return (yConf - xConf);
 }
 
 void sendBotPosMsg(){
@@ -193,7 +187,7 @@ void useBotPosMsg(PackedBotPos* bots, uint16_t senderID){
 	BotPos* sender = getNeighbor(senderID);
 	
 	if(sender==NULL){
-		printf("Got botPosMsg from someone I don't have data for, so doing nothing.\r\n");
+		//printf("Got botPosMsg from someone I don't have data for, so doing nothing.\r\n");
 		return;
 	}
 	
@@ -208,6 +202,7 @@ void useBotPosMsg(PackedBotPos* bots, uint16_t senderID){
 																						sender->r, sender->rV, rad_to_deg(sender->b), rad_to_deg(sender->bV), rad_to_deg(sender->h), rad_to_deg(sender->hV),
 																						Rso, vRso, rad_to_deg(Bso), rad_to_deg(vBso), rad_to_deg(Hso), rad_to_deg(vHso));
 		fuseData(sender, Rso, pretty_angle(Bso-Hso+M_PI), -Hso, vRso, vBso+vHso, vHso);
+		break;
 	}
 	if(!foundMyself) return;
 	
@@ -287,8 +282,10 @@ void fuseData(BotPos* currPos, float otherR, float otherB, float otherH, float o
 		for(uint8_t j=0;j<3;j++){
 			if(j==0){
 				weights[i] *= gaussianPDF(vals[j], otherVals[j], otherVars[j]);
+				printf("\t\t\trW: %f\r\n",gaussianPDF(vals[j], otherVals[j], otherVars[j]));
 			}else{
 				weights[i] *= cauchyPDF(vals[j], otherVals[j], otherVars[j]);
+				printf("\t\t\taW: %f\r\n",cauchyPDF(vals[j], otherVals[j], otherVars[j]));				
 			}
 		}
 		if(weights[i]>maxWeight){
@@ -380,7 +377,7 @@ void fuseData(BotPos* currPos, float otherR, float otherB, float otherH, float o
 
 #ifdef KALMAN
 //If moving:
-const float PROC_NOISE[3] = {powf(1.0,2.0), powf(M_PI/18.0,2.0), powf(M_PI/18.0,2.0)};
+const float PROC_NOISE[3] = {powf(1.0,2.0), powf(M_PI/30.0,2.0), powf(M_PI/22.5,2.0)};
 //If not moving:
 //const float PROC_NOISE[3] = {0, 0, 0};
 const float MEAS_NOISE[3] = {powf(3.0,2.0), powf(M_PI/6.0,2.0), powf(M_PI/6.0,2.0)};
@@ -399,10 +396,12 @@ void fuseData(BotPos* currPos, float otherR, float otherB, float otherH, float o
 		predVar = vars[i] + PROC_NOISE[i];
 		kalmanGain = (predVar)/(predVar+MEAS_NOISE[i]);
 		if(i>0){
+			//if(abs(vals[i]-otherVals[i])>deg_to_rad(75)) kalmanGain*=0.2;
 			newVals[i] = pretty_angle(pretty_angle(kalmanGain*otherVals[i])+pretty_angle((1.0-kalmanGain)*vals[i]));
 			/*
 			atan2(kalmanGain*sin(otherVals[i])+(1.0-kalmanGain)*sin(vals[i]),kalmanGain*cos(otherVals[i])+(1.0-kalmanGain)*cos(vals[i]));*/
 		}else{
+			//if(abs(vals[i]-otherVals[i]>4*DROPLET_RADIUS)) kalmanGain*=0.2;
 			newVals[i] = kalmanGain*otherVals[i] + (1.0 - kalmanGain)*vals[i];
 		}
 		newVars[i] = predVar*(1.0-kalmanGain);

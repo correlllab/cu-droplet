@@ -15,6 +15,7 @@
 #define DROPLET_RADIUS 2.0828  //cm
 #define DROPLET_SENSOR_RADIUS 2.0828 //cm
 #define BRIGHTNESS_THRESHOLD 1
+#define CMD_DROPLET_ID	0x8F6D
 
 #define POST_MESSAGE_DELAY ((3*((1000/IR_UPKEEP_FREQUENCY)))/2)
 #define R_VAR_SCALE_FACTOR 162.05
@@ -98,6 +99,7 @@ void collect_rnb_data(uint16_t target_id, uint8_t power);
 void broadcast_rnb_data();
 void receive_rnb_data();
 void use_rnb_data();
+void use_cmd_rnb_data();
 
 void calculate_bearing_and_heading(int16_t brightness_matrix[6][6], float* bearing, float* heading);
 float get_initial_range_guess(float bearing, float heading, uint8_t power, int16_t brightness_matrix[6][6]);
@@ -121,3 +123,6 @@ float inverse_amplitude_model(float ADC_val, uint8_t power);
 void debug_print_timer(uint32_t timer[19]);
 void print_brightness_matrix(int16_t brightness_matrix[6][6], int16_t sum);
 void brightness_meas_printout_mathematica();
+
+float expected_bright_mat(float r, float b, float h, uint8_t i, uint8_t j);
+float calculate_innovation(float r, float b, float h, int16_t realBM[6][6]);

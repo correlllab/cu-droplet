@@ -12,6 +12,14 @@
 */
 #include "range_algs.h"
 						
+						
+//NOTE TO SELF:
+//The problem with range and bearing as it is now is that, while the heading and bearing bases matrices WORK,
+//they are flawed in that, while a high measurement in a place might correspond to a certain bearing and heading,
+//if the bearing is actually something different (due to, say, a very high number elsewhere), the corresponding heading that 
+// the measurement contributes to is wrong?
+//I don't know, maybe this is okay. Something to look in to.				
+						
 float basis_angle[6] = {-(M_PI/6.0), -M_PI_2, -((5.0*M_PI)/6.0), ((5.0*M_PI)/6.0), M_PI_2, (M_PI/6.0)};
 	
 //Should maybe be elsewhere?
@@ -31,6 +39,43 @@ void range_algs_init()
 }
 	cmdID=0;
 	processingFlag=0;
+}
+
+float expected_bright_mat(float r, float b, float h, uint8_t i, uint8_t j){
+	float jX = cosf(basis_angle[j]+h);
+	float jY = sinf(basis_angle[j]+h);
+	float rijX = r*cosf(b)+DROPLET_RADIUS*(jX-bearingBasis[i][0]);
+	float rijY = r*sinf(b)+DROPLET_RADIUS*(jY-bearingBasis[i][1]);
+	float alpha = rijX*bearingBasis[i][0]+rijY*bearingBasis[i][1];
+	float beta = -rijX*jX-rijY*jY;
+	float rijMag = hypotf(rijX, rijY);
+	if(alpha>0&&beta>0) return (alpha*beta*amplitude_model(rijMag, 255))/powf(rijMag,2.0);
+	else				return 0;
+}
+
+float calculate_innovation(float r, float b, float h, int16_t realBM[6][6]){
+	float expBM[6][6];
+	float expNorm  = 0.0;
+	float realNorm = 0.0;
+	
+	for(uint8_t i=0;i<6;i++){
+		for(uint8_t j=0;j<6;j++){
+			expBM[i][j]=expected_bright_mat(r, b, h, j, i)+12;	
+			expNorm += powf(expBM[i][j], 2.0);
+			realNorm += powf((float)realBM[i][j], 2.0);
+		}
+	}
+	float expNormInv  = powf(expNorm,-0.5); 
+	float realNormInv = powf(realNorm,-0.5);
+	//printf("%04X | %7.3f %7.3f %7.1f %7.1f\r\n",cmdID, realFrob, expFrob, realTot, expTot);	
+	
+	float error=0.0;	
+	for(uint8_t i=0;i<6;i++){
+		for(uint8_t j=0;j<6;j++){
+			error+=fabsf(((float)realBM[i][j])*realNormInv-expBM[i][j]*expNormInv);
+		}
+	}
+	return error;
 }
 
 void collect_rnb_data(uint16_t target_id, uint8_t power)
@@ -53,6 +98,7 @@ void broadcast_rnb_data()
 	hp_ir_cmd(ALL_DIRS, "rnb_r", 5);
 	delay_ms(POST_MESSAGE_DELAY);	
 	ir_range_blast(power);
+	printf("rnb_b\r\n");	
 }
 
 void receive_rnb_data()
@@ -65,9 +111,40 @@ void receive_rnb_data()
 		//uint8_t power = 25; //TODO: get this from the message.
 		//schedule_task(10,brightness_meas_printout_mathematica,NULL);
 		//brightness_meas_printout_mathematica();
-		schedule_task(10, use_rnb_data, NULL);
+		//printf("Finished getting data %lums after msg.\r\n",get_time()-time_before);		
+		if(cmdID!=CMD_DROPLET_ID){
+			schedule_task(10, use_rnb_data, NULL);
+		}else{
+			schedule_task(10, use_cmd_rnb_data, NULL);
+		}
+		printf("rnb_r\r\n");			
 	}
 }
+
+void use_cmd_rnb_data(){
+	int16_t brightness_matrix[6][6];
+	int16_t matrixSum = pack_measurements_into_matrix(brightness_matrix);
+	int16_t baselines[6];
+	int16_t eTotals[4];
+	int16_t tmp;
+	for(uint8_t s=0 ; s<6; s++){
+		baselines[s] = (brightness_matrix[5][s]+brightness_matrix[6][s])/2;
+	}
+	print_brightness_matrix(brightness_matrix, matrixSum);
+	for(uint8_t e=0;e<4;e++){
+		eTotals[e]=0;
+		for(uint8_t s=0;s<6;s++){
+			tmp=(brightness_matrix[e][s]-baselines[s]);
+			if(tmp<0){ 
+				tmp=0;
+			}
+			eTotals[e] += tmp;
+		}
+	}
+	printf("eTotals: %5d, %5d, %5d, %5d\r\n",eTotals[0], eTotals[1], eTotals[2], eTotals[3]);
+	processingFlag=0;
+}
+
 
 void use_rnb_data()
 {
@@ -78,6 +155,7 @@ void use_rnb_data()
 	//brightness_meas_printout_mathematica();
 	if(matrixSum<MIN_MATRIX_SUM_THRESH){
 		//printf_P(PSTR("RNB Data not retrieved, as sum<MIN_MATRIX_SUM_THRESH.\r\n"));
+		processingFlag = 0;
 		return;
 	}
 	
@@ -91,12 +169,31 @@ void use_rnb_data()
 	{	
 		float range = range_estimate(initial_range, bearing, heading, power, brightness_matrix);
 		if(!isnanf(range)){
-			//printf("%04X   | B: % -3.1f\tH: % -3.1f\tiR: % -2.2f\tR:% -2.2f\r\n", cmdID, rad_to_deg(bearing), rad_to_deg(heading), initial_range, range);					
+			if(range<2*DROPLET_RADIUS) range=5.0;
+			float error = calculate_innovation(range, bearing, heading, brightness_matrix);
+			float conf = sqrtf(matrixSum);
+			//BotPos* soFar = getNeighbor(cmdID);
+			//float otherError=NAN;
+			//if(soFar!=NULL)  otherError = calculate_innovation(soFar->r, soFar->b, soFar->h, brightness_matrix);
+			printf("{\"%04X\", % -2.2f, % -3.1f, % -3.1f\t, % -9.5f},\r\n", cmdID, range, rad_to_deg(bearing), rad_to_deg(heading), error);		
+			print_brightness_matrix(brightness_matrix, matrixSum);
+			conf = conf/(error*error);
+			if(error>3.0){
+				//printf("\tGoing to ditch this one.\r\n");
+				//processingFlag=0;
+				//return;
+				conf = conf/10.0; //Nerf the confidence hard if the calculated error was too high.
+			}
+	
 			last_good_rnb.id_number = cmdID;
 			last_good_rnb.range = range;
 			last_good_rnb.bearing = bearing;
 			last_good_rnb.heading = heading;
 			last_good_rnb.conf	  = sqrtf(matrixSum);
+			//if(abs(heading)>deg_to_rad(45)){
+				//printf("!!!\r\n");
+				////print_brightness_matrix(brightness_matrix, matrixSum);
+			//}
 			rnb_updated=1;
 		}
 	}
@@ -105,20 +202,40 @@ void use_rnb_data()
 
 void calculate_bearing_and_heading(int16_t brightness_matrix[6][6], float* bearing, float* heading)
 {
+	int16_t maxReading=-1;
+	for(uint8_t e=0;e<6;e++){
+		for(uint8_t s=0;s<6;s++){
+			if(brightness_matrix[e][s]>maxReading){
+				maxReading = brightness_matrix[e][s];
+			}
+		}
+	}
+	
 	float bearingX = 0;
 	float bearingY = 0;
 	float headingX = 0;
 	float headingY = 0;
 	for(uint8_t e=0;e<6;e++){
 		for(uint8_t s=0;s<6;s++){
-			bearingX+=brightness_matrix[e][s]*getCosBearingBasis(e,s);
-			bearingY+=brightness_matrix[e][s]*getSinBearingBasis(e,s);
-			headingX+=brightness_matrix[e][s]*getCosHeadingBasis(e,s);
-			headingY+=brightness_matrix[e][s]*getSinHeadingBasis(e,s);
+			if(maxReading>300){
+				if(abs(brightness_matrix[e][s]-maxReading)<=0.15*maxReading){
+					bearingX+=brightness_matrix[e][s]*getCosBearingBasis(e,s);
+					bearingY+=brightness_matrix[e][s]*getSinBearingBasis(e,s);
+					headingX+=brightness_matrix[e][s]*getCosHeadingBasis(e,s);
+					headingY+=brightness_matrix[e][s]*getSinHeadingBasis(e,s);		
+				}
+			}else{
+				bearingX+=brightness_matrix[e][s]*getCosBearingBasis(e,s);
+				bearingY+=brightness_matrix[e][s]*getSinBearingBasis(e,s);
+				headingX+=brightness_matrix[e][s]*getCosHeadingBasis(e,s);
+				headingY+=brightness_matrix[e][s]*getSinHeadingBasis(e,s);
+			}
+			
 		}
 	}
 	*bearing = atan2f(bearingY, bearingX);	
 	*heading = atan2f(headingY, headingX);
+	
 }
 
 float get_initial_range_guess(float bearing, float heading, uint8_t power, int16_t brightness_matrix[6][6])
@@ -400,7 +517,7 @@ float amplitude_model(float r, uint8_t power)
 
 float inverse_amplitude_model(float ADC_val, uint8_t power)
 {
-	if(power == 255)		return (-1.5+(131.5/sqrtf(ADC_val-3.85)));
+	if(power == 255)		return 2*(-1.5+(131.5/sqrtf(ADC_val-3.85)));
 	//else if(power == 250) return (33.166/sqrtf(ADC_val - 12.5)) + 4;
 	else					printf_P(PSTR("ERROR: Unexpected power: %hhu\r\n"),power);
 	return 0;

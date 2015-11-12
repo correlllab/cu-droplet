@@ -2,17 +2,17 @@
 
 #include "droplet_init.h"
 
-#define PARTICLE
-//#define KALMAN
+//#define PARTICLE
+#define KALMAN
 //#define MLE
-#define NUM_PARTICLES 10
+//#define NUM_PARTICLES 10
 
 //#define GOODBYE_FLAG			'!'
 #define BALL_BOUNCE_FLAG		'B'
 #define BOT_POS_FLAG			'P'
-#define LOOP_PERIOD_MS			400
-#define RNB_BC_PERIOD_MS		20400
-#define LOOPS_PER_RNB			(RNB_BC_PERIOD_MS/LOOP_PERIOD_MS)
+#define LOOP_PERIOD_MS			500
+#define LOOPS_PER_RNB			71
+#define RNB_BC_PERIOD_MS		(LOOP_PERIOD_MS*LOOPS_PER_RNB)
 #define GROUP_TIMEOUT_MS		40000
 #define MIN_GOODBYE_INTERVAL	10000
 #define NUM_TRACKED_BOTS		12
@@ -69,6 +69,8 @@ typedef struct bot_pos_struct
 BotPos neighbors[NUM_TRACKED_BOTS];
 
 
+uint32_t time_before;
+
 typedef enum{
 	NOT_BALL,
 	NOT_BALL_ALERT,
@@ -84,12 +86,11 @@ uint8_t		numNeighbors;
 uint16_t	loopCount;
 uint16_t	myRNBLoop;
 uint16_t	myMsgLoop;
-uint8_t		missedBroadcast;
-uint8_t		missedMsg;
 
 uint8_t outwardDir;
 uint16_t outwardDirID;
 uint32_t lastGoodbye;
+uint8_t firstLoop;
 
 void		init();
 void		loop();
@@ -108,9 +109,9 @@ BotPos* getNeighbor(uint16_t id);
 void removeNeighbor(uint16_t id);
 
 static void inline getVarsFromConf(float conf, float* rVar, float* bVar, float* hVar){
-	*rVar = powf( 43.41/conf,2.0);
-	*bVar = powf( 12.17/conf,2.0);
-	*hVar = powf( 12.17/conf,2.0);
+	*rVar = powf( 43.41/conf,1.0);
+	*bVar = powf( 12.17/conf,1.0);
+	*hVar = powf( 12.17/conf,1.0);
 }
 
 static float inline getConfFromVars(float rVar, float bVar, float hVar){

@@ -553,6 +553,46 @@ void getNameFromAtomicNum(char* name, uint8_t atomicNum) {
 			name[0] = 'H';
 			name[1] = 'e';
 			break;
+		case 3:
+			name[0] = 'L';
+			name[1] = 'i';
+			break;
+		case 4:
+			name[0] = 'B';
+			name[1] = 'e';
+			break;
+		case 6:
+			name[0] = 'C';
+			name[1] = ' ';
+			break;
+		case 7:
+			name[0] = 'N';
+			name[1] = ' ';
+			break;
+		case 8:
+			name[0] = 'O';
+			name[1] = ' ';
+			break;
+		case 9:
+			name[0] = 'F';
+			name[1] = ' ';
+			break;
+		case 17:
+			name[0] = 'C';
+			name[1] = 'l';
+			break;
+		case 35:
+			name[0] = 'B';
+			name[1] = 'r';
+			break;
+		case 53:
+			name[0] = 'I';
+			name[1] = ' ';
+			break;
+		default:
+			name[0] = ' ';
+			name[1] = ' ';
+			break;
 	}
 }
 
@@ -1080,7 +1120,7 @@ void msgState(ir_msg* msg_struct)
 	}
 	uint8_t nearAtomsIdx = updateNearAtoms(&near_atom, msg_struct);
 
-	printMolecularReactions(moddedMoleculeNums);
+	if(!bonded) printMolecularReactions(moddedMoleculeNums);
 	if(state.msgFlag == 'm') breakAndFormBonds(&near_atom, msg_struct->sender_ID);
 	float deltaChi = fabsf(myID.chi - near_atom.chi);
 	char flag;
@@ -1124,13 +1164,14 @@ void printBondedAtoms()
 void printMolecularReactions(uint8_t* otherMol) {
 	printf_P(PSTR("Printing molecular reactions. \r\n"));
 	printf_P(PSTR("\tReaction One: \r\n\t"));
+	uint8_t found_atom = 0;
 	for(uint8_t i = 0; i < 15; i++) {
 		char* myAtom;
 		getNameFromAtomicNum(myAtom, getAtomicNumFromID(my_molecule[i]));
-		if(myAtom[0] != ' ' && myAtom[1] != ' ')  {
-			printf_P(PSTR("%c%c"), myAtom[0], myAtom[1]);
+		if(!(myAtom[0] == ' ' && myAtom[1] == ' '))  {
+			printf_P(PSTR("%c"), myAtom[0]);
+			if(myAtom[1] != ' ') printf_P(PSTR("%c"), myAtom[1]);
 		} else {
-			printf("No atom here ");
 			break;
 		}
 	}
@@ -1138,29 +1179,33 @@ void printMolecularReactions(uint8_t* otherMol) {
 	for(uint8_t i = 0; i < 15; i++) {
 		char* otherAtom;
 		getNameFromAtomicNum(otherAtom, otherMol[i]);
-		if(otherAtom[0] != ' ' && otherAtom[1] != ' ') {
-			printf_P(PSTR("%c%c"), otherAtom[0], otherAtom[1]);
+		if(!(otherAtom[0] == ' ' && otherAtom[1] == ' ')) {
+			printf_P(PSTR("%c"), otherAtom[0]);
+			if(otherAtom[1] != ' ')printf_P(PSTR("%c"), otherAtom[1]);
 		} else break;
 	}
 	printf_P(PSTR(" -> "));
 	for(uint8_t i = 0; i < 15; i++) {
 		char* myAtom;
 		getNameFromAtomicNum(myAtom, getAtomicNumFromID(my_molecule[i]));
-		if(myAtom[0] != ' ' && myAtom[1] != ' ')  {
-			printf_P(PSTR("%c%c"), myAtom[0], myAtom[1]);
+		if(!(myAtom[0] == ' ' && myAtom[1] == ' '))  {
+			printf_P(PSTR("%c"), myAtom[0]);
+			if(myAtom[1] != ' ') printf_P(PSTR("%c"), myAtom[1]);
 		} else {
 			char* otherAtom;
-			getNameFromAtomicNum(otherAtom, otherMol[i]);
-			printf_P(PSTR("%c%c"), otherAtom[0], otherAtom[1]);
+			getNameFromAtomicNum(otherAtom, otherMol[0]);
+			printf_P(PSTR("%c"), otherAtom[0]);
+			if(otherAtom[1] != ' ')printf_P(PSTR("%c"), otherAtom[1]);
 			break;
 		}
 	}
-	printf_P(PSTR(" + "));
 	for(uint8_t i = 0; i < 15; i++) {
 		char* otherAtom;
 		getNameFromAtomicNum(otherAtom, otherMol[i]);
-		if(otherAtom[0] != ' ' && otherAtom[1] != ' ' && otherMol[i+1] != 0) {
-			printf_P(PSTR("%c%c"), otherAtom[0], otherAtom[1]);
+		if(!(otherAtom[0] == ' ' && otherAtom[1] == ' ') && otherMol[i+1] != 0) {
+			if(i == 0) printf_P(PSTR(" + "));
+			printf_P(PSTR("%c"), otherAtom[0]);
+			if(otherAtom[1] != ' ')printf_P(PSTR("%c"), otherAtom[1]);
 		} else break;
 	}
 	
@@ -1169,36 +1214,42 @@ void printMolecularReactions(uint8_t* otherMol) {
 	for(uint8_t i = 0; i < 15; i++) {
 		char* myAtom;
 		getNameFromAtomicNum(myAtom, getAtomicNumFromID(my_molecule[i]));
-		if(myAtom[0] != ' ' && myAtom[1] != ' ')  {
-			printf_P(PSTR("%c%c"), myAtom[0], myAtom[1]);
+		if(!(myAtom[0] == ' ' && myAtom[1] == ' '))  {
+			printf_P(PSTR("%c"), myAtom[0]);
+			if(myAtom[1] != ' ') printf_P(PSTR("%c"), myAtom[1]);
 		} else break;
 	}
 	printf_P(PSTR(" + "));
 	for(uint8_t i = 0; i < 15; i++) {
 		char* otherAtom;
 		getNameFromAtomicNum(otherAtom, otherMol[i]);
-		if(otherAtom[0] != ' ' && otherAtom[1] != ' ') {
-			printf_P(PSTR("%c%c"), otherAtom[0], otherAtom[1]);
+		if(!(otherAtom[0] == ' ' && otherAtom[1] == ' ')) {
+			printf_P(PSTR("%c"), otherAtom[0]);
+			if(otherAtom[1] != ' ')printf_P(PSTR("%c"), otherAtom[1]);
 		} else break;
 	}
 	printf_P(PSTR(" -> "));
 	for(uint8_t i = 0; i < 15; i++) {
 		char* myAtom;
 		getNameFromAtomicNum(myAtom, getAtomicNumFromID(my_molecule[i]));
-		if(myAtom[0] != ' ' && myAtom[1] != ' ' && my_molecule[i+1] != 0)  {
-			printf_P(PSTR("%c%c"), myAtom[0], myAtom[1]);
+		if(!(myAtom[0] == ' ' && myAtom[1] == ' ') && my_molecule[i+1] != 0)  {
+			found_atom = 1;
+			printf_P(PSTR("%c"), myAtom[0]);
+			if(myAtom[1] != ' ') printf_P(PSTR("%c"), myAtom[1]);
 			} else {
 			break;
 		}
 	}
-	printf_P(PSTR(" + "));
+	if(found_atom == 1) printf_P(PSTR(" + "));
 	for(uint8_t i = 0; i < 15; i++) {
 		char* otherAtom;
 		getNameFromAtomicNum(otherAtom, otherMol[i]);
-		if(otherAtom[0] != ' ' && otherAtom[1] != ' ') {
-			printf_P(PSTR("%c%c"), otherAtom[0], otherAtom[1]);
+		if(!(otherAtom[0] == ' ' && otherAtom[1] == ' ')) {
+			printf_P(PSTR("%c"), otherAtom[0]);
+			if(otherAtom[1] != ' ')printf_P(PSTR("%c"), otherAtom[1]);
 		} else {
-			printf_P(PSTR("%c%c"), myID.name[0], myID.name[1]);
+			printf_P(PSTR("%c"), myID.name[0]);
+			if(myID.name[1] != ' ') printf_P(PSTR("%c"), myID.name[1]);
 			break;
 		}
 	}

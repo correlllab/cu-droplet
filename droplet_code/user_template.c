@@ -23,7 +23,11 @@
  //*/
 //void handle_msg(ir_msg* msg_struct)
 //{
-//
+	////printf("From %04X:\r\n\t",msg_struct->sender_ID);
+	////for(uint8_t i=0;i<msg_struct->length;i++){
+		////printf("%c",msg_struct->msg[i]);	
+	////}
+	////printf("\r\n");
 //}
 //
 /////*

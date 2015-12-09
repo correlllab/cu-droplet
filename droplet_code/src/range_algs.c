@@ -128,13 +128,14 @@ void use_cmd_rnb_data(){
 	int16_t eTotals[4];
 	int16_t tmp;
 	for(uint8_t s=0 ; s<6; s++){
-		baselines[s] = (brightness_matrix[5][s]+brightness_matrix[6][s])/2;
+		baselines[s] = (brightness_matrix[2][s]+brightness_matrix[5][s])/2;
 	}
+	const uint8_t bmIdx[4] = {0, 1, 3, 4};
 	print_brightness_matrix(brightness_matrix, matrixSum);
 	for(uint8_t e=0;e<4;e++){
 		eTotals[e]=0;
 		for(uint8_t s=0;s<6;s++){
-			tmp=(brightness_matrix[e][s]-baselines[s]);
+			tmp=(brightness_matrix[bmIdx[e]][s]-baselines[s]);
 			if(tmp<0){ 
 				tmp=0;
 			}
@@ -163,7 +164,6 @@ void use_rnb_data()
 	
 	float bearing, heading;
 	calculate_bearing_and_heading(brightness_matrix, &bearing, &heading);
-		
 	float initial_range = get_initial_range_guess(bearing, heading, power, brightness_matrix);
 	if(initial_range!=0&&!isnanf(initial_range))
 	{	
@@ -189,7 +189,7 @@ void use_rnb_data()
 			last_good_rnb.range = range;
 			last_good_rnb.bearing = bearing;
 			last_good_rnb.heading = heading;
-			last_good_rnb.conf	  = sqrtf(matrixSum);
+			last_good_rnb.conf	  = conf;
 			//if(abs(heading)>deg_to_rad(45)){
 				//printf("!!!\r\n");
 				////print_brightness_matrix(brightness_matrix, matrixSum);
@@ -202,37 +202,20 @@ void use_rnb_data()
 
 void calculate_bearing_and_heading(int16_t brightness_matrix[6][6], float* bearing, float* heading)
 {
-	int16_t maxReading=-1;
-	for(uint8_t e=0;e<6;e++){
-		for(uint8_t s=0;s<6;s++){
-			if(brightness_matrix[e][s]>maxReading){
-				maxReading = brightness_matrix[e][s];
-			}
-		}
-	}
+	int16_t* fast_bm = (int16_t*)brightness_matrix;
 	
 	float bearingX = 0;
 	float bearingY = 0;
 	float headingX = 0;
 	float headingY = 0;
-	for(uint8_t e=0;e<6;e++){
-		for(uint8_t s=0;s<6;s++){
-			if(maxReading>300){
-				if(abs(brightness_matrix[e][s]-maxReading)<=0.15*maxReading){
-					bearingX+=brightness_matrix[e][s]*getCosBearingBasis(e,s);
-					bearingY+=brightness_matrix[e][s]*getSinBearingBasis(e,s);
-					headingX+=brightness_matrix[e][s]*getCosHeadingBasis(e,s);
-					headingY+=brightness_matrix[e][s]*getSinHeadingBasis(e,s);		
-				}
-			}else{
-				bearingX+=brightness_matrix[e][s]*getCosBearingBasis(e,s);
-				bearingY+=brightness_matrix[e][s]*getSinBearingBasis(e,s);
-				headingX+=brightness_matrix[e][s]*getCosHeadingBasis(e,s);
-				headingY+=brightness_matrix[e][s]*getSinHeadingBasis(e,s);
-			}
-			
-		}
+		
+	for(uint8_t i=0;i<36;i++){
+		bearingX+=fast_bm[i]*getCosBearingBasis(i/6,i%6);
+		bearingY+=fast_bm[i]*getSinBearingBasis(i/6,i%6);
+		headingX+=fast_bm[i]*getCosHeadingBasis(i/6,i%6);
+		headingY+=fast_bm[i]*getSinHeadingBasis(i/6,i%6);
 	}
+	
 	*bearing = atan2f(bearingY, bearingX);	
 	*heading = atan2f(headingY, headingX);
 	
@@ -423,6 +406,7 @@ void get_baseline_readings()
 
 void ir_range_meas()
 {
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 	busy_delay_ms(POST_BROADCAST_DELAY);
 	busy_delay_ms(TIME_FOR_SET_IR_POWERS);
 	
@@ -445,10 +429,12 @@ void ir_range_meas()
 		//set_green_led(0);
 	}
 	//printf("Argh!\r\n");
+	}
 }
 
 void ir_range_blast(uint8_t power)
 {
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 	//set_blue_led(255);
 	delay_ms(POST_BROADCAST_DELAY);
 	//set_blue_led(0);
@@ -466,6 +452,7 @@ void ir_range_blast(uint8_t power)
 		//set_green_led(100);
 		delay_ms(DELAY_BETWEEN_RB_TRANSMISSIONS);
 		//set_green_led(0);
+	}
 	}
 }
 

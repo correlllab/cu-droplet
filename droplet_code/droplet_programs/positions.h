@@ -2,16 +2,10 @@
 
 #include "droplet_init.h"
 
-//#define PARTICLE
-#define KALMAN
-//#define MLE
-//#define NUM_PARTICLES 10
-
-//#define GOODBYE_FLAG			'!'
 #define BALL_BOUNCE_FLAG		'B'
 #define BOT_POS_FLAG			'P'
 #define LOOP_PERIOD_MS			500
-#define LOOPS_PER_RNB			71
+#define LOOPS_PER_RNB			21
 #define RNB_BC_PERIOD_MS		(LOOP_PERIOD_MS*LOOPS_PER_RNB)
 #define GROUP_TIMEOUT_MS		40000
 #define MIN_GOODBYE_INTERVAL	10000
@@ -35,26 +29,6 @@ typedef struct bot_pos_msg{
 	char flag;	
 }BotPosMsg;
 
-#ifdef PARTICLE
-typedef struct particle_struct
-{
-	float r;
-	float b;
-	float h;
-} Particle;
-
-typedef struct bot_pos_struct
-{
-	uint16_t id;	
-	float r;
-	float b;
-	float h;
-	float rV;
-	float bV;
-	float hV;
-	Particle particles[NUM_PARTICLES];
-} BotPos;
-#else
 typedef struct bot_pos_struct
 {
 	uint16_t id;
@@ -65,7 +39,6 @@ typedef struct bot_pos_struct
 	float bV;
 	float hV;
 } BotPos;
-#endif	
 BotPos neighbors[NUM_TRACKED_BOTS];
 
 
@@ -135,23 +108,29 @@ static void inline packPackedBotPos(PackedBotPos* bot, float r, float b, float h
 	float vars[3] = {rV, bV, hV};
 	float scaledVar;
 	for(uint8_t i=0;i<3;i++){
-		if(i==0) scaledVar = vars[i]*12.0;
-		else scaledVar	   = rad_to_deg(vars[i])*10.0;
-		if(scaledVar>127) bot->bhvPacked[2+i]=127;
-		else bot->bhvPacked[2+i] = ((uint8_t)scaledVar)&0x7F;
+		if(i==0){
+			scaledVar = vars[i]*10.0;
+			if(scaledVar>255)	bot->bhvPacked[2+i]=255;
+			else				bot->bhvPacked[2+i] = ((uint8_t)scaledVar)&0xFF;			
+		}else{
+			scaledVar	   = rad_to_deg(vars[i])1.0;
+			if(scaledVar>127)	bot->bhvPacked[2+i]=127;
+			else				bot->bhvPacked[2+i] = ((uint8_t)scaledVar)&0x7F;			
+		}
+
 	}
 	
 	bot->bhvPacked[0] = (uint8_t)(bearing&0xFF);
 	bot->bhvPacked[1] = (uint8_t)(heading&0xFF);
-	bot->bhvPacked[2] |= ((uint8_t)(bearing>>8))&0x01;
-	bot->bhvPacked[3] |= ((uint8_t)(heading>>8))&0x01;
+	bot->bhvPacked[3] |= ((uint8_t)(bearing>>1))&0x80;
+	bot->bhvPacked[4] |= ((uint8_t)(heading>>1))&0x80;
 }
 
 static void inline unpackPackedBotPos(PackedBotPos* bot, float* r, float* b, float* h, float* vR, float* vB, float* vH){
 	*r = (float)(bot->rangeMM)/10.0;
-	*b = pretty_angle(deg_to_rad(((((uint16_t)(bot->bhvPacked[2]))<<8)&0x0100) | ((uint16_t)(bot->bhvPacked[0])))-M_PI);
-	*h = pretty_angle(deg_to_rad(((((uint16_t)(bot->bhvPacked[3]))<<8)&0x0100) | ((uint16_t)(bot->bhvPacked[1])))-M_PI);
-	*vR = ((float)(bot->bhvPacked[2]&0x7F))/12.0;
-	*vB = deg_to_rad(((float)(bot->bhvPacked[2]&0x7F))/10.0);
-	*vH = deg_to_rad(((float)(bot->bhvPacked[2]&0x7F))/10.0);		
+	*b = pretty_angle(deg_to_rad((((((uint16_t)(bot->bhvPacked[2]))<<1)&0x0100) | ((uint16_t)(bot->bhvPacked[0])))-180));
+	*h = pretty_angle(deg_to_rad((((((uint16_t)(bot->bhvPacked[3]))<<1)&0x0100) | ((uint16_t)(bot->bhvPacked[1])))-180));
+	*vR = ((float)(bot->bhvPacked[2]&0x7F))/10.0;
+	*vB = deg_to_rad(((float)(bot->bhvPacked[2]&0x7F))/1.0);
+	*vH = deg_to_rad(((float)(bot->bhvPacked[2]&0x7F))/1.0);		
 }

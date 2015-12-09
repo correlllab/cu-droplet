@@ -122,7 +122,6 @@ void get_ir_sensors(int16_t* output_arr, uint8_t meas_per_ch)
 		}
 	#else
 
-	
 		for(uint8_t dir=0;dir<6;dir++)
 		{
 			ADCB.CH0.MUXCTRL &= MUX_SENSOR_CLR; //clear previous sensor selection

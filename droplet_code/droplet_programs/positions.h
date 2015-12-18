@@ -10,7 +10,7 @@
 #define GROUP_TIMEOUT_MS		40000
 #define MIN_GOODBYE_INTERVAL	10000
 #define NUM_TRACKED_BOTS		12
-#define NUM_PACKED_BOTS			4
+#define NUM_PACKED_BOTS			6
 
 typedef struct ball_bounce{
 	char flag;
@@ -21,7 +21,7 @@ typedef struct ball_bounce{
 typedef struct packed_bot_pos{
 	uint16_t id;
 	uint8_t rangeMM;
-	uint8_t bhvPacked[5];
+	uint8_t bhcPacked[3];
 }PackedBotPos;
 
 typedef struct bot_pos_msg{
@@ -39,7 +39,19 @@ typedef struct bot_pos_struct
 	float bV;
 	float hV;
 } BotPos;
-BotPos neighbors[NUM_TRACKED_BOTS];
+
+typedef struct neighbor_neighbor_struct
+{
+	uint16_t id;
+	BotPos pos;
+} NeighborNeighbor;
+
+typedef struct neighbor_struct{
+	uint16_t id;
+	BotPos pos;
+	NeighborNeighbor neighbs[NUM_PACKED_BOTS];
+} Neighbor;
+Neighbor neighbors[NUM_TRACKED_BOTS];
 
 
 uint32_t time_before;
@@ -72,28 +84,29 @@ void		handle_msg			(ir_msg* msg_struct);
 
 void calculateOutboundDir(uint16_t inID);
 void sendBotPosMsg();
+void processNeighborData();
 void useNewRnbMeas();
 void useBotPosMsg(PackedBotPos* bots, uint16_t senderID);
-void fuseData(BotPos* currPos, float newR, float newB, float newH,float otherRvar, float otherBvar, float otherHvar);
+void fuseData(Neighbor* currPos, float newR, float newB, float newH,float otherRvar, float otherBvar, float otherHvar);
 void combineVars(float Rms, float Bms, float Hms, float vRms, float vBms, float vHms, float Rso, float Bso, float Hso, float vRso, float vBso, float vHso, float* vRmo, float* vBmo, float* vHmo);
 void cleanNeighbor(uint8_t idx);
-BotPos* addNeighbor(uint16_t id, float conf);
-BotPos* getNeighbor(uint16_t id);
+Neighbor* addNeighbor(uint16_t id, float conf);
+Neighbor* getNeighbor(uint16_t id);
 void removeNeighbor(uint16_t id);
 
 static void inline getVarsFromConf(float conf, float* rVar, float* bVar, float* hVar){
-	*rVar = powf( 43.41/conf,1.0);
-	*bVar = powf( 12.17/conf,1.0);
-	*hVar = powf( 12.17/conf,1.0);
+	*rVar = 43.41/conf;
+	*bVar = 12.17/conf;
+	*hVar = 12.17/conf;
 }
 
 static float inline getConfFromVars(float rVar, float bVar, float hVar){
 	float rConf, bConf, hConf;
-	rConf =  43.41/sqrtf(rVar);
-	bConf =  12.17/sqrtf(bVar);
-	hConf =  12.17/sqrtf(hVar);
+	rConf =  43.41/rVar;
+	bConf =  12.17/bVar;
+	hConf =  12.17/hVar;
 	float newConf = (rConf + bConf + hConf)/3.0;
-	if(newConf>3000) newConf=3000;
+	if(newConf>189) newConf=189.;
 	return newConf;
 }
 
@@ -105,32 +118,17 @@ static void inline packPackedBotPos(PackedBotPos* bot, float r, float b, float h
 	uint16_t bearing = ((int16_t)rad_to_deg(b))+180;
 	uint16_t heading = ((int16_t)rad_to_deg(h))+180;
 	
-	float vars[3] = {rV, bV, hV};
-	float scaledVar;
-	for(uint8_t i=0;i<3;i++){
-		if(i==0){
-			scaledVar = vars[i]*10.0;
-			if(scaledVar>255)	bot->bhvPacked[2+i]=255;
-			else				bot->bhvPacked[2+i] = ((uint8_t)scaledVar)&0xFF;			
-		}else{
-			scaledVar	   = rad_to_deg(vars[i])1.0;
-			if(scaledVar>127)	bot->bhvPacked[2+i]=127;
-			else				bot->bhvPacked[2+i] = ((uint8_t)scaledVar)&0x7F;			
-		}
-
-	}
+	uint8_t conf = (uint8_t)(getConfFromVars(rV, bV, hV)/3.0);
 	
-	bot->bhvPacked[0] = (uint8_t)(bearing&0xFF);
-	bot->bhvPacked[1] = (uint8_t)(heading&0xFF);
-	bot->bhvPacked[3] |= ((uint8_t)(bearing>>1))&0x80;
-	bot->bhvPacked[4] |= ((uint8_t)(heading>>1))&0x80;
+	bot->bhcPacked[0] = (uint8_t)(bearing&0xFF);
+	bot->bhcPacked[1] = (uint8_t)(heading&0xFF);
+	bot->bhcPacked[2] = (((uint8_t)(bearing>>1))&0x80) | (((uint8_t)(heading>>2))&0x40) | (conf&0x3F);
 }
 
 static void inline unpackPackedBotPos(PackedBotPos* bot, float* r, float* b, float* h, float* vR, float* vB, float* vH){
 	*r = (float)(bot->rangeMM)/10.0;
-	*b = pretty_angle(deg_to_rad((((((uint16_t)(bot->bhvPacked[2]))<<1)&0x0100) | ((uint16_t)(bot->bhvPacked[0])))-180));
-	*h = pretty_angle(deg_to_rad((((((uint16_t)(bot->bhvPacked[3]))<<1)&0x0100) | ((uint16_t)(bot->bhvPacked[1])))-180));
-	*vR = ((float)(bot->bhvPacked[2]&0x7F))/10.0;
-	*vB = deg_to_rad(((float)(bot->bhvPacked[2]&0x7F))/1.0);
-	*vH = deg_to_rad(((float)(bot->bhvPacked[2]&0x7F))/1.0);		
+	*b = pretty_angle(deg_to_rad((((((uint16_t)(bot->bhcPacked[2]))<<1)&0x0100) | ((uint16_t)(bot->bhcPacked[0])))-180));
+	*h = pretty_angle(deg_to_rad((((((uint16_t)(bot->bhcPacked[2]))<<2)&0x0100) | ((uint16_t)(bot->bhcPacked[1])))-180));
+	float conf = ((float)((bot->bhcPacked[2])&0x3F))*3.0;
+	getVarsFromConf(conf, vR, vB, vH);	
 }

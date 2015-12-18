@@ -98,7 +98,7 @@ void broadcast_rnb_data()
 	hp_ir_cmd(ALL_DIRS, "rnb_r", 5);
 	delay_ms(POST_MESSAGE_DELAY);	
 	ir_range_blast(power);
-	printf("rnb_b\r\n");	
+	//printf("rnb_b\r\n");	
 }
 
 void receive_rnb_data()
@@ -117,7 +117,7 @@ void receive_rnb_data()
 		}else{
 			schedule_task(10, use_cmd_rnb_data, NULL);
 		}
-		printf("rnb_r\r\n");			
+		//printf("rnb_r\r\n");			
 	}
 }
 
@@ -175,8 +175,8 @@ void use_rnb_data()
 			//BotPos* soFar = getNeighbor(cmdID);
 			//float otherError=NAN;
 			//if(soFar!=NULL)  otherError = calculate_innovation(soFar->r, soFar->b, soFar->h, brightness_matrix);
-			printf("{\"%04X\", % -2.2f, % -3.1f, % -3.1f\t, % -9.5f},\r\n", cmdID, range, rad_to_deg(bearing), rad_to_deg(heading), error);		
-			print_brightness_matrix(brightness_matrix, matrixSum);
+			//printf("{\"%04X\", % -2.2f, % -3.1f, % -3.1f\t, % -9.5f},\r\n", cmdID, range, rad_to_deg(bearing), rad_to_deg(heading), error);		
+			//print_brightness_matrix(brightness_matrix, matrixSum);
 			conf = conf/(error*error);
 			if(error>3.0){
 				//printf("\tGoing to ditch this one.\r\n");

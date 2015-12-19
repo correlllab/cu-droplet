@@ -45,8 +45,8 @@ typedef struct neighbor_struct
 	uint32_t lastSeen;
 	uint16_t ID;
 	uint8_t noCollCount;
-} Neighbor;
-Neighbor neighbors[NEIGHBORHOOD_SIZE];
+} OtherBot;
+OtherBot nearBots[NEIGHBORHOOD_SIZE];
 
 uint16_t myRNBLoop;
 uint16_t loopCount;

@@ -11,6 +11,13 @@
 #define MIN_GOODBYE_INTERVAL	10000
 #define NUM_TRACKED_BOTS		12
 #define NUM_PACKED_BOTS			6
+#define NUM_POSSIBLE_BOTS		120
+#define NUM_TRACKED_BAYESIAN	12
+
+#define BAYES_CLOSE_THRESH		2.5
+#define BAYES_FAR_THRESH		6
+#define NEIGHBORHOOD_SIZE		6
+#define UNKNOWN_DIST			10
 
 typedef struct ball_bounce{
 	char flag;
@@ -49,9 +56,16 @@ typedef struct neighbor_neighbor_struct
 typedef struct neighbor_struct{
 	uint16_t id;
 	BotPos pos;
-	NeighborNeighbor neighbs[NUM_PACKED_BOTS];
-} Neighbor;
-Neighbor neighbors[NUM_TRACKED_BOTS];
+	//NeighborNeighbor neighbs[NUM_PACKED_BOTS];
+} OtherBot;
+OtherBot nearBots[NUM_TRACKED_BOTS];
+
+typedef struct bayes_bot_struct{
+	float P;
+	uint16_t id;
+} BayesBot;
+BayesBot neighbors[NEIGHBORHOOD_SIZE][NUM_TRACKED_BAYESIAN];
+float neighbPos[NEIGHBORHOOD_SIZE][2] = {{2.5,4.33},{5.0,0.0},{2.5,-4.33},{-2.5,-4.33},{-5.0,0.0},{-2.5,4.33}};
 
 
 uint32_t time_before;
@@ -84,15 +98,15 @@ void		handle_msg			(ir_msg* msg_struct);
 
 void calculateOutboundDir(uint16_t inID);
 void sendBotPosMsg();
-void processNeighborData();
+void processOtherBotData();
 void useNewRnbMeas();
 void useBotPosMsg(PackedBotPos* bots, uint16_t senderID);
-void fuseData(Neighbor* currPos, float newR, float newB, float newH,float otherRvar, float otherBvar, float otherHvar);
+void fuseData(OtherBot* currPos, float newR, float newB, float newH,float otherRvar, float otherBvar, float otherHvar);
 void combineVars(float Rms, float Bms, float Hms, float vRms, float vBms, float vHms, float Rso, float Bso, float Hso, float vRso, float vBso, float vHso, float* vRmo, float* vBmo, float* vHmo);
-void cleanNeighbor(uint8_t idx);
-Neighbor* addNeighbor(uint16_t id, float conf);
-Neighbor* getNeighbor(uint16_t id);
-void removeNeighbor(uint16_t id);
+void cleanOtherBot(OtherBot* other);
+OtherBot* addOtherBot(uint16_t id, float conf);
+OtherBot* getOtherBot(uint16_t id);
+void removeOtherBot(uint16_t id);
 
 static void inline getVarsFromConf(float conf, float* rVar, float* bVar, float* hVar){
 	*rVar = 43.41/conf;

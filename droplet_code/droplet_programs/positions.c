@@ -33,9 +33,11 @@ void init(){
 	}
 	numNeighbors = 0;
 	for(uint8_t i=0;i<NEIGHBORHOOD_SIZE;i++){
-		for(uint8_t j=0;j<NUM_TRACKED_BAYESIAN;j++){
-			neighbors[i][j].P=1.0/NUM_POSSIBLE_BOTS;
-			neighbors[i][j].id=0;
+		neighbors[i].emptyProb=INIT_LIKELIHOOD_EMPTY;
+		neighbors[i].untrackedProb=1.0-INIT_LIKELIHOOD_EMPTY;
+		for(uint8_t j=0;j<NUM_TRACKED_BAYESIAN-1;j++){
+			neighbors[i].candidates[j].P=0.0;
+			neighbors[i].candidates[j].id=0;
 		}
 	}
 	loopCount = 0;
@@ -106,7 +108,7 @@ int bayesCmpFunc(const void* a, const void* b){
 void processOtherBotData(){
 	float cartPos[NUM_TRACKED_BOTS][2];
 	BotPos* pos;
-	float dists[NUM_TRACKED_BOTS][NEIGHBORHOOD_SIZE];
+	float measProbs[NUM_TRACKED_BOTS][NEIGHBORHOOD_SIZE];
 	
 	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
 		if(nearBots[i].id!=0){
@@ -115,80 +117,163 @@ void processOtherBotData(){
 			cartPos[i][1] = (pos->r)*sinf(pos->b+M_PI_2);
 		}
 		for(uint8_t j=0;j<NEIGHBORHOOD_SIZE;j++){
-			dists[i][j] = hypotf(cartPos[i][0]-neighbPos[j][0],cartPos[i][1]-neighbPos[j][1]);			
+			measProbs[i][j] = 2.0/hypotf(cartPos[i][0]-neighbPos[j][0],cartPos[i][1]-neighbPos[j][1]);
+			if(measProbs[i][j]==0||isnanf(measProbs[i][j])||isinff(measProbs[i][j])){
+				printf("!!! Bad # !!!\r\n");
+			}
 		}		
 	}
 	BayesBot newProbs[NUM_TRACKED_BOTS+NUM_TRACKED_BAYESIAN];
-	uint8_t found;
-	float totalProb,totalKeptProb;
-	uint8_t numTracked;
+	uint8_t found, numTracked;
+	
+	
+	NeighbSlot* neighbor;
+	BayesBot* candidates;
+	float prevTrackedProb, newEmptyProb, newTotalTrackedProb, newUntrackedProb, total;
+	float probFound, newProb, lostProb;
 	for(uint8_t i=0;i<NEIGHBORHOOD_SIZE;i++){
-		totalProb=0.0;
-		numTracked=0;
-		for(uint8_t k=0;k<NUM_TRACKED_BAYESIAN;k++){
-			if(neighbors[i][k].id==0) continue;
-			totalProb+=	neighbors[i][k].P;
-			numTracked++;
-		}
-		totalKeptProb=totalProb;
-		//totalProb is the amount of probability we're tracking. Since NUM_TRACKED_BAYESIAN<NUM_POSSIBLE_BOTS, this is less than 1.
+		neighbor = &(neighbors[i]);
+		candidates=neighbor->candidates;
+		probFound = 0.0;
+		newProb = 0.0;
+		lostProb = 0.0;
+		numTracked=0;		
 		for(uint8_t j=0;j<NUM_TRACKED_BOTS;j++){		
 			found=0;
 			newProbs[j].id=0;
 			newProbs[j].P=0.0;
 			for(uint8_t k=0;k<NUM_TRACKED_BAYESIAN;k++){
-				if(neighbors[i][k].id==nearBots[j].id){
-					found = 1;
-					newProbs[j].id=nearBots[j].id;
-					newProbs[j].P=(1.0/dists[j][i])*neighbors[i][k].P;
-					totalKeptProb = totalKeptProb-neighbors[i][k].P;
-					break;
-				}				
+				if(candidates[k].id!=0){
+					numTracked++;
+					if(candidates[k].id==nearBots[j].id){
+						found = 1;
+						newProbs[j].id=candidates[k].id;
+						newProbs[j].P=measProbs[j][i]*candidates[k].P; //bayes-y
+						probFound+=candidates[k].P;
+					}
+				}			
 			}
 			if(!found){
-
 				newProbs[j].id=nearBots[j].id;
-				newProbs[j].P = (1.0/dists[j][i])*((1.0-totalProb)/(NUM_POSSIBLE_BOTS-numTracked));				
+				newProbs[j].P = measProbs[j][i]*((neighbor->untrackedProb)/(NUM_POSSIBLE_BOTS-numTracked));	
+				newProb += ((neighbor->untrackedProb)/(NUM_POSSIBLE_BOTS-numTracked));			
 			}
 		}
-	//SO FAR, THE ABOVE COVERS bots that weren't tracked or measured, and bots that were measured but not previously tracked.
-	//need to also cover bots that were previously tacked, but not measured this time.
+		prevTrackedProb=1.0-neighbor->emptyProb - neighbor->untrackedProb;
+	//SO FAR, the above covers bots that were tracked and measured, and bots that were measured but not previously tracked.
+	//need to also cover bots that were previously tracked, but not measured this time.
 	//At this point, totalKeptProb is the amount of probability left from robots previously that weren't measured this time.
-		for(uint8_t j=0;j<NUM_TRACKED_BAYESIAN;j++){
+		for(uint8_t j=0 ; j < NUM_TRACKED_BAYESIAN ; j++){
 			newProbs[NUM_TRACKED_BOTS+j].id=0;
 			newProbs[NUM_TRACKED_BOTS+j].P=0.0;
 			uint8_t found=0;
 			for(uint8_t k=0;k<NUM_TRACKED_BOTS;k++){
-				if(newProbs[k].id!=0 && newProbs[k].id==neighbors[i][j].id){
+				if(newProbs[k].id!=0 && newProbs[k].id==candidates[j].id){
 					found=1;
 					break;
 				}
 			}
 			if(!found){
 				//this previously tracked bot was not measured.
-				newProbs[NUM_TRACKED_BOTS+j].id=neighbors[i][j].id;
-				newProbs[NUM_TRACKED_BOTS+j].P=(1.0-totalKeptProb)*neighbors[i][j].P;				
+				newProbs[NUM_TRACKED_BOTS+j].id=candidates[j].id;
+				newProbs[NUM_TRACKED_BOTS+j].P=UNMEASURED_NEIGHBOR_LIKELIHOOD*candidates[j].P;
+				lostProb+=(candidates[j].P-newProbs[NUM_TRACKED_BOTS+j].P);			
 			}
 		}
+		float emptyUntrackedDiff = fabsf(neighbor->untrackedProb-neighbor->emptyProb);
+		newEmptyProb = neighbor->emptyProb - neighbor->emptyProb*emptyUntrackedDiff;
+		newUntrackedProb = (neighbor->untrackedProb+(lostProb-newProb));
+		newUntrackedProb = newUntrackedProb - emptyUntrackedDiff*newUntrackedProb;
+		
 		qsort(newProbs, NUM_TRACKED_BOTS+NUM_TRACKED_BAYESIAN,sizeof(BayesBot), bayesCmpFunc);
-		printf("Slot %hu:\r\n",i);
-		for(uint8_t j=0;j<NUM_TRACKED_BOTS+NUM_TRACKED_BAYESIAN;j++){
-			if(j==NUM_TRACKED_BAYESIAN)
-				printf("\t---\r\n");
-			if(newProbs[j].id!=0) 
-				printf("\t%04X\t% 6f\r\n",newProbs[j].id,newProbs[j].P);
-			if(newProbs[j].id!=0 && j<NUM_TRACKED_BAYESIAN){
-				neighbors[i][j].id=newProbs[j].id;
-				neighbors[i][j].P=newProbs[j].P;
-			}			
+		newTotalTrackedProb=0.0;
+		uint8_t tooSmallFlag = 0;
+		float tooSmallThresh = newUntrackedProb/(NUM_POSSIBLE_BOTS-numTracked);
+		for(uint8_t j=0;j<NUM_TRACKED_BAYESIAN;j++){
+			if(newProbs[j].id!=0){
+				if(newProbs[j].P<=tooSmallThresh){
+					newUntrackedProb+=newProbs[j].P;
+					candidates[j].id=0;
+					candidates[j].P=0.0;
+				}else{
+					candidates[j].id=newProbs[j].id;
+					candidates[j].P=newProbs[j].P;
+					newTotalTrackedProb+=candidates[j].P;
+				}
+
+			}else{
+				candidates[j].id=0;
+				candidates[j].P=0.0;
+			}
 		}
 		
-		//TODO:
-		//Need to normalize all of the probabilities I just copied to neighbors[i]. To do this, I need to 
-		//approximate how much probability is untracked;probably related to the previous portion of untracked 
-		//probability??
+
+
+		
+		total = newTotalTrackedProb+newEmptyProb+newUntrackedProb;
+		//printf("\tnewEmptyProb: %f\tnewTotalProb: %f\t newUntrackedProb: %f\ttotal: %f\r\n",newEmptyProb, newTotalTrackedProb,newUntrackedProb, total);
+		neighbor->emptyProb=newEmptyProb/total;
+		neighbor->untrackedProb=newUntrackedProb/total;
+		for(uint8_t j=0;j<NUM_TRACKED_BAYESIAN;j++){
+			if(newProbs[j].id!=0){
+				candidates[j].P=candidates[j].P/total;
+			}
+		}
 	}
-	
+
+	uint8_t untrackedToggle, emptyToggle,emptyFirst;
+	for(uint8_t i=0;i<NEIGHBORHOOD_SIZE;i++){
+		neighbor = &(neighbors[i]);
+		candidates=neighbor->candidates;
+		untrackedToggle=0;
+		emptyToggle=0;
+		printf("Slot %hu:\r\n", i);
+		if(neighbor->emptyProb>neighbor->untrackedProb){
+			emptyFirst=1;
+		}else{
+			emptyFirst=0;
+		}
+		for(uint8_t j=0;j<NUM_TRACKED_BAYESIAN;j++){
+			if(candidates[j].id!=0){
+				if((emptyFirst || (!emptyFirst && untrackedToggle)) && !emptyToggle){
+					if(candidates[j].P < neighbor->emptyProb){
+						printf("       Empty\t% 6f\r\n",neighbor->emptyProb);
+						emptyToggle=1;
+					}
+				}
+				if((!emptyFirst || (emptyFirst && emptyToggle)) && !untrackedToggle){
+					if(candidates[j].P < neighbor->untrackedProb){
+						printf("   Untracked\t% 6f\r\n",neighbor->untrackedProb);
+						untrackedToggle=1;
+					}
+					if(!emptyToggle && (candidates[j].P < neighbor->emptyProb)){
+						printf("       Empty\t% 6f\r\n",neighbor->emptyProb);
+						emptyToggle=1;
+					}					
+				}
+				printf("\t%04X\t% 6f\r\n",candidates[j].id,candidates[j].P);			
+			}
+		}
+		if(emptyFirst){
+			if(!emptyToggle){
+				printf("       Empty\t% 6f\r\n",neighbor->emptyProb);
+				emptyToggle=1;
+			}
+			if(!untrackedToggle){
+				printf("   Untracked\t% 6f\r\n",neighbor->untrackedProb);
+				untrackedToggle=1;
+			}
+		}else{
+			if(!untrackedToggle){
+				printf("   Untracked\t% 6f\r\n",neighbor->untrackedProb);
+				untrackedToggle=1;
+			}
+			if(!emptyToggle){
+				printf("       Empty\t% 6f\r\n",neighbor->emptyProb);
+				emptyToggle=1;
+			}
+		}
+	}
 	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
 		cleanOtherBot(&nearBots[i]);
 	}

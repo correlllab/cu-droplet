@@ -18,6 +18,8 @@
 #define BAYES_FAR_THRESH		6
 #define NEIGHBORHOOD_SIZE		6
 #define UNKNOWN_DIST			10
+#define INIT_LIKELIHOOD_EMPTY	0.2
+#define UNMEASURED_NEIGHBOR_LIKELIHOOD	0.65
 
 typedef struct ball_bounce{
 	char flag;
@@ -64,7 +66,13 @@ typedef struct bayes_bot_struct{
 	float P;
 	uint16_t id;
 } BayesBot;
-BayesBot neighbors[NEIGHBORHOOD_SIZE][NUM_TRACKED_BAYESIAN];
+
+typedef struct neighb_slot_struct{
+	BayesBot candidates[NUM_TRACKED_BAYESIAN];
+	float emptyProb;
+	float untrackedProb;
+} NeighbSlot;
+NeighbSlot neighbors[NEIGHBORHOOD_SIZE];
 float neighbPos[NEIGHBORHOOD_SIZE][2] = {{2.5,4.33},{5.0,0.0},{2.5,-4.33},{-2.5,-4.33},{-5.0,0.0},{-2.5,4.33}};
 
 

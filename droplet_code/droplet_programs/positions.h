@@ -19,7 +19,7 @@
 #define NEIGHBORHOOD_SIZE		6
 #define UNKNOWN_DIST			10
 #define INIT_LIKELIHOOD_EMPTY	0.2
-#define UNMEASURED_NEIGHBOR_LIKELIHOOD	0.65
+#define UNMEASURED_NEIGHBOR_LIKELIHOOD	0.9
 
 typedef struct ball_bounce{
 	char flag;

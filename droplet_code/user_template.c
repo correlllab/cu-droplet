@@ -38,7 +38,7 @@
 ////{
 	////return 0;
 ////}
-//
+////
 /////*
  ////*	The function below is optional - if it is commented in, and the leg interrupts have been turned on
  ////*	with enable_leg_status_interrupt(), this function will get called when that interrupt triggers.

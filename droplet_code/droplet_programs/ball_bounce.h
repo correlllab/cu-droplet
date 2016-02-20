@@ -16,7 +16,7 @@ typedef struct ball_bounce{
 	char flag;
 	uint16_t id;
 	uint8_t seqPos;
-}BallBounceMsg;
+}BallMsg;
 
 typedef struct packed_bot_pos{
 	uint16_t id;

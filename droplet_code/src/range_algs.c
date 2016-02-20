@@ -110,7 +110,9 @@ void receive_rnb_data()
 		get_baseline_readings();
 		//uint8_t power = 25; //TODO: get this from the message.
 		//schedule_task(10,brightness_meas_printout_mathematica,NULL);
+		//printf("ID: %04X\r\n",cmdID);
 		//brightness_meas_printout_mathematica();
+		//printf("\r\n");
 		//printf("Finished getting data %lums after msg.\r\n",get_time()-time_before);		
 		if(cmdID!=CMD_DROPLET_ID){
 			schedule_task(10, use_rnb_data, NULL);

@@ -2,8 +2,23 @@
 #include "stdio.h"
 #include "stdarg.h"
 
-#define BAYES_DEBUG_MODE
+//#define BAYES_DEBUG_MODE
+//#define BAYES_DIST_DEBUG_MODE
+//#define NEIGHBS_DEBUG_MODE
 //#define POS_DEBUG_MODE
+//#define KALMAN_DEBUG_MODE
+
+#ifdef NEIGHBS_DEBUG_MODE
+#define NEIGHBS_DEBUG_PRINT(format, ...) printf(format, ##__VA_ARGS__)
+#else
+#define NEIGHBS_DEBUG_PRINT(format, ...)
+#endif
+
+#ifdef BAYES_DIST_DEBUG_MODE
+#define BAYES_DIST_DEBUG_PRINT(format, ...) printf(format, ##__VA_ARGS__)
+#else
+#define BAYES_DIST_DEBUG_PRINT(format, ...)
+#endif
 
 #ifdef POS_DEBUG_MODE
 #define POS_DEBUG_PRINT(format, ...) printf(format, ##__VA_ARGS__)
@@ -11,52 +26,69 @@
 #define POS_DEBUG_PRINT(format, ...)
 #endif
 
+#ifdef BAYES_DEBUG_MODE
+#define BAYES_DEBUG_PRINT(format, ...) printf(format, ##__VA_ARGS__)
+#else
+#define BAYES_DEBUG_PRINT(format, ...)
+#endif
+
 void init(){	
-	numNeighbors = 0;
+	numNearBots = 0;
 	loopCount = 0;
 	outwardDir = 0;
 	outwardDirID = 0;
-	firstLoop = 1;	
+	firstLoop = 0;	
 	myState=NOT_BALL;	
 	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
 		cleanOtherBot(&nearBots[i]);
 	}
 	for(uint8_t i=0;i<NEIGHBORHOOD_SIZE;i++){
-		neighbors[i].emptyProb=INIT_LIKELIHOOD_EMPTY;
-		neighbors[i].untrackedProb=1.0-INIT_LIKELIHOOD_EMPTY;
+		bayesSlots[i].emptyProb=INIT_LIKELIHOOD_EMPTY;
+		bayesSlots[i].untrackedProb=1.0-INIT_LIKELIHOOD_EMPTY;
 		for(uint8_t j=0;j<NUM_TRACKED_BAYESIAN-1;j++){
-			neighbors[i].candidates[j].P=0.0;
-			neighbors[i].candidates[j].id=0;
+			bayesSlots[i].candidates[j].P=0.0;
+			bayesSlots[i].candidates[j].id=0;
 		}
+		neighbsList[i].id = 0;
+		for(uint8_t j=0;j<NEIGHBORHOOD_SIZE;j++){
+			neighbsList[i].neighbs[j] = 0;
+		}		
 	}
-	myRNBLoop = (get_droplet_id()%LOOPS_PER_RNB);
-	printf("myRNBLoop: %d\r\n", myRNBLoop);
+	myRNBLoop = (get_droplet_id()%(LOOPS_PER_RNB-1));
+	myMsgLoop = ((myRNBLoop+(LOOPS_PER_RNB/2))%(LOOPS_PER_RNB-1));
+	printf("RNBLoop: %d\tMsgLoop: %d\r\n", myRNBLoop, myMsgLoop);
 }
-
-//TODO: Maybe have robots communicate their neighbors and if you think
-// I'm your neighbor I add a good amount of probability to the idea that you are my neighbor?
 
 void loop(){
 	if((get_time()%LOOP_PERIOD_MS)<(LOOP_PERIOD_MS/50)){
-		set_rgb(0,0,0);
 		if((!firstLoop)&&(loopCount==myRNBLoop)){
-			delay_ms(5);
+			delay_ms(10);
 			broadcast_rnb_data();
-			//myRNBLoop=(myRNBLoop)%LOOPS_PER_RNB;
+		}else if((!firstLoop)&&(loopCount==myMsgLoop)){
+			sendNeighbMsg();
 		}else if((!firstLoop)&&(loopCount==LOOPS_PER_RNB-1)){
-			qsort(nearBots, NUM_TRACKED_BOTS, sizeof(OtherBot), nearBotsCmpFunc);				
+
+			qsort(nearBots, NUM_TRACKED_BOTS, sizeof(OtherBot), nearBotsCmpFunc);
 			printf("\nT: %lu\r\n", get_time());
-			printf("  ID  |    R    |   rV   |   B    |   bV   |   H    |   hV   |  CONF  |\r\n{\r\n");
-			BotPos* pos;
-			for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
-				if(nearBots[i].id!=0){
-					pos = &(nearBots[i].pos);
-					printf("{{\"%04X\", % -7.2f , %6.2f , % -6.1f , %6.1f , % -6.1f , %6.1f , %6.1f },{\r\n", nearBots[i].id, pos->r, pos->rV, rad_to_deg(pos->b), rad_to_deg(pos->bV), rad_to_deg(pos->h), rad_to_deg(pos->hV), getConfFromVars(pos->rV, pos->bV, pos->hV));
+			#ifdef KALMAN_DEBUG_MODE
+				BotPos* pos;						
+				printf("  ID  |    R    |   B    |   H    |  CONF  |\r\n{\r\n");
+
+				for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
+					if(nearBots[i].id!=0){
+						pos = &(nearBots[i].pos);
+						printf("{{\"%04X\", % -7.2f , %-6.1f , %-6.1f , %6.1f },{\r\n", nearBots[i].id, pos->r, rad_to_deg(pos->b), rad_to_deg(pos->h), nearBots[i].conf);
 					printf("}},\r\n");
 				}
 			}
-			printf("}\r\n\n");
-			processOtherBotData();			
+				printf("}\r\n\n");
+			#endif
+			
+			processNeighborData();
+			processOtherBotData();
+			cleanupNeighbsList();		
+			printNeighbsList();
+			printf("\n\n\n");
 		}
 		if(myState==BALL){
 			switch(ballSeqPos){
@@ -73,7 +105,18 @@ void loop(){
 				ballSeqPos=0;
 			}
 		}else{
-			set_rgb(0,0,0);
+			uint8_t neighbCount=0;
+			for(uint8_t dir=0;dir<NEIGHBORHOOD_SIZE;dir++){
+				if(neighbsList[dir].id){
+					neighbCount++;
+				}
+			}
+			if(neighbCount==0){
+				set_rgb(0,0,0);
+			}else{
+				set_hsv(60*((int16_t)(neighbCount-1)),255,255);
+			}
+
 		}
 		
 		if(loopCount==(LOOPS_PER_RNB-1)){ firstLoop = 0;}
@@ -85,38 +128,177 @@ void loop(){
 	}
 }
 
-void calculateDistsFromNeighborPos(float dists[NEIGHBORHOOD_SIZE][NUM_TRACKED_BOTS]){
-	BotPos* pos;
-	float x, y;
-	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
-		if(nearBots[i].id!=0){
-			printf("Bot %04X:\r\n", nearBots[i].id);
-			pos = &(nearBots[i].pos);
-			x = (pos->r)*cosf(pos->b+M_PI_2);
-			y = (pos->r)*sinf(pos->b+M_PI_2);
-			for(uint8_t j=0;j<NEIGHBORHOOD_SIZE;j++){
-				dists[j][i] = hypotf(x-neighbPos[j][0],y-neighbPos[j][1]);
-				if(dists[j][i]==0.0){
-					dists[j][i]=0.01;
+void printNeighbsList(){
+	uint16_t id;
+	NEIGHBS_DEBUG_PRINT("Slot:  ID       |  0   |  1   |  2   |  3   |  4   |  5   |\r\n");
+	for(uint8_t i=0;i<NEIGHBORHOOD_SIZE;i++){
+		if(neighbsList[i].id){
+			NEIGHBS_DEBUG_PRINT("   %hu: %04X      |", i, neighbsList[i].id);
+			}else{
+			NEIGHBS_DEBUG_PRINT("   %hu:  --       |", i, neighbsList[i].id);
+		}
+		for(uint8_t j=0;j<NEIGHBORHOOD_SIZE;j++){
+			id=neighbsList[i].neighbs[j];
+			if(id==0){
+				NEIGHBS_DEBUG_PRINT("  --  |");
+				}else{
+				NEIGHBS_DEBUG_PRINT(" %04X |", neighbsList[i].neighbs[j]);
+			}
+		}
+		NEIGHBS_DEBUG_PRINT("\r\n");
+	}
+}
+
+void processNeighborData(){
+	uint8_t opp_dir;
+	uint8_t dirP;
+	uint8_t dirM;
+	for(uint8_t dir=0;dir<NEIGHBORHOOD_SIZE; dir++){
+		failureCounts[dir] = 0;
+		successCounts[dir] = 0;
+		opp_dir = (dir+(NEIGHBORHOOD_SIZE/2))%NEIGHBORHOOD_SIZE;
+		dirP = (dir+1)%NEIGHBORHOOD_SIZE;
+		dirM = (dir+(NEIGHBORHOOD_SIZE-1))%NEIGHBORHOOD_SIZE;
+		
+		if(neighbsList[dir].neighbs[opp_dir]){
+			if(get_droplet_id()!=neighbsList[dir].neighbs[opp_dir]){//Step 1
+				failureCounts[dir]+=12;
+			}else{
+				successCounts[dir]+=12;
+			}
+		}
+		if(neighbsList[dir].id && neighbsList[dirM].neighbs[dirP]){
+			if(neighbsList[dir].id!=neighbsList[dirM].neighbs[dirP]){//step 2
+				failureCounts[dirM]+=4;
+				failureCounts[dir]+=4;
+			}else{
+				successCounts[dirM]+=4;
+				successCounts[dir]+=4;
+			}
+		}
+		if(neighbsList[dir].id && neighbsList[dirP].neighbs[dirM]){
+			if(neighbsList[dir].id!=neighbsList[dirP].neighbs[dirM]){//step 2
+				failureCounts[dirP]+=4;
+				failureCounts[dir]+=4;
+			}else{
+				successCounts[dirP]+=4;
+				successCounts[dir]+=4;
+			}
+		}
+		if(neighbsList[dirP].neighbs[dirM] && neighbsList[dirM].neighbs[dirP]){
+			if(neighbsList[dirP].neighbs[dirM]!=neighbsList[dirM].neighbs[dirP]){//step 3
+				failureCounts[dirP]+=3;
+				failureCounts[dirM]+=3;
+			}else{
+				successCounts[dirP]+=3;
+				successCounts[dirM]+=3;
+			}
+		}
+		if(neighbsList[dir].neighbs[dirP] && neighbsList[dirP].neighbs[dir]){
+			if(neighbsList[dir].neighbs[dirP]!=neighbsList[dirP].neighbs[dir]){ //step 3
+				failureCounts[dir]+=3;
+				failureCounts[dirP]+=3;
+			}else{
+				successCounts[dir]+=3;
+				successCounts[dirP]+=3;
+			}
+		}
+	}
+	NEIGHBS_DEBUG_PRINT(" --- Neighbor Failure/Success Counts --- \r\n");
+	NEIGHBS_DEBUG_PRINT(" dir | Failure | Success |\r\n");
+	for(uint8_t dir=0;dir<NEIGHBORHOOD_SIZE;dir++){
+		NEIGHBS_DEBUG_PRINT("   %1hu |   %2hu    |   %2hu    |\r\n", dir, failureCounts[dir], successCounts[dir]);
+	}
+	NEIGHBS_DEBUG_PRINT("\n");
+}
+
+void cleanupNeighbsList(){
+	BayesSlot* slot;
+	for(uint8_t i=0;i<NEIGHBORHOOD_SIZE;i++){
+		slot = &(bayesSlots[i]);
+		if(slot->candidates[0].P > (slot->emptyProb + slot->untrackedProb)){
+			if(neighbsList[i].id != slot->candidates[0].id){
+				neighbsList[i].id = slot->candidates[0].id;
+				for(uint8_t j=0;j<NEIGHBORHOOD_SIZE;j++){
+					neighbsList[i].neighbs[j] = 0;
 				}
-				printf("\tSlot %hu: %f\r\n",j,dists[j][i]);
+			}
+		}else{
+			neighbsList[i].id = 0;
+			for(uint8_t j=0;j<NEIGHBORHOOD_SIZE;j++){
+				neighbsList[i].neighbs[j] = 0;
 			}
 		}
 	}
 }
 
-uint8_t addProbsForNeighbor(NewNeighbSlot* newNeighb, float dists[NUM_TRACKED_BOTS], NeighbSlot* neighbor){
+void calculateDistsFromNeighborPos(float dists[NEIGHBORHOOD_SIZE][NUM_TRACKED_BOTS]){
+	BAYES_DIST_DEBUG_PRINT(" --- Calculating Dists From Neighbor Pos --- \r\n");
+	BotPos* pos;
+	float x, y;
+	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
+		if(nearBots[i].id!=0){
+			pos = &(nearBots[i].pos);			
+			BAYES_DIST_DEBUG_PRINT("Bot %04X (%f):\r\n", nearBots[i].id, nearBots[i].conf);
+			x = (pos->r)*cosf(pos->b+M_PI_2);
+			y = (pos->r)*sinf(pos->b+M_PI_2);
+
+			for(uint8_t j=0;j<NEIGHBORHOOD_SIZE;j++){
+				dists[j][i] = hypotf(x-neighbPos[j][0],y-neighbPos[j][1]);
+				if(dists[j][i]==0.0){
+					dists[j][i]=0.01;
+				}
+				BAYES_DIST_DEBUG_PRINT("\tSlot %hu: %f\r\n",j,dists[j][i]);
+			}
+		}
+	}
+}
+
+void addProbsForNeighbor(NewBayesSlot* newNeighb, float dists[NUM_TRACKED_BOTS], BayesSlot* slot, uint8_t dir){
 	uint8_t numTrackedAndMeasured=0;
 	uint8_t numMeasuredNotTracked=0;
 	uint8_t numTrackedNotMeasured=0;
 	uint8_t numDistsOverThresh=0;
 	uint8_t found;
-	BayesBot* candidates = neighbor->candidates;
+	uint8_t oppDir = (dir+(NEIGHBORHOOD_SIZE/2))%NEIGHBORHOOD_SIZE;
+	BayesBot* candidates = slot->candidates;
+	BotPos* pos;
+	float confFactor, neighbFactor;
+	float constFactor = 3.0;
+	float factor;
 	BayesBot* newProbs = (newNeighb->candidates);
+	float deltaTrackedProb = 0.0;
+	float newTrackedTotal = 0.0;
 	for(uint8_t j=0;j<NUM_TRACKED_BOTS;j++){
+		newProbs[j].id = 0;
+		newProbs[j].P  = 0.0;
+		if(!nearBots[j].id){
+			continue;
+		}
+		pos = &(nearBots[j].pos);
 		found=0;
-		newProbs[j].id=0;
-		newProbs[j].P=0.0;
+		
+		confFactor = nearBots[j].conf;
+		if(confFactor>1.0){
+			confFactor = 1.0;
+		}else if(confFactor<0.5){
+			confFactor = 0.5;		
+		}
+		
+		factor = sqrtf(constFactor/dists[j]);
+		if(factor<0.5){
+			factor=0.5;
+		}else if(factor>5.0){
+			factor=5.0;
+		}
+		
+		neighbFactor=1.0;
+		if(successCounts[dir]>failureCounts[dir]){
+			neighbFactor=4.0;
+		}else if(failureCounts[dir]>successCounts[dir]){
+			neighbFactor=0.125;
+		}
+		factor = factor*neighbFactor*confFactor;
 		for(uint8_t k=0;k<NUM_TRACKED_BAYESIAN;k++){
 			if(candidates[k].id!=0){
 				if(candidates[k].id==nearBots[j].id){
@@ -125,16 +307,20 @@ uint8_t addProbsForNeighbor(NewNeighbSlot* newNeighb, float dists[NUM_TRACKED_BO
 					if(dists[j]>5.0) numDistsOverThresh++;
 					//A previously tracked robot was measured again.
 					newProbs[j].id=candidates[k].id;
-					newProbs[j].P=(4.0/dists[j])*candidates[k].P; //bayes-y
+					BAYES_DEBUG_PRINT("\t%04X Factor [ f]:  %7.3f  |  %7.3f  |  %7.3f\r\n",  candidates[k].id, factor, neighbFactor, confFactor);
+					newProbs[j].P=factor*candidates[k].P; //bayes-y
+					deltaTrackedProb += (newProbs[j].P - candidates[k].P);
 				}
 			}
 		}
-		if(!found){
+		if(!found && nearBots[j].id){
 			//We measured a robot we weren't tracking.
 			numMeasuredNotTracked++;
 			if(dists[j]>5.0) numDistsOverThresh++;
-			newProbs[j].id=nearBots[j].id;
-			newProbs[j].P = (4.0/dists[j])*((neighbor->untrackedProb)/(NUM_POSSIBLE_BOTS-(numTrackedAndMeasured+numTrackedNotMeasured)));
+			newProbs[j].id=nearBots[j].id;		
+			BAYES_DEBUG_PRINT("\t%04X Factor [!f]:  %7.3f  |  %7.3f  |  %7.3f\r\n", newProbs[j].id, factor, neighbFactor, confFactor);
+			newProbs[j].P = factor*((slot->untrackedProb)/(NUM_POSSIBLE_BOTS-(numTrackedAndMeasured+numTrackedNotMeasured)));
+			deltaTrackedProb += newProbs[j].P*(1-(1.0/factor));		
 		}
 	}
 	for(uint8_t j=0 ; j < NUM_TRACKED_BAYESIAN ; j++){
@@ -147,101 +333,116 @@ uint8_t addProbsForNeighbor(NewNeighbSlot* newNeighb, float dists[NUM_TRACKED_BO
 				break;
 			}
 		}
-		if(!found){
+		if(!found && candidates[j].id){
 			//A robot we were tracking was not measured.
 			numTrackedNotMeasured++;
 			newProbs[NUM_TRACKED_BOTS+j].id=candidates[j].id;
 			newProbs[NUM_TRACKED_BOTS+j].P=UNMEASURED_NEIGHBOR_LIKELIHOOD*candidates[j].P;
+			deltaTrackedProb += (newProbs[NUM_TRACKED_BOTS+j].P - candidates[j].P);		
+			BAYES_DEBUG_PRINT("\t%04X Factor [!m]:  %7.3f  |  %7.3f  |  %7.3f\r\n", candidates[j].id, UNMEASURED_NEIGHBOR_LIKELIHOOD, neighbFactor, confFactor);
 		}
 	}
-	newNeighb->emptyProb = neighbor->emptyProb;
-	newNeighb->untrackedProb = neighbor->untrackedProb;
 	
-	uint8_t numClose = numTrackedAndMeasured+numMeasuredNotTracked-numDistsOverThresh;	
-	uint8_t diff;
-	if(numMeasuredNotTracked>numTrackedNotMeasured){
-		diff=numMeasuredNotTracked-numTrackedNotMeasured;
-		newNeighb->emptyProb = newNeighb->emptyProb - 0.08*(diff+2*numClose);
-		if(newNeighb->emptyProb<0.08) newNeighb->emptyProb = 0.08;
-		newNeighb->untrackedProb = newNeighb->untrackedProb - 0.02*(diff+2*numClose);
-		if(newNeighb->untrackedProb<0.02) newNeighb->untrackedProb = 0.02;		
-	}else if(numMeasuredNotTracked<numTrackedNotMeasured){
-		diff=numTrackedNotMeasured-numMeasuredNotTracked;
-		newNeighb->emptyProb = newNeighb->emptyProb + 0.04*diff;
-		newNeighb->untrackedProb = newNeighb->untrackedProb + 0.01*diff;
+	uint8_t numClose = numTrackedAndMeasured+numMeasuredNotTracked-numDistsOverThresh;
+	float emptyUntrackedRatio = (((float)((numClose - 8)*(numClose-8)))*0.01+0.1);
+	qsort(newProbs, NEW_PROBS_SIZE,sizeof(BayesBot), bayesCmpFunc);
+	newNeighb->emptyProb = 0;
+	newNeighb->untrackedProb = 0;
+	newTrackedTotal=0.0;
+	//float tooSmallThresh = slot->untrackedProb/NUM_POSSIBLE_BOTS;
+	for(uint8_t j=0;j<NUM_TRACKED_BAYESIAN;j++){
+		if(newProbs[j].id!=0){
+			if(newProbs[j].P<0.001){
+				candidates[j].id=0;
+				candidates[j].P=0.0;
+				newNeighb->emptyProb += emptyUntrackedRatio*newProbs[j].P;
+				newNeighb->untrackedProb += (1.0-emptyUntrackedRatio)*newProbs[j].P;
+			}else{
+				candidates[j].id=newProbs[j].id;
+				candidates[j].P=newProbs[j].P;
+			}
+		}else{
+			candidates[j].id=0;
+			candidates[j].P=0.0;
+		}
+		newTrackedTotal+=candidates[j].P;
 	}
-	if( newNeighb->emptyProb <= 0.08 ) newNeighb->emptyProb = 0.08;
-	if( newNeighb->untrackedProb <= 0.02) newNeighb->untrackedProb = 0.02;
-	return (numTrackedAndMeasured+numTrackedNotMeasured);
+	float prevTrackedProb = 1.0-(slot->emptyProb+slot->untrackedProb);
+	if(prevTrackedProb<=0.05){		
+		if(newTrackedTotal<0.3){
+			prevTrackedProb = newTrackedTotal;
+		}else{
+			prevTrackedProb = 0.3;
+		}
+	}
+	//float psuedoNormalizationFactor = newTrackedTotal/prevTrackedProb;
+	//float psuedoNormalizedDelta = deltaTrackedProb/psuedoNormalizationFactor;
+	float psuedoNormalizedDelta = deltaTrackedProb;
+
+	newNeighb->emptyProb += slot->emptyProb - emptyUntrackedRatio*psuedoNormalizedDelta;
+	newNeighb->untrackedProb += slot->untrackedProb - (1.0-emptyUntrackedRatio)*psuedoNormalizedDelta;
+	if(newNeighb->emptyProb<=0){
+		newNeighb->emptyProb = 0.1*emptyUntrackedRatio;
+	}
+	if(newNeighb->untrackedProb<=0){
+		newNeighb->untrackedProb = 0.1*(1.0-emptyUntrackedRatio);
+	}
+	BAYES_DEBUG_PRINT("\tTotal: %6.3f\r\n\tprevTrkdPrb: %6.3f | slotEmpty: %6.3f | slotUntrkd: %6.3f\r\n", 
+						newTrackedTotal+newNeighb->emptyProb+newNeighb->untrackedProb, prevTrackedProb, slot->emptyProb, slot->untrackedProb);
+	BAYES_DEBUG_PRINT("\tnewTrkdTot : %6.3f | newEmpty : %6.3f | newUntrkd : %6.3f\r\n", newTrackedTotal, newNeighb->emptyProb, newNeighb->untrackedProb);
+	newTrackedTotal += newNeighb->emptyProb + newNeighb->untrackedProb;
+	slot->emptyProb = newNeighb->emptyProb/newTrackedTotal;
+	slot->untrackedProb = newNeighb->untrackedProb/newTrackedTotal;
+	
+	for(uint8_t j=0;j<NUM_TRACKED_BAYESIAN;j++){
+		candidates[j].P=candidates[j].P/newTrackedTotal;	
+	}
 }
 
 void processOtherBotData(){
 	float dists[NEIGHBORHOOD_SIZE][NUM_TRACKED_BOTS];
-	NewNeighbSlot newNeighb;
+	char newBayesMemory[sizeof(NewBayesSlot)];
+	NewBayesSlot* newBayes = (NewBayesSlot*)(&(newBayesMemory[0]));
+	//NewBayesSlot* newBayes = &newBayesMem;
 	float total;
-	uint8_t numTracked;
-	BayesBot* newProbs = (newNeighb.candidates);
-	NeighbSlot* neighbor;
+	//uint8_t numTracked;
+	BayesBot* newCandidates = newBayes->candidates;
+	BayesSlot* slot;
 	BayesBot* candidates;
 	calculateDistsFromNeighborPos(dists); //Populates this array.
-	
+	BAYES_DEBUG_PRINT(" --- Processing otherBot Data --- \r\n");
 	for(uint8_t i=0;i<NEIGHBORHOOD_SIZE;i++){
-		neighbor = &(neighbors[i]);
-		candidates = neighbor->candidates;
-		numTracked = addProbsForNeighbor(&newNeighb, dists[i], neighbor);
-		qsort(newNeighb.candidates, NUM_TRACKED_BOTS+NUM_TRACKED_BAYESIAN,sizeof(BayesBot), bayesCmpFunc);
-
-		total=0.0;
-		float tooSmallThresh = newNeighb.untrackedProb/(NUM_POSSIBLE_BOTS-numTracked);
-		for(uint8_t j=0;j<NUM_TRACKED_BAYESIAN;j++){
-			if(newProbs[j].id!=0){
-				if(newProbs[j].P<=tooSmallThresh){
-					newNeighb.untrackedProb+=newProbs[j].P;
-					candidates[j].id=0;
-					candidates[j].P=0.0;
-				}else{
-					candidates[j].id=newProbs[j].id;
-					candidates[j].P=newProbs[j].P;
-					total+=candidates[j].P;
-				}
-
-			}else{
-				candidates[j].id=0;
-				candidates[j].P=0.0;
-			}
-		}
-		
-		total += newNeighb.emptyProb + newNeighb.untrackedProb;
-		neighbor->emptyProb=newNeighb.emptyProb/total;
-		neighbor->untrackedProb=newNeighb.untrackedProb/total;
-		for(uint8_t j=0;j<NUM_TRACKED_BAYESIAN;j++){
-			if(newProbs[j].id!=0){
-				candidates[j].P=candidates[j].P/total;
-			}
-		}
+		slot = &(bayesSlots[i]);
+		candidates = slot->candidates;
+		BAYES_DEBUG_PRINT("Slot %hu:\r\n", i);
+		newBayes->emptyProb = 0.0;
+		newBayes->untrackedProb = 0.0;
+		addProbsForNeighbor(newBayes, dists[i], slot, i);
 	}
+	BAYES_DEBUG_PRINT("\n");
 	#ifdef BAYES_DEBUG_MODE
 		bayesDebugPrintout();
 	#endif
 	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
 		cleanOtherBot(&nearBots[i]);
 	}
-	numNeighbors = 0;
+	numNearBots = 0;
 }
 
 void bayesDebugPrintout(){
-	NeighbSlot* neighbor;
+	printf(" --- Bayes Debug Printout --- \r\n");
+	BayesSlot* neighbor;
 	BayesBot* candidates;
 	uint8_t untrackedToggle, emptyToggle,emptyFirst;	
 	for(uint8_t i=0;i<NEIGHBORHOOD_SIZE;i++){
-		neighbor = &(neighbors[i]);
+		neighbor = &(bayesSlots[i]);
 		candidates=neighbor->candidates;
 		untrackedToggle=0;
 		emptyToggle=0;
 		printf("Slot %hu:\r\n", i);
 		if(neighbor->emptyProb>neighbor->untrackedProb){
 			emptyFirst=1;
-			}else{
+		}else{
 			emptyFirst=0;
 		}
 		for(uint8_t j=0;j<NUM_TRACKED_BAYESIAN;j++){
@@ -285,15 +486,18 @@ void bayesDebugPrintout(){
 			}
 		}
 	}
+	printf("\n");
 }
 
 
 void useNewRnbMeas(){
 	rnb_updated=0;
 	float rVar, bVar, hVar;
-	getVarsFromConf(last_good_rnb.conf, &rVar, &bVar, &hVar);
-	OtherBot* neighbor = addOtherBot(last_good_rnb.id_number, last_good_rnb.conf);
-	POS_DEBUG_PRINT("(RNB) ID: %04X\r\n\tRmo: % 5.1fñ%-4.1f Bmo: % 6.1fñ%-4.1f Hmo: % 6.1fñ%-4.1f\r\n", last_good_rnb.id_number, last_good_rnb.range, rVar, rad_to_deg(last_good_rnb.bearing), rad_to_deg(bVar), rad_to_deg(last_good_rnb.heading), rad_to_deg(hVar), last_good_rnb.conf);
+	float conf = last_good_rnb.conf;
+	if(conf<0.1) conf=0.1;
+	getVarsFromConf(conf, &rVar, &bVar, &hVar);
+	POS_DEBUG_PRINT("(RNB) ID: %04X\r\n\tRmo: % 5.1fñ%-4.1f Bmo: % 6.1fñ%-4.1f Hmo: % 6.1fñ%-4.1f\t%8.3f\r\n", last_good_rnb.id_number, last_good_rnb.range, rVar, rad_to_deg(last_good_rnb.bearing), bVar*(180./M_PI), rad_to_deg(last_good_rnb.heading), hVar*(180./M_PI), last_good_rnb.conf);	
+	OtherBot* neighbor = addOtherBot(last_good_rnb.id_number, conf);
 	BotPos* pos = &(neighbor->pos);
 	if(neighbor==NULL) return;
 	if(neighbor->id == 0 || neighbor->id == last_good_rnb.id_number){ //We weren't tracking this ID before, so just add the new info.
@@ -304,57 +508,11 @@ void useNewRnbMeas(){
 		pos->bV  = bVar;
 		pos->h	= last_good_rnb.heading;
 		pos->hV  = hVar;
-		//}else if(neighbor->id == last_good_rnb.id_number){
-		//POS_DEBUG_PRINT("\tRmo: % 5.1fñ%-4.1f Bmo: % 6.1fñ%-4.1f Hmo: % 6.1fñ%-4.1f\r\n", pos->r, pos->rV, rad_to_deg(pos->b), rad_to_deg(pos->bV), rad_to_deg(pos->h), rad_to_deg(pos->hV));
-		//fuseData(neighbor, last_good_rnb.range, last_good_rnb.bearing, last_good_rnb.heading, rVar, bVar, hVar);
+		neighbor->conf = getConfFromVars(rVar, bVar, hVar);
+		POS_DEBUG_PRINT("\tRmo: % 5.1fñ%-4.1f Bmo: % 6.1fñ%-4.1f Hmo: % 6.1fñ%-4.1f\r\n", pos->r, pos->rV, rad_to_deg(pos->b), pos->bV*(180./M_PI), rad_to_deg(pos->h), pos->hV*(180./M_PI));
 	}else{
 		printf("Error: Unexpected botPos->ID in use_new_rnb_meas.\r\n");
 	}
-}
-
-void combineVars(float Rms, float Bms, float Hms, float vRms, float vBms, float vHms, float Rso, float Bso, float Hso, float vRso, float vBso, float vHso, float* vRmo, float* vBmo, float* vHmo){
-	float Rms2 = powf(Rms,2.0);
-	float Rso2 = powf(Rso,2.0);
-	
-	float denominator = (Rms2+Rso2+2*Rms*Rso*cosf(Bms-Bso-Hms));
-	
-	float cosTerm = (-Rso2*vRms+Rms2*(Rso2*(vBms+vBso+vHms)-vRso))*cosf(2*Bms-2*Bso-2*Hms);
-	
-	*vRmo = (Rms2*(Rso2*(vBms+vBso+vHms)+2*vRms+vRso)+Rso2*(vRms+2*vRso)-cosTerm+4*Rms*Rso*(vRms+vRso)*cosf(Bms-Bso-Hms))/(2.0*denominator);
-	*vBmo = (2*powf(Rms,4.0)*vBms+2*powf(Rso,4.0)*(vBso+vHms)+Rso2*vRms+Rms2*(Rso2*(vBms+vBso+vHms)+vRso)+cosTerm+4*Rms*Rso*(Rms2*vBms+Rso2*(vBso+vHms))*cosf(Bms-Bso-Hms))/(2.0*powf(denominator,2.0));
-	*vHmo = vHms+vHso;
-}
-
-void fuseData(OtherBot* currPos, float otherR, float otherB, float otherH, float otherRvar, float otherBvar, float otherHvar){
-	//KALMAN VERSION
-	float vals[3] = {currPos->pos.r, currPos->pos.b, currPos->pos.h};
-	float vars[3] = {currPos->pos.rV, currPos->pos.bV, currPos->pos.hV};
-	float otherVals[3] = {otherR, otherB, otherH};
-	float otherVars[3] = {otherRvar, otherBvar, otherHvar};	
-	float newVals[3], newVars[3];
-	float predVar, kalmanGain, newVal, newVar;		
-	POS_DEBUG_PRINT("    FUSING:\r\n\tRmo': % 5.1fñ%-4.1f Bmo': % 6.1fñ%-4.1f Hmo': % 6.1fñ%-4.1f\r\n\tRmo: % 5.1fñ%-4.1f Bmo: % 6.1fñ%-4.1f Hmo: % 6.1fñ%-4.1f\r\n",
-				otherR, otherRvar, rad_to_deg(otherB), rad_to_deg(otherBvar), rad_to_deg(otherH), rad_to_deg(otherHvar),
-				vals[0], vars[0], rad_to_deg(vals[1]), rad_to_deg(vars[1]), rad_to_deg(vals[2]), rad_to_deg(vars[2]));
-
-	for(uint8_t i=0;i<3;i++){
-		predVar = vars[i] + PROC_NOISE[i];
-		kalmanGain = (predVar)/(predVar+MEAS_NOISE[i]);
-		if(i>0){
-			newVals[i] = pretty_angle(pretty_angle(kalmanGain*otherVals[i])+pretty_angle((1.0-kalmanGain)*vals[i]));
-		}else{
-			newVals[i] = kalmanGain*otherVals[i] + (1.0 - kalmanGain)*vals[i];
-		}
-		newVars[i] = predVar*(1.0-kalmanGain);
-	}
-
-	currPos->pos.r  = newVals[0];
-	currPos->pos.b  = newVals[1];
-	currPos->pos.h  = newVals[2];
-	currPos->pos.rV = newVars[0];
-	currPos->pos.bV = newVars[1];
-	currPos->pos.hV = newVars[2];
-	POS_DEBUG_PRINT("\tR: % 6.2fñ%-6.3f B: % 6.1fñ%-6.3f H: % 6.1fñ%-6.3f\r\n", newVals[0], newVars[0], rad_to_deg(newVals[1]), rad_to_deg(newVars[1]), rad_to_deg(newVals[2]), rad_to_deg(newVars[2]));						
 }
 
 uint8_t check_bounce(uint8_t in_dir){
@@ -365,11 +523,11 @@ uint8_t check_bounce(uint8_t in_dir){
 	uint8_t far_left_dir	= (in_dir+2)%6;
 	uint8_t far_right_dir	= (in_dir+4)%6; //it's like -2
 	
-	uint8_t opp			= !!getNeighborID(&neighbors[opp_dir]		);
-	uint8_t left		= !!getNeighborID(&neighbors[left_dir]		);
-	uint8_t right		= !!getNeighborID(&neighbors[right_dir]		);
-	uint8_t far_left	= !!getNeighborID(&neighbors[far_left_dir]	);
-	uint8_t far_right	= !!getNeighborID(&neighbors[far_right_dir]	);
+	uint8_t opp			= !!(neighbsList[opp_dir].id);
+	uint8_t left		= !!(neighbsList[left_dir].id);
+	uint8_t right		= !!(neighbsList[right_dir].id);
+	uint8_t far_left	= !!(neighbsList[far_left_dir].id);
+	uint8_t far_right	= !!(neighbsList[far_right_dir].id);
 	
 	if(opp)				return opp_dir;							//go straight.
 	else if(right && left){										//both close neighbors exist
@@ -396,9 +554,9 @@ uint8_t check_bounce(uint8_t in_dir){
 void calculateOutboundDir(uint16_t inID){
 	outwardDirID=0;
 	for(uint8_t dir=0;dir<NEIGHBORHOOD_SIZE;dir++){
-		if(getNeighborID(&neighbors[dir])==inID){
+		if(neighbsList[dir].id==inID){
 			outwardDir = check_bounce(dir);
-			outwardDirID = getNeighborID(&neighbors[outwardDir]);
+			outwardDirID = neighbsList[outwardDir].id;
 			break;
 		}
 	}
@@ -407,31 +565,60 @@ void calculateOutboundDir(uint16_t inID){
 		uint8_t randDir = rand_byte()%NEIGHBORHOOD_SIZE;
 		uint8_t i;
 		for(i=0;i<NEIGHBORHOOD_SIZE;i++){
-			if(getNeighborID(&neighbors[(randDir+i)%NEIGHBORHOOD_SIZE])!=0) break;
+			if(neighbsList[(randDir+i)%NEIGHBORHOOD_SIZE].id!=0) break;
 		}
 		outwardDir = check_bounce(randDir+i);
-		outwardDirID = getNeighborID(&neighbors[outwardDir]);
+		outwardDirID = neighbsList[outwardDir].id;
 	}
 }
 
+void sendNeighbMsg(){
+	NeighbMsg msg;
+	msg.flag = NEIGHB_MSG_FLAG;
+	for(uint8_t i=0;i<NEIGHBORHOOD_SIZE;i++){
+		msg.ids[i] = neighbsList[i].id;
+	}
+	ir_send(ALL_DIRS, (char*)(&msg), sizeof(NeighbMsg));
+}
+
 void sendBallMsg(){
-	BallBounceMsg msg;
-	msg.flag = BALL_BOUNCE_FLAG;
+	BallMsg msg;
+	msg.flag = BALL_MSG_FLAG;
 	msg.id = outwardDirID;
 	msg.seqPos = ballSeqPos;
-	ir_send(ALL_DIRS, (char*)(&msg), sizeof(BallBounceMsg));
+	ir_send(ALL_DIRS, (char*)(&msg), sizeof(BallMsg));
 }
 
 void handle_msg(ir_msg* msg_struct){
-	if(((BallBounceMsg*)(msg_struct->msg))->flag==BALL_BOUNCE_FLAG){
-		BallBounceMsg msg = *((BallBounceMsg*)(msg_struct->msg));
-		if(msg.id==get_droplet_id()&&myState!=BALL){
-			//printf("Got the ball!\r\n");
-			myState=BALL;
-			calculateOutboundDir(msg_struct->sender_ID);
-			ballSeqPos = msg.seqPos;
+	if(((BallMsg*)(msg_struct->msg))->flag==BALL_MSG_FLAG){
+		BallMsg msg = *((BallMsg*)(msg_struct->msg));
+		printf("%04X threw a ball!\r\n", msg_struct->sender_ID);		
+		if(msg.id==get_droplet_id()){
+			printf("\tIt's for me! (%hu)\r\n", msg.seqPos);
+			if(myState!=BALL || msg.seqPos<ballSeqPos){
+				if(myState==BALL){
+					printf("\tI was a ball, but this is a new ball (%hu) for ", ballSeqPos);
+				}else{
+					printf("\tNew Ball for ");
+				}
+				myState=BALL;
+				calculateOutboundDir(msg_struct->sender_ID);
+				printf("%04X.\r\n", outwardDirID);
+				ballSeqPos = msg.seqPos;		
+			}
 		}else{
+			printf("\tIt's for %04X, not me. (%hu)\r\n", msg.id, msg.seqPos);
 		//printf("Someone else getting a ball. Could maybe use this for lost ball handling later.\r\n");
+		}
+	}else if(((NeighbMsg*)(msg_struct->msg))->flag==NEIGHB_MSG_FLAG){
+		NeighbMsg msg = *((NeighbMsg*)(msg_struct->msg));
+		for(uint8_t i=0;i<NEIGHBORHOOD_SIZE;i++){
+			if(msg_struct->sender_ID==neighbsList[i].id){
+				for(uint8_t j=0;j<NEIGHBORHOOD_SIZE;j++){
+					neighbsList[i].neighbs[j] = msg.ids[j];
+				}
+				break;
+			}
 		}
 	}
 }
@@ -449,37 +636,38 @@ void removeOtherBot(uint16_t id){
 	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
 		if(nearBots[i].id==id){
 			cleanOtherBot(&nearBots[i]);
-			numNeighbors--;
+			numNearBots--;
 			break;
 		}
 	}
 }
 
-OtherBot* addOtherBot(uint16_t id, float var){
+OtherBot* addOtherBot(uint16_t id, float conf){
 	uint8_t emptyIdx=0xFF;
 	qsort(nearBots, NUM_TRACKED_BOTS, sizeof(OtherBot), nearBotsCmpFunc);
 	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
 		if(nearBots[i].id==id){
 			return &(nearBots[i]);
 		}
-		if(nearBots[i].id==0){
+		if(emptyIdx==0xFF && nearBots[i].id==0){
 			emptyIdx=i;
 		}
 	}
 	//The ID we're adding wasn't in our neighbors list.
 	if(emptyIdx!=0xFF){ //An empty spot was available.
-		numNeighbors++;
+		numNearBots++;
 		return &(nearBots[emptyIdx]);
 	}
 	// No empty spot, so we'll remove the neighbor we're
 	// least confident in. But only if we're more confident
 	// in the new neighbor.
-	BotPos* pos = &nearBots[NUM_TRACKED_BOTS-1].pos;
-	float neighbConf = getConfFromVars(pos->rV, pos->bV, pos->hV);
-	if(neighbConf<var){
+	BotPos* pos = &(nearBots[NUM_TRACKED_BOTS-1].pos);
+	if(nearBots[NUM_TRACKED_BOTS-1].conf<conf){
+		POS_DEBUG_PRINT("No empty spot, but higher conf.\r\n");
 		cleanOtherBot(&nearBots[NUM_TRACKED_BOTS-1]);
 		return &(nearBots[NUM_TRACKED_BOTS-1]);
 	}else{
+		POS_DEBUG_PRINT("No empty spot, and conf too low.\r\n");
 		return NULL;
 	}
 }
@@ -493,6 +681,7 @@ void cleanOtherBot(OtherBot* other){
 	other->pos.rV = 0;
 	other->pos.bV = 0;
 	other->pos.hV = 0;
+	other->conf = 0.0;
 }
 
 /*
@@ -504,13 +693,13 @@ uint8_t user_handle_command(char* command_word, char* command_args)
 	if(strcmp_P(command_word,PSTR("ball"))==0){
 		uint8_t inDir=rand_byte()%NEIGHBORHOOD_SIZE;
 		for(uint8_t i=0;i<NEIGHBORHOOD_SIZE;i++){
-			if(getNeighborID(&neighbors[inDir+i])!=0){
+			if(neighbsList[inDir+i].id!=0){
 				inDir+=i;
 				break;
 			}
 		}
 		outwardDir = check_bounce(inDir);
-		outwardDirID = getNeighborID(&neighbors[outwardDir]);
+		outwardDirID = neighbsList[outwardDir].id;
 		printf("GOT BALL COMMAND!\r\n\tInDir: %hu, outDir: %hu, outID: %X\r\n", inDir, outwardDir, outwardDirID);
 		myState = BALL;	
 		ballSeqPos = 0;
@@ -518,109 +707,3 @@ uint8_t user_handle_command(char* command_word, char* command_args)
 	}
 	return 0;
 }
-
-//void processOtherBotData(){
-	//float dists[NUM_TRACKED_BOTS][NEIGHBORHOOD_SIZE];
-	//calculateDistsFromNeighborPos(dists); //Populates this array.
-	//
-	//NeighbSlot* neighbor;
-	//BayesBot* candidates;
-	//BayesBot newProbs[NUM_TRACKED_BOTS+NUM_TRACKED_BAYESIAN];
-	//float newEmptyProb, newTotalTrackedProb, newUntrackedProb, total, probFound;
-	//uint8_t found, numTracked;
-	//for(uint8_t i=0;i<NEIGHBORHOOD_SIZE;i++){
-		//neighbor = &(neighbors[i]);
-		//candidates=neighbor->candidates;
-		//probFound = 0.0;
-		//numTracked=0;
-		//newEmptyProb=neighbor->emptyProb;
-		//newUntrackedProb=neighbor->untrackedProb;
-		//for(uint8_t j=0;j<NUM_TRACKED_BOTS;j++){
-			//found=0;
-			//newProbs[j].id=0;
-			//newProbs[j].P=0.0;
-			//for(uint8_t k=0;k<NUM_TRACKED_BAYESIAN;k++){
-				//if(candidates[k].id!=0){
-					//numTracked++;
-					//if(candidates[k].id==nearBots[j].id){
-						//found = 1;
-						//newProbs[j].id=candidates[k].id;
-						//newProbs[j].P=(4.0/dists[j][i])*candidates[k].P; //bayes-y
-						//probFound+=candidates[k].P;
-					//}
-				//}
-			//}
-			//if(!found){
-				//newProbs[j].id=nearBots[j].id;
-				//newProbs[j].P = (2.0/dists[j][i])*((neighbor->untrackedProb)/(NUM_POSSIBLE_BOTS-numTracked));
-			//}
-			//if(dists[j][i]>5.0){
-				//newEmptyProb+=0.05;
-				//newUntrackedProb+=0.01;
-				//}else{
-				//if(newEmptyProb>=0.2)	newEmptyProb+=-0.1;
-				//if(newUntrackedProb>=0.04) newUntrackedProb+=-0.02;
-			//}
-		//}
-		////SO FAR, the above covers bots that were tracked and measured, and bots that were measured but not previously tracked.
-		////need to also cover bots that were previously tracked, but not measured this time.
-		//for(uint8_t j=0 ; j < NUM_TRACKED_BAYESIAN ; j++){
-			//newProbs[NUM_TRACKED_BOTS+j].id=0;
-			//newProbs[NUM_TRACKED_BOTS+j].P=0.0;
-			//uint8_t found=0;
-			//for(uint8_t k=0;k<NUM_TRACKED_BOTS;k++){
-				//if(newProbs[k].id!=0 && newProbs[k].id==candidates[j].id){
-					//found=1;
-					//break;
-				//}
-			//}
-			//if(!found){
-				////this previously tracked bot was not measured.
-				//newProbs[NUM_TRACKED_BOTS+j].id=candidates[j].id;
-				//newProbs[NUM_TRACKED_BOTS+j].P=UNMEASURED_NEIGHBOR_LIKELIHOOD*candidates[j].P;
-			//}
-		//}
-		////printf("\tLost prob: %f, new prob: %f\r\n",lostProb,newProb);
-		//if(newEmptyProb<0.1) newEmptyProb = 0.1;
-		//if(newUntrackedProb<0.1) newUntrackedProb = 0.1;
-		//
-		//qsort(newProbs, NUM_TRACKED_BOTS+NUM_TRACKED_BAYESIAN,sizeof(BayesBot), bayesCmpFunc);
-		//newTotalTrackedProb=0.0;
-		//uint8_t tooSmallFlag = 0;
-		//float tooSmallThresh = newUntrackedProb/(NUM_POSSIBLE_BOTS-numTracked);
-		//for(uint8_t j=0;j<NUM_TRACKED_BAYESIAN;j++){
-			//if(newProbs[j].id!=0){
-				//if(newProbs[j].P<=tooSmallThresh){
-					//newUntrackedProb+=newProbs[j].P;
-					//candidates[j].id=0;
-					//candidates[j].P=0.0;
-					//}else{
-					//candidates[j].id=newProbs[j].id;
-					//candidates[j].P=newProbs[j].P;
-					//newTotalTrackedProb+=candidates[j].P;
-				//}
-//
-				//}else{
-				//candidates[j].id=0;
-				//candidates[j].P=0.0;
-			//}
-		//}
-		//
-		//total = newTotalTrackedProb+newEmptyProb+newUntrackedProb;
-		////printf("\tnewEmptyProb: %f\tnewTotalProb: %f\t newUntrackedProb: %f\ttotal: %f\r\n",newEmptyProb, newTotalTrackedProb,newUntrackedProb, total);
-		//neighbor->emptyProb=newEmptyProb/total;
-		//neighbor->untrackedProb=newUntrackedProb/total;
-		//for(uint8_t j=0;j<NUM_TRACKED_BAYESIAN;j++){
-			//if(newProbs[j].id!=0){
-				//candidates[j].P=candidates[j].P/total;
-			//}
-		//}
-	//}
-	//#ifdef BAYES_DEBUG_MODE
-	//bayesDebugPrintout();
-	//#endif
-	//for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
-		//cleanOtherBot(&nearBots[i]);
-	//}
-	//numNeighbors = 0;
-//}

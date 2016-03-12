@@ -258,7 +258,7 @@ void addProbsForNeighbor(NewBayesSlot* newNeighb, float dists[NUM_TRACKED_BOTS],
 	uint8_t numTrackedAndMeasured=0;
 	uint8_t numMeasuredNotTracked=0;
 	uint8_t numTrackedNotMeasured=0;
-	uint8_t numDistsOverThresh=0;
+	uint8_t numNonadjacent=0;
 	uint8_t found;
 	uint8_t oppDir = (dir+(NEIGHBORHOOD_SIZE/2))%NEIGHBORHOOD_SIZE;
 	BayesBot* candidates = slot->candidates;
@@ -304,7 +304,7 @@ void addProbsForNeighbor(NewBayesSlot* newNeighb, float dists[NUM_TRACKED_BOTS],
 				if(candidates[k].id==nearBots[j].id){
 					found = 1;
 					numTrackedAndMeasured++;
-					if(dists[j]>5.0) numDistsOverThresh++;
+					if(dists[j]>5.0) numNonadjacent++;
 					//A previously tracked robot was measured again.
 					newProbs[j].id=candidates[k].id;
 					BAYES_DEBUG_PRINT("\t%04X Factor [ f]:  %7.3f  |  %7.3f  |  %7.3f\r\n",  candidates[k].id, factor, neighbFactor, confFactor);
@@ -316,7 +316,7 @@ void addProbsForNeighbor(NewBayesSlot* newNeighb, float dists[NUM_TRACKED_BOTS],
 		if(!found && nearBots[j].id){
 			//We measured a robot we weren't tracking.
 			numMeasuredNotTracked++;
-			if(dists[j]>5.0) numDistsOverThresh++;
+			if(dists[j]>5.0) numNonadjacent++;
 			newProbs[j].id=nearBots[j].id;		
 			BAYES_DEBUG_PRINT("\t%04X Factor [!f]:  %7.3f  |  %7.3f  |  %7.3f\r\n", newProbs[j].id, factor, neighbFactor, confFactor);
 			newProbs[j].P = factor*((slot->untrackedProb)/(NUM_POSSIBLE_BOTS-(numTrackedAndMeasured+numTrackedNotMeasured)));
@@ -343,8 +343,11 @@ void addProbsForNeighbor(NewBayesSlot* newNeighb, float dists[NUM_TRACKED_BOTS],
 		}
 	}
 	
-	uint8_t numClose = numTrackedAndMeasured+numMeasuredNotTracked-numDistsOverThresh;
-	float emptyUntrackedRatio = (((float)((numClose - 8)*(numClose-8)))*0.01+0.1);
+	float emptyUntrackedRatio = ((float)(numNonadjacent*numNonadjacent))/((float)(NUM_TRACKED_BOTS*NUM_TRACKED_BOTS));
+	if(emptyUntrackedRatio<0.1) 
+		emptyUntrackedRatio = 0.1;
+	else if(emptyUntrackedRatio>0.9) 
+		emptyUntrackedRatio = 0.9;
 	qsort(newProbs, NEW_PROBS_SIZE,sizeof(BayesBot), bayesCmpFunc);
 	newNeighb->emptyProb = 0;
 	newNeighb->untrackedProb = 0;
@@ -375,12 +378,9 @@ void addProbsForNeighbor(NewBayesSlot* newNeighb, float dists[NUM_TRACKED_BOTS],
 			prevTrackedProb = 0.3;
 		}
 	}
-	//float psuedoNormalizationFactor = newTrackedTotal/prevTrackedProb;
-	//float psuedoNormalizedDelta = deltaTrackedProb/psuedoNormalizationFactor;
-	float psuedoNormalizedDelta = deltaTrackedProb;
 
-	newNeighb->emptyProb += slot->emptyProb - emptyUntrackedRatio*psuedoNormalizedDelta;
-	newNeighb->untrackedProb += slot->untrackedProb - (1.0-emptyUntrackedRatio)*psuedoNormalizedDelta;
+	newNeighb->emptyProb += slot->emptyProb - emptyUntrackedRatio*deltaTrackedProb;
+	newNeighb->untrackedProb += slot->untrackedProb - (1.0-emptyUntrackedRatio)*deltaTrackedProb;
 	if(newNeighb->emptyProb<=0){
 		newNeighb->emptyProb = 0.1*emptyUntrackedRatio;
 	}

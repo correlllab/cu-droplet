@@ -3,11 +3,12 @@
 #include "droplet_init.h"
 
 #define HOP_MSG_FLAG			'H'
-#define SLOT_LENGTH_MS			150 
-#define SLOTS_PER_FRAME			40
+#define SLOT_LENGTH_MS			200 
+#define SLOTS_PER_FRAME			38
 #define FRAME_LENGTH_MS			(LOOP_PERIOD_MS*LOOPS_PER_RNB)
 #define NUM_SEEDS				4
 #define MAX_HOP_COUNT			12
+#define EST_BOT_COUNT			12
 
 typedef struct hop_msg_struct{
 	char flag;
@@ -28,8 +29,11 @@ uint16_t	myMsgLoop;
 
 void		init();
 void		loop();
-void		propagateAsNecessary();
-void		sendHopMsg();
+void		setColor();
+uint8_t		propagateAsNecessary();
+void		sendHopMsg(uint16_t id, uint8_t hC);
+
+uint8_t		addHop(uint16_t id, uint8_t hopCount);
 
 void		handle_msg			(ir_msg* msg_struct);
 

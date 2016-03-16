@@ -13,10 +13,13 @@ void set_sync_blink_color(uint8_t r, uint8_t g, uint8_t b){
 	sync_blink_b = b;
 }
 
+void set_sync_blink_duration(uint16_t dur){
+	sync_blink_duration = dur;
+	TCE0.CCB = (TCE0.CCA+((uint16_t)(sync_blink_duration*FFSYNC_MS_CONVERSION_FACTOR)))%FFSYNC_FULL_PERIOD;
+}
 void enable_sync_blink(uint16_t phase_offset_ms){
-	printf("Beep.\r\n");
 	uint16_t turn_on_cc = (((uint16_t)(phase_offset_ms*FFSYNC_MS_CONVERSION_FACTOR))%FFSYNC_FULL_PERIOD);
-	uint16_t turn_off_cc = (turn_on_cc+((uint16_t)(200*FFSYNC_MS_CONVERSION_FACTOR)))%FFSYNC_FULL_PERIOD;
+	uint16_t turn_off_cc = (turn_on_cc+((uint16_t)(sync_blink_duration*FFSYNC_MS_CONVERSION_FACTOR)))%FFSYNC_FULL_PERIOD;
 	TCE0.CCA = turn_on_cc;
 	TCE0.CCB = turn_off_cc;
 	TCE0.INTCTRLB = TC_CCAINTLVL_HI_gc | TC_CCBINTLVL_HI_gc;
@@ -44,7 +47,9 @@ void firefly_sync_init()
 	sync_def_r = 0;
 	sync_def_g = 0;
 	sync_def_b = 0;
-
+	
+	sync_blink_duration = 200;
+	
 	disable_sync_blink();
 	EVSYS.CH0MUX = EVSYS_CHMUX_PRESCALER_4096_gc;
 	
@@ -86,7 +91,9 @@ ISR(TCE0_OVF_vect)
 		while(RTC.STATUS & RTC_SYNCBUSY_bm);
 		RTC.CNT =  (the_count+change);
 		RTC.COMP = (RTC.COMP+change);
+		
 	}
+
 	
 	//change represents how the RTC clock's measure of 2048ms differs from the synchronization's measure.
 	//If change is quite large, then probably we're still getting sync'd - so no implications about the RTC clock.

@@ -22,14 +22,24 @@ void init(){
 		trackedHops[i].id=0;
 		trackedHops[i].hopCount=0;
 	}
-	loopCount = 0;	
+	lastLoop = 0;	
+	frameCount = 0;
+
 	myMsgLoop = (get_droplet_id()%(SLOTS_PER_FRAME-1));;
 	printf("MsgLoop: %d\r\n", myMsgLoop);
+	frameStart = get_time();	
 }
 
 void loop(){
-	if((get_time()%SLOT_LENGTH_MS)<(SLOT_LENGTH_MS/50)){
-		if(loopCount==myMsgLoop){
+	uint32_t frameTime = get_time()-frameStart;
+	if(frameTime>FRAME_LENGTH_MS){
+		frameTime -= FRAME_LENGTH_MS;
+		frameStart = get_time()-frameTime;
+		frameCount++;
+	}
+	uint8_t loopID = (SLOTS_PER_FRAME*frameTime)/FRAME_LENGTH_MS;
+	if(loopID!=lastLoop){
+		if(loopID==myMsgLoop){
 			uint8_t numEmpty;
 			uint8_t result;
 			numEmpty = propagateAsNecessary();
@@ -42,8 +52,9 @@ void loop(){
 					DEBUG_PRINT("I'm going to be a seed.\r\n");
 				}
 			}
-		}else if(loopCount==SLOTS_PER_FRAME-1){
-			DEBUG_PRINT("T: %lu\r\n", get_time());
+		}
+		if(loopID==SLOTS_PER_FRAME-1){
+			DEBUG_PRINT("%lu [%lu]\r\n", frameCount, get_time());
 			for(uint8_t i=0;i<NUM_SEEDS;i++){
 				DEBUG_PRINT("\t%04X: %hu", trackedHops[i].id, trackedHops[i].hopCount);
 				if(trackedHops[i].flag){
@@ -53,17 +64,17 @@ void loop(){
 				}
 			}
 		}
-		
-		setColor();
-		
-		loopCount=((loopCount+1)%SLOTS_PER_FRAME);
-		delay_ms(SLOT_LENGTH_MS/50);
+		setColor(loopID);
 	}
+
+	
+	lastLoop = loopID;
+	delay_ms(SLOT_LENGTH_MS/50);
 }
 
-void setColor(){
-	uint8_t prevSeedFrame = (((loopCount + (SLOTS_PER_FRAME-1))%SLOTS_PER_FRAME)*(NUM_SEEDS+1))/SLOTS_PER_FRAME;
-	uint8_t seedFrame = (loopCount*(NUM_SEEDS+1))/SLOTS_PER_FRAME;
+void setColor(uint8_t loopID){
+	uint8_t prevSeedFrame = (((loopID + (SLOTS_PER_FRAME-1))%SLOTS_PER_FRAME)*(NUM_SEEDS+1))/SLOTS_PER_FRAME;
+	uint8_t seedFrame = (loopID*(NUM_SEEDS+1))/SLOTS_PER_FRAME;
 	if(prevSeedFrame==seedFrame){
 		if(seedFrame){
 			if(trackedHops[seedFrame-1].hopCount>=MAX_HOP_COUNT){

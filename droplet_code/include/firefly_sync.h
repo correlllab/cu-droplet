@@ -25,12 +25,15 @@ void firefly_sync_init();
 inline void update_firefly_counter()
 {
 	uint16_t the_count = TCE0.CNT;
-	if(the_count>FFSYNC_REFR_PERIOD)
-	TCE0.CNT =  (uint16_t)(fmin(FIREFLY_SYNC_ALPHA * the_count/FFSYNC_FULL_PERIOD + FIREFLY_SYNC_BETA, 1.) * ((float)FFSYNC_FULL_PERIOD));
+	if(the_count>FFSYNC_REFR_PERIOD){
+		TCE0.CNT =  (uint16_t)(fmin(FIREFLY_SYNC_ALPHA * the_count/FFSYNC_FULL_PERIOD + FIREFLY_SYNC_BETA, 1.) * ((float)FFSYNC_FULL_PERIOD));
+	}
 }
 
 uint8_t sync_blink_r, sync_blink_g, sync_blink_b;
 uint8_t sync_def_r, sync_def_g, sync_def_b;
+uint16_t sync_blink_duration;
+
 void set_sync_blink_default(uint8_t r, uint8_t g, uint8_t b);
 void set_sync_blink_color(uint8_t r, uint8_t g, uint8_t b);
 void enable_sync_blink(uint16_t phase_offset_ms);

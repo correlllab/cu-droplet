@@ -5,7 +5,7 @@
 #define HOP_MSG_FLAG			'H'
 #define SLOT_LENGTH_MS			200 
 #define SLOTS_PER_FRAME			38
-#define FRAME_LENGTH_MS			(LOOP_PERIOD_MS*LOOPS_PER_RNB)
+#define FRAME_LENGTH_MS			(SLOT_LENGTH_MS*SLOTS_PER_FRAME)
 #define NUM_SEEDS				4
 #define MAX_HOP_COUNT			12
 #define EST_BOT_COUNT			12
@@ -24,12 +24,14 @@ typedef struct hop_struct{
 }Hop;
 Hop trackedHops[NUM_SEEDS];
 
-uint16_t	loopCount;
-uint16_t	myMsgLoop;
+uint32_t	frameCount;
+uint32_t	frameStart;
+uint8_t		myMsgLoop;
+uint16_t	lastLoop;
 
 void		init();
 void		loop();
-void		setColor();
+void setColor(uint8_t loopID);
 uint8_t		propagateAsNecessary();
 void		sendHopMsg(uint16_t id, uint8_t hC);
 

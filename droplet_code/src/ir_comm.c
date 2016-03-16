@@ -337,8 +337,7 @@ void ir_receive(uint8_t dir)
 	#ifdef HARDCORE_DEBUG_DIR
 		if(dir==HARDCORE_DEBUG_DIR) printf("%02hhx ", in_byte); //Used for debugging - prints raw bytes as we get them.
 	#endif	
-	switch(ir_rxtx[dir].curr_pos)
-	{
+	switch(ir_rxtx[dir].curr_pos){
 		case HEADER_POS_SENDER_ID_LOW:	ir_rxtx[dir].sender_ID		= (uint16_t)in_byte;		break;
 		case HEADER_POS_SENDER_ID_HIGH:
 										ir_rxtx[dir].sender_ID	   |= (((uint16_t)in_byte)<<8);
@@ -361,24 +360,21 @@ void ir_receive(uint8_t dir)
 			ir_rxtx[dir].calc_crc = _crc16_update(ir_rxtx[dir].calc_crc, in_byte);
 	}
 	ir_rxtx[dir].curr_pos++;
-	if(ir_rxtx[dir].curr_pos>=(ir_rxtx[dir].data_length+HEADER_LEN))
-	{
-		if((ir_rxtx[dir].calc_crc!=ir_rxtx[dir].data_crc)||ir_rxtx[dir].calc_crc==0)clear_ir_buffer(dir); //crc check failed.
-		else if(ir_rxtx[dir].target_ID && ir_rxtx[dir].target_ID!=get_droplet_id()) clear_ir_buffer(dir); //msg targeted, but not to me.
-		else if(ir_rxtx[dir].sender_ID == get_droplet_id())							clear_ir_buffer(dir); //ignore a message if it is from me. Silly reflections.
-		else
-		{
-			if(ir_rxtx[dir].status & IR_STATUS_COMMAND_bm)
-			{
-				if(ir_rxtx[dir].data_length==0)
-				{
+	if(ir_rxtx[dir].curr_pos>=(ir_rxtx[dir].data_length+HEADER_LEN)){
+		if((ir_rxtx[dir].calc_crc!=ir_rxtx[dir].data_crc)||ir_rxtx[dir].calc_crc==0){
+			clear_ir_buffer(dir); //crc check failed.
+		}else if(ir_rxtx[dir].target_ID && ir_rxtx[dir].target_ID!=get_droplet_id()){
+			clear_ir_buffer(dir); //msg targeted, but not to me.
+		}else if(ir_rxtx[dir].sender_ID == get_droplet_id()){
+			clear_ir_buffer(dir); //ignore a message if it is from me. Silly reflections.
+		}else{
+			if(ir_rxtx[dir].status & IR_STATUS_COMMAND_bm){
+				if(ir_rxtx[dir].data_length==0){
 					#ifdef SYNCHRONIZED
-					update_firefly_counter();
+						update_firefly_counter();
 					#endif
-					clear_ir_buffer(dir);
-				}
-				else
-				{
+					for(uint8_t other_dir=0;other_dir<6;other_dir++) clear_ir_buffer(other_dir);
+				}else{
 					ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 						memcpy((void *)cmd_buffer, (char*)ir_rxtx[dir].buf, ir_rxtx[dir].data_length);
 						cmd_buffer[ir_rxtx[dir].data_length]='\0';
@@ -393,11 +389,10 @@ void ir_receive(uint8_t dir)
 					schedule_task(10, handle_cmd_wrapper, NULL);
 					//printf("Got cmd from %X.\r\n", cmd_sender_id);
 				}
-			}
-			else
-			{
-				if(ir_rxtx[dir].data_length==0)
-				clear_ir_buffer(dir);
+			}else{
+				if(ir_rxtx[dir].data_length==0){
+					clear_ir_buffer(dir);
+				}
 				ir_rxtx[dir].status |= IR_STATUS_COMPLETE_bm;
 				ir_rxtx[dir].status |= IR_STATUS_BUSY_bm; //mark as busy so we don't overwrite it.
 				channel[dir]->CTRLB &= ~USART_RXEN_bm; //Disable receiving messages on this channel until the message has been processed.

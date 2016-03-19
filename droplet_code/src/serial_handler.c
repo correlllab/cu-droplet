@@ -107,7 +107,7 @@ void handle_set_ir(char* command_args)
 	char* token = strtok(command_args,delim);
 	uint16_t ir_val = (uint16_t)atoi(token);
 	
-	set_all_ir_powers(ir_val);
+	schedule_task(10, set_all_ir_powers, (void*)ir_val);
 }
 
 void handle_stop_walk()

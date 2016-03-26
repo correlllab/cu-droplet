@@ -155,7 +155,7 @@ void task_list_cleanup()
 // time is number of milliseconds until function is executed
 // function is a function pointer to execute
 // arg is the argument to supply to function
-Task_t* schedule_task(uint32_t time, void (*function)(), void* arg)
+volatile Task_t* schedule_task(uint32_t time, void (*function)(), void* arg)
 {	
 	volatile Task_t* new_task;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
@@ -185,7 +185,7 @@ Task_t* schedule_task(uint32_t time, void (*function)(), void* arg)
 	return new_task;
 }
 
-Task_t* schedule_periodic_task(uint32_t period, void (*function)(), void* arg)
+volatile Task_t* schedule_periodic_task(uint32_t period, void (*function)(), void* arg)
 {
 	period+=MIN_TASK_TIME_IN_FUTURE*(period<MIN_TASK_TIME_IN_FUTURE);	
 	volatile Task_t* new_task = schedule_task(period, function, arg);
@@ -260,7 +260,7 @@ void add_task_to_list(volatile Task_t* task)
 }
 
 // Remove a task from the task queue
-void remove_task(Task_t* task)
+void remove_task(volatile Task_t* task)
 {
 	if((task<task_storage_arr)||(task>(&(task_storage_arr[MAX_NUM_SCHEDULED_TASKS-1]))))
 	{
@@ -311,8 +311,6 @@ void print_task_queue()
 int8_t run_tasks()
 {
 	volatile Task_t* cur_task;
-	volatile Task_t* pre_call_task;
-	volatile Task_t* post_call_task;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE) // Disable interrupts
 	{
 		// Run all tasks that are scheduled to execute in the next 2ms
@@ -477,7 +475,7 @@ ISR(RTC_COMP_vect)
 {
 	SAVE_CONTEXT();	
 	task_executing=1;
-	int8_t result = run_tasks();
+	/*int8_t result =*/ run_tasks();
 	task_executing=0;
 	//if(result<0)
 		//task_list_cleanup();		

@@ -45,7 +45,7 @@ volatile uint16_t rtc_epoch;
 volatile uint8_t num_tasks, task_executing;
 
 // Get the current 32-bit time, as measured in ms from the last reset
-inline volatile extern uint32_t get_time() __attribute__((OS_task));
+extern inline uint32_t get_time() __attribute__((OS_task));
 
 void scheduler_init();
 void Config32MHzClock(void);
@@ -62,11 +62,11 @@ void task_list_cleanup();
  * will call foo(55) in one second
  * Returns a pointer to the task that can be used to remove the task from the queue
  */
-Task_t* schedule_task(uint32_t time, void (*function)(), void* arg);
+volatile Task_t* schedule_task(uint32_t time, void (*function)(), void* arg);
 // This function primarily calls the above, but always to run 10ms in the future, and then repeat with a certain period.
-Task_t* schedule_periodic_task(uint32_t period, void (*function)(), void* arg);
+volatile Task_t* schedule_periodic_task(uint32_t period, void (*function)(), void* arg);
 void add_task_to_list(volatile Task_t* task);
-void remove_task(Task_t* task); // Removes a task from the queue
+void remove_task(volatile Task_t* task); // Removes a task from the queue
 void print_task_queue();
 
 // TO BE CALLED FROM INTERRUPT HANDLER ONLY

@@ -109,6 +109,7 @@ restore_registers:
 										; ret returns to where we were before the RTC_COMP interrupt happened
 
 */
+
 ; Gets the time as an atomic operation
 .global get_time
 get_time:

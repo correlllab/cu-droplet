@@ -95,7 +95,7 @@ void handle_walk(char* command_args)
 
 void handle_get_rgb()
 {
-	uint16_t r, g, b;
+	int16_t r, g, b;
 	get_rgb(&r, &g, &b);
 	printf_P(PSTR("r: %hu, g: %hu, b: %hu\r\n"), r, g, b);
 }

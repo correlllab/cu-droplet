@@ -83,8 +83,8 @@ void collect_rnb_data(uint16_t target_id, uint8_t power)
 	char cmd[7] = "rnb_t ";
 	cmd[6] = power;
 	get_baseline_readings(bright_meas);
-	
 	hp_ir_targeted_cmd(ALL_DIRS, cmd, 7, target_id);
+	waitForTransmission(ALL_DIRS);		
 	delay_ms(POST_MESSAGE_DELAY);
 	ir_range_meas();
 	//brightness_meas_printout_mathematica();
@@ -96,6 +96,7 @@ void broadcast_rnb_data()
 {
 	uint8_t power = 255;
 	hp_ir_cmd(ALL_DIRS, "rnb_r", 5);
+	waitForTransmission(ALL_DIRS);	
 	delay_ms(POST_MESSAGE_DELAY);	
 	ir_range_blast(power);
 	//printf("rnb_b\r\n");	
@@ -437,24 +438,24 @@ void ir_range_meas()
 void ir_range_blast(uint8_t power)
 {
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-	//set_blue_led(255);
-	delay_ms(POST_BROADCAST_DELAY);
-	//set_blue_led(0);
-	uint32_t pre_sync_op = get_time();
-	//set_all_ir_powers(((uint16_t)power)+1);
-	set_all_ir_powers(256);
-	while((get_time() - pre_sync_op) < TIME_FOR_SET_IR_POWERS){};
+		//set_blue_led(255);
+		delay_ms(POST_BROADCAST_DELAY);
+		//set_blue_led(0);
+		uint32_t pre_sync_op = get_time();
+		//set_all_ir_powers(((uint16_t)power)+1);
+		//set_all_ir_powers(256);
+		while((get_time() - pre_sync_op) < TIME_FOR_SET_IR_POWERS){};
 
-	for(uint8_t dir = 0; dir < 6; dir++)
-	{
-		pre_sync_op = get_time();
-		ir_led_on(dir);
-		while((get_time() - pre_sync_op) < TIME_FOR_ALL_MEAS){};
-		ir_led_off(dir);
-		//set_green_led(100);
-		delay_ms(DELAY_BETWEEN_RB_TRANSMISSIONS);
-		//set_green_led(0);
-	}
+		for(uint8_t dir = 0; dir < 6; dir++)
+		{
+			pre_sync_op = get_time();
+			ir_led_on(dir);
+			while((get_time() - pre_sync_op) < TIME_FOR_ALL_MEAS){};
+			ir_led_off(dir);
+			//set_green_led(100);
+			delay_ms(DELAY_BETWEEN_RB_TRANSMISSIONS);
+			//set_green_led(0);
+		}
 	}
 }
 

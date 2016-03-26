@@ -20,33 +20,45 @@
 
 
 void init(){
+	//enable_sync_blink(0);
 	lastLoop = 0;
-	frameCount = 0;	
+	frameCount = 0;
+	randomThresh = 32;
 	clearTrackedHops();
 	initializeSeeds();
-	msgPower = 90;
+	msgPower = 112;
 	myMsgLoop = (get_droplet_id()%(SLOTS_PER_FRAME-1));;
 	printf("MsgLoop: %d\r\n", myMsgLoop);
-	frameStart = get_time();
+	frameStart = get_time_wrapper();
+	prevColorSlot = SLOTS_PER_FRAME+1;
+}
+
+ uint32_t __attribute__ ((noinline)) get_time_wrapper(){
+	return get_time();
 }
 
 void clearTrackedHops(){
+	myX=NAN;
+	myY=NAN;
+	posColorMode = 0;
 	for(uint8_t i=0;i<NUM_SEEDS;i++){
 		trackedHops[i].time = 0;
-		trackedHops[i].id=0;
+		trackedHops[i].id=SEED_IDS[i];
 		trackedHops[i].x = 0;
 		trackedHops[i].y = 0;
 		trackedHops[i].flag = 0;
-		trackedHops[i].hopCount=0;
+		trackedHops[i].hopCount=255;
 	}
 }
 
 void initializeSeeds(){
-	seed = 0;	
+	seed = 0;
 	for(uint8_t i=0; i<NUM_SEEDS ; i++){
 		if(get_droplet_id()==SEED_IDS[i]){
 			addHop(get_droplet_id(), SEED_X[i], SEED_Y[i], 0);
 			seed = 1;
+			myX = SEED_X[i];
+			myY = SEED_Y[i];
 			break;
 		}
 	}
@@ -54,6 +66,7 @@ void initializeSeeds(){
 
 
 void loop(){
+	//printf("%lu\t%u\r\n",get_time(),TCE0.CNT);
 	uint32_t frameTime = get_time()-frameStart;
 	if(frameTime>FRAME_LENGTH_MS){
 		frameTime -= FRAME_LENGTH_MS;
@@ -64,7 +77,7 @@ void loop(){
 	if(loopID!=lastLoop){
 		if(loopID==myMsgLoop){
 			propagateAsNecessary();
-			if(seed && (rand_byte()<16)){ //chance for seeds to start a new echo.
+			if(seed && (rand_byte()<randomThresh)){ //chance for seeds to start a new echo.
 				for(uint8_t i=0;i<NUM_SEEDS;i++){
 					if(trackedHops[i].id==get_droplet_id()){
 						trackedHops[i].flag = 1;
@@ -74,7 +87,7 @@ void loop(){
 			}
 		}
 		if(loopID==SLOTS_PER_FRAME-1){
-			DEBUG_PRINT("%lu [%lu]\r\n", frameCount, get_time());
+			DEBUG_PRINT("%lu [%lu] (%-6.1f, %-6.1f)\r\n", frameCount, get_time(), myX, myY);
 			for(uint8_t i=0;i<NUM_SEEDS;i++){
 				DEBUG_PRINT("\t%04X: %hu", trackedHops[i].id, trackedHops[i].hopCount);
 				if(trackedHops[i].flag){
@@ -90,35 +103,46 @@ void loop(){
 
 	
 	lastLoop = loopID;
-	delay_ms(SLOT_LENGTH_MS/50);
+	delay_ms(SLOT_LENGTH_MS/10);
 }
 
 void setColor(uint8_t loopID){
-	uint8_t prevSeedFrame = (((loopID + (SLOTS_PER_FRAME-1))%SLOTS_PER_FRAME)*(NUM_SEEDS+1))/SLOTS_PER_FRAME;
-	uint8_t seedFrame = (loopID*(NUM_SEEDS+1))/SLOTS_PER_FRAME;
-	if(prevSeedFrame==seedFrame){
-		if(seedFrame){
-			if(trackedHops[seedFrame-1].id!=0){
-				if(trackedHops[seedFrame-1].hopCount>=MAX_HOP_COUNT){
-					if(trackedHops[seedFrame-1].hopCount==255){
-						set_rgb(50,50,50);
-					}else{
-						printf("WARNING: Hop count greater than max! (%hu>%hu)\r\n",trackedHops[seedFrame-1].hopCount, MAX_HOP_COUNT);
-						set_rgb(255,255,255);
-					}
-				}else{
-					uint16_t hue = (360*((uint16_t)trackedHops[seedFrame-1].hopCount))/MAX_HOP_COUNT;
-					set_hsv(hue, 255, 255);
-				}
-			}else{
+	if(posColorMode){
+		setPosColor();
+	}else{
+		setSeedDataColor(loopID);
+	}
+}
+
+void setPosColor(){
+	if(isnan(myX)||isnan(myY)){
+		set_rgb(50,50,50);
+	}else{
+		uint8_t rColor = (uint8_t)((255*myX)/MAX_DIM);
+		uint8_t gColor = (uint8_t)((255*myY)/MAX_DIM);
+		set_rgb(rColor,gColor,0);
+	}
+}
+
+void setSeedDataColor(uint8_t loopID){
+	uint8_t colorSlot = (loopID*COLOR_SLOTS)/SLOTS_PER_FRAME;
+	if(prevColorSlot==colorSlot){
+		if(colorSlot==0){ //go dark to indicate start of frame.
+			set_rgb(0,0,0);
+		}else{ //set color for each seed based on hops.
+			Hop* slottedHop = &(trackedHops[colorSlot-1]);
+			uint16_t hopCount = slottedHop->hopCount;
+			if(slottedHop->id && hopCount!=255){ //255 is used to indicate an unseen ID after a clear.
+				uint16_t hue = (360*(hopCount%NUM_HUES))/NUM_HUES;
+				set_hsv(hue, 255, 255);
+			}else{ //no seed for this slot, so go dim.
 				set_rgb(50,50,50);
 			}
-		}else{
-			set_rgb(0,0,0);
 		}
-	}else{
+	}else{ //at the start of each slot, flash white.
 		set_rgb(255,255,255);
 	}
+	prevColorSlot = colorSlot;
 }
 
 /* 
@@ -231,7 +255,37 @@ void handle_msg(ir_msg* msg_struct){
 		if(result==0){
 			printf("ERROR\tID not found and no room in trackedHops!\r\n");
 		}
+		if(!seed && countSeeds()==NUM_SEEDS){
+			updatePos();
+		}
 	}
+}
+
+
+void updatePos(){
+	#if NUM_SEEDS!=4
+		asdfs //I want this to break loudly if NUM_SEEDS isn't 4. 
+	#endif
+	float x,y;
+	x=0.0;
+	y=0.0;
+	float dist, splitDist;
+	for(uint8_t i=0;i<NUM_SEEDS;i++){
+		dist = trackedHops[i].hopCount*MM_PER_HOP;
+		splitDist = sqrtf((dist*dist)/2);
+		if(trackedHops[i].x==MIN_DIM){
+			x += (trackedHops[i].x+splitDist);
+		}else if(trackedHops[i].x==MAX_DIM){
+			x += (trackedHops[i].x-splitDist);
+		}
+		if(trackedHops[i].y==MIN_DIM){
+			y += (trackedHops[i].y+splitDist);
+		}else if(trackedHops[i].y==MAX_DIM){
+			y += (trackedHops[i].y-splitDist);
+		}
+	}
+	myX = x/NUM_SEEDS;
+	myY = y/NUM_SEEDS;
 }
 
 /*
@@ -259,6 +313,25 @@ uint8_t user_handle_command(char* command_word, char* command_args)
 				trackedHops[i].flag = 0;
 			}
 		}
+		return 1;
+	}else if(strcmp_P(command_word,PSTR("pcm"))==0){
+		if(command_args[0]=='e'){
+			posColorMode = 1;
+		}else if(command_args[0]=='d'){
+			posColorMode = 0;
+		}else{
+			posColorMode = !posColorMode;
+		}
+		if(posColorMode){
+			printf("posColorMode enabled.\r\n");
+		}else{
+			printf("posColorMode disabled.\r\n");
+		}
+		return 1;
+	}else if(strcmp_P(command_word,PSTR("thresh"))==0){
+		uint8_t thresh = atoi(command_args);
+		printf("Setting randomThresh to %hu.\r\n",thresh);
+		randomThresh = thresh;
 		return 1;
 	}
 	return 0;

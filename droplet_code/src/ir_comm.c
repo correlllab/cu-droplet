@@ -190,14 +190,29 @@ void send_msg(uint8_t dirs, char *data, uint8_t data_length, uint8_t hp_flag)
 	if(data_length>IR_BUFFER_SIZE) printf_P(PSTR("ERROR: Message exceeds IR_BUFFER_SIZE.\r\n"));
 	
 	uint16_t crc = get_droplet_id();
+	uint32_t time = get_time();
+	uint8_t sendingDir=255;
 	for(uint8_t dir=0; dir<6; dir++)
 	{
 		if(dirs&(1<<dir))
 		{
-			crc = _crc16_update(crc, (ir_rxtx[dir].status & IR_STATUS_COMMAND_bm));
-			break;
+			if(sendingDir==255){
+				sendingDir = dir;
+			}
+			#ifdef SYNCHRONIZED
+				if(data_length){
+					break;
+				}else{
+					ir_rxtx[dir].target_ID = (uint16_t)(time-ir_rxtx[dir].target_ID);
+				}
+			#else
+				break;
+			#endif
 		}	
 	}
+	crc = _crc16_update(crc, (ir_rxtx[sendingDir].status & IR_STATUS_COMMAND_bm));
+	crc = _crc16_update(crc, ir_rxtx[sendingDir].target_ID);	
+
 	for(uint8_t i=0; i<data_length; i++) crc = _crc16_update(crc, data[i]); //Calculate CRC of outbound message.
 	
 	for(uint8_t dir=0; dir<6; dir++)
@@ -281,7 +296,7 @@ uint8_t ir_send(uint8_t dirs, char *data, uint8_t data_length)
 	return all_ir_sends(dirs, data, data_length, 0, 0);
 }
 
-inline void all_hp_ir_cmds(uint8_t dirs, char* data, uint8_t data_length, uint16_t target)
+static inline void all_hp_ir_cmds(uint8_t dirs, char* data, uint8_t data_length, uint16_t target)
 {
     perform_ir_upkeep();
     for(uint8_t dir=0;dir<6;dir++)
@@ -295,22 +310,21 @@ inline void all_hp_ir_cmds(uint8_t dirs, char* data, uint8_t data_length, uint16
         }
     }
     send_msg(dirs, data, data_length, 1);
-    uint8_t busy;
-    do
-    {
-        busy=0;
-        for(uint8_t dir=0; dir<6; dir++)
-        {
-            if(dirs&(1<<dir))
-            {
-                if(ir_rxtx[dir].status & IR_STATUS_TRANSMITTING_bm)
-                {
-                    busy=1;
-                }
-            }
-        }
-        delay_us(100);
-    } while (busy);
+}
+
+void waitForTransmission(uint8_t dirs){
+	   uint8_t busy;
+	   do{
+		   busy=0;
+		   for(uint8_t dir=0; dir<6; dir++){
+			   if(dirs&(1<<dir)){
+				   if(ir_rxtx[dir].status & IR_STATUS_TRANSMITTING_bm){
+					   busy=1;
+				   }
+			   }
+		   }
+		   delay_us(100);
+	   } while (busy);
 }
 
 void hp_ir_cmd(uint8_t dirs, char *data, uint16_t data_length)
@@ -351,10 +365,12 @@ void ir_receive(uint8_t dir)
 																								break;
 		case HEADER_POS_CRC_LOW:		ir_rxtx[dir].data_crc		= (uint16_t)in_byte;		break;
 		case HEADER_POS_CRC_HIGH:		ir_rxtx[dir].data_crc	   |= (((uint16_t)in_byte)<<8); break;
-
-		case HEADER_POS_TARGET_ID_LOW:  ir_rxtx[dir].target_ID		= (uint16_t)in_byte;		break;
-		case HEADER_POS_TARGET_ID_HIGH: ir_rxtx[dir].target_ID	   |= (((uint16_t)in_byte)<<8); break;
 		case HEADER_POS_SOURCE_DIR:     ir_rxtx[dir].inc_dir		= in_byte-1;				break;
+		case HEADER_POS_TARGET_ID_LOW:  ir_rxtx[dir].target_ID		= (uint16_t)in_byte;		break;
+		case HEADER_POS_TARGET_ID_HIGH:
+										ir_rxtx[dir].target_ID	   |= (((uint16_t)in_byte)<<8);
+										ir_rxtx[dir].calc_crc		= _crc16_update(ir_rxtx[dir].calc_crc, ir_rxtx[dir].target_ID);
+										break;
 		default:
 			ir_rxtx[dir].buf[ir_rxtx[dir].curr_pos-HEADER_LEN] = in_byte;
 			ir_rxtx[dir].calc_crc = _crc16_update(ir_rxtx[dir].calc_crc, in_byte);
@@ -363,18 +379,13 @@ void ir_receive(uint8_t dir)
 	if(ir_rxtx[dir].curr_pos>=(ir_rxtx[dir].data_length+HEADER_LEN)){
 		if((ir_rxtx[dir].calc_crc!=ir_rxtx[dir].data_crc)||ir_rxtx[dir].calc_crc==0){
 			clear_ir_buffer(dir); //crc check failed.
-		}else if(ir_rxtx[dir].target_ID && ir_rxtx[dir].target_ID!=get_droplet_id()){
+		}else if(ir_rxtx[dir].target_ID && ir_rxtx[dir].data_length && ir_rxtx[dir].target_ID!=get_droplet_id()){
 			clear_ir_buffer(dir); //msg targeted, but not to me.
 		}else if(ir_rxtx[dir].sender_ID == get_droplet_id()){
 			clear_ir_buffer(dir); //ignore a message if it is from me. Silly reflections.
 		}else{
 			if(ir_rxtx[dir].status & IR_STATUS_COMMAND_bm){
-				if(ir_rxtx[dir].data_length==0){
-					#ifdef SYNCHRONIZED
-						update_firefly_counter();
-					#endif
-					for(uint8_t other_dir=0;other_dir<6;other_dir++) clear_ir_buffer(other_dir);
-				}else{
+				if(ir_rxtx[dir].data_length){
 					ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 						memcpy((void *)cmd_buffer, (char*)ir_rxtx[dir].buf, ir_rxtx[dir].data_length);
 						cmd_buffer[ir_rxtx[dir].data_length]='\0';
@@ -388,6 +399,11 @@ void ir_receive(uint8_t dir)
 					//}
 					schedule_task(10, handle_cmd_wrapper, NULL);
 					//printf("Got cmd from %X.\r\n", cmd_sender_id);
+				}else{
+					#ifdef SYNCHRONIZED
+					update_firefly_counter(ir_rxtx[dir].target_ID);
+					#endif
+					for(uint8_t other_dir=0;other_dir<6;other_dir++) clear_ir_buffer(other_dir);
 				}
 			}else{
 				if(ir_rxtx[dir].data_length==0){
@@ -415,9 +431,9 @@ void ir_transmit(uint8_t dir)
 		case HEADER_POS_MSG_LENGTH:		next_byte  = ir_rxtx[dir].data_length; if(ir_rxtx[dir].status & IR_STATUS_COMMAND_bm) next_byte|= DATA_LEN_CMD_bm; break;
 		case HEADER_POS_CRC_LOW:		next_byte  = (uint8_t)(ir_rxtx[dir].data_crc&0xFF);			break;
 		case HEADER_POS_CRC_HIGH:		next_byte  = (uint8_t)((ir_rxtx[dir].data_crc>>8)&0xFF);	break;
-		case HEADER_POS_TARGET_ID_LOW:  next_byte  = (uint8_t)(ir_rxtx[dir].target_ID&0xFF);		break;
-		case HEADER_POS_TARGET_ID_HIGH: next_byte  = (uint8_t)((ir_rxtx[dir].target_ID>>8)&0xFF);	break;
 		case HEADER_POS_SOURCE_DIR:		next_byte  = dir+1;											break;
+		case HEADER_POS_TARGET_ID_LOW:	next_byte  = (uint8_t)(ir_rxtx[dir].target_ID&0xFF);		break;
+		case HEADER_POS_TARGET_ID_HIGH:	next_byte  = (uint8_t)((ir_rxtx[dir].target_ID>>8)&0xFF);	break;
 		default: next_byte = ir_rxtx[dir].buf[ir_rxtx[dir].curr_pos - HEADER_LEN];
 	}
 	channel[dir]->DATA = next_byte;

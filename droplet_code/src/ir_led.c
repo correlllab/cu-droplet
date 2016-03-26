@@ -78,7 +78,7 @@ void set_all_ir_powers(uint16_t power)
 	curr_ir_power = power;
 	uint8_t power_high = (power>>8);
 	uint8_t power_low = (power&0xFF);
-	volatile uint8_t write_buffer[6] = {0x00|power_high,power_low,0x10|power_high,power_low,0x60|power_high, power_low};
+	uint8_t write_buffer[6] = {0x00|power_high,power_low,0x10|power_high,power_low,0x60|power_high, power_low};
 	
 	uint32_t startTime = get_time();
 	uint8_t result;		

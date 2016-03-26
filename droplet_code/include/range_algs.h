@@ -34,7 +34,7 @@
 
 extern float basis_angle[6];
 
-#define SQRT3_OVER2 (sqrtf(3.0)/2.0)
+#define SQRT3_OVER2 0.8660254
 
 static const float bearingBasis[6][2]=	{
 	{SQRT3_OVER2 , -0.5},

@@ -60,52 +60,118 @@ void firefly_sync_init()
 	TCE0.INTCTRLA = TC_OVFINTLVL_MED_gc;
 	TCE0.CNT = 0;
 	
-	
-	//EVSYS.CH4MUX = EVSYS_CHMUX_PRESCALER_4096_gc;
-	//TCC2.CTRLA = TC_CLKSEL_EVCH4_gc;
-	////TCC2.CTRLB = TC_WGMODE_NORMAL_gc;
-	//TCC2.CTRLE = TC_BYTEM_NORMAL_gc;
+	obsStart = malloc(sizeof(obsQueue));
+	obsStart->obs = 0;
+	obsStart->next = obsStart;
+	obsStart->prev = obsStart;
 }
 
-ISR(TCE0_OVF_vect)
-{
+ISR(TCE0_OVF_vect){
+	schedule_task(rand_byte()>>1, sendPing, (void*)((uint16_t)(get_time()&0xFFFF)));
+	updateRTC();
+	//printf("ovf @ %lu\r\n",get_time());
+}
+
+void processObsQueue(){
+	uint32_t newStart=0;
+	obsQueue* curr = obsStart->next;
+	obsQueue* tmp;
+	while(curr != obsStart){
+		newStart += (curr->obs-newStart)/FFSYNC_EPSILON;
+		tmp = curr;
+		curr = curr->next;
+		ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+			free(tmp);	
+		}
+	}
+	//printf("Processing @ %lu | newStart: %lu\r\n",get_time(), newStart);	
+	obsStart->next = obsStart;
+	obsStart->prev = obsStart;
+	uint16_t theCount = TCE0.CNT;
+
+	if((theCount+newStart)>=FFSYNC_FULL_PERIOD){
+		//printf("\tOVERFLOW\r\n");
+		TCE0.CNT = FFSYNC_FULL_PERIOD-1;
+	}else{
+		TCE0.CNT = theCount+newStart;
+	}
+}
+
+void updateRTC(){
 	int16_t change;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 	{
-		uint16_t the_count = RTC.CNT;
-		uint16_t remainder = the_count%FFSYNC_FULL_PERIOD_MS;
+		uint32_t currTime = get_time();
+		uint16_t theCount = currTime&0xFFFF;		
+		int16_t remainder = (int16_t)(currTime%FFSYNC_FULL_PERIOD_MS);
 		//printf("Count: %u. Remainder: %u.\r\n", the_count, remainder);
-
-		if(remainder>(FFSYNC_FULL_PERIOD_MS/2))
-		{
-			change = FFSYNC_FULL_PERIOD_MS-remainder;
-			if((RTC.PER-change)<the_count) rtc_epoch++;			//0xFFFF: RTC.PER
-		}
-		else
-		{
-			change = -remainder;
-			if(the_count<remainder) rtc_epoch--;
-		}
-
-		
-		while(RTC.STATUS & RTC_SYNCBUSY_bm);
-		RTC.CNT =  (the_count+change);
-		RTC.COMP = (RTC.COMP+change);
-		
-	}
-
 	
-	//change represents how the RTC clock's measure of 2048ms differs from the synchronization's measure.
-	//If change is quite large, then probably we're still getting sync'd - so no implications about the RTC clock.
-	//If it's smallish, though, the code below adjusts the factory-set calibration value to minimize this difference.
-	//(From observations, changing the calibration by one seemed to effect the change by about 10ms, so if we're within
-	//11ms, we won't get any better.)
-	if(abs(change)<(FFSYNC_MAX_DEVIATION*10))
-	{
+		if(remainder>(FFSYNC_FULL_PERIOD_MS/2)){
+			change = FFSYNC_FULL_PERIOD_MS-remainder;
+			if((RTC.PER-change)<theCount) rtc_epoch++;			//0xFFFF: RTC.PER
+		}else{
+			change = -remainder;
+			if(theCount<remainder) rtc_epoch--;
+		}
+		while(RTC.STATUS & RTC_SYNCBUSY_bm);
+		RTC.CNT =  (theCount+change);
+		RTC.COMP = (RTC.COMP+change);
+	}	
+	
+	/*
+	 * change represents how the RTC clock's measure of 2048ms differs from the synchronization's measure.
+	 * If change is quite large, then probably we're still getting sync'd - so no implications about the RTC clock.
+	 * If it's smallish, though, the code below adjusts the factory-set calibration value to minimize this difference.
+	 * (From observations, changing the calibration by one seemed to effect the change by about 10ms, so if we're within
+	 * 11ms, we won't get any better.)
+	 */
+	if(abs(change)<(FFSYNC_MAX_DEVIATION*10)){
 		if(change>0) OSC.RC32KCAL++;
 		else if(change<-FFSYNC_MAX_DEVIATION) OSC.RC32KCAL--;
 	}
-	hp_ir_cmd(ALL_DIRS, NULL, 0);
-	//printf("Delta Count: %d\r\n",change);
-
+	printf("\t\t%d\r\n",change);
 }
+
+void sendPing(void* val){
+	hp_ir_targeted_cmd(ALL_DIRS, NULL, 0, (uint16_t)val);
+	schedule_task(150, processObsQueue, NULL);
+}
+
+//ISR(TCE0_OVF_vect)
+//{
+	//int16_t change;
+	//ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+	//{
+		//uint16_t the_count = RTC.CNT;
+		//int16_t remainder = (int16_t)(the_count%FFSYNC_FULL_PERIOD_MS);
+		////printf("Count: %u. Remainder: %u.\r\n", the_count, remainder);
+//
+		//if(remainder>(FFSYNC_FULL_PERIOD_MS/2))
+		//{
+			//change = FFSYNC_FULL_PERIOD_MS-remainder;
+			//if((RTC.PER-change)<the_count) rtc_epoch++;			//0xFFFF: RTC.PER
+		//}
+		//else
+		//{
+			//change = -remainder;
+			//if(the_count<remainder) rtc_epoch--;
+		//}
+//
+		//while(RTC.STATUS & RTC_SYNCBUSY_bm);
+		//RTC.CNT =  (the_count+change);
+		//RTC.COMP = (RTC.COMP+change);
+	//}
+//
+	//
+	//////change represents how the RTC clock's measure of 2048ms differs from the synchronization's measure.
+	//////If change is quite large, then probably we're still getting sync'd - so no implications about the RTC clock.
+	//////If it's smallish, though, the code below adjusts the factory-set calibration value to minimize this difference.
+	//////(From observations, changing the calibration by one seemed to effect the change by about 10ms, so if we're within
+	//////11ms, we won't get any better.)
+	////if(abs(change)<(FFSYNC_MAX_DEVIATION*10))
+	////{
+		////if(change>0) OSC.RC32KCAL++;
+		////else if(change<-FFSYNC_MAX_DEVIATION) OSC.RC32KCAL--;
+	////}
+	//////printf("\t\t%d\r\n",change);
+//}

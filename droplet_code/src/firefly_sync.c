@@ -67,33 +67,34 @@ void firefly_sync_init()
 }
 
 ISR(TCE0_OVF_vect){
-	schedule_task(rand_byte()>>1, sendPing, (void*)((uint16_t)(get_time()&0xFFFF)));
+	schedule_task(rand_short()%100, sendPing, (void*)((uint16_t)(get_time()&0xFFFF)));
+	//sendPing( (void*)((uint16_t)(get_time()&0xFFFF)));
 	updateRTC();
 	//printf("ovf @ %lu\r\n",get_time());
 }
 
 void processObsQueue(){
-	uint32_t newStart=0;
+	float newStart=0.0;
 	obsQueue* curr = obsStart->next;
 	obsQueue* tmp;
 	while(curr != obsStart){
-		newStart += (curr->obs-newStart)/FFSYNC_EPSILON;
+		newStart += (((float)(curr->obs))-newStart)/FFSYNC_EPSILON;
 		tmp = curr;
 		curr = curr->next;
 		ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 			free(tmp);	
 		}
 	}
-	//printf("Processing @ %lu | newStart: %lu\r\n",get_time(), newStart);	
+	//printf("Processing @ %lu | newStart: %f\r\n",get_time(), newStart);	
 	obsStart->next = obsStart;
 	obsStart->prev = obsStart;
 	uint16_t theCount = TCE0.CNT;
-
-	if((theCount+newStart)>=FFSYNC_FULL_PERIOD){
+	
+	if((theCount+(uint16_t)newStart)>=FFSYNC_FULL_PERIOD){
 		//printf("\tOVERFLOW\r\n");
 		TCE0.CNT = FFSYNC_FULL_PERIOD-1;
 	}else{
-		TCE0.CNT = theCount+newStart;
+		TCE0.CNT = theCount+(uint16_t)newStart;
 	}
 }
 
@@ -118,23 +119,29 @@ void updateRTC(){
 		RTC.COMP = (RTC.COMP+change);
 	}	
 	
-	/*
-	 * change represents how the RTC clock's measure of 2048ms differs from the synchronization's measure.
-	 * If change is quite large, then probably we're still getting sync'd - so no implications about the RTC clock.
-	 * If it's smallish, though, the code below adjusts the factory-set calibration value to minimize this difference.
-	 * (From observations, changing the calibration by one seemed to effect the change by about 10ms, so if we're within
-	 * 11ms, we won't get any better.)
-	 */
-	if(abs(change)<(FFSYNC_MAX_DEVIATION*10)){
-		if(change>0) OSC.RC32KCAL++;
-		else if(change<-FFSYNC_MAX_DEVIATION) OSC.RC32KCAL--;
-	}
-	printf("\t\t%d\r\n",change);
+	///*
+	 //* change represents how the RTC clock's measure of 2048ms differs from the synchronization's measure.
+	 //* If change is quite large, then probably we're still getting sync'd - so no implications about the RTC clock.
+	 //* If it's smallish, though, the code below adjusts the factory-set calibration value to minimize this difference.
+	 //* (From observations, changing the calibration by one seemed to effect the change by about 10ms, so if we're within
+	 //* 11ms, we won't get any better.)
+	 //*/
+	//if(abs(change)<(FFSYNC_MAX_DEVIATION*5)){
+		//if(change>0) OSC.RC32KCAL++;
+		//else if(change<-FFSYNC_MAX_DEVIATION) OSC.RC32KCAL--;
+	//}
+	////printf("\t\t%d\r\n",change);
 }
 
 void sendPing(void* val){
+	uint16_t diff = ((uint16_t)(get_time()&0xFFFF))-((uint16_t)val);
 	hp_ir_targeted_cmd(ALL_DIRS, NULL, 0, (uint16_t)val);
-	schedule_task(150, processObsQueue, NULL);
+	schedule_task(FFSYNC_W, processObsQueue, NULL);
+	//if(diff>(FFSYNC_W-5)){
+		//processObsQueue();
+	//}else{
+		//schedule_task(200-diff, processObsQueue, NULL);
+	//}
 }
 
 //ISR(TCE0_OVF_vect)

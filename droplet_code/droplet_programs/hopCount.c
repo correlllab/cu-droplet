@@ -23,10 +23,10 @@ void init(){
 	//enable_sync_blink(0);
 	lastLoop = 0;
 	frameCount = 0;
-	randomThresh = 32;
+	randomThresh = 0;
 	clearTrackedHops();
 	initializeSeeds();
-	msgPower = 112;
+	msgPower = 128;
 	myMsgLoop = (get_droplet_id()%(SLOTS_PER_FRAME-1));;
 	printf("MsgLoop: %d\r\n", myMsgLoop);
 	frameStart = get_time_wrapper();
@@ -43,10 +43,11 @@ void clearTrackedHops(){
 	posColorMode = 0;
 	for(uint8_t i=0;i<NUM_SEEDS;i++){
 		trackedHops[i].time = 0;
-		trackedHops[i].id=SEED_IDS[i];
+		trackedHops[i].id= 0;
 		trackedHops[i].x = 0;
 		trackedHops[i].y = 0;
 		trackedHops[i].flag = 0;
+		trackedHops[i].marker = 255;
 		trackedHops[i].hopCount=255;
 	}
 }
@@ -55,10 +56,17 @@ void initializeSeeds(){
 	seed = 0;
 	for(uint8_t i=0; i<NUM_SEEDS ; i++){
 		if(get_droplet_id()==SEED_IDS[i]){
-			addHop(get_droplet_id(), SEED_X[i], SEED_Y[i], 0);
 			seed = 1;
+			trackedHops[i].time = get_time();			
+			trackedHops[i].id = get_droplet_id();
+			trackedHops[i].x = SEED_X[i];
+			trackedHops[i].y = SEED_Y[i];
+			trackedHops[i].flag = 1;
+			trackedHops[i].marker = 0;
+			trackedHops[i].hopCount = 0;
 			myX = SEED_X[i];
 			myY = SEED_Y[i];
+			//trackedHops[i].flag += 2;
 			break;
 		}
 	}
@@ -118,8 +126,8 @@ void setPosColor(){
 	if(isnan(myX)||isnan(myY)){
 		set_rgb(50,50,50);
 	}else{
-		uint8_t rColor = (uint8_t)((255*myX)/MAX_DIM);
-		uint8_t gColor = (uint8_t)((255*myY)/MAX_DIM);
+		uint8_t rColor = (uint8_t)((255*myX)/X_MAX_DIM);
+		uint8_t gColor = (uint8_t)((255*myY)/Y_MAX_DIM);
 		set_rgb(rColor,gColor,0);
 	}
 }
@@ -157,11 +165,13 @@ uint8_t propagateAsNecessary(){
 		if(!trackedHops[i].id){
 			numEmpty++;
 		}else{
-			if(trackedHops[i].flag){
+			if(trackedHops[i].flag==1){
 				if(trackedHops[i].time<oldest){
 					oldest = trackedHops[i].time;
 					oldestIdx = i;
 				}
+			}else{
+				trackedHops[i].flag--;
 			}
 		}
 	}
@@ -173,88 +183,119 @@ uint8_t propagateAsNecessary(){
 	}
 }
 
-void sendHopMsg(uint16_t id, int16_t x, int16_t y, uint8_t hC){
+void sendHopMsg(uint16_t id, int16_t x, int16_t y, uint8_t idx, uint8_t marker, uint8_t hC){
 	HopMsg msg;
 	msg.flag = HOP_MSG_FLAG;
 	msg.id = id;
 	msg.x = x;
 	msg.y = y;
-	msg.hopCount = hC;
+	msg.marker = marker;
+	msg.hopCount = (hC&0x3F)|(idx<<6);
 	uint16_t prevPower = get_all_ir_powers();
 	set_all_ir_powers(msgPower);
 	ir_send(ALL_DIRS, (char*)(&msg), sizeof(HopMsg));
 	set_all_ir_powers(prevPower);
 }
 
-/*
- * Returns: 
- *		0 if the addition was unsuccessful,
- *		1 if successful and ID was already present.
- *		2 if successful and ID was not already present.
- */
-uint8_t addHop(uint16_t id, int16_t x, int16_t y, uint8_t hopCount){
-	uint8_t idIdx = 0xFF;
-	uint8_t emptyIdx = 0xFF;
-	for(uint8_t i=0 ; i<NUM_SEEDS ; i++){
-		if(emptyIdx==0xFF && trackedHops[i].id == 0){
-			emptyIdx = i;
-		}
-		if(trackedHops[i].id == id){
-			idIdx = i;
-			break;
-		}
-	}
-	if(idIdx!=0xFF){ //ID found.
-		if(hopCount < trackedHops[idIdx].hopCount){
-			trackedHops[idIdx].hopCount = hopCount;
-			trackedHops[idIdx].time = get_time();
-			trackedHops[idIdx].flag = 1;
-			if(trackedHops[idIdx].x!=x || trackedHops[idIdx].y!=y){
-				printf("ERROR\tID found, but coords don't match? %d!=%d || %d!=%d\r\n",trackedHops[idIdx].x, x, trackedHops[idIdx].y, y);
+void addHop(uint16_t id, int16_t x, int16_t y, uint8_t idx, uint8_t marker, uint8_t hopCount){
+	if(trackedHops[idx].id==0){
+		trackedHops[idx].id = id;
+		trackedHops[idx].hopCount = hopCount;
+		trackedHops[idx].x = x;
+		trackedHops[idx].y = y;
+		trackedHops[idx].time = get_time();
+		trackedHops[idx].marker = marker;
+		trackedHops[idx].flag = 1;
+	}else if(trackedHops[idx].id==id){
+		if(hopCount < trackedHops[idx].hopCount){
+			if(marker <= trackedHops[idx].marker){
+				trackedHops[idx].hopCount = hopCount;
+			}
+			trackedHops[idx].time = get_time();
+			trackedHops[idx].flag = 1;
+			if(trackedHops[idx].x!=x || trackedHops[idx].y!=y){
+				printf("ERROR\tID found, but coords don't match? %d!=%d || %d!=%d\r\n",trackedHops[idx].x, x, trackedHops[idx].y, y);
 			}
 		}
-		return 1;
-	}else{ //ID not found
-		if(emptyIdx==0xFF){
-			return 0;
-		}else{
-			trackedHops[emptyIdx].id = id;
-			trackedHops[emptyIdx].hopCount = hopCount;
-			trackedHops[emptyIdx].x = x;
-			trackedHops[emptyIdx].y = y;
-			trackedHops[emptyIdx].time = get_time();
-			trackedHops[emptyIdx].flag = 1;
-			sortTrackedHops();					
-			return 2;
-		}
-	}	
+	}else{
+		printf("ERROR! trackedHops collision!\r\n");
+	}
 }
 
-void sortTrackedHops(){
-	int8_t n = NUM_SEEDS;
-	int8_t newN;
-	do{
-		newN = 0;
-		for(int8_t i=1;i<n;i++){
-			if(trackedHops[i-1].id > trackedHops[i].id){
-				swapTwoTrackedHops(i-1,i);
-				newN=i;
-			}
-		}
-		n = newN;
-	}while(n);
-}
+///*
+ //* Returns: 
+ //*		0 if the addition was unsuccessful,
+ //*		1 if successful and ID was already present.
+ //*		2 if successful and ID was not already present.
+ //*/
+//uint8_t addHop(uint16_t id, int16_t x, int16_t y, uint8_t marker, uint8_t idx, uint8_t hopCount){
+	////printf("Adding hop.\r\n");	
+	//uint8_t idIdx = 0xFF;
+	//uint8_t emptyIdx = 0xFF;
+	//for(uint8_t i=0 ; i<NUM_SEEDS ; i++){
+		//if(emptyIdx==0xFF && trackedHops[i].id == 0){
+			//emptyIdx = i;
+		//}
+		//if(trackedHops[i].id == id){
+			//idIdx = i;
+			//break;
+		//}
+	//}
+	//
+	//if(idIdx!=0xFF){ //ID found.
+		//if(hopCount < trackedHops[idIdx].hopCount){
+			//if(marker <= trackedHops[idIdx].marker){
+				//trackedHops[idIdx].hopCount = hopCount;
+			//}
+			//trackedHops[idIdx].time = get_time();
+			//trackedHops[idIdx].flag = 1;
+			//if(trackedHops[idIdx].x!=x || trackedHops[idIdx].y!=y){
+				//printf("ERROR\tID found, but coords don't match? %d!=%d || %d!=%d\r\n",trackedHops[idIdx].x, x, trackedHops[idIdx].y, y);
+			//}
+		//}
+		//return 1;
+	//}else{ //ID not found
+		//if(emptyIdx==0xFF){
+			//return 0;
+		//}else{
+			//trackedHops[emptyIdx].id = id;
+			//trackedHops[emptyIdx].hopCount = hopCount;
+			//trackedHops[emptyIdx].x = x;
+			//trackedHops[emptyIdx].y = y;
+			//trackedHops[emptyIdx].time = get_time();
+			//trackedHops[emptyIdx].marker = marker;
+			//trackedHops[emptyIdx].flag = 1;
+			//sortTrackedHops();					
+			//return 2;
+		//}
+	//}	
+//}
+
+//void sortTrackedHops(){
+	//int8_t n = NUM_SEEDS;
+	//int8_t newN;
+	//do{
+		//newN = 0;
+		//for(int8_t i=1;i<n;i++){
+			//if(trackedHops[i-1].id > trackedHops[i].id){
+				//swapTwoTrackedHops(i-1,i);
+				//newN=i;
+			//}
+		//}
+		//n = newN;
+	//}while(n);
+//}
 
 void handle_msg(ir_msg* msg_struct){
-	HopMsg* msg;
-	if((msg=((HopMsg*)(msg_struct->msg)))->flag==HOP_MSG_FLAG){
+	HopMsg* msg=((HopMsg*)(msg_struct->msg));
+	//printf("msg!\r\n\tid:\t%04X\r\n\tx:\t%d\r\n\ty:\t%d\r\n\tflag:\t%c\r\n\thC:\t%hu\r\n",msg->id, msg->x, msg->y, msg->flag, msg->hopCount);
+	if(msg->flag==HOP_MSG_FLAG){
 		if(msg->id==0){
 			return;
 		}	
-		uint8_t result = addHop(msg->id, msg->x, msg->y, msg->hopCount);
-		if(result==0){
-			printf("ERROR\tID not found and no room in trackedHops!\r\n");
-		}
+		uint8_t hopCount = (msg->hopCount)&0x3F;
+		uint8_t idx		 = (msg->hopCount)>>6;
+		addHop(msg->id, msg->x, msg->y, idx, msg->marker, hopCount);
 		if(!seed && countSeeds()==NUM_SEEDS){
 			updatePos();
 		}
@@ -266,26 +307,25 @@ void updatePos(){
 	#if NUM_SEEDS!=4
 		asdfs //I want this to break loudly if NUM_SEEDS isn't 4. 
 	#endif
-	float x,y;
-	x=0.0;
-	y=0.0;
-	float dist, splitDist;
+	float xMin=1000.0, xMax=-1000.0, yMin=1000.0, yMax=-1000.0;
+	float sD[4];
 	for(uint8_t i=0;i<NUM_SEEDS;i++){
-		dist = trackedHops[i].hopCount*MM_PER_HOP;
-		splitDist = sqrtf((dist*dist)/2);
-		if(trackedHops[i].x==MIN_DIM){
-			x += (trackedHops[i].x+splitDist);
-		}else if(trackedHops[i].x==MAX_DIM){
-			x += (trackedHops[i].x-splitDist);
+		sD[i]= ((float)(trackedHops[i].hopCount*MM_PER_HOP))/M_SQRT2;
+		if(trackedHops[i].x<xMin){
+			xMin = trackedHops[i].x;
 		}
-		if(trackedHops[i].y==MIN_DIM){
-			y += (trackedHops[i].y+splitDist);
-		}else if(trackedHops[i].y==MAX_DIM){
-			y += (trackedHops[i].y-splitDist);
+		if(trackedHops[i].x>xMax){
+			xMax = trackedHops[i].x;
+		}
+		if(trackedHops[i].y<yMin){
+			yMin = trackedHops[i].y;
+		}
+		if(trackedHops[i].y>yMax){
+			yMax = trackedHops[i].y;
 		}
 	}
-	myX = x/NUM_SEEDS;
-	myY = y/NUM_SEEDS;
+	myX = (sD[0]+sD[1]-sD[2]-sD[3]+xMax-xMin)/2+xMin;
+	myY = (sD[0]-sD[1]+sD[2]-sD[3]+yMax-yMin)/2+yMin;
 }
 
 /*
@@ -308,7 +348,9 @@ uint8_t user_handle_command(char* command_word, char* command_args)
 			if(trackedHops[i].id==get_droplet_id()){
 				trackedHops[i].hopCount = 0;
 				trackedHops[i].flag = 1;
+				trackedHops[i].marker = 0;
 			}else{
+				trackedHops[i].marker = 255;
 				trackedHops[i].hopCount = 255;
 				trackedHops[i].flag = 0;
 			}

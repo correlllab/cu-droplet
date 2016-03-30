@@ -15,8 +15,9 @@
 								
 #define FFSYNC_MAX_DEVIATION	/*	42		//*/(((uint16_t)(FFSYNC_FULL_PERIOD_MS/182))+1)
 
-#define FFSYNC_EPSILON			25
-
+#define FFSYNC_EPSILON			25.0
+#define FFSYNC_D				164
+#define FFSYNC_W				200
 //#define FFSYNC_B				2.75
 //#define FFSYNC_EPS				0.25
 //#define FFSYNC_ALPHA		/*	1.5		//*/exp(FFSYNC_B*FFSYNC_EPS)
@@ -45,15 +46,17 @@ typedef struct obs_queue_struct{
 
 obsQueue* obsStart;
 
-inline void update_firefly_counter(uint16_t delay){
-	uint16_t theDelay = (delay+12)*FFSYNC_MS_CONVERSION_FACTOR;
+inline void update_firefly_counter(volatile uint16_t count, volatile uint8_t delay){
+	uint16_t theDelay = (delay+2)*FFSYNC_MS_CONVERSION_FACTOR;
 	int16_t obs;
 	obsQueue* node;
-	uint16_t theCount = TCE0.CNT;
-	if(theCount<=theDelay){
-		return;
+	if(count<=theDelay){
+		obs = count + (FFSYNC_FULL_PERIOD-theDelay);
+		//return;
+		//printf("beep.\r\n");
+	}else{
+		obs = count - theDelay;
 	}
-	obs = theCount - theDelay;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 		node = malloc(sizeof(obsQueue));
 	}

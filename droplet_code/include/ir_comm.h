@@ -51,12 +51,13 @@
 
 #define HEADER_POS_SENDER_ID_LOW 0
 #define HEADER_POS_SENDER_ID_HIGH 1
-#define HEADER_POS_MSG_LENGTH 2
-#define HEADER_POS_CRC_LOW 3
-#define HEADER_POS_CRC_HIGH 4
-#define HEADER_POS_SOURCE_DIR 5
-#define HEADER_POS_TARGET_ID_LOW 6
-#define HEADER_POS_TARGET_ID_HIGH 7
+#define HEADER_POS_CRC_LOW 2
+#define HEADER_POS_CRC_HIGH 3
+#define HEADER_POS_MSG_LENGTH 4
+#define HEADER_POS_TARGET_ID_LOW 5
+#define HEADER_POS_TARGET_ID_HIGH 6
+#define HEADER_POS_SOURCE_DIR 7
+
 #define HEADER_LEN 8
 
 #define MAX_WAIT_FOR_IR_TIME (5*(IR_BUFFER_SIZE+HEADER_LEN))
@@ -100,6 +101,9 @@ volatile uint8_t user_facing_messages_ovf;
 volatile uint32_t	cmd_arrival_time;
 volatile uint16_t	cmd_sender_id;
 
+volatile uint8_t processing_cmd;
+volatile uint8_t processing_ffsync;
+
 void clear_ir_buffer(uint8_t dir);
 
 void ir_comm_init();
@@ -123,6 +127,7 @@ void ir_transmit_complete(uint8_t dir);
 void ir_reset_rx(uint8_t dir);
 uint8_t ir_is_available(uint8_t dirs_mask);
 //uint8_t wait_for_ir(uint8_t dirs);
+
 static inline float comm_inverse_amplitude_model(float comm_amp)
 {
 	return 17.25+(6292.0/powf(comm_amp+12,2));

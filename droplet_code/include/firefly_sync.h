@@ -4,7 +4,7 @@
 #include "droplet_init.h"
 #include "random.h"
 
-#define FFSYNC_FULL_PERIOD_MS		2333
+#define FFSYNC_FULL_PERIOD_MS		5153
 //#define FFSYNC_REFR_PERIOD_MS		503
 //#define FFSYNC_TRANSMIT_DELAY_MS	16
 
@@ -15,8 +15,15 @@
 								
 #define FFSYNC_MAX_DEVIATION	/*	42		//*/(((uint16_t)(FFSYNC_FULL_PERIOD_MS/182))+1)
 
-#define FFSYNC_EPSILON			25.0
-#define FFSYNC_D				164
+#define FFSYNC_EPSILON			60.0
+//60.0 with no return is new best. I've seen it recover from being scattered to a very tight sync. 
+//Still some drift, but it recovers.
+//25.0 without return inferior to 50.0.
+//50.0 without return is probably best so far.
+//50.0 with return seems a little worse than 100.0?
+//100.0 works acceptably well. return state has no effect.
+
+#define FFSYNC_D				160
 #define FFSYNC_W				200
 //#define FFSYNC_B				2.75
 //#define FFSYNC_EPS				0.25
@@ -26,13 +33,13 @@
 
 void firefly_sync_init();
 
-uint8_t sync_blink_r, sync_blink_g, sync_blink_b;
-uint8_t sync_def_r, sync_def_g, sync_def_b;
-uint16_t sync_blink_duration;
+uint8_t ffsync_blink_r, ffsync_blink_g, ffsync_blink_b;
+uint8_t ffsync_blink_prev_r, ffsync_blink_prev_g, ffsync_blink_prev_b;
+uint16_t ffsync_blink_dur;
 
-void set_sync_blink_default(uint8_t r, uint8_t g, uint8_t b);
 void set_sync_blink_color(uint8_t r, uint8_t g, uint8_t b);
-void enable_sync_blink(uint16_t phase_offset_ms);
+void set_sync_blink_duration(uint16_t dur);
+void enable_sync_blink();
 void disable_sync_blink();
 void processObsQueue();
 void updateRTC();
@@ -52,7 +59,6 @@ inline void update_firefly_counter(volatile uint16_t count, volatile uint8_t del
 	obsQueue* node;
 	if(count<=theDelay){
 		obs = count + (FFSYNC_FULL_PERIOD-theDelay);
-		//return;
 		//printf("beep.\r\n");
 	}else{
 		obs = count - theDelay;

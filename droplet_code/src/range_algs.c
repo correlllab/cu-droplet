@@ -29,6 +29,7 @@ void range_algs_init()
 {
 	for(uint8_t i=0 ; i<NUMBER_OF_RB_MEASUREMENTS ; i++)
 	{
+		sensorHealthHistory[i] = 0;
 		for(uint8_t j=0 ; j<6 ;j++)
 		{
 			for(uint8_t k=0 ; k<6 ; k++)
@@ -83,32 +84,58 @@ void collect_rnb_data(uint16_t target_id, uint8_t power)
 	char cmd[7] = "rnb_t ";
 	cmd[6] = power;
 	get_baseline_readings(bright_meas);
-	hp_ir_targeted_cmd(ALL_DIRS, cmd, 7, target_id);
-	waitForTransmission(ALL_DIRS);		
-	delay_ms(POST_MESSAGE_DELAY);
-	ir_range_meas();
-	//brightness_meas_printout_mathematica();
-	use_rnb_data();
+	uint8_t result = hp_ir_targeted_cmd(ALL_DIRS, cmd, 7, target_id);
+	if(result){
+		ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+			hp_ir_block_bm = 0xFF;
+		}		
+		waitForTransmission(ALL_DIRS);		
+		delay_ms(POST_MESSAGE_DELAY);
+		ir_range_meas();
+		ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+			hp_ir_block_bm = 0;
+		}		
+		//brightness_meas_printout_mathematica();
+		use_rnb_data();
+	}else{
+		printf_P(PSTR("collect_rnb blocked by other hp ir activity.\r\n"));
+	}
 }
 
 //TODO: handle variable power.
 void broadcast_rnb_data()
 {
 	uint8_t power = 255;
-	hp_ir_cmd(ALL_DIRS, "rnb_r", 5);
-	waitForTransmission(ALL_DIRS);	
-	delay_ms(POST_MESSAGE_DELAY);	
-	ir_range_blast(power);
-	//printf("rnb_b\r\n");	
+	uint8_t result = hp_ir_cmd(ALL_DIRS, "rnb_r", 5);
+	if(result){
+		ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+			hp_ir_block_bm = 0xFF;
+		}		
+		waitForTransmission(ALL_DIRS);
+		delay_ms(POST_MESSAGE_DELAY);	
+		ir_range_blast(power);
+		ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+			hp_ir_block_bm = 0;
+		}
+		//printf("rnb_b\r\n");
+	}else{
+		printf_P(PSTR("broadcast_rnb blocked by other hp ir activity.\r\n"));
+	}
 }
 
 void receive_rnb_data()
 {
 	if(!processingFlag){
-		cmdID=cmd_sender_id;
-		processingFlag=1;
+		ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+			cmdID=cmd_sender_id;
+			processingFlag=1;			
+			hp_ir_block_bm = 1;
+		}		
 		ir_range_meas();
 		get_baseline_readings();
+		ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+			hp_ir_block_bm = 0;
+		}
 		//uint8_t power = 25; //TODO: get this from the message.
 		//schedule_task(10,brightness_meas_printout_mathematica,NULL);
 		//printf("ID: %04X\r\n",cmdID);
@@ -146,7 +173,9 @@ void use_cmd_rnb_data(){
 		}
 	}
 	printf("eTotals: %5d, %5d, %5d, %5d\r\n",eTotals[0], eTotals[1], eTotals[2], eTotals[3]);
-	processingFlag=0;
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+		processingFlag=0;
+	}
 }
 
 
@@ -155,6 +184,7 @@ void use_rnb_data()
 	uint8_t power = 255;
 	int16_t brightness_matrix[6][6];
 	int16_t matrixSum = pack_measurements_into_matrix(brightness_matrix);
+	
 	//print_brightness_matrix(brightness_matrix, matrixSum);		
 	//brightness_meas_printout_mathematica();
 	if(matrixSum<MIN_MATRIX_SUM_THRESH){
@@ -164,7 +194,7 @@ void use_rnb_data()
 	}
 	
 	//For testing, comment out the above and use a hardcoded matrix from the mathematica notebook.
-	
+	//printf("%04X\r\n",cmdID);
 	float bearing, heading;
 	calculate_bearing_and_heading(brightness_matrix, &bearing, &heading);
 	float initial_range = get_initial_range_guess(bearing, heading, power, brightness_matrix);
@@ -178,7 +208,7 @@ void use_rnb_data()
 			//BotPos* soFar = getNeighbor(cmdID);
 			//float otherError=NAN;
 			//if(soFar!=NULL)  otherError = calculate_innovation(soFar->r, soFar->b, soFar->h, brightness_matrix);
-			//printf("{\"%04X\", % -2.2f, % -3.1f, % -3.1f\t, % -9.5f},\r\n", cmdID, range, rad_to_deg(bearing), rad_to_deg(heading), error);		
+			//printf("% -2.2f, % -3.1f, % -3.1f\t, % -9.5f\r\n", range, rad_to_deg(bearing), rad_to_deg(heading), error);		
 			//print_brightness_matrix(brightness_matrix, matrixSum);
 			conf = conf/(error*error);
 			if(error>3.0){
@@ -200,7 +230,9 @@ void use_rnb_data()
 			rnb_updated=1;
 		}
 	}
-	processingFlag=0;
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+		processingFlag=0;
+	}
 }
 
 void calculate_bearing_and_heading(int16_t brightness_matrix[6][6], float* bearing, float* heading)
@@ -364,6 +396,10 @@ int16_t pack_measurements_into_matrix(int16_t brightness_matrix[6][6])
 	int16_t val, meas, max_meas;
 	int16_t valSum=0;
 	int16_t rowSum[6];
+	uint8_t allColZeroCheck[6];
+	for(uint8_t i=0;i<6;i++){
+		allColZeroCheck[i] = 1;
+	}
 	for(uint8_t emitter_num = 0; emitter_num < 6; emitter_num++)
 	{
 		rowSum[emitter_num]=0;
@@ -377,11 +413,28 @@ int16_t pack_measurements_into_matrix(int16_t brightness_matrix[6][6])
 			}
 			val = max_meas-bright_meas[0][emitter_num][sensor_num]-DC_NOISE_REMOVAL_AMOUNT;
 			if(val<0) val=0;
+			if(val) allColZeroCheck[sensor_num] = 0;
 			valSum+=val;
 			rowSum[emitter_num]+=val;
 			brightness_matrix[emitter_num][sensor_num] = val;
 		}
 	}
+	uint8_t problem = 0;
+	for(uint8_t i = 0; i<6; i++){
+		if(allColZeroCheck[i]){
+			sensorHealthHistory[i]++;
+		}else{
+			sensorHealthHistory[i]=0;
+		}
+		if(sensorHealthHistory[i]>10){
+			printf("!!!\tGot 10 consecutive nothings from sensor %hu.\t!!!\r\n", i);
+			sensorHealthHistory[i] = 0;
+			//problem = 1;
+		}
+	}
+	if(problem){
+		startup_light_sequence();
+	}	
 	for(uint8_t emitter_num=0;emitter_num<6;emitter_num++){
 		if(((1.0*rowSum[emitter_num])/(1.0*valSum))>OVER_DOMINANT_ROW_THRESH){
 			//printf_P(PSTR("Row %hu 's values represent more than 0.75 of the full brightness matrix."));

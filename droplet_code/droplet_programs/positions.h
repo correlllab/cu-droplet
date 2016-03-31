@@ -4,22 +4,21 @@
 
 #define BALL_MSG_FLAG			'B'
 #define NEIGHB_MSG_FLAG			'N'
-#define LOOP_PERIOD_MS			500
-#define LOOPS_PER_RNB			38
-#define RNB_BC_PERIOD_MS		(LOOP_PERIOD_MS*LOOPS_PER_RNB)
-#define GROUP_TIMEOUT_MS		40000
-#define MIN_GOODBYE_INTERVAL	10000
-#define NUM_TRACKED_BOTS		8
-#define NUM_POSSIBLE_BOTS		60
+#define SLOT_LENGTH_MS			631
+#define SLOTS_PER_FRAME			116 //69
+#define FRAME_LENGTH_MS		(SLOT_LENGTH_MS*SLOTS_PER_FRAME)
+#define LOOP_DELAY_MS			17
+#define NUM_TRACKED_BOTS		12
+#define NUM_POSSIBLE_BOTS		12
 #define NUM_TRACKED_BAYESIAN	4
 #define NEW_PROBS_SIZE			NUM_TRACKED_BOTS+NUM_TRACKED_BAYESIAN
 
-#define BAYES_CLOSE_THRESH		2.5
-#define BAYES_FAR_THRESH		6
+//#define BAYES_CLOSE_THRESH		2.5
+//#define BAYES_FAR_THRESH		6
+//#define UNKNOWN_DIST			10
 #define NEIGHBORHOOD_SIZE		6
-#define UNKNOWN_DIST			10
 #define INIT_LIKELIHOOD_EMPTY	0.2
-#define UNMEASURED_NEIGHBOR_LIKELIHOOD	0.9
+#define UNMEASURED_NEIGHBOR_LIKELIHOOD	0.95
 
 typedef enum{
 	NOT_BALL,
@@ -27,14 +26,29 @@ typedef enum{
 	BALL
 } State;
 
+#define NUM_SEEDS				4	
+#define MIN_DIM					0
+#define X_MAX_DIM				480
+#define Y_MAX_DIM				520
+//The below array is only used for robots to determine if they are a seed.
+//Other robots will accept any ID as a seed if they receive a hop message.
+//That way, only seeds need reprogramming.
+const uint16_t SEED_IDS[NUM_SEEDS] = {0x086b, 0x1562, 0x7066, 0x8521};
+const int16_t  SEED_X[NUM_SEEDS]   = {MIN_DIM, MIN_DIM, X_MAX_DIM, X_MAX_DIM};
+const int16_t  SEED_Y[NUM_SEEDS]   = {MIN_DIM, Y_MAX_DIM, MIN_DIM, Y_MAX_DIM};
+
+#define GRID_DIMENSION	6.0
+
 //For each of the positions in our immediate 6-neighborhood, this array stores
 //the x,y coordinate of that position, in cm.
-const float neighbPos[NEIGHBORHOOD_SIZE][2] = {{2.5,4.33}, {5.0,0.0},
-												{2.5,-4.33},{-2.5,-4.33},
-												{-5.0,0.0}, {-2.5,4.33}  };
-//The values below are for the Kalman Filter code.
-const float PROC_NOISE[3] = {powf(1.0,2.0), powf(M_PI/30.0,2.0), powf(M_PI/22.5,2.0)};
-const float MEAS_NOISE[3] = {powf(3.0,2.0), powf(M_PI/6.0,2.0), powf(M_PI/6.0,2.0)};
+#define M_SQRT3		1.73205081
+
+#define X2_OFFSET	GRID_DIMENSION
+#define X_OFFSET	(X2_OFFSET/2.0)
+#define Y_OFFSET	X_OFFSET*M_SQRT3
+const float neighbPos[NEIGHBORHOOD_SIZE][2] =  {{ X_OFFSET,   Y_OFFSET}, { X2_OFFSET,  0.0},
+												{ X_OFFSET,  -Y_OFFSET}, {-X_OFFSET,  -Y_OFFSET},
+												{-X2_OFFSET,  0.0},		 {-X_OFFSET,   Y_OFFSET}};
 	
 typedef struct ball_msg_struct{
 	char flag;
@@ -44,6 +58,8 @@ typedef struct ball_msg_struct{
 
 typedef struct neighb_msg_struct{
 	uint16_t ids[NEIGHBORHOOD_SIZE];
+	int16_t x;
+	int16_t y;
 	char flag;
 }NeighbMsg;
 
@@ -85,6 +101,8 @@ BayesSlot bayesSlots[NEIGHBORHOOD_SIZE];
 
 typedef struct neighbs_list_struct{
 	uint16_t id;
+	int16_t x;
+	int16_t y;
 	uint16_t neighbs[NEIGHBORHOOD_SIZE];
 } NeighbsList;
 NeighbsList neighbsList[NEIGHBORHOOD_SIZE];
@@ -94,36 +112,40 @@ uint32_t time_before;
 State myState;
 uint8_t ballSeqPos;
 
+uint8_t		seedFlag;
 uint8_t		numNearBots;
-
-uint16_t	loopCount;
-uint16_t	myRNBLoop;
-uint16_t	myMsgLoop;
+uint8_t		posColorMode;
+uint32_t	frameCount;
+uint32_t	frameStart;
+uint16_t	mySlot;
+uint16_t	lastLoop;
 
 uint8_t outwardDir;
 uint16_t outwardDirID;
-uint8_t firstLoop;
-
+float myX, myY;
 
 uint8_t failureCounts[NEIGHBORHOOD_SIZE];
 uint8_t successCounts[NEIGHBORHOOD_SIZE];
 
 void		init();
 void		loop();
+void		updatePos();
+void		setColor();
 void		sendNeighbMsg();
 void		sendBallMsg();
 void		handle_msg			(ir_msg* msg_struct);
 
 void printNeighbsList();
 void processNeighborData();
+void printNeighborCountResults();
 void cleanupNeighbsList();
 
 void calculateDistsFromNeighborPos(float dists[NEIGHBORHOOD_SIZE][NUM_TRACKED_BOTS]);
+float calculateFactor(float dist, float conf, uint8_t dir, uint16_t id, float* dfP, float* nfP);
 void addProbsForNeighbor(NewBayesSlot* newNeighb, float dists[NUM_TRACKED_BOTS], BayesSlot* neighbor, uint8_t dir);
 void processOtherBotData();
 void bayesDebugPrintout();
 
-//These three functions are the Kalman Filtering.
 void useNewRnbMeas();
 
 //These three functions are for the figuring out where the ball bounces to, 
@@ -141,6 +163,12 @@ void cleanOtherBot(OtherBot* other);
 //int bayesCmpFunc(const void* a, const void* b);
 
 //Helper functions:
+static uint8_t inline getOppDir(uint8_t dir){
+	return (dir+(NEIGHBORHOOD_SIZE/2))%NEIGHBORHOOD_SIZE;	
+}
+
+uint16_t reciprocationTracker[NEIGHBORHOOD_SIZE];
+
 static void inline getVarsFromConf(float conf, float* rVar, float* bVar, float* hVar){
 	*rVar = 43.41/conf;
 	*bVar = 12.17/conf;

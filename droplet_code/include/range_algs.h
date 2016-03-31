@@ -87,6 +87,8 @@ typedef struct rnb_data {
 	uint16_t id_number;
 } rnb;
 
+uint8_t sensorHealthHistory[6];
+
 rnb last_good_rnb;
 volatile uint8_t rnb_updated;
 

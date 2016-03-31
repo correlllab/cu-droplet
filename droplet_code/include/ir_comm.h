@@ -75,7 +75,6 @@ volatile struct
 	volatile uint16_t target_ID;
 	volatile uint16_t curr_pos;				// Current position in buffer
 	volatile uint16_t calc_crc;
-	volatile uint16_t cmd_txd_delay;
 	volatile char   buf[IR_BUFFER_SIZE];	// Transmit / receive buffer		
 	volatile uint8_t  data_length;	
 	volatile int8_t inc_dir;
@@ -95,6 +94,7 @@ volatile struct
 	volatile uint8_t	wasTargeted;
 } msg_node[MAX_USER_FACING_MESSAGES];
 
+volatile uint8_t hp_ir_block_bm;			//can only be set by other high priority ir things!
 volatile uint8_t num_waiting_msgs;
 volatile uint8_t user_facing_messages_ovf;
 
@@ -115,8 +115,8 @@ uint8_t ir_cmd(uint8_t dirs, char *data, uint16_t data_length);
 uint8_t ir_targeted_send(uint8_t dirs, char *data, uint16_t data_length, uint16_t target);
 uint8_t ir_send(uint8_t dirs, char *data, uint8_t data_length);
 void waitForTransmission(uint8_t dirs);
-void hp_ir_cmd(uint8_t dirs, char *data, uint16_t data_length);
-void hp_ir_targeted_cmd(uint8_t dirs, char *data, uint16_t data_length, uint16_t target);
+uint8_t hp_ir_cmd(uint8_t dirs, char *data, uint16_t data_length);
+uint8_t hp_ir_targeted_cmd(uint8_t dirs, char *data, uint16_t data_length, uint16_t target);
 
 void handle_rx_length_byte(uint8_t in_byte, uint8_t dir);
 uint8_t handle_tx_length_byte(uint8_t dir);

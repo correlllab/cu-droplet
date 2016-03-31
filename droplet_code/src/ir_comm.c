@@ -75,7 +75,7 @@ void ir_comm_init()
 	user_facing_messages_ovf=0;
 	processing_cmd = 0;
 	processing_ffsync = 0;
-
+	hp_ir_block_bm = 0;
 	schedule_periodic_task(1000/IR_UPKEEP_FREQUENCY, perform_ir_upkeep, NULL);
 }
 
@@ -235,6 +235,10 @@ void send_msg(uint8_t dirs, char *data, uint8_t data_length, uint8_t hp_flag)
  */
 inline uint8_t all_ir_sends(uint8_t dirs_to_go, char* data, uint8_t data_length, uint16_t target, uint8_t cmd_flag)
 {
+	if(hp_ir_block_bm){
+		printf("Normal send blocked by hp.\r\n");
+		return 0;
+	}
 	if(!ir_is_available(dirs_to_go))
     {
         printf_P(PSTR("Aborting IR send while trying:\r\n\t"));
@@ -281,20 +285,27 @@ uint8_t ir_send(uint8_t dirs, char *data, uint8_t data_length)
 	return all_ir_sends(dirs, data, data_length, 0, 0);
 }
 
-static inline void all_hp_ir_cmds(uint8_t dirs, char* data, uint8_t data_length, uint16_t target)
+static inline uint8_t all_hp_ir_cmds(uint8_t dirs, char* data, uint8_t data_length, uint16_t target)
 {
+	if(hp_ir_block_bm){
+		return 0;
+	}
     perform_ir_upkeep();
-    for(uint8_t dir=0;dir<6;dir++)
-    {
-        if(dirs&(1<<dir))
-        {
-            channel[dir]->CTRLB &= ~USART_RXEN_bm;
-            ir_rxtx[dir].status = IR_STATUS_BUSY_bm;
-            ir_rxtx[dir].status |= IR_STATUS_COMMAND_bm;
-            ir_rxtx[dir].target_ID=target;
-        }
-    }
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+		for(uint8_t dir=0;dir<6;dir++)
+		{
+			if(dirs&(1<<dir))
+			{
+				channel[dir]->CTRLB &= ~USART_RXEN_bm;
+				ir_rxtx[dir].status = IR_STATUS_BUSY_bm;
+				ir_rxtx[dir].status |= IR_STATUS_COMMAND_bm;
+				ir_rxtx[dir].target_ID=target;
+				hp_ir_block_bm |= (1<<dir);
+			}
+		}
+	}
     send_msg(dirs, data, data_length, 1);
+	return 1;
 }
 
 void waitForTransmission(uint8_t dirs){
@@ -312,14 +323,14 @@ void waitForTransmission(uint8_t dirs){
 	   } while (busy);
 }
 
-void hp_ir_cmd(uint8_t dirs, char *data, uint16_t data_length)
+uint8_t hp_ir_cmd(uint8_t dirs, char *data, uint16_t data_length)
 {
-	all_hp_ir_cmds(dirs, data, data_length, 0);
+	return all_hp_ir_cmds(dirs, data, data_length, 0);
 }
 
-void hp_ir_targeted_cmd(uint8_t dirs, char *data, uint16_t data_length, uint16_t target)
+uint8_t hp_ir_targeted_cmd(uint8_t dirs, char *data, uint16_t data_length, uint16_t target)
 {
-	all_hp_ir_cmds(dirs, data, data_length, target);
+	return all_hp_ir_cmds(dirs, data, data_length, target);
 }
 
 // To be called from interrupt handler only. Do not call.
@@ -532,16 +543,19 @@ void ir_transmit_complete(uint8_t dir)
 	//	To do: this suggests we don't really need to do this a byte at a time? Need to check.
 	//  Calling this code signals the end of the transmit process
 	//printf("\r\n");
-	TCF2.CTRLB &= ~ir_carrier_bm[dir]; //Turn off the carrier wave.
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+		TCF2.CTRLB &= ~ir_carrier_bm[dir]; //Turn off the carrier wave.
 
-	ir_rxtx[dir].status = 0;
-	ir_rxtx[dir].data_length = 0;
-	ir_rxtx[dir].curr_pos = 0;
-	ir_rxtx[dir].target_ID = 0;
-	ir_rxtx[dir].sender_ID = 0;
+		ir_rxtx[dir].status = 0;
+		ir_rxtx[dir].data_length = 0;
+		ir_rxtx[dir].curr_pos = 0;
+		ir_rxtx[dir].target_ID = 0;
+		ir_rxtx[dir].sender_ID = 0;
 	
-	channel[dir]->STATUS |= USART_TXCIF_bm;		// writing a 1 to this bit manually clears the TXCIF flag
-	channel[dir]->CTRLB |= USART_RXEN_bm;	// this enables receive on the USART
+		channel[dir]->STATUS |= USART_TXCIF_bm;		// writing a 1 to this bit manually clears the TXCIF flag
+		channel[dir]->CTRLB |= USART_RXEN_bm;	// this enables receive on the USART
+		hp_ir_block_bm &= (~(1<<dir));
+	}
 }
 
 void ir_reset_rx(uint8_t dir)

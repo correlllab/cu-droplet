@@ -265,8 +265,6 @@ void handle_rnb_receive()
 	uint32_t time_since_arrival = (get_time()-cmd_arrival_time+5);
 	if(time_since_arrival<POST_MESSAGE_DELAY) delay_ms(POST_MESSAGE_DELAY - time_since_arrival);	
 	receive_rnb_data();
-	rnb_updated = 0;
-	//last_good_rnb.id_number = (uint16_t)last_command_source_id; TODO: re-add this.
 }
 
 void handle_set_led(char* command_args)

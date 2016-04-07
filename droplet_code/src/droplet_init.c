@@ -21,24 +21,24 @@ void init_all_systems()
 	rgb_sensor_init();			INIT_DEBUG_PRINT("RGB SENSE INIT\r\n");
 	ir_led_init();				INIT_DEBUG_PRINT("IR LED INIT\r\n");
 	ir_sensor_init();			INIT_DEBUG_PRINT("IR SENSE INIT\r\n");
-	ir_comm_init();				INIT_DEBUG_PRINT("IR COM INIT\r\n");
 	
 	#ifdef AUDIO_DROPLET
 		speaker_init();			INIT_DEBUG_PRINT("SPEAKER INIT\r\n");
-		mic_init();				INIT_DEBUG_PRINT("MIC INIT\r\n"); //Must occur after ir_comm_init.
+		mic_init();				INIT_DEBUG_PRINT("MIC INIT\r\n"); //Must occur after ir_sensor_init.
 	#endif
 	
 	motor_init();				INIT_DEBUG_PRINT("MOTOR INIT\r\n");
 	random_init();				INIT_DEBUG_PRINT("RAND INIT\r\n"); //This uses adc readings for a random seed, and so requires that the adcs have been initialized.
-
-
-
+	
 	#ifdef SYNCHRONIZED
 		firefly_sync_init();
 	#endif
 
-	startup_light_sequence();
+	set_all_ir_powers(256);
 
+	startup_light_sequence();
+	
+	ir_comm_init();				INIT_DEBUG_PRINT("IR COM INIT\r\n");
 }
 
 int main()

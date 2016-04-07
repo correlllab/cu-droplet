@@ -329,7 +329,7 @@ void handle_set_led(char* command_args)
 }
 void handle_broadcast_id()
 {
-	schedule_task(5,send_id, NULL);
+	schedule_task(5, send_id, NULL);
 }
 
 void handle_get_id()
@@ -339,16 +339,9 @@ void handle_get_id()
 
 void send_id()
 {
-	//if(OK_to_send())
-	//{
-		//set_rgb(50,50,0);
-		//uint8_t data[2];
-		//data[0] = 0xFF & (droplet_ID>>8);
-		//data[1] = 0xFF & droplet_ID;
-		//ir_broadcast(data, 2);
-		//delay_ms(100);
-		//set_rgb(0,0,0);
-	//}
+	char msg[5];
+	sprintf(msg, "%04X", get_droplet_id());
+	ir_send(ALL_DIRS, msg, 4);
 }
 
 void handle_cmd(char* command_args)

@@ -46,7 +46,6 @@ void ir_led_init()
 	PORTE.PIN7CTRL = PORT_INVEN_bm;
 	PORTF.PIN3CTRL = PORT_INVEN_bm;
 	
-	set_all_ir_powers(256);
 }
 
 void ir_led_on(uint8_t direction)

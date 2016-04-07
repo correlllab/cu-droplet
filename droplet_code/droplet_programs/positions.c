@@ -2,10 +2,10 @@
 #include "stdio.h"
 #include "stdarg.h"
 
-#define BAYES_DEBUG_MODE
-#define BAYES_DIST_DEBUG_MODE
-#define NEIGHBS_DEBUG_MODE
-//#define POS_DEBUG_MODE
+//#define BAYES_DEBUG_MODE
+//#define BAYES_DIST_DEBUG_MODE
+//#define NEIGHBS_DEBUG_MODE
+#define POS_DEBUG_MODE
 
 #ifdef NEIGHBS_DEBUG_MODE
 #define NEIGHBS_DEBUG_PRINT(format, ...) printf(format, ##__VA_ARGS__)
@@ -32,6 +32,34 @@
 #endif
 
 void init(){
+	//int16_t BM[6][6] = {
+		//{  18,  27,  27,   7,   7,  14},
+		//{   6,  46,  26,  25,  20,   4},
+		//{  13,   0,   0,   8,  21,   0},
+		//{  30,   0,  46,   0,   0,   0},
+		//{   0,   0,  35,   3,  26,  13},
+		//{  38,  34,   0,   0,   4,   0}
+	//};
+	//printf("!\r\n%f\r\n!\r\n",calculate_innovation(18.8, deg_to_rad(-180.1),deg_to_rad(110.7),BM));
+	//busy_delay_ms(5000);
+	//ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+		//printf("{\r\n");
+			//for(uint8_t e=0;e<6;e++){
+				//printf("\t{");
+					//for(uint8_t s=0;s<6;s++){
+						//printf("%5.3f",expected_bright_mat(18.8, deg_to_rad(-180.1), deg_to_rad(110.7), e,s));
+						//if(s<5) printf(",");
+					//}
+				//printf("}");
+				//if(e<5) printf(",");
+				//printf("\r\n");
+			//}
+		//printf("};");
+		//while(1){
+			//busy_delay_ms(20);
+		//}
+	//}
+	
 	set_all_ir_powers(256);
 	set_sync_blink_duration(100);
 	enable_sync_blink(FFSYNC_D+FFSYNC_W);
@@ -92,6 +120,7 @@ void loop(){
 			delay_ms(8+(rand_byte()>>3));
 			sendNeighbMsg();
 		}else if(loopID==SLOTS_PER_FRAME-1){
+			//get_ir_baselines();
 			qsort(nearBots, NUM_TRACKED_BOTS, sizeof(OtherBot), nearBotsCmpFunc);
 			printf("\nT: %lu\t(%f, %f)\r\n", get_time(), myX, myY);
 			processNeighborData();
@@ -773,6 +802,12 @@ void handle_msg(ir_msg* msg_struct){
 				}
 			}
 		}
+	}else{
+		printf("From %04X:\r\n\t",msg_struct->sender_ID);
+		for(uint8_t i=0;i<msg_struct->length;i++){
+			printf("%c",msg_struct->msg[i]);
+		}
+		printf("\r\n");
 	}
 }
 

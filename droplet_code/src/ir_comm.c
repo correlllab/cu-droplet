@@ -41,6 +41,10 @@ void ir_comm_init()
 	PORTE.DIRCLR = PIN2_bm | PIN6_bm;		// DIR 3,4
 	PORTF.DIRCLR = PIN2_bm;					// DIR 5
 
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+		hp_ir_block_bm=0xFF;
+	}
+
 	for (uint8_t i = 0; i < 6; i++)
 	{
 		channel[i]->CTRLA = (uint8_t) USART_RXCINTLVL_MED_gc | USART_TXCINTLVL_MED_gc;		// Set USART as med-level interrupts
@@ -68,15 +72,18 @@ void ir_comm_init()
 	#endif	
 
 	curr_ir_power=0;	
-	set_all_ir_powers(256);
 	for(uint8_t dir=0; dir<6; dir++) clear_ir_buffer(dir); //this initializes the buffer's values to 0.
 	cmd_arrival_time=0;
 	num_waiting_msgs=0;
 	user_facing_messages_ovf=0;
 	processing_cmd = 0;
 	processing_ffsync = 0;
-	hp_ir_block_bm = 0;
+
 	schedule_periodic_task(1000/IR_UPKEEP_FREQUENCY, perform_ir_upkeep, NULL);
+	
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+		hp_ir_block_bm = 0;
+	}
 }
 
 void handle_cmd_wrapper()

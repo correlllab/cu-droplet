@@ -19,15 +19,16 @@
 
 #define POST_MESSAGE_DELAY ((3*((1000/IR_UPKEEP_FREQUENCY)))/2)
 #define R_VAR_SCALE_FACTOR 162.05
-#define NUMBER_OF_RB_MEASUREMENTS 5
+#define NUMBER_OF_RB_MEASUREMENTS 2
 #define DELAY_BETWEEN_RB_MEASUREMENTS 5
 #define POST_BROADCAST_DELAY 20
 #define TIME_FOR_SET_IR_POWERS 2
-#define TIME_FOR_GET_IR_VALS 3
-#define TIME_FOR_ALL_MEAS (NUMBER_OF_RB_MEASUREMENTS*(TIME_FOR_GET_IR_VALS+DELAY_BETWEEN_RB_MEASUREMENTS))
+#define TIME_FOR_GET_IR_VALS 10
+#define TIME_FOR_ALL_MEAS ((NUMBER_OF_RB_MEASUREMENTS)*(TIME_FOR_GET_IR_VALS+DELAY_BETWEEN_RB_MEASUREMENTS))
 #define DELAY_BETWEEN_RB_TRANSMISSIONS 10
 
-#define DC_NOISE_REMOVAL_AMOUNT		0
+#define TOTAL_RNB_TIME (TIME_FOR_SET_IR_POWERS+POST_BROADCAST_DELAY+6*(TIME_FOR_ALL_MEAS+DELAY_BETWEEN_RB_TRANSMISSIONS))
+
 #define MIN_MATRIX_SUM_THRESH		115
 #define SKEPTIC_MATRIX_SUM_THRESH	160
 #define OVER_DOMINANT_ROW_THRESH	0.75
@@ -101,7 +102,6 @@ void collect_rnb_data(uint16_t target_id, uint8_t power);
 void broadcast_rnb_data();
 void receive_rnb_data();
 void use_rnb_data();
-void use_cmd_rnb_data();
 
 void calculate_bearing_and_heading(int16_t brightness_matrix[6][6], float* bearing, float* heading);
 float get_initial_range_guess(float bearing, float heading, uint8_t power, int16_t brightness_matrix[6][6]);
@@ -127,4 +127,48 @@ void print_brightness_matrix(int16_t brightness_matrix[6][6], int16_t sum);
 void brightness_meas_printout_mathematica();
 
 float expected_bright_mat(float r, float b, float h, uint8_t i, uint8_t j);
+float finiteDifferenceStep(float r0, float b0, float h0, float* r1, float* b1, float* h1, int16_t realBM[6][6]);
 float calculate_innovation(float r, float b, float h, int16_t realBM[6][6]);
+
+static inline int8_t sgn(float x){
+	return (0<x)-(x<0);
+	//if(x>0) return 1;
+	//else if(x<0) return -1;
+	//else return 0;
+}
+
+#define MAX_STEP	0.5
+#define INIT_STEP	0.05
+#define MIN_STEP	0.0001
+#define STEP_GROW	1.5
+#define STEP_SHRINK 0.5
+
+
+float rStep, bStep, hStep;
+float prevDeltaEdR, prevDeltaEdB, prevDeltaEdH;
+
+static inline float rnb_constrain(float x){ //constrains the value to be within or equal to the bounds.
+	return (x < MIN_STEP ? MIN_STEP : (x > MAX_STEP ? MAX_STEP : x));
+}
+
+//typedef struct attempt_data_struct{
+	//float b;
+	//float h;
+	//float err;
+//} attemptData;
+//
+//attemptData records[144];
+//
+//static int attemptCmpFunc(const void* a, const void* b){
+	//const attemptData* aD = ((const attemptData*)a);
+	//const attemptData* bD = ((const attemptData*)b);
+	//float aE = aD->err;
+	//float bE = bD->err;
+	//if(aE > bE){
+		//return 1;
+	//}else if(aE < bE){
+		//return -1;
+	//}else{
+		//return 0;
+	//}
+//}

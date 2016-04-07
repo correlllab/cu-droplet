@@ -43,37 +43,84 @@ void range_algs_init()
 }
 
 float expected_bright_mat(float r, float b, float h, uint8_t i, uint8_t j){
-	float jX = cosf(basis_angle[j]+h);
-	float jY = sinf(basis_angle[j]+h);
-	float rijX = r*cosf(b)+DROPLET_RADIUS*(jX-bearingBasis[i][0]);
-	float rijY = r*sinf(b)+DROPLET_RADIUS*(jY-bearingBasis[i][1]);
-	float alpha = rijX*bearingBasis[i][0]+rijY*bearingBasis[i][1];
+	float jX = cosf(basis_angle[i]+h);
+	float jY = sinf(basis_angle[i]+h);
+	float rijX = r*cosf(b)+DROPLET_RADIUS*(jX-bearingBasis[j][0]);
+	float rijY = r*sinf(b)+DROPLET_RADIUS*(jY-bearingBasis[j][1]);
+	float alpha = rijX*bearingBasis[j][0]+rijY*bearingBasis[j][1];
 	float beta = -rijX*jX-rijY*jY;
 	float rijMag = hypotf(rijX, rijY);
 	if(alpha>0&&beta>0) return (alpha*beta*amplitude_model(rijMag, 255))/powf(rijMag,2.0);
 	else				return 0;
 }
 
+float finiteDifferenceStep(float r0, float b0, float h0, float* r1, float* b1, float* h1, int16_t realBM[6][6]){
+	float deltaR = 0.01;
+	float deltaB = 0.001;
+	float deltaH = 0.001;
+	
+	float err =    calculate_innovation(r0, b0, h0, realBM);
+	//float errRp =  calculate_innovation(r0+deltaR, b0, h0, realBM);
+	//float errRm =  calculate_innovation(r0-deltaR, b0, h0, realBM);
+	float errRp = calculate_innovation(r0+deltaR, b0, h0, realBM);
+	float errBp =  calculate_innovation(r0, pretty_angle(b0+deltaB), h0, realBM);
+	float errHp =  calculate_innovation(r0, b0, pretty_angle(h0+deltaH), realBM);
+	//float errBm =  calculate_innovation(r0, pretty_angle(b0-deltaB), h0, realBM);
+	//float errHm =  calculate_innovation(r0, b0, pretty_angle(h0-deltaH), realBM);
+	//float errBHp = calculate_innovation(r0, pretty_angle(b0+deltaB), pretty_angle(h0+deltaH), realBM);
+	//float errBHm = calculate_innovation(r0, pretty_angle(b0-deltaB), pretty_angle(h0-deltaH), realBM);
+	
+	//int16_t printableBM[6][6];
+	//for(uint8_t i=0;i<6;i++){
+		//for(uint8_t j=0;j<6;j++){
+			//printableBM[i][j] = (int16_t)expected_bright_mat(r0,b0,h0,j,i)+12;
+		//}
+	//}
+	//print_brightness_matrix(printableBM,  100);
+	
+	float deltaEdR = (errRp-err)/deltaR;
+	float deltaEdB = (errBp-err)/deltaB;
+	float deltaEdH = (errHp-err)/deltaH;
+	
+	rStep = rStep*(sgn(deltaEdR)==sgn(prevDeltaEdR) ? STEP_GROW : STEP_SHRINK);
+	rStep = rnb_constrain(rStep);
+	bStep = bStep*(sgn(deltaEdB)==sgn(prevDeltaEdB) ? STEP_GROW : STEP_SHRINK);
+	bStep = rnb_constrain(bStep);
+	hStep = hStep*(sgn(deltaEdH)==sgn(prevDeltaEdH) ? STEP_GROW : STEP_SHRINK);
+	hStep = rnb_constrain(hStep);
+	
+	*r1 = r0-rStep*sgn(deltaEdR);
+	*b1 = b0-bStep*sgn(deltaEdB);
+	*h1 = h0-hStep*sgn(deltaEdH);
+	
+	prevDeltaEdR = deltaEdR;
+	prevDeltaEdH = deltaEdH;
+	prevDeltaEdB = deltaEdB;
+	
+	return err;
+}
+
 float calculate_innovation(float r, float b, float h, int16_t realBM[6][6]){
 	float expBM[6][6];
 	float expNorm  = 0.0;
 	float realNorm = 0.0;
-	
+
 	for(uint8_t i=0;i<6;i++){
 		for(uint8_t j=0;j<6;j++){
-			expBM[i][j]=expected_bright_mat(r, b, h, j, i)+12;	
-			expNorm += powf(expBM[i][j], 2.0);
-			realNorm += powf((float)realBM[i][j], 2.0);
+			expBM[i][j]=expected_bright_mat(r, b, h, i,j);
+			expNorm += expBM[i][j]*expBM[i][j];
+			realNorm += ((int32_t)realBM[i][j])*((int32_t)realBM[i][j]);
 		}
 	}
-	float expNormInv  = powf(expNorm,-0.5); 
+	float expNormInv  = powf(expNorm,-0.5);
 	float realNormInv = powf(realNorm,-0.5);
 	//printf("%04X | %7.3f %7.3f %7.1f %7.1f\r\n",cmdID, realFrob, expFrob, realTot, expTot);	
+	
 	
 	float error=0.0;	
 	for(uint8_t i=0;i<6;i++){
 		for(uint8_t j=0;j<6;j++){
-			error+=fabsf(((float)realBM[i][j])*realNormInv-expBM[i][j]*expNormInv);
+			error+=fabsf(realBM[i][j]*realNormInv-expBM[i][j]*expNormInv);
 		}
 	}
 	return error;
@@ -98,7 +145,7 @@ void collect_rnb_data(uint16_t target_id, uint8_t power)
 		//brightness_meas_printout_mathematica();
 		use_rnb_data();
 	}else{
-		printf_P(PSTR("collect_rnb blocked by other hp ir activity.\r\n"));
+		//printf_P(PSTR("collect_rnb blocked by other hp ir activity.\r\n"));
 	}
 }
 
@@ -119,7 +166,7 @@ void broadcast_rnb_data()
 		}
 		//printf("rnb_b\r\n");
 	}else{
-		printf_P(PSTR("broadcast_rnb blocked by other hp ir activity.\r\n"));
+		//printf_P(PSTR("broadcast_rnb blocked by other hp ir activity.\r\n"));
 	}
 }
 
@@ -132,6 +179,7 @@ void receive_rnb_data()
 			hp_ir_block_bm = 1;
 		}		
 		ir_range_meas();
+		delay_ms(10);
 		get_baseline_readings();
 		ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 			hp_ir_block_bm = 0;
@@ -141,48 +189,17 @@ void receive_rnb_data()
 		//printf("ID: %04X\r\n",cmdID);
 		//brightness_meas_printout_mathematica();
 		//printf("\r\n");
-		//printf("Finished getting data %lums after msg.\r\n",get_time()-time_before);		
-		if(cmdID!=CMD_DROPLET_ID){
-			schedule_task(10, use_rnb_data, NULL);
-		}else{
-			schedule_task(10, use_cmd_rnb_data, NULL);
-		}
+		//printf("Finished getting data %lums after msg.\r\n",get_time()-time_before);	
+		schedule_task(10, use_rnb_data, NULL);
 		//printf("rnb_r\r\n");			
 	}
 }
-
-void use_cmd_rnb_data(){
-	int16_t brightness_matrix[6][6];
-	int16_t matrixSum = pack_measurements_into_matrix(brightness_matrix);
-	int16_t baselines[6];
-	int16_t eTotals[4];
-	int16_t tmp;
-	for(uint8_t s=0 ; s<6; s++){
-		baselines[s] = (brightness_matrix[2][s]+brightness_matrix[5][s])/2;
-	}
-	const uint8_t bmIdx[4] = {0, 1, 3, 4};
-	print_brightness_matrix(brightness_matrix, matrixSum);
-	for(uint8_t e=0;e<4;e++){
-		eTotals[e]=0;
-		for(uint8_t s=0;s<6;s++){
-			tmp=(brightness_matrix[bmIdx[e]][s]-baselines[s]);
-			if(tmp<0){ 
-				tmp=0;
-			}
-			eTotals[e] += tmp;
-		}
-	}
-	printf("eTotals: %5d, %5d, %5d, %5d\r\n",eTotals[0], eTotals[1], eTotals[2], eTotals[3]);
-	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-		processingFlag=0;
-	}
-}
-
 
 void use_rnb_data()
 {
 	uint8_t power = 255;
 	int16_t brightness_matrix[6][6];
+	//brightness_meas_printout_mathematica();
 	int16_t matrixSum = pack_measurements_into_matrix(brightness_matrix);
 	
 	//print_brightness_matrix(brightness_matrix, matrixSum);		
@@ -192,43 +209,111 @@ void use_rnb_data()
 		processingFlag = 0;
 		return;
 	}
+
+	
+	//printf("RNB from %04X\r\n",cmdID);
+	//print_brightness_matrix(brightness_matrix, matrixSum);
+	float bearing, heading;
+	float error;
+
+	//for(uint8_t i=0;i<144;i++){
+		//records[i].b = 0;
+		//records[i].h = 0;
+		//records[i].err = 0;
+	//}
+//
+	//float initial_range;
+	//for(int8_t bO=0;bO<12;bO++){
+		//for(int8_t hO=0;hO<12;hO++){
+			//records[bO*12+hO].b   = pretty_angle(0.2617993878+bO*0.5235987756);
+			//records[bO*12+hO].h   = pretty_angle(0.2617993878+hO*0.5235987756);
+			//initial_range = get_initial_range_guess(records[bO*12+hO].b, records[bO*12+hO].h, power, brightness_matrix);
+			//records[bO*12+hO].err = calculate_innovation(initial_range, records[bO*12+hO].b, records[bO*12+hO].h, brightness_matrix);
+		//}
+	//}
+	//qsort(records, 144, sizeof(attemptData), attemptCmpFunc);
+	
+	//for(uint8_t i=0;i<144;i++){
+		//printf("\t%f\t(%d, %d)\r\n",records[i].err,(int16_t)roundf(rad_to_deg(records[i].b)),(int16_t)roundf(rad_to_deg(records[i].h)));
+		//bearing = records[i].b;
+		//heading = records[i].h;
+		//error = records[i].err;
+	//}
+	//bearing = minB;
+	//heading = minH;
 	
 	//For testing, comment out the above and use a hardcoded matrix from the mathematica notebook.
 	//printf("%04X\r\n",cmdID);
-	float bearing, heading;
+
 	calculate_bearing_and_heading(brightness_matrix, &bearing, &heading);
 	float initial_range = get_initial_range_guess(bearing, heading, power, brightness_matrix);
 	if(initial_range!=0&&!isnanf(initial_range))
 	{	
 		float range = range_estimate(initial_range, bearing, heading, power, brightness_matrix);
-		if(!isnanf(range)){
-			if(range<2*DROPLET_RADIUS) range=5.0;
-			float error = calculate_innovation(range, bearing, heading, brightness_matrix);
-			float conf = sqrtf(matrixSum);
-			//BotPos* soFar = getNeighbor(cmdID);
-			//float otherError=NAN;
-			//if(soFar!=NULL)  otherError = calculate_innovation(soFar->r, soFar->b, soFar->h, brightness_matrix);
-			//printf("% -2.2f, % -3.1f, % -3.1f\t, % -9.5f\r\n", range, rad_to_deg(bearing), rad_to_deg(heading), error);		
-			//print_brightness_matrix(brightness_matrix, matrixSum);
-			conf = conf/(error*error);
-			if(error>3.0){
-				//printf("\tGoing to ditch this one.\r\n");
-				//processingFlag=0;
-				//return;
-				conf = conf/10.0; //Nerf the confidence hard if the calculated error was too high.
-			}
-	
-			last_good_rnb.id_number = cmdID;
-			last_good_rnb.range = range;
-			last_good_rnb.bearing = bearing;
-			last_good_rnb.heading = heading;
-			last_good_rnb.conf	  = conf;
-			//if(abs(heading)>deg_to_rad(45)){
-				//printf("!!!\r\n");
-				////print_brightness_matrix(brightness_matrix, matrixSum);
+		if(range<2*DROPLET_RADIUS) range=5.0;
+		float fdR, fdB, fdH;
+		float newR, newB, newH;
+			
+		//for(int8_t bO=-1;bO<=1;bO++){
+			//for(int8_t hO=-1;hO<=1;hO++){
+				//fdB = pretty_angle(bearing+1.047*bO);
+				//fdH = pretty_angle(heading+1.047*hO);
+			//for(uint8_t i=0;i<12;i++){
+				fdB = bearing;
+				fdH = heading;
+				fdR = range;				
+				//printf("\t%f\t(% 5.1f, %d, %d)\r\n",records[i].err, initial_range, (int16_t)roundf(rad_to_deg(fdB)),(int16_t)roundf(rad_to_deg(fdH)));				
+
+				rStep = 10*INIT_STEP;
+				bStep = INIT_STEP;
+				hStep = INIT_STEP;
+				prevDeltaEdR=0;
+				prevDeltaEdB=0;
+				prevDeltaEdH=0;					
+				for(uint8_t i=0;i<30;i++){
+					error = finiteDifferenceStep(fdR, fdB, fdH, &newR, &newB, &newH, brightness_matrix);
+					//conf = sqrtf(matrixSum)/(error*error);
+					//if(error>3.0) conf = conf/10.0;
+					//if(i%10==0)	printf("\t\t%hu:%8.3f (% 5.2f, %-6.1f, %-6.1f) <% 8.5f, % 8.5f, % 8.5f>\r\n", i, error, fdR, rad_to_deg(fdB), rad_to_deg(fdH), rStep, bStep, hStep);
+					fdR = newR;
+					fdB = newB;
+					fdH = newH;
+				}			
 			//}
-			rnb_updated=1;
+				//error = calculate_innovation(initial_range, fdB, fdH, brightness_matrix);
+
+				//printf("\t%6.3f (%-6.1f, %-6.1f)\r\n", error, rad_to_deg(fdB), rad_to_deg(fdH));
+			//}
+		//}
+			
+		range = fdR;
+		bearing = fdB;
+		heading = fdH;
+		error = calculate_innovation(range, bearing, heading, brightness_matrix);
+		float conf = sqrtf(matrixSum);
+		//BotPos* soFar = getNeighbor(cmdID);
+		//float otherError=NAN;
+		//if(soFar!=NULL)  otherError = calculate_innovation(soFar->r, soFar->b, soFar->h, brightness_matrix);
+		//printf("% -2.2f, % -3.1f, % -3.1f\t, % -9.5f\r\n", range, rad_to_deg(bearing), rad_to_deg(heading), error);		
+		//print_brightness_matrix(brightness_matrix, matrixSum);
+		conf = conf/(error*error);
+		if(error>3.0){
+			//printf("\tGoing to ditch this one.\r\n");
+			//processingFlag=0;
+			//return;
+			conf = conf/10.0; //Nerf the confidence hard if the calculated error was too high.
 		}
+	
+		last_good_rnb.id_number = cmdID;
+		last_good_rnb.range = range;
+		last_good_rnb.bearing = bearing;
+		last_good_rnb.heading = heading;
+		last_good_rnb.conf	  = conf;
+		//if(abs(heading)>deg_to_rad(45)){
+			//printf("!!!\r\n");
+			////print_brightness_matrix(brightness_matrix, matrixSum);
+		//}
+		rnb_updated=1;
 	}
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 		processingFlag=0;
@@ -393,9 +478,10 @@ void fill_S_and_T(int16_t brightness_matrix[6][6], int16_t sensor_total[6], int1
 
 int16_t pack_measurements_into_matrix(int16_t brightness_matrix[6][6])
 {
-	int16_t val, meas, max_meas;
+	int16_t val, meas;
 	int16_t valSum=0;
 	int16_t rowSum[6];
+	int16_t minVal=32767;
 	uint8_t allColZeroCheck[6];
 	for(uint8_t i=0;i<6;i++){
 		allColZeroCheck[i] = 1;
@@ -405,18 +491,26 @@ int16_t pack_measurements_into_matrix(int16_t brightness_matrix[6][6])
 		rowSum[emitter_num]=0;
 		for(uint8_t sensor_num = 0; sensor_num < 6; sensor_num++)
 		{
-			max_meas = -32768;
+			val=0;
 			for(uint8_t meas_num = 0; meas_num < NUMBER_OF_RB_MEASUREMENTS; meas_num++)
 			{
 				meas = bright_meas[meas_num][emitter_num][sensor_num];
-				if(meas>max_meas) max_meas=meas; 
+				val+=meas;
 			}
-			val = max_meas-bright_meas[0][emitter_num][sensor_num]-DC_NOISE_REMOVAL_AMOUNT;
-			if(val<0) val=0;
+			val = val/NUMBER_OF_RB_MEASUREMENTS;
+			if(val<minVal){
+				minVal=val;
+			}
+			//if(val<0) val=0;
 			if(val) allColZeroCheck[sensor_num] = 0;
 			valSum+=val;
 			rowSum[emitter_num]+=val;
 			brightness_matrix[emitter_num][sensor_num] = val;
+		}
+	}
+	for(uint8_t e=0;e<6;e++){
+		for(uint8_t s=0;s<6;s++){
+			brightness_matrix[e][s] = brightness_matrix[e][s]-minVal;
 		}
 	}
 	uint8_t problem = 0;
@@ -456,34 +550,34 @@ void get_baseline_readings()
 	uint8_t meas_num = 0;
 	for (uint8_t emitter_num = 0; emitter_num < 6; emitter_num++)
 	{
-		get_ir_sensors(bright_meas[meas_num][emitter_num], 5);
+		get_ir_sensors(bright_meas[meas_num][emitter_num], 13);
 	}
 }
 
-void ir_range_meas()
-{
+void ir_range_meas(){
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 	busy_delay_ms(POST_BROADCAST_DELAY);
 	busy_delay_ms(TIME_FOR_SET_IR_POWERS);
-	
-	for(uint8_t emitter_dir = 0; emitter_dir < 6; emitter_dir++)
-	{
+
+	uint32_t total_time = get_time();
+	for(uint8_t emitter_dir = 0; emitter_dir < 6; emitter_dir++){
 		uint32_t outer_pre_sync_op = get_time();
-		for(uint8_t meas_num = 1; meas_num < NUMBER_OF_RB_MEASUREMENTS; meas_num++)
-		{
+		for(uint8_t meas_num = 0; meas_num < NUMBER_OF_RB_MEASUREMENTS; meas_num++){
 			uint32_t inner_pre_sync_op = get_time();
-			get_ir_sensors(bright_meas[meas_num][emitter_dir] , 7);
+			get_ir_sensors(bright_meas[meas_num][emitter_dir] , 11);
+			//printf("\t\t%lu\r\n",get_time()-inner_pre_sync_op);			
 			while((get_time() - inner_pre_sync_op) < TIME_FOR_GET_IR_VALS){};
 			
 			delay_ms(DELAY_BETWEEN_RB_MEASUREMENTS);
 		}
-		//printf("Dur: %lu.\r\n",get_time()-outer_pre_sync_op);
 		while((get_time() - outer_pre_sync_op) < TIME_FOR_ALL_MEAS){};
+		//printf("\t%lu\r\n",get_time()-outer_pre_sync_op);			
 
 		//set_green_led(100);		
 		delay_ms(DELAY_BETWEEN_RB_TRANSMISSIONS);
 		//set_green_led(0);
 	}
+	//printf("Dur: %lu\r\n",get_time()-total_time);
 	//printf("Argh!\r\n");
 	}
 }
@@ -496,7 +590,7 @@ void ir_range_blast(uint8_t power)
 		//set_blue_led(0);
 		uint32_t pre_sync_op = get_time();
 		//set_all_ir_powers(((uint16_t)power)+1);
-		//set_all_ir_powers(256);
+		set_all_ir_powers(256);
 		while((get_time() - pre_sync_op) < TIME_FOR_SET_IR_POWERS){};
 
 		for(uint8_t dir = 0; dir < 6; dir++)
@@ -504,6 +598,7 @@ void ir_range_blast(uint8_t power)
 			pre_sync_op = get_time();
 			ir_led_on(dir);
 			while((get_time() - pre_sync_op) < TIME_FOR_ALL_MEAS){};
+			//printf("\t%lu\r\n",get_time()-pre_sync_op);
 			ir_led_off(dir);
 			//set_green_led(100);
 			delay_ms(DELAY_BETWEEN_RB_TRANSMISSIONS);
@@ -627,11 +722,14 @@ void brightness_meas_printout_mathematica()
 						{
 							//if(meas_num == 10)
 							//printf("\r\n");
-							printf("%d,",bright_meas[meas_num][emitter_num][sensor_num]);
+							printf("%d",bright_meas[meas_num][emitter_num][sensor_num]);
+							if(meas_num!=NUMBER_OF_RB_MEASUREMENTS-1) printf(", ");
 						}
-					printf("\b},");
+					printf("}");
+					if(sensor_num!=5) printf(", ");
 				}
-			printf("\b},");
+			printf("}");
+			if(emitter_num!=5) printf(",\r\n");
 		}
-	printf_P(PSTR("\b};\r\n"));
+	printf_P(PSTR("};\r\n"));
 }

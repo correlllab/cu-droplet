@@ -501,16 +501,15 @@ int16_t pack_measurements_into_matrix(int16_t brightness_matrix[6][6])
 			if(val<minVal){
 				minVal=val;
 			}
-			//if(val<0) val=0;
 			if(val) allColZeroCheck[sensor_num] = 0;
-			valSum+=val;
-			rowSum[emitter_num]+=val;
 			brightness_matrix[emitter_num][sensor_num] = val;
 		}
 	}
 	for(uint8_t e=0;e<6;e++){
 		for(uint8_t s=0;s<6;s++){
 			brightness_matrix[e][s] = brightness_matrix[e][s]-minVal;
+			valSum+=brightness_matrix[e][s];
+			rowSum[e]+=val;			
 		}
 	}
 	uint8_t problem = 0;
@@ -523,7 +522,7 @@ int16_t pack_measurements_into_matrix(int16_t brightness_matrix[6][6])
 		if(sensorHealthHistory[i]>10){
 			printf("!!!\tGot 10 consecutive nothings from sensor %hu.\t!!!\r\n", i);
 			sensorHealthHistory[i] = 0;
-			//problem = 1;
+			problem = 1;
 		}
 	}
 	if(problem){
@@ -568,7 +567,11 @@ void ir_range_meas(){
 			//printf("\t\t%lu\r\n",get_time()-inner_pre_sync_op);			
 			while((get_time() - inner_pre_sync_op) < TIME_FOR_GET_IR_VALS){};
 			
-			delay_ms(DELAY_BETWEEN_RB_MEASUREMENTS);
+			#if NUMBER_OF_RB_MEASUREMENTS>1
+			if(meas_num<(NUMBER_OF_RB_MEASUREMENTS-1)){
+				delay_ms(DELAY_BETWEEN_RB_MEASUREMENTS);
+			}
+			#endif
 		}
 		while((get_time() - outer_pre_sync_op) < TIME_FOR_ALL_MEAS){};
 		//printf("\t%lu\r\n",get_time()-outer_pre_sync_op);			

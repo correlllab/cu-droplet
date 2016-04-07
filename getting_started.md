@@ -1,7 +1,7 @@
 NOTE: These instructions are specific to the Windows operating system. All hardware referenced is simply the hardware we use. I believe that it would be possible to use other operating systems and other hardware, but I haven't tried and so can't comment on doing so.
 
 ##### Physical Supplies
-* A PDI programmer. We use the <a href="http://store.atmel.com/PartDetail.aspx?q=p:10500269">JTAGICE3</a>.
+* A PDI programmer. We use the <a href="http://www.digikey.com/product-detail/en/ATATMEL-ICE/ATATMEL-ICE-ND/4753379">JTAGICE3</a>.
 * (Optional, for serial communication) FTDI Cable. We use those available on <a href="https://www.sparkfun.com/products/9718">sparkfun</a> with a minor modication (described below).
 
 ##### Software Supplies

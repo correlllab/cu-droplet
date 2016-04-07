@@ -95,7 +95,7 @@ void handle_walk(char* command_args)
 
 void handle_get_rgb()
 {
-	uint16_t r, g, b;
+	int16_t r, g, b;
 	get_rgb(&r, &g, &b);
 	printf_P(PSTR("r: %hu, g: %hu, b: %hu\r\n"), r, g, b);
 }
@@ -107,14 +107,12 @@ void handle_set_ir(char* command_args)
 	char* token = strtok(command_args,delim);
 	uint16_t ir_val = (uint16_t)atoi(token);
 	
-	set_all_ir_powers(ir_val);
+	schedule_task(10, set_all_ir_powers, (void*)ir_val);
 }
 
 void handle_stop_walk()
 {
-	set_rgb(180,0,0);
 	stop_move(0);
-	set_rgb(0,0,0);
 }
 //
 //extern int16_t tau;
@@ -267,8 +265,6 @@ void handle_rnb_receive()
 	uint32_t time_since_arrival = (get_time()-cmd_arrival_time+5);
 	if(time_since_arrival<POST_MESSAGE_DELAY) delay_ms(POST_MESSAGE_DELAY - time_since_arrival);	
 	receive_rnb_data();
-	rnb_updated = 0;
-	//last_good_rnb.id_number = (uint16_t)last_command_source_id; TODO: re-add this.
 }
 
 void handle_set_led(char* command_args)
@@ -333,7 +329,7 @@ void handle_set_led(char* command_args)
 }
 void handle_broadcast_id()
 {
-	schedule_task(5,send_id, NULL);
+	schedule_task(5, send_id, NULL);
 }
 
 void handle_get_id()
@@ -343,16 +339,9 @@ void handle_get_id()
 
 void send_id()
 {
-	//if(OK_to_send())
-	//{
-		//set_rgb(50,50,0);
-		//uint8_t data[2];
-		//data[0] = 0xFF & (droplet_ID>>8);
-		//data[1] = 0xFF & droplet_ID;
-		//ir_broadcast(data, 2);
-		//delay_ms(100);
-		//set_rgb(0,0,0);
-	//}
+	char msg[5];
+	sprintf(msg, "%04X", get_droplet_id());
+	ir_send(ALL_DIRS, msg, 4);
 }
 
 void handle_cmd(char* command_args)

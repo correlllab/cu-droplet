@@ -51,12 +51,13 @@
 
 #define HEADER_POS_SENDER_ID_LOW 0
 #define HEADER_POS_SENDER_ID_HIGH 1
-#define HEADER_POS_MSG_LENGTH 2
-#define HEADER_POS_CRC_LOW 3
-#define HEADER_POS_CRC_HIGH 4
+#define HEADER_POS_CRC_LOW 2
+#define HEADER_POS_CRC_HIGH 3
+#define HEADER_POS_MSG_LENGTH 4
 #define HEADER_POS_TARGET_ID_LOW 5
 #define HEADER_POS_TARGET_ID_HIGH 6
 #define HEADER_POS_SOURCE_DIR 7
+
 #define HEADER_LEN 8
 
 #define MAX_WAIT_FOR_IR_TIME (5*(IR_BUFFER_SIZE+HEADER_LEN))
@@ -67,37 +68,41 @@
 
 volatile struct
 {	
-	uint32_t last_byte;			// TX time or RX time of last received byte	
-	int16_t ir_meas[IR_BUFFER_SIZE+HEADER_LEN];		
-	uint16_t data_crc;
-	uint16_t sender_ID;
-	uint16_t target_ID;
-	uint16_t curr_pos;				// Current position in buffer
-	uint16_t calc_crc;
-	char   buf[IR_BUFFER_SIZE];	// Transmit / receive buffer		
-	uint8_t  data_length;	
-	int8_t inc_dir;
+	volatile uint32_t last_byte;			// TX time or RX time of last received byte	
+	volatile int16_t ir_meas[IR_BUFFER_SIZE+HEADER_LEN];		
+	volatile uint16_t data_crc;
+	volatile uint16_t sender_ID;
+	volatile uint16_t target_ID;
+	volatile uint16_t curr_pos;				// Current position in buffer
+	volatile uint16_t calc_crc;
+	volatile char   buf[IR_BUFFER_SIZE];	// Transmit / receive buffer		
+	volatile uint8_t  data_length;	
+	volatile int8_t inc_dir;
 	volatile uint8_t status;		// Transmit:
 } ir_rxtx[6];
 
 volatile struct
 {
-	uint32_t	arrival_time;
-	float		bearing;
-	float		heading;
-	uint16_t	sender_ID;
-	char		msg[IR_BUFFER_SIZE];		
-	uint8_t		arrival_dir;
-	uint8_t		msg_length;
-	uint8_t		range;
-	uint8_t		wasTargeted;
+	volatile uint32_t	arrival_time;
+	volatile float		range;
+	volatile float		bearing;
+	volatile float		heading;
+	volatile uint16_t	sender_ID;
+	volatile char		msg[IR_BUFFER_SIZE];		
+	volatile uint8_t	arrival_dir;
+	volatile uint8_t	msg_length;
+	volatile uint8_t	wasTargeted;
 } msg_node[MAX_USER_FACING_MESSAGES];
 
+volatile uint8_t hp_ir_block_bm;			//can only be set by other high priority ir things!
 volatile uint8_t num_waiting_msgs;
 volatile uint8_t user_facing_messages_ovf;
 
 volatile uint32_t	cmd_arrival_time;
 volatile uint16_t	cmd_sender_id;
+
+volatile uint8_t processing_cmd;
+volatile uint8_t processing_ffsync;
 
 void clear_ir_buffer(uint8_t dir);
 
@@ -109,8 +114,9 @@ uint8_t ir_targeted_cmd(uint8_t dirs, char *data, uint16_t data_length, uint16_t
 uint8_t ir_cmd(uint8_t dirs, char *data, uint16_t data_length);
 uint8_t ir_targeted_send(uint8_t dirs, char *data, uint16_t data_length, uint16_t target);
 uint8_t ir_send(uint8_t dirs, char *data, uint8_t data_length);
-void hp_ir_cmd(uint8_t dirs, char *data, uint16_t data_length);
-void hp_ir_targeted_cmd(uint8_t dirs, char *data, uint16_t data_length, uint16_t target);
+void waitForTransmission(uint8_t dirs);
+uint8_t hp_ir_cmd(uint8_t dirs, char *data, uint16_t data_length);
+uint8_t hp_ir_targeted_cmd(uint8_t dirs, char *data, uint16_t data_length, uint16_t target);
 
 void handle_rx_length_byte(uint8_t in_byte, uint8_t dir);
 uint8_t handle_tx_length_byte(uint8_t dir);
@@ -121,3 +127,8 @@ void ir_transmit_complete(uint8_t dir);
 void ir_reset_rx(uint8_t dir);
 uint8_t ir_is_available(uint8_t dirs_mask);
 //uint8_t wait_for_ir(uint8_t dirs);
+
+static inline float comm_inverse_amplitude_model(float comm_amp)
+{
+	return 17.25+(6292.0/powf(comm_amp+12,2));
+}

@@ -52,4 +52,4 @@ static const char RGB_SENSE_POWERON_FAILURE[] PROGMEM = "RGB sense power-on fail
 
 #endif
 
-	void get_rgb(uint16_t *r, uint16_t *g, uint16_t *b);
+	void get_rgb(int16_t *r, int16_t *g, int16_t *b);

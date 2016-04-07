@@ -62,7 +62,10 @@ void rgb_sensor_init()
 		r_baseline= r_avg/num_samples;
 		g_baseline= g_avg/num_samples;
 		b_baseline= b_avg/num_samples;
-		//printf("Baselines:\r\n%3d  %3d  %3d\r\n", r_baseline, g_baseline, b_baseline);	
+		//printf("Baselines:\r\n%3d  %3d  %3d\r\n", r_baseline, g_baseline, b_baseline);
+		r_baseline = 0;
+		g_baseline = 0;
+		b_baseline = 0;	
 	#endif		
 }
 
@@ -142,19 +145,18 @@ void read_color_settings()
 	#endif		
 }
 
-void get_rgb(uint16_t *r, uint16_t *g, uint16_t *b)
+void get_rgb(int16_t *r, int16_t *g, int16_t *b)
 {
 	#ifdef AUDIO_DROPLET
-	
 		uint8_t write_sequence = 0xB4;
 		uint8_t result = TWI_MasterWriteRead(RGB_SENSE_ADDR, &write_sequence, 1, 8);
 		uint16_t* temp_values = (uint16_t*)(twi->readData);
 		if(result)
 		{
 			//*c=temp_values[0];
-			*r=temp_values[1];
-			*g=temp_values[2];
-			*b=temp_values[3];
+			*r=(int16_t)temp_values[1];
+			*g=(int16_t)temp_values[2];
+			*b=(int16_t)temp_values[3];
 		}
 		else printf_P(PSTR("Read failed.\r\n"));
 	#else
@@ -162,14 +164,13 @@ void get_rgb(uint16_t *r, uint16_t *g, uint16_t *b)
 	
 		rTemp = get_red_sensor();
 		gTemp = get_green_sensor();
-		bTemp = get_blue_sensor();
-
+		bTemp = get_blue_sensor();		
 		rTemp=rTemp-r_baseline;
 		gTemp=gTemp-g_baseline;
 		bTemp=bTemp-b_baseline;
-		if(rTemp<0)	rTemp=0;
-		if(gTemp<0)	gTemp=0;
-		if(bTemp<0)	bTemp=0;
+		//if(rTemp<0)	rTemp=0;
+		//if(gTemp<0)	gTemp=0;
+		//if(bTemp<0)	bTemp=0;
 		if(r!=NULL) *r=(uint16_t)rTemp;
 		if(g!=NULL) *g=(uint16_t)gTemp;
 		if(b!=NULL) *b=(uint16_t)bTemp;

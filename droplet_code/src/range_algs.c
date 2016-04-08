@@ -305,10 +305,10 @@ void use_rnb_data()
 		}
 	
 		last_good_rnb.id_number = cmdID;
-		last_good_rnb.range = range;
-		last_good_rnb.bearing = bearing;
-		last_good_rnb.heading = heading;
-		last_good_rnb.conf	  = conf;
+		last_good_rnb.range		= range;
+		last_good_rnb.bearing	= bearing;
+		last_good_rnb.heading	 = heading;
+		last_good_rnb.conf		 = conf;
 		//if(abs(heading)>deg_to_rad(45)){
 			//printf("!!!\r\n");
 			////print_brightness_matrix(brightness_matrix, matrixSum);

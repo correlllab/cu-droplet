@@ -3,14 +3,17 @@
 
 #include "droplet_init.h"
 
-#define RNB_BROADCAST_PERIOD 15000
-#define BLINK_PERIOD 2350
-#define CHEM_ID_BROADCAST_PERIOD 3900
-#define DETECT_OTHER_DROPLETS_PERIOD 1000
-#define UPDATE_ATOMS_PERIOD 100
-#define LOOP_PERIOD 50
-#define MOLECULE_BROADCAST_PERIOD 4150
-#define NUM_FIXED_DROPLETS 8
+//#define RNB_BROADCAST_PERIOD 15000
+//#define BLINK_PERIOD 2350
+//#define CHEM_ID_BROADCAST_PERIOD 3900
+//#define DETECT_OTHER_DROPLETS_PERIOD 1000
+//#define UPDATE_ATOMS_PERIOD 100
+#define SLOT_LENGTH_MS			419
+#define SLOTS_PER_FRAME			12 //116
+#define FRAME_LENGTH_MS			(SLOT_LENGTH_MS*SLOTS_PER_FRAME)
+#define LOOP_PERIOD 17
+//#define MOLECULE_BROADCAST_PERIOD 4150
+//#define NUM_FIXED_DROPLETS 8
 
 typedef struct  
 {
@@ -57,22 +60,27 @@ typedef struct
 	int8_t orbitals[6]; //-1 for empty orbital, 0 for orbital that the recipient doesn't occupy, 1 for an orbital it does occupy.
 }Bond_Made_Msg;
 
-typedef struct{
-	int16_t x;
-	int16_t y;
-}FixedRNBPos;
+//typedef struct{
+	//int16_t x;
+	//int16_t y;
+//}FixedRNBPos;
 
-FixedRNBPos fixedRNBPositions[NUM_FIXED_DROPLETS] = {{0,0},{-80,90},{-80,230},{260,260},{260,160},{260,60},{200,0},{100,0},{100,150}};
+//FixedRNBPos fixedRNBPositions[NUM_FIXED_DROPLETS] = {{0,0},{-80,90},{-80,230},{260,260},{260,160},{260,60},{200,0},{100,0},{100,150}};
+//
+//typedef struct
+//{
+	//float range;
+	//float bearing;
+	//float heading;
+	//uint32_t time;
+//}FixedRNBMeas;
+//
+//FixedRNBMeas fixedRNBMeasurements[NUM_FIXED_DROPLETS];
 
-typedef struct
-{
-	float range;
-	float bearing;
-	float heading;
-	uint32_t time;
-}FixedRNBMeas;
-
-FixedRNBMeas fixedRNBMeasurements[NUM_FIXED_DROPLETS];
+uint32_t	frameCount;
+uint32_t	frameStart;
+uint16_t	lastLoop;
+uint16_t	mySlot;
 
 Near_Atom near_atoms[12]; //this number is pretty arbitrary.
 Atom NULL_ATOM = {{0,0,0,0,0,0,0,0},{0,0,0,0,0,0},{'0','0'},0,0,0};

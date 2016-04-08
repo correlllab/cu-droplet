@@ -13,8 +13,9 @@ void set_sync_blink_duration(uint16_t dur){
 	}
 }
 
-void enable_sync_blink(){
-	uint16_t turn_off_cc = (FFSYNC_FULL_PERIOD - 1500);
+void enable_sync_blink(uint16_t phase_offset){
+	phase_offset = phase_offset%(((uint32_t)FFSYNC_FULL_PERIOD)/2);
+	uint16_t turn_off_cc = FFSYNC_FULL_PERIOD - phase_offset;
 	uint16_t turn_on_cc = turn_off_cc - (uint16_t)(ffsync_blink_dur*FFSYNC_MS_CONVERSION_FACTOR);
 	//uint16_t turn_off_cc = (turn_on_cc+((uint16_t)(ffsync_blink_dur*FFSYNC_MS_CONVERSION_FACTOR)))%FFSYNC_FULL_PERIOD;
 	TCE0.CCA = turn_on_cc;
@@ -45,6 +46,8 @@ void firefly_sync_init()
 	ffsync_blink_g = 255;
 	ffsync_blink_b = 255;
 	ffsync_blink_dur = 200;
+	
+	ffsync_blink_phase_offset_ms = 0;
 
 	EVSYS.CH0MUX = EVSYS_CHMUX_PRESCALER_4096_gc;
 	
@@ -87,6 +90,10 @@ void processObsQueue(){
 	obsStart->next = obsStart;
 	obsStart->prev = obsStart;
 	uint16_t theCount = TCE0.CNT;
+	
+	if(theCount<TCE0.CCB&&(theCount+(uint16_t)newStart)>TCE0.CCB){
+		set_rgb(ffsync_blink_prev_r, ffsync_blink_prev_g, ffsync_blink_prev_b);	
+	}
 	
 	if((theCount+(uint16_t)newStart)>=FFSYNC_FULL_PERIOD){
 		//printf("\tOVERFLOW\r\n");

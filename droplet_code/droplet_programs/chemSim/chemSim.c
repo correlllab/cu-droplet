@@ -62,7 +62,7 @@ void addToBondedAtoms(uint16_t ID, uint8_t index, uint8_t num_bonds)
 		delay_ms(10);
 		printf_P(PSTR("ERROR: Tried to add an ID to bonded_atoms %hu times at index %hu.  \r\n"), num_bonds, index);
 		printBondedAtoms();
-		set_rgb(255, 0, 255);
+		//set_rgb(255, 0, 255);
 	}
 }
 
@@ -146,7 +146,7 @@ void breakBond(Atom* near_atom, uint16_t sender_ID)
 {
 	//printf_P(PSTR("break_bond. \r\n"));
 	setAtomColor(&myID);
-	//global_blink_timer = 0; //If the atom has multiple bonds, this will be fixed the next time one of its other partners sends its bonded_atoms. Not sure what else to do.
+	global_blink_timer = 0xFFFF; //If the atom has multiple bonds, this will be fixed the next time one of its other partners sends its bonded_atoms. Not sure what else to do.
 	//Set my bondType based on what bonds I have remaining.
 	uint8_t foundBond = 0;
 	for(uint8_t k = 0; k < 6; k++)  {
@@ -218,8 +218,8 @@ void calculatePath(float target, uint16_t range, float bearing)
 {
 	//Target is the angle of the spot that I need to occupy, from the center of the Droplet I'm moving toward. I'm aiming to be right next to that Droplet at that angle to him.
 	float o_x, o_y;
-	o_x = cos(target-M_PI_2)*(DROPLET_RADIUS*20);
-	o_y = sin(target-M_PI_2)*(DROPLET_RADIUS*20);
+	o_x = cos(target-M_PI_2)*(DROPLET_RADIUS*25);
+	o_y = sin(target-M_PI_2)*(DROPLET_RADIUS*25);
 	float s_x, s_y;
 	s_x = -cos(bearing-M_PI_2)*range;
 	s_y = -sin(bearing-M_PI_2)*range;
@@ -239,17 +239,17 @@ void calculateTarget(Atom* nearAtom, uint16_t range, float bearing, float headin
 	for(uint8_t i=0;i<8;i+=2){
 		if((nearAtom->valence[i]==1)&&(nearAtom->valence[i+1]==0)){
 			bondingRegions++;
-			}else{
+		}else{
 			if(nearAtom->valence[i]!=nearAtom->valence[i+1]) printf("ERROR: HORRIBLE ERRORS.\r\n");
 			if(nearAtom->bonded_atoms[i/2]==get_droplet_id()) myBondingRegion = i/2;
 			if(nearAtom->valence[i]==1){
 				bondingRegions++;
-				}else if(nearAtom->valence[i]==2){
+			}else if(nearAtom->valence[i]==2){
 				bondingRegions++;
-				}else if(nearAtom->valence[i]==3){
+			}else if(nearAtom->valence[i]==3){
 				bondingRegions++;
 				i+=2;
-				}else if(nearAtom->valence[i]==4){
+			}else if(nearAtom->valence[i]==4){
 				bondingRegions++;
 				i+=4;
 			}
@@ -310,7 +310,6 @@ void createStateMessage(State_Msg* msg, char flag)
 {
 	//printf_P(PSTR("create_state_msg \r\n"));
 	msg->atomicNum = myID.atomicNum;
-	global_blink_timer=0xFFFF;
 	uint8_t i;
 	for(i = 0; i < 15; i++) {
 		if(my_molecule[i]==0) break;
@@ -319,9 +318,9 @@ void createStateMessage(State_Msg* msg, char flag)
 		}
 	}
 	if(i==1){
-		global_blink_timer=0;
+		global_blink_timer=0xFFFF;
 		disable_sync_blink();
-		}else{
+	}else{
 		enable_sync_blink(global_blink_timer);
 	}
 	msg->blink_timer = global_blink_timer;
@@ -374,7 +373,7 @@ void formBond(uint16_t senderID, Atom* near_atom, char flag)
 
 void foundBondRoutine(char flag)
 {
-	set_rgb(0,255,255);
+	//set_rgb(0,255,255);
 	schedule_task(300, setAtomColor, (void*)&myID);
 }
 
@@ -673,20 +672,17 @@ void initAtomState()
 	myID.bondType = baseAtom->bondType;
 	myID.diatomic = baseAtom->diatomic;
 	myID.atomicNum = baseAtom->atomicNum;
-	for(uint8_t i=0;i<NUM_FIXED_DROPLETS;i++){
-		fixedRNBMeasurements[i].range=INFINITY;
-		fixedRNBMeasurements[i].bearing = 0;
-		fixedRNBMeasurements[i].time=0;
-	}
+	//for(uint8_t i=0;i<NUM_FIXED_DROPLETS;i++){
+		//fixedRNBMeasurements[i].range=INFINITY;
+		//fixedRNBMeasurements[i].bearing = 0;
+		//fixedRNBMeasurements[i].time=0;
+	//}
 	set_sync_blink_color(255,0,0);
-	uint8_t r, g, b;
-	getAtomColor(&myID, &r, &g, &b);
-	set_rgb(r,g,b);
-	set_sync_blink_default(r, g, b);
+	setAtomColor(&myID);
 	disable_sync_blink();
 	for(uint8_t i = 0; i < 15; i++) my_molecule[i] = 0;
 	bonded_atoms_delay = 0;
-	global_blink_timer = 0;
+	global_blink_timer = 0xFFFF;
 	sent_atom_delay = 0;
 	last_rnb = 0;
 	last_chem_ID_broadcast = 0;
@@ -990,9 +986,9 @@ void moveToTarget(uint16_t rng, float bearing)
 {
 	int16_t degree_bearing = (int16_t)rad_to_deg(bearing);
 	printf_P(PSTR("\tMoving to target. range = %u, bearing = %d\r\n"), rng, degree_bearing);
-	if (rng<(DROPLET_RADIUS*20))  {
+	if (rng<(DROPLET_RADIUS*25)){
 		//printf_P(PSTR("Range is too small. Not moving.\r\n"));
-		}else{
+	}else{
 		if (abs(degree_bearing)<=30)  {
 			//printf_P(PSTR("moving forward.\r\n"));
 			walk(0, rng);
@@ -1028,6 +1024,7 @@ void msgBondedAtoms(Atom* near_atom, uint16_t new_blink, uint16_t sender_ID)
 			break;
 		}
 	}
+	if(new_blink<global_blink_timer){ global_blink_timer = new_blink;}
 	if(monotomic) {
 		for(uint8_t j = 1; j < 15; j++)	my_molecule[j] = 0;
 		my_molecule_length=1;
@@ -1130,6 +1127,10 @@ void msgState(ir_msg* msg_struct)
 		int16_t dGo;
 		int16_t dGo_p;
 		int16_t dGo_m;
+		if(count<numAtomsRemovedFromMolecule){ //WARNING THING.
+			numAtomsRemovedFromMolecule=count;
+			printf("WARNING! Preventing infinite loop. Possibly breaking other things in the process.\r\n");
+		}
 		getOtherDeltaGs(moddedMoleculeNums, count-numAtomsRemovedFromMolecule, &dGo, &dGo_p, &dGo_m);
 		makePossibleBonds(&near_atom, flag, dGo, dGo_p, dGo_m, msg_struct->sender_ID);
 	}
@@ -1199,11 +1200,11 @@ void printMolecularReactions(uint8_t* otherMol) {
 			break;
 		}
 	}
-	for(uint8_t i = 0; i < 15; i++) {
+	for(uint8_t i = 1; i < 15; i++) {
 		char* otherAtom;
 		getNameFromAtomicNum(otherAtom, otherMol[i]);
-		if(!(otherAtom[0] == ' ' && otherAtom[1] == ' ') && otherMol[i+1] != 0) {
-			if(i == 0) printf_P(PSTR(" + "));
+		if(!(otherAtom[0] == ' ' && otherAtom[1] == ' ') && otherMol[i] != 0) {
+			if(i == 1) printf_P(PSTR(" + "));
 			printf_P(PSTR("%c"), otherAtom[0]);
 			if(otherAtom[1] != ' ')printf_P(PSTR("%c"), otherAtom[1]);
 		} else break;
@@ -1229,14 +1230,14 @@ void printMolecularReactions(uint8_t* otherMol) {
 		} else break;
 	}
 	printf_P(PSTR(" -> "));
-	for(uint8_t i = 0; i < 15; i++) {
+	for(uint8_t i = 1; i < 15; i++) {
 		char* myAtom;
 		getNameFromAtomicNum(myAtom, getAtomicNumFromID(my_molecule[i]));
-		if(!(myAtom[0] == ' ' && myAtom[1] == ' ') && my_molecule[i+1] != 0)  {
+		if(!(myAtom[0] == ' ' && myAtom[1] == ' ') && my_molecule[i] != 0)  {
 			found_atom = 1;
 			printf_P(PSTR("%c"), myAtom[0]);
 			if(myAtom[1] != ' ') printf_P(PSTR("%c"), myAtom[1]);
-			} else {
+		} else {
 			break;
 		}
 	}
@@ -1328,6 +1329,13 @@ void unpackValences(uint8_t* packed_shells, int8_t* shells)
 }
 
 void updateDeltaGs(Atom* near_atom, uint16_t sender) {
+	uint8_t i;
+	for(i=0;i<15;i++){
+		if(my_molecule[i]==0||my_molecule[i]==0xFFFF){
+			break;
+		}
+	}
+	my_molecule_length = i;
 	uint8_t mc_self[my_molecule_length];
 	uint8_t mc_self_p[my_molecule_length+1];
 	uint8_t mc_self_m[my_molecule_length-1];
@@ -1359,7 +1367,7 @@ void updateDeltaGs(Atom* near_atom, uint16_t sender) {
 	}
 	if(my_molecule_length==1){
 		deltaGself_m = 0;
-		}else if(!molecule_search(mc_self_m, &deltaGself_m, my_molecule_length-1))  {
+	}else if(!molecule_search(mc_self_m, &deltaGself_m, my_molecule_length-1))  {
 		printf_P(PSTR("\t\tdeltaGself_m not found.\r\n"));
 		deltaGself_m = 32767;
 	}
@@ -1482,18 +1490,23 @@ void init()
 {
 	printf_P(PSTR("INITIALIZING DROPLET. \r\n"));
 	switch(get_droplet_id()){
-		case 0x2B4E: MY_CHEM_ID = 6; break;
-		case 0xC24B: MY_CHEM_ID = 6; break;
-		case 0xC806: MY_CHEM_ID = 8; break;
-		case 0x0A0B: MY_CHEM_ID = 8; break;
-		case 0x1F08: MY_CHEM_ID = 7; break;
-		case 0x4177: MY_CHEM_ID = 8; break;
-		case 0xB944: MY_CHEM_ID = 8; break;
-		case 0x5161: MY_CHEM_ID = 8; break;
-		case 0x1B4B: MY_CHEM_ID = 6; break;
+		case 0x2B4E: MY_CHEM_ID = 2; break;
+		case 0x7d78: MY_CHEM_ID = 8; break;
+		case 0x73AF: MY_CHEM_ID = 6; break;
+		case 0x32A7: MY_CHEM_ID = 6; break;
+		case 0x12AD: MY_CHEM_ID = 8; break;
+		case 0x5F2D: MY_CHEM_ID = 8; break;
+		case 0x0120: MY_CHEM_ID = 7; break;
+		case 0xB944: MY_CHEM_ID = 6; break;
 		default:     MY_CHEM_ID = 1; break;
 	}
+	set_sync_blink_duration(200);
+	mySlot = (get_droplet_id()%(SLOTS_PER_FRAME-1));
+	
 	initAtomState();
+	frameCount=0;
+	frameStart=get_time();
+	lastLoop=1; //just needs to be not 0.
 }
 
 /*
@@ -1501,8 +1514,15 @@ void init()
  */
 void loop()
 {
-	delay_ms(LOOP_PERIOD);
-	uint32_t time_floor = ((get_time()/LOOP_PERIOD));
+	
+	uint32_t frameTime = get_time()-frameStart;
+	if(frameTime>FRAME_LENGTH_MS){
+		frameTime -= FRAME_LENGTH_MS;
+		frameStart = get_time()-frameTime;
+		frameCount++;
+	}
+	uint16_t loopID = (SLOTS_PER_FRAME*frameTime)/FRAME_LENGTH_MS;
+	//
 	if((get_time()-bondDelay) > 1000) {
 		bondDelay = 0;
 		potentialPartner = 0;	
@@ -1513,51 +1533,48 @@ void loop()
 	if((get_time()-bonded_atoms_delay) > 4000) {
 		bonded_atoms_delay = 0;
 	}
-	if((time_floor%(RNB_BROADCAST_PERIOD/LOOP_PERIOD))==0){
-		broadcast_rnb_data(); 
+	if(loopID!=lastLoop){
+		if(loopID==mySlot){
+			delay_ms(8+rand_byte()>>3);
+			broadcast_rnb_data(); 
+			delay_ms(8+rand_byte()>>3);
+			State_Msg message;
+			createStateMessage(&message, 'p');
+			ir_send(ALL_DIRS, (char*)(&message), sizeof(State_Msg));
+			//printf("message->bonded_atoms[0] is %x, message->atomicNum is %hu \r\n", message.bonded_atoms[0], message.atomicNum);
+			//if(rand_byte()%3==0)		ir_send(DIR0|DIR3, (char*)(&message), sizeof(State_Msg));
+			//else if(rand_byte()%2==0)	ir_send(DIR1|DIR4, (char*)(&message), sizeof(State_Msg));
+			//else						ir_send(DIR2|DIR5, (char*)(&message), sizeof(State_Msg));
+		}
+		lastLoop = loopID;
 	}
-	if(((time_floor+get_droplet_id())%(CHEM_ID_BROADCAST_PERIOD/LOOP_PERIOD))==0){
-		State_Msg message;	
-		createStateMessage(&message, 'p');
-		//printf("message->bonded_atoms[0] is %x, message->atomicNum is %hu \r\n", message.bonded_atoms[0], message.atomicNum);
-		if(rand_byte()%3==0)		ir_send(DIR0|DIR3, (char*)(&message), sizeof(State_Msg));
-		else if(rand_byte()%2==0)	ir_send(DIR1|DIR4, (char*)(&message), sizeof(State_Msg));
-		else						ir_send(DIR2|DIR5, (char*)(&message), sizeof(State_Msg));
-	}
-	if(((time_floor+get_droplet_id())%(MOLECULE_BROADCAST_PERIOD/LOOP_PERIOD))==0){
-		//transmit_molecule_struct(0, 'm');
-	}
-	if((global_blink_timer!=0)&&((time_floor%(BLINK_PERIOD/LOOP_PERIOD))==((global_blink_timer/50)%(BLINK_PERIOD/LOOP_PERIOD))))
-	{
-		set_rgb(255, 0, 0);
-		schedule_task(300, returnLightToDefault, NULL);
-	}
+	//if((global_blink_timer!=0)&&((time_floor%(BLINK_PERIOD/LOOP_PERIOD))==((global_blink_timer/50)%(BLINK_PERIOD/LOOP_PERIOD))))
+	//{
+		//set_rgb(255, 0, 0);
+		//schedule_task(300, returnLightToDefault, NULL);
+	//}
+	
+	
 	if(rnb_updated){
-		uint8_t idx = 255;//getFixedIndex(last_good_rnb.id_number);
-		if(idx!=255){
-			fixedRNBMeasurements[idx].range = 10.0*last_good_rnb.range;
-			fixedRNBMeasurements[idx].bearing = last_good_rnb.bearing;
-			fixedRNBMeasurements[idx].heading = last_good_rnb.heading;
-			fixedRNBMeasurements[idx].time = 0;
-			//printf("Got RNB from: %04X (%hu)\r\n", last_good_rnb.id_number, idx);			
-			//updatePositionEstimate();
-		}else{
+		if(last_good_rnb.conf > 0.5){
 			uint16_t id = last_good_rnb.id_number;
 			uint8_t i;
 			for(i=0;i<12;i++){
 				if(near_atoms[i].id==id) break;
 			}
 			if(i<12){
-				near_atoms[i].range = last_good_rnb.range;
+				near_atoms[i].range = (uint16_t)(10.0*last_good_rnb.range);
 				near_atoms[i].bearing = last_good_rnb.bearing;
 				near_atoms[i].heading = last_good_rnb.heading;
+				printf("New RNB Data from %04X:\t%u\t%f\t%f\t%f\r\n", id, near_atoms[i].range, rad_to_deg(near_atoms[i].bearing), rad_to_deg(near_atoms[i].heading), last_good_rnb.conf);
 				if(target_id==last_good_rnb.id_number){
-					//calculateTarget(&(near_atoms[i]), near_atoms[i].range, near_atoms[i].bearing, near_atoms[i].heading);  //Comment to disable movement
+					calculateTarget(&(near_atoms[i]), near_atoms[i].range, near_atoms[i].bearing, near_atoms[i].heading);  //Comment to disable movement
 				}
 			}
 		}
 		rnb_updated = 0;
 	}
+	delay_ms(LOOP_PERIOD);
 }
 
 /*
@@ -1569,16 +1586,16 @@ void handle_msg(ir_msg* msg_struct)
 {
 	printf("Got message from: %04X.\r\n", msg_struct->sender_ID);	
 	if(msg_struct->length==0)  printf("ERROR: Message length 0.\r\n");
-	if(msg_struct->wasTargeted){
-		for(uint8_t i=0;i<12;i++){
-			if(near_atoms[i].id==msg_struct->sender_ID){
-				near_atoms[i].range = msg_struct->range;
-				near_atoms[i].bearing = msg_struct->bearing;
-				near_atoms[i].heading = msg_struct->heading;
-				break;
-			}
-		}
-	}
+	//if(msg_struct->wasTargeted){
+		//for(uint8_t i=0;i<12;i++){
+			//if(near_atoms[i].id==msg_struct->sender_ID){
+				//near_atoms[i].range = msg_struct->range;
+				//near_atoms[i].bearing = msg_struct->bearing;
+				//near_atoms[i].heading = msg_struct->heading;
+				//break;
+			//}
+		//}
+	//}
 	
 	//Message is the state of another atom
 	if(msg_struct->length == sizeof(State_Msg))  {

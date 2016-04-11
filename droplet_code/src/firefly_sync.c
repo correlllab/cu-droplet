@@ -23,11 +23,16 @@ void enable_sync_blink(uint16_t phase_offset){
 	TCE0.INTCTRLB = TC_CCAINTLVL_HI_gc | TC_CCBINTLVL_HI_gc;
 }
 
+uint8_t sync_blink_enabled(){
+	return (TCE0.INTCTRLB & (TC_CCAINTLVL_HI_gc | TC_CCBINTLVL_HI_gc)) == (TC_CCAINTLVL_HI_gc | TC_CCBINTLVL_HI_gc);
+}
+
 void disable_sync_blink(){
 	TCE0.INTCTRLB = TC_CCAINTLVL_OFF_gc | TC_CCBINTLVL_OFF_gc;
 	TCE0.CCA = 0;
 	TCE0.CCB = 0;
 }
+
 
 ISR(TCE0_CCA_vect){
 	ffsync_blink_prev_r = get_red_led();

@@ -41,6 +41,7 @@ uint16_t ffsync_blink_phase_offset_ms;
 void set_sync_blink_color(uint8_t r, uint8_t g, uint8_t b);
 void set_sync_blink_duration(uint16_t dur);
 void enable_sync_blink(uint16_t phase_offset_ms);
+uint8_t sync_blink_enabled();
 void disable_sync_blink();
 void processObsQueue();
 void updateRTC();

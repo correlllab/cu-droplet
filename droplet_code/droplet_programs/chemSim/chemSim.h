@@ -9,7 +9,7 @@
 //#define DETECT_OTHER_DROPLETS_PERIOD 1000
 //#define UPDATE_ATOMS_PERIOD 100
 #define SLOT_LENGTH_MS			419
-#define SLOTS_PER_FRAME			12 //116
+#define SLOTS_PER_FRAME			29 //116
 #define FRAME_LENGTH_MS			(SLOT_LENGTH_MS*SLOTS_PER_FRAME)
 #define LOOP_PERIOD 17
 //#define MOLECULE_BROADCAST_PERIOD 4150
@@ -48,17 +48,17 @@ typedef struct
 	uint8_t bonded;
 }Near_Atom;
 
-typedef struct 
-{
-	uint16_t bonded_atoms[6];
-	uint16_t blink_timer;
-}Bonded_Atoms_Msg;
+//typedef struct 
+//{
+	//uint16_t bonded_atoms[6];
+	//uint16_t blink_timer;
+//}Bonded_Atoms_Msg;
 
-typedef struct  
-{
-	char flag_array[9];
-	int8_t orbitals[6]; //-1 for empty orbital, 0 for orbital that the recipient doesn't occupy, 1 for an orbital it does occupy.
-}Bond_Made_Msg;
+//typedef struct  
+//{
+	//char flag_array[9];
+	//int8_t orbitals[6]; //-1 for empty orbital, 0 for orbital that the recipient doesn't occupy, 1 for an orbital it does occupy.
+//}Bond_Made_Msg;
 
 //typedef struct{
 	//int16_t x;
@@ -139,7 +139,7 @@ void initAtomState();
 void initBondedAtoms(Atom atom);
 void makePossibleBonds(Atom* near_atom_ptr, char flag, int16_t deltaGother, int16_t deltaGother_p, int16_t deltaGother_m, uint16_t senderID);
 void modifyValencesIonic(char* newValence, Atom* near_atom_ptr, uint16_t senderID);
-void modifyValencesCovalent(char* newValence, Atom* near_atom_ptr, uint16_t senderID);
+uint8_t modifyValencesCovalent(char* newValence, Atom* near_atom_ptr, uint16_t senderID);
 void moveToTarget(uint16_t rng, float bearing);
 void msgBondedAtoms(Atom* near_atom, uint16_t new_blink, uint16_t sender_ID);
 void msgPossibleBond(ir_msg* msg_struct);

@@ -4,9 +4,9 @@
 
 #define BALL_MSG_FLAG			'B'
 #define NEIGHB_MSG_FLAG			'N'
-#define SLOT_LENGTH_MS			631
-#define SLOTS_PER_FRAME			12 //116
-#define FRAME_LENGTH_MS			(SLOT_LENGTH_MS*SLOTS_PER_FRAME)
+#define SLOT_LENGTH_MS			313
+#define SLOTS_PER_FRAME			30 //121
+#define FRAME_LENGTH_MS			(((uint32_t)SLOT_LENGTH_MS)*((uint32_t)SLOTS_PER_FRAME))
 #define LOOP_DELAY_MS			17
 #define NUM_TRACKED_BOTS		12
 #define NUM_POSSIBLE_BOTS		12
@@ -69,9 +69,6 @@ typedef struct bot_pos_struct
 	float r;
 	float b;
 	float h;
-	float rV;
-	float bV;
-	float hV;
 } BotPos;
 
 typedef struct other_bot_rnb_struct{
@@ -168,22 +165,6 @@ static uint8_t inline getOppDir(uint8_t dir){
 }
 
 uint16_t reciprocationTracker[NEIGHBORHOOD_SIZE];
-
-static void inline getVarsFromConf(float conf, float* rVar, float* bVar, float* hVar){
-	*rVar = 43.41/conf;
-	*bVar = 12.17/conf;
-	*hVar = 12.17/conf;
-}
-
-static float getConfFromVars(float rVar, float bVar, float hVar){
-	float rConf, bConf, hConf;
-	rConf =  43.41/rVar;
-	bConf =  12.17/bVar;
-	hConf =  12.17/hVar;
-	float newConf = (rConf + bConf + hConf)/3.0;
-	if(newConf>600) newConf=600.; //189
-	return newConf;
-}
 
 static int nearBotsCmpFunc(const void* a, const void* b){
 	OtherBot* aN = (OtherBot*)a;

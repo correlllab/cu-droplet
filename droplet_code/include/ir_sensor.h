@@ -28,7 +28,10 @@ int16_t meas_find_median(int16_t* meas, uint8_t arr_len); // Helper function for
 void initialize_ir_baselines();
 void update_ir_baselines();
 
-#ifndef AUDIO_DROPLET
+#ifdef AUDIO_DROPLET
+	inline void ir_sensor_enable(){ ADCA.CTRLA |= ADC_ENABLE_bm; ADCB.CTRLA |= ADC_ENABLE_bm; }
+	inline void ir_sensor_disable(){ ADCA.CTRLA &= ~ADC_ENABLE_bm; ADCB.CTRLA &= ~ADC_ENABLE_bm; }
+#else
 	#define IR_SENSOR_PORT PORTB
 
 	#define IR_MEAS_COUNT 5
@@ -51,12 +54,6 @@ void update_ir_baselines();
 
 	inline void ir_sensor_enable(){ ADCB.CTRLA |= ADC_ENABLE_bm; }
 	inline void ir_sensor_disable(){ ADCB.CTRLA &= ~ADC_ENABLE_bm; }
-
-#else
-
-	inline void ir_sensor_enable(){ ADCA.CTRLA |= ADC_ENABLE_bm; ADCB.CTRLA |= ADC_ENABLE_bm; }
-	inline void ir_sensor_disable(){ ADCA.CTRLA &= ~ADC_ENABLE_bm; ADCB.CTRLA &= ~ADC_ENABLE_bm; }		
-
 #endif
 
 #pragma once

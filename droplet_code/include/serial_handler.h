@@ -13,8 +13,6 @@
 
 static const char CMD_NOT_RECOGNIZED_STR[] PROGMEM = "\tCommand ( %s ) not recognized.\r\n";
 
-uint32_t last_serial_command_time;
-
 void handle_serial_command(char* command, uint16_t command_length);
 void handle_check_collisions();
 void handle_move_steps(char* command_args);
@@ -26,10 +24,6 @@ void handle_set_motors(char* command_args);
 void handle_adjust_motors(char* command_args);
 void handle_set_mm_per_kilostep(char* command_args);
 void handle_rnb_broadcast();
-void handle_rnb_collect(char* command_args);
-void collect_rnb_data_wrapper(void* arg);
-void handle_rnb_transmit(char* command_args);
-void handle_rnb_receive();
 void handle_set_led(char* command_args);
 void handle_broadcast_id();
 void handle_get_id();

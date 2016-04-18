@@ -63,6 +63,13 @@ void ir_sensor_init()
 	#else
 		/* SET INPUT PINS AS INPUTS */
 		IR_SENSOR_PORT.DIRCLR = ALL_IR_SENSOR_PINS_bm;
+		
+		PORTB.PIN5CTRL = PORT_ISC_INPUT_DISABLE_gc;
+		PORTB.PIN6CTRL = PORT_ISC_INPUT_DISABLE_gc;
+		PORTB.PIN7CTRL = PORT_ISC_INPUT_DISABLE_gc;
+		PORTB.PIN4CTRL = PORT_ISC_INPUT_DISABLE_gc;
+		PORTB.PIN2CTRL = PORT_ISC_INPUT_DISABLE_gc;
+		PORTB.PIN3CTRL = PORT_ISC_INPUT_DISABLE_gc;
 
 		ADCB.REFCTRL = ADC_REFSEL_AREFA_gc;
 		ADCB.CTRLB = ADC_RESOLUTION_12BIT_gc | ADC_CONMODE_bm; //12bit resolution, and sets it to signed mode.
@@ -78,7 +85,7 @@ void ir_sensor_init()
 	
 	for(uint8_t dir=0; dir<6; dir++){
 		min_collision_vals[dir] = 32767;
-	}	
+	}
 	for(uint8_t dir=0;dir<6;dir++){
 		ir_sense_baseline[dir]=0;
 	}
@@ -95,8 +102,7 @@ void initialize_ir_baselines(){
 	printf("\r\n");	
 }
 
-void update_ir_baselines()
-{
+void update_ir_baselines(){
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 		if(hp_ir_block_bm){
 			return;
@@ -115,14 +121,12 @@ void update_ir_baselines()
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 		hp_ir_block_bm = 0;
 	}
-	
+	//
 	//printf("Baselines:");
 	//for(uint8_t dir=0;dir<6;dir++){
-		////ir_sense_baseline[dir] = meas_find_median(meas[dir], 16);
 		//printf(" %4d", ir_sense_baseline[dir]);
 	//}
 	//printf("\r\n");
-
 }
 
 void get_ir_sensors(int16_t* output_arr, uint8_t meas_per_ch)

@@ -5,7 +5,7 @@
 #define BALL_MSG_FLAG			'B'
 #define NEIGHB_MSG_FLAG			'N'
 #define SLOT_LENGTH_MS			313
-#define SLOTS_PER_FRAME			30 //121
+#define SLOTS_PER_FRAME			121
 #define FRAME_LENGTH_MS			(((uint32_t)SLOT_LENGTH_MS)*((uint32_t)SLOTS_PER_FRAME))
 #define LOOP_DELAY_MS			17
 #define NUM_TRACKED_BOTS		12
@@ -28,12 +28,12 @@ typedef enum{
 
 #define NUM_SEEDS				4	
 #define MIN_DIM					0
-#define X_MAX_DIM				480
-#define Y_MAX_DIM				520
+#define X_MAX_DIM				240 //480
+#define Y_MAX_DIM				208 //520
 //The below array is only used for robots to determine if they are a seed.
 //Other robots will accept any ID as a seed if they receive a hop message.
 //That way, only seeds need reprogramming.
-const uint16_t SEED_IDS[NUM_SEEDS] = {0x086b, 0x1562, 0x7066, 0x8521};
+const uint16_t SEED_IDS[NUM_SEEDS] = {0x0029, 0x4ed3, 0xbd2d, 0xccd1};
 const int16_t  SEED_X[NUM_SEEDS]   = {MIN_DIM, MIN_DIM, X_MAX_DIM, X_MAX_DIM};
 const int16_t  SEED_Y[NUM_SEEDS]   = {MIN_DIM, Y_MAX_DIM, MIN_DIM, Y_MAX_DIM};
 
@@ -49,7 +49,7 @@ const int16_t  SEED_Y[NUM_SEEDS]   = {MIN_DIM, Y_MAX_DIM, MIN_DIM, Y_MAX_DIM};
 const float neighbPos[NEIGHBORHOOD_SIZE][2] =  {{ X_OFFSET,   Y_OFFSET}, { X2_OFFSET,  0.0},
 												{ X_OFFSET,  -Y_OFFSET}, {-X_OFFSET,  -Y_OFFSET},
 												{-X2_OFFSET,  0.0},		 {-X_OFFSET,   Y_OFFSET}};
-	
+													
 typedef struct ball_msg_struct{
 	char flag;
 	uint16_t id;
@@ -103,6 +103,7 @@ typedef struct neighbs_list_struct{
 	uint16_t neighbs[NEIGHBORHOOD_SIZE];
 } NeighbsList;
 NeighbsList neighbsList[NEIGHBORHOOD_SIZE];
+NeighbsList potNeighbsList[NEIGHBORHOOD_SIZE];
 
 uint32_t time_before;
 
@@ -121,8 +122,7 @@ uint8_t outwardDir;
 uint16_t outwardDirID;
 float myX, myY;
 
-uint8_t failureCounts[NEIGHBORHOOD_SIZE];
-uint8_t successCounts[NEIGHBORHOOD_SIZE];
+int16_t consistency[NEIGHBORHOOD_SIZE];
 
 void		init();
 void		loop();
@@ -133,9 +133,9 @@ void		sendBallMsg();
 void		handle_msg			(ir_msg* msg_struct);
 
 void printNeighbsList();
-void processNeighborData();
-void printNeighborCountResults();
-void cleanupNeighbsList();
+int16_t checkNeighborChange(uint8_t dir, NeighbsList* neighb);
+int16_t processNeighborData(uint8_t update);
+void updateNeighbsList();
 
 void calculateDistsFromNeighborPos(float dists[NEIGHBORHOOD_SIZE][NUM_TRACKED_BOTS]);
 float calculateFactor(float dist, float conf, uint8_t dir, uint16_t id, float* dfP, float* nfP);
@@ -163,8 +163,6 @@ void cleanOtherBot(OtherBot* other);
 static uint8_t inline getOppDir(uint8_t dir){
 	return (dir+(NEIGHBORHOOD_SIZE/2))%NEIGHBORHOOD_SIZE;	
 }
-
-uint16_t reciprocationTracker[NEIGHBORHOOD_SIZE];
 
 static int nearBotsCmpFunc(const void* a, const void* b){
 	OtherBot* aN = (OtherBot*)a;

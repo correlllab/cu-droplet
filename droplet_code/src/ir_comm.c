@@ -395,7 +395,7 @@ void received_ir_cmd(uint8_t dir){
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 		if(!processing_cmd){
 			processThisCommand = 1;
-			memcpy((void *)cmd_buffer, (char*)ir_rxtx[dir].buf, ir_rxtx[dir].data_length);
+			memcpy((void*)cmd_buffer, (char*)ir_rxtx[dir].buf, ir_rxtx[dir].data_length);
 			cmd_buffer[ir_rxtx[dir].data_length]='\0';
 			cmd_length = ir_rxtx[dir].data_length;
 			cmd_arrival_time = ir_rxtx[dir].last_byte;	//This is a 'global' value, referenced by other *.c files.

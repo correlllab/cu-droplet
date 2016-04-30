@@ -198,7 +198,7 @@ void broadcast_rnb_data(){
 //}
 
 void use_rnb_data(){
-	uint32_t start = get_time();
+	//uint32_t start = get_time();
 	uint8_t power = 255;
 	int16_t matrixSum = processBrightMeas();
 	float bearing, heading;
@@ -211,7 +211,6 @@ void use_rnb_data(){
 		if(!isnanf(range)){
 			if(range<2*DROPLET_RADIUS) range=5.0;
 			float fdR, fdB, fdH;
-			float newR, newB, newH;
 			float conf = sqrtf(matrixSum);
 			
 			fdB = bearing;
@@ -228,9 +227,10 @@ void use_rnb_data(){
 			//print_brightMeas();
 			error = calculate_innovation(range, bearing, heading);
 			//printf("(RNB) ID: %04X \r\n\tBefore: % 5.1f, % 6.1f, % 6.1f\r\n", rnbCmdID, fdR, rad_to_deg(fdB), rad_to_deg(fdH));
-			uint8_t i;			
-			start = get_time();
-			uint8_t earlyAbort;
+			//uint8_t i;			
+			//start = get_time();
+			//uint8_t earlyAbort;
+			//float newR, newB, newH;
 			//for(i=0;i<15;i++){
 				//earlyAbort = finiteDifferenceStep(fdR, fdB, fdH, &newR, &newB, &newH);
 				////printf("\t\t% 5.1f, % 6.1f, % 6.1f  |  %6.4f, %6.4f\r\n", fdR, rad_to_deg(fdB), rad_to_deg(fdH), bStep.f, hStep.f);			

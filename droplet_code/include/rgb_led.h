@@ -20,7 +20,7 @@ inline void set_green_led(uint8_t saturation) { TCE1.CCABUF = saturation; }
 // Get and set intensity for blue LED
 inline uint8_t get_blue_led() { return TCD1.CCABUF; }
 inline void set_blue_led(uint8_t saturation) { TCD1.CCABUF = saturation;	}
-	
+
 
 void led_off();
 void set_rgb(uint8_t r, uint8_t g, uint8_t b);

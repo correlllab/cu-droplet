@@ -1,0 +1,106 @@
+/*
+ * chem_sim.h
+ *
+ * Created: 5/10/2016 
+ *  Author: Audrey Randall
+ */ 
+
+
+#ifndef CHEM_SIM_H_
+#define CHEM_SIM_H_
+
+#define MAX_BONDS 4
+#define STATE_1 1
+#define STATE_2 2
+#define STATE_3 3
+#define MAX_NEAR_ATOMS 12
+#define SLOT_LENGTH_MS			419
+#define SLOTS_PER_FRAME			29 //116
+#define FRAME_LENGTH_MS			(SLOT_LENGTH_MS*SLOTS_PER_FRAME)
+#define LOOP_PERIOD 17
+#define BOND_TYPE_COV 2
+#define BOND_TYPE_ION 1
+#define NUM_ELEMENTS 13
+
+#include "droplet_init.h"
+
+typedef struct
+{
+	int8_t valence[8]; //cut down data to 3 bits each? -1 for no slot (H and He), 0 for empty, 1 for free electron, 2 for single bond, 3 for double bond, 4 for triple bond
+	uint16_t bonded_atoms[MAX_BONDS];
+	float chi; //this number represents Mulliken-Jaffe electronegativity on a Pauling scale: X = 3.48[(IEv + EAv)/2 - 0.602], where EAv = electron affinity and IEv = first ionization energy
+	char name[2];
+	uint8_t atomicNum;
+}Atom;
+
+typedef struct
+{
+	Atom atom;
+	float bearing;
+	float heading;
+	uint16_t id;
+	uint16_t range; 
+	uint8_t last_msg_t; //time that this atom last sent a message to me
+}Near_Atom;
+
+typedef struct
+{
+	uint16_t bonded_atoms[4];
+	uint16_t blink_timer; //only if in molecule
+	uint8_t molecule_nums[15];
+	uint8_t atomicNum;
+	uint8_t valence[3];
+	char msgFlag;
+}State_Msg;
+
+/*My atomic number */
+uint8_t MY_CHEM_ID;
+
+/*Status of the electrons in my valence shell: electrons are paired to simulate orbitals. Numbers represent the status of each individual electron.
+	-1: no orbital exists here. Should always be paired with another -1.
+	0: no electron here, but orbital exists
+	1: free electron
+	2: electron in single bond
+	3: electron in double bond
+	4: electron in triple bond
+*/
+uint8_t valence[8];
+
+/*Information about nearby robots*/
+Near_Atom nearAtoms[MAX_NEAR_ATOMS];
+Near_Atom NULL_NEAR_ATOM = {{{0,0,0,0,0,0,0,0},{0,0,0,0},0,{' ',' '},0}, 0, 0, 0, 0};
+Atom NULL_ATOM = {{0,0,0,0,0,0,0,0},{0,0,0,0},0,{'0','0'},0};
+volatile uint16_t globalBlinkTimer;
+	
+/*My atom struct */
+Atom myID;
+
+uint32_t	frameCount;
+uint32_t	frameStart;
+uint16_t	lastLoop;
+uint16_t	mySlot;
+
+uint8_t attemptToBond(Atom* other, int bondType, uint16_t other_ID);
+uint8_t breakBond(Atom* other, uint16_t senderID, uint8_t bondType);
+uint8_t chiCheck(Atom* other);
+void createStateMessage(State_Msg* msg, char flag);
+void getAtomColor(Atom* ID, uint8_t* r, uint8_t* g, uint8_t* b);
+Atom* getAtomFromAtomicNum(uint8_t atomicNum);
+float getChiFromAtomicNum(uint8_t atomicNum);
+uint8_t isInMyMolecule(Atom* other);
+void initAtomState();
+void initBondedAtoms(Atom atom);
+void msgState(ir_msg* msg_struct);
+uint8_t otherBondedToSelf(Atom* other);
+void packValences(uint8_t* packed_shells, int8_t* shells);
+void printMyValence();
+void printMyBondedAtoms();
+uint8_t selfBondedToOther(uint16_t other_ID);
+void setAtomColor(Atom* ID);
+void unpackValences(uint8_t* packed_shells, int8_t* shells);
+
+void init();
+void loop();
+void handle_msg(ir_msg* msg_struct);
+
+#endif /* CHEM_SIM_H_ */

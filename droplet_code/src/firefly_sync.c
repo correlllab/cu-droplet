@@ -48,9 +48,9 @@ ISR(TCE0_CCB_vect){
 void firefly_sync_init()
 {
 	ffsync_blink_r = 255;
-	ffsync_blink_g = 255;
-	ffsync_blink_b = 255;
-	ffsync_blink_dur = 200;
+	ffsync_blink_g = 0;
+	ffsync_blink_b = 0;
+	ffsync_blink_dur = 500;
 	
 	ffsync_blink_phase_offset_ms = 0;
 

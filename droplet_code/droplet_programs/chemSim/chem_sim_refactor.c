@@ -27,6 +27,73 @@ Atom PeriodicTable[NUM_ELEMENTS]=
 	{{1, 1, 1, 1, 1, 1, 1, 0}, {0,0,0,0}, 2.74, "I", 53}
 };
 
+uint8_t addToNearAtoms(Near_Atom* near_atom)
+{
+	uint8_t isSpace = 0;
+	for(uint8_t i = 0; i < MAX_NEAR_ATOMS; i++)  {
+		if(near_atoms[i].id == 0)  {
+			near_atoms[i].atom->atomicNum = near_atom->atom.atomicNum; 
+			for(uint8_t j = 0; j < MAX_BONDS; j++) near_atoms[i].atom->bonded_atoms[j] = near_atom->atom.bonded_atoms[j];
+			near_atoms[i].atom->chi = near_atom->atom.chi;
+			near_atoms[i].atom->name[0] = near_atom->atom->name[0];
+			near_atoms[i].atom->name[1] = near_atom->atom->name[1];
+			for(uint8_t j = 0; j < 8; j++) near_atoms[i].atom->valence[j]= near_atom->atom->valence[j];
+			near_atoms[i].bearing = near_atom->bearing;
+			near_atoms[i].heading = near_atom->heading;
+			near_atoms[i].range = near_atom->range;
+			near_atoms[i].id = near_atom->id;
+			isSpace = 1;
+			return i;
+		}
+	}
+	if (isSpace == 0)  {
+		printf_P(PSTR("ERROR: No space to add another Droplet \r\n"));
+		return 0;
+	}
+}
+
+uint8_t updateNearAtoms(Atom* near_atom, ir_msg* msg_struct)
+{
+	uint8_t index = 0;
+	//If this droplet isn't in our list, add it. If it is, update it.
+	uint16_t sender_ID = msg_struct->sender_ID;
+	uint8_t found;
+	found = 0;
+	uint8_t i;
+	for(i = 0; i < MAX_NEAR_ATOMS; i++) {
+		if(near_atoms[i].id == sender_ID) {
+			near_atoms[i].last_msg_t = 0;
+			found = 1;
+			index = i;
+			break;
+		}
+	}
+	if (found == 0) { //add new droplet to near_atoms
+		uint16_t range = 0xFFFF;
+		//if(msg_struct->range==0xFF) range = 150;
+		//else if(msg_struct->range==0x01) range = 50;
+		//else if(msg_struct->range==0)	range = 25;
+		/*
+		 * Changing this so we initialize with NAN. I don't trust the on-message rnb.
+		 */
+		Near_Atom close_atom = {*near_atom, sender_ID, range, NAN, NAN, 0, get_time()};
+		return addToNearAtoms(&close_atom);
+	}
+	else if(found == 1) {
+		//if(bondDelay == 0 || potentialPartner == sender_ID) why was this here?
+		for(uint8_t j = 0; j < MAX_BONDS; j++) near_atoms[i].atom.bonded_atoms[j] = near_atom->bonded_atoms[j];
+		for(uint8_t j = 0; j < 8; j++) near_atoms[i].atom.valence[j] = near_atom->valence[j];
+		near_atoms[i].atom.atomicNum = near_atom->atomicNum;
+		near_atoms[i].atom.name[0] = near_atom->name[0];
+		near_atoms[i].atom.name[1] = near_atom->name[1];
+		near_atoms[i].atom.chi = near_atom->chi;
+		return index;
+	}
+	else {
+		return 0;
+	}
+}
+
 void getAtomColor(Atom* ID, uint8_t* r, uint8_t* g, uint8_t* b)
 {
 	uint8_t atomicNum = ID->atomicNum;
@@ -145,6 +212,25 @@ Atom* getAtomFromAtomicNum(uint8_t atomicNum)
 	}
 }
 
+uint8_t get_atomic_ord(uint8_t num){
+	switch(num){
+		case 1: return 0;
+		case 2: return 1;
+		case 3: return 2;
+		case 4: return 3;
+		case 6: return 4;
+		case 7: return 5;
+		case 8: return 6;
+		case 9: return 7;
+		case 11: return 8;
+		case 12: return 9;
+		case 17: return 10;
+		case 35: return 11;
+		case 53: return 12;
+	}
+	return 0xFF;
+}
+
 void setAtomColor(Atom* ID)
 {
 	uint8_t r,g,b;
@@ -185,8 +271,71 @@ void unpackValences(uint8_t* packed_shells, int8_t* shells)
 	shells[i]--;
 }
 
+void packMolecule(uint8_t packed_mc[21], MC_Component* mc) {
+	uint8_t ords[15];
+	uint8_t atomicOrds[15];
+	for(uint8_t i = 0; i < 15; i++) ords[i] = get_droplet_ord(mc[i].ID); //105 bits
+	for(uint8_t i = 0; i < 15; i++) atomicOrds[i] = get_atomic_ord(mc[i].atomicNum); //60 bits
+	packed_mc[0] = (ords[0]<<1)|(ords[1]>>6);
+	packed_mc[1] = (ords[1]<<2)|(ords[2]>>5);
+	packed_mc[2] = (ords[2]<<3)|(ords[3]>>4);
+	packed_mc[3] = (ords[3]<<4)|(ords[4]>>3);
+	packed_mc[4] = (ords[4]<<5)|(ords[5]>>2);
+	packed_mc[5] = (ords[5]<<6)|(ords[6]>>1);
+	packed_mc[6] = (ords[6]<<7)|(ords[7]);
+
+	packed_mc[7] = (ords[8]<<1)|(ords[9]>>6);
+	packed_mc[8] = (ords[9]<<2)|(ords[10]>>5);
+	packed_mc[9] = (ords[10]<<3)|(ords[11]>>4);
+	packed_mc[10] = (ords[11]<<4)|(ords[12]>>3);
+	packed_mc[11] = (ords[12]<<5)|(ords[13]>>2);
+	packed_mc[12] = (ords[13]<<6)|(ords[14]>>1);
+	packed_mc[13] = (ords[14]<<7)|((atomicOrds[0])<<3)|(atomicOrds[1]>>1);
+	packed_mc[14] = (atomicOrds[1]<<7)|(atomicOrds[2]<<3)|(atomicOrds[3]>>1);
+	packed_mc[15] = (atomicOrds[3]<<7)|(atomicOrds[4]<<3)|(atomicOrds[5]>>1);
+	packed_mc[16] = (atomicOrds[5]<<7)|(atomicOrds[6]<<3)|(atomicOrds[7]>>1);
+	packed_mc[17] = (atomicOrds[7]<<7)|(atomicOrds[8]<<3)|(atomicOrds[9]>>1);
+	packed_mc[18] = (atomicOrds[9]<<7)|(atomicOrds[10]<<3)|(atomicOrds[11]>>1);
+	packed_mc[19] = (atomicOrds[11]<<7)|(atomicOrds[12]<<3)|(atomicOrds[13]>>1);
+	packed_mc[20] = (atomicOrds[13]<<7)|(atomicOrds[14]<<3);
+}
+
+void unpackMolecule(uint8_t packed_mc[21], MC_Component* mc) {
+	mc[0]->ID = (packed_mc[0]>>1)&0x7F;
+	mc[1]->ID = ((packed_mc[0]&0x1)<<6)|((packed_mc[1]>>2)&0x3F);
+	mc[2]->ID = ((packed_mc[1]&0x3)<<5)|((packed_mc[2]>>3)&0x1F);
+	mc[3]->ID = ((packed_mc[2]&0x7)<<4)|((packed_mc[3]>>4)&0xF);
+	mc[4]->ID = ((packed_mc[3]&0xF)<<3)|((packed_mc[4]>>5)&0x7);
+	mc[5]->ID = ((packed_mc[4]&0x1F)<<2)|((packed_mc[5]>>6)&0x3);
+	mc[6]->ID = ((packed_mc[5]&0x3F)<<1)|((packed_mc[6]>>7)&0x1);
+	mc[7]->ID = packed_mc[6]&0x7F;
+	mc[8]->ID = (packed_mc[7]>>1)&0x7F;
+	mc[9]->ID = ((packed_mc[7]&0x1)<<6)|((packed_mc[8]>>2)&0x3F);//
+	mc[10]->ID = ((packed_mc[8]&0x3)<<5)|((packed_mc[9]>>3)&0x1F);
+	mc[11]->ID = ((packed_mc[9]&0x7)<<4)|((packed_mc[10]>>4)&0xF);
+	mc[12]->ID = ((packed_mc[10]&0xF)<<3)|((packed_mc[11]>>5)&0x7);
+	mc[13]->ID = ((packed_mc[11]&0x1F)<<2)|((packed_mc[12]>>6)&0x3);
+	mc[14]->ID = ((packed_mc[12]&0x3F)<<1)|((packed_mc[13]>>7)&0x1);
+	mc[0]->atomicNum = (packed_mc[13]>>3)&0xF;
+	mc[1]->atomicNum = ((packed_mc[13]<<1)|(packed_mc[14]>>7))&0xF;
+	mc[2]->atomicNum = (packed_mc[14]>>3)&0xF;
+	mc[3]->atomicNum = ((packed_mc[14]<<1)|(packed_mc[15]>>7))&0xF;
+	mc[4]->atomicNum = (packed_mc[15]>>3)&0xF;
+	mc[5]->atomicNum = ((packed_mc[15]<<1)|(packed_mc[16]>>7))&0xF;
+	mc[6]->atomicNum = (packed_mc[16]>>3)&0xF;
+	mc[7]->atomicNum = ((packed_mc[16]<<1)|(packed_mc[17]>>7))&0xF;
+	mc[8]->atomicNum = (packed_mc[17]>>3)&0xF;
+	mc[9]->atomicNum = ((packed_mc[17]<<1)|(packed_mc[18]>>7))&0xF;
+	mc[10]->atomicNum = (packed_mc[18]>>3)&0xF;
+	mc[11]->atomicNum = ((packed_mc[18]<<1)|(packed_mc[19]>>7))&0xF;
+	mc[12]->atomicNum = (packed_mc[19]>>3)&0xF;
+	mc[13]->atomicNum = ((packed_mc[19]<<1)|(packed_mc[20]>>7))&0xF;
+	mc[14]->atomicNum = (packed_mc[20]>>3)&0xF;
+}
+
 void initAtomState() {
-	for(uint8_t i = 0; i < MAX_NEAR_ATOMS; i++)  { nearAtoms[i] = NULL_NEAR_ATOM; }
+	for(uint8_t i = 0; i < MAX_NEAR_ATOMS; i++)  { near_atoms[i] = NULL_NEAR_ATOM; }
+	for(uint8_t i = 0; i < MAX_ATOMS_IN_MC; i++) {  my_molecule[i] = 0;  }
 	
 	Atom* baseAtom = getAtomFromAtomicNum(MY_CHEM_ID);
 	for(uint8_t i=0;i<8;i++)  {  myID.valence[i] = baseAtom->valence[i];  }
@@ -218,23 +367,10 @@ void createStateMessage(State_Msg* msg, char flag)
 		enable_sync_blink(globalBlinkTimer);
 	}
 	msg->blink_timer = globalBlinkTimer;
-	/*uint8_t i;
-	for(i = 0; i < 15; i++) {
-		if(my_molecule[i]==0) break;
-		if(my_molecule[i] < globalBlinkTimer) {
-			globalBlinkTimer = my_molecule[i];
-		}
-	}
-	if(i==1){
-		disable_sync_blink();
-		}else{
-		enable_sync_blink(global_blink_timer);
-	}
-	msg->blink_timer = global_blink_timer;
-	*/
 	for(uint8_t i = 0; i < MAX_BONDS; i++) {  msg->bonded_atoms[i] = myID.bonded_atoms[i]; }
 	packValences(msg->valence, myID.valence);
 	msg->msgFlag = flag;
+	packMolecule(msg->molecule, my_molecule);
 }
 
 /* Checks if self is currently bonded to other */
@@ -403,23 +539,22 @@ uint8_t breakBond(Atom* other, uint16_t senderID, uint8_t bondType) {
 }
 
 void msgState(ir_msg* msg_struct) {
+	get_droplet_ord(0xFFFF);
 	State_Msg state;
 	state = *((State_Msg*)(msg_struct->msg));
 	Atom near_atom;
 	near_atom.atomicNum = state.atomicNum;
 	unpackValences(state.valence, near_atom.valence);
-	for(uint8_t i = 0; i < 4; i++) near_atom.bonded_atoms[i] = state.bonded_atoms[i];
+	for(uint8_t i = 0; i < 4; i++) near_atom.bonded_atoms[i] = state.bonded_atoms[i]; //get_droplet_id_from_ordinal
 	Atom* base_atom = getAtomFromAtomicNum(near_atom.atomicNum);
 	near_atom.name[0] = base_atom->name[0];
 	near_atom.name[1] = base_atom->name[1];
 	near_atom.chi = base_atom->chi;
+	updateNearAtoms(&near_atom, msg_struct);
 	//setAtomColor(&near_atom);
 	//delay_ms(500);
 	//setAtomColor(&myID);
 	uint8_t bondType = chiCheck(&near_atom);
-	if(!bondType) {
-		printf_P(PSTR("ERROR: unspecified and currently unimplemented error check got caught. \r\n"));
-	}
 	printf("Beginning bond check \r\n");
 	if(!selfBondedToOther(msg_struct->sender_ID)) {
 		printf("\tI'm not bonded to sender %X \r\n", msg_struct->sender_ID);
@@ -492,6 +627,26 @@ void loop()  {
 		}
 		setAtomColor(&myID);
 		lastLoop = loopID;
+	}
+
+	if(rnb_updated){
+		if(last_good_rnb.conf > 0.5){
+			uint16_t id = last_good_rnb.id_number;
+			uint8_t i;
+			for(i=0; i<MAX_NEAR_ATOMS; i++){
+				if(near_atoms[i].id==id) break;
+			}
+			if(i<12){
+				near_atoms[i].range = (uint16_t)(10.0*last_good_rnb.range);
+				near_atoms[i].bearing = last_good_rnb.bearing;
+				near_atoms[i].heading = last_good_rnb.heading;
+				printf("New RNB Data from %04X:\t%u\t%f\t%f\t%f\r\n", id, near_atoms[i].range, rad_to_deg(near_atoms[i].bearing), rad_to_deg(near_atoms[i].heading), last_good_rnb.conf);
+				if(target_id==last_good_rnb.id_number){
+					//calculateTarget(&(near_atoms[i]), near_atoms[i].range, near_atoms[i].bearing, near_atoms[i].heading);  //Comment to disable movement
+				}
+			}
+		}
+		rnb_updated = 0;
 	}
 	delay_ms(LOOP_PERIOD);
 }

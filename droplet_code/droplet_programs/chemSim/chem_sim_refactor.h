@@ -21,8 +21,17 @@
 #define BOND_TYPE_COV 2
 #define BOND_TYPE_ION 1
 #define NUM_ELEMENTS 13
+#define MAX_ATOMS_IN_MC 15
 
 #include "droplet_init.h"
+
+static inline uint8_t my_molecule_length() {
+	uint8_t i;
+	for(i = 0; i < MAX_ATOMS_IN_MC; i++) {
+		if(my_molecule[i]==0) break;
+	}
+	return i;
+}
 
 typedef struct
 {
@@ -40,16 +49,31 @@ typedef struct
 	float heading;
 	uint16_t id;
 	uint16_t range; 
-	uint8_t last_msg_t; //time that this atom last sent a message to me
 }Near_Atom;
+
+typedef struct  
+{
+	uint16_t ID;
+	uint8_t atomicNum;
+}MC_Component;
 
 typedef struct
 {
 	uint16_t bonded_atoms[4];
 	uint16_t blink_timer; //only if in molecule
-	uint8_t molecule_nums[15];
+	MC_Component molecule[15];
 	uint8_t atomicNum;
 	uint8_t valence[3];
+	char msgFlag;
+}State;
+
+typedef struct  
+{
+	uint8_t atomicNum;
+	uint16_t bonded_atoms[4];
+	uint8_t molecule[21];
+	uint8_t valence[3];
+	uint16_t blink_timer; //can probably also be replaced with an ordinal if necessary
 	char msgFlag;
 }State_Msg;
 
@@ -67,25 +91,33 @@ uint8_t MY_CHEM_ID;
 uint8_t valence[8];
 
 /*Information about nearby robots*/
-Near_Atom nearAtoms[MAX_NEAR_ATOMS];
-Near_Atom NULL_NEAR_ATOM = {{{0,0,0,0,0,0,0,0},{0,0,0,0},0,{' ',' '},0}, 0, 0, 0, 0};
+Near_Atom NULL_NEAR_ATOM = {{{0,0,0,0,0,0,0,0},{0,0,0,0},0,{' ',' '},0}, 0, 0, 0};
 Atom NULL_ATOM = {{0,0,0,0,0,0,0,0},{0,0,0,0},0,{'0','0'},0};
 volatile uint16_t globalBlinkTimer;
+Near_Atom near_atoms[MAX_NEAR_ATOMS];
 	
 /*My atom struct */
 Atom myID;
+
+/* My molecule */
+MC_Component my_molecule[MAX_ATOMS_IN_MC]; 
+
+/*Info about the atom I'm moving toward, if I'm in a molecule */
+uint16_t target_id;
 
 uint32_t	frameCount;
 uint32_t	frameStart;
 uint16_t	lastLoop;
 uint16_t	mySlot;
 
+uint8_t addToNearAtoms(Near_Atom near_atom);
 uint8_t attemptToBond(Atom* other, int bondType, uint16_t other_ID);
 uint8_t breakBond(Atom* other, uint16_t senderID, uint8_t bondType);
 uint8_t chiCheck(Atom* other);
 void createStateMessage(State_Msg* msg, char flag);
 void getAtomColor(Atom* ID, uint8_t* r, uint8_t* g, uint8_t* b);
 Atom* getAtomFromAtomicNum(uint8_t atomicNum);
+//getAtomFromID? All the rest of the get x from ID functions boil down to this
 float getChiFromAtomicNum(uint8_t atomicNum);
 uint8_t isInMyMolecule(Atom* other);
 void initAtomState();
@@ -93,11 +125,14 @@ void initBondedAtoms(Atom atom);
 void msgState(ir_msg* msg_struct);
 uint8_t otherBondedToSelf(Atom* other);
 void packValences(uint8_t* packed_shells, int8_t* shells);
+void packMolecule(uint8_t packed_mc[21], MC_Component mc[MAX_ATOMS_IN_MC]);
 void printMyValence();
 void printMyBondedAtoms();
 uint8_t selfBondedToOther(uint16_t other_ID);
 void setAtomColor(Atom* ID);
+void unpackMolecule(uint8_t packed_mc[21], MC_Component mc[MAX_ATOMS_IN_MC]);
 void unpackValences(uint8_t* packed_shells, int8_t* shells);
+uint8_t updateNearAtoms(Atom* near_atom, ir_msg* msg_struct);
 
 void init();
 void loop();

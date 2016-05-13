@@ -50,7 +50,7 @@ const float neighbPos[NEIGHBORHOOD_SIZE][2] =  {{ X_OFFSET,   Y_OFFSET}, { X2_OF
 												{-X2_OFFSET,  0.0},		 {-X_OFFSET,   Y_OFFSET}};
 #define FLOOR_WIDTH			(X_MAX_DIM-MIN_DIM)
 #define PADDLE_WIDTH		(FLOOR_WIDTH/3)
-#define PADDLE_VEL				0.5
+#define PADDLE_VEL				0.2
 #define NUM_SEEDS				4
 #define MIN_DIM					0
 
@@ -137,6 +137,7 @@ typedef struct neighbs_list_struct{
 	uint16_t neighbs[NEIGHBORHOOD_SIZE];
 } NeighbsList;
 NeighbsList neighbsList[NEIGHBORHOOD_SIZE];
+float		noRecipPenalty[NEIGHBORHOOD_SIZE];
 
 NeighbsList potNeighbsList[NEIGHBORHOOD_SIZE];
 
@@ -183,6 +184,7 @@ float		paddleChange;
 int16_t		paddleStart;
 int16_t		paddleEnd;
 
+int8_t		eastWestCount;
 int8_t		northSouthCount;
 
 //uint8_t outwardDir;
@@ -337,6 +339,7 @@ static void inline initBayesDataStructs(){
 		neighbsList[i].id = 0;
 		neighbsList[i].x = 0x8000;
 		neighbsList[i].y = 0x8000;
+		noRecipPenalty[i] = 1.0;
 		for(uint8_t j=0;j<NEIGHBORHOOD_SIZE;j++){
 			neighbsList[i].neighbs[j] = 0;
 		}

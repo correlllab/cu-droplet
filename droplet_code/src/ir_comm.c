@@ -324,7 +324,7 @@ void waitForTransmission(uint8_t dirs){
 void ir_receive(uint8_t dir){
 	uint8_t in_byte = channel[dir]->DATA;				// Some data just came in
 	#ifdef AUDIO_DROPLET
-		ir_sense_channels[dir]->INTCTRL = ADC_CH_INTLVL_HI_gc;
+		//ir_sense_channels[dir]->INTCTRL = ADC_CH_INTLVL_HI_gc;
 	#endif	
 	
 	uint32_t now = get_time();

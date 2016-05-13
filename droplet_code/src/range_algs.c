@@ -249,6 +249,9 @@ void use_rnb_data(){
 			if(error>3.0){
 				conf = conf/10.0; //Nerf the confidence hard if the calculated error was too high.
 			}
+			if(isnan(conf)){
+				conf = 0.01;
+			}
 	
 			last_good_rnb.id_number = rnbCmdID;
 			last_good_rnb.range		= range;
@@ -439,8 +442,8 @@ void ir_range_meas(){
 			pre_sync_op = get_time();
 			//times[2*emitter_dir+3] = pre_sync_op;
 			get_ir_sensors(brightMeas[emitter_dir] , 9); //11
-			while((get_time() - pre_sync_op) < TIME_FOR_GET_IR_VALS);	
 			//times[2*emitter_dir+4] = get_time();			
+			while((get_time() - pre_sync_op) < TIME_FOR_GET_IR_VALS);				
 			delay_ms(DELAY_BETWEEN_RB_TRANSMISSIONS);
 		}
 	}

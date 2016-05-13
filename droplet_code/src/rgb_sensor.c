@@ -71,51 +71,53 @@ void rgb_sensor_init()
 
 #ifndef AUDIO_DROPLET
 
-int16_t get_red_sensor()
-{
+int16_t get_red_sensor(){
 	int16_t meas[RGB_MEAS_COUNT];
-	int16_t red_val;	
-	for(uint8_t meas_count=0; meas_count<RGB_MEAS_COUNT; meas_count++)
-	{
+	int16_t red_val;
+	//printf("R: ");
+	for(uint8_t meas_count=0; meas_count<RGB_MEAS_COUNT; meas_count++){
 		ADCA.CH0.CTRL |= ADC_CH_START_bm;
 		while (ADCA.CH0.INTFLAGS==0){};		// wait for measurement to complete
 		meas[meas_count] = ((((int16_t)(ADCA.CH0.RESH))<<8)|((int16_t)ADCA.CH0.RESL))>>4;	
 		ADCA.CH0.INTFLAGS=1; // clear the complete flag				
+		//printf("%6d ", meas[meas_count]);
 	}
+	//printf("\r\n");
 	red_val=meas_find_median(&meas[2], RGB_MEAS_COUNT-2);
-	//printf("%d\t", red_val);
 	return red_val;
 }
 
-int16_t get_green_sensor()
-{
+int16_t get_green_sensor(){
 	int16_t meas[RGB_MEAS_COUNT];
 	int16_t green_val;		
-	for(uint8_t meas_count=0; meas_count<RGB_MEAS_COUNT; meas_count++)
-	{
+	//printf("G: ");
+	for(uint8_t meas_count=0; meas_count<RGB_MEAS_COUNT; meas_count++)	{
 		ADCA.CH1.CTRL |= ADC_CH_START_bm;
 		while (ADCA.CH1.INTFLAGS==0){};		// wait for measurement to complete
 		meas[meas_count] = ((((int16_t)(ADCA.CH1.RESH))<<8)|((int16_t)ADCA.CH1.RESL))>>4;		
-		ADCA.CH1.INTFLAGS=1; // clear the complete flag		
+		ADCA.CH1.INTFLAGS=1; // clear the complete flag	
+		//printf("%6d ", meas[meas_count]);
 	}
+	//printf("\r\n");
 	green_val=meas_find_median(&meas[2], RGB_MEAS_COUNT-2);
-	//printf("%d\t", green_val);
+
 	return green_val;
 }
 
-int16_t get_blue_sensor()
-{
+int16_t get_blue_sensor(){
 	int16_t meas[RGB_MEAS_COUNT];
 	int16_t blue_val;
-	for(uint8_t meas_count=0; meas_count<RGB_MEAS_COUNT; meas_count++)
-	{
+	//printf("B: ");
+	for(uint8_t meas_count=0; meas_count<RGB_MEAS_COUNT; meas_count++)	{
 		ADCA.CH2.CTRL |= ADC_CH_START_bm;
 		while (ADCA.CH2.INTFLAGS==0){};		// wait for measurement to complete
 		meas[meas_count] = ((((int16_t)(ADCA.CH2.RESH))<<8)|((int16_t)ADCA.CH2.RESL))>>4;
 		ADCA.CH2.INTFLAGS=1; // clear the complete flag		
+		//printf("%6d ", meas[meas_count]);
 	}		
+	//printf("\r\n");
 	blue_val=meas_find_median(&meas[2], RGB_MEAS_COUNT-2);
-	//printf("%d\t", blue_val);	
+		
 	return blue_val;
 }
 
@@ -165,14 +167,14 @@ void get_rgb(int16_t *r, int16_t *g, int16_t *b)
 		rTemp = get_red_sensor();
 		gTemp = get_green_sensor();
 		bTemp = get_blue_sensor();		
-		rTemp=rTemp-r_baseline;
-		gTemp=gTemp-g_baseline;
-		bTemp=bTemp-b_baseline;
+		rTemp = rTemp - r_baseline;
+		gTemp = gTemp - g_baseline;
+		bTemp = bTemp - b_baseline;
 		//if(rTemp<0)	rTemp=0;
 		//if(gTemp<0)	gTemp=0;
 		//if(bTemp<0)	bTemp=0;
-		if(r!=NULL) *r=(uint16_t)rTemp;
-		if(g!=NULL) *g=(uint16_t)gTemp;
-		if(b!=NULL) *b=(uint16_t)bTemp;
+		if(r!=NULL) *r = rTemp;
+		if(g!=NULL) *g = gTemp;
+		if(b!=NULL) *b = bTemp;
 	#endif
 }

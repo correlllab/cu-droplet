@@ -111,3 +111,7 @@ void enable_interrupts();
 void startup_light_sequence();
 
 uint8_t get_droplet_ord(uint16_t id);
+extern const uint16_t OrderedBotIDs[121];
+static uint16_t inline get_id_from_ord(uint8_t ord){
+	return pgm_read_word(&OrderedBotIDs[ord]);
+}

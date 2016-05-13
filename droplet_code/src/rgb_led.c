@@ -56,9 +56,9 @@ void hsv_to_rgb(uint16_t hue, uint8_t saturation, uint8_t val, uint8_t* red, uin
 	float f, p, q, t;
 	float r=0, g=0, b=0;
 	
-	if (abs(s)<0.00001)
-	{
+	if (abs(s)<0.00001){
 		*red = *green = *blue = val;
+		return;
 	}
 	
 	h = h / 60.0;

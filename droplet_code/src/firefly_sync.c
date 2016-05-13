@@ -110,12 +110,13 @@ void processObsQueue(){
 
 void updateRTC(){
 	int16_t change;
+	int16_t remainder;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 	{
 		uint32_t currTime = get_time();
 		uint16_t theCount = currTime&0xFFFF;		
-		int16_t remainder = (int16_t)(currTime%FFSYNC_FULL_PERIOD_MS);
-		//printf("Count: %u. Remainder: %u.\r\n", the_count, remainder);
+		remainder = (int16_t)(currTime%FFSYNC_FULL_PERIOD_MS);
+		//printf("%u.\r\n", remainder);
 	
 		if(remainder>(FFSYNC_FULL_PERIOD_MS/2)){
 			change = FFSYNC_FULL_PERIOD_MS-remainder;
@@ -128,7 +129,7 @@ void updateRTC(){
 		RTC.CNT =  (theCount+change);
 		RTC.COMP = (RTC.COMP+change);
 	}	
-	
+	//printf("!! %d !!\r\n", change);
 	/*
 	 * change represents how the RTC clock's measure of 2048ms differs from the synchronization's measure.
 	 * If change is quite large, then probably we're still getting sync'd - so no implications about the RTC clock.
@@ -145,7 +146,7 @@ void updateRTC(){
 
 void sendPing(void* val){
 	//uint16_t diff = ((uint16_t)(get_time()&0xFFFF))-((uint16_t)val);
-	uint8_t result = hp_ir_targeted_cmd(ALL_DIRS, NULL, 0, (uint16_t)val);
+	uint8_t result = hp_ir_targeted_cmd(ALL_DIRS, NULL, 64, (uint16_t)val);
 	if(!result){
 		//printf_P(PSTR("sendPing blocked by other hp ir activity.\r\n"));
 	}

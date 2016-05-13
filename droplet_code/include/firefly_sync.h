@@ -61,7 +61,6 @@ inline void update_firefly_counter(volatile uint16_t count, volatile uint8_t del
 	obsQueue* node;
 	if(count<=theDelay){
 		obs = count + (FFSYNC_FULL_PERIOD-theDelay);
-		//printf("beep.\r\n");
 	}else{
 		obs = count - theDelay;
 	}

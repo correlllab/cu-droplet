@@ -25,14 +25,6 @@
 
 #include "droplet_init.h"
 
-static inline uint8_t my_molecule_length() {
-	uint8_t i;
-	for(i = 0; i < MAX_ATOMS_IN_MC; i++) {
-		if(my_molecule[i]==0) break;
-	}
-	return i;
-}
-
 typedef struct
 {
 	int8_t valence[8]; //cut down data to 3 bits each? -1 for no slot (H and He), 0 for empty, 1 for free electron, 2 for single bond, 3 for double bond, 4 for triple bond
@@ -110,7 +102,7 @@ uint32_t	frameStart;
 uint16_t	lastLoop;
 uint16_t	mySlot;
 
-uint8_t addToNearAtoms(Near_Atom near_atom);
+uint8_t addToNearAtoms(Near_Atom* near_atom);
 uint8_t attemptToBond(Atom* other, int bondType, uint16_t other_ID);
 uint8_t breakBond(Atom* other, uint16_t senderID, uint8_t bondType);
 uint8_t chiCheck(Atom* other);
@@ -133,6 +125,14 @@ void setAtomColor(Atom* ID);
 void unpackMolecule(uint8_t packed_mc[21], MC_Component mc[MAX_ATOMS_IN_MC]);
 void unpackValences(uint8_t* packed_shells, int8_t* shells);
 uint8_t updateNearAtoms(Atom* near_atom, ir_msg* msg_struct);
+
+static inline uint8_t my_molecule_length() {
+	uint8_t i;
+	for(i = 0; i < MAX_ATOMS_IN_MC; i++) {
+		if(my_molecule[i].ID==0) break;
+	}
+	return i;
+}
 
 void init();
 void loop();

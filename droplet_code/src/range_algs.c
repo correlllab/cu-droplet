@@ -154,6 +154,7 @@ float calculate_innovationNF(float r, float b, float h){
 //TODO: handle variable power.
 void broadcast_rnb_data(){
 	uint8_t power = 255;
+	set_all_ir_powers((uint16_t)power +1);
 	uint8_t goAhead =0;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 		if(!rnbProcessingFlag){

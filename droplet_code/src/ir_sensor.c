@@ -120,11 +120,11 @@ void update_ir_baselines(){
 		hp_ir_block_bm = 0;
 	}
 	
-	printf("Baselines:");
-	for(uint8_t dir=0;dir<6;dir++){
-		printf(" %4d", ir_sense_baseline[dir]);
-	}
-	printf("\r\n");
+	//printf("Baselines:");
+	//for(uint8_t dir=0;dir<6;dir++){
+		//printf(" %4d", ir_sense_baseline[dir]);
+	//}
+	//printf("\r\n");
 }
 
 void get_ir_sensors(int16_t* output_arr, uint8_t meas_per_ch)

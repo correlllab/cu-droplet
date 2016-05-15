@@ -35,7 +35,6 @@ void init_all_systems()
 	#endif
 
 	set_all_ir_powers(256);
-
 	startup_light_sequence();
 	
 	ir_comm_init();				INIT_DEBUG_PRINT("IR COM INIT\r\n");

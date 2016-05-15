@@ -83,27 +83,27 @@ void set_all_ir_powers(uint16_t power)
 	uint8_t result;		
 	while(twi->status!=TWIM_STATUS_READY){
 		if((get_time()-startTime)>100)
-			printf("\tWaiting for TWI.\r\n");
+			printf("\tWaiting for TWI.0\r\n");
 	}
 	result = TWI_MasterWrite(IR_POWER_ADDR_A, write_buffer, 6);
 	while(!result){
 		printf_P(PSTR("First IR_POWER setting failed. Retrying..\r\n"));
 		while(twi->status!=TWIM_STATUS_READY){
 			if((get_time()-startTime)>100)
-			printf("\tWaiting for TWI.\r\n");
+			printf("\tWaiting for TWI.1\r\n");
 		}	
 		result = TWI_MasterWrite(IR_POWER_ADDR_A, write_buffer, 6);
 	}
 	while(twi->status!=TWIM_STATUS_READY){
 		if((get_time()-startTime)>100)
-			printf("\tWaiting for TWI.\r\n");
+			printf("\tWaiting for TWI.2\r\n");
 	}
 	result = TWI_MasterWrite(IR_POWER_ADDR_B, write_buffer, 6);	
 	while(!result){
 		printf_P(PSTR("Second IR_POWER setting failed. Retrying..\r\n"));
 		while(twi->status!=TWIM_STATUS_READY){
 			if((get_time()-startTime)>100)
-				printf("\tWaiting for TWI.\r\n");
+				printf("\tWaiting for TWI.3\r\n");
 		}
 		result = TWI_MasterWrite(IR_POWER_ADDR_B, write_buffer, 6);
 	}

@@ -5,6 +5,7 @@
  *  Author: Audrey Randall
  */ 
 #include "chem_sim_refactor.h"
+#include "droplet_programs/chemSim/moleculesData.h"
 
 enum Atoms_enum{
 	H, He, Li, Be, C, N, O, F, Na, Mg, Cl, Br, I
@@ -209,40 +210,96 @@ Atom* getAtomFromAtomicNum(uint8_t atomicNum)
 
 uint8_t get_atomic_ord(uint8_t num){
 	switch(num){
-		case 1: return 0;
-		case 2: return 1;
-		case 3: return 2;
-		case 4: return 3;
-		case 6: return 4;
-		case 7: return 5;
-		case 8: return 6;
-		case 9: return 7;
-		case 11: return 8;
-		case 12: return 9;
-		case 17: return 10;
-		case 35: return 11;
-		case 53: return 12;
+		case 0: return 0;
+		case 1: return 1;
+		case 2: return 2;
+		case 3: return 3;
+		case 4: return 4;
+		case 6: return 5;
+		case 7: return 6;
+		case 8: return 7;
+		case 9: return 8;
+		case 11: return 9;
+		case 12: return 10;
+		case 17: return 11;
+		case 35: return 12;
+		case 53: return 13;
 	}
 	return 0xFF;
 }
 
 uint8_t get_atomic_num_from_ord(uint8_t ord) {
 	switch(ord){
-		case 0: return 1;
-		case 1:	 return 2;
-		case 2:	 return 3;
-		case 3:	 return 4;
-		case 4:	 return 6;
-		case 5:	 return 7;
-		case 6:	 return 8;
-		case 7:	 return 9;
-		case 8:	 return 11;
-		case 9:	 return 12;
-		case 10: return 17;
-		case 11: return 35;
-		case 12: return 53;
+		case 0:  return 0;
+		case 1:	 return 1;
+		case 2:	 return 2;
+		case 3:	 return 3;
+		case 4:	 return 4;
+		case 5:	 return 6;
+		case 6:	 return 7;
+		case 7:	 return 8;
+		case 8:	 return 9;
+		case 9:	 return 11;
+		case 10: return 12;
+		case 11: return 17;
+		case 12: return 35;
+		case 13: return 53;
 	}
 	return 0xFF;
+}
+
+void getNameFromAtomicNum(char* name, uint8_t atomicNum) {
+	
+	switch(atomicNum) {
+		case 1:
+			name[0] = 'H';
+			name[1] = ' ';
+			break;
+		case 2:
+			name[0] = 'H';
+			name[1] = 'e';
+			break;
+		case 3:
+			name[0] = 'L';
+			name[1] = 'i';
+			break;
+		case 4:
+			name[0] = 'B';
+			name[1] = 'e';
+			break;
+		case 6:
+			name[0] = 'C';
+			name[1] = ' ';
+			break;
+		case 7:
+			name[0] = 'N';
+			name[1] = ' ';
+			break;
+		case 8:
+			name[0] = 'O';
+			name[1] = ' ';
+			break;
+		case 9:
+			name[0] = 'F';
+			name[1] = ' ';
+			break;
+		case 17:
+			name[0] = 'C';
+			name[1] = 'l';
+			break;
+		case 35:
+			name[0] = 'B';
+			name[1] = 'r';
+			break;
+		case 53:
+			name[0] = 'I';
+			name[1] = ' ';
+			break;
+		default:
+			name[0] = ' ';
+			name[1] = ' ';
+			break;
+	}
 }
 
 void setAtomColor(Atom* ID)
@@ -285,12 +342,12 @@ void unpackValences(uint8_t* packed_shells, int8_t* shells)
 	shells[i]--;
 }
 
-void packMolecule(uint8_t packed_mc[21], MC_Component mc[15]) {
+void packMolecule(uint8_t packed_mc[23], MC_Component mc[15]) {
 	uint8_t ords[15];
 	uint8_t atomicOrds[15];
 	for(uint8_t i = 0; i < 15; i++) ords[i] = get_droplet_ord(mc[i].ID); //105 bits
 	for(uint8_t i = 0; i < 15; i++) atomicOrds[i] = get_atomic_ord(mc[i].atomicNum); //60 bits
-	packed_mc[0] = (ords[0]<<1)|(ords[1]>>6);
+	/*packed_mc[0] = (ords[0]<<1)|(ords[1]>>6);
 	packed_mc[1] = (ords[1]<<2)|(ords[2]>>5);
 	packed_mc[2] = (ords[2]<<3)|(ords[3]>>4);
 	packed_mc[3] = (ords[3]<<4)|(ords[4]>>3);
@@ -312,10 +369,20 @@ void packMolecule(uint8_t packed_mc[21], MC_Component mc[15]) {
 	packed_mc[18] = (atomicOrds[9]<<7)|(atomicOrds[10]<<3)|(atomicOrds[11]>>1);
 	packed_mc[19] = (atomicOrds[11]<<7)|(atomicOrds[12]<<3)|(atomicOrds[13]>>1);
 	packed_mc[20] = ((atomicOrds[13]<<7)|(atomicOrds[14]<<3))&0xF0;
+	*/
+	for(uint8_t i = 0; i < 15; i++) {
+		packed_mc[i] = ords[i];
+	}
+	uint8_t atmIdx = 0;
+	for(uint8_t i = 15; i < 23; i++) {
+		if(atmIdx < 14) packed_mc[i] = (atomicOrds[atmIdx]<<4)|(atomicOrds[atmIdx+1]);
+		else packed_mc[i] = (atomicOrds[atmIdx]<<4)&0xF0;
+		atmIdx+=2;
+	}
 }
 
-void unpackMolecule(uint8_t packed_mc[21], MC_Component mc[15]) {
-	mc[0].ID = (packed_mc[0]>>1)&0x7F;
+void unpackMolecule(uint8_t packed_mc[23], MC_Component mc[15]) {
+	/*mc[0].ID = (packed_mc[0]>>1)&0x7F;
 	mc[1].ID = ((packed_mc[0]&0x1)<<6)|((packed_mc[1]>>2)&0x3F);
 	mc[2].ID = ((packed_mc[1]&0x3)<<5)|((packed_mc[2]>>3)&0x1F);
 	mc[3].ID = ((packed_mc[2]&0x7)<<4)|((packed_mc[3]>>4)&0xF);
@@ -348,23 +415,36 @@ void unpackMolecule(uint8_t packed_mc[21], MC_Component mc[15]) {
 	for(uint8_t i = 0; i < MAX_ATOMS_IN_MC; i++) {
 		mc[i].atomicNum = get_atomic_num_from_ord(mc[i].atomicNum);
 		mc[i].ID = get_id_from_ord(mc[i].ID);
+	}*/
+	for(uint8_t i = 0; i < MAX_ATOMS_IN_MC; i++) {
+		mc[i].ID = get_id_from_ord(packed_mc[i]);
+	}
+	uint8_t idx = 0;
+	for(uint8_t i = 15; i < 23; i++) {
+		mc[idx].atomicNum = packed_mc[i]>>4;
+		if((idx+1) != 15) mc[idx+1].atomicNum = packed_mc[i]&0xF;
+		idx+=2;
+	}
+	//Extra loop probably not necessary except to debug
+	for(uint8_t i = 0; i < 15; i++) {
+		mc[i].atomicNum = get_atomic_num_from_ord(mc[i].atomicNum);
 	}
 }
 
 void initAtomState() {
 	for(uint8_t i = 0; i < MAX_NEAR_ATOMS; i++)  { near_atoms[i] = NULL_NEAR_ATOM; }
-	for(uint8_t i = 0; i < MAX_ATOMS_IN_MC; i++) {  
-		my_molecule[i].atomicNum = i;  
-		my_molecule[i].ID = i;
+	for(uint8_t i = 1; i < MAX_ATOMS_IN_MC; i++) {  
+		my_molecule[i].atomicNum = 0;  
+		my_molecule[i].ID = 0;
 	}
-	
 	Atom* baseAtom = getAtomFromAtomicNum(MY_CHEM_ID);
 	for(uint8_t i=0;i<8;i++)  {  myID.valence[i] = baseAtom->valence[i];  }
 	myID.chi = baseAtom->chi;
 	myID.name[0] = baseAtom->name[0];
 	myID.name[1] = baseAtom->name[1];
 	myID.atomicNum = baseAtom->atomicNum;
-	
+	my_molecule[0].ID = get_droplet_id();
+	my_molecule[0].atomicNum = myID.atomicNum;
 	setAtomColor(&myID);
 	initBondedAtoms(myID);
 }
@@ -414,7 +494,10 @@ uint8_t otherBondedToSelf(Atom* other) {
 	return 0;
 }
 
-uint8_t isInMyMolecule(Atom* other) {
+uint8_t isInMyMolecule(uint16_t ID) {
+	for(uint8_t i = 0; i < MAX_ATOMS_IN_MC; i++){
+		if(my_molecule[i].ID == ID) return 1;
+	}
 	return 0;	
 }
 
@@ -446,6 +529,291 @@ uint8_t chiCheck(Atom* other) {
 	return 0;
 }
 
+/*
+	Returns the number of overlapping atoms if the molecules overlap but are not identical, indicating that no bond should be formed.
+	Returns 0 if the molecules don't overlap.
+
+	Molecules A and B might overlap if an atom in A (called a) has calculated that it should steal an atom from B (b),
+	but the atom from B hasn't bonded to the one from A yet. If two OTHER atoms, x from A and y from B are then talking,
+	x could think its molecule contains atom b because its atom a thinks it bonded to b, while y also thinks
+	its molecule contains b because b hasn't left yet. If this occurs, the delta-G calculations will be incorrect,
+	so no attempt to bond should be made until the half-formed bond between a and b resolves itself.
+*/
+uint8_t moleculesOverlap(MC_Component sender_mc[MAX_ATOMS_IN_MC]) {
+	//One of us isn't in a molecule yet
+	if(molecule_length(my_molecule) == 1 || molecule_length(sender_mc) == 1) {
+		return 0;
+	}
+	uint8_t numOverlapped = 0;
+	for(uint8_t i = 0; i < MAX_ATOMS_IN_MC; i++) {
+		if(sender_mc[i].ID != 0) {
+			if(isInMyMolecule(sender_mc[i].ID)) numOverlapped++;
+		} else {
+			break;
+		}
+	}
+	return numOverlapped;
+}
+
+/*
+	Calculates the difference in Gibbs Free Energies between the products and reactants of two reactions:
+	the first being where I bond to sender, stealing sender from its molecule, and the second being where 
+	sender steals me from my molecule. In both cases I should bond to sender, but in the second I should also leave my molecule. 
+*/
+uint8_t energyCheck(MC_Component sender_mc[MAX_ATOMS_IN_MC], uint8_t otherHalfBond) {
+	/*Gibbs Free Energy values for the other molecule(gO), other mc plus me(gO_p), and other mc minus sender gO_m) */
+	int16_t gO;
+	int16_t gO_p;
+	int16_t gO_m;
+
+	/*Gibbs Free Energy values for my molecule(gS), my molecule plus sender(gS_p), and my molecule minus me(gS_m) */
+	int16_t gS;
+	int16_t gS_p;
+	int16_t gS_m;
+
+	/*Gibbs free energy values that only need to be calculated if otherHalfBond is true*/
+	int16_t gOther_alone;
+	int16_t gOther_without_me;
+
+	uint8_t other_len = molecule_length(sender_mc);
+	uint8_t my_len = molecule_length(my_molecule);
+
+	/*Arrays of the atomic numbers of the atoms that compose these molecules, named similarly to above */
+	uint8_t O_mc[other_len];
+	uint8_t O_p_mc[other_len+1];
+	uint8_t O_m_mc[other_len-1];
+	uint8_t S_mc[my_len];
+	uint8_t S_p_mc[my_len+1];
+	uint8_t S_m_mc[my_len-1];
+	uint8_t sender_alone[1];
+	uint8_t other_without_me[other_len-1];
+
+	/*Delta G values*/
+	int32_t deltaGrxn_1;
+	int32_t deltaGrxn_2;
+
+	for(uint8_t i = 0; i < other_len+1; i++) {
+		if(i < other_len-1) {
+			O_mc[i] = sender_mc[i].atomicNum;
+			O_m_mc[i] = sender_mc[i+1].atomicNum;
+			O_p_mc[i] = sender_mc[i].atomicNum;
+		}
+		else if(i < other_len) {
+			O_mc[i] = sender_mc[i].atomicNum;
+			O_p_mc[i] = sender_mc[i].atomicNum;
+		}
+		else if (i < other_len +1) {
+			O_p_mc[i] = myID.atomicNum;
+		}
+	}
+	for(uint8_t i = 0; i < my_len+1; i++) {
+		if(i < my_len-1) {
+			S_mc[i] =   my_molecule[i].atomicNum;
+			S_m_mc[i] = my_molecule[i+1].atomicNum;
+			S_p_mc[i] = my_molecule[i].atomicNum;
+		}
+		else if(i < my_len) {
+			S_mc[i] =   my_molecule[i].atomicNum;
+			S_p_mc[i] = my_molecule[i].atomicNum;
+		}
+		else if (i < my_len +1) {
+			S_p_mc[i] = sender_mc[0].atomicNum;
+		}
+	}
+	sender_alone[0] = sender_mc[0].atomicNum;
+	if(otherHalfBond) {
+		uint8_t foundMe = 0;
+		uint8_t idx = 0;
+		for(uint8_t i = 0; i < other_len-1; i++) {
+			if(O_mc[i] == myID.atomicNum && !foundMe) {
+				foundMe = 1;
+				idx++;
+			}
+			other_without_me[i] = O_mc[idx];
+			idx++;
+		}
+	}
+	
+	printf("\tOtherHalfBond is %hu \r\n", otherHalfBond);
+	if(!otherHalfBond) {
+		printf_P(PSTR("\tReaction one: \r\n\t"));
+		printMolecularReaction(S_mc, O_mc, S_p_mc, O_m_mc, my_len, other_len, my_len+1, other_len-1);
+		printf_P(PSTR("\tReaction two: \r\n\t"));
+		printMolecularReaction(S_mc, O_mc, S_m_mc, O_p_mc, my_len, other_len, my_len-1, other_len+1);
+	} else {
+		printf_P(PSTR("\tReaction one: \r\n\t"));
+		printMolecularReaction(S_mc, sender_alone, S_p_mc, NULL, my_len, 1, my_len+1, 0);
+		printf_P(PSTR("\tReaction two: \r\n\t"));
+		printMolecularReaction(S_mc, other_without_me, S_m_mc, O_mc, my_len, other_len-1, my_len-1, other_len);
+	}
+	//Fill in energy values
+	if(!molecule_search(O_mc, &gO, other_len))  {
+		printf_P(PSTR("\t\tGibbs free energy value for other molecule not found. Other molecule: \r\n\t\t"));
+		for(uint8_t i = 0; i < other_len; i++) {
+			printf_P(PSTR("%hu, "), O_mc[i]);
+		}
+		printf_P(PSTR("\r\n"));
+		gO = 32767;
+	}
+	if(!molecule_search(O_p_mc, &gO_p, other_len+1))  {
+		printf_P(PSTR("\t\tGibbs free energy value for other molecule plus not found. Other molecule plus: \r\n\t\t"));
+		for(uint8_t i = 0; i < other_len+1; i++) {
+			printf_P(PSTR("%hu, "), O_p_mc[i]);
+		}
+		printf_P(PSTR("\r\n"));
+		gO_p = 32767;
+	}
+	if(!molecule_search(O_m_mc, &gO_m, other_len-1))  {
+		printf_P(PSTR("\t\tGibbs free energy value for other molecule minus not found. Other molecule minus: \r\n\t\t"));
+		for(uint8_t i = 0; i < other_len-1; i++) {
+			printf_P(PSTR("%hu, "), O_m_mc[i]);
+		}
+		printf_P(PSTR("\r\n"));
+		if(other_len-1 == 0) {
+			printf_P(PSTR("\t\tSetting G for other molecule minus to zero. \r\n"));
+			gO_m = 0;
+		}
+		else {
+			gO_m = 32767;
+		}
+	}
+	if(!molecule_search(S_mc, &gS, my_len))  {
+		printf_P(PSTR("\t\tGibbs free energy value for my molecule not found. My molecule: \r\n\t\t"));
+		for(uint8_t i = 0; i < my_len; i++) {
+			printf_P(PSTR("%hu, "), S_mc[i]);
+		}
+		printf_P(PSTR("\r\n"));
+		gS = 32767;
+	}
+	if(!molecule_search(S_p_mc, &gS_p, my_len+1))  {
+		printf_P(PSTR("\t\tGibbs free energy value for my molecule plus not found. My molecule plus: \r\n\t\t"));
+		for(uint8_t i = 0; i < my_len+1; i++) {
+			printf_P(PSTR("%hu, "), S_p_mc[i]);
+		}
+		printf_P(PSTR("\r\n"));
+		gS_p = 32767;
+	}
+	if(!molecule_search(S_m_mc, &gS_m, my_len-1))  {
+		printf_P(PSTR("\t\tGibbs free energy value for my molecule minus not found. My molecule minus: \r\n\t\t"));
+		for(uint8_t i = 0; i < my_len-1; i++) {
+			printf_P(PSTR("%hu, "), S_m_mc[i]);
+		}
+		printf_P(PSTR("\r\n"));
+		if(my_len-1 == 0) {
+			printf_P(PSTR("\t\tSetting G for my molecule minus to zero. \r\n"));
+			gS_m = 0;
+		}
+		else {
+			gS_m = 32767;
+		}
+	}
+	if(!molecule_search(sender_alone, &gOther_alone, 1)) {
+		printf_P(PSTR("\t\tGibbs free energy value for sender alone not found.\r\n"));
+		gOther_alone = 32767;
+	}
+	if(!molecule_search(other_without_me, &gOther_without_me, other_len-1)) {
+		printf_P(PSTR("\t\tGibbs free energy value for other_without_me not found. Other without me: \r\n\t\t"));
+		for(uint8_t i = 0; i < other_len-1; i++) {
+			printf_P(PSTR("%hu, "), other_without_me[i]);
+		}
+		printf_P(PSTR("\r\n"));
+		if(other_len-1 == 0) {
+			printf_P(PSTR("\t\tSetting G for other without me to zero. \r\n"));
+			gOther_without_me = 0;
+		} else {
+			gOther_without_me = 32767;
+		}
+	}
+	/*Calculate delta G values. Take into account the one remaining discrepancy in states: sender can be bonded to me, and if so, 
+	it either thinks I've joined its molecule or it has joined mine. */
+	if(!otherHalfBond) {
+		deltaGrxn_1 = ((int32_t)gS_p + (int32_t)gO_m) - ((int32_t)gS + (int32_t)gO);
+		deltaGrxn_2 = ((int32_t)gS_m + (int32_t)gO_p) - ((int32_t)gS + (int32_t)gO);
+	} else {
+		//if sender joined my molecule:
+		//my_mc plus sender_alone -> sender's current molecule which is my mc-plus-sender plus nothing
+		deltaGrxn_1 = ((int32_t)gS_p) - ((int32_t)gS + (int32_t)gOther_alone);
+		//if sender thinks I joined its molecule:
+		//my_mc plus sender's-mc-minus-me -> my_mc_minus_me + sender's-current-mc
+		deltaGrxn_2 = ((int32_t)gS_m + (int32_t)gO) - ((int32_t)gOther_without_me + (int32_t)gS); 
+	}
+
+	int32_t lowestEnergyRxn = (int32_t)fmin((float)deltaGrxn_2, (float)deltaGrxn_1);
+	printf("Delta G rxn 1 = %d, Delta G rxn 2 = %d \r\n", deltaGrxn_1, deltaGrxn_2);
+	printf("Lowest energy reaction: ");
+	if(lowestEnergyRxn == deltaGrxn_1 && deltaGrxn_1 < 0) {
+		printf("reaction 1 \r\n");
+		return 1;
+	}
+	else if(lowestEnergyRxn == deltaGrxn_2 && deltaGrxn_2 < 0) {
+		printf("reaction 2 \r\n");
+		return 2;
+	}
+	else {
+	printf("None \r\n");
+		return 0;
+	}
+	
+}
+
+void printMolecularReaction(uint8_t* reactant1, uint8_t* reactant2, uint8_t* product1, uint8_t* product2, uint8_t lenR1, uint8_t lenR2, uint8_t lenP1, uint8_t lenP2) {
+	uint8_t found_atom = 0;
+	for(uint8_t i = 0; i < lenR1; i++) {
+		char* myAtom = malloc(2);
+		getNameFromAtomicNum(myAtom, reactant1[i]);
+		if(!(myAtom[0] == ' ' && myAtom[1] == ' '))  {
+			printf_P(PSTR("%c"), myAtom[0]);
+			if(myAtom[1] != ' ') printf_P(PSTR("%c"), myAtom[1]);
+			free(myAtom);
+		} else {
+			free(myAtom);
+			break;
+		}
+	}
+	printf_P(PSTR(" + "));
+	for(uint8_t i = 0; i < lenR2; i++) {
+		char* otherAtom = malloc(2);
+		getNameFromAtomicNum(otherAtom, reactant2[i]);
+		if(!(otherAtom[0] == ' ' && otherAtom[1] == ' ')) {
+			printf_P(PSTR("%c"), otherAtom[0]);
+			if(otherAtom[1] != ' ')printf_P(PSTR("%c"), otherAtom[1]);
+			free(otherAtom);
+		} else {
+			free(otherAtom);
+			break;
+		}
+	}
+	printf_P(PSTR(" -> "));
+	for(uint8_t i = 0; i < lenP1; i++) {
+		char* myAtom = malloc(2);
+		getNameFromAtomicNum(myAtom, product1[i]);
+		if(!(myAtom[0] == ' ' && myAtom[1] == ' '))  {
+			printf_P(PSTR("%c"), myAtom[0]);
+			if(myAtom[1] != ' ') printf_P(PSTR("%c"), myAtom[1]);
+			free(myAtom);
+		} else {
+			free(myAtom);
+			break;
+		}
+	}
+	if(product2 != NULL) {
+		for(uint8_t i = 0; i < lenP2; i++) {
+			char* otherAtom = malloc(2);
+			getNameFromAtomicNum(otherAtom, product2[i]);
+			if(!(otherAtom[0] == ' ' && otherAtom[1] == ' ')) {
+				if(i == 0) printf_P(PSTR(" + "));
+				printf_P(PSTR("%c"), otherAtom[0]);
+				if(otherAtom[1] != ' ')printf_P(PSTR("%c"), otherAtom[1]);
+				free(otherAtom);
+			} else {
+				free(otherAtom);
+				break;
+			}
+		}
+	}
+	printf_P(PSTR("\r\n"));	
+}
+
 void printMyValence() {
 	printf_P(PSTR("Valence shell: "));
 	for(uint8_t i = 0; i < 8; i++) {
@@ -460,6 +828,33 @@ void printMyBondedAtoms() {
 		printf_P(PSTR("%X, "), myID.bonded_atoms[i]);
 	}
 	printf_P(PSTR("\r\n"));
+}
+
+uint8_t addToMolecule(uint16_t ID, uint8_t atomicNum) {
+	printf(PSTR("*****Adding atom %04X to molecule \r\n"), ID);
+	uint8_t idx = molecule_length(my_molecule);
+	if(idx == MAX_ATOMS_IN_MC) {
+		printf("ALERT: Tried to add atom to molecule but there was no room \r\n");
+		return 0;
+	} else {
+		my_molecule[idx].ID = ID;
+		my_molecule[idx].atomicNum = atomicNum;
+	}
+	return 1;
+}
+
+void removeFromMolecule(uint16_t ID) {
+	printf(PSTR("*****Removing atom %04X from molecule \r\n"), ID);
+	for(uint8_t i = 0; i < MAX_ATOMS_IN_MC; i++) {
+		if(my_molecule[i].ID == ID) {
+			for(uint8_t j = 0; j < MAX_ATOMS_IN_MC-1; j++) {
+				my_molecule[j].ID = my_molecule[j+1].ID;
+				my_molecule[j].atomicNum = my_molecule[j+1].atomicNum;
+			}
+			my_molecule[MAX_ATOMS_IN_MC-1].ID = 0;
+			my_molecule[MAX_ATOMS_IN_MC-1].atomicNum = 0;
+		}
+	}
 }
 
 uint8_t attemptToBond(Atom* other, int bondType, uint16_t other_ID) {
@@ -497,6 +892,8 @@ uint8_t attemptToBond(Atom* other, int bondType, uint16_t other_ID) {
 	if(numBonds == 0) {
 		return 0;
 	}
+	//Last check: room in mc?
+	if(!addToMolecule(other_ID, other->atomicNum)) return 0;
 	if(numBonds == 4) {
 		numBonds = 3;
 	}
@@ -537,6 +934,7 @@ uint8_t attemptToBond(Atom* other, int bondType, uint16_t other_ID) {
 }
 
 uint8_t breakBond(Atom* other, uint16_t senderID, uint8_t bondType) {
+	removeFromMolecule(senderID); //disallows cycles in atomic structure
 	for(uint8_t i = 0; i < MAX_BONDS; i++) {
 		if(myID.bonded_atoms[i] == senderID) {
 			myID.bonded_atoms[i] = 0;
@@ -564,10 +962,16 @@ uint8_t breakBond(Atom* other, uint16_t senderID, uint8_t bondType) {
 	return 0;
 }
 
+void updateMolecule(MC_Component sender_mc[MAX_ATOMS_IN_MC]) {
+	for(uint8_t i = 0; i < MAX_ATOMS_IN_MC; i++) {
+		if(!isInMyMolecule(sender_mc[i].ID)) addToMolecule(sender_mc[i].ID, sender_mc[i].atomicNum);
+	}
+}
+
 void msgState(ir_msg* msg_struct) {
 	State_Msg state;
 	state = *((State_Msg*)(msg_struct->msg));
-	MC_Component sender_mc[15];
+	MC_Component sender_mc[MAX_ATOMS_IN_MC];
 	unpackMolecule(state.molecule, sender_mc);
 	printf("State message received. Molecule list is as follows: \r\n");
 	for(uint8_t i = 0; i < 15; i++) {
@@ -577,6 +981,7 @@ void msgState(ir_msg* msg_struct) {
 	for(uint8_t i = 0; i < 15; i++) {
 		printf("%hu, ", sender_mc[i].atomicNum);
 	}
+	printf("\r\n");
 	Atom near_atom;
 	near_atom.atomicNum = state.atomicNum;
 	unpackValences(state.valence, near_atom.valence);
@@ -591,18 +996,29 @@ void msgState(ir_msg* msg_struct) {
 	//setAtomColor(&myID);
 	uint8_t bondType = chiCheck(&near_atom);
 	printf("Beginning bond check \r\n");
+	uint8_t otherHalfBond = 0;
+	uint8_t shouldUpdateMc = 0;
+	uint8_t checkEnergy = 0;
 	if(!selfBondedToOther(msg_struct->sender_ID)) {
 		printf("\tI'm not bonded to sender %X \r\n", msg_struct->sender_ID);
 		uint8_t shouldBond = 1;
-		if(isInMyMolecule(&near_atom)) {
+		//Fixes a heisenbug caused by half-complete reactions, which lead to inconsistent states.
+		//See moleculesOverlap for more details.
+		uint8_t overlap = moleculesOverlap(sender_mc);
+		if(overlap > 1 || (overlap > 0 && overlap == molecule_length(my_molecule)-1 && !otherBondedToSelf(&near_atom))) {
+			shouldBond = 0;
+		}   
+		printf("\tBond type is %hu \r\n", bondType);
+		if(isInMyMolecule(msg_struct->sender_ID) && otherBondedToSelf(&near_atom)) otherHalfBond = 1;
+		checkEnergy = energyCheck(sender_mc, otherHalfBond);
+		if(!checkEnergy) {
 			shouldBond = 0;
 		}
-		printf("\tBond type is %hu \r\n", bondType);
 		if(shouldBond) {
-			printf("Before attemptToBond, sender ID is %04X", msg_struct->sender_ID);
 			uint8_t success = attemptToBond(&near_atom, bondType, msg_struct->sender_ID);
 			if(success) {
 				printf("\t Bond successful \r\n");
+				shouldUpdateMc = 1;
 			}
 			else printf("\tBond unsuccessful \r\n");
 		}
@@ -614,6 +1030,8 @@ void msgState(ir_msg* msg_struct) {
 			breakBond(&near_atom, msg_struct->sender_ID, bondType);
 		}
 	}
+	if(otherBondedToSelf(&near_atom)) shouldUpdateMc = 1;
+	if(shouldUpdateMc) updateMolecule(sender_mc);
 }
 
 void init()  {

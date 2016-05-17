@@ -63,7 +63,7 @@ typedef struct
 {
 	uint8_t atomicNum;
 	uint16_t bonded_atoms[4];
-	uint8_t molecule[21];
+	uint8_t molecule[23];
 	uint8_t valence[3];
 	uint16_t blink_timer; //can probably also be replaced with an ordinal if necessary
 	char msgFlag;
@@ -107,17 +107,21 @@ uint8_t attemptToBond(Atom* other, int bondType, uint16_t other_ID);
 uint8_t breakBond(Atom* other, uint16_t senderID, uint8_t bondType);
 uint8_t chiCheck(Atom* other);
 void createStateMessage(State_Msg* msg, char flag);
+uint8_t energyCheck(MC_Component sender_mc[MAX_ATOMS_IN_MC], uint8_t otherHalfBond);
 void getAtomColor(Atom* ID, uint8_t* r, uint8_t* g, uint8_t* b);
 Atom* getAtomFromAtomicNum(uint8_t atomicNum);
 //getAtomFromID? All the rest of the get x from ID functions boil down to this
 float getChiFromAtomicNum(uint8_t atomicNum);
-uint8_t isInMyMolecule(Atom* other);
+void getNameFromAtomicNum(char* name, uint8_t atomicNum);
+uint8_t isInMyMolecule(uint16_t ID);
 void initAtomState();
 void initBondedAtoms(Atom atom);
+uint8_t moleculesOverlap(MC_Component sender_mc[MAX_ATOMS_IN_MC]);
 void msgState(ir_msg* msg_struct);
 uint8_t otherBondedToSelf(Atom* other);
 void packValences(uint8_t* packed_shells, int8_t* shells);
 void packMolecule(uint8_t packed_mc[21], MC_Component mc[MAX_ATOMS_IN_MC]);
+void printMolecularReaction(uint8_t* reactant1, uint8_t* reactant2, uint8_t* product1, uint8_t* product2, uint8_t lenR1, uint8_t lenR2, uint8_t lenP1, uint8_t lenP2);
 void printMyValence();
 void printMyBondedAtoms();
 uint8_t selfBondedToOther(uint16_t other_ID);
@@ -126,10 +130,10 @@ void unpackMolecule(uint8_t packed_mc[21], MC_Component mc[MAX_ATOMS_IN_MC]);
 void unpackValences(uint8_t* packed_shells, int8_t* shells);
 uint8_t updateNearAtoms(Atom* near_atom, ir_msg* msg_struct);
 
-static inline uint8_t my_molecule_length() {
+static inline uint8_t molecule_length(MC_Component mc[MAX_ATOMS_IN_MC]) {
 	uint8_t i;
 	for(i = 0; i < MAX_ATOMS_IN_MC; i++) {
-		if(my_molecule[i].ID==0) break;
+		if(mc[i].ID==0) break;
 	}
 	return i;
 }

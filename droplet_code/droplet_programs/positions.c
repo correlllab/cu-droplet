@@ -821,6 +821,13 @@
 	//uint32_t now = get_time();
 	//if(sum<=60){
 		//paddleChange += ((now-lastLightCheck)*PADDLE_VEL);
+		//printf("Paddle Change: %f\r\n", paddleChange);
+	//}else if(sum<=40){
+		//paddleChange += ((now-lastLightCheck)*(3*PADDLE_VEL));
+		//printf("Paddle ChangeX3: %f\r\n", paddleChange);
+	//}else if(sum<=25){
+		//paddleChange += ((now-lastLightCheck)*(5*PADDLE_VEL));
+		//printf("Paddle ChangeX5: %f\r\n", paddleChange);
 	//}
 	//lastLightCheck = now;
 	////printf("Light: %5d (%4d, %4d, %4d)\r\n",sum,r,g,b);
@@ -940,6 +947,7 @@
 	//}
 	//paddleChange = 0.0;
 	//ir_send(ALL_DIRS, (char*)(&msg), sizeof(PaddleMsg));
+	//printf("Sent paddle msg with change: %d\r\n", msg.deltaPos);
 //}
 //
 //void handlePaddleMsg(char flag, int16_t delta){

@@ -50,7 +50,7 @@ const float neighbPos[NEIGHBORHOOD_SIZE][2] =  {{ X_OFFSET,   Y_OFFSET}, { X2_OF
 												{-X2_OFFSET,  0.0},		 {-X_OFFSET,   Y_OFFSET}};
 #define FLOOR_WIDTH			(X_MAX_DIM-MIN_DIM)
 #define PADDLE_WIDTH		(FLOOR_WIDTH/3)
-#define PADDLE_VEL				0.2
+#define PADDLE_VEL				0.1
 #define NUM_SEEDS				4
 #define MIN_DIM					0
 

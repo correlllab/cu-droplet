@@ -707,6 +707,7 @@ uint8_t energyCheck(MC_Component sender_mc[MAX_ATOMS_IN_MC], uint8_t otherHalfBo
 			gS_m = 32767;
 		}
 	}
+	//test
 	if(!molecule_search(sender_alone, &gOther_alone, 1)) {
 		printf_P(PSTR("\t\tGibbs free energy value for sender alone not found.\r\n"));
 		gOther_alone = 32767;

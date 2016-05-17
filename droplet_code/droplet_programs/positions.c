@@ -814,6 +814,8 @@ void useNewRnbMeas(){
 	}
 }
 
+//It's different!
+
 void checkLightLevel(){
 	int16_t r, g, b;
 	get_rgb(&r,&g,&b);

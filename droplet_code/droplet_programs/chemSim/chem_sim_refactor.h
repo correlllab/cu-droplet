@@ -135,6 +135,7 @@ void unpackMolecule(uint8_t packed_mc[21], MC_Component mc[MAX_ATOMS_IN_MC]);
 void unpackValences(uint8_t* packed_shells, int8_t* shells);
 uint8_t updateNearAtoms(Atom* near_atom, ir_msg* msg_struct);
 
+
 static inline uint8_t molecule_length(MC_Component mc[MAX_ATOMS_IN_MC]) {
 	uint8_t i;
 	for(i = 0; i < MAX_ATOMS_IN_MC; i++) {

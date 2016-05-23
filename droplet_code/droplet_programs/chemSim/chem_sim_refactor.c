@@ -543,9 +543,10 @@ void createStateMessage(State_Msg* msg, char flag)
 		printf("\tBlink disabled.\r\n");
 	}else{
 		for(uint8_t i=0;i<MAX_ATOMS_IN_MC;i++){
-			if(my_molecule[i].ID < globalBlinkTimer){
+			if(my_molecule[i].ID < globalBlinkTimer && my_molecule[i].ID != 0){
 				globalBlinkTimer = my_molecule[i].ID;
-			}
+				target_id = my_molecule[i].ID;
+			} else if (my_molecule[i].ID == 0) break;
 		}
 		enable_sync_blink(globalBlinkTimer);
 		printf("\tBlink timer: %u\r\n", globalBlinkTimer);
@@ -1219,6 +1220,7 @@ void msgState(ir_msg* msg_struct) {
 	if(otherBondedToSelf(&near_atom) && selfBondedToOther(msg_struct->sender_ID) &&shouldUpdateMc) {
 		updateMolecule(sender_mc);
 	}
+	updateTargetId();
 
 }
 

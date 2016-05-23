@@ -86,7 +86,6 @@ volatile uint8_t rnbProcessingFlag;
 
 void range_algs_init();
 
-void collect_rnb_data(uint16_t target_id, uint8_t power);
 void broadcast_rnb_data();
 //void receive_rnb_data();
 void use_rnb_data();

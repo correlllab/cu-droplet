@@ -74,37 +74,67 @@ void set_all_ir_powers(uint16_t power)
 {
 	if(power>256) return;
 	if(curr_ir_power==power) return;
-	curr_ir_power = power;
 	uint8_t power_high = (power>>8);
 	uint8_t power_low = (power&0xFF);
 	uint8_t write_buffer[6] = {0x00|power_high,power_low,0x10|power_high,power_low,0x60|power_high, power_low};
 	
 	uint32_t startTime = get_time();
-	uint8_t result;		
+	uint8_t result;	
+	uint8_t printed = 0;
 	while(twi->status!=TWIM_STATUS_READY){
-		if((get_time()-startTime)>100)
-			printf("\tWaiting for TWI.\r\n");
+		if((get_time()-startTime)>100){
+			printf_P(TWI_WAITING_STR);
+			printed = 1;
+			delay_ms(10);
+		}else if((get_time()-startTime)>1000){
+			printf_P(TWI_TIMEOUT_STR);
+			printf("(a)\r\n");
+			return;
+		}			
 	}
 	result = TWI_MasterWrite(IR_POWER_ADDR_A, write_buffer, 6);
 	while(!result){
-		printf_P(PSTR("First IR_POWER setting failed. Retrying..\r\n"));
 		while(twi->status!=TWIM_STATUS_READY){
-			if((get_time()-startTime)>100)
-			printf("\tWaiting for TWI.\r\n");
+			if((get_time()-startTime)>100){
+			printf_P(TWI_WAITING_STR);
+				printed = 1;				
+				delay_ms(10);				
+			}else if((get_time()-startTime)>1000){
+				printf_P(TWI_TIMEOUT_STR);
+				printf("(b)\r\n");
+				return;
+			}
 		}	
 		result = TWI_MasterWrite(IR_POWER_ADDR_A, write_buffer, 6);
 	}
 	while(twi->status!=TWIM_STATUS_READY){
-		if((get_time()-startTime)>100)
-			printf("\tWaiting for TWI.\r\n");
+		if((get_time()-startTime)>100){
+			printf_P(TWI_WAITING_STR);
+			printed = 1;			
+			delay_ms(10);			
+		}else if((get_time()-startTime)>1000){
+			printf_P(TWI_TIMEOUT_STR);
+			printf("(c)\r\n");
+			return;
+		}
 	}
 	result = TWI_MasterWrite(IR_POWER_ADDR_B, write_buffer, 6);	
 	while(!result){
-		printf_P(PSTR("Second IR_POWER setting failed. Retrying..\r\n"));
 		while(twi->status!=TWIM_STATUS_READY){
-			if((get_time()-startTime)>100)
-				printf("\tWaiting for TWI.\r\n");
+			if((get_time()-startTime)>100){
+				printf_P(TWI_WAITING_STR);
+				printed = 1;				
+				delay_ms(10);					
+			}else if((get_time()-startTime)>1000){
+				printf_P(TWI_TIMEOUT_STR);
+				printf("(d)\r\n");
+				return;
+			}
 		}
 		result = TWI_MasterWrite(IR_POWER_ADDR_B, write_buffer, 6);
 	}
+	if(printed){
+		printf_P(PSTR("\tDone waiting for TWI. IR powers set successfully.\r\n"));
+	}
+	curr_ir_power = power;
 }

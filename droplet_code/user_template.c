@@ -1,6 +1,5 @@
 #include "user_template.h"
 
-
 /*
  * Any code in this function will be run once, when the robot starts.
  */

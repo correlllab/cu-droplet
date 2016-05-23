@@ -119,12 +119,7 @@ void update_ir_baselines(){
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 		hp_ir_block_bm = 0;
 	}
-	
-	printf("Baselines:");
-	for(uint8_t dir=0;dir<6;dir++){
-		printf(" %4d", ir_sense_baseline[dir]);
-	}
-	printf("\r\n");
+
 }
 
 void get_ir_sensors(int16_t* output_arr, uint8_t meas_per_ch)
@@ -172,70 +167,6 @@ void get_ir_sensors(int16_t* output_arr, uint8_t meas_per_ch)
 	//for(uint8_t i=0;i<6;i++) printf("%d ", output_arr[i]);
 	//printf("\r\n");	
 }
-
-//int16_t get_ir_sensor(uint8_t sensor_num, uint8_t ir_meas_count)
-//{	
-	//int16_t meas[ir_meas_count];
-	//
-	//#ifdef AUDIO_DROPLET
-	//
-		//for(uint8_t meas_count=0; meas_count<ir_meas_count; meas_count++)
-		//{
-			//if(meas_count!=0) delay_us(120);
-			//meas[meas_count]=ir_sense_channels[sensor_num]->RES;
-			//ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
-			//{
-				//ir_sense_channels[sensor_num]->CTRL |= ADC_CH_START_bm;
-				//while (ir_sense_channels[sensor_num]->INTFLAGS==0){};		// wait for measurement to complete
-			//}
-			//meas[meas_count] = ir_sense_channels[sensor_num]->RES;
-			////((((int16_t)(ir_sense_channels[sensor_num]->RESH))<<8)|((int16_t)(ir_sense_channels[sensor_num]->RESL)));	
-			//ir_sense_channels[sensor_num]->INTFLAGS=1; // clear the complete flag		
-		//}
-	//
-	//#else
-	//
-		//ADCB.CH0.MUXCTRL &= MUX_SENSOR_CLR; //clear previous sensor selection
-		//ADCB.CH0.MUXCTRL |= mux_sensor_selectors[sensor_num];
-	//
-		//for(uint8_t meas_count=0; meas_count<ir_meas_count; meas_count++)
-		//{
-			//ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
-			//{
-				//ADCB.CH0.CTRL |= ADC_CH_START_bm;
-				//while (ADCB.CH0.INTFLAGS==0){};		// wait for measurement to complete
-			//}
-			//meas[meas_count] = ((((int16_t)ADCB.CH0.RESH)<<8)|((int16_t)ADCB.CH0.RESL))>>2;
-			//ADCB.CH0.INTFLAGS=1; // clear the complete flag
-		//}
-		//
-	//#endif
-	//
-	//int16_t median;
-	//#ifdef AUDIO_DROPLET
-		//if(ir_meas_count>1)
-			//median = meas_find_median(meas,ir_meas_count);
-		//else
-			//median = meas[0];
-	//#else
-		//if(ir_meas_count>3)
-			//median = meas_find_median(&(meas[2]),ir_meas_count-2);
-		//else if(ir_meas_count==3)
-			//median = meas_find_median(&(meas[1]),ir_meas_count-1);
-		//else if(ir_meas_count==2)
-			//median = meas[1];
-		//else
-			//median = meas[0];
-	//#endif
-	//printf("%4d ", median-ir_sense_baseline[sensor_num]);
-	//if(sensor_num==5)
-		//printf("\r\n");
-	//if(median<ir_sense_baseline[sensor_num])	return 0;
-	//else										
-	//return (median-ir_sense_baseline[sensor_num]);
-//}
-
-
 
 uint8_t check_collisions(){
 	int16_t baseline_meas[6];

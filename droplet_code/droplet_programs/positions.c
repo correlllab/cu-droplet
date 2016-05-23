@@ -64,6 +64,8 @@
 	//while(((get_time()-frameStart)%SLOT_LENGTH_MS)<RNB_DUR) delay_us(500);
 	//if(myState>=3 && paddleChange>=1.0){
 		//sendPaddleMsg();
+	//}else{
+		//paddleChange = 0.0;
 	//}
 	//while(((get_time()-frameStart)%SLOT_LENGTH_MS)<(RNB_DUR+PADDLE_MSG_DUR)) delay_us(500);
 	//sendNeighbMsg();
@@ -110,8 +112,10 @@
 			//uint32_t curSlotTime = (get_time()-frameStart)%SLOT_LENGTH_MS;
 			//if(myState>=3 && myState!=7 && paddleChange>=1.0){			
 				//schedule_task((RNB_DUR-curSlotTime), sendPaddleMsg, NULL);
+			//}else{
+				//paddleChange = 0.0;
 			//}
-			//if(myState<2 && !isnanf(myDist) && myDist<30){
+			//if(myState<=2 && !isnanf(myDist) && myDist<30){
 				//schedule_task(((RNB_DUR+PADDLE_MSG_DUR+NEIGHB_MSG_DUR)-curSlotTime), sendBallMsg, NULL);
 			//}
 		//}
@@ -292,7 +296,7 @@
 		//}
 		//if(!isnanf(myDist) && myDist<=30 && crossedBefore!=crossedAfter){ //BOUNCE CHECK
 			//if((myState==PIXEL_S && theBall.yVel<0) || (myState==PIXEL_N && theBall.yVel>0)){
-				//if(gameMode==PONG && ((theBall.xPos+theBall.radius)>=paddleStart || (theBall.xPos-theBall.radius)<=paddleEnd)){
+				//if(gameMode==PONG && ((theBall.xPos+theBall.radius)>=paddleStart && (theBall.xPos-theBall.radius)<=paddleEnd)){
 					//check_bounce(theBall.xVel, theBall.yVel, &(theBall.xVel), &(theBall.yVel));
 				//}else{
 					//killBall();
@@ -369,7 +373,7 @@
 		//}
 	//}else if(colorMode==SYNC_TEST){
 		//if((loopID/6)%2==0){
-			//hsv_to_rgb(60*loopID, 200, 100, &newR, &newG, &newB);
+			//hsv_to_rgb(60*(loopID%6), 200, 100, &newR, &newG, &newB);
 		//}else{
 			//hsv_to_rgb(0,0,(frameCount%3)*(frameCount%3)*60,&newR, &newG, &newB);
 		//}
@@ -819,21 +823,24 @@
 	//get_rgb(&r,&g,&b);
 	//int16_t sum = r+g+b;
 	//uint32_t now = get_time();
-	//if(sum<=60){
-		//paddleChange += ((now-lastLightCheck)*PADDLE_VEL);
-		//printf("Paddle Change: %f\r\n", paddleChange);
-	//}else if(sum<=40){
+	//if(sum<=25){
 		//paddleChange += ((now-lastLightCheck)*(3*PADDLE_VEL));
-		//printf("Paddle ChangeX3: %f\r\n", paddleChange);
-	//}else if(sum<=25){
-		//paddleChange += ((now-lastLightCheck)*(5*PADDLE_VEL));
-		//printf("Paddle ChangeX5: %f\r\n", paddleChange);
+		////printf("Paddle ChangeX5: %f\r\n", paddleChange);
+	//}else if(sum<=40){
+		//paddleChange += ((now-lastLightCheck)*(2*PADDLE_VEL));
+		////printf("Paddle ChangeX3: %f\r\n", paddleChange);
+	//}else if(sum<=60){
+		//paddleChange += ((now-lastLightCheck)*(PADDLE_VEL));
+		////printf("Paddle ChangeX5: %f\r\n", paddleChange);
 	//}
 	//lastLightCheck = now;
 	////printf("Light: %5d (%4d, %4d, %4d)\r\n",sum,r,g,b);
 //}
 //
 //void sendBallMsg(){
+	//if(myState>2 || isnanf(myDist) || myDist>=30){
+		//return;
+	//}
 	//BallMsg msg;
 	//msg.flag = BALL_MSG_FLAG;
 	//int16_t tempX = theBall.xPos;

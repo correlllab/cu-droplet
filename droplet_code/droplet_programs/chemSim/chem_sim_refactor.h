@@ -15,7 +15,7 @@
 #define STATE_3 3
 #define MAX_NEAR_ATOMS 12
 #define SLOT_LENGTH_MS			419
-#define SLOTS_PER_FRAME			29 //116
+#define SLOTS_PER_FRAME			23 //116
 #define FRAME_LENGTH_MS			(SLOT_LENGTH_MS*SLOTS_PER_FRAME)
 #define LOOP_PERIOD 17
 #define BOND_TYPE_COV 2
@@ -96,6 +96,7 @@ MC_Component my_molecule[MAX_ATOMS_IN_MC];
 
 /*Info about the atom I'm moving toward, if I'm in a molecule */
 uint16_t target_id;
+uint32_t timeLastMoved;
 
 uint32_t	frameCount;
 uint32_t	frameStart;
@@ -103,11 +104,13 @@ uint16_t	lastLoop;
 uint16_t	mySlot;
 
 uint8_t addToNearAtoms(Near_Atom* near_atom);
-uint8_t attemptToBond(Atom* other, int bondType, uint16_t other_ID);
-uint8_t breakBond(Atom* other, uint16_t senderID, uint8_t bondType);
+uint8_t attemptToBond(Atom* other, int bondType, uint16_t other_ID, uint8_t rxnType);
+uint8_t breakBond(uint16_t senderID, uint8_t bondType);
+void calculatePath(float target, uint16_t range, float bearing);
+void calculateTarget(Atom* nearAtom, uint16_t range, float bearing, float heading);
 uint8_t chiCheck(Atom* other);
 void createStateMessage(State_Msg* msg, char flag);
-uint8_t energyCheck(MC_Component sender_mc[MAX_ATOMS_IN_MC], uint8_t otherHalfBond);
+uint8_t energyCheck(MC_Component sender_mc[MAX_ATOMS_IN_MC], uint8_t otherHalfBond, uint8_t overlap);
 void getAtomColor(Atom* ID, uint8_t* r, uint8_t* g, uint8_t* b);
 Atom* getAtomFromAtomicNum(uint8_t atomicNum);
 //getAtomFromID? All the rest of the get x from ID functions boil down to this
@@ -116,7 +119,9 @@ void getNameFromAtomicNum(char* name, uint8_t atomicNum);
 uint8_t isInMyMolecule(uint16_t ID);
 void initAtomState();
 void initBondedAtoms(Atom atom);
+void joinNewMolecule(MC_Component newMC[MAX_ATOMS_IN_MC]);
 uint8_t moleculesOverlap(MC_Component sender_mc[MAX_ATOMS_IN_MC]);
+void moveToTarget(uint16_t rng, float bearing);
 void msgState(ir_msg* msg_struct);
 uint8_t otherBondedToSelf(Atom* other);
 void packValences(uint8_t* packed_shells, int8_t* shells);
@@ -133,7 +138,9 @@ uint8_t updateNearAtoms(Atom* near_atom, ir_msg* msg_struct);
 static inline uint8_t molecule_length(MC_Component mc[MAX_ATOMS_IN_MC]) {
 	uint8_t i;
 	for(i = 0; i < MAX_ATOMS_IN_MC; i++) {
-		if(mc[i].ID==0) break;
+		if(mc[i].ID==0) {
+			break;
+		}
 	}
 	return i;
 }

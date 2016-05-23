@@ -7,8 +7,7 @@
 
 #pragma once
 
-#include <avr/io.h>
-#include <avr/pgmspace.h>
+#include "droplet_init.h"
 
 #define MAX_NUM_MOLECULE_RESULTS 50
 #define MAX_NUM_ATOMS_RESULTS 255
@@ -28,4 +27,12 @@ uint8_t get_molecules(uint8_t* atoms, uint8_t* bestMoleculeSet, uint8_t numAtoms
 uint8_t molecule_search(uint8_t* atoms, int16_t* deltaG, uint8_t numAtoms);
 
 
-int comp_func(molecule_result* a, molecule_result* b);
+static int comp_func(const void* aIn, const void* bIn){
+	molecule_result* a = (molecule_result*)aIn;
+	molecule_result* b = (molecule_result*)bIn;
+	int16_t aScore = (a->deltaG)/(a->numAtoms);
+	int16_t bScore = (b->deltaG)/(b->numAtoms);
+	if(aScore<bScore) return -1;
+	else if(aScore==bScore) return 0;
+	else return 1;
+}

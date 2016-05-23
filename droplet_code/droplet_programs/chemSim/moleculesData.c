@@ -204,9 +204,9 @@ int16_t _molecule_search(uint8_t* atomIDs, uint8_t atomIDsSize, uint16_t trieIdx
 uint8_t molecule_search(uint8_t* atoms, int16_t* deltaG, uint8_t numAtoms)
 {
 	//printf("\tMolecule Search:\t");
-	//for(uint8_t i=0;i<numAtoms;i++){
-		//printf("%hu ", atoms[i]);
-	//}
+	for(uint8_t i=0;i<numAtoms;i++){
+		printf("%hu ", atoms[i]);
+	}
 	//printf("\r\n");
 	
 	uint16_t rootIdx = pgm_read_word(&(MOLECULE_LOOKUP[0]));
@@ -283,15 +283,6 @@ void _get_molecules(uint8_t* molecule, uint8_t moleculeSize, uint8_t* atomIDs, u
 	}
 }
 
-int comp_func(molecule_result* a, molecule_result* b)
-{
-	int16_t aScore = (a->deltaG)/(a->numAtoms);
-	int16_t bScore = (b->deltaG)/(b->numAtoms);
-	if(aScore<bScore) return -1;
-	else if(aScore==bScore) return 0;
-	else return 1;
-}
-
 uint8_t checkMake(uint8_t* atomSet, uint8_t atomSetSize, uint8_t* molecule, uint8_t moleculeSize)
 {
 	//printf("Checking make for: (");
@@ -336,7 +327,7 @@ uint8_t getBest(uint8_t* atoms, uint8_t numAtoms, uint8_t* bestMoleculeSet)
 			uint8_t idx = getBest(atoms, numAtoms, bestMoleculeSet);
 			bestMoleculeSet[idx] = i;
 			return idx+1;
-			}else{
+		}else{
 			for(uint8_t j=0;j<numAtoms;j++) atoms[j]=atoms_copy[j];
 		}
 	}

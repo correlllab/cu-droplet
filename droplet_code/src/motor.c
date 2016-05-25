@@ -112,8 +112,8 @@ uint8_t move_steps(uint8_t direction, uint16_t num_steps)
 void walk(uint8_t direction, uint16_t mm)
 {
 	uint16_t mm_per_kilostep = get_mm_per_kilostep(direction);
-	if(abs((0xFFFF-((uint32_t)mm_per_kilostep)))<1000){
-		printf("Error: Don't have calibrated values for this direction.\r\n");
+	if(mm_per_kilostep>30000){
+		printf("Error: Don't have calibrated values for this direction (mm_per_kilostep = %lu).\r\n", (uint32_t)mm_per_kilostep);
 		if(direction>5){
 			mm_per_kilostep = 2000;
 		}else{

@@ -204,9 +204,9 @@ int16_t _molecule_search(uint8_t* atomIDs, uint8_t atomIDsSize, uint16_t trieIdx
 uint8_t molecule_search(uint8_t* atoms, int16_t* deltaG, uint8_t numAtoms)
 {
 	//printf("\tMolecule Search:\t");
-	for(uint8_t i=0;i<numAtoms;i++){
-		printf("%hu ", atoms[i]);
-	}
+	//for(uint8_t i=0;i<numAtoms;i++){
+		//printf("%hu ", atoms[i]);
+	//}
 	//printf("\r\n");
 	
 	uint16_t rootIdx = pgm_read_word(&(MOLECULE_LOOKUP[0]));

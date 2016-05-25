@@ -32,8 +32,12 @@ uint8_t addToNearAtoms(Near_Atom* near_atom)
 {
 	for(uint8_t i = 0; i < MAX_NEAR_ATOMS; i++)  {
 		if(near_atoms[i].id == 0)  {
-			near_atoms[i].atom.atomicNum = near_atom->atom.atomicNum; 
+			(near_atoms[i].atom).atomicNum = (near_atom->atom).atomicNum; 
 			for(uint8_t j = 0; j < MAX_BONDS; j++) near_atoms[i].atom.bonded_atoms[j] = near_atom->atom.bonded_atoms[j];
+			for(uint8_t j = 0; j < MAX_ATOMS_IN_MC; j++) {
+				(near_atoms[i].molecule[j]).ID = (near_atom->molecule[j]).ID;
+				(near_atoms[i].molecule[j]).atomicNum = (near_atom->molecule[j]).atomicNum;
+			}
 			near_atoms[i].atom.chi = near_atom->atom.chi;
 			near_atoms[i].atom.name[0] = near_atom->atom.name[0];
 			near_atoms[i].atom.name[1] = near_atom->atom.name[1];
@@ -49,7 +53,7 @@ uint8_t addToNearAtoms(Near_Atom* near_atom)
 	return 0;
 }
 
-uint8_t updateNearAtoms(Atom* near_atom, ir_msg* msg_struct)
+uint8_t updateNearAtoms(Atom* near_atom, ir_msg* msg_struct, MC_Component mc[MAX_ATOMS_IN_MC])
 {
 	uint8_t index = 0;
 	//If this droplet isn't in our list, add it. If it is, update it.
@@ -72,13 +76,25 @@ uint8_t updateNearAtoms(Atom* near_atom, ir_msg* msg_struct)
 		/*
 		 * Changing this so we initialize with NAN. I don't trust the on-message rnb.
 		 */
-		Near_Atom close_atom = {*near_atom, NAN, NAN, sender_ID, range};
+		Near_Atom close_atom;
+		for(uint8_t j = 0; j < MAX_ATOMS_IN_MC; j++) {
+			close_atom.molecule[j].atomicNum = mc[j].atomicNum;
+			close_atom.molecule[j].ID = mc[j].ID;
+		}
+		close_atom.atom =  *near_atom;
+		close_atom.heading =  NAN;
+		close_atom.bearing = NAN;
+		close_atom.id = sender_ID;
+		close_atom.range =  range;
 		return addToNearAtoms(&close_atom);
 	}
 	else if(found == 1) {
-		//if(bondDelay == 0 || potentialPartner == sender_ID) why was this here?
 		for(uint8_t j = 0; j < MAX_BONDS; j++) near_atoms[i].atom.bonded_atoms[j] = near_atom->bonded_atoms[j];
 		for(uint8_t j = 0; j < 8; j++) near_atoms[i].atom.valence[j] = near_atom->valence[j];
+		for(uint8_t j = 0; j < MAX_ATOMS_IN_MC; j++) {
+			near_atoms[i].molecule[j].ID = mc[j].ID;
+			near_atoms[i].molecule[j].atomicNum = mc[j].atomicNum;
+		}
 		near_atoms[i].atom.atomicNum = near_atom->atomicNum;
 		near_atoms[i].atom.name[0] = near_atom->name[0];
 		near_atoms[i].atom.name[1] = near_atom->name[1];
@@ -455,22 +471,22 @@ void moveToTarget(uint16_t rng, float bearing)
 	int16_t degree_bearing = (int16_t)rad_to_deg(bearing);
 	printf_P(PSTR("\tMoving to target. range = %u, bearing = %d\r\n"), rng, degree_bearing);
 	if (rng<(DROPLET_RADIUS*25)){
-		//printf_P(PSTR("Range is too small. Not moving.\r\n"));
+		printf_P(PSTR("Range is too small. Not moving.\r\n"));
 	}else{
 		if (abs(degree_bearing)<=30)  {
-			//printf_P(PSTR("moving forward.\r\n"));
+			printf_P(PSTR("moving forward.\r\n"));
 			walk(0, rng>>2);
 		}
 		else if (abs(degree_bearing)>=150)  {
-			//printf_P(PSTR("moving backward.\r\n"));
+			printf_P(PSTR("moving backward.\r\n"));
 			walk(3, rng>>2);
 		}
 		else if (degree_bearing>0)  {
-			//printf_P(PSTR("moving ccw.\r\n"));
+			printf_P(PSTR("moving ccw.\r\n"));
 			walk(7, abs(degree_bearing));
 		}
 		else if (degree_bearing<0)  {
-			//printf_P(PSTR("moving cw.\r\n"));
+			printf_P(PSTR("moving cw.\r\n"));
 			walk(6, abs(degree_bearing));
 		}
 		timeLastMoved = get_time();
@@ -481,15 +497,15 @@ void calculatePath(float target, uint16_t range, float bearing)
 {
 	//Target is the angle of the spot that I need to occupy, from the center of the Droplet I'm moving toward. I'm aiming to be right next to that Droplet at that angle to him.
 	float o_x, o_y;
-	o_x = cos(target-M_PI_2)*(DROPLET_RADIUS*25);
-	o_y = sin(target-M_PI_2)*(DROPLET_RADIUS*25);
+	o_x = cos(target+M_PI_2)*(DROPLET_RADIUS*25);
+	o_y = sin(target+M_PI_2)*(DROPLET_RADIUS*25);
 	float s_x, s_y;
-	s_x = -cos(bearing-M_PI_2)*range;
-	s_y = -sin(bearing-M_PI_2)*range;
+	s_x = cos(bearing+M_PI_2)*range;
+	s_y = sin(bearing+M_PI_2)*range;
 	printf_P(PSTR("\trange: %u bearing: %f o_x: %f o_y: %f s_x: %f s_y: %f \r\n"), range, rad_to_deg(bearing), o_x, o_y, s_x, s_y);
 	float new_x = o_x + s_x;
 	float new_y = o_y + s_y;
-	float new_bearing = atan2(new_y, new_x)/*+M_PI_2*/;
+	float new_bearing = atan2(new_y, new_x)-M_PI_2;
 	uint16_t new_rng = (uint16_t)hypotf(new_x, new_y);
 	printf_P(PSTR("\tnew_rng: %u, new_bearing: %f\r\n"), new_rng, rad_to_deg(new_bearing));
 	moveToTarget(new_rng, new_bearing);
@@ -497,7 +513,7 @@ void calculatePath(float target, uint16_t range, float bearing)
 
 void calculateTarget(Atom* other, uint16_t range, float bearing, float heading)
 {
-	uint8_t bondingRegions;
+	uint8_t bondingRegions = 0;
 	uint8_t myBondingRegion = -1;
 	for(uint8_t i=0;i<8;i+=2){
 		if((other->valence[i]==1)&&(other->valence[i+1]==0)){
@@ -518,7 +534,7 @@ void calculateTarget(Atom* other, uint16_t range, float bearing, float heading)
 			}
 		}
 	}
-	if(myBondingRegion == -1) {
+	if(myBondingRegion == 0xFF) {
 		printf_P(PSTR("ERROR: Attempted to calculate a target orbital on an atom who isn't bonded to me \r\n"));
 		return;
 	}
@@ -541,6 +557,7 @@ void createStateMessage(State_Msg* msg, char flag)
 	if(numBonds == 0){
 		disable_sync_blink();
 		printf("\tBlink disabled.\r\n");
+		target_id = 0;
 	}else{
 		for(uint8_t i=0;i<MAX_ATOMS_IN_MC;i++){
 			if(my_molecule[i].ID < globalBlinkTimer && my_molecule[i].ID != 0){
@@ -549,7 +566,7 @@ void createStateMessage(State_Msg* msg, char flag)
 			} else if (my_molecule[i].ID == 0) break;
 		}
 		enable_sync_blink(globalBlinkTimer);
-		printf("\tBlink timer: %u\r\n", globalBlinkTimer);
+		printf("\tBlink timer: %04X\r\n", globalBlinkTimer);
 	}
 	msg->blink_timer = globalBlinkTimer;
 	for(uint8_t i = 0; i < MAX_BONDS; i++) {  msg->bonded_atoms[i] = myID.bonded_atoms[i]; }
@@ -1004,8 +1021,14 @@ uint8_t attemptToBond(Atom* other, int bondType, uint16_t other_ID, uint8_t rxnT
 	}
 	printf("\r\n");
 	for(uint8_t i = 0; i < 8; i+=2) {
-		if(other->valence[i] == 1 && other->valence[i+1] == 0) {
-			maxBondsOther++;
+		if(rxnType == 2) {
+			if(other->valence[i] == 1 && other->valence[i+1] == 0) {
+				maxBondsOther++;
+			}
+		} else if(rxnType == 1) {
+			if((other->valence[i] == 2 || other->valence[i] == 3 || other->valence[i] == 4 ||(other->valence[i] == 1 && other->valence[i+1] == 0)) && other->bonded_atoms[i/2] != get_droplet_id()) {
+				maxBondsOther++;
+			}
 		}
 	}
 	//If the correct reaction is for me to leave my molecule, break all my current bonds so that happens, as long as other has room to bond to me.
@@ -1107,7 +1130,13 @@ uint8_t breakBond(uint16_t senderID, uint8_t bondType) {
 	for(uint8_t i = 0; i < MAX_BONDS; i++) {
 		if(myID.bonded_atoms[i] != 0 && myID.bonded_atoms[i] != 0xFFFF) numBonds++;
 	}
-	if(numBonds == 0) disable_sync_blink();
+	if(numBonds == 0) {
+		disable_sync_blink();
+		for(uint8_t i = 1; i < MAX_ATOMS_IN_MC; i++) {
+			my_molecule[i].ID = 0;
+			my_molecule[i].atomicNum = 0;
+		}
+	}
 	return 0;
 }
 
@@ -1138,6 +1167,118 @@ void updateMolecule(MC_Component sender_mc[MAX_ATOMS_IN_MC]) {
 		if(!isInMyMolecule(keep[i].ID)) addToMolecule(keep[i].ID, keep[i].atomicNum);
 	}
 }
+/*
+	If Droplet A is in my molecule list, but A's bonded_atoms don't show that it's bonded to anything in my 
+	molecule, remove it. 
+
+	Setup: We have the stable molecule X-Y and the lone droplet Z. The bug this function fixes takes the following steps to occur:
+		1. Z sends out a state message, which is received by X.
+		2. X calculates that Z should join the molecule X-Y, and adds it. X thinks its molecule is X-Y-Z.
+		3. X sends out its state message, which is received by Y. Y updates its molecule to be Y-X-Z.
+		4. Z sends another state message to X. Z has formed a new bond and the energies are no longer favorable for Z to join X-Y, so it has not done so.
+		   X removes the bond to Z, which also removes Z from its molecule. X thinks its molecule is X-Y.
+		5. Y sends its state message, which is received by X. Since Y is in X's bonded atoms, X updates its molecule to match Y's, thinking that if
+		   Y has anything in its molecule that X doesn't, it's because Y (or something Y bonded to) added it. Y's molecule was Y-X-Z, so X's molecule becomes X-Y-Z.
+		6. X and Y both now have Z in their molecule even though Z is bonded to neither.
+	
+*/
+void cleanMyMolecule(uint16_t other_bonds[MAX_BONDS], uint16_t ID) {
+	printf("\r\n\r\n\r\n ************* CLEANING MC *************** \r\n\r\n");
+	uint8_t legitimateBond = 0;
+	for(uint8_t i = 0; i < MAX_BONDS; i++) {
+		if(isInMyMolecule(other_bonds[i]) && other_bonds[i] != 0 && other_bonds[i] != -1) legitimateBond = 1;
+	}
+	if(!legitimateBond) {
+		removeFromMolecule(ID);
+	}
+}
+
+uint8_t getLength(uint16_t q[MAX_NEAR_ATOMS+1]) {
+	for(uint8_t i = 0; i < MAX_NEAR_ATOMS; i++) {
+		if(q[i] == 0) return i;
+	}
+	return MAX_NEAR_ATOMS;
+}
+
+void push(uint16_t q[MAX_NEAR_ATOMS+1], uint16_t ID) {
+	uint8_t i;
+	for(i = 0; i < MAX_NEAR_ATOMS; i++) {
+		if(q[i] == 0) {
+			q[i] = ID;
+			break;
+		}
+	}
+	if(i == MAX_NEAR_ATOMS) printf_P(PSTR("ERROR: push error in queue push \r\n"));
+}
+
+uint16_t pop(uint16_t q[MAX_NEAR_ATOMS+1]) {
+	if(q[0] == 0) return 0xFFFF;
+	else {
+		uint16_t retval = q[0];
+		for(uint8_t i = 0; i < MAX_NEAR_ATOMS; i++) {
+			q[i] = q[i+1];
+		}
+		q[MAX_NEAR_ATOMS] = 0;
+		return retval;
+	}
+}
+
+uint8_t getIdxFromID(uint16_t ID) {
+	for(uint8_t i = 0; i < MAX_NEAR_ATOMS; i++) {
+		if(near_atoms[i].id == ID) return i;
+	}
+	return 0xFF;
+}
+
+void scrubMyMolecule() {
+	printf("\r\n SCRUBBING MOLECULE WITH MANY SOAP \r\n\r\n");
+	MC_Component atomsToKeep[MAX_ATOMS_IN_MC];
+	uint16_t currentID = get_droplet_id();
+	Atom *currentAtom;
+	uint8_t visited[MAX_NEAR_ATOMS];
+	uint16_t q[MAX_NEAR_ATOMS+1];
+	uint8_t idxToKeep = 0;
+	for(uint8_t i = 0; i < MAX_NEAR_ATOMS; i++) {
+		visited[i] = 0;
+		q[i+1] = 0;
+		atomsToKeep[i].ID = 0;
+		atomsToKeep[i].atomicNum = 0;
+	}
+
+	q[0] = get_droplet_id();
+	while(getLength(q) != 0) {
+		currentID = pop(q);
+		uint8_t currentIdx = getIdxFromID(currentID); //idx into near_atoms, not q
+		if(currentID != get_droplet_id()) currentAtom = &(near_atoms[currentIdx].atom);
+		else currentAtom = &myID;
+		visited[currentIdx] = 1;
+		uint8_t alreadyInList = 0;
+		for(uint8_t i = 0; i < MAX_ATOMS_IN_MC; i++) {
+			if(atomsToKeep[i].ID == currentID) alreadyInList= 1;
+		}
+		if(!alreadyInList) {
+			atomsToKeep[idxToKeep].ID = currentID;
+			atomsToKeep[idxToKeep].atomicNum = currentAtom->atomicNum;
+			idxToKeep++;
+		}
+		printf("\tCurrent atom: %04X \r\n", currentID);
+		for(uint8_t i = 0; i < MAX_BONDS; i++) {
+			//printf("visited: %hu index: %hu current bonded atom: %04X \r\n", visited[getIdxFromID(currentAtom->bonded_atoms[i])], getIdxFromID(currentAtom->bonded_atoms[i]), currentAtom->bonded_atoms[i]);
+			if(currentAtom->bonded_atoms[i] != 0 && currentAtom->bonded_atoms[i] != 0xFFFF && !visited[getIdxFromID(currentAtom->bonded_atoms[i])]) {
+				push(q, currentAtom->bonded_atoms[i]);
+				//printf("%04X, ", currentAtom->bonded_atoms[i]);
+			}
+		}
+		//printf("\r\n");
+	}
+	printf("Atoms to keep: \r\n\t");
+	for(uint8_t i = 0; i < idxToKeep; i++) {
+		printf("%04X, ", atomsToKeep[i].ID);
+	}
+	printf("\r\n");
+	updateMolecule(atomsToKeep);
+}
+
 
 void msgState(ir_msg* msg_struct) {
 	State_Msg state;
@@ -1167,10 +1308,7 @@ void msgState(ir_msg* msg_struct) {
 	near_atom.name[0] = base_atom->name[0];
 	near_atom.name[1] = base_atom->name[1];
 	near_atom.chi = base_atom->chi;
-	updateNearAtoms(&near_atom, msg_struct);
-	//setAtomColor(&near_atom);
-	//delay_ms(500);
-	//setAtomColor(&myID);
+	updateNearAtoms(&near_atom, msg_struct, sender_mc);
 	uint8_t bondType = chiCheck(&near_atom);
 	printf("Beginning bond check \r\n");
 	uint8_t otherHalfBond = 0;
@@ -1183,12 +1321,17 @@ void msgState(ir_msg* msg_struct) {
 		//See moleculesOverlap for more details.
 		uint8_t overlap = moleculesOverlap(sender_mc);
 		printf("\tOverlap: %hu Other bonded to me? %hu\r\n", overlap, otherBondedToSelf(&near_atom));
-		if(overlap > 1 || (overlap > 0 /*&& overlap == molecule_length(my_molecule)-1*/ && !otherBondedToSelf(&near_atom))) {
+		if(overlap > 1 && !otherBondedToSelf(&near_atom)) {
 			printf("\tOverlap check caught \r\n");
 			shouldBond = 0;
 		}   
 		if(otherBondedToSelf(&near_atom)) {
 			otherHalfBond = 1;
+		}
+		if(isInMyMolecule(msg_struct->sender_ID) && !otherHalfBond) {
+			//Fixes a heisenbug caused by a rejected reaction and an unfortunate message order.
+			//See cleanMyMolecule for more details.
+			cleanMyMolecule(near_atom.bonded_atoms, msg_struct->sender_ID);
 		}
 		if(!isInMyMolecule(msg_struct->sender_ID) && shouldBond) {
 			rxnType = energyCheck(sender_mc, otherHalfBond, overlap);
@@ -1220,27 +1363,30 @@ void msgState(ir_msg* msg_struct) {
 	if(otherBondedToSelf(&near_atom) && selfBondedToOther(msg_struct->sender_ID) &&shouldUpdateMc) {
 		updateMolecule(sender_mc);
 	}
-	updateTargetId();
 
 }
 
 void init()  {
 	printf_P(PSTR("INITIALIZING DROPLET. \r\n"));
 	switch(get_droplet_id()){
+		case 0x2B4E: MY_CHEM_ID = 1; break;
+		case 0x7d78: MY_CHEM_ID = 6; break;
+		case 0x43BA: MY_CHEM_ID = 1; break;
+		case 0x4177: MY_CHEM_ID = 1; break;
+		case 0x8B46: MY_CHEM_ID = 6; break;
+		case 0xC806: MY_CHEM_ID = 1; break;
+		case 0x0A0B: MY_CHEM_ID = 8; break;
+		case 0x1F08: MY_CHEM_ID = 8; break;
+
 		case 0xD0AE: MY_CHEM_ID = 6; break;
 		case 0x5264: MY_CHEM_ID = 6; break;
 		case 0x73AF: MY_CHEM_ID = 6; break;
-		case 0x2B4E: MY_CHEM_ID = 1; break;
-		case 0x7d78: MY_CHEM_ID = 8; break;
-		case 0x43BA: MY_CHEM_ID = 6; break;
 		case 0xB944: MY_CHEM_ID = 6; break;
 		case 0xC24B: MY_CHEM_ID = 17; break;
 		case 0xEEB0: MY_CHEM_ID = 17; break;
-		case 0x8B46: MY_CHEM_ID = 17; break;
 		case 0x3B49: MY_CHEM_ID = 53; break;
 		case 0xF60A: MY_CHEM_ID = 17; break;
-		case 0x4177: MY_CHEM_ID = 53; break;
-		case 0xC806: MY_CHEM_ID = 8; break;
+
 		default:     MY_CHEM_ID = 1; break;
 	}
 	
@@ -1267,13 +1413,16 @@ void loop()  {
 	uint16_t loopID = (SLOTS_PER_FRAME*frameTime)/FRAME_LENGTH_MS;
 	
 	if(loopID!=lastLoop){
+		if(loopID == SLOTS_PER_FRAME-1) {
+			scrubMyMolecule();
+		}
 		if(loopID==mySlot){
 			delay_ms(8+(rand_byte()>>3));
-			broadcast_rnb_data();
+			broadcast_rnb_data(); 
 			delay_ms(8+(rand_byte()>>3));
 			State_Msg message;
 			createStateMessage(&message, 'p');
-			ir_send(ALL_DIRS, (char*)(&message), sizeof(State_Msg));
+			ir_send(ALL_DIRS, (char*)(&message), sizeof(State_Msg)); 
 			//printf("message->bonded_atoms[0] is %x, message->atomicNum is %hu \r\n", message.bonded_atoms[0], message.atomicNum);
 			//if(rand_byte()%3==0)		ir_send(DIR0|DIR3, (char*)(&message), sizeof(State_Msg));
 			//else if(rand_byte()%2==0)	ir_send(DIR1|DIR4, (char*)(&message), sizeof(State_Msg));
@@ -1296,7 +1445,7 @@ void loop()  {
 				near_atoms[i].heading = last_good_rnb.heading;
 				//printf("New RNB Data from %04X:\t%u\t%f\t%f\t%f\r\n", id, near_atoms[i].range, rad_to_deg(near_atoms[i].bearing), rad_to_deg(near_atoms[i].heading), last_good_rnb.conf);
 				if(target_id==last_good_rnb.id_number){
-					calculateTarget(&(near_atoms[i]), near_atoms[i].range, near_atoms[i].bearing, near_atoms[i].heading);  //Comment to disable movement
+					//calculateTarget(&(near_atoms[i].atom), near_atoms[i].range, near_atoms[i].bearing, near_atoms[i].heading);  //Comment to disable movement. Before uncommenting, please change where taget_id is set: atm target is the person w/ lowest ID in my_molecule. Target should be someone bonded to me.
 				}
 			}
 		}

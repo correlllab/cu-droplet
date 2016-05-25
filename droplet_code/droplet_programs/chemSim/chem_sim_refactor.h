@@ -13,7 +13,7 @@
 #define STATE_1 1
 #define STATE_2 2
 #define STATE_3 3
-#define MAX_NEAR_ATOMS 12
+#define MAX_NEAR_ATOMS 15
 #define SLOT_LENGTH_MS			419
 #define SLOTS_PER_FRAME			23 //116
 #define FRAME_LENGTH_MS			(SLOT_LENGTH_MS*SLOTS_PER_FRAME)
@@ -34,20 +34,21 @@ typedef struct
 	uint8_t atomicNum;
 }Atom;
 
-typedef struct
-{
-	Atom atom;
-	float bearing;
-	float heading;
-	uint16_t id;
-	uint16_t range; 
-}Near_Atom;
-
 typedef struct  
 {
 	uint16_t ID;
 	uint8_t atomicNum;
 }MC_Component;
+
+typedef struct
+{
+	MC_Component molecule[MAX_ATOMS_IN_MC];
+	Atom atom;
+	float bearing;
+	float heading;
+	uint16_t id;
+	uint16_t range;
+}Near_Atom;
 
 typedef struct
 {
@@ -83,7 +84,7 @@ uint8_t MY_CHEM_ID;
 uint8_t valence[8];
 
 /*Information about nearby robots*/
-Near_Atom NULL_NEAR_ATOM = {{{0,0,0,0,0,0,0,0},{0,0,0,0},0,{' ',' '},0}, 0, 0, 0};
+Near_Atom NULL_NEAR_ATOM = {{{0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}}, {{0,0,0,0,0,0,0,0},{0,0,0,0},0,{' ',' '},0}, 0, 0, 0};
 Atom NULL_ATOM = {{0,0,0,0,0,0,0,0},{0,0,0,0},0,{'0','0'},0};
 volatile uint16_t globalBlinkTimer;
 Near_Atom near_atoms[MAX_NEAR_ATOMS];
@@ -109,6 +110,7 @@ uint8_t breakBond(uint16_t senderID, uint8_t bondType);
 void calculatePath(float target, uint16_t range, float bearing);
 void calculateTarget(Atom* nearAtom, uint16_t range, float bearing, float heading);
 uint8_t chiCheck(Atom* other);
+void cleanMyMolecule(uint16_t other_bonds[MAX_BONDS], uint16_t ID);
 void createStateMessage(State_Msg* msg, char flag);
 uint8_t energyCheck(MC_Component sender_mc[MAX_ATOMS_IN_MC], uint8_t otherHalfBond, uint8_t overlap);
 void getAtomColor(Atom* ID, uint8_t* r, uint8_t* g, uint8_t* b);
@@ -129,11 +131,12 @@ void packMolecule(uint8_t packed_mc[21], MC_Component mc[MAX_ATOMS_IN_MC]);
 void printMolecularReaction(uint8_t* reactant1, uint8_t* reactant2, uint8_t* product1, uint8_t* product2, uint8_t lenR1, uint8_t lenR2, uint8_t lenP1, uint8_t lenP2);
 void printMyValence();
 void printMyBondedAtoms();
+void removeFromMolecule(uint16_t ID);
 uint8_t selfBondedToOther(uint16_t other_ID);
 void setAtomColor(Atom* ID);
 void unpackMolecule(uint8_t packed_mc[21], MC_Component mc[MAX_ATOMS_IN_MC]);
 void unpackValences(uint8_t* packed_shells, int8_t* shells);
-uint8_t updateNearAtoms(Atom* near_atom, ir_msg* msg_struct);
+uint8_t updateNearAtoms(Atom* near_atom, ir_msg* msg_struct, MC_Component mc[MAX_ATOMS_IN_MC]);
 
 
 static inline uint8_t molecule_length(MC_Component mc[MAX_ATOMS_IN_MC]) {

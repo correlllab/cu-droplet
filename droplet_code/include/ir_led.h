@@ -8,7 +8,7 @@
 #include "scheduler.h"
 #include "i2c.h"
 
-static const char TWI_WAITING_STR[] PROGMEM = "\tWaiting for TWI...\r\n";
+static const char TWI_WAITING_STR[] PROGMEM = "\tWaiting for TWI... ";
 static const char TWI_TIMEOUT_STR[] PROGMEM = "\tTWI timeout when setting IR Powers ";
 
 extern USART_t* channel[];
@@ -25,3 +25,6 @@ void set_all_ir_powers(uint16_t power);
 void ir_led_on(uint8_t direction);
 void ir_led_off(uint8_t direction);
 inline uint16_t get_all_ir_powers(){ return curr_ir_power; }
+	
+uint8_t twiWriteWrapper(uint8_t addr, uint8_t* write_buff, uint8_t buff_len, char marker);	
+uint8_t waitForTWIReady(uint32_t startTime, char marker);

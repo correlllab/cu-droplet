@@ -6,12 +6,12 @@
  * rnb takes 142 ms
  * messages take 2.5ms per byte. 
  * paddleMsg is 3 bytes. header is 8 bytes, so PaddleMsg should take 27.5
- * neighbMsg is 10 bytes. header is 8 bytes, so NeighbMsg should take 45ms
+ * neighbMsg is 11 bytes. header is 8 bytes, so NeighbMsg should take 47.5ms
  * ballMsg is 7 bytes. header is 8 bytes, so ballMsg should take 37.5ms 
  */
 #define RNB_DUR		145
 #define PADDLE_MSG_DUR		30
-#define NEIGHB_MSG_DUR		45
+#define NEIGHB_MSG_DUR		50
 #define BALL_MSG_DUR		40
 
 #define BALL_MSG_FLAG			'B'
@@ -34,27 +34,27 @@
 #define INIT_LIKELIHOOD_EMPTY	0.2
 #define UNMEASURED_NEIGHBOR_LIKELIHOOD	0.95
 
-#define GRID_DIMENSION	6.0
+#define GRID_DIMENSION	60
 
 //For each of the positions in our immediate 6-neighborhood, this array stores
 //the x,y coordinate of that position, in cm.
 #define M_SQRT3		1.73205081
-#define X_MAX_DIM				180 //540 //180
-#define Y_MAX_DIM				164 //528 //268 //164
+#define X_MAX_DIM	480			//480 //180
+#define Y_MAX_DIM	476			//476 //268 //164
 
 #define X2_OFFSET	GRID_DIMENSION
-#define X_OFFSET	(X2_OFFSET/2.0)
-#define Y_OFFSET	X_OFFSET*M_SQRT3
-const float neighbPos[NEIGHBORHOOD_SIZE][2] =  {{ X_OFFSET,   Y_OFFSET}, { X2_OFFSET,  0.0},
+#define X_OFFSET	(X2_OFFSET/2)
+#define Y_OFFSET	52 //X_OFFSET*M_SQRT3
+const int16_t neighbPos[NEIGHBORHOOD_SIZE][2] =  {{ X_OFFSET,   Y_OFFSET}, { X2_OFFSET,  0},
 												{ X_OFFSET,  -Y_OFFSET}, {-X_OFFSET,  -Y_OFFSET},
-												{-X2_OFFSET,  0.0},		 {-X_OFFSET,   Y_OFFSET}};
+												{-X2_OFFSET,  0},		 {-X_OFFSET,   Y_OFFSET}};
 #define FLOOR_WIDTH			(X_MAX_DIM-MIN_DIM)
 #define PADDLE_WIDTH		(FLOOR_WIDTH/3)
 #define PADDLE_VEL				0.1
 #define NUM_SEEDS				4
 #define MIN_DIM					0
 
-#define HALF_BOT	((int16_t)(GRID_DIMENSION*5.0))
+#define HALF_BOT	(GRID_DIMENSION/2)
 //The below array is only used for robots to determine if they are a seed.
 //Other robots will accept any ID as a seed if they receive a hop message.
 //That way, only seeds need reprogramming.
@@ -76,9 +76,8 @@ typedef struct ball_msg_struct{
 typedef struct neighb_msg_struct{
 	char flag;	
 	uint8_t ords[NEIGHBORHOOD_SIZE];
-	uint8_t x;
-	uint8_t y;
-	uint8_t xyHighBits;
+	int16_t x;
+	int16_t y;
 }NeighbMsg;
 
 typedef struct paddle_msg_struct{
@@ -189,7 +188,8 @@ int8_t		northSouthCount;
 
 //uint8_t outwardDir;
 //uint16_t outwardDirID;
-float myX, myY, myDist;
+int16_t myX, myY;
+uint16_t myDist;
 
 int16_t consistency[NEIGHBORHOOD_SIZE];
 
@@ -210,9 +210,9 @@ void		updateColor();
 //The five functions below are helper functions for the main functions above.
 float		getBallCoverage();
 float		getPaddleCoverage();
-void		calculateDistsFromNeighborPos(float dists[NEIGHBORHOOD_SIZE][NUM_TRACKED_BOTS]);
-float		calculateFactor(float dist, float conf, uint8_t dir, uint16_t id, float* dfP, float* nfP);
-void		addProbsForNeighbor(NewBayesSlot* newNeighb, float dists[NUM_TRACKED_BOTS], BayesSlot* neighbor, uint8_t dir);
+void		calculateDistsFromNeighborPos(uint16_t dists[NEIGHBORHOOD_SIZE][NUM_TRACKED_BOTS]);
+float		calculateFactor(uint16_t dist, float conf, uint8_t dir, uint16_t id, float* dfP, float* nfP);
+void		addProbsForNeighbor(NewBayesSlot* newNeighb, uint16_t dists[NUM_TRACKED_BOTS], BayesSlot* neighbor, uint8_t dir);
 int16_t		checkNeighborChange(uint8_t dir, NeighbsList* neighb);
 
 void		check_bounce(int8_t xVel, int8_t yVel, int8_t* newXvel, int8_t* newYvel);
@@ -228,7 +228,7 @@ void		sendPaddleMsg();
 void		handlePaddleMsg(char flag, int16_t delta);
 void		handle_msg			(ir_msg* msg_struct);
 
-void		bayesDebugPrintout();
+//void		bayesDebugPrintout();
 void		printNeighbsList();
 void		frameEndPrintout();
 
@@ -242,12 +242,12 @@ void		cleanOtherBot(OtherBot* other);
  * BEGIN INLINE HELPER FUNCTIONS
  */
 
-static float inline getCoverageRatioA(uint8_t rad, float dist){ //when ball radius less than bot radius.
-	const float intermediate = (rad/(2*HALF_BOT*HALF_BOT));
+static float inline getCoverageRatioA(uint8_t rad, uint16_t dist){ //when ball radius less than bot radius.
+	const float intermediate = (((float)rad)/(2*HALF_BOT*HALF_BOT));
 	return intermediate*(rad+HALF_BOT-dist);
 }
 
-static float inline getCoverageRatioB(uint8_t rad, float dist){ //when bot radius less than ball radius.
+static float inline getCoverageRatioB(uint8_t rad, uint16_t dist){ //when bot radius less than ball radius.
 	const float intermediate = 1.0/(2.0*HALF_BOT);
 	return intermediate*(rad+HALF_BOT-dist);
 }
@@ -300,13 +300,14 @@ static int bayesCmpFunc(const void* a, const void* b){
 }
 
 static void inline killBall(){
+	set_rgb(255,0,0);
 	theBall.id = 0x0F;
 }
 
 static void inline initPositions(){
-	myX = NAN;
-	myY = NAN;
-	myDist = NAN;
+	myX = 0x7FFF;
+	myY = 0x7FFF;
+	myDist = 0x7FFF;
 	seedFlag = 0;	
 	for(uint8_t i=0;i<NUM_SEEDS;i++){
 		if(get_droplet_id()==SEED_IDS[i]){
@@ -337,8 +338,8 @@ static void inline initBayesDataStructs(){
 			bayesSlots[i].candidates[j].id=0;
 		}
 		neighbsList[i].id = 0;
-		neighbsList[i].x = 0x8000;
-		neighbsList[i].y = 0x8000;
+		neighbsList[i].x = 0x7FFF;
+		neighbsList[i].y = 0x7FFF;
 		noRecipPenalty[i] = 1.0;
 		for(uint8_t j=0;j<NEIGHBORHOOD_SIZE;j++){
 			neighbsList[i].neighbs[j] = 0;

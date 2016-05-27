@@ -377,13 +377,16 @@ void updateColor(){
 			newR = newG = newB = 0;
 		}
 	}else if(colorMode==SYNC_TEST){
-		if((loopID/6)%2==0){
-			hsv_to_rgb((uint16_t)(60*(loopID%6)), 200, 127, &newR, &newG, &newB);
+		//printf("Frame: %2lu ; loopID: %2u (mod: %2u)", frameCount, loopID, loopID%30);
+		if((loopID%36)<24){
+			//printf(" || %hu", (uint8_t)((loopID%36)>>2));
+			hsv_to_rgb((uint16_t)(60*((loopID%36)>>2)), 220, 127, &newR, &newG, &newB);
 		}else{
 			float value = (frameCount%6)/6.0;
 			uint8_t val = (uint8_t)(5.0*pow(51.0,value));
-			hsv_to_rgb(0,5,(frameCount%3)*(frameCount%3)*60,&newR, &newG, &newB);
+			hsv_to_rgb(0,0, val,&newR, &newG, &newB);
 		}
+		//printf("\r\n");
 	}
 	if(!(0x7FFF==myX || 0x7FFF==myY)){
 		float coverage = getBallCoverage() + getPaddleCoverage();
@@ -520,10 +523,10 @@ float calculateFactor(uint16_t dist, float conf, uint8_t dir, uint16_t id, float
 		}
 	}
 	
-	if(neighbsList[dir].id==id && noRecipPenalty[dir]<1.0){
-		printf_P(PSTR("\tNo recip for %04X in dir %hu: %f\r\n"), id, dir, noRecipPenalty[dir]);
-	}
-	factor = factor*noRecipPenalty[dir];
+	//if(neighbsList[dir].id==id && noRecipPenalty[dir]<1.0){
+		//printf_P(PSTR("\tNo recip for %04X in dir %hu: %f\r\n"), id, dir, noRecipPenalty[dir]);
+		//factor = factor*noRecipPenalty[dir];		
+	//}
 	//factor = distFactor*neighbFactor*confFactor;
 	(*dfP) =  distFactor;
 	(*nfP) = neighbFactor;

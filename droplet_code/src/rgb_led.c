@@ -51,12 +51,12 @@ void set_hsv(uint16_t h, uint8_t s, uint8_t v)
 void hsv_to_rgb(uint16_t hue, uint8_t saturation, uint8_t val, uint8_t* red, uint8_t* green, uint8_t* blue)
 {
 	float h = (hue%360)*1.0;
-	float s = saturation/255.0;
-	float v = val/255.0;
+	float s = (1.0*saturation)/255.0;
+	float v = (1.0*val)/255.0;
 	float f, p, q, t;
 	float r=0, g=0, b=0;
 	
-	if (abs(s)<0.00001){
+	if (fabsf(s)<0.00001){
 		*red = *green = *blue = val;
 		return;
 	}
@@ -65,9 +65,9 @@ void hsv_to_rgb(uint16_t hue, uint8_t saturation, uint8_t val, uint8_t* red, uin
 	uint8_t i = (uint8_t)h;
 	f = h - i;
 	
-	p = v*(1-s);
-	q = v*(1-s*f);
-	t = v*(1-s*(1-f));
+	p = v*(1.0-s);
+	q = v*(1.0-s*f);
+	t = v*(1.0-s*(1-f));
 	
 	switch(i)
 	{

@@ -155,8 +155,8 @@ void processOtherBotData(){
 	for(uint8_t dir=0;dir<NUM_TRACKED_BOTS;dir++){
 		cleanOtherBot(&nearBots[dir]);
 	}
-	eastWestCount   = (eastWestCount>0) ? 1 : ((eastWestCount<0) ? -1 : 0);
-	northSouthCount = (northSouthCount>0) ? 1 : ((northSouthCount<0) ? -1 : 0);
+	eastWestCount   = (eastWestCount>2) ? 2 : ((eastWestCount<-2) ? -2 : eastWestCount);
+	northSouthCount = (northSouthCount>2) ? 2 : ((northSouthCount<-2) ? -2 : northSouthCount);
 	numNearBots = 0;
 }
 
@@ -289,40 +289,42 @@ void updateBall(){
 	if(theBall.lastUpdate){
 		uint32_t now = get_time();
 		int32_t timePassed = now-theBall.lastUpdate;
-		int8_t crossedBefore = checkBallCrossed();
-		theBall.xPos += (((int32_t)(theBall.xVel))*timePassed)/1000.0;
-		theBall.yPos += (((int32_t)(theBall.yVel))*timePassed)/1000.0;
-		int8_t crossedAfter = checkBallCrossed();
-		theBall.lastUpdate = now;
-		if(!(0x7FFF==myX||0x7FFF==myY||isnanf(theBall.xPos)||isnanf(theBall.yPos))){
-			myDist = (uint16_t)hypotf(theBall.xPos-myX,theBall.yPos-myY);
+		if(myX!=0x7FFF && myY!=0x7FFF && theBall.xPos!=0x7FFF && theBall.yPos!=0x7FFF){
+			int8_t crossedBefore = checkBallCrossed();
+			theBall.xPos += (int16_t)((((int32_t)(theBall.xVel))*timePassed)/1000.0);
+			theBall.yPos += (int16_t)((((int32_t)(theBall.yVel))*timePassed)/1000.0);
+			int8_t crossedAfter = checkBallCrossed();
+			myDist = (uint16_t)hypotf(theBall.xPos-myX,theBall.yPos-myY);			
+			theBall.lastUpdate = now;			
+			if(myDist<=30 && crossedBefore!=crossedAfter){ //BOUNCE CHECK
+				uint8_t ballInPaddle = ((theBall.xPos+theBall.radius)>=paddleStart && (theBall.xPos-theBall.radius)<=paddleEnd);
+				uint8_t ballLeaving = (myState==PIXEL_S && theBall.yVel<0) || (myState==PIXEL_N && theBall.yVel>0);
+				if(gameMode==PONG && !ballInPaddle && ballLeaving){
+					killBall();
+				}else{
+					check_bounce(theBall.xVel, theBall.yVel, &(theBall.xVel), &(theBall.yVel));
+				}
+			}else{
+				if(theBall.xPos<(MIN_DIM-30)){
+					theBall.xVel = abs(theBall.xVel);
+					printf("Ball hit lower x boundary.\r\n");
+				}else if(theBall.xPos>(X_MAX_DIM+30)){
+					theBall.xVel = -abs(theBall.xVel);
+					printf("Ball hit upper x boundary.\r\n");
+				}
+				if(theBall.yPos<(MIN_DIM-30)){
+					theBall.yVel = abs(theBall.yVel);
+					printf("Ball hit lower y boundary.\r\n");
+				}else if(theBall.yPos>(Y_MAX_DIM+30)){
+					theBall.yVel = -abs(theBall.yVel);
+					printf("Ball hit upper y boundary.\r\n");
+				}
+			}			
 		}else{
 			myDist = 0x7FFF;
 		}
-		if(myDist!=0x7FFF && myDist<=30 && crossedBefore!=crossedAfter){ //BOUNCE CHECK
-			if((myState==PIXEL_S && theBall.yVel<0) || (myState==PIXEL_N && theBall.yVel>0)){
-				if(gameMode==PONG && ((theBall.xPos+theBall.radius)>=paddleStart && (theBall.xPos-theBall.radius)<=paddleEnd)){
-					check_bounce(theBall.xVel, theBall.yVel, &(theBall.xVel), &(theBall.yVel));
-				}else{
-					killBall();
-				}
-			}
-		}else{
-			if(theBall.xPos<(MIN_DIM-30)){
-				theBall.xVel = abs(theBall.xVel);
-				printf("Ball hit lower x boundary.\r\n");
-			}else if(theBall.xPos>(X_MAX_DIM+30)){
-				theBall.xVel = -abs(theBall.xVel);
-				printf("Ball hit upper x boundary.\r\n");
-			}
-			if(theBall.yPos<(MIN_DIM-30)){
-				theBall.yVel = abs(theBall.yVel);
-				printf("Ball hit lower y boundary.\r\n");
-			}else if(theBall.yPos>(Y_MAX_DIM+30)){
-				theBall.yVel = -abs(theBall.yVel);
-				printf("Ball hit upper y boundary.\r\n");
-			}
-		}
+
+		
 	}
 }
 
@@ -476,7 +478,7 @@ void calculateDistsFromNeighborPos(uint16_t dists[NEIGHBORHOOD_SIZE][NUM_TRACKED
 float calculateFactor(uint16_t dist, float conf, uint8_t dir, uint16_t id, float* dfP, float* nfP){
 	float factor, distFactor, neighbFactor;
 	
-	distFactor = sqrtf(35.0/dist);
+	distFactor = sqrtf(40.0/dist);
 	if(conf<=5.0){
 		if(distFactor<0.5){
 			distFactor = 0.5;
@@ -515,7 +517,7 @@ float calculateFactor(uint16_t dist, float conf, uint8_t dir, uint16_t id, float
 	}
 	factor = factor*neighbFactor;
 
-	if(!(myX == 0x7FFF || myY == 0x7FFF) && (neighbPos)){
+	if(!(myX == 0x7FFF || myY == 0x7FFF)){
 		int16_t otherX = myX + neighbPos[dir][0];
 		int16_t otherY = myY + neighbPos[dir][1];
 		if(otherX<MIN_DIM || otherX > X_MAX_DIM || otherY<MIN_DIM || otherY>Y_MAX_DIM){
@@ -1098,7 +1100,7 @@ void frameEndPrintout(){
 	if(myX!=0x7FFF && myY!=0x7FFF){
 		printf_P(PSTR("\tMy Pos: (%d, %d)\r\n"), myX, myY);
 	}
-	if(!isnan(theBall.xPos) && !isnan(theBall.yPos)){
+	if(theBall.xPos != 0x7FFF && theBall.yPos != 0x7FFF){
 		printf_P(PSTR("\tBall ID: %hu; radius: %hu; Pos: (%5.1f, %5.1f) @ vel (%hd, %hd)\r\n"), theBall.id, theBall.radius, theBall.xPos, theBall.yPos, theBall.xVel, theBall.yVel);
 	}
 	if(myState==PIXEL_N || myState==PIXEL_S){

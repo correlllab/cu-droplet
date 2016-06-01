@@ -87,8 +87,8 @@ typedef struct paddle_msg_struct{
 
 typedef struct ball_dat_struct{
 	uint32_t lastUpdate;	
-	float xPos;
-	float yPos;
+	int16_t xPos;
+	int16_t yPos;
 	int8_t xVel;
 	int8_t yVel;
 	uint8_t id;
@@ -319,8 +319,8 @@ static void inline initPositions(){
 	}
 	paddleChange = 0.0;
 	theBall.lastUpdate = 0;
-	theBall.xPos = NAN;
-	theBall.yPos = NAN;
+	theBall.xPos = 0x7FFF;
+	theBall.yPos = 0x7FFF;
 	theBall.xVel = 0;
 	theBall.yVel = 0;
 	theBall.id = 0;

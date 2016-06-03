@@ -1,5 +1,7 @@
 /*
  * consensusAlg.c
+ * For Camouflage Project
+ * Description: 
  *
  * Created: 5/25/2016 9:04:54 PM
  * Author : Yang Li and Joe Jackson

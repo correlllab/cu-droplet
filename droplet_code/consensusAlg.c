@@ -8,7 +8,7 @@
  */ 
 
 #include "consensusAlg.h"
-
+#define TEST 1
 /*
 * Any code in this function will be run once, when the robot starts.
 */
@@ -28,7 +28,7 @@ void init()
 		preHistogram[i] = 0.0;
 	}
 	
-	// 
+	//
 	uint8_t rand_color = rand_byte()%NUM_BINS;
 	oriHistogram[rand_color] = 1.0;
 	preHistogram[rand_color] = 1.0;
@@ -38,6 +38,14 @@ void init()
 	mySlot = get_droplet_order_camouflage(get_droplet_id());
 	frameStart = get_time();
 	printf("Init-Camouflage Project. mySlot is %003d\r\n", mySlot);
+	if(TEST)
+	{
+		// Test: averaged histogram
+		for(uint8_t i=0; i<NUM_BINS; i++){
+			printf("Color %u: [%0.2f]\t", i, curHistogram[i]);
+		}
+		printf("\r\n");
+	}
 }
 
 /*
@@ -57,7 +65,8 @@ void loop()
 		printf("Current frame No. is %u\r\n", frameCount);
 	}
 	
-	/*code here executes one per slot.*/
+	/*code here executes once per slot.*/
+	// The first condition is to ensure this
 	if(loopID!=(frameTime/SLOT_LENGTH_MS)){
 		loopID = frameTime/SLOT_LENGTH_MS;
 		printf("Current loopID is %03u\r\n", loopID);
@@ -66,6 +75,14 @@ void loop()
 			/* Do stuff. send messages. do rnb broadcast. */
 			broadcast_rnb_data();
 			set_rgb(255, 0, 0);
+			
+			// store current histogram to the neighbor_hists at index 0
+			neighbor_hists[0].dropletID = get_droplet_id();
+			neighbor_hists[0].degree = myDegree;
+			for (uint8_t i=0; i<NUM_BINS; i++){
+				neighbor_hists[0].hist[i] = (uint16_t)(curHistogram[i]*65535);
+			}			
+			
 			sendHistMsg();
 		}
 		else if(loopID==SLOTS_PER_FRAME-1)
@@ -90,13 +107,36 @@ void loop()
 			for(uint8_t i=0; i<NUM_BINS; i++){
 				sumHist = 0.0;
 				for(uint8_t j=0; j<counter_neighbor; j++){
-					sumHist += (float)(weights[j]*1.0*neighbor_hists[j][i]/65535.0)
+					sumHist += (float)(weights[j]*neighbor_hists[j].hist[i]/65535.0);
 				}
 				preHistogram[i] = curHistogram[i];
 				curHistogram[i] = sumHist;
 			}
-			// reset the degree to start a new frame
-			myDegree=1;
+			
+			if(TEST)
+			{
+				// Test: is neighbor right?
+				printf("Neighbor size: %u\r\n",counter_neighbor);
+				for(uint8_t i=0; i<counter_neighbor; i++){
+					printf("Weight %u: [%0.2f]\t", i, weights[i]);
+				}
+				printf("\r\n");	
+
+				for(uint8_t i=0; i<NUM_BINS; i++){
+					printf("Color %u: [%0.2f]\t", i, curHistogram[i]);
+				}
+				printf("\r\n");
+											
+				// Test: averaged histogram
+				for(uint8_t i=0; i<NUM_BINS; i++){
+					printf("Color %u: [%0.2f]\t", i, curHistogram[i]);
+				}
+				printf("\r\n");
+			}
+			
+			// reset the degree and number of neighbors to start a new frame
+			myDegree = 1;
+			counter_neighbor = 1;
 		}
 		else
 		{

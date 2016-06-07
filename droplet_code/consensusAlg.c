@@ -44,6 +44,7 @@ void init()
 	countConsensus = 0;
 	
 	// Yang: sense the projected color
+	get_rgb_sensor();
 	
 	myGRB.flag = HIST_MSG_FLAG;
 	myGRB.droplet_ID = get_droplet_id();

@@ -38,18 +38,11 @@ void init()
 	myDegree = 1; 
 	counter_neighbor = 1;
 	
-	//initialize the histogram of the Droplet with a random color
-	for(uint8_t i=0; i<NUM_BINS; i++){
-		curHistogram[i] = 0.0;
-		oriHistogram[i] = 0.0;
-		preHistogram[i] = 0.0;
-	}
+	// from gradient phase
+	phase = 0;
 	
-	//
-	uint8_t rand_color = rand_byte()%NUM_BINS;
-	oriHistogram[rand_color] = 1.0;
-	preHistogram[rand_color] = 1.0;
-	curHistogram[rand_color] = 1.0;
+	// Yang: sense the projected color
+	
 	
 	//ensure each Droplet sends messages at its own slot
 	mySlot = get_droplet_order_camouflage(get_droplet_id());
@@ -74,6 +67,15 @@ void init()
 /************************************************************************/
 void loop()
 {
+	switch (phase){
+		case 0: gradientPhase(); break;
+		case 1: consensusPhase(); break;
+		case 2: turingPhase(); break;
+		default: break;
+	}
+}
+
+void gradientPhase(){
 	uint32_t frameTime = get_time()-frameStart;
 	if(frameTime > FRAME_LENGTH_MS){
 		frameTime = frameTime - FRAME_LENGTH_MS;
@@ -94,11 +96,7 @@ void loop()
 			set_rgb(255, 0, 0);
 			
 			// store current histogram to the neighbor_hists at index 0
-			neighbor_hists[0].dropletID = get_droplet_id();
-			neighbor_hists[0].degree = myDegree;
-			for (uint8_t i=0; i<NUM_BINS; i++){
-				neighbor_hists[0].hist[i] = (uint16_t)(curHistogram[i]*65535);
-			}			
+			
 			
 			sendHistMsg();
 		}
@@ -137,13 +135,13 @@ void loop()
 				for(uint8_t i=0; i<counter_neighbor; i++){
 					printf("Weight %u: [%0.2f]\t", i, weights[i]);
 				}
-				printf("\r\n");	
+				printf("\r\n");
 
 				for(uint8_t i=0; i<NUM_BINS; i++){
 					printf("Color %u: [%0.2f]\t", i, curHistogram[i]);
 				}
 				printf("\r\n");
-											
+				
 				// Test: averaged histogram
 				for(uint8_t i=0; i<NUM_BINS; i++){
 					printf("Color %u: [%0.2f]\t", i, curHistogram[i]);
@@ -178,7 +176,6 @@ void loop()
 	/* Define the duration of loop */
 	delay_ms(LOOP_DELAY_MS);	
 }
-
 void sendHistMsg(){
 	HistMsg msg;
 	msg.flag = HIST_MSG_FLAG;

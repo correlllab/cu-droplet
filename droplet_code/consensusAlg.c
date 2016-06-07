@@ -42,7 +42,7 @@ void init()
 	phase = 0;
 	
 	// Yang: sense the projected color
-	
+	get_rgb_sensor();
 	
 	//ensure each Droplet sends messages at its own slot
 	mySlot = get_droplet_order_camouflage(get_droplet_id());

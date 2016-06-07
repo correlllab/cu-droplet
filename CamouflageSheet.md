@@ -23,7 +23,7 @@ _Length of Idle: 300ms_
 2. Share or get information from other droplets using which function? [Something like this: ir_send(ALL_DIRS, (char*)(&msg), sizeof(HistMsg));]
 
 
-Note:
+# Note:
 1. **There is something wrong with the weights, why the first sometimes becomes negative**
 
 

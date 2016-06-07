@@ -20,13 +20,15 @@
 
 const uint16_t dropletsID_set[NUM_DROPLETS] =
 {0xA649, 0x4DB0, 0x43BA, 0xC24B, 0x8b46};
-	
-typedef struct histogram_struct{
+
+
+
+typedef struct RGB_struct{
 	char flag;
-	uint16_t dropletID;
-	uint16_t hist[6];
+	uint16_t droplet_ID;
 	uint8_t degree;
-}HistMsg;
+	uint8_t RGB[3];
+}rgbMsg;
 
 void		init();
 void		loop();
@@ -36,11 +38,8 @@ uint32_t frameStart;
 uint16_t frameCount;
 uint16_t mySlot;
 uint16_t loopID;
-float curHistogram[NUM_BINS];
-float oriHistogram[NUM_BINS];
-float preHistogram[NUM_BINS];
+
 uint8_t myDegree; // update each Frame, the number includes itself
-HistMsg neighbor_hists[NUM_DROPLETS];
 uint8_t counter_neighbor;
 
 uint8_t get_droplet_order_camouflage(uint16_t id)
@@ -50,4 +49,3 @@ uint8_t get_droplet_order_camouflage(uint16_t id)
 	}
 	return 0xFF;
 }
-

@@ -1,10 +1,27 @@
 /*
  * consensusAlg.c
  * For Camouflage Project
- * Description: 
- *
  * Created: 5/25/2016 9:04:54 PM
  * Author : Yang Li and Joe Jackson
+ * Description: 
+
+
+Algorithmic Description: 
+
+INITIALIZATION:
+Project one of the three patterns on Droplets
+Each droplet senses the color on it, and store it
+
+CONSENSUS PHASE:
+Each frame, if its slot: broadcast to its neighbors where it is (distance and bearing)
+Each frame, if not its slot: try to receive messages from other Droplet, and store them
+Each frame, during the last idle slot: Decide the neighbors according to their distances and bearing information.
+Compute the gradients in each direction and try to make consensus on which the most possible pattern to apply.
+
+TURING PATTERN PHASE: [To be detailed]
+Generate a pattern and decide which color each Droplet should have
+
+
  */ 
 
 #include "consensusAlg.h"

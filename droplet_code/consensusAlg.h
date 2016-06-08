@@ -12,7 +12,7 @@
 #define HIST_MSG_FLAG 'H'
 #define NUM_PATTERNS 3
 #define NUM_DIRS 4
-#define NUM_GRADIENT 10
+#define NUM_GRADIENT 100
 #define NUM_CONSENSUS 50
 #define NUM_DROPLETS 5
 
@@ -57,7 +57,6 @@ uint32_t frameStart;
 uint16_t frameCount;
 uint16_t mySlot;
 uint16_t loopID;
-
 
 uint8_t phase;
 // gradient phase

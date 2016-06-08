@@ -70,7 +70,7 @@ void init()
 	printf("Init-Camouflage Project. mySlot is %003d\r\n", mySlot);
 	if(TEST)
 	{
-		printf("myRGB: %03u %03u %03u\r\n", myGRB.RGB[0], myGRB.RGB[1], myGRB.RGB[2]);
+		printf("[%04X] myRGB: %03u %03u %03u\r\n", myGRB.droplet_ID, myGRB.RGB[0], myGRB.RGB[1], myGRB.RGB[2]);
 	}
 }
 
@@ -122,6 +122,13 @@ void gradientPhase(){
 			diff_row = abs(2*myGRB.RGB[0] - fourDirRGB[0].RGB[0] - fourDirRGB[1].RGB[0]);
 			diff_col = abs(2*myGRB.RGB[0] - fourDirRGB[2].RGB[0] - fourDirRGB[3].RGB[0]);
 			
+			if (TEST)
+			{
+				printf("L->%04X\tR->%04X\tT->%04X\tB->%04X\r\n",fourDirRGB[0].droplet_ID,fourDirRGB[1].droplet_ID,
+				fourDirRGB[2].droplet_ID,fourDirRGB[3].droplet_ID);
+				printf("diff_row: %u\t diff_col: %u\r\n", diff_row, diff_col);
+			}
+			
 			if( 0 ) // row less than col
 			{
 				myPattern = 0;
@@ -134,6 +141,14 @@ void gradientPhase(){
 				myPattern = 2;
 			}
 			
+			// initialize patternHist to prepare for next Phase
+			for (uint8_t i=0; i<NUM_PATTERNS; i++)
+			{
+				curPatternHist[i] = 0.0f;
+			}
+			curPatternHist[myPattern] = 1.0f;
+			
+			// record to change Phase
 			countGradient++;
 			if(countGradient > NUM_GRADIENT){
 				phase++;
@@ -292,6 +307,7 @@ void turingPhase(){
 void sendRGBMsg(){
 	rgbMsg msg;
 	msg = myGRB;
+	
 	ir_send(ALL_DIRS, (char*)(&msg), sizeof(rgbMsg));
 }
 
@@ -322,6 +338,7 @@ void handle_msg(ir_msg* msg_struct)
 			// store the sender ID
 			for (uint8_t i=0; i<NUM_DIRS; i++)
 			{
+				// if the RGB message got from the Droplet in one of the four directions
 				if (rgbmsg->droplet_ID == fourDirDroplet[i].droplet_ID)
 				{
 					fourDirRGB[i].droplet_ID = rgbmsg->droplet_ID;

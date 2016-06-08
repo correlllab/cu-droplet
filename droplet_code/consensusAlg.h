@@ -58,6 +58,7 @@ uint16_t frameCount;
 uint16_t mySlot;
 uint16_t loopID;
 
+
 uint8_t phase;
 // gradient phase
 uint8_t countGradient;			// to exit gradient phase

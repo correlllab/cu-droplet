@@ -48,8 +48,6 @@ void init()
 	countConsensus = 0;
 	
 	// Yang: sense the projected color
-	get_rgb_sensor();
-	
 	
 	myGRB.flag = HIST_MSG_FLAG;
 	myGRB.droplet_ID = get_droplet_id();
@@ -188,97 +186,91 @@ void consensusPhase(){
 		printf("[Consensus Phase]\tCurrent frame No. is %u\r\n", frameCount);
 	}
 	
-	///*code here executes once per slot.*/
-	//// The first condition is to ensure this
-	//if(loopID!=(frameTime/SLOT_LENGTH_MS) && 0){
-		//loopID = frameTime/SLOT_LENGTH_MS;
-		//printf("Current loopID is %03u\r\n", loopID);
-		//if(loopID==mySlot)
-		//{
-			///* Do stuff. send messages. do rnb broadcast. */
-			//broadcast_rnb_data();
-			//set_rgb(255, 0, 0);
-			//
-			//// store current histogram to the neighbor_hists at index 0
-			//
-		//}
-		//else if(loopID==SLOTS_PER_FRAME-1)
-		//{
-			///* End of frame. Might do some final processing here? */
-			//set_rgb(0, 255, 0);
-			//// Compute weights, and do the weighted average
-			//float weights[countNeighbor];
-			//uint16_t maxDegree;
-			//float sumWeights = 0.0;
-			//for(uint8_t i=1; i<countNeighbor; i++){
-				//maxDegree = neighbor_hists[0].degree;
-				//if(maxDegree < neighbor_hists[i].degree){
-					//maxDegree = neighbor_hists[i].degree;
-				//}
-				//weights[i] = 1.0/(1+maxDegree);
-				//sumWeights += weights[i];
-			//}
-			//weights[0] = 1.0-sumWeights;
-			//
-			//float sumHist;
-			//for(uint8_t i=0; i<NUM_BINS; i++){
-				//sumHist = 0.0;
-				//for(uint8_t j=0; j<countNeighbor; j++){
-					//sumHist += (float)(weights[j]*neighbor_hists[j].hist[i]/65535.0);
-				//}
-				//preHistogram[i] = curHistogram[i];
-				//curHistogram[i] = sumHist;
-			//}
-			//
-			//if(TEST)
-			//{
-				//// Test: is neighbor right?
-				//printf("Neighbor size: %u\r\n",countNeighbor);
-				//for(uint8_t i=0; i<countNeighbor; i++){
-					//printf("Weight %u: [%0.2f]\t", i, weights[i]);
-				//}
-				//printf("\r\n");
-				//
-				//for(uint8_t i=0; i<NUM_BINS; i++){
-					//printf("Color %u: [%0.2f]\t", i, curHistogram[i]);
-				//}
-				//printf("\r\n");
-				//
-				//// Test: averaged histogram
-				//for(uint8_t i=0; i<NUM_BINS; i++){
-					//printf("Color %u: [%0.2f]\t", i, curHistogram[i]);
-				//}
-				//printf("\r\n");
-			//}
-			//
-			//// reset the degree and number of neighbors to start a new frame
-			//myDegree = 1;
-			//countNeighbor = 1;
-			//
-			//countConsensus++;
-			//if(countConsensus > NUM_CONSENSUS){
-				//phase++;
-			//}			
-		//}
-		//else
-		//{
-			//led_off();
-		//}
-		//
-	//}
-	//
-	///* code here executes once per loop. */
-	//if(rnb_updated){
-		//if(last_good_rnb.conf > 1.0){
-			//last_good_rnb.range;
-			//last_good_rnb.bearing;
-			//last_good_rnb.heading;
-			////do stuff!
-			//printf("ID: %04X Rang: %0.4f\r\n", last_good_rnb.id_number, last_good_rnb.range);
-			//myDegree++;
-		//}
-		//rnb_updated = 0;
-	//}
+	/*code here executes once per slot.*/
+	// The first condition is to ensure this
+	if(loopID!=(frameTime/SLOT_LENGTH_MS) && 0){
+		loopID = frameTime/SLOT_LENGTH_MS;
+		printf("Current loopID is %03u\r\n", loopID);
+		if(loopID==mySlot)
+		{
+			/* Do stuff. send messages. do rnb broadcast. */
+			broadcast_rnb_data();
+			set_rgb(myGRB.RGB[0], myGRB.RGB[1], myGRB.RGB[2]);
+			
+			// store current histogram to the neighbor_hists at index 0
+			
+		}
+		else if(loopID==SLOTS_PER_FRAME-1)
+		{
+			/* End of frame. Might do some final processing here? */
+			set_rgb(0, 255, 0);
+			// Compute weights, and do the weighted average
+			float weights[countNeighbor];
+			uint16_t maxDegree;
+			float sumWeights = 0.0;
+			for(uint8_t i=1; i<countNeighbor; i++){
+				maxDegree = neighborHist[0].degree;
+				if(maxDegree < neighborHist[i].degree){
+					maxDegree = neighborHist[i].degree;
+				}
+				weights[i] = 1.0/(1+maxDegree);
+				sumWeights += weights[i];
+			}
+			weights[0] = 1.0-sumWeights;
+			
+			float sumHist;
+			for(uint8_t i=0; i<NUM_PATTERNS; i++){
+				sumHist = 0.0;
+				for(uint8_t j=0; j<countNeighbor; j++){
+					sumHist += (float)(weights[j]*neighborHist[j].patterns[i]/65535.0);
+				}
+				prePatternHist[i] = curPatternHist[i];
+				curPatternHist[i] = sumHist;
+			}
+			
+			if(TEST)
+			{
+				// Test: is neighbor right?
+				printf("Neighbor size: %u\r\n",countNeighbor);
+				for(uint8_t i=0; i<countNeighbor; i++){
+					printf("Weight %u: [%0.2f]\t", i, weights[i]);
+				}
+				printf("\r\n");
+				
+				for(uint8_t i=0; i<NUM_PATTERNS; i++){
+					printf("Color %u: [%0.2f]\t", i, curPatternHist[i]);
+				}
+				printf("\r\n");
+			}
+			
+			// reset the degree and number of neighbors to start a new frame
+			myDegree = 1;
+			countNeighbor = 1;
+			
+			countConsensus++;
+			if(countConsensus > NUM_CONSENSUS){
+				phase++;
+			}			
+		}
+		else
+		{
+			led_off();
+		}
+		
+	}
+	
+	/* code here executes once per loop. */
+	if(rnb_updated){
+		if(last_good_rnb.conf > 1.0){
+			last_good_rnb.range;
+			last_good_rnb.bearing;
+			last_good_rnb.heading;
+			//do stuff!
+			printf("ID: %04X Rang: %0.4f\r\n", last_good_rnb.id_number, last_good_rnb.range);
+			myDegree++;
+		}
+		rnb_updated = 0;
+	}
 	
 	/* Define the duration of loop */
 	delay_ms(LOOP_DELAY_MS);
@@ -297,7 +289,14 @@ void sendRGBMsg(){
 
 void sendGradientMsg(){
 	patternMsg msg;
-
+	msg.degree = myDegree;
+	msg.flag = HIST_MSG_FLAG;
+	for(uint8_t i=0;i<NUM_PATTERNS;i++){
+		// normalize float value [0, 1] to [0, 65535], easier to transmit message
+		msg.patterns[i] = (uint16_t)(curPatternHist[i]*65535);
+	}
+	
+	ir_send(ALL_DIRS, (char*)(&msg), sizeof(patternMsg));
 }
 
 /*
@@ -307,6 +306,7 @@ void sendGradientMsg(){
 void handle_msg(ir_msg* msg_struct)
 {
 	rgbMsg* rgbmsg;
+	patternMsg* ptmsg;
 	switch (phase){
 		case 0: // gradient phase
 		rgbmsg = (rgbMsg**)(msg_struct->msg);
@@ -327,9 +327,30 @@ void handle_msg(ir_msg* msg_struct)
 		}
 		break;
 		
-		case 1: break;
-		case 2: break;
-		default: break;
+		case 1: // consensus phase
+		ptmsg = (patternMsg*)(msg_struct->msg);
+		if(ptmsg->flag == HIST_MSG_FLAG){
+			// store the sender ID
+			neighborHist[countNeighbor].droplet_ID = msg_struct->sender_ID;
+			// store the new ptmsg to neighbor_hists
+			neighborHist[countNeighbor].degree = ptmsg->degree;
+			for (uint8_t i=0; i<NUM_PATTERNS; i++){
+				neighborHist[countNeighbor].patterns[i] = ptmsg->patterns[i];
+			}
+			countNeighbor ++;
+			if (countNeighbor > NUM_DROPLETS) // in case of error
+			{
+				printf("There is overflow of storing ptmsg from neighbors, myID: %04X\r\n",
+				get_droplet_id());
+			}
+		}		
+		break;
+		
+		case 2: 
+		break;
+		
+		default: 
+		break;
 	}
 
 }

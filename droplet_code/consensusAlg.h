@@ -36,6 +36,7 @@ typedef struct RGB_struct{
 typedef struct Pattern_struct{
 	char flag;
 	uint16_t droplet_ID;
+	uint8_t degree;
 	uint16_t patterns[NUM_PATTERNS];
 }patternMsg;
 
@@ -67,7 +68,10 @@ uint8_t myPattern;				// 0, 1, 2 for h, v, dots
 
 // consensus phase
 uint8_t countConsensus;			// to exit consensus phase
-float patternHist[NUM_PATTERNS];
+float curPatternHist[NUM_PATTERNS];
+float oriPatternHist[NUM_PATTERNS];
+float prePatternHist[NUM_PATTERNS];
+patternMsg neighborHist[NUM_DROPLETS];
 uint8_t myDegree;				// update each Frame, the number includes itself
 uint8_t countNeighbor;
 

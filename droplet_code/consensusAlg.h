@@ -57,9 +57,6 @@ uint16_t frameCount;
 uint16_t mySlot;
 uint16_t loopID;
 
-uint16_t red_led; 
-uint16_t green_led; 
-uint16_t blue_led; 
 
 uint8_t phase;
 // gradient phase

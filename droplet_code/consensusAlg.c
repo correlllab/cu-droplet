@@ -47,6 +47,11 @@ void init()
 	countGradient = 0;
 	countConsensus = 0;
 	
+	uint16_t red_led;
+	uint16_t green_led;
+	uint16_t blue_led;
+
+	
 	// Yang: sense the projected color
 	get_rgb(&red_led,&green_led,&blue_led);
 	myGRB.RGB[0] = red_led ;

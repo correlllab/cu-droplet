@@ -24,12 +24,13 @@
 #define PI (3.1415926f)
 
 const uint16_t dropletsID_set[NUM_DROPLETS] =
-{0xA649, 0x4DB0, 0x43BA, 0xC24B, 0x8b46};
+//{0xA649, 0x4DB0, 0x43BA, 0xC24B, 0x8b46}; //Joe
+{0xF60A, 0x2B4E, 0x0A0B, 0x4177, 0x1B4B}; //Yang
 
 typedef struct RGB_struct{
 	char flag;
 	uint16_t droplet_ID;
-	uint8_t RGB[3];
+	uint16_t RGB[3];
 }rgbMsg;
 
 typedef struct Pattern_struct{

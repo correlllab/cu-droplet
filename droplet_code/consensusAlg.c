@@ -48,8 +48,34 @@ void init()
 	countConsensus = 0;
 	
 	// Yang: sense the projected color
-	get_rgb_sensor();
+	get_rgb(&red_led,&green_led,&blue_led);
 	
+	if((red_led > green_led) && (red_led > blue_led))
+	{
+		
+		myGRB.RGB[0] = 1; 
+		myGRB.RGB[1] = 0; 
+		myGRB.RGB[2] = 0; 
+		
+		
+	}
+	else if(( green_led > red_led ) && ( green_led > red_led ))
+	{
+		myGRB.RGB[0] = 0;
+		myGRB.RGB[1] = 1;
+		myGRB.RGB[2] = 0;
+		
+	}
+	else if ((blue_led > red_led ) && ( blue_led > green_led))
+	{
+		
+		myGRB.RGB[0] = 0;
+		myGRB.RGB[1] = 0;
+		myGRB.RGB[2] = 1;
+	}
+	
+	
+	//printf("droplet %04x red value: %d green value: %d blue value: %d \r\n",get_droplet_id(),red_led, green_led, blue_led);
 	
 	myGRB.flag = HIST_MSG_FLAG;
 	myGRB.droplet_ID = get_droplet_id();

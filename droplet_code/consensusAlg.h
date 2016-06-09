@@ -12,7 +12,7 @@
 #define HIST_MSG_FLAG 'H'
 #define NUM_PATTERNS 3
 #define NUM_DIRS 4
-#define NUM_GRADIENT 100
+#define NUM_GRADIENT 50
 #define NUM_CONSENSUS 50
 #define NUM_DROPLETS 5
 
@@ -72,6 +72,7 @@ float curPatternHist[NUM_PATTERNS];
 float oriPatternHist[NUM_PATTERNS];
 float prePatternHist[NUM_PATTERNS];
 patternMsg neighborHist[NUM_DROPLETS];
+uint8_t finalDegree;
 uint8_t myDegree;				// update each Frame, the number includes itself
 uint8_t countNeighbor;
 

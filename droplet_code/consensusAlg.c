@@ -40,6 +40,7 @@ void init()
 	// initialize the degree of the Droplet
 	// at the beginning it only knows that he
 	myDegree = 1;
+	finalDegree = 1;
 	countNeighbor = 1;
 	
 	// from gradient phase
@@ -129,11 +130,12 @@ void gradientPhase(){
 				printf("diff_row: %u\t diff_col: %u\r\n", diff_row, diff_col);
 			}
 			
-			if( 0 ) // row less than col
+			// Decide which pattern to be
+			if((diff_row <= diff_col) && ((diff_col-diff_row)>50)) // row less than col
 			{
 				myPattern = 0;
 			}
-			else if (0) // col less than row
+			else if ( (diff_col <= diff_row) && ((diff_row-diff_col)>50)) // col less than row
 			{
 				myPattern = 1;
 			}
@@ -164,7 +166,8 @@ void gradientPhase(){
 	/* code here executes once per loop. */
 	if(rnb_updated){
 		if(last_good_rnb.conf > 1.0){
-			printf("ID: %04X Rang: %0.4f\r\n", last_good_rnb.id_number, last_good_rnb.range);
+			printf("ID: %04X Rang: %0.4f Bearing: %0.4f \r\n", 
+			last_good_rnb.id_number, last_good_rnb.range, last_good_rnb.bearing*180.0/PI);
 			float bearing = last_good_rnb.bearing;
 			if(bearing>PI/3.0 && bearing<PI*2.0/3.0) // left
 			{
@@ -211,7 +214,7 @@ void consensusPhase(){
 	
 	/*code here executes once per slot.*/
 	// The first condition is to ensure this
-	if(loopID!=(frameTime/SLOT_LENGTH_MS) && 0){
+	if(loopID!=(frameTime/SLOT_LENGTH_MS)){
 		loopID = frameTime/SLOT_LENGTH_MS;
 		printf("Current loopID is %03u\r\n", loopID);
 		if(loopID==mySlot)
@@ -220,7 +223,13 @@ void consensusPhase(){
 			broadcast_rnb_data();
 			set_rgb(myGRB.RGB[0], myGRB.RGB[1], myGRB.RGB[2]);
 			
+			sendGradientMsg();
 			// store current histogram to the neighbor_hists at index 0
+			neighborHist[0].degree = myDegree;
+			for (uint8_t i=0; i<NUM_PATTERNS; i++)
+			{
+				neighborHist[1].patterns[i] = (uint16_t)(curPatternHist[i]*65535);
+			}
 			
 		}
 		else if(loopID==SLOTS_PER_FRAME-1)
@@ -267,6 +276,11 @@ void consensusPhase(){
 			}
 			
 			// reset the degree and number of neighbors to start a new frame
+			if (TEST) // Test rang and bearing, sending and receiving messages
+			{
+				printf("Degree: %02u\tNeighbor: %02u - Should be equal\r\n", myDegree, countNeighbor);
+			}
+			finalDegree = myDegree;
 			myDegree = 1;
 			countNeighbor = 1;
 			
@@ -313,7 +327,7 @@ void sendRGBMsg(){
 
 void sendGradientMsg(){
 	patternMsg msg;
-	msg.degree = myDegree;
+	msg.degree = finalDegree;
 	msg.flag = HIST_MSG_FLAG;
 	for(uint8_t i=0;i<NUM_PATTERNS;i++){
 		// normalize float value [0, 1] to [0, 65535], easier to transmit message

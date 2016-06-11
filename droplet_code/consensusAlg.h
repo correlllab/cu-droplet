@@ -12,7 +12,7 @@
 #define HIST_MSG_FLAG 'H'
 #define NUM_PATTERNS 3
 #define NUM_DIRS 4
-#define NUM_GRADIENT 50
+#define NUM_GRADIENT 1000
 #define NUM_CONSENSUS 50
 #define NUM_DROPLETS 5
 

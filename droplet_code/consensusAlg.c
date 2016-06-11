@@ -159,8 +159,7 @@ void gradientPhase(){
 		else
 		{
 			led_off();
-		}
-		
+		}	
 	}
 	
 	/* code here executes once per loop. */
@@ -303,7 +302,9 @@ void consensusPhase(){
 			last_good_rnb.bearing;
 			last_good_rnb.heading;
 			//do stuff!
-			printf("ID: %04X Rang: %0.4f\r\n", last_good_rnb.id_number, last_good_rnb.range);
+			printf("ID: %04X Rang: %0.4f Bearing: %0.4f \r\n",
+			last_good_rnb.id_number, last_good_rnb.range, last_good_rnb.bearing*180.0/PI);
+			set_rgb(0,0,255);
 			myDegree++;
 		}
 		rnb_updated = 0;
@@ -311,6 +312,7 @@ void consensusPhase(){
 	
 	/* Define the duration of loop */
 	delay_ms(LOOP_DELAY_MS);
+	led_off();
 }
 
 void turingPhase(){
@@ -347,6 +349,7 @@ void handle_msg(ir_msg* msg_struct)
 	patternMsg* ptmsg;
 	switch (phase){
 		case 0: // gradient phase
+		set_rgb(0,0,255);
 		rgbmsg = (rgbMsg**)(msg_struct->msg);
 		if(rgbmsg->flag == HIST_MSG_FLAG){
 			// store the sender ID

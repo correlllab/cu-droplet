@@ -14,7 +14,7 @@
 #define NUM_DIRS 4
 #define NUM_GRADIENT 1000
 #define NUM_CONSENSUS 50
-#define NUM_DROPLETS 8
+#define NUM_DROPLETS 9
 
 #define SLOT_LENGTH_MS 500
 #define SLOTS_PER_FRAME (NUM_DROPLETS+1)
@@ -25,8 +25,8 @@
 
 const uint16_t dropletsID_set[NUM_DROPLETS] =
 //{0xA649, 0x4DB0, 0x43BA, 0xC24B, 0x8b46}; //Joe
-{0x2B4E, 0x0A0B, 0x4177, 0x1B4B, 0xA649, 0x4DB0, 0x43BA, 0x8b46}; //Yang
-//0xF60A, 0xC24B,
+{0xF60A, 0x2B4E, 0x0A0B, 0x4177, 0x1B4B, 0xA649, 0x4DB0, 0x43BA, 0x8b46}; //Yang
+//0xC24B,
 
 typedef struct RGB_struct{
 	char flag;

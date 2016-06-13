@@ -105,7 +105,7 @@ void gradientPhase(){
 	// The first condition is to ensure this
 	if(loopID!=(frameTime/SLOT_LENGTH_MS)){
 		loopID = frameTime/SLOT_LENGTH_MS;
-		printf("Current loopID is %03u\r\n", loopID);
+		//printf("Current loopID is %03u\r\n", loopID);
 		if(loopID==mySlot)
 		{
 			/* Do stuff. send messages. do rnb broadcast. */
@@ -144,6 +144,7 @@ void gradientPhase(){
 			}
 			
 			// initialize patternHist to prepare for next Phase
+			// Later work: total average of the 40 or 50 iterations
 			for (uint8_t i=0; i<NUM_PATTERNS; i++)
 			{
 				curPatternHist[i] = 0.0f;
@@ -168,25 +169,28 @@ void gradientPhase(){
 			printf("ID: %04X Rang: %0.4f Bearing: %0.4f \r\n", 
 			last_good_rnb.id_number, last_good_rnb.range, last_good_rnb.bearing*180.0/PI);
 			float bearing = last_good_rnb.bearing;
-			if(bearing>PI/3.0 && bearing<PI*2.0/3.0) // left
+			float range = last_good_rnb.range;
+			
+			// Later work: Add comparison between current and previous bearing to increase accuracy
+			if(fabs(bearing-PI/2.0) < PI/6.0 && range < 15.0f) // left
 			{
 				fourDirDroplet[0].droplet_ID = last_good_rnb.id_number;
 				fourDirDroplet[0].range = last_good_rnb.range;
 				fourDirDroplet[0].bearing = last_good_rnb.bearing;
 			}
-			else if(bearing<-PI/3.0 && bearing>-PI*2.0/3.0) // right
+			else if(fabs(bearing+PI/2.0) < PI/6.0 && range < 15.0f) // right
 			{
 				fourDirDroplet[1].droplet_ID = last_good_rnb.id_number;
 				fourDirDroplet[1].range = last_good_rnb.range;
 				fourDirDroplet[1].bearing = last_good_rnb.bearing;
 			}
-			else if(bearing>-PI/6.0 && bearing<PI/6.0) // top
+			else if(fabs(bearing-0.0f) < PI/6.0 && range < 15.0f) // top
 			{
 				fourDirDroplet[2].droplet_ID = last_good_rnb.id_number;
 				fourDirDroplet[2].range = last_good_rnb.range;
 				fourDirDroplet[2].bearing = last_good_rnb.bearing;
 			}
-			else if(bearing>5.0*PI/6.0 || bearing<-5.0*PI/6.0) // bottom
+			else if( (fabs(bearing-5.0*PI/6.0) < PI/6.0 || fabs(bearing+5.0*PI/6.0))  && range < 15.0f ) // bottom
 			{
 				fourDirDroplet[3].droplet_ID = last_good_rnb.id_number;
 				fourDirDroplet[3].range = last_good_rnb.range;

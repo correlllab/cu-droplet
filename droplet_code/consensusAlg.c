@@ -77,12 +77,69 @@ void init()
 /************************************************************************/
 void loop()
 {
-	switch (phase){
-		case 0: gradientPhase(); break;
-		case 1: consensusPhase(); break;
-		case 2: turingPhase(); break;
+	switch (phase)
+	{
+		case 0: readcolorPhase(); break; 
+		case 1: gradientPhase(); break;
+		case 2: consensusPhase(); break;
+		case 3: turingPhase(); break;
 		default: break;
 	}
+}
+void readcolorPhase()
+{ 
+	uint32_t counter_ = 10; 
+
+	if(loopID!=(frameTime/SLOT_LENGTH_MS))
+	{
+		loopID = frameTime/SLOT_LENGTH_MS;
+		//printf("Current loopID is %03u\r\n", loopID);
+		if(loopID==mySlot)
+		{
+			get_rgb(&(myRGB.RGB[0]),&(myRGB.RGB[1]),&(myRGB.RGB[2]));
+			red_array[counter] = myRGB.RGB[0]; 
+			printf("[%04X] myRGB: %03d %03d %03d\r\n", myRGB.droplet_ID, myRGB.RGB[0], myRGB.RGB[1], myRGB.RGB[2]);
+			
+		}
+		else if(loopID==SLOTS_PER_FRAME-1)
+		{
+			
+			
+			
+		} 
+	} 
+	
+		if(SLOTS_PER_FRAME == 0)
+		{
+			counter_ -= 1; 
+			
+		}
+		else if(counter_ == 0)
+		{ 
+			calculate_true_rgb(); 
+		}
+	
+}
+void calculate_true_rgb(); 
+{ 
+	uint16_t array_sum, true_color; 
+	for(uint16_t x = 0; x+=1; x == 10 )
+	{ 
+		array_sum += red_array[x]; 
+		
+	}
+	true_color = array_sum/ 10; 
+	if (true_color < 200) 
+	{ 
+		set_rgb(255,0,0);
+	}
+	else 
+	{ 
+		set_rgb(255,255,255); 
+	}
+delay_ms(LOOP_DELAY_MS);
+return;
+	
 }
 
 void gradientPhase(){

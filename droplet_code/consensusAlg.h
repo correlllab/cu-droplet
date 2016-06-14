@@ -31,7 +31,7 @@ const uint16_t dropletsID_set[NUM_DROPLETS] =
 typedef struct RGB_struct{
 	char flag;
 	uint16_t droplet_ID;
-	uint16_t RGB[3];
+	int16_t RGB[3];
 }rgbMsg;
 
 typedef struct Pattern_struct{
@@ -62,7 +62,7 @@ uint16_t loopID;
 uint8_t phase;
 // gradient phase
 uint8_t countGradient;			// to exit gradient phase
-rgbMsg myGRB;
+rgbMsg myRGB;
 rgbMsg fourDirRGB[NUM_DIRS];	// 0, 1, 2, 3 for left, right, top, bottom
 dropletPosStruct fourDirDroplet[NUM_DIRS];	// record ids to store RGB rightly
 uint8_t myPattern;				// 0, 1, 2 for h, v, dots

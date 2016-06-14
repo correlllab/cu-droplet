@@ -47,22 +47,15 @@ void init()
 	phase = 0;
 	countGradient = 0;
 	countConsensus = 0;
-	
-	uint16_t red_led;
-	uint16_t green_led;
-	uint16_t blue_led;
 
 	// Yang: sense the projected color
-	get_rgb(&red_led,&green_led,&blue_led);
-	myGRB.RGB[0] = red_led ;
-	myGRB.RGB[1] = green_led;
-	myGRB.RGB[2] = blue_led;
+	get_rgb(&(myRGB.RGB[0]),&(myRGB.RGB[1]),&(myRGB.RGB[2]));
 	
-	myGRB.flag = HIST_MSG_FLAG;
-	myGRB.droplet_ID = get_droplet_id();
+	myRGB.flag = HIST_MSG_FLAG;
+	myRGB.droplet_ID = get_droplet_id();
 	// initialize the four direction with it own RGB
 	for(uint8_t i=0; i<NUM_DIRS; i++){
-		fourDirRGB[i] = myGRB;
+		fourDirRGB[i] = myRGB;
 	}
 	
 	//ensure each Droplet sends messages at its own slot
@@ -71,7 +64,7 @@ void init()
 	printf("Init-Camouflage Project. mySlot is %003d\r\n", mySlot);
 	if(TEST)
 	{
-		printf("[%04X] myRGB: %03u %03u %03u\r\n", myGRB.droplet_ID, myGRB.RGB[0], myGRB.RGB[1], myGRB.RGB[2]);
+		printf("[%04X] myRGB: %03d %03d %03d\r\n", myRGB.droplet_ID, myRGB.RGB[0], myRGB.RGB[1], myRGB.RGB[2]);
 	}
 }
 
@@ -110,18 +103,22 @@ void gradientPhase(){
 		{
 			/* Do stuff. send messages. do rnb broadcast. */
 			broadcast_rnb_data();
-			set_rgb(255, 0, 0);
+			//set_rgb(255, 0, 0);
 			sendRGBMsg();
+			get_rgb(&(myRGB.RGB[0]),&(myRGB.RGB[1]),&(myRGB.RGB[2]));
+			printf("[%04X] myRGB: %03d %03d %03d\r\n", myRGB.droplet_ID, myRGB.RGB[0], myRGB.RGB[1], myRGB.RGB[2]);
+			
 		}
 		else if(loopID==SLOTS_PER_FRAME-1)
 		{
 			/* End of frame. Might do some final processing here? */
-			set_rgb(0, 255, 0);
+			//set_rgb(myRGB.RGB[0], myRGB.RGB[1], myRGB.RGB[2]);
+
 			// Compute two gradients and decide which pattern
-			// At this point, only use Red channel
+			// At this point, only use Blue channel
 			int16_t diff_row, diff_col, diff;
-			diff_row = abs(2*myGRB.RGB[0] - fourDirRGB[0].RGB[0] - fourDirRGB[1].RGB[0]);
-			diff_col = abs(2*myGRB.RGB[0] - fourDirRGB[2].RGB[0] - fourDirRGB[3].RGB[0]);
+			diff_row = abs(2*myRGB.RGB[1] - fourDirRGB[0].RGB[1] - fourDirRGB[1].RGB[1]);
+			diff_col = abs(2*myRGB.RGB[1] - fourDirRGB[2].RGB[1] - fourDirRGB[3].RGB[1]);
 			
 			if (TEST)
 			{
@@ -224,7 +221,7 @@ void consensusPhase(){
 		{
 			/* Do stuff. send messages. do rnb broadcast. */
 			broadcast_rnb_data();
-			set_rgb(myGRB.RGB[0], myGRB.RGB[1], myGRB.RGB[2]);
+			set_rgb(myRGB.RGB[0], myRGB.RGB[1], myRGB.RGB[2]);
 			
 			sendGradientMsg();
 			// store current histogram to the neighbor_hists at index 0
@@ -326,7 +323,7 @@ void turingPhase(){
 
 void sendRGBMsg(){
 	rgbMsg msg;
-	msg = myGRB;
+	msg = myRGB;
 	
 	ir_send(ALL_DIRS, (char*)(&msg), sizeof(rgbMsg));
 }
@@ -353,7 +350,7 @@ void handle_msg(ir_msg* msg_struct)
 	patternMsg* ptmsg;
 	switch (phase){
 		case 0: // gradient phase
-		set_rgb(0,0,255);
+		//set_rgb(0,0,255);
 		rgbmsg = (rgbMsg**)(msg_struct->msg);
 		if(rgbmsg->flag == HIST_MSG_FLAG){
 			// store the sender ID

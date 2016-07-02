@@ -9,7 +9,6 @@
 
 #include "droplet_init.h"
 
-#define NUM_DROPLETS		9
 #define NUM_NEIGHBOR_12		12
 #define NUM_NEIGHBOR_8		8
 #define NUM_NEIGHBOR_4		4
@@ -26,7 +25,7 @@
 #define NUM_DROPLETS		9
 
 #define SLOT_LENGTH_MS		300
-#define SLOTS_PER_FRAME		(NUM_DROPLETS+1)
+#define SLOTS_PER_FRAME		21
 #define FRAME_LENGTH_MS		(((uint32_t)SLOT_LENGTH_MS)*((uint32_t)SLOTS_PER_FRAME))
 #define LOOP_DELAY_MS		17
 

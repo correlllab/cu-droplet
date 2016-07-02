@@ -70,7 +70,9 @@ void init()
 {
 	// me - initialization
 	me.dropletId = get_droplet_id();
-	me.mySlot = get_droplet_order_camouflage(me.dropletId);
+	//me.mySlot = me.dropletId%SLOTS_PER_FRAME;
+	me.mySlot = get_droplet_ord(me.dropletId-100);
+	//me.mySlot = get_droplet_order_camouflage(me.dropletId);
 	me.myDegree = 1;
 	me.turing_color = rand_byte()%2;
 	for (uint8_t i=0; i<NUM_NEIGHBOR_12; i++)
@@ -449,10 +451,12 @@ void decidePattern(){
 			}
 		}
 	}
-	int16_t diff_row, diff_col;
-	diff_row = abs(2*me.rgb[channel] - fourNeiRGB[0].rgb[channel] - fourNeiRGB[1].rgb[channel]);
-	diff_col = abs(2*me.rgb[channel] - fourNeiRGB[2].rgb[channel] - fourNeiRGB[3].rgb[channel]);
-				
+	uint16_t diff_row = 0, 
+	uint16_t diff_col = 0;
+	for (uint8_t channel = 1; channel <=2; channel++){
+		diff_row += abs(2*me.rgb[channel] - fourNeiRGB[1].rgb[channel] - fourNeiRGB[3].rgb[channel]);
+		diff_col += abs(2*me.rgb[channel] - fourNeiRGB[0].rgb[channel] - fourNeiRGB[2].rgb[channel]);
+	}
 	// Decide which pattern to be
 	if(diff_row < diff_col){ // row less than col: horizontal
 		me.myPattern_f = 0.0f;

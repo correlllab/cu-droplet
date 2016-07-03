@@ -18,19 +18,19 @@
 #define PATTERN_MSG_FLAG	'P'
 #define TURING_MSG_FLAG		'T'
 #define NUM_PATTERNS		2
-#define NUM_PREPARE			10
+#define NUM_PREPARE			20
 #define NUM_GRADIENT		10
-#define NUM_CONSENSUS		15
+#define NUM_CONSENSUS		30
 #define NUM_TURING			20
 #define NUM_DROPLETS		9
 
 #define SLOT_LENGTH_MS		300
-#define SLOTS_PER_FRAME		21
+#define SLOTS_PER_FRAME		41
 #define FRAME_LENGTH_MS		(((uint32_t)SLOT_LENGTH_MS)*((uint32_t)SLOTS_PER_FRAME))
 #define LOOP_DELAY_MS		17
 
 //Turing Pattern related
-#define TURING_F			(0.75f)
+#define TURING_F			(0.55f)
 #define PI_6				0.523598775598298873077  // pi/6
 #define PI_12				0.261799387799149436538  // pi/12
 #define TEST_PREPARE		1

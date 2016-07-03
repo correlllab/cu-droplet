@@ -63,9 +63,11 @@ void rgb_sensor_init()
 		g_baseline= g_avg/num_samples;
 		b_baseline= b_avg/num_samples;
 		//printf("Baselines:\r\n%3d  %3d  %3d\r\n", r_baseline, g_baseline, b_baseline);
-		r_baseline = 0;
-		g_baseline = 0;
-		b_baseline = 0;	
+		
+		// Yang does the comment
+		//r_baseline = 0;
+		//g_baseline = 0;
+		//b_baseline = 0;	
 	#endif		
 }
 

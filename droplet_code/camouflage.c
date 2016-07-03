@@ -70,8 +70,8 @@ void init()
 {
 	// me - initialization
 	me.dropletId = get_droplet_id();
-	//me.mySlot = me.dropletId%SLOTS_PER_FRAME;
-	me.mySlot = get_droplet_ord(me.dropletId-100);
+	me.mySlot = me.dropletId%(SLOTS_PER_FRAME-1);
+	//me.mySlot = get_droplet_ord(me.dropletId)-100; // For AUDIO_DROPLET
 	//me.mySlot = get_droplet_order_camouflage(me.dropletId);
 	me.myDegree = 1;
 	me.turing_color = rand_byte()%2;
@@ -241,20 +241,25 @@ void preparePhase(){
 		loopID = frameTime/SLOT_LENGTH_MS;
 		if(loopID == me.mySlot){
 			/* Do stuff. send messages. do rnb broadcast. */
-			set_rgb(255, 0, 0);
+			//set_rgb(255, 0, 0);
 			broadcast_rnb_data();
 			sendNeiMsg();
 			
 			// read colors
-			uint16_t red_led;
-			uint16_t green_led;
-			uint16_t blue_led;
+			int16_t red_led;
+			int16_t green_led;
+			int16_t blue_led;
 
 			get_rgb(&red_led,&green_led,&blue_led);
 			me.rgb[0] = red_led ;
 			me.rgb[1] = green_led;
 			me.rgb[2] = blue_led;
-			set_rgb(me.rgb[0], me.rgb[1], me.rgb[2]);
+			//set_rgb(me.rgb[0], me.rgb[1], me.rgb[2]);
+			
+			if(TEST_PREPARE){
+				printf("X[%04X] R: %d G: %d B: %d\r\n",
+				me.dropletId, me.rgb[0], me.rgb[1], me.rgb[2]);
+			}
 		}
 		else if(loopID == SLOTS_PER_FRAME-1){
 			/* End of frame. Do some final processing here */
@@ -451,7 +456,7 @@ void decidePattern(){
 			}
 		}
 	}
-	uint16_t diff_row = 0, 
+	uint16_t diff_row = 0;
 	uint16_t diff_col = 0;
 	for (uint8_t channel = 1; channel <=2; channel++){
 		diff_row += abs(2*me.rgb[channel] - fourNeiRGB[1].rgb[channel] - fourNeiRGB[3].rgb[channel]);

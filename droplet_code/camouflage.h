@@ -50,7 +50,9 @@ const uint8_t hIndex[NUM_NEIGHBOR_4] = {1, 3, 9, 11};
 typedef struct Droplet_struct{
 	uint16_t dropletId;
 	uint16_t neighborIds[NUM_NEIGHBOR_12];
-	uint16_t rgb[3];
+	
+	int16_t rgb[3];
+	int16_t base_rgb[3];    // used to set the base line for rgb sensors
 	
 	uint8_t mySlot;
 	uint8_t myDegree;

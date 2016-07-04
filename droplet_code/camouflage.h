@@ -19,9 +19,9 @@
 #define TURING_MSG_FLAG		'T'
 #define NUM_PATTERNS		2
 #define NUM_PREPARE			10
-#define NUM_GRADIENT		8
-#define NUM_CONSENSUS		10
-#define NUM_TURING			10
+#define NUM_GRADIENT		10
+#define NUM_CONSENSUS		15
+#define NUM_TURING			20
 #define NUM_DROPLETS		9
 
 #define SLOT_LENGTH_MS		300
@@ -52,7 +52,6 @@ typedef struct Droplet_struct{
 	uint16_t neighborIds[NUM_NEIGHBOR_12];
 	
 	int16_t rgb[3];
-	int16_t base_rgb[3];    // used to set the base line for rgb sensors
 	
 	uint8_t mySlot;
 	uint8_t myDegree;

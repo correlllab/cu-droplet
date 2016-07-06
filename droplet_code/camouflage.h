@@ -31,6 +31,7 @@
 
 //Turing Pattern related
 #define TURING_F			(0.55f)
+#define TURING_RANDOM		(0.10f)						// A threshold for random pattern
 #define PI_6				0.523598775598298873077  // pi/6
 #define PI_12				0.261799387799149436538  // pi/12
 #define TEST_PREPARE		1
@@ -123,6 +124,7 @@ uint8_t counter;			// to exit phases
 void init();
 void loop();
 void handle_msg	(ir_msg* msg_struct);
+uint8_t user_handle_command(char* command_word, char* command_args);
 
 void preparePhase();
 void gradientPhase();

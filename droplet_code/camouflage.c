@@ -578,7 +578,10 @@ void turingPhase(){
 		}
 		else if(loopID == SLOTS_PER_FRAME-1){
 			/* End of frame. Do some final processing here */
-			changeColor();
+			if (fabs(me.myPattern_f-0.5f) > TURING_RANDOM){
+				changeColor();
+			}
+			
 			
 			if (frameCount<NUM_TURING) {frameCount ++; }
 			else {
@@ -607,7 +610,7 @@ void changeColor(){
 		na += 1;
 		ni += 1;
 	}
-	if (me.myPattern_f < 0.5f) {	// pattern = 0: horizontal
+	if (me.myPattern_f < 0.5f-TURING_RANDOM) {	// pattern = 0: horizontal
 		for (uint8_t i=0; i<NUM_NEIGHBOR_4; i++){
 			if (twelveNeiTuring[hIndex[i]].color == 1){
 				na += 1;
@@ -616,10 +619,10 @@ void changeColor(){
 		for (uint8_t i=0; i<NUM_NEIGHBOR_8; i++){
 			if (twelveNeiTuring[i].color == 1){
 				ni += 1;
-			}			
+			}
 		}
-	} 
-	else{							// pattern = 1: vertical
+	}
+	else if (me.myPattern_f > 0.5f+TURING_RANDOM){	// pattern = 1: vertical
 		for (uint8_t i=0; i<NUM_NEIGHBOR_4; i++){
 			if (twelveNeiTuring[vIndex[i]].color == 1){
 				na += 1;
@@ -656,4 +659,11 @@ void changeColor(){
 		}
 	}
 	
+}
+
+uint8_t user_handle_command(char* command_word, char* command_args){
+	if(strcmp(command_word, "print neighbors")==0){ // print all information in the camouflage
+		//do stuff
+	}
+	return 0;	
 }

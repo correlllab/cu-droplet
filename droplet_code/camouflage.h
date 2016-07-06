@@ -18,7 +18,7 @@
 #define PATTERN_MSG_FLAG	'P'
 #define TURING_MSG_FLAG		'T'
 #define NUM_PATTERNS		2
-#define NUM_PREPARE			10 //20
+#define NUM_PREPARE			20 //20
 #define NUM_GRADIENT		10
 #define NUM_CONSENSUS		10 //30
 #define NUM_TURING			10 //20
@@ -71,7 +71,7 @@ typedef struct NeighborId_struct{
 typedef struct RGB_struct{
 	char flag;
 	uint16_t dropletId;
-	uint16_t rgb[3];
+	int16_t rgb[3];
 } rgbMsg;
 
 typedef struct Pattern_struct{

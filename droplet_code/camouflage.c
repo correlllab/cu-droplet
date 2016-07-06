@@ -253,13 +253,35 @@ void preparePhase(){
 			int16_t red_led;
 			int16_t green_led;
 			int16_t blue_led;
-			if (frameCount<=NUM_CALIBRATE)
-			{
+			if (frameCount<=NUM_CALIBRATE_RGB) {
+				int16_t r_avg=0, g_avg=0, b_avg=0;
+				set_rgb(255, 255, 255);
+				delay_ms(10);
+				for(uint8_t i=0; i<NUM_SAMPLES; i++)
+				{
+					get_rgb(&red_led,&green_led,&blue_led);
+					r_avg+=red_led;
+					g_avg+=green_led;
+					b_avg+=blue_led;					
+					delay_ms(10);
+					//printf("\r\n");
+				}
+				white_rgb[0] = r_avg;
+				white_rgb[1] = g_avg;
+				white_rgb[2] = b_avg;
 			}
-			get_rgb(&red_led,&green_led,&blue_led);
-			if (red_led > me.rgb[0]) me.rgb[0] = red_led ;
-			if (green_led > me.rgb[1]) me.rgb[1] = green_led;
-			if (blue_led > me.rgb[2]) me.rgb[2] = blue_led;
+			else{
+				led_off();
+				delay_ms(20);
+				get_rgb(&red_led,&green_led,&blue_led);
+				red_led = abs(red_led - white_rgb[0]);
+				green_led = abs(green_led - white_rgb[1]);
+				blue_led = abs(blue_led - white_rgb[2]);
+				if (red_led > me.rgb[0]) me.rgb[0] = red_led ;
+				if (green_led > me.rgb[1]) me.rgb[1] = green_led;
+				if (blue_led > me.rgb[2]) me.rgb[2] = blue_led;
+			}
+
 			//set_rgb(me.rgb[0], me.rgb[1], me.rgb[2]);
 		}
 		else if(loopID == SLOTS_PER_FRAME-1){

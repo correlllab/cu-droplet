@@ -23,6 +23,8 @@
 #define NUM_CONSENSUS		10 //30
 #define NUM_TURING			10 //20
 #define NUM_DROPLETS		9
+#define NUM_CALIBRATE_RGB	1
+#define NUM_SAMPLES			3
 
 #define SLOT_LENGTH_MS		300
 #define SLOTS_PER_FRAME		11
@@ -73,6 +75,8 @@ typedef struct RGB_struct{
 	uint16_t dropletId;
 	int16_t rgb[3];
 } rgbMsg;
+
+int16_t white_rgb[3];
 
 typedef struct Pattern_struct{
 	char flag;

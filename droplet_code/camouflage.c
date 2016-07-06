@@ -116,7 +116,9 @@ void loop()
 		case 1: gradientPhase(); break;
 		case 2: consensusPhase(); break;
 		case 3: turingPhase(); break;
-		default: break;
+		default: 
+		displayMenu();
+		break;
 	}
 }
 
@@ -255,20 +257,25 @@ void preparePhase(){
 			me.rgb[1] = green_led;
 			me.rgb[2] = blue_led;
 			//set_rgb(me.rgb[0], me.rgb[1], me.rgb[2]);
-			
-			if(TEST_PREPARE){
-				printf("X[%04X] R: %d G: %d B: %d\r\n",
-				me.dropletId, me.rgb[0], me.rgb[1], me.rgb[2]);
-			}
 		}
 		else if(loopID == SLOTS_PER_FRAME-1){
 			/* End of frame. Do some final processing here */
 			set_rgb(0, 255, 0);
 			extendNeighbors();
 			
-			if (frameCount<NUM_PREPARE) {frameCount++; }
-			else 
-			{
+			// store to print
+			for (uint8_t i=0; i<3; i++){
+				allRGB[frameCount-1].rgb[i] = me.rgb[i];
+			}
+							
+			if (frameCount<NUM_PREPARE) {
+				if(TEST_PREPARE){
+					printf("X[%04X] R: %d G: %d B: %d\r\n",
+					me.dropletId, me.rgb[0], me.rgb[1], me.rgb[2]);
+				}
+				frameCount++; 
+			}
+			else {
 				phase++; frameCount = 1;
 				if(TEST_PREPARE){
 					for (uint8_t i=0; i<NUM_NEIGHBOR_12; i++){
@@ -422,6 +429,15 @@ void gradientPhase(){
 			/* End of frame. Do some final processing here */
 			set_rgb(0, 0, 255);
 			
+			if (TEST_GRADIENT){
+				printf("X[%04X] R: %d G: %d B: %d\r\n",
+				me.dropletId, me.rgb[0], me.rgb[1], me.rgb[2]);
+				for (uint8_t i=0; i<NUM_NEIGHBOR_4; i++){
+					printf("%u[%04X] R: %d G: %d B: %d\r\n",
+					i, fourNeiRGB[i].dropletId, fourNeiRGB[i].rgb[0], 
+					fourNeiRGB[i].rgb[1], fourNeiRGB[i].rgb[2]);
+				}
+			}
 			// At the end of this phase, decide the pattern
 			// based on the information received
 			// check if go to another phase		
@@ -429,6 +445,7 @@ void gradientPhase(){
 			else {
 				phase++; frameCount = 1;
 				decidePattern();
+				allPattern[0] = me.myPattern_f;
 			}
 		}
 		else{
@@ -505,8 +522,10 @@ void consensusPhase(){
 			/* End of frame. Do some final processing here */
 			set_rgb(255, 255, 255);			
 			weightedAverage();
-				
-			if (frameCount<NUM_CONSENSUS) {frameCount++; }
+			
+			if (frameCount<NUM_CONSENSUS) {
+				allPattern[frameCount] = me.myPattern_f;
+				frameCount++; }
 			else {
 				phase++; frameCount = 1;
 				if (me.turing_color == 0){
@@ -662,8 +681,67 @@ void changeColor(){
 }
 
 uint8_t user_handle_command(char* command_word, char* command_args){
-	if(strcmp(command_word, "print neighbors")==0){ // print all information in the camouflage
-		//do stuff
+	if(strcmp(command_word, "printns")==0){ 
+		printns();
 	}
+	if(strcmp(command_word, "printrgbs")==0){ 
+		printrgbs();
+	}
+	if(strcmp(command_word, "printfrgb")==0){ 
+		printfrgb();
+	}
+	if(strcmp(command_word, "printp")==0){
+		printp();
+	}
+	if(strcmp(command_word, "printall")==0){
+		printns();
+		printrgbs();
+		printfrgb();
+		printp();
+	}
+			
 	return 0;	
+}
+
+void displayMenu(){
+	printf("printns: print neighbors' ID\r\n"); // 
+	printf("printrgbs: print all rgbs read\r\n"); 
+	printf("printfrgb: print final rgb and neighbors\r\n"); 
+	printf("printp: print all pattern probs\r\n"); 
+	printf("printall: print all above info\r\n"); 
+}
+
+void printns(){
+	printf("\r\nPrint neighbors' ID\r\n");
+	for (uint8_t i=0; i<NUM_NEIGHBOR_12; i++)
+	{
+		printf("%d[%04X]\r\n", i, me.neighborIds[i]);
+	}
+}
+
+void printrgbs(){
+	printf("\r\nPrint all rgbs read\r\n");
+	for (uint8_t i=0; i<NUM_PREPARE; i++)
+	{
+		printf("%u: %d\t%d\t%d\r\n", i, allRGB[i].rgb[0], allRGB[i].rgb[1], allRGB[i].rgb[2]);
+	}
+}
+
+void printfrgb(){
+	printf("\r\nPrint final rgb and neighbors\r\n"); 
+	printf("X: %d\t%d\t%d\r\n", me.rgb[0],
+	me.rgb[1], me.rgb[2]);
+	for (uint8_t i=0; i<NUM_NEIGHBOR_4; i++)
+	{
+		printf("%u: %d\t%d\t%d\r\n", i, fourNeiRGB[i].rgb[0], 
+		fourNeiRGB[i].rgb[1], fourNeiRGB[i].rgb[2]);
+	}	
+}
+
+void printp(){
+	printf("\r\nPrint all pattern probs\r\n"); 
+	for (uint8_t i=0; i<NUM_CONSENSUS; i++)
+	{
+		printf("%u: %0.6f\r\n", i, allPattern[i]);
+	}
 }

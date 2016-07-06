@@ -31,7 +31,7 @@
 
 //Turing Pattern related
 #define TURING_F			(0.55f)
-#define TURING_RANDOM		(0.10f)						// A threshold for random pattern
+#define TURING_RANDOM		(0.06f)						// A threshold for random pattern
 #define PI_6				0.523598775598298873077  // pi/6
 #define PI_12				0.261799387799149436538  // pi/12
 #define TEST_PREPARE		1
@@ -100,7 +100,10 @@ patternMsg eightNeiPattern[NUM_NEIGHBOR_8];
 // store 12 neighbor's Turing Color information
 turingMsg twelveNeiTuring[NUM_NEIGHBOR_12];
 
-
+/*       Print data        */ 
+// RGB reading
+rgbMsg allRGB[NUM_PREPARE];
+float  allPattern[NUM_CONSENSUS];
 
 // Store information from neighboring Droplets
 /*

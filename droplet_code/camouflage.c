@@ -80,6 +80,9 @@ void init()
 		me.neighborIds[i] = 0;
 	}
 	
+	me.rgb[0] = 0;
+	me.rgb[1] = 0;
+	me.rgb[2] = 0;
 	/********************* other variables ************************/ 
 	// fourDr: use as a message to send out
 	myFourDr.dropletId = me.dropletId;
@@ -233,7 +236,7 @@ void preparePhase(){
 	if(frameTime > FRAME_LENGTH_MS){
 		frameTime = frameTime - FRAME_LENGTH_MS;
 		frameStart += FRAME_LENGTH_MS;
-		printf("\r\n[Prepare Phase] Current frame No. is %u\r\n", frameCount);
+		printf("\r\n[Prepare Phase] Current frame No. is %u?\r\n", frameCount);
 	}
 	
 	/*****************  code here executes once per slot.   ******************/
@@ -252,9 +255,9 @@ void preparePhase(){
 			int16_t blue_led;
 
 			get_rgb(&red_led,&green_led,&blue_led);
-			me.rgb[0] = red_led ;
-			me.rgb[1] = green_led;
-			me.rgb[2] = blue_led;
+			if (red_led > me.rgb[0]) me.rgb[0] = red_led ;
+			if (green_led > me.rgb[1]) me.rgb[1] = green_led;
+			if (blue_led > me.rgb[2]) me.rgb[2] = blue_led;
 			//set_rgb(me.rgb[0], me.rgb[1], me.rgb[2]);
 		}
 		else if(loopID == SLOTS_PER_FRAME-1){
@@ -297,37 +300,38 @@ void preparePhase(){
 		if(last_good_rnb.conf > 1.0){
 			float bearing = last_good_rnb.bearing;
 			float range = last_good_rnb.range;
+			uint16_t id_number = last_good_rnb.id_number;
 			if(!TEST_PREPARE){
 				printf("ID: %04X Rang: %0.4f Bearing: %0.4f \r\n",
-				last_good_rnb.id_number, last_good_rnb.range, last_good_rnb.bearing*180.0/M_PI);
+				id_number, range, bearing*180.0/M_PI);
 			}
 			
 			if(fabs(bearing-M_PI_2) < PI_12 && range < 8.0f) {// left
-				myFourDr.Ids[3] = last_good_rnb.id_number;
+				myFourDr.Ids[3] = id_number;
 				if(TEST_PREPARE){
 					printf("L - ID: %04X Rang: %0.4f Bearing: %0.4f \r\n",
-					last_good_rnb.id_number, last_good_rnb.range, last_good_rnb.bearing*180.0/M_PI);
+					id_number, range, bearing*180.0/M_PI);
 				}
 			}
 			else if(fabs(bearing+M_PI_2) < PI_12 && range < 8.0f) {// right
-				myFourDr.Ids[1] = last_good_rnb.id_number;
+				myFourDr.Ids[1] = id_number;
 				if(TEST_PREPARE){
 					printf("R - ID: %04X Rang: %0.4f Bearing: %0.4f \r\n",
-					last_good_rnb.id_number, last_good_rnb.range, last_good_rnb.bearing*180.0/M_PI);
+					id_number, range, bearing*180.0/M_PI);
 				}
 			}
 			else if(fabs(bearing-0.0f) < PI_12 && range < 8.0f) {// top
-				myFourDr.Ids[0] = last_good_rnb.id_number;
+				myFourDr.Ids[0] = id_number;
 				if(TEST_PREPARE){
 					printf("T - ID: %04X Rang: %0.4f Bearing: %0.4f \r\n",
-					last_good_rnb.id_number, last_good_rnb.range, last_good_rnb.bearing*180.0/M_PI);
+					id_number, range, bearing*180.0/M_PI);
 				}
 			}
 			else if( (fabs(bearing-M_PI) < PI_12 || fabs(bearing+M_PI) < PI_12 )  && range < 8.0f ) {// bottom
-				myFourDr.Ids[2] = last_good_rnb.id_number;
+				myFourDr.Ids[2] = id_number;
 				if(TEST_PREPARE){
 					printf("B - ID: %04X Rang: %0.4f Bearing: %0.4f \r\n",
-					last_good_rnb.id_number, last_good_rnb.range, last_good_rnb.bearing*180.0/M_PI);
+					id_number, range, bearing*180.0/M_PI);
 				}
 			}
 		}
@@ -693,7 +697,7 @@ uint8_t user_handle_command(char* command_word, char* command_args){
 	if(strcmp(command_word, "printp")==0){
 		printp();
 	}
-	if(strcmp(command_word, "printall")==0){
+	if(strcmp(command_word, "pa")==0){
 		printns();
 		printrgbs();
 		printfrgb();
@@ -708,11 +712,12 @@ void displayMenu(){
 	printf("printrgbs: print all rgbs read\r\n"); 
 	printf("printfrgb: print final rgb and neighbors\r\n"); 
 	printf("printp: print all pattern probs\r\n"); 
-	printf("printall: print all above info\r\n"); 
+	printf("pa: print all above info\r\n"); 
 }
 
 void printns(){
 	printf("\r\nPrint neighbors' ID\r\n");
+	printf("X[%04X]\r\n", me.dropletId);
 	for (uint8_t i=0; i<NUM_NEIGHBOR_12; i++)
 	{
 		printf("%d[%04X]\r\n", i, me.neighborIds[i]);

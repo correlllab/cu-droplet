@@ -117,7 +117,6 @@ void loop()
 		case 2: consensusPhase(); break;
 		case 3: turingPhase(); break;
 		default: 
-		displayMenu();
 		break;
 	}
 }
@@ -607,6 +606,7 @@ void turingPhase(){
 				phase ++; // set it back to 0 to restart !!!
 				frameCount = 1; 
 				printf("\r\nAll Done!\r\n"); 
+				displayMenu();
 			}
 		}
 		else{

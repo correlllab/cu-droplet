@@ -250,7 +250,9 @@ void preparePhase(){
 			int16_t red_led;
 			int16_t green_led;
 			int16_t blue_led;
-
+			if (frameCount<=NUM_CALIBRATE)
+			{
+			}
 			get_rgb(&red_led,&green_led,&blue_led);
 			me.rgb[0] = red_led ;
 			me.rgb[1] = green_led;

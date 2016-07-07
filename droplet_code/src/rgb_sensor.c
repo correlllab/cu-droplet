@@ -65,9 +65,9 @@ void rgb_sensor_init()
 		//printf("Baselines:\r\n%3d  %3d  %3d\r\n", r_baseline, g_baseline, b_baseline);
 		
 		// Yang does the comment
-		//r_baseline = 0;
-		//g_baseline = 0;
-		//b_baseline = 0;	
+		r_baseline = 0;
+		g_baseline = 0;
+		b_baseline = 0;	
 	#endif		
 }
 

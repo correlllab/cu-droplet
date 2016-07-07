@@ -20,14 +20,14 @@
 #define NUM_PATTERNS		2
 #define NUM_PREPARE			20 //20
 #define NUM_GRADIENT		10
-#define NUM_CONSENSUS		10 //30
+#define NUM_CONSENSUS		30 //30
 #define NUM_TURING			10 //20
 #define NUM_DROPLETS		9
 #define NUM_CALIBRATE_RGB	1
 #define NUM_SAMPLES			3
 
 #define SLOT_LENGTH_MS		300
-#define SLOTS_PER_FRAME		11
+#define SLOTS_PER_FRAME		41
 #define FRAME_LENGTH_MS		(((uint32_t)SLOT_LENGTH_MS)*((uint32_t)SLOTS_PER_FRAME))
 #define LOOP_DELAY_MS		17
 

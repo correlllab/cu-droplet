@@ -256,9 +256,13 @@ void preparePhase(){
 			
 			get_rgb(&red_led,&green_led,&blue_led);
 
-			if (red_led > me.rgb[0]) me.rgb[0] = red_led;
-			if (green_led > me.rgb[1]) me.rgb[1] = green_led;
-			if (blue_led > me.rgb[2]) me.rgb[2] = blue_led;
+			// store to print
+			allRGB[frameCount-1].rgb[0] = red_led;
+			allRGB[frameCount-1].rgb[1] = green_led;
+			allRGB[frameCount-1].rgb[2] = blue_led;
+			red_array[frameCount-1] = red_led;
+			green_array[frameCount-1] = green_led;
+			blue_array[frameCount-1] = blue_led;
 			printf("X[%04X] R: %d G: %d B: %d (ori)\r\n",
 			me.dropletId,red_led, green_led, blue_led);
 
@@ -268,21 +272,21 @@ void preparePhase(){
 			/* End of frame. Do some final processing here */
 			//set_rgb(0, 255, 0);
 			extendNeighbors();
-			
-			// store to print
-			for (uint8_t i=0; i<3; i++){
-				allRGB[frameCount-1].rgb[i] = me.rgb[i];
-			}
 							
 			if (frameCount<NUM_PREPARE) {
 				if(TEST_PREPARE){
 					printf("X[%04X] R: %d G: %d B: %d\r\n",
-					me.dropletId, me.rgb[0], me.rgb[1], me.rgb[2]);
+					me.dropletId, allRGB[frameCount-1].rgb[0], 
+					allRGB[frameCount-1].rgb[1], allRGB[frameCount-1].rgb[2]);
 				}
 				frameCount++; 
 			}
 			else {
 				phase++; frameCount = 1;
+				me.rgb[0] = meas_find_median(&red_array, NUM_PREPARE/2);
+				me.rgb[1] = meas_find_median(&green_array, NUM_PREPARE/2);
+				me.rgb[2] = meas_find_median(&blue_array, NUM_PREPARE/2);
+				
 				if(TEST_PREPARE){
 					for (uint8_t i=0; i<NUM_NEIGHBOR_12; i++){
 						if (me.neighborIds[i] != 0)
@@ -346,6 +350,7 @@ void preparePhase(){
 	/* Define the duration of loop */
 	delay_ms(LOOP_DELAY_MS);
 }
+
 
 // Inside of __preparePhase__
 // get information about neighbor's neighbor

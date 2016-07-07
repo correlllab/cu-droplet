@@ -105,6 +105,10 @@ turingMsg twelveNeiTuring[NUM_NEIGHBOR_12];
 rgbMsg allRGB[NUM_PREPARE];
 float  allPattern[NUM_CONSENSUS];
 
+int16_t red_array[NUM_PREPARE];
+int16_t green_array[NUM_PREPARE];
+int16_t blue_array[NUM_PREPARE];
+
 // Store information from neighboring Droplets
 /*
 Neighbor Index document:

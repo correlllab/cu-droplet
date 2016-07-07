@@ -236,7 +236,7 @@ void preparePhase(){
 	if(frameTime > FRAME_LENGTH_MS){
 		frameTime = frameTime - FRAME_LENGTH_MS;
 		frameStart += FRAME_LENGTH_MS;
-		printf("\r\n[Prepare Phase] Current frame No. is %u?\r\n", frameCount);
+		printf("\r\n[Prepare Phase] Current frame No. is %u\r\n", frameCount);
 	}
 	
 	/*****************  code here executes once per slot.   ******************/
@@ -253,47 +253,20 @@ void preparePhase(){
 			int16_t red_led;
 			int16_t green_led;
 			int16_t blue_led;
-			if (frameCount<=NUM_CALIBRATE_RGB) {
-				int16_t r_avg=0, g_avg=0, b_avg=0;
-				set_rgb(255, 255, 255);
-				delay_ms(10);
-				for(uint8_t i=0; i<NUM_SAMPLES; i++)
-				{
-					get_rgb(&red_led,&green_led,&blue_led);
-					r_avg+=red_led;
-					g_avg+=green_led;
-					b_avg+=blue_led;					
-					delay_ms(10);
-					//printf("\r\n");
-				}
-				white_rgb[0] = r_avg/NUM_SAMPLES;
-				white_rgb[1] = g_avg/NUM_SAMPLES;
-				white_rgb[2] = b_avg/NUM_SAMPLES;
-				for (uint8_t i=0; i<3; i++)
-				{ me.rgb[i] = white_rgb[i];
-				}
-				printf("X[%04X] R: %d G: %d B: %d (cali)\r\n",
-				me.dropletId, white_rgb[0], white_rgb[1], white_rgb[2]);
-			}
-			else{
-				led_off();
-				delay_ms(20);
-				get_rgb(&red_led,&green_led,&blue_led);
-				red_led = abs(red_led - white_rgb[0]);
-				green_led = abs(green_led - white_rgb[1]);
-				blue_led = abs(blue_led - white_rgb[2]);
-				if (red_led < me.rgb[0]) me.rgb[0] = red_led ;
-				if (green_led < me.rgb[1]) me.rgb[1] = green_led;
-				if (blue_led < me.rgb[2]) me.rgb[2] = blue_led;
-				printf("X[%04X] R: %d G: %d B: %d (abs)\r\n",
-				me.dropletId,red_led, green_led, blue_led);
-			}
+			
+			get_rgb(&red_led,&green_led,&blue_led);
+
+			if (red_led < me.rgb[0]) me.rgb[0] = red_led;
+			if (green_led < me.rgb[1]) me.rgb[1] = green_led;
+			if (blue_led < me.rgb[2]) me.rgb[2] = blue_led;
+			printf("X[%04X] R: %d G: %d B: %d (ori)\r\n",
+			me.dropletId,red_led, green_led, blue_led);
 
 			//set_rgb(me.rgb[0], me.rgb[1], me.rgb[2]);
 		}
 		else if(loopID == SLOTS_PER_FRAME-1){
 			/* End of frame. Do some final processing here */
-			set_rgb(0, 255, 0);
+			//set_rgb(0, 255, 0);
 			extendNeighbors();
 			
 			// store to print
@@ -759,17 +732,17 @@ void printrgbs(){
 	printf("\r\nPrint all rgbs read\r\n");
 	for (uint8_t i=0; i<NUM_PREPARE; i++)
 	{
-		printf("%u: %d\t%d\t%d\r\n", i, allRGB[i].rgb[0], allRGB[i].rgb[1], allRGB[i].rgb[2]);
+		printf("%u: %d %d %d\r\n", i, allRGB[i].rgb[0], allRGB[i].rgb[1], allRGB[i].rgb[2]);
 	}
 }
 
 void printfrgb(){
 	printf("\r\nPrint final rgb and neighbors\r\n"); 
-	printf("X: %d\t%d\t%d\r\n", me.rgb[0],
+	printf("X: %d %d %d\r\n", me.rgb[0],
 	me.rgb[1], me.rgb[2]);
 	for (uint8_t i=0; i<NUM_NEIGHBOR_4; i++)
 	{
-		printf("%u: %d\t%d\t%d\r\n", i, fourNeiRGB[i].rgb[0], 
+		printf("%u: %d %d %d\r\n", i, fourNeiRGB[i].rgb[0], 
 		fourNeiRGB[i].rgb[1], fourNeiRGB[i].rgb[2]);
 	}	
 }

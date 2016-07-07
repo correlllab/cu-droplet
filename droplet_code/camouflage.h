@@ -23,8 +23,6 @@
 #define NUM_CONSENSUS		30 //30
 #define NUM_TURING			10 //20
 #define NUM_DROPLETS		9
-#define NUM_CALIBRATE_RGB	1
-#define NUM_SAMPLES			3
 
 #define SLOT_LENGTH_MS		300
 #define SLOTS_PER_FRAME		41
@@ -33,7 +31,7 @@
 
 //Turing Pattern related
 #define TURING_F			(0.55f)
-#define TURING_RANDOM		(0.06f)						// A threshold for random pattern
+#define TURING_RANDOM		(0.10f)						// A threshold for random pattern
 #define PI_6				0.523598775598298873077  // pi/6
 #define PI_12				0.261799387799149436538  // pi/12
 #define TEST_PREPARE		1
@@ -75,8 +73,6 @@ typedef struct RGB_struct{
 	uint16_t dropletId;
 	int16_t rgb[3];
 } rgbMsg;
-
-int16_t white_rgb[3];
 
 typedef struct Pattern_struct{
 	char flag;

@@ -256,9 +256,9 @@ void preparePhase(){
 			
 			get_rgb(&red_led,&green_led,&blue_led);
 
-			if (red_led < me.rgb[0]) me.rgb[0] = red_led;
-			if (green_led < me.rgb[1]) me.rgb[1] = green_led;
-			if (blue_led < me.rgb[2]) me.rgb[2] = blue_led;
+			if (red_led > me.rgb[0]) me.rgb[0] = red_led;
+			if (green_led > me.rgb[1]) me.rgb[1] = green_led;
+			if (blue_led > me.rgb[2]) me.rgb[2] = blue_led;
 			printf("X[%04X] R: %d G: %d B: %d (ori)\r\n",
 			me.dropletId,red_led, green_led, blue_led);
 

@@ -21,7 +21,7 @@
 #define NUM_PREPARE			20 //20
 #define NUM_GRADIENT		10
 #define NUM_CONSENSUS		30 //30
-#define NUM_TURING			10 //20
+#define NUM_TURING			20 //20
 #define NUM_DROPLETS		9
 
 #define SLOT_LENGTH_MS		300

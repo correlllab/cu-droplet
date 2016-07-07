@@ -32,6 +32,7 @@ static const char RGB_SENSE_POWERON_FAILURE[] PROGMEM = "RGB sense power-on fail
 	int16_t get_green_sensor();
 	int16_t get_blue_sensor();
 
+	void calibrate_color_sensors();
 	void read_color_settings();
 	void write_color_settings();
 
@@ -41,14 +42,6 @@ static const char RGB_SENSE_POWERON_FAILURE[] PROGMEM = "RGB sense power-on fail
 	} Colors;
 
 	int16_t meas_find_median(int16_t* meas, uint8_t arr_len);
-
-	float calib_matrix[3][3];
-
-	typedef union
-	{
-		uint32_t i;
-		float f;
-	} u;
 
 #endif
 

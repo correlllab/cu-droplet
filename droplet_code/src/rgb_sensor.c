@@ -26,14 +26,14 @@ void rgb_sensor_init()
 	#else		
 		RGB_SENSOR_PORT.DIRCLR = RGB_SENSOR_R_PIN_bm | RGB_SENSOR_G_PIN_bm | RGB_SENSOR_B_PIN_bm;
 
-		ADCA.REFCTRL = ADC_REFSEL_AREFA_gc;
+		ADCA.REFCTRL = ADC_REFSEL_INT1V_gc;
 		ADCA.CTRLB = ADC_RESOLUTION_LEFT12BIT_gc | ADC_CONMODE_bm;
 		ADCA.PRESCALER = ADC_PRESCALER_DIV256_gc;
 		/* When differential input is used, signed mode must be used. (sec. 28.6 of Manual) */
 
-		ADCA.CH0.CTRL = ADC_CH_INPUTMODE_DIFFWGAIN_gc | ADC_CH_GAIN_1X_gc;	//Probably should turn the gain back up to 4X when we put the shells on.
-		ADCA.CH1.CTRL = ADC_CH_INPUTMODE_DIFFWGAIN_gc | ADC_CH_GAIN_1X_gc;	//Probably should turn the gain back up to 4X when we put the shells on.
-		ADCA.CH2.CTRL = ADC_CH_INPUTMODE_DIFFWGAIN_gc | ADC_CH_GAIN_2X_gc;	//Probably should turn the gain back up to 4X when we put the shells on.
+		ADCA.CH0.CTRL = ADC_CH_INPUTMODE_DIFFWGAIN_gc | ADC_CH_GAIN_2X_gc;	//Probably should turn the gain back up to 4X when we put the shells on.
+		ADCA.CH1.CTRL = ADC_CH_INPUTMODE_DIFFWGAIN_gc | ADC_CH_GAIN_2X_gc;	//Probably should turn the gain back up to 4X when we put the shells on.
+		ADCA.CH2.CTRL = ADC_CH_INPUTMODE_DIFFWGAIN_gc | ADC_CH_GAIN_4X_gc;	//Probably should turn the gain back up to 4X when we put the shells on.
 	
 		ADCA.CH0.MUXCTRL = ADC_CH_MUXPOS_PIN5_gc | ADC_CH_MUXNEG_INTGND_MODE4_gc;	// Red sensor on ADC A channel 0
 		ADCA.CH1.MUXCTRL = ADC_CH_MUXPOS_PIN6_gc | ADC_CH_MUXNEG_INTGND_MODE4_gc;	// Green sensor on ADC A channel 1
@@ -44,31 +44,41 @@ void rgb_sensor_init()
 
 		ADCA.CTRLA = ADC_ENABLE_bm;
 	
-		//read_color_settings();
-	
-		delay_us(50);
-		const int8_t num_samples = 3;
-		get_red_sensor(); get_blue_sensor(); get_green_sensor();
-		delay_ms(10);
-		int16_t r_avg=0, g_avg=0, b_avg=0;
-		for(uint8_t i=0; i<num_samples; i++)
-		{
-			r_avg+=get_red_sensor();
-			g_avg+=get_green_sensor();
-			b_avg+=get_blue_sensor();
-			delay_ms(10);
-			//printf("\r\n");
-		}
-		r_baseline= r_avg/num_samples;
-		g_baseline= g_avg/num_samples;
-		b_baseline= b_avg/num_samples;
-		//printf("Baselines:\r\n%3d  %3d  %3d\r\n", r_baseline, g_baseline, b_baseline);
-		
-		// Yang does the comment
-		r_baseline = 0;
-		g_baseline = 0;
-		b_baseline = 0;	
+		read_color_settings();
+		/* 
+		 * Only include the line below if you want to overwrite the stored
+		 * calibration values in EEPROM!
+		 */
+		//calibrate_color_sensors();
 	#endif		
+}
+
+/* 
+ * This function calculates calibration values and stores them in EEPROM.
+ * This should only need to happen once, but maybe again if the ADC settings
+ * are changed. Once it has been called once, the Droplet will load the stored
+ * values every time it restarts.
+ */
+void calibrate_color_sensors(){
+	delay_us(50);
+	const int8_t num_samples = 10;
+	get_red_sensor(); get_blue_sensor(); get_green_sensor();
+	delay_ms(10);
+	int16_t r_avg=0, g_avg=0, b_avg=0;
+	for(uint8_t i=0; i<num_samples; i++)
+	{
+		r_avg+=get_red_sensor();
+		g_avg+=get_green_sensor();
+		b_avg+=get_blue_sensor();
+		delay_ms(10);
+		//printf("\r\n");
+	}
+	r_baseline= r_avg/num_samples;
+	g_baseline= g_avg/num_samples;
+	b_baseline= b_avg/num_samples;
+	printf("Baselines:\r\n%3d  %3d  %3d\r\n", r_baseline, g_baseline, b_baseline);
+	
+	write_color_settings();
 }
 
 #ifndef AUDIO_DROPLET
@@ -125,25 +135,28 @@ int16_t get_blue_sensor(){
 
 #endif
 
+void write_color_settings(){
+	printf("Writing color settings:");
+	printf("\tr: %4d, g: %4d, b: %4d\r\n", r_baseline, g_baseline, b_baseline);
+	EEPROM_write_byte(0x60, (uint8_t)(r_baseline&0xFF));
+	EEPROM_write_byte(0x61, (uint8_t)((r_baseline>>8)&0xFF));
+	EEPROM_write_byte(0x62, (uint8_t)(g_baseline&0xFF));
+	EEPROM_write_byte(0x63, (uint8_t)((g_baseline>>8)&0xFF));
+	EEPROM_write_byte(0x64, (uint8_t)(b_baseline&0xFF));
+	EEPROM_write_byte(0x65, (uint8_t)((b_baseline>>8)&0xFF));	
+}
+
 void read_color_settings()
 {
 	#ifndef AUDIO_DROPLET
-		//printf("Reading Color Calib Matrix:\r\n");
-		u dat;
-		for(uint8_t i=0;i<3;i++)
-		{
-			for(uint8_t j=0;j<3;j++)
-			{
-				dat.i =((uint32_t)EEPROM_read_byte(0x60 + 12*i + 4*j + 0))<<24;
-				dat.i|=((uint32_t)EEPROM_read_byte(0x60 + 12*i + 4*j + 1))<<16;
-				dat.i|=((uint32_t)EEPROM_read_byte(0x60 + 12*i + 4*j + 2))<<8;
-				dat.i|=((uint32_t)EEPROM_read_byte(0x60 + 12*i + 4*j + 3))<<0;
-				calib_matrix[i][j]=dat.f;
-				//printf("\t%f\t",dat.f);	
-			}
-			//printf("\r\n");		
-		}
-		//printf("\r\n");
+		printf("Reading Color Calibration:");
+		r_baseline =((uint16_t)EEPROM_read_byte(0x60));
+		r_baseline |= ((uint16_t)EEPROM_read_byte(0x61))<<8;
+		g_baseline =((uint16_t)EEPROM_read_byte(0x62));
+		g_baseline |= ((uint16_t)EEPROM_read_byte(0x63))<<8;
+		b_baseline =((uint16_t)EEPROM_read_byte(0x64));
+		b_baseline |= ((uint16_t)EEPROM_read_byte(0x65))<<8;
+		printf("\tr: %4d, g: %4d, b: %4d\r\n", r_baseline, g_baseline, b_baseline);
 	#else
 		printf_P(PSTR("ERROR: Audio droplets don't use color_settings.\r\n"));
 	#endif		

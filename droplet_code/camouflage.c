@@ -131,13 +131,17 @@ void sendNeiMsg(){
 }
 
 void sendRGBMsg(){
-	rgbMsg msg;
-	msg.flag = RGB_MSG_FLAG;
-	msg.dropletId = me.dropletId;
-	for (uint8_t i=0; i<3; i++){
-		msg.rgb[i] = me.rgb[i];
+	if((50<me.rgb[0]&& me.rgb[0]<400) &&
+	(50<me.rgb[1]&& me.rgb[1]<400) &&
+	(50<me.rgb[2]&& me.rgb[2]<400) ){
+		rgbMsg msg;
+		msg.flag = RGB_MSG_FLAG;
+		msg.dropletId = me.dropletId;
+		for (uint8_t i=0; i<3; i++){
+			msg.rgb[i] = me.rgb[i];
+		}
+		ir_send(ALL_DIRS, (char*)(&msg), sizeof(rgbMsg));
 	}
-	ir_send(ALL_DIRS, (char*)(&msg), sizeof(rgbMsg));
 }
 
 void sendPatternMsg(){
@@ -263,14 +267,14 @@ void preparePhase(){
 			red_array[frameCount-1] = red_led;
 			green_array[frameCount-1] = green_led;
 			blue_array[frameCount-1] = blue_led;
-			printf("X[%04X] R: %d G: %d B: %d (ori)\r\n",
+			//printf("X[%04X] R: %d G: %d B: %d (ori)\r\n",
 			me.dropletId,red_led, green_led, blue_led);
 
 			//set_rgb(me.rgb[0], me.rgb[1], me.rgb[2]);
 		}
 		else if(loopID == SLOTS_PER_FRAME-1){
 			/* End of frame. Do some final processing here */
-			//set_rgb(0, 255, 0);
+			set_rgb(0, 255, 0);
 			extendNeighbors();
 							
 			if (frameCount<NUM_PREPARE) {
@@ -283,9 +287,9 @@ void preparePhase(){
 			}
 			else {
 				phase++; frameCount = 1;
-				me.rgb[0] = meas_find_median(&red_array, NUM_PREPARE/2);
-				me.rgb[1] = meas_find_median(&green_array, NUM_PREPARE/2);
-				me.rgb[2] = meas_find_median(&blue_array, NUM_PREPARE/2);
+				me.rgb[0] = meas_find_median(&red_array, NUM_PREPARE);
+				me.rgb[1] = meas_find_median(&green_array, NUM_PREPARE);
+				me.rgb[2] = meas_find_median(&blue_array, NUM_PREPARE);
 				
 				if(TEST_PREPARE){
 					for (uint8_t i=0; i<NUM_NEIGHBOR_12; i++){
@@ -478,30 +482,36 @@ void decidePattern(){
 	// Compute two gradients and decide which pattern
 	// At this point, only use Red channel
 	uint8_t channel = 1;
-	for(uint8_t i=0; i<NUM_NEIGHBOR_4; i++){
-		if (fourNeiRGB[i].dropletId == 0){
-			for (uint8_t j=0; j<3; j++){
-				fourNeiRGB[i].rgb[j] = me.rgb[j];
+	if((50<me.rgb[0]&& me.rgb[0]<400) &&
+	(50<me.rgb[1]&& me.rgb[1]<400) &&
+	(50<me.rgb[2]&& me.rgb[2]<400) ){  // ignore and set to 0.5f
+		for(uint8_t i=0; i<NUM_NEIGHBOR_4; i++){
+			if (fourNeiRGB[i].dropletId == 0){
+				for (uint8_t j=0; j<3; j++){
+					fourNeiRGB[i].rgb[j] = me.rgb[j];
+				}
 			}
 		}
+		uint16_t diff_row = 0;
+		uint16_t diff_col = 0;
+		for (uint8_t channel = 1; channel <=2; channel++){
+			diff_row += abs(2*me.rgb[channel] - fourNeiRGB[1].rgb[channel] - fourNeiRGB[3].rgb[channel]);
+			diff_col += abs(2*me.rgb[channel] - fourNeiRGB[0].rgb[channel] - fourNeiRGB[2].rgb[channel]);
+		}
+		// Decide which pattern to be
+		if(diff_row < diff_col){ // row less than col: horizontal
+			me.myPattern_f = 0.0f;
+		}
+		else if (diff_col < diff_row){ // col less than row: vertical
+			me.myPattern_f = 1.0f;
+		}
+		else{ // for the corner ones
+			me.myPattern_f = 0.5f;
+		}
 	}
-	uint16_t diff_row = 0;
-	uint16_t diff_col = 0;
-	for (uint8_t channel = 1; channel <=2; channel++){
-		diff_row += abs(2*me.rgb[channel] - fourNeiRGB[1].rgb[channel] - fourNeiRGB[3].rgb[channel]);
-		diff_col += abs(2*me.rgb[channel] - fourNeiRGB[0].rgb[channel] - fourNeiRGB[2].rgb[channel]);
-	}
-	// Decide which pattern to be
-	if(diff_row < diff_col){ // row less than col: horizontal
-		me.myPattern_f = 0.0f;
-	}
-	else if (diff_col < diff_row){ // col less than row: vertical
-		me.myPattern_f = 1.0f;
-	}
-	else{ // for the corner ones
+	else{
 		me.myPattern_f = 0.5f;
 	}
-	
 	if (TEST_GRADIENT){
 		printf("X[%04X] RGB: %03u\r\n", me.dropletId, me.rgb[channel]);
 		for (uint8_t i=0; i<NUM_NEIGHBOR_4; i++){
@@ -612,6 +622,14 @@ void turingPhase(){
 			if (fabs(me.myPattern_f-0.5f) > TURING_RANDOM){
 				changeColor();
 			}
+			else{
+				if (me.turing_color == 0){
+					set_rgb(255, 255, 255);
+				}
+				else{
+					set_rgb(255, 0, 0);
+				}
+			}
 			
 			
 			if (frameCount<NUM_TURING) {frameCount ++; }
@@ -708,7 +726,8 @@ uint8_t user_handle_command(char* command_word, char* command_args){
 	}
 	if(strcmp(command_word, "pa")==0){
 		printns();
-		printrgbs();
+		//printrgbs();
+		printrgbs_ordered();
 		printfrgb();
 		printp();
 	}
@@ -738,6 +757,14 @@ void printrgbs(){
 	for (uint8_t i=0; i<NUM_PREPARE; i++)
 	{
 		printf("%u: %d %d %d\r\n", i, allRGB[i].rgb[0], allRGB[i].rgb[1], allRGB[i].rgb[2]);
+	}
+}
+
+void printrgbs_ordered(){
+	printf("\r\nPrint all rgbs read (ordered)\r\n");
+	for (uint8_t i=0; i<NUM_PREPARE; i++)
+	{
+		printf("%u: %d %d %d\r\n", i, red_array[i], green_array[i], blue_array[i]);
 	}
 }
 

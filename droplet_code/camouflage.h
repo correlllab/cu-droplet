@@ -24,14 +24,14 @@
 #define NUM_TURING			20 //20
 #define NUM_DROPLETS		9
 
-#define SLOT_LENGTH_MS		300
-#define SLOTS_PER_FRAME		41
+#define SLOT_LENGTH_MS		350
+#define SLOTS_PER_FRAME		37
 #define FRAME_LENGTH_MS		(((uint32_t)SLOT_LENGTH_MS)*((uint32_t)SLOTS_PER_FRAME))
 #define LOOP_DELAY_MS		17
 
 //Turing Pattern related
 #define TURING_F			(0.55f)
-#define TURING_RANDOM		(0.10f)						// A threshold for random pattern
+#define TURING_RANDOM		(0.02f)						// A threshold for random pattern
 #define PI_6				0.523598775598298873077  // pi/6
 #define PI_12				0.261799387799149436538  // pi/12
 #define TEST_PREPARE		1

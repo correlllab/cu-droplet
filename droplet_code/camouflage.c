@@ -268,7 +268,7 @@ void preparePhase(){
 			green_array[frameCount-1] = green_led;
 			blue_array[frameCount-1] = blue_led;
 			//printf("X[%04X] R: %d G: %d B: %d (ori)\r\n",
-			me.dropletId,red_led, green_led, blue_led);
+			//me.dropletId,red_led, green_led, blue_led);
 
 			//set_rgb(me.rgb[0], me.rgb[1], me.rgb[2]);
 		}
@@ -786,8 +786,7 @@ void printprob(){
 
 void printturing(){
 	printf("\r\nPrint final turing colors\r\n"); 
-	printf("X[%04X] Color: %u\r\n",
-	me.dropletId, me.turing_color);:
+	printf("X[%04X] Color: %u\r\n", me.dropletId, me.turing_color);
 	for (uint8_t i=0; i<NUM_NEIGHBOR_12; i++) {
 		if (twelveNeiTuring[i].dropletId != 0) {
 			printf("%u[%04X] Color: %u\r\n", i,

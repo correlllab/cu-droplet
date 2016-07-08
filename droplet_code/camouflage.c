@@ -712,34 +712,31 @@ void changeColor(){
 }
 
 uint8_t user_handle_command(char* command_word, char* command_args){
-	if(strcmp(command_word, "printns")==0){ 
+	if(strcmp(command_word, "pn")==0){ 
 		printns();
 	}
-	if(strcmp(command_word, "printrgbs")==0){ 
-		printrgbs();
+	if(strcmp(command_word, "pp")==0){
+		printprob();
 	}
-	if(strcmp(command_word, "printfrgb")==0){ 
-		printfrgb();
-	}
-	if(strcmp(command_word, "printp")==0){
-		printp();
-	}
+	if(strcmp(command_word, "pt")==0){
+		printturing();
+	}	
 	if(strcmp(command_word, "pa")==0){
+		printprob();
+		printturing();
 		printns();
 		//printrgbs();
 		printrgbs_ordered();
 		printfrgb();
-		printp();
 	}
 			
 	return 0;	
 }
 
 void displayMenu(){
-	printf("printns: print neighbors' ID\r\n"); // 
-	printf("printrgbs: print all rgbs read\r\n"); 
-	printf("printfrgb: print final rgb and neighbors\r\n"); 
-	printf("printp: print all pattern probs\r\n"); 
+	printf("pn: print neighbors' ID\r\n"); // 
+	printf("pp: print all pattern probs\r\n"); 
+	printf("pt: print neighbors' turing colors\r\n"); // 
 	printf("pa: print all above info\r\n"); 
 }
 
@@ -748,7 +745,7 @@ void printns(){
 	printf("X[%04X]\r\n", me.dropletId);
 	for (uint8_t i=0; i<NUM_NEIGHBOR_12; i++)
 	{
-		printf("%d[%04X]\r\n", i, me.neighborIds[i]);
+		printf("%d [%04X]\r\n", i, me.neighborIds[i]);
 	}
 }
 
@@ -779,10 +776,25 @@ void printfrgb(){
 	}	
 }
 
-void printp(){
+void printprob(){
 	printf("\r\nPrint all pattern probs\r\n"); 
 	for (uint8_t i=0; i<NUM_CONSENSUS; i++)
 	{
-		printf("%u: %0.6f\r\n", i, allPattern[i]);
+		printf("%0.6f\r\n", allPattern[i]);
 	}
+}
+
+void printturing(){
+	printf("\r\nPrint final turing colors\r\n"); 
+	printf("X[%04X] Color: %u\r\n",
+	me.dropletId, me.turing_color);:
+	for (uint8_t i=0; i<NUM_NEIGHBOR_12; i++) {
+		if (twelveNeiTuring[i].dropletId != 0) {
+			printf("%u[%04X] Color: %u\r\n", i,
+			twelveNeiTuring[i].dropletId, twelveNeiTuring[i].color);
+		}
+		else{
+			printf("%u[    ] Color: #\r\n", i);
+		}
+	}	
 }

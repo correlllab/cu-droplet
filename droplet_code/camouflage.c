@@ -496,9 +496,9 @@ void decidePattern(){
 		/*
 		uint16_t diff_row = 0;
 		uint16_t diff_col = 0;
-		for (uint8_t channel = 1; channel <=2; channel++){
-			diff_row += abs(2*me.rgb[channel] - fourNeiRGB[1].rgb[channel] - fourNeiRGB[3].rgb[channel]);
-			diff_col += abs(2*me.rgb[channel] - fourNeiRGB[0].rgb[channel] - fourNeiRGB[2].rgb[channel]);
+		for (uint8_t channel = 0; channel <3; channel++){
+			diff_row += abs(me.rgb[channel] - fourNeiRGB[1].rgb[channel]) + abs(me.rgb[channel]- fourNeiRGB[3].rgb[channel]);
+			diff_col += abs(me.rgb[channel] - fourNeiRGB[0].rgb[channel]) + abs(me.rgb[channel]- fourNeiRGB[2].rgb[channel]);
 		}
 		*/
 

@@ -511,12 +511,12 @@ void decidePattern(){
 			((float)me.rgb[1]-(float)fourNeiRGB[3].rgb[1])*((float)me.rgb[0]-(float)fourNeiRGB[3].rgb[1])+
 			((float)me.rgb[2]-(float)fourNeiRGB[3].rgb[2])*((float)me.rgb[0]-(float)fourNeiRGB[3].rgb[2]));
 			
-		diff_col = sqrtf(((float)me.rgb[0]-(float)fourNeiRGB[1].rgb[0])*((float)me.rgb[0]-(float)fourNeiRGB[1].rgb[0])+
-		((float)me.rgb[1]-(float)fourNeiRGB[1].rgb[1])*((float)me.rgb[0]-(float)fourNeiRGB[1].rgb[1])+
-		((float)me.rgb[2]-(float)fourNeiRGB[1].rgb[2])*((float)me.rgb[0]-(float)fourNeiRGB[1].rgb[2])) +
-					sqrtf(((float)me.rgb[0]-(float)fourNeiRGB[3].rgb[0])*((float)me.rgb[0]-(float)fourNeiRGB[3].rgb[0])+
-		((float)me.rgb[1]-(float)fourNeiRGB[3].rgb[1])*((float)me.rgb[0]-(float)fourNeiRGB[3].rgb[1])+
-		((float)me.rgb[2]-(float)fourNeiRGB[3].rgb[2])*((float)me.rgb[0]-(float)fourNeiRGB[3].rgb[2]));	
+		diff_col = sqrtf(((float)me.rgb[0]-(float)fourNeiRGB[0].rgb[0])*((float)me.rgb[0]-(float)fourNeiRGB[0].rgb[0])+
+		((float)me.rgb[1]-(float)fourNeiRGB[0].rgb[1])*((float)me.rgb[0]-(float)fourNeiRGB[0].rgb[1])+
+		((float)me.rgb[2]-(float)fourNeiRGB[0].rgb[2])*((float)me.rgb[0]-(float)fourNeiRGB[0].rgb[2])) +
+					sqrtf(((float)me.rgb[0]-(float)fourNeiRGB[2].rgb[0])*((float)me.rgb[0]-(float)fourNeiRGB[2].rgb[0])+
+		((float)me.rgb[1]-(float)fourNeiRGB[2].rgb[1])*((float)me.rgb[0]-(float)fourNeiRGB[2].rgb[1])+
+		((float)me.rgb[2]-(float)fourNeiRGB[2].rgb[2])*((float)me.rgb[0]-(float)fourNeiRGB[2].rgb[2]));	
 		
 		// Decide which pattern to be
 		if(diff_row < diff_col){ // row less than col: horizontal
@@ -746,7 +746,7 @@ uint8_t user_handle_command(char* command_word, char* command_args){
 		printturing();
 		printns();
 		//printrgbs();
-		printrgbs_ordered();
+		//printrgbs_ordered();
 		printfrgb();
 	}
 			

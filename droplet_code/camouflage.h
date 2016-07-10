@@ -30,7 +30,7 @@
 #define LOOP_DELAY_MS		17
 
 //Turing Pattern related
-#define TURING_F			(0.65f)
+#define TURING_F			(0.60f)
 #define TURING_RANDOM		(0.02f)						// A threshold for random pattern
 #define PI_6				0.523598775598298873077  // pi/6
 #define PI_12				0.261799387799149436538  // pi/12

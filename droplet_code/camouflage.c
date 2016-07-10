@@ -492,12 +492,32 @@ void decidePattern(){
 				}
 			}
 		}
+		
+		/*
 		uint16_t diff_row = 0;
 		uint16_t diff_col = 0;
 		for (uint8_t channel = 1; channel <=2; channel++){
 			diff_row += abs(2*me.rgb[channel] - fourNeiRGB[1].rgb[channel] - fourNeiRGB[3].rgb[channel]);
 			diff_col += abs(2*me.rgb[channel] - fourNeiRGB[0].rgb[channel] - fourNeiRGB[2].rgb[channel]);
 		}
+		*/
+
+		float diff_row = 0;
+		float diff_col = 0;
+		diff_row = sqrtf(((float)me.rgb[0]-(float)fourNeiRGB[1].rgb[0])*((float)me.rgb[0]-(float)fourNeiRGB[1].rgb[0])+
+			((float)me.rgb[1]-(float)fourNeiRGB[1].rgb[1])*((float)me.rgb[0]-(float)fourNeiRGB[1].rgb[1])+
+			((float)me.rgb[2]-(float)fourNeiRGB[1].rgb[2])*((float)me.rgb[0]-(float)fourNeiRGB[1].rgb[2])) +
+					sqrtf(((float)me.rgb[0]-(float)fourNeiRGB[3].rgb[0])*((float)me.rgb[0]-(float)fourNeiRGB[3].rgb[0])+
+			((float)me.rgb[1]-(float)fourNeiRGB[3].rgb[1])*((float)me.rgb[0]-(float)fourNeiRGB[3].rgb[1])+
+			((float)me.rgb[2]-(float)fourNeiRGB[3].rgb[2])*((float)me.rgb[0]-(float)fourNeiRGB[3].rgb[2]));
+			
+		diff_col = sqrtf(((float)me.rgb[0]-(float)fourNeiRGB[1].rgb[0])*((float)me.rgb[0]-(float)fourNeiRGB[1].rgb[0])+
+		((float)me.rgb[1]-(float)fourNeiRGB[1].rgb[1])*((float)me.rgb[0]-(float)fourNeiRGB[1].rgb[1])+
+		((float)me.rgb[2]-(float)fourNeiRGB[1].rgb[2])*((float)me.rgb[0]-(float)fourNeiRGB[1].rgb[2])) +
+					sqrtf(((float)me.rgb[0]-(float)fourNeiRGB[3].rgb[0])*((float)me.rgb[0]-(float)fourNeiRGB[3].rgb[0])+
+		((float)me.rgb[1]-(float)fourNeiRGB[3].rgb[1])*((float)me.rgb[0]-(float)fourNeiRGB[3].rgb[1])+
+		((float)me.rgb[2]-(float)fourNeiRGB[3].rgb[2])*((float)me.rgb[0]-(float)fourNeiRGB[3].rgb[2]));	
+		
 		// Decide which pattern to be
 		if(diff_row < diff_col){ // row less than col: horizontal
 			me.myPattern_f = 0.0f;

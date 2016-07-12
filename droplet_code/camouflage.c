@@ -493,15 +493,15 @@ void decidePattern(){
 			}
 		}
 		
-		/*
+		
 		uint16_t diff_row = 0;
 		uint16_t diff_col = 0;
 		for (uint8_t channel = 0; channel <3; channel++){
 			diff_row += abs(me.rgb[channel] - fourNeiRGB[1].rgb[channel]) + abs(me.rgb[channel]- fourNeiRGB[3].rgb[channel]);
 			diff_col += abs(me.rgb[channel] - fourNeiRGB[0].rgb[channel]) + abs(me.rgb[channel]- fourNeiRGB[2].rgb[channel]);
 		}
-		*/
-
+		
+		/*
 		float diff_row = 0;
 		float diff_col = 0;
 		diff_row = sqrtf(((float)me.rgb[0]-(float)fourNeiRGB[1].rgb[0])*((float)me.rgb[0]-(float)fourNeiRGB[1].rgb[0])+
@@ -517,6 +517,7 @@ void decidePattern(){
 					sqrtf(((float)me.rgb[0]-(float)fourNeiRGB[2].rgb[0])*((float)me.rgb[0]-(float)fourNeiRGB[2].rgb[0])+
 		((float)me.rgb[1]-(float)fourNeiRGB[2].rgb[1])*((float)me.rgb[0]-(float)fourNeiRGB[2].rgb[1])+
 		((float)me.rgb[2]-(float)fourNeiRGB[2].rgb[2])*((float)me.rgb[0]-(float)fourNeiRGB[2].rgb[2]));	
+		*/
 		
 		// Decide which pattern to be
 		if(diff_row < diff_col){ // row less than col: horizontal

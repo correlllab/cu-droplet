@@ -17,7 +17,7 @@
 #define RGB_MSG_FLAG		'R'
 #define PATTERN_MSG_FLAG	'P'
 #define TURING_MSG_FLAG		'T'
-#define NUM_PATTERNS		2
+#define NUM_PATTERNS		3
 #define NUM_PREPARE			20 //20
 #define NUM_GRADIENT		10
 #define NUM_CONSENSUS		35 //30
@@ -30,8 +30,8 @@
 #define LOOP_DELAY_MS		17
 
 //Turing Pattern related
-#define TURING_F			(0.60f)
-#define TURING_RANDOM		(0.02f)						// A threshold for random pattern
+#define TURING_F			(0.75f)
+#define TURING_RANDOM		(0.02f)		// A threshold for random pattern
 #define PI_6				0.523598775598298873077  // pi/6
 #define PI_12				0.261799387799149436538  // pi/12
 #define TEST_PREPARE		1
@@ -43,6 +43,8 @@ const uint16_t dropletsID_set[NUM_DROPLETS] =
 //{0xA649, 0x4DB0, 0x43BA, 0xC24B, 0x8b46}; //Joe
 {0xF60A, 0x2B4E, 0x0A0B, 0x4177, 0x1B4B, 0xA649, 0x4DB0, 0x43BA, 0x8b46}; //Yang
 //0xC24B,
+
+const float rgb_weights[3] = {0.2989, 0.5870, 0.1140};  // RGB to Gray
 
 const uint8_t vIndex[NUM_NEIGHBOR_4] = {0, 2, 8, 10};
 const uint8_t hIndex[NUM_NEIGHBOR_4] = {1, 3, 9, 11};
@@ -58,7 +60,7 @@ typedef struct Droplet_struct{
 	uint8_t myDegree;
 	uint8_t turing_color;
 	
-	float myPattern_f;
+	float myPattern_f[NUM_PATTERNS];
 } Droplet;
 
 typedef struct NeighborId_struct{
@@ -77,7 +79,7 @@ typedef struct RGB_struct{
 typedef struct Pattern_struct{
 	char flag;
 	uint16_t dropletId;
-	uint16_t pattern;
+	float pattern_f[NUM_PATTERNS];
 	uint8_t degree;
 } patternMsg;
 
@@ -103,7 +105,7 @@ turingMsg twelveNeiTuring[NUM_NEIGHBOR_12];
 /*       Print data        */ 
 // RGB reading
 rgbMsg allRGB[NUM_PREPARE];
-float  allPattern[NUM_CONSENSUS];
+patternMsg  allPattern[NUM_CONSENSUS];
 
 int16_t red_array[NUM_PREPARE];
 int16_t green_array[NUM_PREPARE];
@@ -127,6 +129,8 @@ uint32_t frameCount;
 uint16_t loopID;
 uint8_t phase;
 uint8_t counter;			// to exit phases
+
+int threshold_mottled = 60;
 
 void init();
 void loop();

@@ -78,6 +78,7 @@ void init()
 	for (uint8_t i=0; i<NUM_NEIGHBOR_12; i++)
 	{
 		me.neighborIds[i] = 0;
+		twelveNeiTuring[i].color = 0;
 	}
 	
 	me.rgb[0] = 0;
@@ -98,6 +99,10 @@ void init()
 	
 	for (uint8_t i=0; i<NUM_NEIGHBOR_8; i++){
 		eightNeiPattern[i].dropletId = 0;
+	}
+	
+	for (uint8_t i=0; i<NUM_PATTERNS; i++){
+		me.myPattern_f[i] = 0.0f;
 	}
 	// global
 	frameCount = 1;
@@ -149,7 +154,10 @@ void sendPatternMsg(){
 	msg.flag = PATTERN_MSG_FLAG;
 	msg.dropletId = me.dropletId;
 	msg.degree = me.myDegree;
-	msg.pattern = (uint16_t)(me.myPattern_f*65535.0f);
+	for (uint8_t i=0; i<NUM_PATTERNS; i++){
+		msg.pattern_f[i] = me.myPattern_f[i];
+	}
+	
 	
 	ir_send(ALL_DIRS, (char*)(&msg), sizeof(patternMsg));
 }
@@ -461,7 +469,10 @@ void gradientPhase(){
 			else {
 				phase++; frameCount = 1;
 				decidePattern();
-				allPattern[0] = me.myPattern_f;
+				for (uint8_t i=0; i<NUM_PATTERNS; i++){
+					allPattern[0].pattern_f[i] = me.myPattern_f[i];
+				}
+				
 			}
 		}
 		else{
@@ -493,45 +504,47 @@ void decidePattern(){
 			}
 		}
 		
+		//uint16_t diff_row = 0;
+		//uint16_t diff_col = 0;
+		//for (uint8_t channel = 0; channel <3; channel++){
+			//diff_row += abs(me.rgb[channel] - fourNeiRGB[1].rgb[channel]) + abs(me.rgb[channel]- fourNeiRGB[3].rgb[channel]);
+			//diff_col += abs(me.rgb[channel] - fourNeiRGB[0].rgb[channel]) + abs(me.rgb[channel]- fourNeiRGB[2].rgb[channel]);
+		//}
 		
-		uint16_t diff_row = 0;
-		uint16_t diff_col = 0;
-		for (uint8_t channel = 0; channel <3; channel++){
-			diff_row += abs(me.rgb[channel] - fourNeiRGB[1].rgb[channel]) + abs(me.rgb[channel]- fourNeiRGB[3].rgb[channel]);
-			diff_col += abs(me.rgb[channel] - fourNeiRGB[0].rgb[channel]) + abs(me.rgb[channel]- fourNeiRGB[2].rgb[channel]);
-		}
-		
-		/*
 		float diff_row = 0;
 		float diff_col = 0;
-		diff_row = sqrtf(((float)me.rgb[0]-(float)fourNeiRGB[1].rgb[0])*((float)me.rgb[0]-(float)fourNeiRGB[1].rgb[0])+
-			((float)me.rgb[1]-(float)fourNeiRGB[1].rgb[1])*((float)me.rgb[0]-(float)fourNeiRGB[1].rgb[1])+
-			((float)me.rgb[2]-(float)fourNeiRGB[1].rgb[2])*((float)me.rgb[0]-(float)fourNeiRGB[1].rgb[2])) +
-					sqrtf(((float)me.rgb[0]-(float)fourNeiRGB[3].rgb[0])*((float)me.rgb[0]-(float)fourNeiRGB[3].rgb[0])+
-			((float)me.rgb[1]-(float)fourNeiRGB[3].rgb[1])*((float)me.rgb[0]-(float)fourNeiRGB[3].rgb[1])+
-			((float)me.rgb[2]-(float)fourNeiRGB[3].rgb[2])*((float)me.rgb[0]-(float)fourNeiRGB[3].rgb[2]));
+		float grays[5] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+		
+		for (uint8_t j=0; j<NUM_NEIGHBOR_4; j++){
+			for (uint8_t i=0; i<3; i++){
+				grays[j] += (float)fourNeiRGB[j].rgb[i]*rgb_weights[i];
+			}			
+		}
+
+		for (uint8_t i=0; i<3; i++){
+			grays[4] += (float)me.rgb[i]*rgb_weights[i];
+		}
+					
+		diff_row = fabs(grays[4]-grays[1]) + fabs(grays[4]-grays[3]);
 			
-		diff_col = sqrtf(((float)me.rgb[0]-(float)fourNeiRGB[0].rgb[0])*((float)me.rgb[0]-(float)fourNeiRGB[0].rgb[0])+
-		((float)me.rgb[1]-(float)fourNeiRGB[0].rgb[1])*((float)me.rgb[0]-(float)fourNeiRGB[0].rgb[1])+
-		((float)me.rgb[2]-(float)fourNeiRGB[0].rgb[2])*((float)me.rgb[0]-(float)fourNeiRGB[0].rgb[2])) +
-					sqrtf(((float)me.rgb[0]-(float)fourNeiRGB[2].rgb[0])*((float)me.rgb[0]-(float)fourNeiRGB[2].rgb[0])+
-		((float)me.rgb[1]-(float)fourNeiRGB[2].rgb[1])*((float)me.rgb[0]-(float)fourNeiRGB[2].rgb[1])+
-		((float)me.rgb[2]-(float)fourNeiRGB[2].rgb[2])*((float)me.rgb[0]-(float)fourNeiRGB[2].rgb[2]));	
-		*/
+		diff_col = fabs(grays[4]-grays[0]) + fabs(grays[4]-grays[2]);
+		
 		
 		// Decide which pattern to be
-		if(diff_row < diff_col){ // row less than col: horizontal
-			me.myPattern_f = 0.0f;
+		if(diff_row - diff_col > (float)threshold_mottled){ // row less than col: horizontal
+			me.myPattern_f[0] = 1.0f;
 		}
-		else if (diff_col < diff_row){ // col less than row: vertical
-			me.myPattern_f = 1.0f;
+		else if (diff_col - diff_row > (float)threshold_mottled){ // col less than row: vertical
+			me.myPattern_f[1] = 1.0f;
 		}
 		else{ // for the corner ones
-			me.myPattern_f = 0.5f;
+			me.myPattern_f[2] = 1.0f;
 		}
 	}
 	else{
-		me.myPattern_f = 0.5f;
+		for (uint8_t i=0; i<NUM_PATTERNS; i++){
+			me.myPattern_f[i] = 0.333333333f;
+		}	
 	}
 	if (TEST_GRADIENT){
 		printf("X[%04X] RGB: %03u\r\n", me.dropletId, me.rgb[channel]);
@@ -567,7 +580,9 @@ void consensusPhase(){
 			weightedAverage();
 			
 			if (frameCount<NUM_CONSENSUS) {
-				allPattern[frameCount] = me.myPattern_f;
+				for (uint8_t i=0; i<NUM_PATTERNS; i++){
+					allPattern[frameCount].pattern_f[i] = me.myPattern_f[i];
+				}		
 				frameCount++; }
 			else {
 				phase++; frameCount = 1;
@@ -594,7 +609,7 @@ void consensusPhase(){
 void weightedAverage(){
 	float wi;
 	float wc;
-	float pattern = 0.0f;
+	float pattern[3] = {0.0f, 0.0f, 0.0f};
 	uint8_t maxDegree;
 	wc = 1.0f;
 	for (uint8_t i=0; i<NUM_NEIGHBOR_8; i++){
@@ -605,21 +620,30 @@ void weightedAverage(){
 			}
 			wi = 1.0f/(1.0f+(float)maxDegree);
 			wc -= wi;
-			pattern += wi*(float)eightNeiPattern[i].pattern/65535.0f;		
+			for(uint8_t j=0; j<NUM_PATTERNS; j++){
+				pattern[j] += wi*(float)eightNeiPattern[i].pattern_f[j];
+			}
 		}
 	}
-	pattern += wc*me.myPattern_f;
+	for (uint8_t i=0; i<NUM_PATTERNS; i++){
+		pattern[i] += wc*me.myPattern_f[i];
+	}
 	
 	if (TEST_CONSENSUS){
 		for (uint8_t i=0; i<NUM_NEIGHBOR_8; i++){
 			if (eightNeiPattern[i].dropletId != 0){
 				printf("%u[%04X] Degree: %u Pattern: %.4f\r\n", i, eightNeiPattern[i].dropletId,
-				eightNeiPattern[i].degree, (float)eightNeiPattern[i].pattern/65535.0f);
+				eightNeiPattern[i].degree, (float)eightNeiPattern[i].pattern_f/65535.0f);
 			}
 		}
-		printf("\r\nPre-pattern: %0.4f Cur-pattern: %0.4f\r\n", me.myPattern_f, pattern);
+		printf("\r\nPre-pattern: [%0.4f %0.4f %0.4f] Cur-pattern: [%0.4f %0.4f %0.4f]\r\n", 
+		me.myPattern_f[0], me.myPattern_f[1], me.myPattern_f[2], pattern[0], pattern[1], pattern[2]);
 	}
-	me.myPattern_f = pattern;
+	for (uint8_t i=0; i<NUM_PATTERNS; i++)
+	{
+		me.myPattern_f[i] = pattern[i];
+	}
+	
 }
 
 void turingPhase(){
@@ -640,19 +664,8 @@ void turingPhase(){
 		}
 		else if(loopID == SLOTS_PER_FRAME-1){
 			/* End of frame. Do some final processing here */
-			if (fabs(me.myPattern_f-0.5f) > TURING_RANDOM){
-				changeColor();
-			}
-			else{
-				if (me.turing_color == 0){
-					set_rgb(255, 255, 255);
-				}
-				else{
-					set_rgb(255, 0, 0);
-				}
-			}
-			
-			
+			changeColor();
+
 			if (frameCount<NUM_TURING) {frameCount ++; }
 			else {
 				phase ++; // set it back to 0 to restart !!!
@@ -679,27 +692,61 @@ void changeColor(){
 	float ss = 0.0f;
 	if (me.turing_color == 1){
 		na += 1;
-		ni += 1;
 	}
-	if (me.myPattern_f < 0.5f-TURING_RANDOM) {	// pattern = 0: horizontal
+	
+	for (uint8_t i=0; i<NUM_NEIGHBOR_12; i++){
+		if (me.neighborIds[i] == 0){
+			switch (i):
+			case 0: twelveNeiTuring[i].color = twelveNeiTuring[2].color; break;
+			case 1: twelveNeiTuring[i].color = twelveNeiTuring[3].color; break;
+			case 2: twelveNeiTuring[i].color = twelveNeiTuring[0].color; break;
+			case 3: twelveNeiTuring[i].color = twelveNeiTuring[1].color; break;
+			case 4: twelveNeiTuring[i].color = twelveNeiTuring[7].color; break;
+			case 5: twelveNeiTuring[i].color = twelveNeiTuring[6].color; break;
+			case 6: twelveNeiTuring[i].color = twelveNeiTuring[5].color; break;
+			case 7: twelveNeiTuring[i].color = twelveNeiTuring[4].color; break;
+			case 8: twelveNeiTuring[i].color = twelveNeiTuring[10].color; break;
+			case 9: twelveNeiTuring[i].color = twelveNeiTuring[11].color; break;
+			case 10: twelveNeiTuring[i].color = twelveNeiTuring[8].color; break;
+			case 11: twelveNeiTuring[i].color = twelveNeiTuring[9].color; break;	
+			default: break;		
+		}
+	}
+	
+	if ( (me.myPattern_f[0] > me.myPattern_f[1]) && (me.myPattern_f[0] > me.myPattern_f[2]) ) {	// pattern = 0: horizontal
+		// exclude activator from inhibitor
 		for (uint8_t i=0; i<NUM_NEIGHBOR_4; i++){
 			if (twelveNeiTuring[hIndex[i]].color == 1){
 				na += 1;
 			}
 		}
 		for (uint8_t i=0; i<NUM_NEIGHBOR_8; i++){
-			if (twelveNeiTuring[i].color == 1){
+			if (i==1 || i==3) continue;
+			else if (twelveNeiTuring[i].color == 1){
 				ni += 1;
 			}
 		}
 	}
-	else if (me.myPattern_f > 0.5f+TURING_RANDOM){	// pattern = 1: vertical
+	else if ((me.myPattern_f[1] > me.myPattern_f[0]) && (me.myPattern_f[1] > me.myPattern_f[2])){	// pattern = 1: vertical
 		for (uint8_t i=0; i<NUM_NEIGHBOR_4; i++){
 			if (twelveNeiTuring[vIndex[i]].color == 1){
 				na += 1;
 			}
 		}
 		for (uint8_t i=0; i<NUM_NEIGHBOR_8; i++){
+			if (i==0 || i==2) continue;
+			else if (twelveNeiTuring[i].color == 1){
+				ni += 1;
+			}
+		}		
+	}
+	else{
+		for (uint8_t i=0; i<NUM_NEIGHBOR_4; i++){
+			if (twelveNeiTuring[vIndex[i]].color == 1){
+				na += 1;
+			}
+		}
+		for (uint8_t i=4; i<NUM_NEIGHBOR_12; i++){
 			if (twelveNeiTuring[i].color == 1){
 				ni += 1;
 			}
@@ -750,7 +797,11 @@ uint8_t user_handle_command(char* command_word, char* command_args){
 		//printrgbs_ordered();
 		printfrgb();
 	}
-			
+
+	if(strcmp(command_word, "set_thresh")==0){
+		threshold_mottled = atoi(command_args));
+	}
+
 	return 0;	
 }
 
@@ -801,7 +852,7 @@ void printprob(){
 	printf("\r\nPrint all pattern probs\r\n"); 
 	for (uint8_t i=0; i<NUM_CONSENSUS; i++)
 	{
-		printf("%0.6f\r\n", allPattern[i]);
+		printf("%0.6f %0.6f %0.6f\r\n", allPattern[i].pattern_f[0], allPattern[i].pattern_f[1], allPattern[i].pattern_f[2]);
 	}
 }
 

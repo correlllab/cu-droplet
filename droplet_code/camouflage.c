@@ -111,7 +111,7 @@ void init()
 	
 	frameStart = get_time();
 	
-	printf("Initializing Camouflage Project. mySlot is %003d\r\n", me.mySlot);		
+	printf("Initializing Camouflage Project. mySlot is %003hu\r\n", me.mySlot);		
 }
 
 /*
@@ -248,7 +248,7 @@ void preparePhase(){
 	if(frameTime > FRAME_LENGTH_MS){
 		frameTime = frameTime - FRAME_LENGTH_MS;
 		frameStart += FRAME_LENGTH_MS;
-		printf("\r\n[Prepare Phase] Current frame No. is %u\r\n", frameCount);
+		printf("\r\n[Prepare Phase] Current frame No. is %lu\r\n", frameCount);
 	}
 	
 	/*****************  code here executes once per slot.   ******************/
@@ -303,7 +303,7 @@ void preparePhase(){
 					for (uint8_t i=0; i<NUM_NEIGHBOR_12; i++){
 						if (me.neighborIds[i] != 0)
 						{
-							printf("%u-[%04X]\r\n", i, me.neighborIds[i]);
+							printf("%hu-[%04X]\r\n", i, me.neighborIds[i]);
 						}
 					}
 					printf("\r\n");
@@ -437,7 +437,7 @@ void gradientPhase(){
 	if(frameTime > FRAME_LENGTH_MS){
 		frameTime = frameTime - FRAME_LENGTH_MS;
 		frameStart += FRAME_LENGTH_MS;
-		printf("\r\n[Gradient Phase] Current frame No. is %u\r\n", frameCount);
+		printf("\r\n[Gradient Phase] Current frame No. is %lu\r\n", frameCount);
 	}
 	
 	/*****************  code here executes once per slot.   ******************/
@@ -457,7 +457,7 @@ void gradientPhase(){
 				printf("X[%04X] R: %d G: %d B: %d\r\n",
 				me.dropletId, me.rgb[0], me.rgb[1], me.rgb[2]);
 				for (uint8_t i=0; i<NUM_NEIGHBOR_4; i++){
-					printf("%u[%04X] R: %d G: %d B: %d\r\n",
+					printf("%hu[%04X] R: %d G: %d B: %d\r\n",
 					i, fourNeiRGB[i].dropletId, fourNeiRGB[i].rgb[0], 
 					fourNeiRGB[i].rgb[1], fourNeiRGB[i].rgb[2]);
 				}
@@ -525,16 +525,17 @@ void decidePattern(){
 			grays[4] += (float)me.rgb[i]*rgb_weights[i];
 		}
 					
-		diff_row = fabs(grays[4]-grays[1]) + fabs(grays[4]-grays[3]);
+		diff_row = fabs(grays[4]-grays[1] + grays[4]-grays[3]);
 			
-		diff_col = fabs(grays[4]-grays[0]) + fabs(grays[4]-grays[2]);
+		diff_col = fabs(grays[4]-grays[0] + grays[4]-grays[2]);
 		
+		printf("Px: %0.4f Py: %0.4f\r\n", diff_row, diff_col);
 		
 		// Decide which pattern to be
-		if(diff_row - diff_col > (float)threshold_mottled){ // row less than col: horizontal
+		if(diff_col - diff_row > (float)threshold_mottled){ // row less than col: horizontal
 			me.myPattern_f[0] = 1.0f;
 		}
-		else if (diff_col - diff_row > (float)threshold_mottled){ // col less than row: vertical
+		else if (diff_row - diff_col > (float)threshold_mottled){ // col less than row: vertical
 			me.myPattern_f[1] = 1.0f;
 		}
 		else{ // for the corner ones
@@ -547,10 +548,10 @@ void decidePattern(){
 		}	
 	}
 	if (TEST_GRADIENT){
-		printf("X[%04X] RGB: %03u\r\n", me.dropletId, me.rgb[channel]);
+		printf("X[%04X] RGB: %03d\r\n", me.dropletId, me.rgb[channel]);
 		for (uint8_t i=0; i<NUM_NEIGHBOR_4; i++){
 			if (fourNeiRGB[i].dropletId != 0){
-				printf("%u[%04X] RGB: %03u\r\n", i, fourNeiRGB[i].dropletId,
+				printf("%hu[%04X] RGB: %03d\r\n", i, fourNeiRGB[i].dropletId,
 				fourNeiRGB[i].rgb[channel]);
 			}
 		}
@@ -562,7 +563,7 @@ void consensusPhase(){
 	if(frameTime > FRAME_LENGTH_MS){
 		frameTime = frameTime - FRAME_LENGTH_MS;
 		frameStart += FRAME_LENGTH_MS;
-		printf("\r\n[Consensus Phase] Current frame No. is %u\r\n", frameCount);
+		printf("\r\n[Consensus Phase] Current frame No. is %lu\r\n", frameCount);
 	}
 	
 	/*****************  code here executes once per slot.   ******************/
@@ -632,8 +633,9 @@ void weightedAverage(){
 	if (TEST_CONSENSUS){
 		for (uint8_t i=0; i<NUM_NEIGHBOR_8; i++){
 			if (eightNeiPattern[i].dropletId != 0){
-				printf("%u[%04X] Degree: %u Pattern: %.4f\r\n", i, eightNeiPattern[i].dropletId,
-				eightNeiPattern[i].degree, (float)eightNeiPattern[i].pattern_f/65535.0f);
+				printf("%hu[%04X] Degree: %hu Pattern: %0.4f %0.4f %0.4f\r\n", i, eightNeiPattern[i].dropletId,
+				eightNeiPattern[i].degree, eightNeiPattern[i].pattern_f[0], eightNeiPattern[i].pattern_f[1],
+				eightNeiPattern[i].pattern_f[2]);
 			}
 		}
 		printf("\r\nPre-pattern: [%0.4f %0.4f %0.4f] Cur-pattern: [%0.4f %0.4f %0.4f]\r\n", 
@@ -651,7 +653,7 @@ void turingPhase(){
 	if(frameTime > FRAME_LENGTH_MS){
 		frameTime = frameTime - FRAME_LENGTH_MS;
 		frameStart += FRAME_LENGTH_MS;
-		printf("\r\n[Turing Phase] Current frame No. is %u\r\n", frameCount);
+		printf("\r\n[Turing Phase] Current frame No. is %lu\r\n", frameCount);
 	}
 	
 	/*****************  code here executes once per slot.   ******************/
@@ -695,8 +697,8 @@ void changeColor(){
 	}
 	
 	for (uint8_t i=0; i<NUM_NEIGHBOR_12; i++){
-		if (me.neighborIds[i] == 0){
-			switch (i):
+		if (twelveNeiTuring[i].dropletId == 0){
+			switch (i){
 			case 0: twelveNeiTuring[i].color = twelveNeiTuring[2].color; break;
 			case 1: twelveNeiTuring[i].color = twelveNeiTuring[3].color; break;
 			case 2: twelveNeiTuring[i].color = twelveNeiTuring[0].color; break;
@@ -710,11 +712,13 @@ void changeColor(){
 			case 10: twelveNeiTuring[i].color = twelveNeiTuring[8].color; break;
 			case 11: twelveNeiTuring[i].color = twelveNeiTuring[9].color; break;	
 			default: break;		
+			}
 		}
 	}
 	
 	if ( (me.myPattern_f[0] > me.myPattern_f[1]) && (me.myPattern_f[0] > me.myPattern_f[2]) ) {	// pattern = 0: horizontal
 		// exclude activator from inhibitor
+		printf("Horizontal stripe!\r\n");
 		for (uint8_t i=0; i<NUM_NEIGHBOR_4; i++){
 			if (twelveNeiTuring[hIndex[i]].color == 1){
 				na += 1;
@@ -728,6 +732,7 @@ void changeColor(){
 		}
 	}
 	else if ((me.myPattern_f[1] > me.myPattern_f[0]) && (me.myPattern_f[1] > me.myPattern_f[2])){	// pattern = 1: vertical
+		printf("Vertical stripe!\r\n");
 		for (uint8_t i=0; i<NUM_NEIGHBOR_4; i++){
 			if (twelveNeiTuring[vIndex[i]].color == 1){
 				na += 1;
@@ -741,6 +746,7 @@ void changeColor(){
 		}		
 	}
 	else{
+		printf("Mottled Pattern!\r\n");		
 		for (uint8_t i=0; i<NUM_NEIGHBOR_4; i++){
 			if (twelveNeiTuring[vIndex[i]].color == 1){
 				na += 1;
@@ -765,13 +771,13 @@ void changeColor(){
 		set_rgb(255, 255, 255);
 	}
 	else{
-		set_rgb(255, 0, 0);
+		set_rgb(0, 0, 0);
 	}	
 	
 	if (TEST_TURING) {
 		for (uint8_t i=0; i<NUM_NEIGHBOR_12; i++) {
 			if (twelveNeiTuring[i].dropletId != 0) {
-				printf("%u[%04X] Color: %u\r\n", i, 
+				printf("%hu[%04X] Color: %hu\r\n", i, 
 				twelveNeiTuring[i].dropletId, twelveNeiTuring[i].color);
 			}
 		}
@@ -799,7 +805,7 @@ uint8_t user_handle_command(char* command_word, char* command_args){
 	}
 
 	if(strcmp(command_word, "set_thresh")==0){
-		threshold_mottled = atoi(command_args));
+		threshold_mottled = atoi(command_args);
 	}
 
 	return 0;	

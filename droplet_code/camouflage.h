@@ -130,7 +130,7 @@ uint16_t loopID;
 uint8_t phase;
 uint8_t counter;			// to exit phases
 
-int threshold_mottled = 60;
+int threshold_mottled = 40;
 
 void init();
 void loop();

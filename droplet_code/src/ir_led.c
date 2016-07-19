@@ -101,28 +101,26 @@ uint8_t twiWriteWrapper(uint8_t addr, uint8_t* write_buff, uint8_t buff_len, cha
 	uint8_t result = 0;
 	uint8_t printed = 0;
 	while(!result){
-		if(waitForTWIReady(startTime, marker)){
+		if(printed = waitForTWIReady(startTime, marker)){
 			result = TWI_MasterWrite(addr, write_buff, buff_len);
 		}else{
 			return 0;
 		}
 	}
-	return 1 + printed;
+	return result + printed - 1;
 }
 
 uint8_t waitForTWIReady(uint32_t startTime, char marker){
 	uint8_t printed = 0;
 	while(twi->status!=TWIM_STATUS_READY){
 		if((get_time()-startTime)>1000){
-			printf_P(TWI_TIMEOUT_STR);
-			printf("%c\r\n", marker);
+			printf_P(PSTR("\tTWI timeout when setting IR Powers [%c]\r\n"), marker);
 			return 0;
-			}else if((get_time()-startTime)>100){
+		}else if((get_time()-startTime)>100){
 			if(!printed){
-				printf_P(TWI_WAITING_STR);
-				printf("%c\r\n", marker);
+				printf_P(PSTR("Waiting for TWI [%c]...\r\n"), marker);
+				printed = 1;				
 			}
-			printed = 1;
 			delay_ms(10);
 		}
 	}

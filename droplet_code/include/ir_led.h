@@ -8,9 +8,6 @@
 #include "scheduler.h"
 #include "i2c.h"
 
-static const char TWI_WAITING_STR[] PROGMEM = "\tWaiting for TWI... ";
-static const char TWI_TIMEOUT_STR[] PROGMEM = "\tTWI timeout when setting IR Powers ";
-
 extern USART_t* channel[];
 
 #define ALL_EMITTERS_CARWAV_bm (PIN0_bm | PIN1_bm | PIN4_bm | PIN5_bm | PIN6_bm | PIN7_bm)

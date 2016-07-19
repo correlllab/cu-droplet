@@ -5,7 +5,8 @@
  //*/
 //void init()
 //{
-//
+	//enable_sync_blink(8000);
+	//set_sync_blink_color(255,0,0);
 //}
 //
 ///*

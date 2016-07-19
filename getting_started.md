@@ -1,17 +1,17 @@
 NOTE: These instructions are specific to the Windows operating system. All hardware referenced is simply the hardware we use. I believe that it would be possible to use other operating systems and other hardware, but I haven't tried and so can't comment on doing so.
 
-##### Physical Supplies
+#### Physical Supplies
 * A PDI programmer. We use the <a href="http://www.digikey.com/product-detail/en/ATATMEL-ICE/ATATMEL-ICE-ND/4753379">JTAGICE3</a>.
 * (Optional, for serial communication) FTDI Cable. We use those available on <a href="https://www.sparkfun.com/products/9718">sparkfun</a> with a minor modication (described below).
 
-##### Software Supplies
+#### Software Supplies
 * The latest version of <a href="http://www.atmel.com/tools/atmelstudio.aspx">Atmel Studio</a>.
   * This should also install the USB drivers for the PDI programmer, which are needed.
 * This repo! Clone a copy to your local machine.
 * (Optional, for serial communication) <a href="http://ttssh2.sourceforge.jp/index.html.en">Tera Term</a>, or any other serial program.
 * (Optional, for serial communication) FTDI Drivers for the cable. The sparkfun product page linked above has links for these. IMPORTANT: Be sure to install the drivers before plugging a cable in. We have had occasional issues with the drivers if you plug them in yourself.
 
-##### Setup
+#### Setup
 
 1. Once Atmel Studio is installed, plug your JTAGICE3 programmer in to the computer (since the drivers were just installed, it should be recognized), then open Atmel Studio. It should open to a 'start page'. Near the top-left of this page is a 'New Project...' button. Click that, which should open a dialog. 
 

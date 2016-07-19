@@ -97,7 +97,7 @@ void set_all_ir_powers(uint16_t power)
 }
 
 uint8_t twiWriteWrapper(uint8_t addr, uint8_t* write_buff, uint8_t buff_len, char marker){
-	uint32_t startTime = get_time();
+	startTime = get_time();
 	uint8_t result = 0;
 	uint8_t printed = 0;
 	while(!result){

@@ -17,6 +17,8 @@ extern USART_t* channel[];
 
 uint16_t curr_ir_power;
 
+uint32_t startTime;
+
 void ir_led_init();
 void set_all_ir_powers(uint16_t power);
 void ir_led_on(uint8_t direction);

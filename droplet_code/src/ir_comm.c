@@ -507,9 +507,14 @@ void ir_transmit(uint8_t dir){
 	ir_rxtx[dir].curr_pos++;
 	/* CHECK TO SEE IF MESSAGE IS COMPLETE */
 	if(ir_rxtx[dir].curr_pos >= (ir_rxtx[dir].data_length+HEADER_LEN)){
+		//printf("transmit of %hu-byte long message completed on dir %hu.\r\n\t", ir_rxtx[dir].data_length & DATA_LEN_VAL_bm, dir);
+		//for(uint8_t i=0;i<ir_rxtx[dir].data_length & DATA_LEN_VAL_bm; i++){
+			//printf("%02hX ", ir_rxtx[dir].buf[i]);
+		//}
+		//printf("\r\n");
 		clear_ir_buffer(dir);
 		channel[dir]->CTRLA &= ~USART_DREINTLVL_gm; //Turn off interrupt things.
-		//printf("\r\n");
+		
 	}
 
 }

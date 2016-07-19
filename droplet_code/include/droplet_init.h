@@ -63,6 +63,8 @@
 
 uint16_t droplet_ID;
 
+typedef uint16_t bot_id_t;
+
 typedef struct ir_msg_struct
 {
 	uint32_t arrival_time;	// Time of message receipt.	

@@ -461,9 +461,9 @@ void ir_range_blast(uint8_t power){
 	//times[0] = get_time();
 	while((get_time()-rnbCmdSentTime)<POST_BROADCAST_DELAY);
 	//times[1] = get_time();
+	uint32_t pre_sync_op = get_time();
+	set_all_ir_powers(256);	
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){		
-		uint32_t pre_sync_op = get_time();
-		set_all_ir_powers(256);
 		while((get_time() - pre_sync_op) < TIME_FOR_SET_IR_POWERS);
 		//times[2] = get_time();
 		for(uint8_t dir = 0; dir < 6; dir++){

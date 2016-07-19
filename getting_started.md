@@ -63,6 +63,7 @@ The first time you get started with a brand new Droplet, you must set some fuse 
 * EESAVE = [X]
 * BODLVL = 1V6
 
+
 * FUSEBYTE0 = 0xFF (valid)
 * FUSEBYTE1 = 0x00 (valid)
 * FUSEBYTE2 = 0xFF (valid)

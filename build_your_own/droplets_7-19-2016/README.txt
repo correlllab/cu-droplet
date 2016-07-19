@@ -2,6 +2,13 @@ This version of the Droplet's electronics includes fixes to minor problems with 
 
 Those fixes mean that this board is changed slightly, and it's always possible that those changes introduced new bugs in turn.
 
+OUTSTANDING ISSUES:
+    Does the Supercap really need to be 1.5F? Almost certainly not, but we haven't experimented with smaller ones, yet.
+    It's nice for the Droplet legs to be thicker (and thus sturdier) than normal pins, but it's hard to find thick-but-long
+        connectors like this. The pins in the BOM are flattened on the very tip, with the result that it's possible for them
+        them to short two adjacent strips together in rare circumstances. This is bad! Depending on the pin alternatives you 
+        can find, this may be a good thing to change.
+
 Thus, we can't guarantee that the board, built as presented in this files, will work perfectly. But it's the best/closest-to-working-perfectly that we have.
 
 Note also that this BoM was when we were intending to replace motor 0 with a speaker (using the motor driver as a kludgy audio driver). 

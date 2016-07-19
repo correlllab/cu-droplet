@@ -5,11 +5,11 @@ NOTE: These instructions are specific to the Windows operating system. All hardw
 * (Optional, for serial communication) FTDI Cable. We use those available on <a href="https://www.sparkfun.com/products/9718">sparkfun</a> with a minor modication (described below).
 
 ##### Software Supplies
-* The latest version of <a href="http://www.atmel.com/tools/atmelstudio.aspx">Atmel Studio</a> (6.2sp1 at time of writing).
+* The latest version of <a href="http://www.atmel.com/tools/atmelstudio.aspx">Atmel Studio</a>.
   * This should also install the USB drivers for the PDI programmer, which are needed.
 * This repo! Clone a copy to your local machine.
 * (Optional, for serial communication) <a href="http://ttssh2.sourceforge.jp/index.html.en">Tera Term</a>, or any other serial program.
-* (Optional, for serial communication) FTDI Drivers for the cable. The sparkfun product page linked above has links for these.
+* (Optional, for serial communication) FTDI Drivers for the cable. The sparkfun product page linked above has links for these. IMPORTANT: Be sure to install the drivers before plugging a cable in. We have had occasional issues with the drivers if you plug them in yourself.
 
 ##### Setup
 

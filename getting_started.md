@@ -1,17 +1,17 @@
 NOTE: These instructions are specific to the Windows operating system. All hardware referenced is simply the hardware we use. I believe that it would be possible to use other operating systems and other hardware, but I haven't tried and so can't comment on doing so.
 
-##### Physical Supplies
+#### Physical Supplies
 * A PDI programmer. We use the <a href="http://www.digikey.com/product-detail/en/ATATMEL-ICE/ATATMEL-ICE-ND/4753379">JTAGICE3</a>.
 * (Optional, for serial communication) FTDI Cable. We use those available on <a href="https://www.sparkfun.com/products/9718">sparkfun</a> with a minor modication (described below).
 
-##### Software Supplies
-* The latest version of <a href="http://www.atmel.com/tools/atmelstudio.aspx">Atmel Studio</a> (6.2sp1 at time of writing).
+#### Software Supplies
+* The latest version of <a href="http://www.atmel.com/tools/atmelstudio.aspx">Atmel Studio</a>.
   * This should also install the USB drivers for the PDI programmer, which are needed.
 * This repo! Clone a copy to your local machine.
 * (Optional, for serial communication) <a href="http://ttssh2.sourceforge.jp/index.html.en">Tera Term</a>, or any other serial program.
-* (Optional, for serial communication) FTDI Drivers for the cable. The sparkfun product page linked above has links for these.
+* (Optional, for serial communication) FTDI Drivers for the cable. The sparkfun product page linked above has links for these. IMPORTANT: Be sure to install the drivers before plugging a cable in. We have had occasional issues with the drivers if you plug them in yourself.
 
-##### Setup
+#### Setup
 
 1. Once Atmel Studio is installed, plug your JTAGICE3 programmer in to the computer (since the drivers were just installed, it should be recognized), then open Atmel Studio. It should open to a 'start page'. Near the top-left of this page is a 'New Project...' button. Click that, which should open a dialog. 
 
@@ -41,21 +41,50 @@ NOTE: These instructions are specific to the Windows operating system. All hardw
     2. In the 'Interface:' drop-down menu, select 'PDI'. 
     3. Make sure that PDI Clock is set to 4MHz and, under 'Programming settings', the 'Preserve EEPROM' box is checked.
 
-Okay! You're done! You should now be able to compile code and upload it to your Droplet. To do so, plug your Droplet in, and then click the green 'play' button in the top task bar, to the left of the drop-down menu which defaults to 'Debug'. This compiles the code and writes it to the Droplets.
+Okay! You're done! You should now be able to compile code and upload it to your Droplet. To do so, plug your Droplet in, and then click the green 'play' button in the top task bar, to the left of the drop-down menu which defaults to 'Debug'. This compiles the code and writes it to the Droplets. Checkout /droplet_code/docs/dropletAPI.h for a description of some of the primary functions you'll want to use with your Droplets.
 
 Good luck!
 
-#### TODO: Programming Connector
-#### TODO: Talk about fuse settings for first-time droplets?
+#### Fuse Settings
+The first time you get started with a brand new Droplet, you must set some fuse settings. Here are correct fuse settings copied directly from ATMEL: 
 
-##### Programming
+##### Fuse Settings
+* JAGUSERID = 0xFF
+* WDWP = 8CLK
+* WDP = 8CLK
+* BOOTRST = APPLICATION
+* TOSCSEL = XTAL
+* BODPD = DISABLED
+* RSTDISBL = [ ]
+* SUT = 0MS
+* WDLOCK = [ ]
+* JTAGEN = [ ]
+* BODACT = DISABLED
+* EESAVE = [X]
+* BODLVL = 1V6
+
+##### Fuse Bytes
+* FUSEBYTE0 = 0xFF (valid)
+* FUSEBYTE1 = 0x00 (valid)
+* FUSEBYTE2 = 0xFF (valid)
+* FUSEBYTE4 = 0xFF (valid)
+* FUSEBYTE5 = 0xF7 (valid)
+
+#### Programming
 
 The 'user_template.c' and 'user_template.h' files have comments to explain the functionality of the three key functions: 'init()', 'loop()', and 'handle_msg(msg_struct* msg)'. Feel free to delete these two files and replace them with your own. As long as you define those three functions somewhere in your code the linker should be able to sort it out.
 
 The /src/ and /include/ folders contain all of the hardware code. In theory, you shouldn't need to modify these files, but if you feel need to, be our guests!
 
-##### Serial Communication
+#### Serial Communication
 
 The Droplets are capable of serial communication with a computer. Primarily, we use this to view print statements from the Droplets, and occasionally to override their code for debugging purposes.
 
-### TODO: Put in instructions on how to modify the FTDI cable for Droplets.
+#### FTDI Cable
+
+The Sparkfun FTDI cable comes with six cables. We just need four. Specifically:
+Black (GND)
+Orange (RX)
+Yellow (TX)
+Red (5V)
+So I get an empty 4 pin female connecter and use tweezers to remove the crimped ends from the 6 pin connector and insert them in to the 4 pin connector.

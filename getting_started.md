@@ -45,11 +45,10 @@ Okay! You're done! You should now be able to compile code and upload it to your 
 
 Good luck!
 
-#### TODO: Programming Connector
 #### Fuse Settings
 The first time you get started with a brand new Droplet, you must set some fuse settings. Here are correct fuse settings copied directly from ATMEL: 
 
-### Fuse Settings
+##### Fuse Settings
 * JAGUSERID = 0xFF
 * WDWP = 8CLK
 * WDP = 8CLK
@@ -64,24 +63,24 @@ The first time you get started with a brand new Droplet, you must set some fuse 
 * EESAVE = [X]
 * BODLVL = 1V6
 
-### Fuse Bytes
+##### Fuse Bytes
 * FUSEBYTE0 = 0xFF (valid)
 * FUSEBYTE1 = 0x00 (valid)
 * FUSEBYTE2 = 0xFF (valid)
 * FUSEBYTE4 = 0xFF (valid)
 * FUSEBYTE5 = 0xF7 (valid)
 
-##### Programming
+#### Programming
 
 The 'user_template.c' and 'user_template.h' files have comments to explain the functionality of the three key functions: 'init()', 'loop()', and 'handle_msg(msg_struct* msg)'. Feel free to delete these two files and replace them with your own. As long as you define those three functions somewhere in your code the linker should be able to sort it out.
 
 The /src/ and /include/ folders contain all of the hardware code. In theory, you shouldn't need to modify these files, but if you feel need to, be our guests!
 
-##### Serial Communication
+#### Serial Communication
 
 The Droplets are capable of serial communication with a computer. Primarily, we use this to view print statements from the Droplets, and occasionally to override their code for debugging purposes.
 
-### FTDI Cable
+#### FTDI Cable
 
 The Sparkfun FTDI cable comes with six cables. We just need four. Specifically:
 Black (GND)

@@ -49,6 +49,7 @@ Good luck!
 #### Fuse Settings
 The first time you get started with a brand new Droplet, you must set some fuse settings. Here are correct fuse settings copied directly from ATMEL: 
 
+### Fuse Settings
 * JAGUSERID = 0xFF
 * WDWP = 8CLK
 * WDP = 8CLK
@@ -63,7 +64,7 @@ The first time you get started with a brand new Droplet, you must set some fuse 
 * EESAVE = [X]
 * BODLVL = 1V6
 
-
+### Fuse Bytes
 * FUSEBYTE0 = 0xFF (valid)
 * FUSEBYTE1 = 0x00 (valid)
 * FUSEBYTE2 = 0xFF (valid)

@@ -33,7 +33,7 @@
 #define NUM_SHARED_BOTS 4
 #define NUM_TRACKED_BOTS 12
 
-const uint16_t SEED_IDS[NUM_SEEDS] = {0x12AD, 0xCD6B, 0x32A7, 0x5264};
+const id_t SEED_IDS[NUM_SEEDS] = {0x12AD, 0xCD6B, 0x32A7, 0x5264};
 const int16_t  SEED_X[NUM_SEEDS]   = {0, 0, 300, 300};
 const int16_t  SEED_Y[NUM_SEEDS]   = {0, 300, 0, 300};
 
@@ -69,7 +69,7 @@ typedef struct ball_msg_struct{
 }BallMsg;
 
 typedef struct packed_bot_meas_struct{
-	bot_id_t id;
+	id_t id;
 	uint8_t range;
 	int8_t conf;
 	int8_t b;
@@ -101,7 +101,7 @@ BallDat theBall;
 
 typedef struct bot_meas_struct
 {
-	bot_id_t id;
+	id_t id;
 	uint16_t r;
 	int16_t b;
 	int16_t h;
@@ -165,7 +165,7 @@ void		checkLightLevel();
 void		sendBallMsg();
 void		handleBallMsg(BallMsg* msg, uint32_t arrivalTime);
 void		sendNearBotsMsg();
-void		handleNearBotsMsg(NearBotsMsg* msg, bot_id_t senderID);
+void		handleNearBotsMsg(NearBotsMsg* msg, id_t senderID);
 //void		sendPaddleMsg();
 //void		handlePaddleMsg(char flag, int16_t delta);
 void		handle_msg			(ir_msg* msg_struct);
@@ -174,10 +174,10 @@ void		frameEndPrintout();
 void		updateMinMax(int16_t sX, int16_t sY, int16_t bX, int16_t bY);
 
 //These four functions are for interacting with the OtherBot data structure.
-OtherBot*	getOtherBot(bot_id_t id);
-void		findAndRemoveOtherBot(bot_id_t id);
+OtherBot*	getOtherBot(id_t id);
+void		findAndRemoveOtherBot(id_t id);
 void		removeOtherBot(uint8_t idx);
-OtherBot*	addOtherBot(bot_id_t id, int8_t conf);
+OtherBot*	addOtherBot(id_t id, int8_t conf);
 void		cleanOtherBot(OtherBot* other);
 
 /*

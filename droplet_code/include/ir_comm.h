@@ -79,8 +79,8 @@ volatile struct
 	volatile int16_t ir_meas[IR_BUFFER_SIZE+HEADER_LEN];		
 	#endif
 	volatile uint16_t data_crc;
-	volatile uint16_t sender_ID;
-	volatile uint16_t target_ID;
+	volatile id_t sender_ID;
+	volatile id_t target_ID;
 	volatile uint16_t curr_pos;				// Current position in buffer
 	volatile uint16_t calc_crc;
 	volatile char   buf[IR_BUFFER_SIZE];	// Transmit / receive buffer		
@@ -97,7 +97,7 @@ volatile struct
 	volatile float		range;
 	volatile float		bearing;
 	volatile float		heading;
-	volatile uint16_t	sender_ID;
+	volatile id_t	sender_ID;
 	volatile char		msg[IR_BUFFER_SIZE];		
 	volatile uint8_t	arrival_dir;
 	volatile uint8_t	msg_length;
@@ -109,7 +109,7 @@ volatile uint8_t num_waiting_msgs;
 volatile uint8_t user_facing_messages_ovf;
 
 volatile uint32_t	cmd_arrival_time;
-volatile uint16_t	cmd_sender_id;
+volatile id_t	cmd_sender_id;
 volatile uint8_t	cmd_arrival_dir;
 volatile uint8_t	cmd_sender_dir;
 
@@ -122,20 +122,20 @@ void ir_comm_init();
 
 void handle_cmd_wrapper();
 void perform_ir_upkeep();
-uint8_t ir_targeted_cmd(uint8_t dirs, char *data, uint8_t data_length, uint16_t target);
+uint8_t ir_targeted_cmd(uint8_t dirs, char *data, uint8_t data_length, id_t target);
 uint8_t ir_cmd(uint8_t dirs, char *data, uint8_t data_length);
-uint8_t ir_targeted_send(uint8_t dirs, char *data, uint8_t data_length, uint16_t target);
+uint8_t ir_targeted_send(uint8_t dirs, char *data, uint8_t data_length, id_t target);
 uint8_t ir_send(uint8_t dirs, char *data, uint8_t data_length);
 void waitForTransmission(uint8_t dirs);
 uint8_t hp_ir_cmd(uint8_t dirs, char *data, uint8_t data_length);
-uint8_t hp_ir_targeted_cmd(uint8_t dirs, char *data, uint8_t data_length, uint16_t target);
+uint8_t hp_ir_targeted_cmd(uint8_t dirs, char *data, uint8_t data_length, id_t target);
 
 void handle_rx_length_byte(uint8_t in_byte, uint8_t dir);
 uint8_t handle_tx_length_byte(uint8_t dir);
 void ir_receive(uint8_t dir); //Called by Interrupt Handler Only
 void received_ir_cmd(uint8_t dir);
-void received_rnb_r(uint8_t delay, uint16_t senderID, uint32_t last_byte);
-void received_ir_sync(uint8_t delay, uint16_t senderID);
+void received_rnb_r(uint8_t delay, id_t senderID, uint32_t last_byte);
+void received_ir_sync(uint8_t delay, id_t senderID);
 void ir_transmit(uint8_t dir);
 void ir_remote_send(uint8_t dir, uint16_t data);
 void ir_transmit_complete(uint8_t dir);

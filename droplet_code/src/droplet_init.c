@@ -152,7 +152,7 @@ void droplet_reboot()
 	RST.CTRL = 0x1;
 }
 
-uint8_t get_droplet_ord(uint16_t id)
+uint8_t get_droplet_ord(id_t id)
 {
 	switch(id)
 	{

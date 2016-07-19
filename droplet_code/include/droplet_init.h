@@ -17,13 +17,16 @@
 #define INIT_DEBUG_PRINT(x)
 #endif
 
+//Including system libraries.
 #include <avr/io.h>
 #include <util/crc16.h>
 #include <avr/interrupt.h>
 #include <avr/pgmspace.h>
 #include <stdio.h>
 #include <avr/pgmspace.h>
+#include <avr/pgmspace.h>
 
+//Any #defines needed by other Droplet files
 #define DIR0		((uint8_t)0x01)
 #define DIR1		((uint8_t)0x02)
 #define DIR2		((uint8_t)0x04)
@@ -39,6 +42,9 @@
 #define DIR_W		DIR4
 #define DIR_NW		DIR5
 
+typedef uint16_t id_t;
+
+//Other Droplet files.
 #include "scheduler.h"
 #include "pc_comm.h"
 #include "rgb_led.h"
@@ -56,14 +62,10 @@
 #include "motor.h"
 #include "random.h"
 #include "firefly_sync.h"
-
 #include "serial_handler.h"
 
-#include <avr/pgmspace.h>
+id_t droplet_ID;
 
-uint16_t droplet_ID;
-
-typedef uint16_t bot_id_t;
 
 typedef struct ir_msg_struct
 {
@@ -87,7 +89,7 @@ extern void	user_leg_status_interrupt();
 /**
  * \brief Returns this Droplet's unique 16-bit identifier. 0 will never be an identifier.
  */
-inline uint16_t get_droplet_id(){ return droplet_ID; }
+inline id_t get_droplet_id(){ return droplet_ID; }
 
 /**
  * \brief Initializes all the subsystems for this Droplet. This function MUST be called
@@ -112,8 +114,8 @@ void calculate_id_number();
 void enable_interrupts();
 void startup_light_sequence();
 
-uint8_t get_droplet_ord(uint16_t id);
-extern const uint16_t OrderedBotIDs[121];
-static uint16_t inline get_id_from_ord(uint8_t ord){
+uint8_t get_droplet_ord(id_t id);
+extern const id_t OrderedBotIDs[121];
+static id_t inline get_id_from_ord(uint8_t ord){
 	return pgm_read_word(&OrderedBotIDs[ord]);
 }

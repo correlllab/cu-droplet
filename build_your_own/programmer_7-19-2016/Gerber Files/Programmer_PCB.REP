@@ -1,0 +1,143 @@
+*************************************************************
+FileName = Programmer_PCB.GBR
+AutoAperture = True
+*************************************************************
+Generating : Top Layer
+      File : Programmer_PCB.GTL
+
+    Adding Layer      : Top Layer
+
+    Adding Layer      : Multi-Layer
+
+
+Used DCodes :
+*************************************************************
+
+*************************************************************
+Generating : Bottom Layer
+      File : Programmer_PCB.GBL
+
+    Adding Layer      : Bottom Layer
+
+    Adding Layer      : Multi-Layer
+
+
+Used DCodes :
+    D10
+    D11
+    D12
+    D13
+    D14
+*************************************************************
+
+*************************************************************
+Generating : Bottom Pad Master
+      File : Programmer_PCB.GPB
+
+    Adding Layer      : Bottom Layer
+
+    Adding Layer      : Multi-Layer
+
+
+Used DCodes :
+    D11
+    D12
+    D13
+*************************************************************
+
+*************************************************************
+Generating : Top Pad Master
+      File : Programmer_PCB.GPT
+
+    Adding Layer      : Top Layer
+
+    Adding Layer      : Multi-Layer
+
+
+Used DCodes :
+*************************************************************
+
+*************************************************************
+Generating : Top Overlay
+      File : Programmer_PCB.GTO
+
+    Adding Layer      : Top Overlay
+
+
+Used DCodes :
+    D10
+    D15
+    D16
+    D17
+*************************************************************
+
+*************************************************************
+Generating : Top Solder
+      File : Programmer_PCB.GTS
+
+    Adding Layer      : Top Solder
+
+    Adding Layer      : Top Layer
+
+    Adding Layer      : Multi-Layer
+
+
+Used DCodes :
+    D18
+*************************************************************
+
+*************************************************************
+Generating : Bottom Solder
+      File : Programmer_PCB.GBS
+
+    Adding Layer      : Bottom Solder
+
+    Adding Layer      : Bottom Layer
+
+    Adding Layer      : Multi-Layer
+
+
+Used DCodes :
+    D19
+    D20
+    D21
+    D22
+*************************************************************
+
+*************************************************************
+Generating : Mechanical 1
+      File : Programmer_PCB.GM1
+
+    Adding Layer      : Mechanical 1
+
+
+Used DCodes :
+    D23
+*************************************************************
+
+*************************************************************
+Generating : Drill Drawing
+      File : Programmer_PCB.GD1
+
+    Adding Drill Pair : Bottom Layer-Top Layer
+
+    Adding Layer      : Drill Drawing
+
+
+Used DCodes :
+    D24
+*************************************************************
+
+*************************************************************
+Generating : Drill Guide
+      File : Programmer_PCB.GG1
+
+    Adding Drill Pair : Bottom Layer-Top Layer
+
+    Adding Layer      : Drill Guide
+
+
+Used DCodes :
+    D24
+*************************************************************
+

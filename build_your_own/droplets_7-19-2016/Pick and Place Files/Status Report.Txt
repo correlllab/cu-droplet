@@ -1,0 +1,10 @@
+Output: Generates pick and place files
+Type  : Pick Place
+From  : Variant [[No Variations]] of Project [Droplet_Main.PrjPcb]
+   Generated File[Pick Place for Droplet_PCB.csv]
+
+
+Files Generated   : 1
+Documents Printed : 0
+
+Finished Output Generation At 2:57:41 PM On 7/19/2016

@@ -46,7 +46,28 @@ Okay! You're done! You should now be able to compile code and upload it to your 
 Good luck!
 
 #### TODO: Programming Connector
-#### TODO: Talk about fuse settings for first-time droplets?
+#### Fuse Settings
+The first time you get started with a brand new Droplet, you must set some fuse settings. Here are correct fuse settings copied directly from ATMEL: 
+
+JTAGUSERID = 0xFF
+WDWP = 8CLK
+WDP = 8CLK
+BOOTRST = APPLICATION
+TOSCSEL = XTAL
+BODPD = DISABLED
+RSTDISBL = [ ]
+SUT = 0MS
+WDLOCK = [ ]
+JTAGEN = [ ]
+BODACT = DISABLED
+EESAVE = [X]
+BODLVL = 1V6
+
+FUSEBYTE0 = 0xFF (valid)
+FUSEBYTE1 = 0x00 (valid)
+FUSEBYTE2 = 0xFF (valid)
+FUSEBYTE4 = 0xFF (valid)
+FUSEBYTE5 = 0xF7 (valid)
 
 ##### Programming
 
@@ -58,4 +79,11 @@ The /src/ and /include/ folders contain all of the hardware code. In theory, you
 
 The Droplets are capable of serial communication with a computer. Primarily, we use this to view print statements from the Droplets, and occasionally to override their code for debugging purposes.
 
-### TODO: Put in instructions on how to modify the FTDI cable for Droplets.
+### FTDI Cable
+
+The Sparkfun FTDI cable comes with six cables. We just need four. Specifically:
+Black (GND)
+Orange (RX)
+Yellow (TX)
+Red (5V)
+So I get an empty 4 pin female connecter and use tweezers to remove the crimped ends from the 6 pin connector and insert them in to the 4 pin connector.

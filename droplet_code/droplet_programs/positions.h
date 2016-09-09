@@ -2,6 +2,44 @@
 
 #include "droplet_init.h"
 
+
+#define POS_DEBUG_MODE
+//#define GEN_DEBUG_MODE
+#define RNB_DEBUG_MODE
+//#define NB_DEBUG_MODE
+#define BALL_DEBUG_MODE
+
+#ifdef POS_DEBUG_MODE
+#define POS_DEBUG_PRINT(format, ...) printf_P(PSTR(format), ##__VA_ARGS__)
+#else
+#define POS_DEBUG_PRINT(format, ...)
+#endif
+
+#ifdef BALL_DEBUG_MODE
+#define BALL_DEBUG_PRINT(format, ...) printf_P(PSTR(format), ##__VA_ARGS__)
+#else
+#define BALL_DEBUG_PRINT(format, ...)
+#endif
+
+
+#ifdef GEN_DEBUG_MODE
+#define GEN_DEBUG_PRINT(format, ...) printf_P(PSTR(format), ##__VA_ARGS__)
+#else
+#define GEN_DEBUG_PRINT(format, ...)
+#endif
+
+#ifdef NB_DEBUG_MODE
+#define NB_DEBUG_PRINT(format, ...) printf_P(PSTR(format), ##__VA_ARGS__)
+#else
+#define NB_DEBUG_PRINT(format, ...)
+#endif
+
+#ifdef RNB_DEBUG_MODE
+#define RNB_DEBUG_PRINT(format, ...) printf_P(PSTR(format), ##__VA_ARGS__)
+#else
+#define RNB_DEBUG_PRINT(format, ...)
+#endif
+
 /*
  * rnb takes 142 ms
  * messages take 2.5ms per byte. 
@@ -34,8 +72,8 @@
 #define NUM_TRACKED_BOTS 12
 
 const id_t SEED_IDS[NUM_SEEDS] = {0x12AD, 0xCD6B, 0x32A7, 0x5264};
-const int16_t  SEED_X[NUM_SEEDS]   = {0, 0, 300, 300};
-const int16_t  SEED_Y[NUM_SEEDS]   = {0, 300, 0, 300};
+const int16_t  SEED_X[NUM_SEEDS]   = {0, 0, 250, 250};
+const int16_t  SEED_Y[NUM_SEEDS]   = {0, 50, 0, 50};
 
 #define STATE_PIXEL		0x1
 #define STATE_NORTH		0x2
@@ -122,6 +160,12 @@ typedef struct other_bot_rnb_struct{
 } OtherBot;
 OtherBot nearBots[NUM_TRACKED_BOTS];
 
+typedef struct hard_bot_struct{
+	id_t id;
+	struct hard_bot_struct* next;
+} HardBot;
+HardBot* hardBotsList;
+
 uint32_t time_before;
 
 uint8_t		lastBallID;
@@ -131,19 +175,21 @@ uint8_t		myState;
 uint32_t	frameCount;
 uint32_t	frameStart;
 uint32_t	lastBallMsg;
-uint32_t	lastPaddleMsg;
+//uint32_t	lastPaddleMsg;
 uint32_t	lastLightCheck;
 uint16_t	mySlot;
 uint16_t	loopID;
 
-float		paddleChange;
-int16_t		paddleStart;
-int16_t		paddleEnd;
+//float		paddleChange;
+//int16_t		paddleStart;
+//int16_t		paddleEnd;
+uint8_t		isCovered;
 
 BotPos myPos;
 int16_t minX, minY;
 int16_t maxX, maxY;
 uint16_t myDist;
+uint16_t otherDist;
 
 void		init();
 void		loop();
@@ -158,7 +204,7 @@ void		check_bounce(int8_t xVel, int8_t yVel, int8_t* newXvel, int8_t* newYvel);
 void		updateColor();
 //Coverage functions below are helper functions for 'updateColor'.
 float		getBallCoverage();
-float getPaddleCoverage();
+//float getPaddleCoverage();
 
 void		checkLightLevel();
 
@@ -179,6 +225,9 @@ void		findAndRemoveOtherBot(id_t id);
 void		removeOtherBot(uint8_t idx);
 OtherBot*	addOtherBot(id_t id, int8_t conf);
 void		cleanOtherBot(OtherBot* other);
+
+void		addHardBot(id_t id);
+void		cleanHardBots();
 
 /*
  * BEGIN INLINE HELPER FUNCTIONS
@@ -214,8 +263,39 @@ static uint8_t inline dirFromAngle(int16_t angle){
 	return abs((angle - (angle>0 ? 360 : 0))/60);
 }
 
-static int8_t inline checkBallCrossed(){
+static int8_t inline checkBallCrossedMe(){
 	return sgn(((theBall.yVel*(theBall.yPos-myPos.y-theBall.xVel) + theBall.xVel*(theBall.xPos-myPos.x+theBall.yVel))));
+}
+
+static int8_t inline checkBounceHard(int16_t Bx, int16_t By, int32_t timePassed){
+	int16_t Ax = myPos.x;
+	int16_t Ay = myPos.y;
+	int16_t x = theBall.xPos;
+	int16_t y = theBall.yPos;
+	int8_t signBefore = sgn((Bx-Ax)*(y-Ay) - (By-Ay)*(x-Ax));
+	int16_t xAfter = x + (int16_t)((((int32_t)(theBall.xVel))*timePassed)/1000.0);
+	int16_t yAfter = y + (int16_t)((((int32_t)(theBall.yVel))*timePassed)/1000.0);
+	int8_t signAfter = sgn((Bx-Ax)*(yAfter-Ay) - (By-Ay)*(xAfter-Ax));
+	BALL_DEBUG_PRINT("(%4d, %4d) [%hd] -> (%4d, %4d) [%hd]\r\n", x, y, signBefore, xAfter, yAfter, signAfter);
+	if(signBefore!=signAfter){
+		return 1;
+	}else{
+		return 0;
+	}
+}
+
+/*Code below from http://stackoverflow.com/questions/573084/how-to-calculate-bounce-angle */
+static int8_t inline calculateBounce(int16_t Bx, int16_t By){
+	int16_t vX = theBall.xVel;
+	int16_t vY = theBall.yVel;
+	int16_t normX = -(By-myPos.y);
+	int16_t normY = (Bx-myPos.x);
+	int16_t nDotN = normX*normX + normY*normY;
+	int16_t vDotN = vX*normX + vY*normY;
+	int16_t uX = normX*vDotN/nDotN;
+	int16_t uY = normY*vDotN/nDotN;
+	theBall.xVel = vX - 2*uX;
+	theBall.yVel = vY - 2*uY;
 }
 
 ////This function assumes that bP->x and bP->y are not UNDF.
@@ -224,7 +304,7 @@ static int8_t inline checkBallCrossed(){
 	//
 //}
 
-static int nearBotsCmpFunc(const void* a, const void* b){
+static int nearBotsConfCmpFunc(const void* a, const void* b){
 	OtherBot* aN = (OtherBot*)a;
 	OtherBot* bN = (OtherBot*)b;
 	int8_t aC = (aN->meas).conf;
@@ -233,6 +313,26 @@ static int nearBotsCmpFunc(const void* a, const void* b){
 		return 1;
 	}
 	if((bN->meas).id==0){
+		return -1;
+	}
+	if(aC < bC){
+		return 1;
+	}else if(bC < aC){
+		return -1;
+	}else{
+		return 0;
+	}
+}
+
+static int nearBotMeasBearingCmpFunc(const void* a, const void* b){
+	BotMeas* aN = (BotMeas*)a;
+	BotMeas* bN = (BotMeas*)b;
+	int16_t aC = aN->b;
+	int16_t bC = bN->b;
+	if(aN->id==0){
+		return 1;
+	}
+	if(bN->id==0){
 		return -1;
 	}
 	if(aC < bC){
@@ -272,7 +372,7 @@ static void inline initPositions(){
 			break;
 		}
 	}
-	paddleChange = 0.0;
+	//paddleChange = 0.0;
 	theBall.lastUpdate = 0;
 	theBall.xPos = UNDF;
 	theBall.yPos = UNDF;

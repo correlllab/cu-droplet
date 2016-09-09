@@ -1,21 +1,5 @@
 #include "droplet_programs/positions.h"
 
-#define POS_DEBUG_MODE
-//#define GEN_DEBUG_MODE
-
-#ifdef POS_DEBUG_MODE
-#define POS_DEBUG_PRINT(format, ...) printf_P(PSTR(format), ##__VA_ARGS__)
-#else
-#define POS_DEBUG_PRINT(format, ...)
-#endif
-
-#ifdef GEN_DEBUG_MODE
-#define GEN_DEBUG_PRINT(format, ...) printf_P(PSTR(format), ##__VA_ARGS__)
-#else
-#define GEN_DEBUG_PRINT(format, ...)
-#endif
-
-
 void init(){
 	if((RNB_DUR+PADDLE_MSG_DUR+NEIGHB_MSG_DUR+BALL_MSG_DUR)>=(SLOT_LENGTH_MS)){
 		printf_P(PSTR("You've got problems! SLOT_LENGTH_MS needs to be longer than all the things that take place during a slot!\r\n"));
@@ -32,13 +16,15 @@ void init(){
 	gameMode = BOUNCE;
 	lastBallID = 0;
 	lastBallMsg = 0;
-	lastPaddleMsg = 0;
+	//lastPaddleMsg = 0;
 	lastLightCheck = get_time();
 	initPositions();
 	mySlot = (get_droplet_id()%(SLOTS_PER_FRAME-1));
 	//mySlot = get_droplet_ord(get_droplet_id());
 	printf("mySlot: %u, frame_length: %lu\r\n", mySlot, FRAME_LENGTH_MS);
 	frameEndPrintout();
+	hardBotsList = NULL;
+	isCovered = 0;
 }
 
 void loop(){
@@ -55,20 +41,19 @@ void loop(){
 			handleMySlot();
 			GEN_DEBUG_PRINT("My slot processing took %lu ms.\r\n", get_time()-before);
 		}else if(loopID==SLOTS_PER_FRAME-1){
-			#ifdef GEN_DEBUG_MODE
-				uint32_t before = get_time();
-			#endif
+			uint32_t before = get_time();
 			handleFrameEnd();
 			GEN_DEBUG_PRINT("End of Frame Processing/Printing Took %lu ms.\r\n",get_time()-before);
 		}
 		if(loopID!=mySlot){
 			uint32_t curSlotTime = (get_time()-frameStart)%SLOT_LENGTH_MS;
-			if(NS_PIXEL(myState) && paddleChange>=1.0){
-				//schedule_task((RNB_DUR-curSlotTime),sendPaddleMsg(), NULL);
-			}else{
-				paddleChange = 0.0;
-			}
-			if(/*myState<=2 &&*/ myDist!=0x7FFF && myDist<30){
+			//if(NS_PIXEL(myState) && paddleChange>=1.0){
+				////schedule_task((RNB_DUR-curSlotTime),sendPaddleMsg(), NULL);
+			//}else{
+				//paddleChange = 0.0;
+			//}
+			if(/*myState<=2 &&*/ myDist!=UNDF && otherDist!=UNDF && myDist<otherDist){
+				uint32_t curSlotTime = (get_time()-frameStart)%SLOT_LENGTH_MS;
 				schedule_task(((RNB_DUR+PADDLE_MSG_DUR+NEIGHB_MSG_DUR)-curSlotTime), sendBallMsg, NULL);
 			}
 		}
@@ -89,17 +74,17 @@ void handleMySlot(){
 	broadcast_rnb_data();
 	while(((get_time()-frameStart)%SLOT_LENGTH_MS)<RNB_DUR)
 		delay_us(500);
-	if(NS_PIXEL(myState) && paddleChange>=1.0){
-//		sendPaddleMsg();
-	}else{
-		paddleChange = 0.0;
-	}
+	//if(NS_PIXEL(myState) && paddleChange>=1.0){
+////		sendPaddleMsg();
+	//}else{
+		//paddleChange = 0.0;
+	//}
 	while(((get_time()-frameStart)%SLOT_LENGTH_MS)<(RNB_DUR+PADDLE_MSG_DUR))
 		delay_us(500);		
 	sendNearBotsMsg();
 	while(((get_time()-frameStart)%SLOT_LENGTH_MS)<(RNB_DUR+PADDLE_MSG_DUR+NEIGHB_MSG_DUR))
 		delay_us(500);			
-	if(myDist!=UNDF && myDist<30){
+	if(myDist!=UNDF && otherDist!=UNDF && myDist<otherDist){
 		sendBallMsg();
 	}
 	while(((get_time()-frameStart)%SLOT_LENGTH_MS)<(RNB_DUR+PADDLE_MSG_DUR+NEIGHB_MSG_DUR+BALL_MSG_DUR))
@@ -107,11 +92,39 @@ void handleMySlot(){
 }
 
 void handleFrameEnd(){
-	qsort(nearBots, NUM_TRACKED_BOTS, sizeof(OtherBot), nearBotsCmpFunc);
+	qsort(nearBots, NUM_TRACKED_BOTS, sizeof(OtherBot), nearBotsConfCmpFunc);
 	//Maybe we'll want to remove the N worst nearBots, here.
 	if(!seedFlag){
 		updatePos();
 	}
+	BotMeas nearBotsMeas[numNearBots];
+	for(uint8_t i=0;i<numNearBots;i++){
+		nearBotsMeas[i].id   = nearBots[i].meas.id;
+		nearBotsMeas[i].r    = nearBots[i].meas.r;
+		nearBotsMeas[i].b    = nearBots[i].meas.b;
+		nearBotsMeas[i].h    = nearBots[i].meas.h;
+		nearBotsMeas[i].conf = nearBots[i].meas.conf;
+	}
+	cleanHardBots();
+	qsort(nearBotsMeas, numNearBots, sizeof(BotMeas), nearBotMeasBearingCmpFunc);
+	for(uint8_t i=0;i<numNearBots;i++){
+		uint8_t nextI = (i+1)%numNearBots;
+		uint8_t difference = abs((nearBotsMeas[i].b-nearBotsMeas[nextI].b + 540)%360 - 180) ;
+		if(difference>120){
+			addHardBot(nearBotsMeas[i].id);
+			addHardBot(nearBotsMeas[nextI].id);
+		}
+	}
+	if(hardBotsList!=NULL){
+		BALL_DEBUG_PRINT("Edges:");
+			HardBot* tmp = hardBotsList;
+			while(tmp!=NULL){
+				BALL_DEBUG_PRINT("\t%04X", tmp->id);
+				tmp = tmp->next;
+			}
+			BALL_DEBUG_PRINT("\r\n");
+	}
+
 	updateMinMax(myPos.x, myPos.y, myPos.x, myPos.y);
 	//confidence degrades if we don't get new measurements.
 	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
@@ -120,7 +133,8 @@ void handleFrameEnd(){
 		}else{
 			removeOtherBot(i);
 		}
-	}	
+	}
+			
 	frameEndPrintout();	
 	printf("\r\n");
 }
@@ -170,17 +184,17 @@ void updatePos(){
 			theirPosVar = (1.0/theirPosConf);
 			measConf = (float)(meas->conf);
 			measConf *= measConf;
-			//myHconf = measConf; //doesn't depend on theirpos information, so we do this before adjusting theirMeasConf with that.
+			myHconf = measConf; //doesn't depend on theirpos information, so we do this before adjusting theirMeasConf with that.
 			measVar  = (1.0/measConf);
 			measVar = (measVar+theirPosVar); //propogation of uncertainty (without handling correlation) (there is totally correlation)
 			measConf = 1.0/measVar;
 			totalConf += measConf;
-			//heading = (meas->h)*myHconf;			
+			heading = (meas->h)*myHconf;			
 			thisX = ((float)(meas->r)) * cos(deg_to_rad(meas->b) + M_PI_2);
 			thisY = ((float)(meas->r)) * sin(deg_to_rad(meas->b) + M_PI_2);	
 			xEst += ((theirPos->x - thisX)*measConf);
 			yEst += ((theirPos->y - thisY)*measConf);
-			POS_DEBUG_PRINT("\t     myX: %5.1f,      myY: %5.1f,      myConf: %5.2f\r\n", (float)(theirPos->x - thisX), (float)(theirPos->y-thisY), measConf);					
+			POS_DEBUG_PRINT("%04X\tmyX: %4d, myY: %4d, myC: %3hd\r\n", meas->id, (int16_t)(theirPos->x - thisX), (int16_t)(theirPos->y-thisY), (int8_t)measConf);					
 			//Next handle this bots measurement of me.
 			for(uint8_t j=0;j<NUM_SHARED_BOTS;j++){
 				sharedMeas = &(nearBots[i].shared[j]);
@@ -189,18 +203,18 @@ void updatePos(){
 					theirMeasConf = sharedMeas->conf;
 					theirMeasConf *= theirMeasConf;
 					theirMeasVar = (1.0/theirMeasConf);
-					//theirHconf = theirMeasConf; //doesn't depend on theirpos information, so we do this before adjusting theirMeasConf with that.				
-					//heading -= (sharedMeas->h)*theirHconf;
-					//heading /= (myHconf + theirHconf);					
-					//hConf = (myHconf + theirHconf + 1.0)/2.0; //extra plus one to help rounding.
-					//hVar = (1.0/hConf);
+					theirHconf = theirMeasConf; //doesn't depend on theirpos information, so we do this before adjusting theirMeasConf with that.				
+					heading -= (sharedMeas->h)*theirHconf;
+					heading /= (myHconf + theirHconf);					
+					hConf = (myHconf + theirHconf + 1.0)/2.0; //extra plus one to help rounding.
+					hVar = (1.0/hConf);
 					theirMeasVar = theirMeasVar + theirPosVar;
 					theirMeasConf = (1.0/theirMeasVar);
 					totalConf += theirMeasConf;
 				
-					thisX = ((float)(sharedMeas->r)) * cos(deg_to_rad(sharedMeas->b) /*+ deg_to_rad(heading)*/ - M_PI_2);
-					thisY = ((float)(sharedMeas->r)) * sin(deg_to_rad(sharedMeas->b) /*+ deg_to_rad(heading)*/ - M_PI_2);
-					POS_DEBUG_PRINT("\t  theirX: %5.1f,   theirY: %5.1f,   theirConf: %5.2f | heading: %3d\r\n", (float)(theirPos->x - thisX), (float)(theirPos->y - thisY), theirMeasConf, heading);					
+					thisX = ((float)(sharedMeas->r)) * cos(deg_to_rad(sharedMeas->b) + deg_to_rad(heading) - M_PI_2);
+					thisY = ((float)(sharedMeas->r)) * sin(deg_to_rad(sharedMeas->b) + deg_to_rad(heading) - M_PI_2);
+					POS_DEBUG_PRINT("    \tthX: %4d, thY: %4d, thC: %3hd | heading: %4d\r\n", (int16_t)(theirPos->x - thisX), (int16_t)(theirPos->y - thisY), (int8_t)theirMeasConf, heading);					
 					xEst += ((theirPos->x - thisX)*theirMeasConf);
 					yEst += ((theirPos->y - thisY)*theirMeasConf);
 					break; //(There will be only one measurement of me)
@@ -218,7 +232,7 @@ void updatePos(){
 	
 		if(myPos.x!=UNDF && myPos.y!=UNDF){ //pos was defined, so we're updating with this frame's info.
 			float myPosConf = (float)(myPos.conf);			
-			POS_DEBUG_PRINT("\tNew Pos: (%5.1f, %5.1f), newPosConf: %5.2f | prevPos: (%d, %d), prevPosConf: %hd\r\n", newX, newY, overallConf, myPos.x, myPos.y, myPos.conf);								
+			POS_DEBUG_PRINT("\tNew Pos: (%d, %d), newPosConf: %hd | prevPos: (%d, %d), prevPosConf: %hd\r\n", (int16_t)newX, (int16_t)newY, (int8_t)overallConf, myPos.x, myPos.y, myPos.conf);								
 			myPos.x = (int16_t)((newX*overallConf + myPos.x*myPosConf)/(overallConf + myPosConf));
 			myPos.y = (int16_t)((newY*overallConf + myPos.y*myPosConf)/(overallConf + myPosConf));
 			myPos.conf = (int8_t)(sqrt((overallConf+myPosConf)/2.0)+1.0); //extra plus one to help rounding.
@@ -258,7 +272,7 @@ void useNewRnbMeas(){
 	if(conf<=2) return;
 	conf <<= 1; //
 	conf = conf>63 ? 63 : conf;
-	POS_DEBUG_PRINT("(RNB) ID: %04X\r\n\tR: %4u B: %4d H: %4d | %4hd\r\n", id, range, bearing, heading, conf);
+	RNB_DEBUG_PRINT("(RNB) ID: %04X\r\n\tR: %4u B: %4d H: %4d | %4hd\r\n", id, range, bearing, heading, conf);
 	OtherBot* measuredBot = addOtherBot(last_good_rnb.id_number, conf);
 	BotMeas* meas;
 	if(measuredBot){
@@ -280,11 +294,18 @@ void useNewRnbMeas(){
 		//    Some kind of smart average where we look at confidence
 		//    and how big the difference between the two is to
 		//    to determine how best to handle it.
+		float newConfSqrd = powf(conf,2);
+		float prevConfSqrd = powf(meas->conf, 2);
+		float totalConf = newConfSqrd + prevConfSqrd;
+		float newConf = sqrt(totalConf/2) + 0.5;
+		float newRange = ((meas->r)*prevConfSqrd + range*newConfSqrd)/totalConf;
+		float newB = ((meas->b)*prevConfSqrd + bearing*newConfSqrd)/totalConf;
+		float newH = ((meas->h)*prevConfSqrd + heading*newConfSqrd)/totalConf;
 		meas->id	= id;
-		meas->r		= range;
-		meas->b		= bearing;
-		meas->h		= heading;
-		meas->conf  = conf;
+		meas->r		= (uint16_t)newRange;
+		meas->b		= (int16_t)newB;
+		meas->h		= (int16_t)newH;
+		meas->conf  = (int8_t)conf;
 	}else{
 		printf_P(PSTR("Error: Unexpected botPos->ID in use_new_rnb_meas.\r\n"));
 	}
@@ -294,51 +315,72 @@ void updateBall(){
 	if(theBall.lastUpdate){
 		uint32_t now = get_time();
 		int32_t timePassed = now-theBall.lastUpdate;
-		if(myPos.x!=0x7FFF && myPos.y!=0x7FFF && theBall.xPos!=0x7FFF && theBall.yPos!=0x7FFF){
-			int8_t crossedBefore = checkBallCrossed();
+		if(myPos.x!=UNDF && myPos.y!=UNDF && theBall.xPos!=UNDF && theBall.yPos!=UNDF){
+
+			//int8_t crossedBefore = checkBallCrossedMe();
+
+			//int8_t crossedAfter = checkBallCrossedMe();
+			//myDist = (uint16_t)hypotf(theBall.xPos-myPos.x,theBall.yPos-myPos.y);			
+			//theBall.lastUpdate = now;			
+			//if(myDist<=30 && crossedBefore!=crossedAfter){ //BOUNCE CHECK
+				//uint8_t ballInPaddle = ((theBall.xPos+theBall.radius)>=paddleStart && (theBall.xPos-theBall.radius)<=paddleEnd);
+				//uint8_t ballLeaving = (NORTH_PIXEL(myState) && theBall.yVel<0) || (SOUTH_PIXEL(myState) && theBall.yVel>0);
+				//if(gameMode==PONG && !ballInPaddle && ballLeaving){
+					//killBall();
+				//}else{
+					//check_bounce(theBall.xVel, theBall.yVel, &(theBall.xVel), &(theBall.yVel));
+				//}
+			//}else{
 			theBall.xPos += (int16_t)((((int32_t)(theBall.xVel))*timePassed)/1000.0);
 			theBall.yPos += (int16_t)((((int32_t)(theBall.yVel))*timePassed)/1000.0);
-			int8_t crossedAfter = checkBallCrossed();
-			myDist = (uint16_t)hypotf(theBall.xPos-myPos.x,theBall.yPos-myPos.y);			
 			theBall.lastUpdate = now;			
-			if(myDist<=30 && crossedBefore!=crossedAfter){ //BOUNCE CHECK
-				uint8_t ballInPaddle = ((theBall.xPos+theBall.radius)>=paddleStart && (theBall.xPos-theBall.radius)<=paddleEnd);
-				uint8_t ballLeaving = (NORTH_PIXEL(myState) && theBall.yVel<0) || (SOUTH_PIXEL(myState) && theBall.yVel>0);
-				if(gameMode==PONG && !ballInPaddle && ballLeaving){
-					killBall();
-				}else{
-					check_bounce(theBall.xVel, theBall.yVel, &(theBall.xVel), &(theBall.yVel));
+			BALL_DEBUG_PRINT("B[%hu]: %d, %d\r\n", theBall.id, theBall.xPos, theBall.yPos);
+			uint8_t bounced = 0;
+			HardBot* tmp = hardBotsList;
+			myDist = (uint16_t)hypotf(myPos.x-theBall.xPos, myPos.y-theBall.yPos);
+			while(tmp!=NULL){
+				OtherBot* bot = getOtherBot(tmp->id);			
+				if(myDist<(((bot->meas).r*10)/6)){
+					BALL_DEBUG_PRINT("\t%04X | ", tmp->id);
+					if(checkBounceHard((bot->pos).x,(bot->pos).y, timePassed)){
+						if(gameMode==PONG && (SOUTH_PIXEL(myState) && theBall.yVel<=0) || (NORTH_PIXEL(myState) && theBall.yVel>=0)){
+							if(!isCovered){
+								//Other Side scores a point!
+								killBall();
+								set_rgb(255,0,0);
+							}
+						}
+						calculateBounce((bot->pos).x,(bot->pos).y);
+						BALL_DEBUG_PRINT("Ball bounced off boundary between me and %04X!\r\n", tmp->id);
+						otherDist = (((bot->meas).r*10)/6);
+						bounced = 1;
+						break;
+					}
 				}
-			}else{
-				if(theBall.xPos<(minX)){
-					theBall.xVel = abs(theBall.xVel);
-					printf("Ball hit lower x boundary.\r\n");
-				}else if(theBall.xPos>(maxX)){
-					theBall.xVel = -abs(theBall.xVel);
-					printf("Ball hit upper x boundary.\r\n");
-				}
-				if(theBall.yPos<(minY)){
-					theBall.yVel = abs(theBall.yVel);
-					printf("Ball hit lower y boundary.\r\n");
-				}else if(theBall.yPos>(maxY)){
-					theBall.yVel = -abs(theBall.yVel);
-					printf("Ball hit upper y boundary.\r\n");
-				}
+				tmp = tmp->next;
+			}
+			if(theBall.xPos<minX || theBall.xPos>maxX || theBall.yPos<minY || theBall.yPos>maxY){
+				BALL_DEBUG_PRINT("Ball hit boundary, so we must have lost track.\r\n");
+				theBall.xPos = UNDF;
+				theBall.yPos = UNDF;
+				myDist = UNDF;
+				otherDist = UNDF;
 			}
 		}else{
 			myDist = UNDF;
+			otherDist = UNDF;
 		}
 	}
 }
 
-void check_bounce(int8_t xVel, int8_t yVel, int8_t* newXvel, int8_t* newYvel){
-	float inAngle = atan2(yVel, xVel)-M_PI_2;
-//	float inVel = hypotf(xVel, yVel);
-	uint8_t in_dir = dirFromAngle(inAngle+180);
-	printf_P(PSTR("In check bounce:\r\n"));
-	printf_P(PSTR("\tIn angle: %f, inDir: %hu, xVel: %hd, yVel: %hd\r\n"), rad_to_deg(inAngle), in_dir, xVel, yVel);
-	printf("Note! check_bounce currently doesn't do anything! Eventually, it will look to see if there's a robot in direction 'inAngle'.\r\n");
-}
+//void check_bounce(int8_t xVel, int8_t yVel, int8_t* newXvel, int8_t* newYvel){
+	//float inAngle = atan2(yVel, xVel)-M_PI_2;
+////	float inVel = hypotf(xVel, yVel);
+	//uint8_t in_dir = dirFromAngle(inAngle+180);
+	//BALL_DEBUG_PRINT(PSTR("In check bounce:\r\n"));
+	//BALL_DEBUG_PRINT(PSTR("\tIn angle: %f, inDir: %hu, xVel: %hd, yVel: %hd\r\n"), rad_to_deg(inAngle), in_dir, xVel, yVel);
+	//BALL_DEBUG_PRINT("Note! check_bounce currently doesn't do anything! Eventually, it will look to see if there's a robot in direction 'inAngle'.\r\n");
+//}
 
 void updateColor(){
 	uint8_t newR = 0, newG = 0, newB = 0;
@@ -364,7 +406,7 @@ void updateColor(){
 		//printf("\r\n");
 	}
 	if(myPos.x!=UNDF && myPos.y!=UNDF){
-		float coverage = getBallCoverage() + getPaddleCoverage();
+		float coverage = getBallCoverage() /*+ getPaddleCoverage()*/;
 		coverage = (coverage > 1.0) ? 1.0 : coverage;
 		uint8_t intensityIncrease = 0;
 		if(coverage>0.01){
@@ -382,7 +424,7 @@ void updateColor(){
 
 float getBallCoverage(){
 	float ballCoveredRatio = 0.0;
-	if(myDist!=0x7FFF && myDist<(DROPLET_RADIUS+theBall.radius) && theBall.id!=0x0F){
+	if(myDist!=UNDF && myDist<(DROPLET_RADIUS+theBall.radius) && theBall.id!=0x0F){
 		if(theBall.radius<DROPLET_RADIUS){
 			if(myDist>=(DROPLET_RADIUS-theBall.radius)){
 				ballCoveredRatio = getCoverageRatioA(theBall.radius, myDist);
@@ -401,45 +443,50 @@ float getBallCoverage(){
 	//printf("Ball Coverage:\t%f | me: (%5.1f, %5.1f) ball: (%5.1f, %5.1f)->%hu\r\n", ballCoveredRatio, myX, myY, theBall.xPos, theBall.yPos, theBall.radius);	
 }
 
-float getPaddleCoverage(){
-	float paddleCoveredRatio = 0.0;
-	if(gameMode==PONG && NS_PIXEL(myState) ){
-		int16_t myStart = myPos.x-10*DROPLET_RADIUS; //converting cm to mm. 
-		int16_t myEnd   = myPos.x+10*DROPLET_RADIUS; //converting cm to mm.
-		if(myEnd>paddleStart && paddleEnd>myStart){ //otherwise, no intersection
-			if(myEnd>paddleEnd){
-				if(myStart>paddleStart){
-					paddleCoveredRatio = (1.0*(paddleEnd-myStart))/(1.0*(myEnd-myStart));
-				}else{
-					paddleCoveredRatio = (1.0*(paddleEnd-paddleStart))/(1.0*(myEnd-myStart));
-				}
-			}else{
-				if(myStart>paddleStart){
-					paddleCoveredRatio = 1.0; //my end-myStart
-				}else{
-					paddleCoveredRatio = (1.0*(myEnd-paddleStart))/(1.0*(myEnd-myStart));
-				}
-			}
-		}
-	}
-	return paddleCoveredRatio;
-	//printf("Paddle Coverage:\t%f | me: (%5.1f, %5.1f) ball: (%5.1f, %5.1f)->%hu\r\n", paddleCoveredRatio, myX, myY, theBall.xPos, theBall.yPos, theBall.radius);	
-}
+//float getPaddleCoverage(){
+	//float paddleCoveredRatio = 0.0;
+	//if(gameMode==PONG && NS_PIXEL(myState) ){
+		//int16_t myStart = myPos.x-10*DROPLET_RADIUS; //converting cm to mm. 
+		//int16_t myEnd   = myPos.x+10*DROPLET_RADIUS; //converting cm to mm.
+		//if(myEnd>paddleStart && paddleEnd>myStart){ //otherwise, no intersection
+			//if(myEnd>paddleEnd){
+				//if(myStart>paddleStart){
+					//paddleCoveredRatio = (1.0*(paddleEnd-myStart))/(1.0*(myEnd-myStart));
+				//}else{
+					//paddleCoveredRatio = (1.0*(paddleEnd-paddleStart))/(1.0*(myEnd-myStart));
+				//}
+			//}else{
+				//if(myStart>paddleStart){
+					//paddleCoveredRatio = 1.0; //my end-myStart
+				//}else{
+					//paddleCoveredRatio = (1.0*(myEnd-paddleStart))/(1.0*(myEnd-myStart));
+				//}
+			//}
+		//}
+	//}
+	//return paddleCoveredRatio;
+	////printf("Paddle Coverage:\t%f | me: (%5.1f, %5.1f) ball: (%5.1f, %5.1f)->%hu\r\n", paddleCoveredRatio, myX, myY, theBall.xPos, theBall.yPos, theBall.radius);	
+//}
 
 void checkLightLevel(){
 	int16_t r, g, b;
 	get_rgb(&r,&g,&b);
 	int16_t sum = r+g+b;
 	uint32_t now = get_time();
-	if(sum<=25){
-		paddleChange += ((now-lastLightCheck)*(3*PADDLE_VEL));
-		//printf("Paddle ChangeX5: %f\r\n", paddleChange);
-	}else if(sum<=40){
-		paddleChange += ((now-lastLightCheck)*(2*PADDLE_VEL));
-		//printf("Paddle ChangeX3: %f\r\n", paddleChange);
-	}else if(sum<=60){
-		paddleChange += ((now-lastLightCheck)*(PADDLE_VEL));
-		//printf("Paddle ChangeX5: %f\r\n", paddleChange);
+	//if(sum<=25){
+		//paddleChange += ((now-lastLightCheck)*(3*PADDLE_VEL));
+		////printf("Paddle ChangeX5: %f\r\n", paddleChange);
+	//}else if(sum<=40){
+		//paddleChange += ((now-lastLightCheck)*(2*PADDLE_VEL));
+		////printf("Paddle ChangeX3: %f\r\n", paddleChange);
+	//}else if(sum<=60){
+		//paddleChange += ((now-lastLightCheck)*(PADDLE_VEL));
+		////printf("Paddle ChangeX5: %f\r\n", paddleChange);
+	//}
+	if(sum<=60){
+		isCovered=1;
+	}else{
+		isCovered=0;
 	}
 	lastLightCheck = now;
 	//printf("Light: %5d (%4d, %4d, %4d)\r\n",sum,r,g,b);
@@ -466,7 +513,7 @@ void sendBallMsg(){
 }
 
 void handleBallMsg(BallMsg* msg, uint32_t arrivalTime){
-	//printf("Got Ball! T: %lu\r\n\tPos: (%5.1f, %5.1f)   Vel: (%hd, %hd) | lastUpdate: %lu\r\n", get_time(), theBall.xPos, theBall.yPos, theBall.xVel, theBall.yVel, theBall.lastUpdate);
+	BALL_DEBUG_PRINT("Got Ball! T: %lu\r\n\tPos: (%5.1f, %5.1f)   Vel: (%hd, %hd) | lastUpdate: %lu\r\n", get_time(), theBall.xPos, theBall.yPos, theBall.xVel, theBall.yVel, theBall.lastUpdate);
 	int16_t highX = (int16_t)(((int8_t)(msg->extraBits))>>5);
 	int16_t highY = (int16_t)((((int8_t)(msg->extraBits))<<3)>>5);
 	int16_t tempX = (int16_t)((highX<<8) | ((uint16_t)(msg->xPos)));
@@ -485,7 +532,7 @@ void handleBallMsg(BallMsg* msg, uint32_t arrivalTime){
 	theBall.yVel = msg->yVel;
 	theBall.radius = ((msg->radius)&0xFC);
 	theBall.lastUpdate = arrivalTime-4;
-	//printf("\tPos: (%5.1f, %5.1f)   Vel: (%hd, %hd) | lastUpdate: %lu\r\n", theBall.xPos, theBall.yPos, theBall.xVel, theBall.yVel, theBall.lastUpdate);
+	BALL_DEBUG_PRINT("\tPos: (%5.1f, %5.1f)   Vel: (%hd, %hd) | lastUpdate: %lu\r\n", theBall.xPos, theBall.yPos, theBall.xVel, theBall.yVel, theBall.lastUpdate);
 }
 
 void sendNearBotsMsg(){ 
@@ -508,20 +555,20 @@ void sendNearBotsMsg(){
 	ir_send(ALL_DIRS, (char*)(&msg), sizeof(NearBotsMsg));
 }
 
-void handleNearBotsMsg(NearBotsMsg* msg, bot_id_t senderID){
+void handleNearBotsMsg(NearBotsMsg* msg, id_t senderID){
 	OtherBot* nearBot = getOtherBot(senderID);
 	if(nearBot){
-		POS_DEBUG_PRINT("(NearBotsMsg) ID: %04X", senderID);
+		NB_DEBUG_PRINT("(NearBotsMsg) ID: %04X", senderID);
 		if(msg->x!=UNDF && msg->y!=UNDF)
-			POS_DEBUG_PRINT("\tX: %4d Y: %4d", msg->x, msg->y);
-		POS_DEBUG_PRINT("\r\n");
+			NB_DEBUG_PRINT("\tX: %4d Y: %4d", msg->x, msg->y);
+		NB_DEBUG_PRINT("\r\n");
 		if(minX != UNDF && minY != UNDF){
-			POS_DEBUG_PRINT("\tMin: (%4d, %4d)",minX, minY);
+			NB_DEBUG_PRINT("\tMin: (%4d, %4d)",minX, minY);
 		}
 		if(maxX != UNDF && maxY != UNDF){
-			POS_DEBUG_PRINT("\tMax: (%4d, %4d)", maxX, maxY);
+			NB_DEBUG_PRINT("\tMax: (%4d, %4d)", maxX, maxY);
 		}
-		POS_DEBUG_PRINT("\r\n");
+		NB_DEBUG_PRINT("\r\n");
 		(nearBot->pos).x = msg->x;
 		(nearBot->pos).y = msg->y;
 		(nearBot->pos).conf = msg->posConf;
@@ -533,7 +580,7 @@ void handleNearBotsMsg(NearBotsMsg* msg, bot_id_t senderID){
 			nearBot->shared[i].b = unpackAngleMeas(msg->shared[i].b);
 			nearBot->shared[i].h = unpackAngleMeas(msg->shared[i].h);
 			nearBot->shared[i].conf = msg->shared[i].conf;
-			POS_DEBUG_PRINT("\t(Shared) ID: %04X\tR: %4u B: %4d H: %4d | %4hd\r\n", nearBot->shared[i].id, nearBot->shared[i].r, nearBot->shared[i].b, nearBot->shared[i].h, nearBot->shared[i].conf);			
+			NB_DEBUG_PRINT("\t(Shared) ID: %04X\tR: %4u B: %4d H: %4d | %4hd\r\n", nearBot->shared[i].id, nearBot->shared[i].r, nearBot->shared[i].b, nearBot->shared[i].h, nearBot->shared[i].conf);			
 		}
 	}
 }
@@ -622,11 +669,11 @@ void frameEndPrintout(){
 		printf_P(PSTR("\tMax: (%d, %d)\r\n"), maxX, maxY);
 	}
 	if(theBall.xPos != UNDF && theBall.yPos != UNDF){
-		printf_P(PSTR("\tBall ID: %hu; radius: %hu; Pos: (%5.1f, %5.1f) @ vel (%hd, %hd)\r\n"), theBall.id, theBall.radius, theBall.xPos, theBall.yPos, theBall.xVel, theBall.yVel);
+		printf_P(PSTR("\tBall ID: %hu; radius: %hu; Pos: (%d, %d) @ vel (%hd, %hd)\r\n"), theBall.id, theBall.radius, theBall.xPos, theBall.yPos, theBall.xVel, theBall.yVel);
 	}
-	if(NS_PIXEL(myState)){
-		printf_P(PSTR("\tPaddle: %d <-> %d.\r\n"), paddleStart, paddleEnd);
-	}
+	//if(NS_PIXEL(myState)){
+		//printf_P(PSTR("\tPaddle: %d <-> %d.\r\n"), paddleStart, paddleEnd);
+	//}
 	printf("\r\n");	
 }
 
@@ -645,7 +692,7 @@ void updateMinMax(int16_t sX, int16_t sY, int16_t bX, int16_t bY){
 	}
 }
 
-OtherBot* getOtherBot(bot_id_t id){
+OtherBot* getOtherBot(id_t id){
 	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
 		if(nearBots[i].meas.id==id){
 			return &(nearBots[i]);
@@ -654,7 +701,7 @@ OtherBot* getOtherBot(bot_id_t id){
 	return NULL;
 }
 
-void findAndRemoveOtherBot(bot_id_t id){
+void findAndRemoveOtherBot(id_t id){
 	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
 		if(nearBots[i].meas.id==id){
 			cleanOtherBot(&nearBots[i]);
@@ -669,9 +716,9 @@ void removeOtherBot(uint8_t idx){
 	numNearBots--;
 }
 
-OtherBot* addOtherBot(bot_id_t id, int8_t conf){
+OtherBot* addOtherBot(id_t id, int8_t conf){
 	uint8_t emptyIdx=0xFF;
-	qsort(nearBots, NUM_TRACKED_BOTS, sizeof(OtherBot), nearBotsCmpFunc);
+	qsort(nearBots, NUM_TRACKED_BOTS, sizeof(OtherBot), nearBotsConfCmpFunc);
 	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
 		if(nearBots[i].meas.id==id){
 			return &(nearBots[i]);
@@ -755,4 +802,37 @@ uint8_t user_handle_command(char* command_word, char* command_args){
 		return 1;
 	}
 	return 0;
+}
+
+
+void addHardBot(id_t id){
+	if(hardBotsList==NULL){
+		ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+			hardBotsList = (HardBot*)malloc(sizeof(HardBot));
+		}
+		hardBotsList->id = id;
+		hardBotsList->next = NULL;
+		}else{
+		HardBot* temp = hardBotsList;
+		while(temp->next!=NULL){
+			if(temp->id==id) return; //requested ID is already added.
+			temp = temp->next;
+		}
+		ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+			temp->next = (HardBot*)malloc(sizeof(HardBot));
+		}
+		temp->next->id = id;
+		temp->next->next = NULL;
+	}
+}
+
+void cleanHardBots(){
+	HardBot* temp;
+	while(hardBotsList!=NULL){
+		temp = hardBotsList->next;
+		ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+			free(hardBotsList);
+		}
+		hardBotsList = temp;
+	}
 }

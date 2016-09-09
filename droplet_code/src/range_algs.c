@@ -63,10 +63,10 @@ void full_expected_bright_mat(float bM[6][6], float r, float b, float h){
 }
 
 float finiteDifferenceStep(float r0, float b0, float h0, float* r1, float* b1, float* h1){
-	float err =    calculate_innovationNF(r0, b0, h0);
+	float err =    calculate_innovation(r0, b0, h0);
 	//float errRp = calculate_innovationNF(r0+deltaR, b0, h0);
-	float errBp =  calculate_innovationNF(r0, b0+FD_DELTA_B, h0);
-	float errHp =  calculate_innovationNF(r0, b0, h0+FD_DELTA_H);
+	float errBp =  calculate_innovation(r0, b0+FD_DELTA_B, h0);
+	float errHp =  calculate_innovation(r0, b0, h0+FD_DELTA_H);
 	
 	//int8_t sgnDeltaEdR = (errRp-err)/FD_DELTA_R;
 	int8_t sgnEdB = (err<errBp)-(errBp<err);
@@ -81,7 +81,7 @@ float finiteDifferenceStep(float r0, float b0, float h0, float* r1, float* b1, f
 	//hStep = hStep*(sgnEdH==prevSgnEdH ? FD_STEP_GROW : FD_STEP_SHRINK);
 	hStep.f = rnb_constrain(hStep.f);
 	
-	bMinFlipCount += ((bStep.f==FD_MIN_STEP) && (sgnEdB!=prevSgnEdB)) ? 1 : -bMinFlipCount;
+	//bMinFlipCount += ((bStep.f==FD_MIN_STEP) && (sgnEdB!=prevSgnEdB)) ? 1 : -bMinFlipCount;
 	hMinFlipCount += ((hStep.f==FD_MIN_STEP) && (sgnEdH!=prevSgnEdH)) ? 1 : -hMinFlipCount;
 	
 	fdStep bAdjust, hAdjust;
@@ -89,53 +89,29 @@ float finiteDifferenceStep(float r0, float b0, float h0, float* r1, float* b1, f
 	*r1 = r0;
 	bAdjust.d = (bStep.d|(((int32_t)sgnEdB)&0x80000000));  //flip sign bit of step if sgnEdB is negative.
 	*b1 = b0-bAdjust.f;
+	//*b1 = b0;
 	hAdjust.d = (hStep.d|(((int32_t)sgnEdH)&0x80000000)); //flip sign bit of step if if sgnEdH is negative.
 	*h1 = h0-hAdjust.f; 
 	
 	//prevDeltaEdR = deltaEdR;
 	prevSgnEdH = sgnEdH;
-	prevSgnEdB = sgnEdB;
+	//prevSgnEdB = sgnEdB;
 	
 	return (bMinFlipCount>=2)&&(hMinFlipCount>=2);
 }
 
 float calculate_innovation(float r, float b, float h){
 	float expBM[6][6];
-	float expNorm  = 0.0;
-	float realNorm = 0.0;
-
-	for(uint8_t i=0;i<6;i++){
-		for(uint8_t j=0;j<6;j++){
-			expBM[i][j]=expected_bright_mat(r, b, h, i,j);
-			expNorm += expBM[i][j]*expBM[i][j];
-			realNorm += ((int32_t)brightMeas[i][j])*((int32_t)brightMeas[i][j]);
-		}
-	}
-	float expNormInv  = powf(expNorm,-0.5);
-	float realNormInv = powf(realNorm,-0.5);
-	//printf("%04X | %7.3f %7.3f %7.1f %7.1f\r\n",cmdID, realFrob, expFrob, realTot, expTot);	
-	
-	
-	float error=0.0;	
-	for(uint8_t i=0;i<6;i++){
-		for(uint8_t j=0;j<6;j++){
-			error+=fabsf(brightMeas[i][j]*realNormInv-expBM[i][j]*expNormInv);
-		}
-	}
-	return error;
-}
-
-float calculate_innovationNF(float r, float b, float h){
-	float expBM[6][6];
 	full_expected_bright_mat(expBM, r, b, h);
 	float expNorm  = 0.0;
 	float realNorm = 0.0;
 
-	for(uint8_t i=0;i<6;i++){
-		for(uint8_t j=0;j<6;j++){
-			expNorm += expBM[i][j]*expBM[i][j];
-			realNorm += ((int32_t)brightMeas[i][j])*((int32_t)brightMeas[i][j]);
-		}
+	float* fastExpBM = (float*)expBM;
+	int16_t* fastBM = (int16_t*)brightMeas;
+
+	for(uint8_t i=0;i<36;i++){
+		expNorm += fastExpBM[i]*fastExpBM[i];
+		realNorm += ((int32_t)fastBM[i])*((int32_t)fastBM[i]);
 	}
 	float expNormInv  = powf(expNorm,-0.5);
 	float realNormInv = powf(realNorm,-0.5);
@@ -143,10 +119,8 @@ float calculate_innovationNF(float r, float b, float h){
 	
 	
 	float error=0.0;
-	for(uint8_t i=0;i<6;i++){
-		for(uint8_t j=0;j<6;j++){
-			error+=fabsf(brightMeas[i][j]*realNormInv-expBM[i][j]*expNormInv);
-		}
+	for(uint8_t i=0;i<36;i++){
+		error+=fabsf(fastBM[i]*realNormInv-fastExpBM[i]*expNormInv);
 	}
 	return error;
 }
@@ -210,39 +184,46 @@ void use_rnb_data(){
 		float range = range_estimate(initial_range, bearing, heading, power);
 		if(!isnanf(range)){
 			if(range<2*DROPLET_RADIUS) range=5.0;
-			float fdR, fdB, fdH;
+
 			float conf = sqrtf(matrixSum);
 			
-			fdB = bearing;
-			fdH = heading;
-			fdR = range;
-
-			rStep.f = 10*FD_INIT_STEP;
-			bStep.f = FD_INIT_STEP;
-			hStep.f = FD_INIT_STEP;
-			prevSgnEdR=0;
-			prevSgnEdB=0;
-			prevSgnEdH=0;
-			
-			//print_brightMeas();
-			error = calculate_innovation(range, bearing, heading);
-			//printf("(RNB) ID: %04X \r\n\tBefore: % 5.1f, % 6.1f, % 6.1f\r\n", rnbCmdID, fdR, rad_to_deg(fdB), rad_to_deg(fdH));
-			//uint8_t i;			
-			//start = get_time();
-			//uint8_t earlyAbort;
-			//float newR, newB, newH;
-			//for(i=0;i<15;i++){
-				//earlyAbort = finiteDifferenceStep(fdR, fdB, fdH, &newR, &newB, &newH);
+			//float fdR, fdB, fdH;
+			//fdB = bearing;
+			//fdH = heading;
+			//fdR = range;
+//
+			////rStep.f = 10*FD_INIT_STEP;
+			////bStep.f = FD_INIT_STEP;
+			////hStep.f = FD_INIT_STEP;
+			////prevSgnEdR=0;
+			////prevSgnEdB=0;
+			////prevSgnEdH=0;
+			////
+			//////print_brightMeas();
+			////error = calculate_innovation(range, bearing, heading);
+			////printf("(RNB) ID: %04X \r\n\tBefore: % 5.1f, % 6.1f, % 6.1f\r\n", rnbCmdID, fdR, rad_to_deg(fdB), rad_to_deg(fdH));
+			////uint8_t i;			
+			////uint32_t start = get_time();
+			////uint8_t earlyAbort;
+			////float newR, newB, newH;
+			////for(i=0;i<30;i++){
+				////earlyAbort = finiteDifferenceStep(fdR, fdB, fdH, &newR, &newB, &newH);
 				////printf("\t\t% 5.1f, % 6.1f, % 6.1f  |  %6.4f, %6.4f\r\n", fdR, rad_to_deg(fdB), rad_to_deg(fdH), bStep.f, hStep.f);			
-				//fdR = newR;
-				//fdB = newB;
-				//fdH = newH;
-				//if(earlyAbort) break;
-			//}
-			range = fdR;
-			bearing = fdB;
-			heading = fdH;
+				////fdR = newR;
+				////fdB = newB;
+				////fdH = newH;
+				////if(earlyAbort) break;
+			////}
+			//range = fdR;
+			//bearing = fdB;
+			//heading = fdH;
 			error = calculate_innovation(range, bearing, heading);
+			if(error>2.5){
+				ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+					rnbProcessingFlag=0;
+				}
+				return;
+			}
 			//printf("\t After: % 5.1f, % 6.1f, % 6.1f, %6.2f [%hu]\r\n", fdR, rad_to_deg(fdB), rad_to_deg(fdH), error>3.0 ? (conf/(10.0*error*error)) : (conf/(error*error)), i);			
 			//printf("\tTook %lu ms.\r\n", get_time()-start);
 			conf = conf/(error*error);
@@ -273,8 +254,9 @@ void calculate_bearing_and_heading(float* bearing, float* heading){
 	float bearingY = 0;
 	float headingX = 0;
 	float headingY = 0;
-		
+
 	for(uint8_t i=0;i<36;i++){
+		
 		bearingX+=fast_bm[i]*getCosBearingBasis(i/6,i%6);
 		bearingY+=fast_bm[i]*getSinBearingBasis(i/6,i%6);
 		headingX+=fast_bm[i]*getCosHeadingBasis(i/6,i%6);
@@ -283,7 +265,6 @@ void calculate_bearing_and_heading(float* bearing, float* heading){
 	
 	*bearing = atan2f(bearingY, bearingX);	
 	*heading = atan2f(headingY, headingX);
-	
 }
 
 float get_initial_range_guess(float bearing, float heading, uint8_t power){
@@ -369,6 +350,8 @@ float range_estimate(float init_range, float bearing, float heading, uint8_t pow
 	}
 	
 	float rangeMatSubset[3][3];
+	//float bearingMatSubset[3][3];
+	//float headingMatSubset[3][3];
 	float brightMatSubset[3][3];
 	float froebNormSquared=0;
 	for(uint8_t e = 0; e < 3; e++){
@@ -376,17 +359,26 @@ float range_estimate(float init_range, float bearing, float heading, uint8_t pow
 			uint8_t otherE = ((maxE+(e+5))%6);
 			uint8_t otherS = ((maxS+(s+5))%6);
 			rangeMatSubset[e][s] = range_matrix[otherE][otherS];
+			//bearingMatSubset[e][s] = getBearingAngle(otherE, otherS);
+			//headingMatSubset[e][s] = getHeadingAngle(otherE, otherS);
 			brightMatSubset[e][s] = (float)brightMeas[otherE][otherS];
 			froebNormSquared+=powf(brightMatSubset[e][s],2);
 		}
 	}
 	float froebNorm = sqrtf(froebNormSquared);
 	float range = 0;
+	float froebWeight;
+	//float bearingTest = 0;
+	//float headingTest = 0;
 	for(uint8_t e = 0; e < 3; e++){
 		for(uint8_t s = 0; s < 3; s++){
-			range+= rangeMatSubset[e][s]*powf(brightMatSubset[e][s]/froebNorm,2);
+			froebWeight = powf(brightMatSubset[e][s]/froebNorm,2);
+			range += rangeMatSubset[e][s]*froebWeight;
+			//bearingTest += bearingMatSubset[e][s]*froebWeight;
+			//headingTest += headingMatSubset[e][s]*froebWeight;
 		}
 	}
+	//printf("%04X // b: %4d, h: %4d | b: %4d, h: %4d\r\n",rnbCmdID, ((int16_t)rad_to_deg(bearing)), ((int16_t)rad_to_deg(heading)), ((int16_t)rad_to_deg(bearingTest)), ((int16_t)rad_to_deg(headingTest)));
 	//printf("R: %f\r\n", range);	
 	//print_range_matrix(range_matrix);
 	//printf("\n");
@@ -397,7 +389,7 @@ int16_t processBrightMeas(){
 	int16_t val;
 	int16_t valSum=0;
 	uint8_t allColZeroCheck = 0b00111111;
-	
+
 	for(uint8_t e = 0; e < 6; e++){
 		for(uint8_t s = 0; s < 6; s++){
 			val = brightMeas[e][s];

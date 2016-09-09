@@ -114,7 +114,6 @@ void print_brightMeas();
 float expected_bright_mat(float r, float b, float h, uint8_t i, uint8_t j);
 float finiteDifferenceStep(float r0, float b0, float h0, float* r1, float* b1, float* h1);
 float calculate_innovation(float r, float b, float h);
-float calculate_innovationNF(float r, float b, float h);
 
 void full_expected_bright_mat(float bM[6][6], float r, float b, float h);
 
@@ -128,8 +127,8 @@ typedef union fd_step_union{
 #define FD_MIN_STEP	0.0017f
 //#define FD_STEP_GROW	1.5
 //#define FD_STEP_SHRINK 0.5
-#define FD_DELTA_B 0.001f
-#define FD_DELTA_H 0.001f
+#define FD_DELTA_B 0.004f
+#define FD_DELTA_H 0.004f
 
 fdStep rStep, bStep, hStep;
 uint8_t bMinFlipCount, hMinFlipCount;
@@ -161,4 +160,14 @@ static inline float getCosHeadingBasis(uint8_t i, uint8_t j){
 
 static inline float getSinHeadingBasis(uint8_t i, uint8_t j){
 	return headingBasis[(j+(6-i))%6][1];
+}
+
+static inline float getBearingAngle(uint8_t i, uint8_t j){
+	//return pretty_angle((-M_PI/6.0)-j*(M_PI/3.0));
+	return atan2f(getSinBearingBasis(i,j),getCosBearingBasis(i,j));
+}
+
+static inline float getHeadingAngle(uint8_t i, uint8_t j){
+	//return pretty_angle((-M_PI/6.0)-((j+(6-i))%6)*(M_PI/3.0));
+	return atan2f(getSinHeadingBasis(i,j), getCosHeadingBasis(i,j));
 }

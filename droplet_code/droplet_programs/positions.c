@@ -51,11 +51,11 @@ void loop(){
 				////schedule_task((RNB_DUR-curSlotTime),sendPaddleMsg(), NULL);
 			//}else{
 				//paddleChange = 0.0;
+			////}
+			//if(/*myState<=2 &&*/ myDist!=UNDF && otherDist!=UNDF && myDist<otherDist){
+				//uint32_t curSlotTime = (get_time()-frameStart)%SLOT_LENGTH_MS;
+				//schedule_task(((RNB_DUR+PADDLE_MSG_DUR+NEIGHB_MSG_DUR)-curSlotTime), sendBallMsg, NULL);
 			//}
-			if(/*myState<=2 &&*/ myDist!=UNDF && otherDist!=UNDF && myDist<otherDist){
-				uint32_t curSlotTime = (get_time()-frameStart)%SLOT_LENGTH_MS;
-				schedule_task(((RNB_DUR+PADDLE_MSG_DUR+NEIGHB_MSG_DUR)-curSlotTime), sendBallMsg, NULL);
-			}
 		}
 		updateBall();
 		updateColor();
@@ -84,9 +84,9 @@ void handleMySlot(){
 	sendNearBotsMsg();
 	while(((get_time()-frameStart)%SLOT_LENGTH_MS)<(RNB_DUR+PADDLE_MSG_DUR+NEIGHB_MSG_DUR))
 		delay_us(500);			
-	if(myDist!=UNDF && otherDist!=UNDF && myDist<otherDist){
-		sendBallMsg();
-	}
+	//if(myDist!=UNDF && otherDist!=UNDF && myDist<otherDist){
+		//sendBallMsg();
+	//}
 	while(((get_time()-frameStart)%SLOT_LENGTH_MS)<(RNB_DUR+PADDLE_MSG_DUR+NEIGHB_MSG_DUR+BALL_MSG_DUR))
 		delay_us(500);	
 }
@@ -128,8 +128,15 @@ void handleFrameEnd(){
 	updateMinMax(myPos.x, myPos.y, myPos.x, myPos.y);
 	//confidence degrades if we don't get new measurements.
 	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
-		if(nearBots[i].meas.conf>=0){
+		if(nearBots[i].meas.conf>0){
 			nearBots[i].meas.conf>>=1;
+			for(uint8_t j=0;j<NUM_SHARED_BOTS;j++){
+				if(nearBots[i].shared[j].conf >0){
+					nearBots[i].shared[j].conf = nearBots[i].shared[j].conf>>1;
+				}else{
+					nearBots[i].shared[j].id = 0;
+				}
+			}
 		}else{
 			removeOtherBot(i);
 		}
@@ -167,11 +174,6 @@ void updatePos(){
 	float measConf, measVar;
 	float theirMeasConf, theirMeasVar;
 	float theirPosConf, theirPosVar;
-	float hConf, hVar;
-	float theirHconf;
-	float myHconf;
-	int16_t heading;
-	
 
 	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
 		meas = &(nearBots[i].meas);
@@ -184,17 +186,15 @@ void updatePos(){
 			theirPosVar = (1.0/theirPosConf);
 			measConf = (float)(meas->conf);
 			measConf *= measConf;
-			myHconf = measConf; //doesn't depend on theirpos information, so we do this before adjusting theirMeasConf with that.
 			measVar  = (1.0/measConf);
 			measVar = (measVar+theirPosVar); //propogation of uncertainty (without handling correlation) (there is totally correlation)
 			measConf = 1.0/measVar;
-			totalConf += measConf;
-			heading = (meas->h)*myHconf;			
-			thisX = ((float)(meas->r)) * cos(deg_to_rad(meas->b) + M_PI_2);
-			thisY = ((float)(meas->r)) * sin(deg_to_rad(meas->b) + M_PI_2);	
+			totalConf += measConf;		
+			thisX = ((float)(meas->r)) * cos(deg_to_rad(meas->b) + M_PI_2 - deg_to_rad(meas->h));
+			thisY = ((float)(meas->r)) * sin(deg_to_rad(meas->b) + M_PI_2 - deg_to_rad(meas->h));	
 			xEst += ((theirPos->x - thisX)*measConf);
 			yEst += ((theirPos->y - thisY)*measConf);
-			POS_DEBUG_PRINT("%04X\tmyX: %4d, myY: %4d, myC: %3hd\r\n", meas->id, (int16_t)(theirPos->x - thisX), (int16_t)(theirPos->y-thisY), (int8_t)measConf);					
+			POS_DEBUG_PRINT("%04X\ttheirX: %4d, theirY: %4d\r\n\tdeltaX: %4d, deltaY: %4d, X: %4d, Y: %4d, myC: %3hd | h: %4d\r\n", meas->id, theirPos->x, theirPos->y, (int16_t)thisX, (int16_t)thisY, (int16_t)(theirPos->x - thisX), (int16_t)(theirPos->y-thisY), (int8_t)sqrt(measConf), meas->h);					
 			//Next handle this bots measurement of me.
 			for(uint8_t j=0;j<NUM_SHARED_BOTS;j++){
 				sharedMeas = &(nearBots[i].shared[j]);
@@ -203,18 +203,12 @@ void updatePos(){
 					theirMeasConf = sharedMeas->conf;
 					theirMeasConf *= theirMeasConf;
 					theirMeasVar = (1.0/theirMeasConf);
-					theirHconf = theirMeasConf; //doesn't depend on theirpos information, so we do this before adjusting theirMeasConf with that.				
-					heading -= (sharedMeas->h)*theirHconf;
-					heading /= (myHconf + theirHconf);					
-					hConf = (myHconf + theirHconf + 1.0)/2.0; //extra plus one to help rounding.
-					hVar = (1.0/hConf);
 					theirMeasVar = theirMeasVar + theirPosVar;
 					theirMeasConf = (1.0/theirMeasVar);
 					totalConf += theirMeasConf;
-				
-					thisX = ((float)(sharedMeas->r)) * cos(deg_to_rad(sharedMeas->b) + deg_to_rad(heading) - M_PI_2);
-					thisY = ((float)(sharedMeas->r)) * sin(deg_to_rad(sharedMeas->b) + deg_to_rad(heading) - M_PI_2);
-					POS_DEBUG_PRINT("    \tthX: %4d, thY: %4d, thC: %3hd | heading: %4d\r\n", (int16_t)(theirPos->x - thisX), (int16_t)(theirPos->y - thisY), (int8_t)theirMeasConf, heading);					
+					thisX = ((float)(sharedMeas->r)) * cos(deg_to_rad(sharedMeas->b) - M_PI_2);
+					thisY = ((float)(sharedMeas->r)) * sin(deg_to_rad(sharedMeas->b) - M_PI_2);
+					POS_DEBUG_PRINT("    \tdeltaX: %4d, deltaY: %4d, X: %4d, Y: %4d, thC: %3hd\r\n", (int16_t)thisX, (int16_t)thisY, (int16_t)(theirPos->x - thisX), (int16_t)(theirPos->y - thisY), (int8_t)sqrt(theirMeasConf));					
 					xEst += ((theirPos->x - thisX)*theirMeasConf);
 					yEst += ((theirPos->y - thisY)*theirMeasConf);
 					break; //(There will be only one measurement of me)
@@ -231,7 +225,8 @@ void updatePos(){
 		float newY = (yEst/totalConf);
 	
 		if(myPos.x!=UNDF && myPos.y!=UNDF){ //pos was defined, so we're updating with this frame's info.
-			float myPosConf = (float)(myPos.conf);			
+			float myPosConf = (float)(myPos.conf);
+			myPosConf *= myPosConf;			
 			POS_DEBUG_PRINT("\tNew Pos: (%d, %d), newPosConf: %hd | prevPos: (%d, %d), prevPosConf: %hd\r\n", (int16_t)newX, (int16_t)newY, (int8_t)overallConf, myPos.x, myPos.y, myPos.conf);								
 			myPos.x = (int16_t)((newX*overallConf + myPos.x*myPosConf)/(overallConf + myPosConf));
 			myPos.y = (int16_t)((newY*overallConf + myPos.y*myPosConf)/(overallConf + myPosConf));
@@ -305,7 +300,8 @@ void useNewRnbMeas(){
 		meas->r		= (uint16_t)newRange;
 		meas->b		= (int16_t)newB;
 		meas->h		= (int16_t)newH;
-		meas->conf  = (int8_t)conf;
+		meas->conf  = (int8_t)newConf;
+		RNB_DEBUG_PRINT("\tR: %4u B: %4d H: %4d | %4hd\r\n", meas->r, meas->b, meas->h, meas->conf);
 	}else{
 		printf_P(PSTR("Error: Unexpected botPos->ID in use_new_rnb_meas.\r\n"));
 	}
@@ -580,7 +576,8 @@ void handleNearBotsMsg(NearBotsMsg* msg, id_t senderID){
 			nearBot->shared[i].b = unpackAngleMeas(msg->shared[i].b);
 			nearBot->shared[i].h = unpackAngleMeas(msg->shared[i].h);
 			nearBot->shared[i].conf = msg->shared[i].conf;
-			NB_DEBUG_PRINT("\t(Shared) ID: %04X\tR: %4u B: %4d H: %4d | %4hd\r\n", nearBot->shared[i].id, nearBot->shared[i].r, nearBot->shared[i].b, nearBot->shared[i].h, nearBot->shared[i].conf);			
+			if(nearBot->shared[i].id == get_droplet_id())
+				RNB_DEBUG_PRINT("\t(Shared->%04X)\tR: %4u B: %4d H: %4d | %4hd\r\n", senderID, nearBot->shared[i].r, nearBot->shared[i].b, nearBot->shared[i].h, nearBot->shared[i].conf);			
 		}
 	}
 }

@@ -172,18 +172,22 @@ uint8_t check_collisions(){
 	int16_t baseline_meas[6];
 	int16_t measured_vals[6];
 	uint8_t dirs=0;
-	//wait_for_ir(ALL_DIRS);
+	if(!ir_is_available(ALL_DIRS)){
+		printf_P(PSTR("IR Hardware busy, probably sending a message? Can't check collisions.\r\n"));
+		return 0;
+	}
 	for(uint8_t i=0;i<6;i++) ir_rxtx[i].status = IR_STATUS_BUSY_bm;	
 	uint16_t curr_power = get_all_ir_powers();
 	set_all_ir_powers(256);
-	//printf("coll base: ");
 	get_ir_sensors(baseline_meas, 5);
+	//printf("Coll    base: ");
+	//for(uint8_t i=0;i<6;i++) printf("%4d ", baseline_meas[i]);
 	//printf("\r\n");
 	for(uint8_t i=0;i<6;i++) ir_led_on(i);
 	busy_delay_us(250);	
-	//delay_ms(250);
-	//printf("Coll results: ");
 	get_ir_sensors(measured_vals, 5);
+	//printf("Coll results: ");
+	//for(uint8_t i=0;i<6;i++) printf("%4d ", measured_vals[i]);
 	//printf("\r\n");
 	for(uint8_t i=0;i<6;i++) ir_led_off(i);
 	
@@ -193,7 +197,7 @@ uint8_t check_collisions(){
 		//printf("%4d ", measure_above_base);
 		if(measure_above_base<min_collision_vals[i]) min_collision_vals[i]=measure_above_base;
 		//printf("%4d ", measure_above_base-min_collision_vals[i]);
-		if((measure_above_base-min_collision_vals[i])>20){
+		if((measure_above_base-min_collision_vals[i])>600){
 			dirs = dirs|(1<<i);
 		}
 	}

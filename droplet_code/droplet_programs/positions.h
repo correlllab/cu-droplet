@@ -4,10 +4,10 @@
 
 
 #define POS_DEBUG_MODE
-//#define GEN_DEBUG_MODE
+#define GEN_DEBUG_MODE
 #define RNB_DEBUG_MODE
 //#define NB_DEBUG_MODE
-#define BALL_DEBUG_MODE
+//#define BALL_DEBUG_MODE
 
 #ifdef POS_DEBUG_MODE
 #define POS_DEBUG_PRINT(format, ...) printf_P(PSTR(format), ##__VA_ARGS__)
@@ -48,14 +48,14 @@
  * ballMsg is 7 bytes. header is 8 bytes, so ballMsg should take 37.5ms 
  */
 #define RNB_DUR		145
-#define PADDLE_MSG_DUR		30
+#define PADDLE_MSG_DUR		20
 #define NEIGHB_MSG_DUR		115
-#define BALL_MSG_DUR		40
+#define BALL_MSG_DUR		20
 
 #define UNDF	0x8000
 
-#define SLOT_LENGTH_MS			331
-#define SLOTS_PER_FRAME			39
+#define SLOT_LENGTH_MS			347
+#define SLOTS_PER_FRAME			43
 #define FRAME_LENGTH_MS			(((uint32_t)SLOT_LENGTH_MS)*((uint32_t)SLOTS_PER_FRAME))
 #define LOOP_DELAY_MS			17
 
@@ -71,9 +71,9 @@
 #define NUM_SHARED_BOTS 4
 #define NUM_TRACKED_BOTS 12
 
-const id_t SEED_IDS[NUM_SEEDS] = {0x12AD, 0xCD6B, 0x32A7, 0x5264};
-const int16_t  SEED_X[NUM_SEEDS]   = {0, 0, 250, 250};
-const int16_t  SEED_Y[NUM_SEEDS]   = {0, 50, 0, 50};
+const id_t SEED_IDS[NUM_SEEDS] = {0x12AD, 0x1562, 0xCD6B, 0x5F2D};
+const int16_t  SEED_X[NUM_SEEDS]   = {25, 28, 932, 929};
+const int16_t  SEED_Y[NUM_SEEDS]   = {29, 948, 948, 30};
 
 #define STATE_PIXEL		0x1
 #define STATE_NORTH		0x2
@@ -242,11 +242,12 @@ static int16_t inline unpackAngleMeas(int8_t angle){
 }
 
 static uint8_t inline packRange(uint16_t range){
-	return ((uint8_t)(range>>2));
+	range = (range>510) ? 510 : range;
+	return ((uint8_t)((range+1)>>1)); //dividing by two, rounding towards closest.
 }
 
 static uint16_t inline unpackRange(uint8_t packedRange){
-	return (((uint16_t)packedRange)+2)>>2; //dividing by four, rounding towards closest.
+	return (((uint16_t)packedRange)<<1); 
 }
 
 static float inline getCoverageRatioA(uint8_t rad, uint16_t dist){ //when ball radius less than bot radius.

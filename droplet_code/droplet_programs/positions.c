@@ -96,7 +96,6 @@ void handleFrameEnd(){
 	//Maybe we'll want to remove the N worst nearBots, here.
 	if(!seedFlag){
 		updatePos();
-		updateMinMax(myPos.x, myPos.y, myPos.x, myPos.y);
 	}
 	
 	updateHardBots();
@@ -390,7 +389,7 @@ void updateBall(){
 				}
 				tmp = tmp->next;
 			}
-			if(theBall.xPos<minX || theBall.xPos>maxX || theBall.yPos<minY || theBall.yPos>maxY){
+			if(theBall.xPos<MIN_X || theBall.xPos>MAX_X || theBall.yPos<MIN_Y || theBall.yPos>MAX_Y){
 				BALL_DEBUG_PRINT("Ball hit boundary, so we must have lost track.\r\n");
 				theBall.xPos = UNDF;
 				theBall.yPos = UNDF;
@@ -419,8 +418,8 @@ void updateColor(){
 		if(myPos.x==UNDF||myPos.y==UNDF){
 			newR = newG = newB = 50;
 		}else{
-			int16_t xColVal = (int16_t)(6.0*pow(41.0,(myPos.x-minX)/((maxX-minX)*1.0))+9.0);
-			int16_t yColVal = (int16_t)(3.0*pow(84.0,(myPos.y-minY)/((maxY-minY)*1.0))+3.0);
+			int16_t xColVal = (int16_t)(6.0*pow(41.0,(myPos.x-MIN_X)/((MAX_X-MIN_X)*1.0))+9.0);
+			int16_t yColVal = (int16_t)(3.0*pow(84.0,(myPos.y-MIN_Y)/((MAX_Y-MIN_Y)*1.0))+3.0);
 			newR = (uint8_t)(xColVal);
 			newG = (uint8_t)(yColVal);
 		}
@@ -569,10 +568,6 @@ void handleBallMsg(BallMsg* msg, uint32_t arrivalTime){
 void sendNearBotsMsg(){ 
 	NearBotsMsg msg;
 	msg.flag = NEAR_BOTS_MSG_FLAG;
-	msg.minX = minX;
-	msg.minY = minY;
-	msg.maxX = maxX;
-	msg.maxY = maxY;
 	msg.x    = myPos.x;
 	msg.y    = myPos.y;
 	msg.posConf = myPos.conf;
@@ -593,17 +588,9 @@ void handleNearBotsMsg(NearBotsMsg* msg, id_t senderID){
 		if(msg->x!=UNDF && msg->y!=UNDF)
 			NB_DEBUG_PRINT("\tX: %4d Y: %4d", msg->x, msg->y);
 		NB_DEBUG_PRINT("\r\n");
-		if(minX != UNDF && minY != UNDF){
-			NB_DEBUG_PRINT("\tMin: (%4d, %4d)",minX, minY);
-		}
-		if(maxX != UNDF && maxY != UNDF){
-			NB_DEBUG_PRINT("\tMax: (%4d, %4d)", maxX, maxY);
-		}
-		NB_DEBUG_PRINT("\r\n");
 		(nearBot->pos).x = msg->x;
 		(nearBot->pos).y = msg->y;
 		(nearBot->pos).conf = msg->posConf;
-		updateMinMax(msg->minX, msg->minY, msg->maxX, msg->maxY);
 		for(uint8_t i=0;i<NUM_SHARED_BOTS;i++){
 			nearBot->shared[i].id = msg->shared[i].id;
 			if(nearBot->shared[i].id == 0) continue;
@@ -694,12 +681,6 @@ void frameEndPrintout(){
 		printf_P(PSTR("\tMy Pos: (%d, %d)"), myPos.x, myPos.y);
 	}
 	printf("\r\n");
-	if(minX != UNDF && minY != UNDF){
-		printf_P(PSTR("\tMin: (%d, %d)\r\n"), minX, minY);
-	}
-	if(maxX != UNDF && maxY != UNDF){
-		printf_P(PSTR("\tMax: (%d, %d)\r\n"), maxX, maxY);
-	}
 	if(theBall.xPos != UNDF && theBall.yPos != UNDF){
 		printf_P(PSTR("\tBall ID: %hu; radius: %hu; Pos: (%d, %d) @ vel (%hd, %hd)\r\n"), theBall.id, theBall.radius, theBall.xPos, theBall.yPos, theBall.xVel, theBall.yVel);
 	}
@@ -708,22 +689,6 @@ void frameEndPrintout(){
 	//}
 	printf("\r\n");	
 }
-
-void updateMinMax(int16_t sX, int16_t sY, int16_t bX, int16_t bY){
-	if((sX != UNDF) && ((minX == UNDF) || (sX < minX))){
-		minX = sX;
-	}
-	if((sY != UNDF) && ((minY == UNDF) || (sY < minY))){
-		minY = sY;
-	}
-	if((bX != UNDF) && ((maxX == UNDF) || (bX > maxX))){
-		maxX = bX;
-	}
-	if((bY != UNDF) && ((maxY == UNDF) || (bY > maxY))){
-		maxY = bY;
-	}
-}
-
 
 OtherBot* getOtherBot(id_t id){
 	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){

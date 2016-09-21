@@ -120,10 +120,6 @@ typedef struct packed_bot_meas_struct{
 
 typedef struct near_bots_msg_struct{
 	PackedBotMeas shared[NUM_SHARED_BOTS];
-	int16_t minX;
-	int16_t minY;
-	int16_t maxX;
-	int16_t maxY;
 	int16_t x;
 	int16_t y;
 	int8_t posConf;
@@ -190,8 +186,6 @@ uint16_t	loopID;
 uint8_t		isCovered;
 
 BotPos myPos;
-int16_t minX, minY;
-int16_t maxX, maxY;
 uint16_t myDist;
 uint16_t otherDist;
 
@@ -222,7 +216,6 @@ void		handleNearBotsMsg(NearBotsMsg* msg, id_t senderID);
 void		handle_msg			(ir_msg* msg_struct);
 
 void		frameEndPrintout();
-void		updateMinMax(int16_t sX, int16_t sY, int16_t bX, int16_t bY);
 
 //These four functions are for interacting with the OtherBot data structure.
 OtherBot*	getOtherBot(id_t id);
@@ -360,10 +353,6 @@ static void inline initPositions(){
 	myPos.y = UNDF;
 	myPos.conf = 0;	
 	myDist = UNDF;
-	minX = UNDF;
-	minY = UNDF;
-	maxX = UNDF;
-	maxY = UNDF;
 
 	seedFlag = 0;	
 	for(uint8_t i=0;i<NUM_SEEDS;i++){
@@ -372,10 +361,6 @@ static void inline initPositions(){
 			myPos.x = SEED_X[i];
 			myPos.y = SEED_Y[i];
 			myPos.conf = 63;
-			minX = myPos.x;
-			minY = myPos.y;
-			maxX = myPos.x;
-			maxY = myPos.y;
 			break;
 		}
 	}

@@ -1,36 +1,59 @@
 //#include "user_template.h"
 //
+//uint32_t	frameCount;
+//uint32_t	frameStart;
+//uint16_t	loopID;
+//uint16_t	mySlot;
+//
 ///*
  //* Any code in this function will be run once, when the robot starts.
  //*/
 //void init(){
-//
+	//loopID = 0xFFFF;
+	//frameCount = 0;
+	//mySlot = (get_droplet_id()%(SLOTS_PER_FRAME-1));
+	//frameStart = get_time();
 //}
 //
 ///*
  //* The code in this function will be called repeatedly, as fast as it can execute.
  //*/
 //void loop(){
-//
+	//uint32_t frameTime = get_time()-frameStart;
+	//if(frameTime>FRAME_LENGTH_MS){
+		//frameTime = frameTime - FRAME_LENGTH_MS;
+		//frameStart += FRAME_LENGTH_MS;
+		//frameCount++;
+	//}
+	//if(loopID!=(frameTime/SLOT_LENGTH_MS)){
+		//loopID = frameTime/SLOT_LENGTH_MS;
+		//if(loopID==mySlot){
+			//broadcast_rnb_data();
+		//}
+	//}
+	//if(rnb_updated){
+		//rnb_updated = 0;
+	//}
+	//delay_ms(LOOP_DELAY_MS);
 //}
 //
 //void handleNearBotsMsg(NearBotsMsg* msg, id_t senderID){
-	//printf("%04X", senderID);
-	//if(msg->x!=UNDF && msg->y!=UNDF) printf("\t%4d\t%4d\t%hd\r\n", msg->x, msg->y, msg->posConf);
-	//else printf("\t -- \t -- \t -- \r\n");
-	//id_t id;
-	//uint16_t range;
-	//int16_t bearing, heading;
-	//int8_t conf;
-	//for(uint8_t i=0;i<NUM_SHARED_BOTS;i++){
-		//id = msg->shared[i].id;
-		//if(id == 0) continue;
-		//range = unpackRange(msg->shared[i].range);
-		//bearing = unpackAngleMeas(msg->shared[i].b);
-		//heading = unpackAngleMeas(msg->shared[i].h);
-		//conf = msg->shared[i].conf;
-		//printf("\t%04X\t%4u\t%4d\t%4d\t%4hd\r\n", id, range, bearing, heading, conf);
-	//}
+	////printf("%04X", senderID);
+	////if(msg->x!=UNDF && msg->y!=UNDF) printf("\t%4d\t%4d\t%hd\r\n", msg->x, msg->y, msg->posConf);
+	////else printf("\t -- \t -- \t -- \r\n");
+	////id_t id;
+	////uint16_t range;
+	////int16_t bearing, heading;
+	////int8_t conf;
+	////for(uint8_t i=0;i<NUM_SHARED_BOTS;i++){
+		////id = msg->shared[i].id;
+		////if(id == 0) continue;
+		////range = unpackRange(msg->shared[i].range);
+		////bearing = unpackAngleMeas(msg->shared[i].b);
+		////heading = unpackAngleMeas(msg->shared[i].h);
+		////conf = msg->shared[i].conf;
+		////printf("\t%04X\t%4u\t%4d\t%4d\t%4hd\r\n", id, range, bearing, heading, conf);
+	////}
 //}
 //
 ///*
@@ -38,15 +61,15 @@
  //* received, and calls this function once for each message.
  //*/
 //void handle_msg(ir_msg* msg_struct){
-	//if(((NearBotsMsg*)(msg_struct->msg))->flag==NEAR_BOTS_MSG_FLAG){
-		//handleNearBotsMsg((NearBotsMsg*)(msg_struct->msg), msg_struct->sender_ID);
-	//}else{
-		//printf_P(PSTR("%hu byte msg from %04X:\r\n\t"), msg_struct->length, msg_struct->sender_ID);
-		//for(uint8_t i=0;i<msg_struct->length;i++){
-			//printf("%02hX ", msg_struct->msg[i]);
-		//}
-		//printf("\r\n");
-	//}
+	////if(((NearBotsMsg*)(msg_struct->msg))->flag==NEAR_BOTS_MSG_FLAG){
+		////handleNearBotsMsg((NearBotsMsg*)(msg_struct->msg), msg_struct->sender_ID);
+	////}else{
+		////printf_P(PSTR("%hu byte msg from %04X:\r\n\t"), msg_struct->length, msg_struct->sender_ID);
+		////for(uint8_t i=0;i<msg_struct->length;i++){
+			////printf("%02hX ", msg_struct->msg[i]);
+		////}
+		////printf("\r\n");
+	////}
 //}
 //
 /////*

@@ -21,7 +21,6 @@
 #define BALL_DEBUG_PRINT(format, ...)
 #endif
 
-
 #ifdef GEN_DEBUG_MODE
 #define GEN_DEBUG_PRINT(format, ...) printf_P(PSTR(format), ##__VA_ARGS__)
 #else
@@ -44,18 +43,18 @@
  * rnb takes 142 ms
  * messages take 2.5ms per byte. 
  * paddleMsg is 3 bytes. header is 8 bytes, so PaddleMsg should take 27.5
- * neighbMsg is 37 bytes. header is 8 bytes, so NeighbMsg should take 112.5ms
+ * neighbMsg is 38 bytes. header is 8 bytes, so NeighbMsg should take 115ms
  * ballMsg is 7 bytes. header is 8 bytes, so ballMsg should take 37.5ms 
  */
 #define RNB_DUR		145
 #define PADDLE_MSG_DUR		20
-#define NEIGHB_MSG_DUR		115
+#define NEIGHB_MSG_DUR		120
 #define BALL_MSG_DUR		20
 
 #define UNDF	0x8000
 
-#define SLOT_LENGTH_MS			347
-#define SLOTS_PER_FRAME			43
+#define SLOT_LENGTH_MS			307
+#define SLOTS_PER_FRAME			37
 #define FRAME_LENGTH_MS			(((uint32_t)SLOT_LENGTH_MS)*((uint32_t)SLOTS_PER_FRAME))
 #define LOOP_DELAY_MS			17
 
@@ -72,8 +71,13 @@
 #define NUM_TRACKED_BOTS 12
 
 const id_t SEED_IDS[NUM_SEEDS] = {0x12AD, 0x1562, 0xCD6B, 0x5F2D};
-const int16_t  SEED_X[NUM_SEEDS]   = {25, 28, 932, 929};
-const int16_t  SEED_Y[NUM_SEEDS]   = {29, 948, 948, 30};
+const int16_t  SEED_X[NUM_SEEDS]   = {0, 28, 932, 929};
+const int16_t  SEED_Y[NUM_SEEDS]   = {0, 948, 948, 30};
+
+#define MIN_X 0
+#define MIN_Y 0
+#define MAX_X 1000
+#define MAX_Y 1000
 
 #define STATE_PIXEL		0x1
 #define STATE_NORTH		0x2
@@ -115,6 +119,7 @@ typedef struct packed_bot_meas_struct{
 }PackedBotMeas;
 
 typedef struct near_bots_msg_struct{
+	PackedBotMeas shared[NUM_SHARED_BOTS];
 	int16_t minX;
 	int16_t minY;
 	int16_t maxX;
@@ -122,7 +127,6 @@ typedef struct near_bots_msg_struct{
 	int16_t x;
 	int16_t y;
 	int8_t posConf;
-	PackedBotMeas shared[NUM_SHARED_BOTS];
 	char flag;	
 }NearBotsMsg;
 
@@ -195,7 +199,8 @@ void		init();
 void		loop();
 void		handleMySlot();
 void		handleFrameEnd();
-
+void		updateHardBots();
+void		degradeConfidence();
 void		updatePos();
 void		useNewRnbMeas();
 void		updateBall();
@@ -286,7 +291,7 @@ static int8_t inline checkBounceHard(int16_t Bx, int16_t By, int32_t timePassed)
 }
 
 /*Code below from http://stackoverflow.com/questions/573084/how-to-calculate-bounce-angle */
-static int8_t inline calculateBounce(int16_t Bx, int16_t By){
+static void inline calculateBounce(int16_t Bx, int16_t By){
 	int16_t vX = theBall.xVel;
 	int16_t vY = theBall.yVel;
 	int16_t normX = -(By-myPos.y);
@@ -359,6 +364,7 @@ static void inline initPositions(){
 	minY = UNDF;
 	maxX = UNDF;
 	maxY = UNDF;
+
 	seedFlag = 0;	
 	for(uint8_t i=0;i<NUM_SEEDS;i++){
 		if(get_droplet_id()==SEED_IDS[i]){
@@ -368,7 +374,7 @@ static void inline initPositions(){
 			myPos.conf = 63;
 			minX = myPos.x;
 			minY = myPos.y;
-			maxX = myPos.x;	
+			maxX = myPos.x;
 			maxY = myPos.y;
 			break;
 		}

@@ -79,6 +79,11 @@ const int16_t  SEED_Y[NUM_SEEDS]   = {0, 948, 948, 30};
 #define MAX_X 1000
 #define MAX_Y 1000
 
+#define NUM_PARTICLES 100
+#define PROB_ONE 50000
+#define LIKELIHOOD_THRESH (PROB_ONE/NUM_PARTICLES)/10;
+
+
 #define STATE_PIXEL		0x1
 #define STATE_NORTH		0x2
 #define STATE_SOUTH		0x4
@@ -153,10 +158,18 @@ typedef struct bot_pos_struct
 	int8_t conf;
 } BotPos;
 
+typedef struct particle_struct
+{
+	int16_t x;  //xPos
+	int16_t y;  //yPos
+	int16_t o;  //orientation
+	uint16_t l; //likelihood
+} Particle;
+Particle particles[NUM_PARTICLES];
+
 typedef struct other_bot_rnb_struct{
 	BotMeas meas;
 	BotPos pos;
-	BotMeas shared[NUM_SHARED_BOTS];
 } OtherBot;
 OtherBot nearBots[NUM_TRACKED_BOTS];
 
@@ -186,13 +199,17 @@ uint16_t	loopID;
 uint8_t		isCovered;
 
 BotPos myPos;
+int16_t myO;
 uint16_t myDist;
 uint16_t otherDist;
 
 void		init();
 void		loop();
 void		handleMySlot();
+void		initParticles();
+void		updateParticles(OtherBot* bot);
 void		handleFrameEnd();
+void		cullParticles();
 void		updateHardBots();
 void		degradeConfidence();
 void		updatePos();

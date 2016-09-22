@@ -91,16 +91,59 @@ void handleMySlot(){
 		delay_us(500);	
 }
 
+void initParticles(){
+	uint16_t initLikelihood = PROB_ONE/NUM_PARTICLES;
+	for(uint8_t i=0; i<NUM_PARTICLES; i++){
+		particles[i].x = MIN_X + (int16_t)(rand_real()*(MAX_X-MIN_X));
+		particles[i].y = MIN_Y + (int16_t)(rand_real()*(MAX_Y-MIN_Y));
+		particles[i].o = (int16_t)(rand_real()*360.0)-180;
+		particles[i].l = initLikelihood;
+	}
+}
+
+void updateParticles(OtherBot* bot){
+	if(seedFlag)
+		return;
+	if(bot->pos.x == UNDF || bot->pos.y == UNDF)
+		return;
+	float pMGP; //probability of measurement given particle
+	for(uint8_t i=0;i<NUM_PARTICLES;i++){
+		//bayes rule: P(particle|meas) = (P(meas|particle)*P(particle))/P(meas)
+		//P(particle) is the prior probability -> particles[i].l
+		//P(meas) is just a normalizing factor? at the end of each frame before we cull particles, 
+		//    normalize everything so that the total particle probability is 1.
+		//P(meas|particle), ie. pMGP is the meaty one.
+		/*
+		 * - If robot is at position (x,y) with orientation o and I am at position (particles[i].x, particles[i].y) 
+		 *       with orientation particles[i].o, what would I expect the range, bearing, and heading to be?
+		 * - Compare expected range, bearing, heading to measurement range, bearing, and heading. 
+		 *       The more similar, the higher the likelihood.
+		 * - How should I include conf? What about the other bots' position uncertainty?
+		 */
+	}
+}
+
+void cullParticles(){
+	/*
+	 *  - Remove (cull) all particles which have likelihood less than LIKELIHOOD_THRESH.
+	 *  - Set myPos.x to average xPos of particles and myPos.y to average yPos of particles.
+	 *  - Set myO to average orientation of particles.
+	 *  - Determine variance of positions, orientation. Use this to set myPos.conf;
+	 *  - Replace all culled particles with new particles, sampled from a normal distribution
+	 *        centered on my position with variance set by myPos.conf
+	 */
+}
+
 void handleFrameEnd(){
 	qsort(nearBots, NUM_TRACKED_BOTS, sizeof(OtherBot), nearBotsConfCmpFunc);
 	//Maybe we'll want to remove the N worst nearBots, here.
 	if(!seedFlag){
-		updatePos();
+		//updatePos();
 	}
-	
+	cullParticles();
 	updateHardBots();
 	degradeConfidence(); //lower confidence of bots for which no measurement was received.
-	frameEndPrintout();	
+	frameEndPrintout();
 	printf("\r\n");
 }
 
@@ -143,154 +186,146 @@ void degradeConfidence(){
 	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
 		if(nearBots[i].meas.conf>0){
 			nearBots[i].meas.conf>>=1;
-			for(uint8_t j=0;j<NUM_SHARED_BOTS;j++){
-				if(nearBots[i].shared[j].conf >0){
-					nearBots[i].shared[j].conf = nearBots[i].shared[j].conf>>1;
-				}else{
-					nearBots[i].shared[j].id = 0;
-				}
-			}
 		}else{
 			removeOtherBot(i);
 		}
 	}
 }
-
-void updatePos(){
-	//nearBots is array of OtherBot structs, each containing:
-	//    BotMeas meas: Our measurement of this robot, containing:
-	//	      id, r, b, h, conf
-	//    BotPos pos: position of this robot, in its estimation.
-	//        x, y  //either of which may be undefined (UNDF)
-	//    BotMeas[] shared: this robot's measurements of other robots (four best).
-	//        Each meas:
-	//            id, r, b, h, conf
-	
-	/*
-	Just going to be doing Batch Linear Least Squares with all measurements at the end of each frame, 
-	on all the (x, y) positions I would have based on each measurement.
-	This isn' t the measurements directly, which hides error relationships, but will hopefully work out.
-	(simplifies to waited average; don't have to deal with matrices directly.)
-	*/
-	POS_DEBUG_PRINT("In updatePos()\r\n");
-	BotMeas* meas;
-	BotMeas* theirMeas;
-	BotPos* theirPos;
-	float totalConf = 0;
-	uint8_t anyInfo = 0;
-	uint8_t themToMeFound = 0;
-	float xEst = 0;
-	float yEst = 0;
-	float thisX, thisY;
-	float measConf, measVar;
-	float theirMeasConf, theirMeasVar;
-	float theirPosConf, theirPosVar;
-	float bearingFromUs;
-	float combinedHeading;
-	float combinedRange;
-	float combinedBearing;
-	float combinedHeadingConf;
-	float bearingFromUsConf;
-
-	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
-		meas = &(nearBots[i].meas);
-		theirPos = &(nearBots[i].pos);
-		if( theirPos->x != UNDF && theirPos->y != UNDF){
-			//First handle my measurement of this bot.
-			theirPosConf = (float)(theirPos->conf);
-			theirPosConf *= theirPosConf;
-			theirPosVar = (1.0/theirPosConf);
-			measConf = (float)(meas->conf);
-			measConf *= measConf;
-			measVar  = (1.0/measConf);
-			themToMeFound = 0;
-			for(uint8_t j=0;j<NUM_SHARED_BOTS;j++){
-				theirMeas = &(nearBots[i].shared[j]);
-				if(theirMeas->id == get_droplet_id() && theirMeas->conf > 0){ //Found a measurement of me!
-					themToMeFound = 1;
-					theirMeasConf = theirMeas->conf;
-					theirMeasConf *= theirMeasConf;
-					theirMeasVar = (1.0/theirMeasConf);
-					break; //(There will be only one measurement of me)		
-				}
-			}
-			anyInfo++;
-			if(themToMeFound){ //If we have this, we'll combine our two measurements first.
-				combinedRange = (measConf*meas->r + theirMeasConf*theirMeas->r)/(measConf+theirMeasConf);
-				//combinedHeading is in degrees, and is from this droplet's perspective.
-				combinedHeading = (measConf*meas->h - theirMeasConf*theirMeas->h)/(measConf+theirMeasConf);
-				combinedHeadingConf = 2.0/(measVar+theirMeasVar);
-				//bearingFrom us is in radians, and uses combinedHeading to convert meas->b (bearing from our perspective) 
-				//to bearing in other bot's perspective.
-				bearingFromUs = deg_to_rad(meas->b-combinedHeading+180);
-				bearingFromUsConf = 1.0/(measVar+(1.0/combinedHeadingConf));
-				//combinedBearing is in radians, and is from the other Droplet's perspective.
-				combinedBearing = (bearingFromUsConf*bearingFromUs + theirMeasConf*deg_to_rad(theirMeas->b))/(bearingFromUsConf+theirMeasConf);
-				thisX = combinedRange*cos(combinedBearing+M_PI_2);
-				thisY = combinedRange*sin(combinedBearing+M_PI_2);
-				measVar = (1.0/combinedHeadingConf)+theirPosVar;
-				measConf = 1.0/measVar; 
-				POS_DEBUG_PRINT("    \tcRange: %4d, cB: %4d, cH: %4d\r\n", (int16_t)combinedRange, (int16_t)rad_to_deg(combinedBearing), (int16_t)combinedHeading);
-				POS_DEBUG_PRINT("    \tdeltaX: %4d, deltaY: %4d, X: %4d, Y: %4d, thC: %3hd\r\n", (int16_t)thisX, (int16_t)thisY, (int16_t)(theirPos->x + thisX), (int16_t)(theirPos->y + thisY), (int8_t)sqrt(measConf));
-				xEst += ((theirPos->x + thisX)*measConf);
-				yEst += ((theirPos->y + thisY)*measConf);
-				totalConf += measConf;
-			}else{
-				thisX = ((float)(meas->r)) * cos(deg_to_rad(meas->b) - M_PI_2 - deg_to_rad(meas->h));
-				thisY = ((float)(meas->r)) * sin(deg_to_rad(meas->b) - M_PI_2 - deg_to_rad(meas->h));
-				measVar += theirPosVar;
-				measConf = 1.0/measVar;
-				xEst += ((theirPos->x + thisX)*measConf);
-				yEst += ((theirPos->y + thisY)*measConf);
-				totalConf += measConf;
-				POS_DEBUG_PRINT("%04X\ttheirX: %4d, theirY: %4d\r\n\tdeltaX: %4d, deltaY: %4d, X: %4d, Y: %4d, myC: %3hd | h: %4d\r\n", meas->id, theirPos->x, theirPos->y, (int16_t)thisX, (int16_t)thisY, (int16_t)(theirPos->x + thisX), (int16_t)(theirPos->y + thisY), (int8_t)sqrt(measConf), meas->h);
-			}
-		}
-	}
-
-	/*
-	 * Now we've thrown all of our data in to xEst, yEst, and totalConf.
-	 * anyInfo is the number of measurements combined. 
- 	 */
-	if(anyInfo){ //got new pos information this frame!
-		POS_DEBUG_PRINT("Got info this frame!\r\n");
-		float overallConf = totalConf/anyInfo;
-		float newX = (xEst/totalConf);
-		float newY = (yEst/totalConf);
-	
-		if(myPos.x!=UNDF && myPos.y!=UNDF){ //pos was defined, so we're updating with this frame's info.
-			float myPosConf = (float)(myPos.conf);
-			myPosConf *= myPosConf;			
-			POS_DEBUG_PRINT("\tNew Pos: (%d, %d), newPosConf: %hd | prevPos: (%d, %d), prevPosConf: %hd\r\n", (int16_t)newX, (int16_t)newY, (int8_t)(sqrt(overallConf)+0.5), myPos.x, myPos.y, myPos.conf);								
-			myPos.x = (int16_t)((newX*overallConf + myPos.x*myPosConf)/(overallConf + myPosConf));
-			myPos.y = (int16_t)((newY*overallConf + myPos.y*myPosConf)/(overallConf + myPosConf));
-			myPos.conf = (int8_t)(sqrt(2/((1.0/overallConf)+(1.0/myPosConf)))+0.5); //extra 0.5 to help with rounding.
-			POS_DEBUG_PRINT("\t\tResult: (%d, %d), conf: %hd\r\n", myPos.x, myPos.y, myPos.conf);
-		}else{ //Position previously undefined, so this is our first pos.
-			POS_DEBUG_PRINT("\tPos previously undefined!\r\n");
-			myPos.x = (int16_t)(newX);
-			myPos.y = (int16_t)(newY);
-			myPos.conf = (int8_t)(sqrt(overallConf)+0.5);
-			POS_DEBUG_PRINT("\t\tResult: (%d, %d), conf: %hd\r\n", myPos.x, myPos.y, myPos.conf);		
-		}
-				
-	}else{ //no new pos information this frame.
-		POS_DEBUG_PRINT("No new info this frame.\r\n");
-		//if position was defined, our confidence in that position will degrade.
-		if(myPos.x!=UNDF && myPos.y!=UNDF){
-			POS_DEBUG_PRINT("\tDegrading confidence...\r\n");			
-			myPos.conf>>=1;
-			if(!myPos.conf){
-				myPos.x = UNDF;
-				myPos.y = UNDF;
-			}
-			POS_DEBUG_PRINT("\t\tResult: (%d, %d), conf: %hd\r\n", myPos.x, myPos.y, myPos.conf);			
-		}
-	}
-}
+//
+//void updatePos(){
+	////nearBots is array of OtherBot structs, each containing:
+	////    BotMeas meas: Our measurement of this robot, containing:
+	////	      id, r, b, h, conf
+	////    BotPos pos: position of this robot, in its estimation.
+	////        x, y  //either of which may be undefined (UNDF)
+	////    BotMeas[] shared: this robot's measurements of other robots (four best).
+	////        Each meas:
+	////            id, r, b, h, conf
+	//
+	///*
+	//Just going to be doing Batch Linear Least Squares with all measurements at the end of each frame, 
+	//on all the (x, y) positions I would have based on each measurement.
+	//This isn' t the measurements directly, which hides error relationships, but will hopefully work out.
+	//(simplifies to waited average; don't have to deal with matrices directly.)
+	//*/
+	//POS_DEBUG_PRINT("In updatePos()\r\n");
+	//BotMeas* meas;
+	//BotMeas* theirMeas;
+	//BotPos* theirPos;
+	//float totalConf = 0;
+	//uint8_t anyInfo = 0;
+	//uint8_t themToMeFound = 0;
+	//float xEst = 0;
+	//float yEst = 0;
+	//float thisX, thisY;
+	//float measConf, measVar;
+	//float theirMeasConf, theirMeasVar;
+	//float theirPosConf, theirPosVar;
+	//float bearingFromUs;
+	//float combinedHeading;
+	//float combinedRange;
+	//float combinedBearing;
+	//float combinedHeadingConf;
+	//float bearingFromUsConf;
+//
+	//for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
+		//meas = &(nearBots[i].meas);
+		//theirPos = &(nearBots[i].pos);
+		//if( theirPos->x != UNDF && theirPos->y != UNDF){
+			////First handle my measurement of this bot.
+			//theirPosConf = (float)(theirPos->conf);
+			//theirPosConf *= theirPosConf;
+			//theirPosVar = (1.0/theirPosConf);
+			//measConf = (float)(meas->conf);
+			//measConf *= measConf;
+			//measVar  = (1.0/measConf);
+			//themToMeFound = 0;
+			//for(uint8_t j=0;j<NUM_SHARED_BOTS;j++){
+				//theirMeas = &(nearBots[i].shared[j]);
+				//if(theirMeas->id == get_droplet_id() && theirMeas->conf > 0){ //Found a measurement of me!
+					//themToMeFound = 1;
+					//theirMeasConf = theirMeas->conf;
+					//theirMeasConf *= theirMeasConf;
+					//theirMeasVar = (1.0/theirMeasConf);
+					//break; //(There will be only one measurement of me)		
+				//}
+			//}
+			//anyInfo++;
+			//if(themToMeFound){ //If we have this, we'll combine our two measurements first.
+				//combinedRange = (measConf*meas->r + theirMeasConf*theirMeas->r)/(measConf+theirMeasConf);
+				////combinedHeading is in degrees, and is from this droplet's perspective.
+				//combinedHeading = (measConf*meas->h - theirMeasConf*theirMeas->h)/(measConf+theirMeasConf);
+				//combinedHeadingConf = 2.0/(measVar+theirMeasVar);
+				////bearingFrom us is in radians, and uses combinedHeading to convert meas->b (bearing from our perspective) 
+				////to bearing in other bot's perspective.
+				//bearingFromUs = deg_to_rad(meas->b-combinedHeading+180);
+				//bearingFromUsConf = 1.0/(measVar+(1.0/combinedHeadingConf));
+				////combinedBearing is in radians, and is from the other Droplet's perspective.
+				//combinedBearing = (bearingFromUsConf*bearingFromUs + theirMeasConf*deg_to_rad(theirMeas->b))/(bearingFromUsConf+theirMeasConf);
+				//thisX = combinedRange*cos(combinedBearing+M_PI_2);
+				//thisY = combinedRange*sin(combinedBearing+M_PI_2);
+				//measVar = (1.0/combinedHeadingConf)+theirPosVar;
+				//measConf = 1.0/measVar; 
+				//POS_DEBUG_PRINT("    \tcRange: %4d, cB: %4d, cH: %4d\r\n", (int16_t)combinedRange, (int16_t)rad_to_deg(combinedBearing), (int16_t)combinedHeading);
+				//POS_DEBUG_PRINT("    \tdeltaX: %4d, deltaY: %4d, X: %4d, Y: %4d, thC: %3hd\r\n", (int16_t)thisX, (int16_t)thisY, (int16_t)(theirPos->x + thisX), (int16_t)(theirPos->y + thisY), (int8_t)sqrt(measConf));
+				//xEst += ((theirPos->x + thisX)*measConf);
+				//yEst += ((theirPos->y + thisY)*measConf);
+				//totalConf += measConf;
+			//}else{
+				//thisX = ((float)(meas->r)) * cos(deg_to_rad(meas->b) - M_PI_2 - deg_to_rad(meas->h));
+				//thisY = ((float)(meas->r)) * sin(deg_to_rad(meas->b) - M_PI_2 - deg_to_rad(meas->h));
+				//measVar += theirPosVar;
+				//measConf = 1.0/measVar;
+				//xEst += ((theirPos->x + thisX)*measConf);
+				//yEst += ((theirPos->y + thisY)*measConf);
+				//totalConf += measConf;
+				//POS_DEBUG_PRINT("%04X\ttheirX: %4d, theirY: %4d\r\n\tdeltaX: %4d, deltaY: %4d, X: %4d, Y: %4d, myC: %3hd | h: %4d\r\n", meas->id, theirPos->x, theirPos->y, (int16_t)thisX, (int16_t)thisY, (int16_t)(theirPos->x + thisX), (int16_t)(theirPos->y + thisY), (int8_t)sqrt(measConf), meas->h);
+			//}
+		//}
+	//}
+//
+	///*
+	 //* Now we've thrown all of our data in to xEst, yEst, and totalConf.
+	 //* anyInfo is the number of measurements combined. 
+ 	 //*/
+	//if(anyInfo){ //got new pos information this frame!
+		//POS_DEBUG_PRINT("Got info this frame!\r\n");
+		//float overallConf = totalConf/anyInfo;
+		//float newX = (xEst/totalConf);
+		//float newY = (yEst/totalConf);
+	//
+		//if(myPos.x!=UNDF && myPos.y!=UNDF){ //pos was defined, so we're updating with this frame's info.
+			//float myPosConf = (float)(myPos.conf);
+			//myPosConf *= myPosConf;			
+			//POS_DEBUG_PRINT("\tNew Pos: (%d, %d), newPosConf: %hd | prevPos: (%d, %d), prevPosConf: %hd\r\n", (int16_t)newX, (int16_t)newY, (int8_t)(sqrt(overallConf)+0.5), myPos.x, myPos.y, myPos.conf);								
+			//myPos.x = (int16_t)((newX*overallConf + myPos.x*myPosConf)/(overallConf + myPosConf));
+			//myPos.y = (int16_t)((newY*overallConf + myPos.y*myPosConf)/(overallConf + myPosConf));
+			//myPos.conf = (int8_t)(sqrt(2/((1.0/overallConf)+(1.0/myPosConf)))+0.5); //extra 0.5 to help with rounding.
+			//POS_DEBUG_PRINT("\t\tResult: (%d, %d), conf: %hd\r\n", myPos.x, myPos.y, myPos.conf);
+		//}else{ //Position previously undefined, so this is our first pos.
+			//POS_DEBUG_PRINT("\tPos previously undefined!\r\n");
+			//myPos.x = (int16_t)(newX);
+			//myPos.y = (int16_t)(newY);
+			//myPos.conf = (int8_t)(sqrt(overallConf)+0.5);
+			//POS_DEBUG_PRINT("\t\tResult: (%d, %d), conf: %hd\r\n", myPos.x, myPos.y, myPos.conf);		
+		//}
+				//
+	//}else{ //no new pos information this frame.
+		//POS_DEBUG_PRINT("No new info this frame.\r\n");
+		////if position was defined, our confidence in that position will degrade.
+		//if(myPos.x!=UNDF && myPos.y!=UNDF){
+			//POS_DEBUG_PRINT("\tDegrading confidence...\r\n");			
+			//myPos.conf>>=1;
+			//if(!myPos.conf){
+				//myPos.x = UNDF;
+				//myPos.y = UNDF;
+			//}
+			//POS_DEBUG_PRINT("\t\tResult: (%d, %d), conf: %hd\r\n", myPos.x, myPos.y, myPos.conf);			
+		//}
+	//}
+//}
 
 void useNewRnbMeas(){
-
 	//Pulling everything out of the global struct.
 	uint16_t id = last_good_rnb.id_number;
 	uint16_t range = last_good_rnb.range*10; //converting to mm
@@ -309,36 +344,18 @@ void useNewRnbMeas(){
 	}else{
 		return;
 	}
-	if(meas->id == 0){
+	if(meas->id == 0 || meas->id == last_good_rnb.id_number){
 		//We weren't tracking this ID before, so just add the new info.
 		meas->id	= id;
 		meas->r		= range;
 		meas->b		= bearing;
 		meas->h		= heading;
 		meas->conf  = conf;
-	}else if(meas->id == last_good_rnb.id_number){
-		//Also just adding the new info in this case.
-		//Maybe want to do something smarter, eventually???
-		//	  Averaging, but that's not great if bots are moving.
-		//    Some kind of smart average where we look at confidence
-		//    and how big the difference between the two is to
-		//    to determine how best to handle it.
-		float newConfSqrd = powf(conf,2);
-		float prevConfSqrd = powf(meas->conf, 2);
-		float totalConf = newConfSqrd + prevConfSqrd;
-		float newConf = sqrt(totalConf/2) + 0.5;
-		float newRange = ((meas->r)*prevConfSqrd + range*newConfSqrd)/totalConf;
-		float newB = ((meas->b)*prevConfSqrd + bearing*newConfSqrd)/totalConf;
-		float newH = ((meas->h)*prevConfSqrd + heading*newConfSqrd)/totalConf;
-		meas->id	= id;
-		meas->r		= (uint16_t)newRange;
-		meas->b		= (int16_t)newB;
-		meas->h		= (int16_t)newH;
-		meas->conf  = (int8_t)newConf;
-		RNB_DEBUG_PRINT("\tR: %4u B: %4d H: %4d | %4hd\r\n", meas->r, meas->b, meas->h, meas->conf);
 	}else{
 		printf_P(PSTR("Error: Unexpected botPos->ID in use_new_rnb_meas.\r\n"));
+		return;
 	}
+	updateParticles(measuredBot);
 }
 
 void updateBall(){
@@ -571,6 +588,7 @@ void sendNearBotsMsg(){
 	msg.x    = myPos.x;
 	msg.y    = myPos.y;
 	msg.posConf = myPos.conf;
+	qsort(nearBots, NUM_TRACKED_BOTS, sizeof(OtherBot), nearBotsConfCmpFunc);
 	for(uint8_t i=0;i<NUM_SHARED_BOTS;i++){
 		msg.shared[i].id = nearBots[i].meas.id;		
 		msg.shared[i].range = packRange(nearBots[i].meas.r);
@@ -592,14 +610,18 @@ void handleNearBotsMsg(NearBotsMsg* msg, id_t senderID){
 		(nearBot->pos).y = msg->y;
 		(nearBot->pos).conf = msg->posConf;
 		for(uint8_t i=0;i<NUM_SHARED_BOTS;i++){
-			nearBot->shared[i].id = msg->shared[i].id;
-			if(nearBot->shared[i].id == 0) continue;
-			nearBot->shared[i].r = unpackRange(msg->shared[i].range);
-			nearBot->shared[i].b = unpackAngleMeas(msg->shared[i].b);
-			nearBot->shared[i].h = unpackAngleMeas(msg->shared[i].h);
-			nearBot->shared[i].conf = msg->shared[i].conf;
-			if(nearBot->shared[i].id == get_droplet_id())
-				RNB_DEBUG_PRINT("\t(Shared->%04X)\tR: %4u B: %4d H: %4d | %4hd\r\n", senderID, nearBot->shared[i].r, nearBot->shared[i].b, nearBot->shared[i].h, nearBot->shared[i].conf);			
+			if(msg->shared[i].id == get_droplet_id()){
+				//RNB_DEBUG_PRINT("\t(Shared->%04X)\tR: %4u B: %4d H: %4d | %4hd\r\n", senderID, nearBot->shared[i].r, nearBot->shared[i].b, nearBot->shared[i].h, nearBot->shared[i].conf);
+				OtherBot nearBotConverted;
+				nearBotConverted.pos.x = nearBot->pos.x;
+				nearBotConverted.pos.y = nearBot->pos.y;
+				nearBotConverted.pos.conf = nearBot->pos.conf;
+				nearBotConverted.meas.r = msg->shared[i].range;				
+				nearBotConverted.meas.h = -msg->shared[i].h;
+				nearBotConverted.meas.b = (int16_t)rad_to_deg(deg_to_rad(msg->shared[i].b+nearBotConverted.meas.h+180));
+				nearBotConverted.meas.conf = msg->shared[i].conf;
+				updateParticles(&nearBotConverted);
+			}
 		}
 	}
 }

@@ -1,8 +1,5 @@
 #include "random.h"
 
-uint8_t r_position;
-uint8_t r_round;
-
 void random_init()
 {
 	// Advanced Encryption Standard (AES) crypto module [one of two Onboard Crypto Engines]
@@ -104,4 +101,8 @@ uint16_t rand_short()
 uint32_t rand_quad()
 {
 	return ((uint32_t)rand_short()<<16)|((uint32_t)rand_short());
+}
+
+float rand_real(){
+	return (((float)rand_short())/65535.0);
 }

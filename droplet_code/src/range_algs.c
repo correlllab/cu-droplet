@@ -177,7 +177,7 @@ void use_rnb_data(){
 	int16_t matrixSum = processBrightMeas();
 	float bearing, heading;
 	float error;
-	print_brightMeas();
+	//print_brightMeas();
 	calculate_bearing_and_heading(&bearing, &heading);
 	float initial_range = get_initial_range_guess(bearing, heading, power);
 	if(initial_range!=0&&!isnanf(initial_range)){	

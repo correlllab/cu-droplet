@@ -107,6 +107,21 @@ void updateParticles(OtherBot* bot){
 	if(bot->pos.x == UNDF || bot->pos.y == UNDF)
 		return;
 	float pMGP; //probability of measurement given particle
+	int16_t otherX = bot->pos.x;
+	int16_t otherY = bot->pos.y;
+	int16_t otherO = bot->pos.o;
+	uint8_t otherConf = bot->pos.conf;
+	uint16_t measRange = (bot->meas).r;
+	uint8_t measConf = (bot->meas).conf;
+
+	float maxRange = hypotf(MAX_X-MIN_X-(2*DROPLET_RADIUS), MAX_Y-MIN_Y-(2*DROPLET_RADIUS));
+	float measB = deg_to_rad((bot->meas).b);
+	float measH = deg_to_rad((bot->meas).h);
+	uint16_t expRange;
+	float expBearing, expHeading;
+	float totalLikelihood=0.0;
+	POS_DEBUG_PRINT("[%04X]\t(%4d, %4d) % 4d | %4hu || %4u, % 4d, % 4d, %2hu\r\n",(bot->meas).id, otherX, otherY, otherO, otherConf, measRange, (bot->meas).b, (bot->meas).h, measConf);
+	qsort(particles, NUM_PARTICLES, sizeof(Particle), particleCmpFunc);
 	for(uint8_t i=0;i<NUM_PARTICLES;i++){
 		//bayes rule: P(particle|meas) = (P(meas|particle)*P(particle))/P(meas)
 		//P(particle) is the prior probability -> particles[i].l
@@ -114,12 +129,41 @@ void updateParticles(OtherBot* bot){
 		//    normalize everything so that the total particle probability is 1.
 		//P(meas|particle), ie. pMGP is the meaty one.
 		/*
-		 * - If robot is at position (x,y) with orientation o and I am at position (particles[i].x, particles[i].y) 
-		 *       with orientation particles[i].o, what would I expect the range, bearing, and heading to be?
-		 * - Compare expected range, bearing, heading to measurement range, bearing, and heading. 
-		 *       The more similar, the higher the likelihood.
-		 * - How should I include conf? What about the other bots' position uncertainty?
+		* - If robot is at position (x,y) with orientation o and I am at position (particles[i].x, particles[i].y) 
+		*       with orientation particles[i].o, what would I expect the range, bearing, and heading to be?
+		* - Compare expected range, bearing, heading to measurement range, bearing, and heading. 
+		*       The more similar, the higher the likelihood.
+		* - How should I include conf? What about the other bots' position uncertainty?
+		*
+		* ----------------
+		*
+		* I could also convert the measurement in to a position, and compare the difference in positions??
+		*/
+		expRange = (uint16_t)hypotf(otherX-particles[i].x, otherY-particles[i].y);
+		expHeading = deg_to_rad(otherO-particles[i].o);
+		expBearing = pretty_angle(atan2f(otherY-particles[i].y, otherX-particles[i].x) - M_PI_2 - deg_to_rad(particles[i].o));
+		POS_DEBUG_PRINT("\t(%4d, %4d) % 4d | %5.3f || %4u, % 4d, % 4d || ", particles[i].x, particles[i].y, particles[i].o, ((float)particles[i].l/PROB_ONE), expRange, (int16_t)rad_to_deg(expBearing), (int16_t)rad_to_deg(expHeading));
+		float rangeDiff = (float)(abs(expRange-measRange))/maxRange;				//all three diffs scaled to be between 0 and 1. Small numbers are good.
+		float bearingDiff = fabsf(pretty_angle(expBearing - measB))/M_PI;			//all three diffs scaled to be between 0 and 1. Small numbers are good.
+		float headingDiff = fabsf(pretty_angle(expHeading - measH))/M_PI;			//all three diffs scaled to be between 0 and 1. Small numbers are good.
+		pMGP = (1.0-rangeDiff)*(1.0-bearingDiff)*(1.0-headingDiff);
+		POS_DEBUG_PRINT("%f\r\n", pMGP);
+		/*
+		 * TODO: Account for position/measurement confidence.
+		 * If pMGP is 1.0 for all particles, then the new particle likelihoods will be the same as the old particle likelihoods.
+		 * Therefore, we can account for robots with more confident positions/measurements by scaling pMGP closer to 1.0 the less
+		 * likely a measurement is.
 		 */
+		float newLikelihood = pMGP*(((float)particles[i].l)/PROB_ONE);
+
+		//POS_DEBUG_PRINT("\t\t%6.4f, %8.4f, %8.4f => %6.4f\r\n", rangeDiff, bearingDiff, headingDiff, pMGP);
+		totalLikelihood += newLikelihood;
+		particles[i].l = (uint16_t)(newLikelihood*PROB_ONE);
+	}
+	POS_DEBUG_PRINT("Total Likelihood: %f\r\n", totalLikelihood);
+	float normalizer = 1.0/totalLikelihood; //This is 1/P(meas), I guess.
+	for(uint8_t i=0;i<NUM_PARTICLES;i++){
+		particles[i].l = (uint16_t)((((float)particles[i].l/PROB_ONE)*normalizer)*PROB_ONE);
 	}
 }
 
@@ -132,6 +176,72 @@ void cullParticles(){
 	 *  - Replace all culled particles with new particles, sampled from a normal distribution
 	 *        centered on my position with variance set by myPos.conf
 	 */
+	float meanX = 0;
+	float meanY = 0;
+	float oMeanX = 0;
+	float oMeanY = 0;
+	
+	//This first loop calculates the means.
+	float totalLikelihood = 0; //We have to keep track of the total because otherwise it won't sum to one due to the culled particles.
+	for(uint8_t i=0;i<NUM_PARTICLES;i++){
+		if(particles[i].l < LIKELIHOOD_THRESH){
+			//cull.
+			continue;
+		}
+		float thisLikelihood = (float)particles[i].l/PROB_ONE;
+		meanX += ((float)particles[i].x)*thisLikelihood;
+		meanY += ((float)particles[i].y)*thisLikelihood;
+		oMeanX += thisLikelihood*cosf(deg_to_rad(particles[i].o));
+		oMeanY += thisLikelihood*sinf(deg_to_rad(particles[i].o));
+		totalLikelihood += thisLikelihood;
+	}
+	meanX = meanX/totalLikelihood;
+	meanY = meanY/totalLikelihood;
+	float meanO = atan2f(oMeanY, oMeanX);
+
+	float totalDiffX = 0;
+	float totalDiffY = 0;
+	float totalDiffO = 0;
+
+
+	//This second loop calculates the standard deviations from the means.
+	for(uint8_t i=0;i<NUM_PARTICLES;i++){
+		if(particles[i].l < LIKELIHOOD_THRESH){
+			continue;
+		}
+		totalDiffX += powf(meanX - particles[i].x,2);
+		totalDiffY += powf(meanY - particles[i].y, 2);
+		totalDiffO += powf(pretty_angle(meanO - deg_to_rad(particles[i].o)),2);
+	}
+
+	float xVar = totalDiffX/(NUM_PARTICLES-1);
+	float yVar = totalDiffY/(NUM_PARTICLES-1);
+	float oVar = totalDiffO/(NUM_PARTICLES-1);
+
+	POS_DEBUG_PRINT("meanX: %6f (%6f), meanY: %6f (%6f), meanO: %6f (%6f)\r\n", meanX, sqrtf(xVar), meanY, sqrtf(yVar), rad_to_deg(meanO), rad_to_deg(sqrtf(oVar)));
+
+	uint16_t initLikelihood = PROB_ONE/NUM_PARTICLES;
+	//This third loop spawns new particles to replace any below threshold.
+	for(uint8_t i=0;i<NUM_PARTICLES;i++){
+		if(particles[i].l < LIKELIHOOD_THRESH){
+			particles[i].x = (int16_t)rand_norm(meanX, sqrtf(xVar));
+			particles[i].y = (int16_t)rand_norm(meanY, sqrtf(yVar));
+			particles[i].o = (int16_t)rad_to_deg(rand_norm(meanO, sqrtf(oVar)));
+			particles[i].l = initLikelihood;
+			totalLikelihood += initLikelihood/PROB_ONE;
+		}
+	}
+	//Finally, we renormalize!
+	float normalizer = 1.0/totalLikelihood;
+	for(uint8_t i=0;i<NUM_PARTICLES;i++){
+		particles[i].l = (uint16_t)((((float)particles[i].l/PROB_ONE)*normalizer)*PROB_ONE);
+	}
+
+	myPos.x = (int16_t)meanX;
+	myPos.y = (int16_t)meanY;
+	myPos.o = (int16_t)rad_to_deg(meanO);
+	//TODO: Fix this!
+	myPos.conf = 63;
 }
 
 void handleFrameEnd(){
@@ -331,12 +441,12 @@ void useNewRnbMeas(){
 	uint16_t range = last_good_rnb.range*10; //converting to mm
 	int16_t bearing = rad_to_deg(last_good_rnb.bearing);
 	int16_t heading = rad_to_deg(last_good_rnb.heading);
-	int8_t conf = (int8_t)(sqrt(last_good_rnb.conf+1.0)+0.5);
+	uint8_t conf = (uint8_t)(sqrt(last_good_rnb.conf+1.0)+0.5);
 	rnb_updated=0;
 	if(conf<=2) return;
 	conf <<= 1; //
 	conf = conf>63 ? 63 : conf;
-	RNB_DEBUG_PRINT("(RNB) ID: %04X\r\n\tR: %4u B: %4d H: %4d | %4hd\r\n", id, range, bearing, heading, conf);
+	RNB_DEBUG_PRINT("(RNB) ID: %04X\r\n\tR: %4u B: %4d H: %4d | %4hu\r\n", id, range, bearing, heading, conf);
 	OtherBot* measuredBot = addOtherBot(last_good_rnb.id_number, conf);
 	BotMeas* meas;
 	if(measuredBot){
@@ -355,7 +465,10 @@ void useNewRnbMeas(){
 		printf_P(PSTR("Error: Unexpected botPos->ID in use_new_rnb_meas.\r\n"));
 		return;
 	}
-	updateParticles(measuredBot);
+	if(!seedFlag && measuredBot->pos.x != UNDF && measuredBot->pos.y != UNDF && measuredBot->pos.o != UNDF){
+		
+		updateParticles(measuredBot);
+	}
 }
 
 void updateBall(){
@@ -585,9 +698,7 @@ void handleBallMsg(BallMsg* msg, uint32_t arrivalTime){
 void sendNearBotsMsg(){ 
 	NearBotsMsg msg;
 	msg.flag = NEAR_BOTS_MSG_FLAG;
-	msg.x    = myPos.x;
-	msg.y    = myPos.y;
-	msg.posConf = myPos.conf;
+	packPos(&(msg.pos));
 	qsort(nearBots, NUM_TRACKED_BOTS, sizeof(OtherBot), nearBotsConfCmpFunc);
 	for(uint8_t i=0;i<NUM_SHARED_BOTS;i++){
 		msg.shared[i].id = nearBots[i].meas.id;		
@@ -603,23 +714,26 @@ void handleNearBotsMsg(NearBotsMsg* msg, id_t senderID){
 	OtherBot* nearBot = getOtherBot(senderID);
 	if(nearBot){
 		NB_DEBUG_PRINT("(NearBotsMsg) ID: %04X", senderID);
-		if(msg->x!=UNDF && msg->y!=UNDF)
-			NB_DEBUG_PRINT("\tX: %4d Y: %4d", msg->x, msg->y);
+		unpackPos(&(msg->pos), &(nearBot->pos));
+		if(nearBot->pos.x!=UNDF && nearBot->pos.y!=UNDF && nearBot->pos.o!=UNDF)
+			NB_DEBUG_PRINT("\tX: %4d Y: %4d O: %3d", nearBot->pos.x, nearBot->pos.y, nearBot->pos.o);
 		NB_DEBUG_PRINT("\r\n");
-		(nearBot->pos).x = msg->x;
-		(nearBot->pos).y = msg->y;
-		(nearBot->pos).conf = msg->posConf;
+
 		for(uint8_t i=0;i<NUM_SHARED_BOTS;i++){
 			if(msg->shared[i].id == get_droplet_id()){
 				//RNB_DEBUG_PRINT("\t(Shared->%04X)\tR: %4u B: %4d H: %4d | %4hd\r\n", senderID, nearBot->shared[i].r, nearBot->shared[i].b, nearBot->shared[i].h, nearBot->shared[i].conf);
 				OtherBot nearBotConverted;
 				nearBotConverted.pos.x = nearBot->pos.x;
 				nearBotConverted.pos.y = nearBot->pos.y;
+				nearBotConverted.pos.o = nearBot->pos.o;
 				nearBotConverted.pos.conf = nearBot->pos.conf;
+				nearBotConverted.meas.id = senderID;
 				nearBotConverted.meas.r = msg->shared[i].range;				
 				nearBotConverted.meas.h = -msg->shared[i].h;
 				nearBotConverted.meas.b = (int16_t)rad_to_deg(deg_to_rad(msg->shared[i].b+nearBotConverted.meas.h+180));
 				nearBotConverted.meas.conf = msg->shared[i].conf;
+
+				POS_DEBUG_PRINT("[%04X]\t%4u, % 4d, % 4d || %4u, % 4d, % 4d\r\n", senderID, msg->shared[i].range, msg->shared[i].b, msg->shared[i].h, nearBotConverted.meas.r, nearBotConverted.meas.b, nearBotConverted.meas.h);
 				updateParticles(&nearBotConverted);
 			}
 		}
@@ -699,8 +813,8 @@ void frameEndPrintout(){
 		default:							printf("???");			break;
 	}
 	printf_P(PSTR(" ]"));
-	if(myPos.x != UNDF && myPos.y != UNDF){
-		printf_P(PSTR("\tMy Pos: (%d, %d)"), myPos.x, myPos.y);
+	if(myPos.x != UNDF && myPos.y != UNDF && myPos.o != UNDF){
+		printf_P(PSTR("\tMy Pos: (%d, %d) %d | %hu"), myPos.x, myPos.y, myPos.o, myPos.conf);
 	}
 	printf("\r\n");
 	if(theBall.xPos != UNDF && theBall.yPos != UNDF){
@@ -770,6 +884,8 @@ void cleanOtherBot(OtherBot* other){
 	if(other==NULL) return;
 	other->pos.x = UNDF;
 	other->pos.y = UNDF;
+	other->pos.o = UNDF;
+	other->pos.conf = 0;
 	other->meas.id = 0;
 	other->meas.r = UNDF;
 	other->meas.b = UNDF;

@@ -76,6 +76,7 @@ void random_init()
 	AES.CTRL = AES_START_bm | AES_XOR_bm;
 
 	r_position = 0;
+	randNormHasSaved = 0;
 }
 
 uint8_t rand_byte()
@@ -105,4 +106,20 @@ uint32_t rand_quad()
 
 float rand_real(){
 	return (((float)rand_short())/65535.0);
+}
+
+float rand_norm(float mean, float stdDev){
+	float uA, uB, r, th;
+	if(randNormHasSaved){
+		randNormHasSaved = 0;
+		return stdDev*randNormSavedValue + mean;
+	}else{
+		uA = rand_real();
+		uB = rand_real();
+		r = sqrtf(-2*log(uA));
+		th = 2.0*M_PI*uB;
+		randNormSavedValue = r*sinf(th);
+		randNormHasSaved = 1;
+		return stdDev*r*cosf(th) + mean;
+	}
 }

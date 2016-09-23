@@ -79,9 +79,9 @@ const int16_t  SEED_Y[NUM_SEEDS]   = {0, 948, 948, 30};
 #define MAX_X 1000
 #define MAX_Y 1000
 
-#define NUM_PARTICLES 100
+#define NUM_PARTICLES 50
 #define PROB_ONE 50000
-#define LIKELIHOOD_THRESH (PROB_ONE/NUM_PARTICLES)/10;
+#define LIKELIHOOD_THRESH (PROB_ONE/NUM_PARTICLES)
 
 
 #define STATE_PIXEL		0x1
@@ -118,16 +118,22 @@ typedef struct ball_msg_struct{
 typedef struct packed_bot_meas_struct{
 	id_t id;
 	uint8_t range;
-	int8_t conf;
+	uint8_t conf;
 	int8_t b;
 	int8_t h;
 }PackedBotMeas;
 
+typedef struct packed_bot_pos_struct{
+	uint8_t xLow;
+	uint8_t yLow;
+	uint8_t oLow;
+	uint8_t bits;
+	uint8_t conf;
+}PackedBotPos;
+
 typedef struct near_bots_msg_struct{
-	PackedBotMeas shared[NUM_SHARED_BOTS];
-	int16_t x;
-	int16_t y;
-	int8_t posConf;
+	PackedBotMeas shared[NUM_SHARED_BOTS]; //6 bytes each
+	PackedBotPos pos; //5 bytes.
 	char flag;	
 }NearBotsMsg;
 
@@ -148,14 +154,15 @@ typedef struct bot_meas_struct
 	uint16_t r;
 	int16_t b;
 	int16_t h;
-	int8_t conf;	
+	uint8_t conf;	
 } BotMeas;
 
 typedef struct bot_pos_struct
 {
 	int16_t x;
 	int16_t y;
-	int8_t conf;
+	int16_t o;
+	uint8_t conf;
 } BotPos;
 
 typedef struct particle_struct
@@ -199,7 +206,6 @@ uint16_t	loopID;
 uint8_t		isCovered;
 
 BotPos myPos;
-int16_t myO;
 uint16_t myDist;
 uint16_t otherDist;
 
@@ -247,6 +253,29 @@ void		cleanHardBots();
 /*
  * BEGIN INLINE HELPER FUNCTIONS
  */
+
+static void inline packPos(PackedBotPos* pos){
+	pos->conf = myPos.conf;
+	pos->xLow = (uint8_t)((myPos.x)&0xFF);
+	pos->yLow = (uint8_t)((myPos.y)&0xFF);
+	pos->oLow = (uint8_t)((myPos.o)&0xFF);
+	pos->bits = (uint8_t)(((myPos.x)>>8) & 0b00000111);
+	pos->bits |= (uint8_t)(((myPos.y)>>5) & 0b00111000);
+	pos->bits |= (uint8_t)(((myPos.o)>>2) & 0b11000000);
+}
+
+static void inline unpackPos(PackedBotPos* pPos, BotPos* otherPos){
+	otherPos->conf = pPos->conf;
+	otherPos->x = pPos->xLow;
+	otherPos->x |= ((uint16_t)(pPos->bits & 0b00000111))<<8;
+	otherPos->x = (otherPos->x<<5)>>5; //this should fix any sign bit issues.
+	otherPos->y = pPos->yLow;
+	otherPos->y |= ((uint16_t)(pPos->bits & 0b00111000))<<5;
+	otherPos->y = (otherPos->y<<5)>>5;
+	otherPos->o = pPos->oLow;
+	otherPos->o |= ((uint16_t)(pPos->bits & 0b11000000))<<2;
+	otherPos->o = (otherPos->o<<6)>>6;
+}
 
 static int8_t inline packAngleMeas(int16_t angle){
 	return (int8_t)(angle>>1);
@@ -323,8 +352,8 @@ static void inline calculateBounce(int16_t Bx, int16_t By){
 static int nearBotsConfCmpFunc(const void* a, const void* b){
 	OtherBot* aN = (OtherBot*)a;
 	OtherBot* bN = (OtherBot*)b;
-	int8_t aC = (aN->meas).conf;
-	int8_t bC = (bN->meas).conf;
+	uint8_t aC = (aN->meas).conf;
+	uint8_t bC = (bN->meas).conf;
 	if((aN->meas).id==0){
 		return 1;
 	}
@@ -360,6 +389,20 @@ static int nearBotMeasBearingCmpFunc(const void* a, const void* b){
 	}
 }
 
+static int particleCmpFunc(const void* a, const void* b){
+	Particle* particleA = (Particle*)a;
+	Particle* particleB = (Particle*)b;
+	uint16_t aVal = particleA->l;//hypotf(particleA->x, particleA->y);
+	uint16_t bVal = particleB->l;//hypotf(particleB->x, particleB->y);
+	if(aVal < bVal){
+		return 1;
+	}else if(bVal < aVal){
+		return -1;
+	}else{
+		return 0;
+	}
+}
+
 static void inline killBall(){
 	set_rgb(255,0,0);
 	theBall.id = 0x0F;
@@ -368,6 +411,7 @@ static void inline killBall(){
 static void inline initPositions(){
 	myPos.x = UNDF;
 	myPos.y = UNDF;
+	myPos.o = UNDF;
 	myPos.conf = 0;	
 	myDist = UNDF;
 
@@ -377,6 +421,7 @@ static void inline initPositions(){
 			seedFlag = 1;
 			myPos.x = SEED_X[i];
 			myPos.y = SEED_Y[i];
+			myPos.o = 0;
 			myPos.conf = 63;
 			break;
 		}
@@ -389,6 +434,7 @@ static void inline initPositions(){
 	theBall.yVel = 0;
 	theBall.id = 0;
 	theBall.radius = 0;
+	initParticles();
 	//paddleStart	    = MIN_DIM + (FLOOR_WIDTH>>1) - (PADDLE_WIDTH>>1);
 	//paddleEnd		= MIN_DIM + (FLOOR_WIDTH>>1) + (PADDLE_WIDTH>>1);
 }

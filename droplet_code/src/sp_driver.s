@@ -66,14 +66,14 @@
 ;* THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ;******************************************************************************
 
-#include <avr/io.h>
-;#include "Flash_Defines.h"
+#include <avr\io.h>
 
 /* Define the size of the flash page if not defined in the header files. */
-#ifndef APP_SECTION_PAGE_SIZE
-	#error  APP_SECTION_PAGE_SIZE must be defined if not defined in header files.
-	//#define APP_SECTION_PAGE_SIZE 512
-#endif /*APP_SECTION_PAGE_SIZE*/
+#define FLASH_PAGE_SIZE 512
+#ifndef FLASH_PAGE_SIZE
+	#error  FLASH_PAGE_SIZE must be defined if not defined in header files.
+	//#define FLASH_PAGE_SIZE 512
+#endif /*FLASH_PAGE_SIZE*/
 
 /* Defines not yet included in header file. */
 #define NVM_CMD_NO_OPERATION_gc (0x00<<0)	// Noop/Ordinary LPM
@@ -126,7 +126,7 @@ SP_ReadByte:
 	out	RAMPZ, r24      ; Load RAMPZ with the MSB of the address.
 	movw	ZL, r22         ; Move the low bytes to the Z pointer
 	elpm	r24, Z          ; Extended load byte from address pointed to by Z.
-	out	RAMPZ, r19      ; Restore RAMPZ register.c
+	out	RAMPZ, r19      ; Restore RAMPZ register.
 	ret
 
 
@@ -314,9 +314,6 @@ SP_WriteUserSignatureRow:
 
 SP_EraseApplicationSection:
 	in	r19, RAMPZ                 ; Save RAMPZ, which is restored in SP_CommonSPM.
-	clr	r24                        ; Prepare a zero.
-	clr	r25
-	out	RAMPZ, r24                 ; Point into Application area.
 	ldi	r20, NVM_CMD_ERASE_APP_gc  ; Prepare NVM command in R20.
 	jmp	SP_CommonSPM               ; Jump to common SPM code.
 
@@ -382,7 +379,7 @@ SP_LoadFlashWord:
 ;     Nothing.
 ; ---
 		
-.section .text
+.section .BOOT, "ax"
 .global SP_LoadFlashPage
 
 SP_LoadFlashPage:
@@ -395,11 +392,11 @@ SP_LoadFlashPage:
 	ldi 	r20, NVM_CMD_LOAD_FLASH_BUFFER_gc  ; Prepare NVM command code in R20.
 	sts	NVM_CMD, r20                       ; Load it into NVM command register.
 
-#if APP_SECTION_PAGE_SIZE > 512
-	ldi	r22, ((APP_SECTION_PAGE_SIZE/2) >> 8)
+#if FLASH_PAGE_SIZE > 512
+	ldi	r22, ((FLASH_PAGE_SIZE/2) >> 8)
 #endif
 
-	ldi	r21, ((APP_SECTION_PAGE_SIZE/2)&0xFF)    ; Load R21 with page word count.
+	ldi	r21, ((FLASH_PAGE_SIZE/2)&0xFF)    ; Load R21 with page word count.
 	ldi	r18, CCP_SPM_gc                    ; Prepare Protect SPM signature in R16.
 
 SP_LoadFlashPage_1:
@@ -409,7 +406,7 @@ SP_LoadFlashPage_1:
 	spm                    ; Self-program.
 	adiw	ZL, 2          ; Move Z to next Flash word.
 
-#if APP_SECTION_PAGE_SIZE > 512
+#if FLASH_PAGE_SIZE > 512
 	subi	r21, 1         ; Decrement word count.
 	sbci	r22, 0
 #else
@@ -451,11 +448,11 @@ SP_ReadFlashPage:
 	ldi	r20, NVM_CMD_NO_OPERATION_gc ; Prepare NVM command code in R20.
 	sts	NVM_CMD, r20                 ; Set NVM command to No Operation so that LPM reads Flash.
 
-#if APP_SECTION_PAGE_SIZE > 512
-	ldi	r22, ((APP_SECTION_PAGE_SIZE/2) >> 8) ; Load R22 with byte cont high if flash page is large.
+#if FLASH_PAGE_SIZE > 512
+	ldi	r22, ((FLASH_PAGE_SIZE/2) >> 8) ; Load R22 with byte cont high if flash page is large.
 #endif	
 
-	ldi	r21, ((APP_SECTION_PAGE_SIZE)&0xFF)   ; Load R21 with byte count.
+	ldi	r21, ((FLASH_PAGE_SIZE)&0xFF)   ; Load R21 with byte count.
 
 SP_ReadFlashPage_1:
 	elpm	r24, Z+                         ; Load Flash bytes into R18:r19
@@ -463,7 +460,7 @@ SP_ReadFlashPage_1:
 	st	X+, r24                         ; Write bytes to buffer.
 	st	X+, r25
 
-#if APP_SECTION_PAGE_SIZE > 512
+#if FLASH_PAGE_SIZE > 512
 	subi	r21, 1                          ; Decrement word count.
 	sbci	r22, 0
 #else
@@ -777,7 +774,7 @@ SP_CommonLPM:
 ;     Nothing.
 ; ---
 
-.section .text
+.section .BOOT, "ax"
 
 SP_CommonSPM:
 	movw	ZL, r24          ; Load R25:R24 into Z.
@@ -791,4 +788,3 @@ SP_CommonSPM:
 	
 	
 ; END OF FILE
-

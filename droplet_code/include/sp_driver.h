@@ -89,7 +89,7 @@
  *
  *  \retval Byte read from flash.
  */
-uint8_t SP_ReadByte(uint32_t address);
+uint8_t SP_ReadByte(uint32_t address); //__attribute__ ((section (".BOOT")));
 
 /*! \brief Read a word from flash.
  *
@@ -102,7 +102,7 @@ uint8_t SP_ReadByte(uint32_t address);
  *
  *  \retval word read from flash.
  */
-uint16_t SP_ReadWord(uint32_t address);
+uint16_t SP_ReadWord(uint32_t address) ;
 
 /*! \brief Read calibration byte at given index.
  *
@@ -112,7 +112,7 @@ uint16_t SP_ReadWord(uint32_t address);
  *
  *  \retval Calibration byte
  */
-uint8_t SP_ReadCalibrationByte(uint8_t index);
+uint8_t SP_ReadCalibrationByte(uint8_t index) ;
 
 /*! \brief Read fuse byte from given index.
  *
@@ -122,7 +122,7 @@ uint8_t SP_ReadCalibrationByte(uint8_t index);
  *
  *  \retval Fuse byte
  */
-uint8_t SP_ReadFuseByte(uint8_t index);
+uint8_t SP_ReadFuseByte(uint8_t index) ;
 
 /*! \brief Write lock bits.
  *
@@ -132,7 +132,7 @@ uint8_t SP_ReadFuseByte(uint8_t index);
  *
  *  \param data  The new value of the lock bits.
  */
-void SP_WriteLockBits(uint8_t data);
+void SP_WriteLockBits(uint8_t data) ;
 
 /*! \brief Read lock bits.
  *
@@ -140,7 +140,7 @@ void SP_WriteLockBits(uint8_t data);
  *
  *  \retval Lock bits
  */
-uint8_t SP_ReadLockBits(void);
+uint8_t SP_ReadLockBits(void) ;
 
 /*! \brief Read user signature at given index.
  *
@@ -150,19 +150,19 @@ uint8_t SP_ReadLockBits(void);
  *
  *  \retval User signature byte
  */
-uint8_t SP_ReadUserSignatureByte(uint16_t index);
+uint8_t SP_ReadUserSignatureByte(uint16_t index) ;
 
 /*! \brief Erase user signature row.
  *
  *  This function erase the entire user signature row.
  */
-void SP_EraseUserSignatureRow(void);
+void SP_EraseUserSignatureRow(void) ;
 
 /*! \brief Write user signature row.
  *
  *  This function write the flash buffer in the user signature row.
  */
-void SP_WriteUserSignatureRow(void);
+void SP_WriteUserSignatureRow(void) ;
 
 /*! \brief Erase entire application section.
  *
@@ -171,7 +171,7 @@ void SP_WriteUserSignatureRow(void);
  *  \note If the lock bits is set to not allow spm in the application or
  *        application table section the erase is not done.
  */
-void SP_EraseApplicationSection(void);
+void SP_EraseApplicationSection(void) ;
 
 /*! \brief Erase page at byte address in application or application table section.
  *
@@ -179,7 +179,7 @@ void SP_EraseApplicationSection(void);
  *
  *  \param address Byte address for flash page.
  */
-void SP_EraseApplicationPage(uint32_t address);
+void SP_EraseApplicationPage(uint32_t address) ;
 
 /*! \brief Erase and write page buffer to application or application table section at byte address.
  *
@@ -188,7 +188,7 @@ void SP_EraseApplicationPage(uint32_t address);
  *
  *  \param address Byte address for flash page.
  */
-void SP_EraseWriteApplicationPage(uint32_t address);
+void SP_EraseWriteApplicationPage(uint32_t address) ;
 
 /*! \brief Write page buffer to application or application table section at byte address.
  *
@@ -199,7 +199,7 @@ void SP_EraseWriteApplicationPage(uint32_t address);
  *
  *  \param address Byte address for flash page.
  */
-void SP_WriteApplicationPage(uint32_t address);
+void SP_WriteApplicationPage(uint32_t address) ;
 
 /*! \brief Load one word into Flash page buffer.
  *
@@ -208,7 +208,7 @@ void SP_WriteApplicationPage(uint32_t address);
  *  \param  address   Position in inside the flash page buffer.
  *  \param  data      Value to be put into the buffer.
  */
-void SP_LoadFlashWord(uint16_t address, uint16_t data);
+void SP_LoadFlashWord(uint16_t address, uint16_t data) ;
 
 /*! \brief Load entire page from SRAM buffer into Flash page buffer.
  *
@@ -219,7 +219,7 @@ void SP_LoadFlashWord(uint16_t address, uint16_t data);
  *	\note The __near keyword limits the pointer to two bytes which means that
  *        only data up to 64K (internal SRAM) can be used.
  */
-void SP_LoadFlashPage(const uint8_t * data);
+void SP_LoadFlashPage(const uint8_t * data) ;
 
 /*! \brief Read entire Flash page into SRAM buffer.
  *
@@ -228,13 +228,13 @@ void SP_LoadFlashPage(const uint8_t * data);
  *	\param data      Pointer to where to store the data.
  *	\param address   Address to page to read from flash.
  */
-void SP_ReadFlashPage(const uint8_t * data, uint32_t address);
+void SP_ReadFlashPage(const uint8_t * data, uint32_t address) ;
 
 /*! \brief Flush Flash page buffer.
  *
  *  This function flush the Flash page buffer.
  */
-void SP_EraseFlashBuffer(void);
+void SP_EraseFlashBuffer(void) ;
 
 /*! \brief Erase page at byte address in boot section.
  *
@@ -242,7 +242,7 @@ void SP_EraseFlashBuffer(void);
  *
  *  \param address Byte address for flash page.
  */
-void SP_EraseBootPage(uint32_t address);
+void SP_EraseBootPage(uint32_t address) ;
 
 /*! \brief Erase and write page buffer to boot section at byte address.
  *
@@ -251,7 +251,7 @@ void SP_EraseBootPage(uint32_t address);
  *
  *  \param address Byte address for flash page.
  */
-void SP_EraseWriteBootPage(uint32_t address);
+void SP_EraseWriteBootPage(uint32_t address) ;
 
 /*! \brief Write page buffer to boot section at byte address.
  *
@@ -262,19 +262,19 @@ void SP_EraseWriteBootPage(uint32_t address);
  *
  *  \param address Byte address for flash page.
  */
-void SP_WriteBootPage(uint32_t address);
+void SP_WriteBootPage(uint32_t address) ;
 
 /*! \brief Generate CRC from application section.
  *
  *  \retval 24-bit CRC value
  */
-uint32_t SP_ApplicationCRC(void);
+uint32_t SP_ApplicationCRC(void) ;
 
 /*! \brief Generate CRC from boot section.
  *
  *  \retval 24-bit CRC value
  */
-uint32_t SP_BootCRC(void);
+uint32_t SP_BootCRC(void) ;
 
 /*! \brief Lock SPM instruction.
  *
@@ -287,4 +287,4 @@ void SP_LockSPM(void);
  *
  *   This routine waits for the SPM to finish and clears the command register.
  */
-void SP_WaitForSPM(void);
+void SP_WaitForSPM(void) ;

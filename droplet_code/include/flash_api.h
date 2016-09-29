@@ -1,78 +1,107 @@
-/** \file *********************************************************************
- * \brief Code for reading and writing to flash memory directly.
- *
- * This file largely derived from the 
- * <a href="https://github.com/alexforencich/xboot">xboot</a> project, on GitHub.
- *
- ************************************************************************/
-#pragma once
+#ifndef __FLASH_H
+#define __FLASH_H
+
 #include <avr/io.h>
 #include <avr/interrupt.h>
-#include <util/atomic.h>
+
+#ifdef __AVR_XMEGA__
 #include "sp_driver.h"
-#include "eeprom_driver.h"
+#else // __AVR_XMEGA__
+#include <avr/boot.h>
+#endif // __AVR_XMEGA__
 
-/******************************************************New Code for write/read on flash********************************/
-// XMega 128A3 
-#define FLASH_PAGE_SIZE                     256 
-#define FLASH_FWORD_SIZE                    9 
-#define FRAZIONI_DI_PAGINA_FLASH            4 
-#define MAX_PAGE_NUMBER						256
-#define MIN_PAGE_NUMBER						0
-#define IMX_MAX								20
+//#include "xboot.h"
 
-//status of page numbers if it contains all FFs or not
-#define PAGE_TRUE 1
-#define PAGE_FALSE 0
+// offsets and addresses
+#ifndef PROGMEM_SIZE
+#define PROGMEM_SIZE (FLASHEND + 1UL)
+#endif
 
-/*! \brief Non-Volatile Memory Execute Command 
- * 
- *  This macro set the CCP register before setting the CMDEX bit in the 
- *  NVM.CTRLA register. 
- * 
- *  \note The CMDEX bit must be set within 4 clock cycles after setting the 
- *        protection byte in the CCP register. 
- */ 
-#ifndef NVM_EXEC 
+#ifndef BOOT_SECTION_SIZE
+#error BOOT_SECTION_SIZE not defined!
+#endif
+
+#ifndef BOOT_SECTION_START
+#define BOOT_SECTION_START (PROGMEM_SIZE - BOOT_SECTION_SIZE)
+#endif
+
+#ifndef APP_SECTION_START
+#define APP_SECTION_START 0
+#endif
+
+#ifndef APP_SECTION_SIZE
+#define APP_SECTION_SIZE (PROGMEM_SIZE - BOOT_SECTION_SIZE)
+#endif
+
+#ifndef APP_SECTION_END
+#define APP_SECTION_END (APP_SECTION_START + APP_SECTION_SIZE - 1UL)
+#endif
+
+#if PROGMEM_SIZE > 0x010000
+#define PGM_READ_BYTE pgm_read_byte_far
+#define PGM_READ_WORD pgm_read_word_far
+#define PGM_READ_DWORD pgm_read_dword_far
+#else
+#define PGM_READ_BYTE pgm_read_byte_near
+#define PGM_READ_WORD pgm_read_word_near
+#define PGM_READ_DWORD pgm_read_dword_near
+#endif
+#ifndef NVM_EXEC
 #define NVM_EXEC()  asm("push r30"      "\n\t"  \
-                        "push r31"      "\n\t"  \
-                        "push r16"      "\n\t"  \
-                        "push r18"      "\n\t"  \
-                        "ldi r30, 0xCB" "\n\t"  \
-                        "ldi r31, 0x01" "\n\t"  \
-                        "ldi r16, 0xD8" "\n\t"  \
-                        "ldi r18, 0x01" "\n\t"  \
-                        "out 0x34, r16" "\n\t"  \
-                        "st Z, r18"     "\n\t"  \
-                        "pop r18"       "\n\t"  \
-                        "pop r16"       "\n\t"  \
-                        "pop r31"       "\n\t"  \
-                        "pop r30"       "\n\t"  \
-                       ) 
-#endif // NVM_EXEC 
+"push r31"      "\n\t"  \
+"push r16"      "\n\t"  \
+"push r18"      "\n\t"  \
+"ldi r30, 0xCB" "\n\t"  \
+"ldi r31, 0x01" "\n\t"  \
+"ldi r16, 0xD8" "\n\t"  \
+"ldi r18, 0x01" "\n\t"  \
+"out 0x34, r16" "\n\t"  \
+"st Z, r18"     "\n\t"  \
+"pop r18"       "\n\t"  \
+"pop r16"       "\n\t"  \
+"pop r31"       "\n\t"  \
+"pop r30"       "\n\t"  \
+)
+#endif // NVM_EXEC
 
-uint8_t FLASH_ReadByte(uint32_t); 
-void FLASH_FlushFlasPageBuffer(void); 
-void FLASH_LoadFlashPageBuffer(const uint8_t *); 
-void FLASH_EraseApplicationSections(void); 
-void FLASH_EraseWriteApplicationPage(uint16_t); 
-uint32_t FLASH_ApplicationCRC(void); 
-uint32_t FLASH_RangeCRC(uint32_t, uint32_t); 
-void FLASH_WaitForNVM(void); 
-void FLASH_ReadFlashPage(uint8_t *, uint32_t); 
-/******************************************************End of New Code*******************************************************/
 
-// status codes
-#define XB_SUCCESS 0
-#define XB_ERR_NO_API 1
-#define XB_ERR_NOT_FOUND 2
-#define XB_INVALID_ADDRESS 3
+#ifdef __AVR_XMEGA__
 
-uint8_t write_user_signature_row(uint8_t *data);
+// XMega functions
+// (sp_driver wrapper)
 
-uint8_t read_user_signature_byte(uint16_t index);
-void load_flash_page(const uint8_t * data);
-void erase_write_application_page(uint32_t address);
-void erase_flash_buffer();
-void read_flash_page(const uint8_t * data, uint32_t address);
-void erase_application_page(uint32_t address);
+#define Flash_ReadByte SP_ReadByte
+#define Flash_ReadWord SP_ReadWord
+#define Flash_LoadFlashWord SP_LoadFlashWord
+#define Flash_EraseApplicationSection SP_EraseApplicationSection
+#define Flash_EraseApplicationPage SP_EraseApplicationPage
+#define Flash_EraseWriteApplicationPage SP_EraseWriteApplicationPage
+#define Flash_WriteApplicationPage SP_WriteApplicationPage
+#define Flash_EraseUserSignatureRow SP_EraseUserSignatureRow
+#define Flash_WriteUserSignatureRow SP_WriteUserSignatureRow
+#define Flash_LoadFlashPage SP_LoadFlashPage
+#define Flash_ReadFlashPage SP_ReadFlashPage
+#define Flash_WaitForSPM SP_WaitForSPM
+//printf("Namaste thambi\n\r");
+
+#else
+
+// ATMega Functions
+//printf("Namaste anna\n\r");
+#define Flash_ReadByte PGM_READ_BYTE
+#define Flash_ReadWord PGM_READ_WORD
+#define Flash_LoadFlashWord boot_page_fill
+void Flash_EraseApplicationSection(void);
+#define Flash_EraseApplicationPage boot_page_erase
+void Flash_EraseWriteApplicationPage(uint32_t addr);
+#define Flash_WriteApplicationPage boot_page_write
+void Flash_LoadFlashPage(uint8_t *data);
+void Flash_ReadFlashPage(uint8_t *data, uint32_t addr);
+#define Flash_WaitForSPM boot_spm_busy_wait
+
+#endif // __AVR_XMEGA__
+
+void Flash_ProgramPage(uint32_t page, uint8_t *buf, uint8_t erase);
+
+
+#endif // __FLASH_H

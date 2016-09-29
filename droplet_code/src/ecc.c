@@ -228,6 +228,7 @@ uint8_t golay_verify(uint32_t cw)
 
 uint8_t golay_find_errors(uint32_t cw)
 {
+
 	cw ^= 0x7FF000;
 
 	if (parity(cw))

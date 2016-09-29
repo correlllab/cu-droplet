@@ -69,7 +69,7 @@
 #define MAX_WAIT_FOR_IR_TIME (5*(IR_BUFFER_SIZE+HEADER_LEN))
 
 #ifdef AUDIO_DROPLET
-	extern ADC_CH_t* ir_sense_channels[6];
+	extern const ADC_CH_t* ir_sense_channels[6];
 #endif
 
 volatile struct

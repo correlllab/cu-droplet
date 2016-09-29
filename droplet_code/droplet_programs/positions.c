@@ -92,19 +92,21 @@ void handleMySlot(){
 }
 
 void initParticles(){
-	uint16_t initLikelihood = PROB_ONE/NUM_PARTICLES;
-	for(uint8_t i=0; i<NUM_PARTICLES; i++){
-		particles[i].x = MIN_X + (int16_t)(rand_real()*(MAX_X-MIN_X));
-		particles[i].y = MIN_Y + (int16_t)(rand_real()*(MAX_Y-MIN_Y));
-		particles[i].o = (int16_t)(rand_real()*360.0)-180;
-		particles[i].l = initLikelihood;
+	uint16_t pX, pY;
+	int16_t pO;
+	float pL = 1.0/NUM_PARTICLES;
+	for(uint16_t i=0; i<NUM_PARTICLES; i++){
+		pX = MIN_X + (int16_t)(rand_real()*(MAX_X-MIN_X));
+		pY = MIN_Y + (int16_t)(rand_real()*(MAX_Y-MIN_Y));
+		pO = (int16_t)(rand_real()*360.0)-180;
+		packParticle(pX, pY, pO, pL, &(particles[i]));
 	}
 }
 
 void updateParticles(OtherBot* bot){
-	if(seedFlag)
+	if(seedFlag) 
 		return;
-	if(bot->pos.x == UNDF || bot->pos.y == UNDF)
+	if(bot->pos.x == UNDF || bot->pos.y == UNDF || bot->pos.o == UNDF)
 		return;
 	float pMGP; //probability of measurement given particle
 	int16_t otherX = bot->pos.x;
@@ -114,134 +116,197 @@ void updateParticles(OtherBot* bot){
 	uint16_t measRange = (bot->meas).r;
 	uint8_t measConf = (bot->meas).conf;
 
-	float maxRange = hypotf(MAX_X-MIN_X-(2*DROPLET_RADIUS), MAX_Y-MIN_Y-(2*DROPLET_RADIUS));
+	float maxRange = hypotf(MAX_X-MIN_X, MAX_Y-MIN_Y);
 	float measB = deg_to_rad((bot->meas).b);
 	float measH = deg_to_rad((bot->meas).h);
 	uint16_t expRange;
 	float expBearing, expHeading;
 	float totalLikelihood=0.0;
-	POS_DEBUG_PRINT("[%04X]\t(%4d, %4d) % 4d | %4hu || %4u, % 4d, % 4d, %2hu\r\n",(bot->meas).id, otherX, otherY, otherO, otherConf, measRange, (bot->meas).b, (bot->meas).h, measConf);
-	qsort(particles, NUM_PARTICLES, sizeof(Particle), particleCmpFunc);
-	for(uint8_t i=0;i<NUM_PARTICLES;i++){
-		//bayes rule: P(particle|meas) = (P(meas|particle)*P(particle))/P(meas)
-		//P(particle) is the prior probability -> particles[i].l
-		//P(meas) is just a normalizing factor? at the end of each frame before we cull particles, 
-		//    normalize everything so that the total particle probability is 1.
-		//P(meas|particle), ie. pMGP is the meaty one.
+	int16_t pX, pY;
+	int16_t pO;
+	float pL;
+	P_UPDATE_DEBUG_PRINT("[%04X]\t(%4d, %4d) % 4d | %4hu || %4u, % 4d, % 4d, %2hu\r\n",(bot->meas).id, otherX, otherY, otherO, otherConf, measRange, (bot->meas).b, (bot->meas).h, measConf);
+	for(uint16_t i=0;i<NUM_PARTICLES;i++){
+		unpackParticle(&pX, &pY, &pO, &pL, &(particles[i]));
 		/*
-		* - If robot is at position (x,y) with orientation o and I am at position (particles[i].x, particles[i].y) 
-		*       with orientation particles[i].o, what would I expect the range, bearing, and heading to be?
-		* - Compare expected range, bearing, heading to measurement range, bearing, and heading. 
-		*       The more similar, the higher the likelihood.
-		* - How should I include conf? What about the other bots' position uncertainty?
-		*
-		* ----------------
-		*
-		* I could also convert the measurement in to a position, and compare the difference in positions??
-		*/
-		expRange = (uint16_t)hypotf(otherX-particles[i].x, otherY-particles[i].y);
-		expHeading = deg_to_rad(otherO-particles[i].o);
-		expBearing = pretty_angle(atan2f(otherY-particles[i].y, otherX-particles[i].x) - M_PI_2 - deg_to_rad(particles[i].o));
-		POS_DEBUG_PRINT("\t(%4d, %4d) % 4d | %5.3f || %4u, % 4d, % 4d || ", particles[i].x, particles[i].y, particles[i].o, ((float)particles[i].l/PROB_ONE), expRange, (int16_t)rad_to_deg(expBearing), (int16_t)rad_to_deg(expHeading));
+		 * bayes rule: P(particle|meas) = (P(meas|particle)*P(particle))/P(meas)
+		 * P(particle) is the prior probability -> particles[i].l
+		 * P(meas) is just a normalizing factor? at the end of each frame before we cull particles, 
+		 *     normalize everything so that the total particle probability is 1.
+		 * P(meas|particle), ie. pMGP is the meaty one.
+		 *
+		 * - If robot is at position (x,y) with orientation o and I am at position (particles[i].x, particles[i].y) 
+		 *       with orientation particles[i].o, what would I expect the range, bearing, and heading to be?
+		 * - Compare expected range, bearing, heading to measurement range, bearing, and heading. 
+		 *       The more similar, the higher the likelihood.
+		 * - How should I include conf? What about the other bots' position uncertainty?
+		 */
+		expRange = (uint16_t)hypotf(otherX-pX, otherY-pY);
+		expHeading = deg_to_rad(otherO-pO);
+		expBearing = pretty_angle(atan2f(otherY-pY, otherX-pX) - M_PI_2 - deg_to_rad(pO));
+		P_UPDATE_DEBUG_PRINT("\t(%4d, %4d) % 4d | %5.3f || %4u, % 4d, % 4d || ", pX, pY, pO, pL, expRange, (int16_t)rad_to_deg(expBearing), (int16_t)rad_to_deg(expHeading));
 		float rangeDiff = (float)(abs(expRange-measRange))/maxRange;				//all three diffs scaled to be between 0 and 1. Small numbers are good.
 		float bearingDiff = fabsf(pretty_angle(expBearing - measB))/M_PI;			//all three diffs scaled to be between 0 and 1. Small numbers are good.
 		float headingDiff = fabsf(pretty_angle(expHeading - measH))/M_PI;			//all three diffs scaled to be between 0 and 1. Small numbers are good.
+		if(rangeDiff>1.0) rangeDiff = 1.0;
 		pMGP = (1.0-rangeDiff)*(1.0-bearingDiff)*(1.0-headingDiff);
-		POS_DEBUG_PRINT("%f\r\n", pMGP);
-		/*
-		 * TODO: Account for position/measurement confidence.
-		 * If pMGP is 1.0 for all particles, then the new particle likelihoods will be the same as the old particle likelihoods.
-		 * Therefore, we can account for robots with more confident positions/measurements by scaling pMGP closer to 1.0 the less
-		 * likely a measurement is.
-		 */
-		float newLikelihood = pMGP*(((float)particles[i].l)/PROB_ONE);
+		pMGP*=pMGP;
 
-		//POS_DEBUG_PRINT("\t\t%6.4f, %8.4f, %8.4f => %6.4f\r\n", rangeDiff, bearingDiff, headingDiff, pMGP);
+		/*
+		 * Most of this particle filter stuff is well grounded in literature. This use of measConf and otherPosConf are not!
+		 * Be cautious!
+		 * The logic is that if confidences are maxed, pMGP is unadjusted. As they get closer to 0, pMGP gets closer to one.
+		 * If pMGP is 1.0 for all particles, then the new particle likelihoods will be the same as the old ones.
+		 * Thus, the lower the confidence, the closer pMGP is to 1.0, and the less effect this measurement has.
+		 */
+		float combinedConf = sqrtf(1.0/(((1.0/(measConf*measConf)) + (1.0/(otherConf*otherConf)))/2));
+		float adjVal = (1.0-powf(combinedConf/63.0,0.25))*(1-pMGP);
+		pMGP = pMGP + adjVal; //This is an attempt to factor the confidence in.
+		P_UPDATE_DEBUG_PRINT("%5.3f => %f\r\n", adjVal, pMGP);
+		/* End extra caution. */
+
+		float newLikelihood = pMGP*pL;
 		totalLikelihood += newLikelihood;
-		particles[i].l = (uint16_t)(newLikelihood*PROB_ONE);
+		updateParticleLikelihood(newLikelihood, &(particles[i]));
 	}
 	POS_DEBUG_PRINT("Total Likelihood: %f\r\n", totalLikelihood);
 	float normalizer = 1.0/totalLikelihood; //This is 1/P(meas), I guess.
-	for(uint8_t i=0;i<NUM_PARTICLES;i++){
-		particles[i].l = (uint16_t)((((float)particles[i].l/PROB_ONE)*normalizer)*PROB_ONE);
+	for(uint16_t i=0;i<NUM_PARTICLES;i++){
+		updateParticleLikelihood(unpackParticleLikelihood(&(particles[i]))/totalLikelihood,&(particles[i]));
+		jitterParticle(&(particles[i]));
 	}
 }
 
-void cullParticles(){
-	/*
-	 *  - Remove (cull) all particles which have likelihood less than LIKELIHOOD_THRESH.
-	 *  - Set myPos.x to average xPos of particles and myPos.y to average yPos of particles.
-	 *  - Set myO to average orientation of particles.
-	 *  - Determine variance of positions, orientation. Use this to set myPos.conf;
-	 *  - Replace all culled particles with new particles, sampled from a normal distribution
-	 *        centered on my position with variance set by myPos.conf
-	 */
+
+/*
+ *  - Uses algorithm from Carpenter's "An Improved Particle Filter for Non-linear Problems." to sample the set of particles
+ *        according to the particle's likelihoods in O(N) time.
+ *  - Calculate average x, y, and o across particles.
+ *  - Use these average to calculate standard deviations as well.
+ *  - Generate new set of particles from Gaussian with means and standard deviations calculated above.
+ *  - Set myPos.x, myPos.y and myPos.o to the weighted average of the resulting set of particles.
+ *  - Set myPos.conf based on standard deviations.
+ */
+void resampleParticles(){
 	float meanX = 0;
 	float meanY = 0;
 	float oMeanX = 0;
 	float oMeanY = 0;
+	#if defined(POS_DEBUG_MODE) || defined(P_SAMPLE_DEBUG_MODE)
+		printf("Resampling...\r\n");
+	#endif
 	
-	//This first loop calculates the means.
-	float totalLikelihood = 0; //We have to keep track of the total because otherwise it won't sum to one due to the culled particles.
-	for(uint8_t i=0;i<NUM_PARTICLES;i++){
-		if(particles[i].l < LIKELIHOOD_THRESH){
-			//cull.
-			continue;
+	float expDistr[NUM_PARTICLES+1];
+	float accumL[NUM_PARTICLES+1];
+	expDistr[0] = 0.0;
+	accumL[0] = 0.0;
+	for(uint16_t i=1;i<=NUM_PARTICLES;i++){
+		expDistr[i] = expDistr[i-1] - log(rand_real());
+		accumL[i] = accumL[i-1] +  unpackParticleLikelihood(&(particles[i-1]));
+	}
+	float expDistrMax = expDistr[NUM_PARTICLES];
+	int16_t pX, pY;
+	int16_t pO;
+	float pL;
+
+	Particle newParticles[NUM_PARTICLES];
+
+	//Resampling
+	P_SAMPLE_DEBUG_PRINT("All Particles:\r\n{\r\n");
+	uint16_t j=1;
+	uint16_t i=0;
+	float totalLikelihood = 0.0;
+	while(i < NUM_PARTICLES){
+		if(j>NUM_PARTICLES || accumL[j]*expDistrMax > expDistr[i]){
+			newParticles[i] = (particles[j-1]);
+			#ifdef P_SAMPLE_DEBUG_MODE
+				unpackParticle(&pX, &pY, &pO, &pL, &(newParticles[i]));
+				//if(i!=NUM_PARTICLES)	P_SAMPLE_DEBUG_PRINT("\t\t{%4d, %4d, % 4d, %5.3f}, \r\n", pX, pY, pO, pL);
+				//else					P_SAMPLE_DEBUG_PRINT("\t\t{%4d, %4d, % 4d, %5.3f}};\r\n", pX, pY, pO, pL);
+			#endif
+			i++;
+		}else{
+			j++;
 		}
-		float thisLikelihood = (float)particles[i].l/PROB_ONE;
-		meanX += ((float)particles[i].x)*thisLikelihood;
-		meanY += ((float)particles[i].y)*thisLikelihood;
-		oMeanX += thisLikelihood*cosf(deg_to_rad(particles[i].o));
-		oMeanY += thisLikelihood*sinf(deg_to_rad(particles[i].o));
-		totalLikelihood += thisLikelihood;
+	}
+
+	for(uint16_t i=0;i<NUM_PARTICLES;i++){
+		particles[i] = newParticles[i];
+		//jitterParticle(&(particles[i]));
+	}
+
+	//This first loop calculates the means.
+	for(uint16_t i=0;i<NUM_PARTICLES;i++){
+		unpackParticle(&pX, &pY, &pO, &pL, &(particles[i]));
+		meanX += pL*pX;
+		meanY += pL*pY;
+		oMeanX += pL*cosf(deg_to_rad(pO));
+		oMeanY += pL*sinf(deg_to_rad(pO));
+		totalLikelihood += pL;
 	}
 	meanX = meanX/totalLikelihood;
 	meanY = meanY/totalLikelihood;
 	float meanO = atan2f(oMeanY, oMeanX);
+	float oR = hypotf(oMeanX, oMeanY)/totalLikelihood;
+	float oVar = 1-oR;
+	float oStdDev = sqrtf(oVar); //NOTE: This calculation of stdDev may be incorrect since we're dealing with a circular quantity here.
 
 	float totalDiffX = 0;
 	float totalDiffY = 0;
-	float totalDiffO = 0;
 
-
-	//This second loop calculates the standard deviations from the means.
-	for(uint8_t i=0;i<NUM_PARTICLES;i++){
-		if(particles[i].l < LIKELIHOOD_THRESH){
-			continue;
-		}
-		totalDiffX += powf(meanX - particles[i].x,2);
-		totalDiffY += powf(meanY - particles[i].y, 2);
-		totalDiffO += powf(pretty_angle(meanO - deg_to_rad(particles[i].o)),2);
+	//This second loop calculates the standard deviations from the mean and renormalizes the likelihoods.
+	for(uint16_t i=0;i<NUM_PARTICLES;i++){
+		unpackParticle(&pX, &pY, &pO, &pL, &(particles[i]));
+		totalDiffX += pL*powf(pX - meanX, 2);
+		totalDiffY += pL*powf(pY - meanY, 2);
+		//updateParticleLikelihood(pL/totalLikelihood, &(particles[i]));
 	}
 
-	float xVar = totalDiffX/(NUM_PARTICLES-1);
-	float yVar = totalDiffY/(NUM_PARTICLES-1);
-	float oVar = totalDiffO/(NUM_PARTICLES-1);
+	float xVar = totalDiffX/totalLikelihood;
+	float xStdDev = sqrtf(xVar);
+	float yVar = totalDiffY/totalLikelihood;
+	float yStdDev = sqrtf(yVar);
 
-	POS_DEBUG_PRINT("meanX: %6f (%6f), meanY: %6f (%6f), meanO: %6f (%6f)\r\n", meanX, sqrtf(xVar), meanY, sqrtf(yVar), rad_to_deg(meanO), rad_to_deg(sqrtf(oVar)));
+	POS_DEBUG_PRINT("meanX: %6f (%6f), meanY: %6f (%6f), meanO: %6f (%6f) [%6f]\r\n", meanX, xStdDev, meanY, yStdDev, rad_to_deg(meanO), rad_to_deg(oStdDev), oR);
 
-	uint16_t initLikelihood = PROB_ONE/NUM_PARTICLES;
-	//This third loop spawns new particles to replace any below threshold.
-	for(uint8_t i=0;i<NUM_PARTICLES;i++){
-		if(particles[i].l < LIKELIHOOD_THRESH){
-			particles[i].x = (int16_t)rand_norm(meanX, sqrtf(xVar));
-			particles[i].y = (int16_t)rand_norm(meanY, sqrtf(yVar));
-			particles[i].o = (int16_t)rad_to_deg(rand_norm(meanO, sqrtf(oVar)));
-			particles[i].l = initLikelihood;
-			totalLikelihood += initLikelihood/PROB_ONE;
-		}
-	}
-	//Finally, we renormalize!
-	float normalizer = 1.0/totalLikelihood;
-	for(uint8_t i=0;i<NUM_PARTICLES;i++){
-		particles[i].l = (uint16_t)((((float)particles[i].l/PROB_ONE)*normalizer)*PROB_ONE);
+	for(uint16_t i=0;i<NUM_PARTICLES;i++){
+		pX = rand_norm(meanX, xStdDev);
+		pX = pX > MAX_X ? MAX_X : (pX < MIN_X ? MIN_X : pX);
+		pY = rand_norm(meanY, yStdDev);
+		pY = pY > MAX_Y ? MAX_Y : (pY < MIN_Y ? MIN_Y : pY);
+		pO = rad_to_deg(rand_norm(meanO, oStdDev));
+		packParticle(pX, pY, pO, 1.0/NUM_PARTICLES, &(particles[i]));
 	}
 
 	myPos.x = (int16_t)meanX;
 	myPos.y = (int16_t)meanY;
 	myPos.o = (int16_t)rad_to_deg(meanO);
-	//TODO: Fix this!
-	myPos.conf = 63;
+	myPos.conf = getPosConf(xStdDev, yStdDev, oStdDev);
+}
+
+/* 
+ * NOTE! Unlike most of the particle filter code, this particular function is not well grounded in literature!
+ * Be cautious!
+ */
+uint8_t getPosConf(float xStdDev, float yStdDev, float oStdDev){
+	float overallVar = (xStdDev + yStdDev + rad_to_deg(oStdDev))/3;
+	float overallConf = sqrtf(1.0/overallVar);
+	printf("!!!\r\nPossible resultant posConf: (%8.3f, %8.3f, %8.3f) %9.4f => %9.4f\r\n!!!\r\n", xStdDev, yStdDev, rad_to_deg(oStdDev), overallVar, overallConf);
+	return 63;
+}
+
+void jitterParticle(Particle* p){
+	uint16_t pX, pY;
+	int16_t pO;
+	float pL;
+	unpackParticle(&pX, &pY, &pO, &pL, p);
+	
+	pX = rand_norm(pX, 10);
+	pX = pX > MAX_X ? MAX_X : (pX < MIN_X ? MIN_X : pX);
+	pY = rand_norm(pY, 10);
+	pY = pY > MAX_Y ? MAX_Y : (pY < MIN_Y ? MIN_Y : pY);
+	pO = rad_to_deg(deg_to_rad(rand_norm(pO, 10)));
+	packParticle(pX, pY, pO, pL, p);
 }
 
 void handleFrameEnd(){
@@ -249,8 +314,9 @@ void handleFrameEnd(){
 	//Maybe we'll want to remove the N worst nearBots, here.
 	if(!seedFlag){
 		//updatePos();
+		resampleParticles();
 	}
-	cullParticles();
+	
 	updateHardBots();
 	degradeConfidence(); //lower confidence of bots for which no measurement was received.
 	frameEndPrintout();
@@ -734,7 +800,7 @@ void handleNearBotsMsg(NearBotsMsg* msg, id_t senderID){
 				nearBotConverted.meas.conf = msg->shared[i].conf;
 
 				POS_DEBUG_PRINT("[%04X]\t%4u, % 4d, % 4d || %4u, % 4d, % 4d\r\n", senderID, msg->shared[i].range, msg->shared[i].b, msg->shared[i].h, nearBotConverted.meas.r, nearBotConverted.meas.b, nearBotConverted.meas.h);
-				updateParticles(&nearBotConverted);
+				//updateParticles(&nearBotConverted);
 			}
 		}
 	}

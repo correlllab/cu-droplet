@@ -5,6 +5,8 @@
 
 #define POS_DEBUG_MODE
 #define GEN_DEBUG_MODE
+#define P_SAMPLE_DEBUG_MODE
+//#define P_UPDATE_DEBUG_MODE
 #define RNB_DEBUG_MODE
 //#define NB_DEBUG_MODE
 //#define BALL_DEBUG_MODE
@@ -14,6 +16,19 @@
 #else
 #define POS_DEBUG_PRINT(format, ...)
 #endif
+
+#ifdef P_UPDATE_DEBUG_MODE
+#define P_UPDATE_DEBUG_PRINT(format, ...) printf_P(PSTR(format), ##__VA_ARGS__)
+#else
+#define P_UPDATE_DEBUG_PRINT(format, ...)
+#endif
+
+#ifdef P_SAMPLE_DEBUG_MODE
+#define P_SAMPLE_DEBUG_PRINT(format, ...) printf_P(PSTR(format), ##__VA_ARGS__)
+#else
+#define P_SAMPLE_DEBUG_PRINT(format, ...)
+#endif
+
 
 #ifdef BALL_DEBUG_MODE
 #define BALL_DEBUG_PRINT(format, ...) printf_P(PSTR(format), ##__VA_ARGS__)
@@ -70,17 +85,17 @@
 #define NUM_SHARED_BOTS 4
 #define NUM_TRACKED_BOTS 12
 
-const id_t SEED_IDS[NUM_SEEDS] = {0x12AD, 0x1562, 0xCD6B, 0x5F2D};
-const int16_t  SEED_X[NUM_SEEDS]   = {0, 28, 932, 929};
-const int16_t  SEED_Y[NUM_SEEDS]   = {0, 948, 948, 30};
+const id_t SEED_IDS[NUM_SEEDS] = {0x12AD, 0x086B, 0x73AF, 0x32A7};
+const int16_t  SEED_X[NUM_SEEDS]   = {0, 200, 0, 200};
+const int16_t  SEED_Y[NUM_SEEDS]   = {200, 200, 0, 0};
 
 #define MIN_X 0
 #define MIN_Y 0
 #define MAX_X 1000
 #define MAX_Y 1000
 
-#define NUM_PARTICLES 50
-#define PROB_ONE 50000
+#define NUM_PARTICLES 200
+#define PROB_ONE 524287L
 #define LIKELIHOOD_THRESH (PROB_ONE/NUM_PARTICLES)
 
 
@@ -167,10 +182,11 @@ typedef struct bot_pos_struct
 
 typedef struct particle_struct
 {
-	int16_t x;  //xPos
-	int16_t y;  //yPos
-	int16_t o;  //orientation
-	uint16_t l; //likelihood
+	uint16_t lLow;
+	uint8_t xLow;
+	uint8_t yLow;
+	uint8_t oLow;
+	uint8_t bits;
 } Particle;
 Particle particles[NUM_PARTICLES];
 
@@ -214,8 +230,10 @@ void		loop();
 void		handleMySlot();
 void		initParticles();
 void		updateParticles(OtherBot* bot);
+uint8_t		getPosConf(float xStdDev, float yStdDev, float oStdDev);
+void		jitterParticle(Particle* p);
 void		handleFrameEnd();
-void		cullParticles();
+void		resampleParticles();
 void		updateHardBots();
 void		degradeConfidence();
 void		updatePos();
@@ -253,6 +271,47 @@ void		cleanHardBots();
 /*
  * BEGIN INLINE HELPER FUNCTIONS
  */
+static float inline unpackParticleLikelihood(Particle* p){
+	uint32_t likelihood;
+	likelihood = p->lLow;
+	likelihood |= (((uint32_t)(p->bits)) & 0b11100000)<<11;
+	return ((float)likelihood)/PROB_ONE;
+}
+
+static void inline updateParticleLikelihood(float pL, Particle* p){
+	uint32_t likelihood = pL*PROB_ONE;
+	p->lLow  = (uint16_t)(likelihood&0xFFFF);
+	p->bits &= 0b00011111; //clear out the previous likelihood bits before updating them.
+	p->bits |= (uint8_t)((likelihood>>11)&0b11100000);
+}
+
+static void inline packParticle(uint16_t pX, uint16_t pY, int16_t pO, float pL, Particle* p){
+	uint32_t likelihood = pL*PROB_ONE;
+	p->xLow  = (uint8_t)(pX&0xFF);
+	p->bits  = (uint8_t)((pX>>8)&0b00000011);
+	p->yLow  = (uint8_t)(pY&0xFF);
+	p->bits |= (uint8_t)((pY>>6)&0b00001100);
+	p->oLow  = (uint8_t)(pO&0xFF);
+	p->bits |= (uint8_t)((pO>>4)&0b00010000);
+	p->lLow  = (uint16_t)(likelihood&0xFFFF);
+	p->bits |= (uint8_t)((likelihood>>11)&0b11100000);
+}
+
+static void inline unpackParticle(uint16_t* pX, uint16_t* pY, int16_t* pO, float* pL, Particle* p){
+	uint32_t likelihood;
+	uint16_t bits = p->bits;
+	*pX = p->xLow;
+	*pX |= (bits & 0b00000011)<<8;
+	*pY = p->yLow;
+	*pY |= (bits & 0b00001100)<<6;
+	*pO = p->oLow;
+	*pO |= (bits & 0b00010000)<<4;
+	*pO = ((*pO)<<7);
+	*pO = (*pO)/128;
+	likelihood = p->lLow;
+	likelihood |= ((uint32_t)bits & 0b11100000)<<11;
+	*pL = ((float)likelihood)/PROB_ONE;
+}
 
 static void inline packPos(PackedBotPos* pos){
 	pos->conf = myPos.conf;
@@ -268,13 +327,16 @@ static void inline unpackPos(PackedBotPos* pPos, BotPos* otherPos){
 	otherPos->conf = pPos->conf;
 	otherPos->x = pPos->xLow;
 	otherPos->x |= ((uint16_t)(pPos->bits & 0b00000111))<<8;
-	otherPos->x = (otherPos->x<<5)>>5; //this should fix any sign bit issues.
+	otherPos->x = (otherPos->x)<<5; //shifting value left (and then right again) in case value is negative.
+	otherPos->x = (otherPos->x)/32; //avr-gcc doesn't do arithmetic right shifts, so we're using integer division to get it.
 	otherPos->y = pPos->yLow;
 	otherPos->y |= ((uint16_t)(pPos->bits & 0b00111000))<<5;
-	otherPos->y = (otherPos->y<<5)>>5;
+	otherPos->y = (otherPos->y)<<5; //shifting value left (and then right again) in case value is negative.
+	otherPos->y = (otherPos->y)/32; //avr-gcc doesn't do arithmetic right shifts, so we're using integer division to get it.
 	otherPos->o = pPos->oLow;
 	otherPos->o |= ((uint16_t)(pPos->bits & 0b11000000))<<2;
-	otherPos->o = (otherPos->o<<6)>>6;
+	otherPos->o = (otherPos->o)<<6; //shifting value left (and then right again) in case value is negative.
+	otherPos->o = (otherPos->o)/64; //avr-gcc doesn't do arithmetic right shifts, so we're using integer division to get it.
 }
 
 static int8_t inline packAngleMeas(int16_t angle){
@@ -389,19 +451,19 @@ static int nearBotMeasBearingCmpFunc(const void* a, const void* b){
 	}
 }
 
-static int particleCmpFunc(const void* a, const void* b){
-	Particle* particleA = (Particle*)a;
-	Particle* particleB = (Particle*)b;
-	uint16_t aVal = particleA->l;//hypotf(particleA->x, particleA->y);
-	uint16_t bVal = particleB->l;//hypotf(particleB->x, particleB->y);
-	if(aVal < bVal){
-		return 1;
-	}else if(bVal < aVal){
-		return -1;
-	}else{
-		return 0;
-	}
-}
+//static int particleCmpFunc(const void* a, const void* b){
+	//Particle* particleA = (Particle*)a;
+	//Particle* particleB = (Particle*)b;
+	//float aL = unpackParticleLikelihood(particleA);
+	//float bL = unpackParticleLikelihood(particleB);
+	//if(aL < bL){
+		//return 1;
+	//}else if(bL < aL){
+		//return -1;
+	//}else{
+		//return 0;
+	//}
+//}
 
 static void inline killBall(){
 	set_rgb(255,0,0);

@@ -74,7 +74,7 @@ typedef struct rnb_data {
 	uint16_t id_number;
 } rnb;
 
-extern float basis_angle[6];
+extern const float basis_angle[6];
 uint32_t sensorHealthHistory;
 int16_t brightMeas[6][6];
 

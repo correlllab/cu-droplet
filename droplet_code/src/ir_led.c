@@ -101,7 +101,7 @@ uint8_t twiWriteWrapper(uint8_t addr, uint8_t* write_buff, uint8_t buff_len, cha
 	uint8_t result = 0;
 	uint8_t printed = 0;
 	while(!result){
-		if(printed = waitForTWIReady(startTime, marker)){
+		if((printed = waitForTWIReady(startTime, marker))){
 			result = TWI_MasterWrite(addr, write_buff, buff_len);
 		}else{
 			return 0;

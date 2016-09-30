@@ -20,3 +20,6 @@ Please contact me for assistance once you've gotten this far. (john.klingner@col
 Good luck!
 
 -John Klingner
+
+PLANNED CHANGES:
+    Replace coin vibration motors with surface-mounted motors. This will render the bottom shells unnecessary and substantially reduce costs.

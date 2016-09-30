@@ -139,7 +139,7 @@ static inline int8_t sgn(float x){
 }
 
 static float inline amplitude_modelNF(float r){
-	return 15.91f+(12985.5f/powf(r+0.89f,2.0));
+	return (r<=0.5) ? 2597.1 : (3.90804+(13427.5/(5.17716+powf(r-0.528561,2.0))));
 }
 
 static inline float rnb_constrain(float x){ //constrains the value to be within or equal to the bounds.

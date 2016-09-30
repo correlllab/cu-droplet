@@ -25,6 +25,7 @@ void init(){
 	frameEndPrintout();
 	hardBotsList = NULL;
 	isCovered = 0;
+	particlesInitialized = 0;
 }
 
 void loop(){
@@ -91,23 +92,50 @@ void handleMySlot(){
 		delay_us(500);	
 }
 
-void initParticles(){
-	uint16_t pX, pY;
+void initParticles(OtherBot* bot){
+	BotMeas* meas = &(bot->meas);
+	BotPos* pos = &(bot->pos);
+	float measConf = ((float)(meas->conf));
+	float measVar = 1.0/(measConf*measConf);
+	float theirPosConf = ((float)(pos->conf));
+	float theirPosVar = 1.0/(theirPosConf*theirPosConf);
+	float combinedVar = theirPosVar + measVar;
+	float combinedStdDev = sqrtf(combinedVar);
+	float xRange = (float)(MAX_X-MIN_X);
+	float yRange = (float)(MAX_Y-MIN_Y);
+
+	float deltaX = ((float)(meas->r)) * cos(deg_to_rad(meas->b) - M_PI_2 - deg_to_rad(meas->h));
+	float deltaY = ((float)(meas->r)) * sin(deg_to_rad(meas->b) - M_PI_2 - deg_to_rad(meas->h));
+	float xEst = pos->x + deltaX;
+	float yEst = pos->y + deltaY;
+	float oEst = rad_to_deg(deg_to_rad(pos->o - meas->h));
+	POS_DEBUG_PRINT("Initializing particles!\r\n");
+	POS_DEBUG_PRINT("xEst: %f, yEst: %f, oEst: %f, stdDev: %f\r\n", xEst, yEst, oEst, combinedStdDev);
+	int16_t pX, pY;
 	int16_t pO;
 	float pL = 1.0/NUM_PARTICLES;
 	for(uint16_t i=0; i<NUM_PARTICLES; i++){
-		pX = MIN_X + (int16_t)(rand_real()*(MAX_X-MIN_X));
-		pY = MIN_Y + (int16_t)(rand_real()*(MAX_Y-MIN_Y));
-		pO = (int16_t)(rand_real()*360.0)-180;
-		packParticle(pX, pY, pO, pL, &(particles[i]));
+		pX = rand_norm(xEst, combinedStdDev*xRange);
+		pX = pX > MAX_X ? MAX_X : (pX < MIN_X ? MIN_X : pX);
+		pY = (uint16_t)rand_norm(yEst, combinedStdDev*yRange);
+		pY = pY > MAX_Y ? MAX_Y : (pY < MIN_Y ? MIN_Y : pY);
+		pO = (int16_t)rad_to_deg(rand_norm(oEst, combinedStdDev*180));
+		if(i!=NUM_PARTICLES)	POS_DEBUG_PRINT("\t{%4d, %4d, % 4d}, \r\n", pX, pY, pO);
+		else					POS_DEBUG_PRINT("\t{%4d, %4d, % 4d}};\r\n", pX, pY, pO);
+		packParticle((uint16_t)pX, (uint16_t)pY, pO, pL, &(particles[i]));
 	}
+	particlesInitialized = 1;
 }
 
 void updateParticles(OtherBot* bot){
-	if(seedFlag) 
+	if(seedFlag)
 		return;
 	if(bot->pos.x == UNDF || bot->pos.y == UNDF || bot->pos.o == UNDF)
 		return;
+	if(!particlesInitialized){
+		initParticles(bot);
+		return;
+	}
 	float pMGP; //probability of measurement given particle
 	int16_t otherX = bot->pos.x;
 	int16_t otherY = bot->pos.y;
@@ -188,6 +216,7 @@ void updateParticles(OtherBot* bot){
  *  - Set myPos.conf based on standard deviations.
  */
 void resampleParticles(){
+	if(!particlesInitialized) return;
 	float meanX = 0;
 	float meanY = 0;
 	float oMeanX = 0;
@@ -220,7 +249,7 @@ void resampleParticles(){
 		if(j>NUM_PARTICLES || accumL[j]*expDistrMax > expDistr[i]){
 			newParticles[i] = (particles[j-1]);
 			#ifdef P_SAMPLE_DEBUG_MODE
-				unpackParticle(&pX, &pY, &pO, &pL, &(newParticles[i]));
+				//unpackParticle(&pX, &pY, &pO, &pL, &(newParticles[i]));
 				//if(i!=NUM_PARTICLES)	P_SAMPLE_DEBUG_PRINT("\t\t{%4d, %4d, % 4d, %5.3f}, \r\n", pX, pY, pO, pL);
 				//else					P_SAMPLE_DEBUG_PRINT("\t\t{%4d, %4d, % 4d, %5.3f}};\r\n", pX, pY, pO, pL);
 			#endif
@@ -532,8 +561,11 @@ void useNewRnbMeas(){
 		return;
 	}
 	if(!seedFlag && measuredBot->pos.x != UNDF && measuredBot->pos.y != UNDF && measuredBot->pos.o != UNDF){
-		
-		updateParticles(measuredBot);
+		if(particlesInitialized){
+			updateParticles(measuredBot);
+		}else{
+			initParticles(measuredBot);
+		}
 	}
 }
 

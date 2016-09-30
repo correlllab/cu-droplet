@@ -6,7 +6,7 @@
 #define POS_DEBUG_MODE
 #define GEN_DEBUG_MODE
 #define P_SAMPLE_DEBUG_MODE
-//#define P_UPDATE_DEBUG_MODE
+#define P_UPDATE_DEBUG_MODE
 #define RNB_DEBUG_MODE
 //#define NB_DEBUG_MODE
 //#define BALL_DEBUG_MODE
@@ -87,7 +87,7 @@
 
 const id_t SEED_IDS[NUM_SEEDS] = {0x12AD, 0x086B, 0x73AF, 0x32A7};
 const int16_t  SEED_X[NUM_SEEDS]   = {0, 200, 0, 200};
-const int16_t  SEED_Y[NUM_SEEDS]   = {200, 200, 0, 0};
+const int16_t  SEED_Y[NUM_SEEDS]   = {200, 50, 0, 0};
 
 #define MIN_X 0
 #define MIN_Y 0
@@ -224,11 +224,12 @@ uint8_t		isCovered;
 BotPos myPos;
 uint16_t myDist;
 uint16_t otherDist;
+uint8_t particlesInitialized;
 
 void		init();
 void		loop();
 void		handleMySlot();
-void		initParticles();
+void		initParticles(OtherBot* bot);
 void		updateParticles(OtherBot* bot);
 uint8_t		getPosConf(float xStdDev, float yStdDev, float oStdDev);
 void		jitterParticle(Particle* p);
@@ -496,7 +497,6 @@ static void inline initPositions(){
 	theBall.yVel = 0;
 	theBall.id = 0;
 	theBall.radius = 0;
-	initParticles();
 	//paddleStart	    = MIN_DIM + (FLOOR_WIDTH>>1) - (PADDLE_WIDTH>>1);
 	//paddleEnd		= MIN_DIM + (FLOOR_WIDTH>>1) + (PADDLE_WIDTH>>1);
 }

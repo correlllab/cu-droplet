@@ -168,6 +168,7 @@ void get_ir_sensors(int16_t* output_arr, uint8_t meas_per_ch)
 	//printf("\r\n");	
 }
 
+
 uint8_t check_collisions(){
 	int16_t baseline_meas[6];
 	int16_t measured_vals[6];
@@ -190,18 +191,18 @@ uint8_t check_collisions(){
 	//for(uint8_t i=0;i<6;i++) printf("%4d ", measured_vals[i]);
 	//printf("\r\n");
 	for(uint8_t i=0;i<6;i++) ir_led_off(i);
-	
+	//printf("{");
 	for(uint8_t i=0;i<6;i++)
 	{
-		int16_t measure_above_base = measured_vals[i]-baseline_meas[i];
-		//printf("%4d ", measure_above_base);
+		int16_t measure_above_base = (measured_vals[i]-baseline_meas[i]);
+		//if(i==5) printf("%4d},\r\n", measure_above_base);
+		//else printf("%4d, ", measure_above_base);
 		if(measure_above_base<min_collision_vals[i]) min_collision_vals[i]=measure_above_base;
 		//printf("%4d ", measure_above_base-min_collision_vals[i]);
 		if((measure_above_base-min_collision_vals[i])>600){
 			dirs = dirs|(1<<i);
 		}
 	}
-	//printf("\r\n");
 	set_all_ir_powers(curr_power);
 	for(uint8_t i=0;i<6;i++) ir_rxtx[i].status = 0;		
 	return dirs;

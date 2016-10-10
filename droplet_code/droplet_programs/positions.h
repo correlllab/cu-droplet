@@ -11,6 +11,8 @@
 //#define NB_DEBUG_MODE
 //#define BALL_DEBUG_MODE
 
+uint8_t useOthers;
+
 #ifdef POS_DEBUG_MODE
 #define POS_DEBUG_PRINT(format, ...) printf_P(PSTR(format), ##__VA_ARGS__)
 #else
@@ -87,7 +89,7 @@
 
 const id_t SEED_IDS[NUM_SEEDS] = {0x12AD, 0x086B, 0x73AF, 0x32A7};
 const int16_t  SEED_X[NUM_SEEDS]   = {0, 200, 0, 200};
-const int16_t  SEED_Y[NUM_SEEDS]   = {200, 50, 0, 0};
+const int16_t  SEED_Y[NUM_SEEDS]   = {160, 160, 0, 0};
 
 #define MIN_X 0
 #define MIN_Y 0
@@ -95,7 +97,7 @@ const int16_t  SEED_Y[NUM_SEEDS]   = {200, 50, 0, 0};
 #define MAX_Y 1000
 
 #define NUM_PARTICLES 200
-#define PROB_ONE 524287L
+#define PROB_ONE 131071L
 #define LIKELIHOOD_THRESH (PROB_ONE/NUM_PARTICLES)
 
 
@@ -215,6 +217,8 @@ uint32_t	lastBallMsg;
 uint32_t	lastLightCheck;
 uint16_t	mySlot;
 uint16_t	loopID;
+int16_t xRange;
+int16_t yRange;
 
 //float		paddleChange;
 //int16_t		paddleStart;
@@ -275,42 +279,48 @@ void		cleanHardBots();
 static float inline unpackParticleLikelihood(Particle* p){
 	uint32_t likelihood;
 	likelihood = p->lLow;
-	likelihood |= (((uint32_t)(p->bits)) & 0b11100000)<<11;
+	likelihood |= (((uint32_t)(p->bits)) & 0b10000000)<<9;
 	return ((float)likelihood)/PROB_ONE;
 }
 
 static void inline updateParticleLikelihood(float pL, Particle* p){
-	uint32_t likelihood = pL*PROB_ONE;
+	uint32_t likelihood = (pL*PROB_ONE + 0.5);
 	p->lLow  = (uint16_t)(likelihood&0xFFFF);
-	p->bits &= 0b00011111; //clear out the previous likelihood bits before updating them.
-	p->bits |= (uint8_t)((likelihood>>11)&0b11100000);
+	p->bits &= 0b01111111; //clear out the previous likelihood bits before updating them.
+	p->bits |= (uint8_t)((likelihood>>9)&0b10000000);
 }
 
-static void inline packParticle(uint16_t pX, uint16_t pY, int16_t pO, float pL, Particle* p){
-	uint32_t likelihood = pL*PROB_ONE;
+static void inline packParticle(int16_t pX, int16_t pY, int16_t pO, float pL, Particle* p){
+	uint32_t likelihood = (pL*PROB_ONE+0.5);
+	pX = (pX < -512) ? -512 : ((pX>1535) ? 1535 : pX);
+	pX += 512;
+	pY = (pY < -512) ? -512 : ((pY>1535) ? 1535 : pY);
+	pY += 512;
 	p->xLow  = (uint8_t)(pX&0xFF);
-	p->bits  = (uint8_t)((pX>>8)&0b00000011);
+	p->bits  = (uint8_t)((pX>>8)&0b00000111);
 	p->yLow  = (uint8_t)(pY&0xFF);
-	p->bits |= (uint8_t)((pY>>6)&0b00001100);
+	p->bits |= (uint8_t)((pY>>5)&0b00111000);
 	p->oLow  = (uint8_t)(pO&0xFF);
-	p->bits |= (uint8_t)((pO>>4)&0b00010000);
+	p->bits |= (uint8_t)((pO>>2)&0b01000000);
 	p->lLow  = (uint16_t)(likelihood&0xFFFF);
-	p->bits |= (uint8_t)((likelihood>>11)&0b11100000);
+	p->bits |= (uint8_t)((likelihood>>9)&0b10000000);
 }
 
-static void inline unpackParticle(uint16_t* pX, uint16_t* pY, int16_t* pO, float* pL, Particle* p){
+static void inline unpackParticle(int16_t* pX, int16_t* pY, int16_t* pO, float* pL, Particle* p){
 	uint32_t likelihood;
 	uint16_t bits = p->bits;
 	*pX = p->xLow;
-	*pX |= (bits & 0b00000011)<<8;
+	*pX |= (bits & 0b00000111)<<8;
+	*pX = (*pX)-512;
 	*pY = p->yLow;
-	*pY |= (bits & 0b00001100)<<6;
+	*pY |= (bits & 0b00111000)<<5;
+	*pY = (*pY)-512;
 	*pO = p->oLow;
-	*pO |= (bits & 0b00010000)<<4;
+	*pO |= (bits & 0b01000000)<<2;
 	*pO = ((*pO)<<7);
 	*pO = (*pO)/128;
 	likelihood = p->lLow;
-	likelihood |= ((uint32_t)bits & 0b11100000)<<11;
+	likelihood |= ((uint32_t)bits & 0b10000000)<<9;
 	*pL = ((float)likelihood)/PROB_ONE;
 }
 

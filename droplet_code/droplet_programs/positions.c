@@ -26,6 +26,9 @@ void init(){
 	hardBotsList = NULL;
 	isCovered = 0;
 	particlesInitialized = 0;
+	xRange = MAX_X-MIN_X;
+	yRange = MAX_Y-MIN_Y;
+	useOthers = 1;
 }
 
 void loop(){
@@ -88,6 +91,10 @@ void handleMySlot(){
 	//if(myDist!=UNDF && otherDist!=UNDF && myDist<otherDist){
 		//sendBallMsg();
 	//}
+	uint32_t before = get_time();
+	check_collisions();
+	printf("\t%lu ms.\r\n", get_time()-before);
+
 	while(((get_time()-frameStart)%SLOT_LENGTH_MS)<(RNB_DUR+PADDLE_MSG_DUR+NEIGHB_MSG_DUR+BALL_MSG_DUR))
 		delay_us(500);	
 }
@@ -101,8 +108,8 @@ void initParticles(OtherBot* bot){
 	float theirPosVar = 1.0/(theirPosConf*theirPosConf);
 	float combinedVar = theirPosVar + measVar;
 	float combinedStdDev = sqrtf(combinedVar);
-	float xRange = (float)(MAX_X-MIN_X);
-	float yRange = (float)(MAX_Y-MIN_Y);
+
+	if(isnanf(combinedStdDev) || isinff(combinedStdDev)) return;
 
 	float deltaX = ((float)(meas->r)) * cos(deg_to_rad(meas->b) - M_PI_2 - deg_to_rad(meas->h));
 	float deltaY = ((float)(meas->r)) * sin(deg_to_rad(meas->b) - M_PI_2 - deg_to_rad(meas->h));
@@ -116,13 +123,11 @@ void initParticles(OtherBot* bot){
 	float pL = 1.0/NUM_PARTICLES;
 	for(uint16_t i=0; i<NUM_PARTICLES; i++){
 		pX = rand_norm(xEst, combinedStdDev*xRange);
-		pX = pX > MAX_X ? MAX_X : (pX < MIN_X ? MIN_X : pX);
-		pY = (uint16_t)rand_norm(yEst, combinedStdDev*yRange);
-		pY = pY > MAX_Y ? MAX_Y : (pY < MIN_Y ? MIN_Y : pY);
-		pO = (int16_t)rad_to_deg(rand_norm(oEst, combinedStdDev*180));
+		pY = rand_norm(yEst, combinedStdDev*yRange);
+		pO = (int16_t)rad_to_deg(deg_to_rad(rand_norm(oEst, combinedStdDev*180)));
 		if(i!=NUM_PARTICLES)	POS_DEBUG_PRINT("\t{%4d, %4d, % 4d}, \r\n", pX, pY, pO);
 		else					POS_DEBUG_PRINT("\t{%4d, %4d, % 4d}};\r\n", pX, pY, pO);
-		packParticle((uint16_t)pX, (uint16_t)pY, pO, pL, &(particles[i]));
+		packParticle(pX, pY, pO, pL, &(particles[i]));
 	}
 	particlesInitialized = 1;
 }
@@ -144,7 +149,7 @@ void updateParticles(OtherBot* bot){
 	uint16_t measRange = (bot->meas).r;
 	uint8_t measConf = (bot->meas).conf;
 
-	float maxRange = hypotf(MAX_X-MIN_X, MAX_Y-MIN_Y);
+	float maxRange = hypotf(xRange, yRange);
 	float measB = deg_to_rad((bot->meas).b);
 	float measH = deg_to_rad((bot->meas).h);
 	uint16_t expRange;
@@ -153,7 +158,19 @@ void updateParticles(OtherBot* bot){
 	int16_t pX, pY;
 	int16_t pO;
 	float pL;
-	P_UPDATE_DEBUG_PRINT("[%04X]\t(%4d, %4d) % 4d | %4hu || %4u, % 4d, % 4d, %2hu\r\n",(bot->meas).id, otherX, otherY, otherO, otherConf, measRange, (bot->meas).b, (bot->meas).h, measConf);
+	
+	float deltaX = ((float)(measRange)) * cos(measB - M_PI_2 - measH);
+	float deltaY = ((float)(measRange)) * sin(measB - M_PI_2 - measH);
+	int16_t xEst = (int16_t)(otherX + deltaX + 0.5);
+	int16_t yEst = (int16_t)(otherY + deltaY + 0.5);
+	int16_t oEst = (int16_t)(rad_to_deg(deg_to_rad(otherO - (bot->meas).h))+0.5);
+
+	float totRangeDiff   = 0; 
+	float totBearingDiff = 0;
+	float totHeadingDiff = 0;
+
+	P_UPDATE_DEBUG_PRINT("[%04X]\t(%4d, %4d) % 4d | %4hu || %4u, % 4d, % 4d, %2hu",(bot->meas).id, otherX, otherY, otherO, otherConf, measRange, (bot->meas).b, (bot->meas).h, measConf);
+	P_UPDATE_DEBUG_PRINT(" ==> %4d, %4d, %4d\r\n", xEst, yEst, oEst);
 	for(uint16_t i=0;i<NUM_PARTICLES;i++){
 		unpackParticle(&pX, &pY, &pO, &pL, &(particles[i]));
 		/*
@@ -169,16 +186,20 @@ void updateParticles(OtherBot* bot){
 		 *       The more similar, the higher the likelihood.
 		 * - How should I include conf? What about the other bots' position uncertainty?
 		 */
-		expRange = (uint16_t)hypotf(otherX-pX, otherY-pY);
+		expRange = (uint16_t)(hypotf(otherX-pX, otherY-pY)+0.5);
 		expHeading = deg_to_rad(otherO-pO);
 		expBearing = pretty_angle(atan2f(otherY-pY, otherX-pX) - M_PI_2 - deg_to_rad(pO));
-		P_UPDATE_DEBUG_PRINT("\t(%4d, %4d) % 4d | %5.3f || %4u, % 4d, % 4d || ", pX, pY, pO, pL, expRange, (int16_t)rad_to_deg(expBearing), (int16_t)rad_to_deg(expHeading));
+		//P_UPDATE_DEBUG_PRINT("\t(%4d, %4d) % 4d | %5.3f || %4u, % 4d, % 4d || ", pX, pY, pO, pL, expRange, (int16_t)rad_to_deg(expBearing), (int16_t)rad_to_deg(expHeading));
 		float rangeDiff = (float)(abs(expRange-measRange))/maxRange;				//all three diffs scaled to be between 0 and 1. Small numbers are good.
 		float bearingDiff = fabsf(pretty_angle(expBearing - measB))/M_PI;			//all three diffs scaled to be between 0 and 1. Small numbers are good.
 		float headingDiff = fabsf(pretty_angle(expHeading - measH))/M_PI;			//all three diffs scaled to be between 0 and 1. Small numbers are good.
-		if(rangeDiff>1.0) rangeDiff = 1.0;
+		if(rangeDiff>1.0) rangeDiff = 1.0; 
 		pMGP = (1.0-rangeDiff)*(1.0-bearingDiff)*(1.0-headingDiff);
 		pMGP*=pMGP;
+
+		totRangeDiff += rangeDiff;
+		totBearingDiff += bearingDiff;
+		totHeadingDiff += headingDiff;
 
 		/*
 		 * Most of this particle filter stuff is well grounded in literature. This use of measConf and otherPosConf are not!
@@ -190,7 +211,7 @@ void updateParticles(OtherBot* bot){
 		float combinedConf = sqrtf(1.0/(((1.0/(measConf*measConf)) + (1.0/(otherConf*otherConf)))/2));
 		float adjVal = (1.0-powf(combinedConf/63.0,0.25))*(1-pMGP);
 		pMGP = pMGP + adjVal; //This is an attempt to factor the confidence in.
-		P_UPDATE_DEBUG_PRINT("%5.3f => %f\r\n", adjVal, pMGP);
+		//P_UPDATE_DEBUG_PRINT("%f\r\n", pMGP);
 		/* End extra caution. */
 
 		float newLikelihood = pMGP*pL;
@@ -198,11 +219,22 @@ void updateParticles(OtherBot* bot){
 		updateParticleLikelihood(newLikelihood, &(particles[i]));
 	}
 	POS_DEBUG_PRINT("Total Likelihood: %f\r\n", totalLikelihood);
-	float normalizer = 1.0/totalLikelihood; //This is 1/P(meas), I guess.
+	POS_DEBUG_PRINT("Total Range Diff: %f\r\n", totRangeDiff);
+	POS_DEBUG_PRINT("Total Bearing Diff: %f\r\n", totBearingDiff);
+	POS_DEBUG_PRINT("Total Heading Diff: %f\r\n", totHeadingDiff);
+	float normalizer = 1.0/totalLikelihood; 
 	for(uint16_t i=0;i<NUM_PARTICLES;i++){
 		updateParticleLikelihood(unpackParticleLikelihood(&(particles[i]))/totalLikelihood,&(particles[i]));
-		jitterParticle(&(particles[i]));
+		//jitterParticle(&(particles[i]));
 	}
+
+	//float meanX = 0.0;
+	//float meanY = 0.0;
+	//for(uint16_t i=0;i<NUM_PARTICLES;i++){
+		//unpackParticle(&pX, &pY, &pO, &pL, &(particles[i]));
+		//meanX += pX*pL;
+		//meanY += pY*pL;
+	//}
 }
 
 
@@ -217,6 +249,7 @@ void updateParticles(OtherBot* bot){
  */
 void resampleParticles(){
 	if(!particlesInitialized) return;
+	if(seedFlag) return;
 	float meanX = 0;
 	float meanY = 0;
 	float oMeanX = 0;
@@ -241,7 +274,7 @@ void resampleParticles(){
 	Particle newParticles[NUM_PARTICLES];
 
 	//Resampling
-	P_SAMPLE_DEBUG_PRINT("All Particles:\r\n{\r\n");
+	//P_SAMPLE_DEBUG_PRINT("All Particles:\r\n{\r\n");
 	uint16_t j=1;
 	uint16_t i=0;
 	float totalLikelihood = 0.0;
@@ -265,20 +298,26 @@ void resampleParticles(){
 	}
 
 	//This first loop calculates the means.
+	//printf("Particles calculating mean:\r\n");
 	for(uint16_t i=0;i<NUM_PARTICLES;i++){
 		unpackParticle(&pX, &pY, &pO, &pL, &(particles[i]));
+		//printf("\t{%4d, %4d, %6.4f}\r\n", pX, pY, pL);
 		meanX += pL*pX;
 		meanY += pL*pY;
 		oMeanX += pL*cosf(deg_to_rad(pO));
 		oMeanY += pL*sinf(deg_to_rad(pO));
 		totalLikelihood += pL;
 	}
+	//POS_DEBUG_PRINT("weightedTotX: %f, weightedTotY: %f, tot: %f\r\n", meanX, meanY, totalLikelihood);
 	meanX = meanX/totalLikelihood;
 	meanY = meanY/totalLikelihood;
 	float meanO = atan2f(oMeanY, oMeanX);
 	float oR = hypotf(oMeanX, oMeanY)/totalLikelihood;
 	float oVar = 1-oR;
 	float oStdDev = sqrtf(oVar); //NOTE: This calculation of stdDev may be incorrect since we're dealing with a circular quantity here.
+	if(fabsf(oStdDev)<0.0001){ //Sometimes oStdDev mysteriously drops to 0. I think this is a byproduct of the somewhat incorrect oStdDev calc -- see immediately preceding comment.
+		oStdDev = deg_to_rad(5);
+	}
 
 	float totalDiffX = 0;
 	float totalDiffY = 0;
@@ -299,18 +338,26 @@ void resampleParticles(){
 	POS_DEBUG_PRINT("meanX: %6f (%6f), meanY: %6f (%6f), meanO: %6f (%6f) [%6f]\r\n", meanX, xStdDev, meanY, yStdDev, rad_to_deg(meanO), rad_to_deg(oStdDev), oR);
 
 	for(uint16_t i=0;i<NUM_PARTICLES;i++){
-		pX = rand_norm(meanX, xStdDev);
-		pX = pX > MAX_X ? MAX_X : (pX < MIN_X ? MIN_X : pX);
-		pY = rand_norm(meanY, yStdDev);
-		pY = pY > MAX_Y ? MAX_Y : (pY < MIN_Y ? MIN_Y : pY);
-		pO = rad_to_deg(rand_norm(meanO, oStdDev));
+		pX = rand_norm(meanX, xStdDev)+0.5;
+		pY = rand_norm(meanY, yStdDev)+0.5;
+		pO = rad_to_deg(rand_norm(meanO, oStdDev))+0.5;
 		packParticle(pX, pY, pO, 1.0/NUM_PARTICLES, &(particles[i]));
 	}
 
-	myPos.x = (int16_t)meanX;
-	myPos.y = (int16_t)meanY;
-	myPos.o = (int16_t)rad_to_deg(meanO);
+	myPos.x = (int16_t)(meanX+0.5);
+	myPos.x = (myPos.x < MIN_X) ? MIN_X : ((myPos.x>MAX_X) ? MAX_X : myPos.x); //TODO: Should I print something out in these situations?
+	myPos.y = (int16_t)(meanY+0.5);
+	myPos.y = (myPos.y < MIN_Y) ? MIN_Y : ((myPos.y>MAX_Y) ? MAX_Y : myPos.y); //TODO: Should I print something out in these situations?
+	myPos.o = (int16_t)(rad_to_deg(meanO)+0.5);
 	myPos.conf = getPosConf(xStdDev, yStdDev, oStdDev);
+//
+	//meanX = 0.0;
+	//meanY = 0.0;
+	//for(uint16_t i=0;i<NUM_PARTICLES;i++){
+		//unpackParticle(&pX, &pY, &pO, &pL, &(particles[i]));
+		//meanX += pX*pL;
+		//meanY += pY*pL;
+	//}
 }
 
 /* 
@@ -318,22 +365,20 @@ void resampleParticles(){
  * Be cautious!
  */
 uint8_t getPosConf(float xStdDev, float yStdDev, float oStdDev){
-	float overallVar = (xStdDev + yStdDev + rad_to_deg(oStdDev))/3;
+	float overallVar = (xStdDev/xRange + yStdDev/yRange + rad_to_deg(oStdDev)/180)/3;
 	float overallConf = sqrtf(1.0/overallVar);
-	printf("!!!\r\nPossible resultant posConf: (%8.3f, %8.3f, %8.3f) %9.4f => %9.4f\r\n!!!\r\n", xStdDev, yStdDev, rad_to_deg(oStdDev), overallVar, overallConf);
-	return 63;
+	//printf("!!!\r\nPossible resultant posConf: (%8.3f, %8.3f, %8.3f) %9.4f => %9.4f\r\n!!!\r\n", xStdDev, yStdDev, rad_to_deg(oStdDev), overallVar, overallConf);
+	return (uint8_t)(overallConf+0.5);
 }
 
 void jitterParticle(Particle* p){
-	uint16_t pX, pY;
+	int16_t pX, pY;
 	int16_t pO;
 	float pL;
 	unpackParticle(&pX, &pY, &pO, &pL, p);
 	
 	pX = rand_norm(pX, 10);
-	pX = pX > MAX_X ? MAX_X : (pX < MIN_X ? MIN_X : pX);
 	pY = rand_norm(pY, 10);
-	pY = pY > MAX_Y ? MAX_Y : (pY < MIN_Y ? MIN_Y : pY);
 	pO = rad_to_deg(deg_to_rad(rand_norm(pO, 10)));
 	packParticle(pX, pY, pO, pL, p);
 }
@@ -646,8 +691,8 @@ void updateColor(){
 		if(myPos.x==UNDF||myPos.y==UNDF){
 			newR = newG = newB = 50;
 		}else{
-			int16_t xColVal = (int16_t)(6.0*pow(41.0,(myPos.x-MIN_X)/((MAX_X-MIN_X)*1.0))+9.0);
-			int16_t yColVal = (int16_t)(3.0*pow(84.0,(myPos.y-MIN_Y)/((MAX_Y-MIN_Y)*1.0))+3.0);
+			int16_t xColVal = (int16_t)(6.0*pow(41.0,(myPos.x-MIN_X)/((float)xRange))+9.0);
+			int16_t yColVal = (int16_t)(3.0*pow(84.0,(myPos.y-MIN_Y)/((float)yRange))+3.0);
 			newR = (uint8_t)(xColVal);
 			newG = (uint8_t)(yColVal);
 		}
@@ -819,6 +864,9 @@ void handleNearBotsMsg(NearBotsMsg* msg, id_t senderID){
 
 		for(uint8_t i=0;i<NUM_SHARED_BOTS;i++){
 			if(msg->shared[i].id == get_droplet_id()){
+				uint16_t range = unpackRange(msg->shared[i].range);
+				int16_t bearing = unpackAngleMeas(msg->shared[i].b);
+				int16_t heading = unpackAngleMeas(msg->shared[i].h);
 				//RNB_DEBUG_PRINT("\t(Shared->%04X)\tR: %4u B: %4d H: %4d | %4hd\r\n", senderID, nearBot->shared[i].r, nearBot->shared[i].b, nearBot->shared[i].h, nearBot->shared[i].conf);
 				OtherBot nearBotConverted;
 				nearBotConverted.pos.x = nearBot->pos.x;
@@ -826,13 +874,13 @@ void handleNearBotsMsg(NearBotsMsg* msg, id_t senderID){
 				nearBotConverted.pos.o = nearBot->pos.o;
 				nearBotConverted.pos.conf = nearBot->pos.conf;
 				nearBotConverted.meas.id = senderID;
-				nearBotConverted.meas.r = msg->shared[i].range;				
-				nearBotConverted.meas.h = -msg->shared[i].h;
-				nearBotConverted.meas.b = (int16_t)rad_to_deg(deg_to_rad(msg->shared[i].b+nearBotConverted.meas.h+180));
+				nearBotConverted.meas.r = range;				
+				nearBotConverted.meas.h = -heading;
+				nearBotConverted.meas.b = (int16_t)rad_to_deg(deg_to_rad(bearing-heading-180));
 				nearBotConverted.meas.conf = msg->shared[i].conf;
 
-				POS_DEBUG_PRINT("[%04X]\t%4u, % 4d, % 4d || %4u, % 4d, % 4d\r\n", senderID, msg->shared[i].range, msg->shared[i].b, msg->shared[i].h, nearBotConverted.meas.r, nearBotConverted.meas.b, nearBotConverted.meas.h);
-				//updateParticles(&nearBotConverted);
+				POS_DEBUG_PRINT("[%04X]\t%4u, % 4d, % 4d || %4u, % 4d, % 4d\r\n", senderID, range, bearing, heading, nearBotConverted.meas.r, nearBotConverted.meas.b, nearBotConverted.meas.h);
+				if(useOthers) updateParticles(&nearBotConverted);
 			}
 		}
 	}
@@ -910,11 +958,10 @@ void frameEndPrintout(){
 		//case CTRL_UNKNWN:	printf("?? Control");		break;
 		default:							printf("???");			break;
 	}
-	printf_P(PSTR(" ]"));
+	printf_P(PSTR(" ]\r\n"));
 	if(myPos.x != UNDF && myPos.y != UNDF && myPos.o != UNDF){
-		printf_P(PSTR("\tMy Pos: (%d, %d) %d | %hu"), myPos.x, myPos.y, myPos.o, myPos.conf);
+		printf_P(PSTR("\tMy Pos: {%d, %d, %d, %hu}\r\n"), myPos.x, myPos.y, myPos.o, myPos.conf);
 	}
-	printf("\r\n");
 	if(theBall.xPos != UNDF && theBall.yPos != UNDF){
 		printf_P(PSTR("\tBall ID: %hu; radius: %hu; Pos: (%d, %d) @ vel (%hd, %hd)\r\n"), theBall.id, theBall.radius, theBall.xPos, theBall.yPos, theBall.xVel, theBall.yVel);
 	}
@@ -1033,6 +1080,10 @@ uint8_t user_handle_command(char* command_word, char* command_args){
 		return 1;
 	}else if(strcmp_P(command_word,PSTR("ball_kill"))==0){
 		killBall();
+		return 1;
+	}else if(strcmp_P(command_word,PSTR("uO"))==0){
+		useOthers = !useOthers;
+		printf("Use others: %hu\r\n",useOthers);
 		return 1;
 	}
 	return 0;

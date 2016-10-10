@@ -14,7 +14,7 @@
 
 #define CMD_DROPLET_ID	0x8F6D
 
-#define DROPLET_RADIUS		2.0828f  //cm
+#define DROPLET_RADIUS		2.22  //cm
 
 //Synchronization Timing Constants:
 #define POST_BROADCAST_DELAY 30

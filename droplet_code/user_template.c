@@ -9,32 +9,14 @@
  //* Any code in this function will be run once, when the robot starts.
  //*/
 //void init(){
-	//loopID = 0xFFFF;
-	//frameCount = 0;
-	//mySlot = (get_droplet_id()%(SLOTS_PER_FRAME-1));
-	//frameStart = get_time();
+//
 //}
 //
 ///*
  //* The code in this function will be called repeatedly, as fast as it can execute.
  //*/
 //void loop(){
-	//uint32_t frameTime = get_time()-frameStart;
-	//if(frameTime>FRAME_LENGTH_MS){
-		//frameTime = frameTime - FRAME_LENGTH_MS;
-		//frameStart += FRAME_LENGTH_MS;
-		//frameCount++;
-	//}
-	//if(loopID!=(frameTime/SLOT_LENGTH_MS)){
-		//loopID = frameTime/SLOT_LENGTH_MS;
-		//if(loopID==mySlot){
-			//broadcast_rnb_data();
-		//}
-	//}
-	//if(rnb_updated){
-		//rnb_updated = 0;
-	//}
-	//delay_ms(LOOP_DELAY_MS);
+//
 //}
 //
 //void handleNearBotsMsg(NearBotsMsg* msg, id_t senderID){

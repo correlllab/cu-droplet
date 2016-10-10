@@ -218,7 +218,7 @@ void use_rnb_data(){
 			//range = fdR;
 			//bearing = fdB;
 			//heading = fdH;
-			print_brightMeas();
+			//print_brightMeas();
 			error = calculate_innovation(range, bearing, heading);
 			if(error>2.5){
 				ATOMIC_BLOCK(ATOMIC_RESTORESTATE){

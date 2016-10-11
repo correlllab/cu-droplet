@@ -1,7 +1,19 @@
 #include "rgb_sensor.h"
 #define RGB_SENSE_ADDR 0x29
 
+static const char RGB_SENSE_POWERON_FAILURE[] PROGMEM = "RGB sense power-on failed %u.\r\n";
+#ifndef AUDIO_DROPLET
+static int16_t r_baseline, g_baseline, b_baseline;
+#endif
 
+typedef enum{
+	R, G, B
+} Colors;
+
+typedef union{
+	uint32_t i;
+	float f;
+} u;
 
 void rgb_sensor_init()
 {
@@ -123,29 +135,6 @@ int16_t get_blue_sensor(){
 
 #endif
 
-void read_color_settings()
-{
-	#ifndef AUDIO_DROPLET
-		//printf("Reading Color Calib Matrix:\r\n");
-		u dat;
-		for(uint8_t i=0;i<3;i++)
-		{
-			for(uint8_t j=0;j<3;j++)
-			{
-				dat.i =((uint32_t)EEPROM_read_byte(0x60 + 12*i + 4*j + 0))<<24;
-				dat.i|=((uint32_t)EEPROM_read_byte(0x60 + 12*i + 4*j + 1))<<16;
-				dat.i|=((uint32_t)EEPROM_read_byte(0x60 + 12*i + 4*j + 2))<<8;
-				dat.i|=((uint32_t)EEPROM_read_byte(0x60 + 12*i + 4*j + 3))<<0;
-				calib_matrix[i][j]=dat.f;
-				//printf("\t%f\t",dat.f);	
-			}
-			//printf("\r\n");		
-		}
-		//printf("\r\n");
-	#else
-		printf_P(PSTR("ERROR: Audio droplets don't use color_settings.\r\n"));
-	#endif		
-}
 
 void get_rgb(int16_t *r, int16_t *g, int16_t *b)
 {
@@ -177,4 +166,23 @@ void get_rgb(int16_t *r, int16_t *g, int16_t *b)
 		if(g!=NULL) *g = gTemp;
 		if(b!=NULL) *b = bTemp;
 	#endif
+}
+
+// Finds the median of arr_len numbers by finding the max, finding the min, and returning the other value
+// WARNING! This function modifies the array!
+int16_t meas_find_median(int16_t* meas, uint8_t arr_len){
+	if(arr_len==1) return meas[0];
+	else if(arr_len==2) return (meas[0]+meas[1])/2;
+	
+	for(uint8_t i=0; i<arr_len ; i++){
+		for(uint8_t j=i+1 ; j<arr_len ; j++){
+			if(meas[j] < meas[i]){
+				int16_t temp = meas[i];
+				meas[i] = meas[j];
+				meas[j] = temp;
+			}
+		}
+	}
+	if(arr_len%2==0) return (meas[arr_len/2-1]+meas[arr_len/2])/2;
+	else return meas[arr_len/2];
 }

@@ -100,7 +100,7 @@ void handleMySlot(){
 }
 
 void initParticles(OtherBot* bot){
-	BotMeas* meas = &(bot->meas);
+	BotMeas* meas = &(bot->myMeas);
 	BotPos* pos = &(bot->pos);
 	float measConf = ((float)(meas->conf));
 	float measVar = 1.0/(measConf*measConf);
@@ -146,12 +146,12 @@ void updateParticles(OtherBot* bot){
 	int16_t otherY = bot->pos.y;
 	int16_t otherO = bot->pos.o;
 	uint8_t otherConf = bot->pos.conf;
-	uint16_t measRange = (bot->meas).r;
-	uint8_t measConf = (bot->meas).conf;
+	uint16_t measRange = (bot->myMeas).r;
+	uint8_t measConf = (bot->myMeas).conf;
 
 	float maxRange = hypotf(xRange, yRange);
-	float measB = deg_to_rad((bot->meas).b);
-	float measH = deg_to_rad((bot->meas).h);
+	float measB = deg_to_rad((bot->myMeas).b);
+	float measH = deg_to_rad((bot->myMeas).h);
 	uint16_t expRange;
 	float expBearing, expHeading;
 	float totalLikelihood=0.0;
@@ -163,13 +163,13 @@ void updateParticles(OtherBot* bot){
 	float deltaY = ((float)(measRange)) * sin(measB - M_PI_2 - measH);
 	int16_t xEst = (int16_t)(otherX + deltaX + 0.5);
 	int16_t yEst = (int16_t)(otherY + deltaY + 0.5);
-	int16_t oEst = (int16_t)(rad_to_deg(deg_to_rad(otherO - (bot->meas).h))+0.5);
+	int16_t oEst = (int16_t)(rad_to_deg(deg_to_rad(otherO - (bot->myMeas).h))+0.5);
 
 	float totRangeDiff   = 0; 
 	float totBearingDiff = 0;
 	float totHeadingDiff = 0;
 
-	P_UPDATE_DEBUG_PRINT("[%04X]\t(%4d, %4d) % 4d | %4hu || %4u, % 4d, % 4d, %2hu",(bot->meas).id, otherX, otherY, otherO, otherConf, measRange, (bot->meas).b, (bot->meas).h, measConf);
+	P_UPDATE_DEBUG_PRINT("[%04X]\t(%4d, %4d) % 4d | %4hu || %4u, % 4d, % 4d, %2hu",(bot->myMeas).id, otherX, otherY, otherO, otherConf, measRange, (bot->myMeas).b, (bot->myMeas).h, measConf);
 	P_UPDATE_DEBUG_PRINT(" ==> %4d, %4d, %4d\r\n", xEst, yEst, oEst);
 	for(uint16_t i=0;i<NUM_PARTICLES;i++){
 		unpackParticle(&pX, &pY, &pO, &pL, &(particles[i]));
@@ -222,7 +222,6 @@ void updateParticles(OtherBot* bot){
 	POS_DEBUG_PRINT("Total Range Diff: %f\r\n", totRangeDiff);
 	POS_DEBUG_PRINT("Total Bearing Diff: %f\r\n", totBearingDiff);
 	POS_DEBUG_PRINT("Total Heading Diff: %f\r\n", totHeadingDiff);
-	float normalizer = 1.0/totalLikelihood; 
 	for(uint16_t i=0;i<NUM_PARTICLES;i++){
 		updateParticleLikelihood(unpackParticleLikelihood(&(particles[i]))/totalLikelihood,&(particles[i]));
 		//jitterParticle(&(particles[i]));
@@ -401,11 +400,11 @@ void updateHardBots(){
 	//First, making a copy of nearBots so we can sort it by a weird metric.
 	BotMeas nearBotsMeas[numNearBots];
 	for(uint8_t i=0;i<numNearBots;i++){
-		nearBotsMeas[i].id   = nearBots[i].meas.id;
-		nearBotsMeas[i].r    = nearBots[i].meas.r;
-		nearBotsMeas[i].b    = nearBots[i].meas.b;
-		nearBotsMeas[i].h    = nearBots[i].meas.h;
-		nearBotsMeas[i].conf = nearBots[i].meas.conf;
+		nearBotsMeas[i].id   = nearBots[i].myMeas.id;
+		nearBotsMeas[i].r    = nearBots[i].myMeas.r;
+		nearBotsMeas[i].b    = nearBots[i].myMeas.b;
+		nearBotsMeas[i].h    = nearBots[i].myMeas.h;
+		nearBotsMeas[i].conf = nearBots[i].myMeas.conf;
 	}
 	cleanHardBots(); //clean out the previous hardBots list -- we start fresh each farme.
 	//sort nearBots according to their bearing.
@@ -434,8 +433,8 @@ void updateHardBots(){
 void degradeConfidence(){
 	//confidence degrades if we don't get new measurements.
 	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
-		if(nearBots[i].meas.conf>0){
-			nearBots[i].meas.conf>>=1;
+		if(nearBots[i].myMeas.conf>0){
+			nearBots[i].myMeas.conf>>=1;
 		}else{
 			removeOtherBot(i);
 		}
@@ -590,7 +589,7 @@ void useNewRnbMeas(){
 	OtherBot* measuredBot = addOtherBot(last_good_rnb.id_number, conf);
 	BotMeas* meas;
 	if(measuredBot){
-		meas = &(measuredBot->meas);
+		meas = &(measuredBot->myMeas);
 	}else{
 		return;
 	}
@@ -605,7 +604,7 @@ void useNewRnbMeas(){
 		printf_P(PSTR("Error: Unexpected botPos->ID in use_new_rnb_meas.\r\n"));
 		return;
 	}
-	if(!seedFlag && measuredBot->pos.x != UNDF && measuredBot->pos.y != UNDF && measuredBot->pos.o != UNDF){
+	if((!seedFlag) && (measuredBot->pos.x != UNDF) && (measuredBot->pos.y != UNDF) && (measuredBot->pos.o != UNDF)){
 		if(particlesInitialized){
 			updateParticles(measuredBot);
 		}else{
@@ -618,7 +617,7 @@ void updateBall(){
 	if(theBall.lastUpdate){
 		uint32_t now = get_time();
 		int32_t timePassed = now-theBall.lastUpdate;
-		if(myPos.x!=UNDF && myPos.y!=UNDF && theBall.xPos!=UNDF && theBall.yPos!=UNDF){
+		if((myPos.x!=UNDF) && (myPos.y!=UNDF) && (theBall.xPos!=UNDF) && (theBall.yPos!=UNDF)){
 
 			//int8_t crossedBefore = checkBallCrossedMe();
 
@@ -643,7 +642,7 @@ void updateBall(){
 			myDist = (uint16_t)hypotf(myPos.x-theBall.xPos, myPos.y-theBall.yPos);
 			while(tmp!=NULL){
 				OtherBot* bot = getOtherBot(tmp->id);			
-				if(myDist<(((bot->meas).r*10)/6)){
+				if(myDist<(((bot->myMeas).r*10)/6)){
 					BALL_DEBUG_PRINT("\t%04X | ", tmp->id);
 					if(checkBounceHard((bot->pos).x,(bot->pos).y, timePassed)){
 						if(gameMode==PONG && ((SOUTH_PIXEL(myState) && theBall.yVel<=0) || (NORTH_PIXEL(myState) && theBall.yVel>=0))){
@@ -655,7 +654,7 @@ void updateBall(){
 						}
 						calculateBounce((bot->pos).x,(bot->pos).y);
 						BALL_DEBUG_PRINT("Ball bounced off boundary between me and %04X!\r\n", tmp->id);
-						otherDist = (((bot->meas).r*10)/6);
+						otherDist = (((bot->myMeas).r*10)/6);
 						bounced = 1;
 						break;
 					}
@@ -727,7 +726,7 @@ void updateColor(){
 
 float getBallCoverage(){
 	float ballCoveredRatio = 0.0;
-	if(myDist!=UNDF && myDist<(DROPLET_RADIUS+theBall.radius) && theBall.id!=0x0F){
+	if((((int16_t)myDist)!=UNDF) && (myDist<(DROPLET_RADIUS+theBall.radius)) && (theBall.id!=0x0F)){
 		if(theBall.radius<DROPLET_RADIUS){
 			if(myDist>=(DROPLET_RADIUS-theBall.radius)){
 				ballCoveredRatio = getCoverageRatioA(theBall.radius, myDist);
@@ -796,7 +795,7 @@ void checkLightLevel(){
 }
 
 void sendBallMsg(){
-	if(myDist==UNDF || myDist>=30){
+	if((((int16_t)myDist)==UNDF) || (myDist>=30)){
 		return;
 	}
 	BallMsg msg;
@@ -844,11 +843,11 @@ void sendNearBotsMsg(){
 	packPos(&(msg.pos));
 	qsort(nearBots, NUM_TRACKED_BOTS, sizeof(OtherBot), nearBotsConfCmpFunc);
 	for(uint8_t i=0;i<NUM_SHARED_BOTS;i++){
-		msg.shared[i].id = nearBots[i].meas.id;		
-		msg.shared[i].range = packRange(nearBots[i].meas.r);
-		msg.shared[i].b = packAngleMeas(nearBots[i].meas.b);
-		msg.shared[i].h = packAngleMeas(nearBots[i].meas.h);
-		msg.shared[i].conf = nearBots[i].meas.conf;
+		msg.shared[i].id = nearBots[i].myMeas.id;		
+		msg.shared[i].range = packRange(nearBots[i].myMeas.r);
+		msg.shared[i].b = packAngleMeas(nearBots[i].myMeas.b);
+		msg.shared[i].h = packAngleMeas(nearBots[i].myMeas.h);
+		msg.shared[i].conf = nearBots[i].myMeas.conf;
 	}
 	ir_send(ALL_DIRS, (char*)(&msg), sizeof(NearBotsMsg));
 }
@@ -858,8 +857,9 @@ void handleNearBotsMsg(NearBotsMsg* msg, id_t senderID){
 	if(nearBot){
 		NB_DEBUG_PRINT("(NearBotsMsg) ID: %04X", senderID);
 		unpackPos(&(msg->pos), &(nearBot->pos));
-		if(nearBot->pos.x!=UNDF && nearBot->pos.y!=UNDF && nearBot->pos.o!=UNDF)
+		if(nearBot->pos.x!=UNDF && nearBot->pos.y!=UNDF && nearBot->pos.o!=UNDF){
 			NB_DEBUG_PRINT("\tX: %4d Y: %4d O: %3d", nearBot->pos.x, nearBot->pos.y, nearBot->pos.o);
+		}
 		NB_DEBUG_PRINT("\r\n");
 
 		for(uint8_t i=0;i<NUM_SHARED_BOTS;i++){
@@ -867,19 +867,20 @@ void handleNearBotsMsg(NearBotsMsg* msg, id_t senderID){
 				uint16_t range = unpackRange(msg->shared[i].range);
 				int16_t bearing = unpackAngleMeas(msg->shared[i].b);
 				int16_t heading = unpackAngleMeas(msg->shared[i].h);
+
 				//RNB_DEBUG_PRINT("\t(Shared->%04X)\tR: %4u B: %4d H: %4d | %4hd\r\n", senderID, nearBot->shared[i].r, nearBot->shared[i].b, nearBot->shared[i].h, nearBot->shared[i].conf);
 				OtherBot nearBotConverted;
 				nearBotConverted.pos.x = nearBot->pos.x;
 				nearBotConverted.pos.y = nearBot->pos.y;
 				nearBotConverted.pos.o = nearBot->pos.o;
 				nearBotConverted.pos.conf = nearBot->pos.conf;
-				nearBotConverted.meas.id = senderID;
-				nearBotConverted.meas.r = range;				
-				nearBotConverted.meas.h = -heading;
-				nearBotConverted.meas.b = (int16_t)rad_to_deg(deg_to_rad(bearing-heading-180));
-				nearBotConverted.meas.conf = msg->shared[i].conf;
+				nearBotConverted.myMeas.id = senderID;
+				nearBotConverted.myMeas.r = range;				
+				nearBotConverted.myMeas.h = -heading;
+				nearBotConverted.myMeas.b = (int16_t)rad_to_deg(deg_to_rad(bearing-heading-180));
+				nearBotConverted.myMeas.conf = msg->shared[i].conf;
 
-				POS_DEBUG_PRINT("[%04X]\t%4u, % 4d, % 4d || %4u, % 4d, % 4d\r\n", senderID, range, bearing, heading, nearBotConverted.meas.r, nearBotConverted.meas.b, nearBotConverted.meas.h);
+				POS_DEBUG_PRINT("[%04X]\t%4u, % 4d, % 4d || %4u, % 4d, % 4d\r\n", senderID, range, bearing, heading, nearBotConverted.myMeas.r, nearBotConverted.myMeas.b, nearBotConverted.myMeas.h);
 				if(useOthers) updateParticles(&nearBotConverted);
 			}
 		}
@@ -959,10 +960,10 @@ void frameEndPrintout(){
 		default:							printf("???");			break;
 	}
 	printf_P(PSTR(" ]\r\n"));
-	if(myPos.x != UNDF && myPos.y != UNDF && myPos.o != UNDF){
+	if((myPos.x != UNDF) && (myPos.y != UNDF) && (myPos.o != UNDF)){
 		printf_P(PSTR("\tMy Pos: {%d, %d, %d, %hu}\r\n"), myPos.x, myPos.y, myPos.o, myPos.conf);
 	}
-	if(theBall.xPos != UNDF && theBall.yPos != UNDF){
+	if((theBall.xPos != UNDF) && (theBall.yPos != UNDF)){
 		printf_P(PSTR("\tBall ID: %hu; radius: %hu; Pos: (%d, %d) @ vel (%hd, %hd)\r\n"), theBall.id, theBall.radius, theBall.xPos, theBall.yPos, theBall.xVel, theBall.yVel);
 	}
 	//if(NS_PIXEL(myState)){
@@ -973,7 +974,7 @@ void frameEndPrintout(){
 
 OtherBot* getOtherBot(id_t id){
 	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
-		if(nearBots[i].meas.id==id){
+		if(nearBots[i].myMeas.id==id){
 			return &(nearBots[i]);
 		}
 	}
@@ -982,7 +983,7 @@ OtherBot* getOtherBot(id_t id){
 
 void findAndRemoveOtherBot(id_t id){
 	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
-		if(nearBots[i].meas.id==id){
+		if(nearBots[i].myMeas.id==id){
 			cleanOtherBot(&nearBots[i]);
 			numNearBots--;
 			break;
@@ -999,10 +1000,10 @@ OtherBot* addOtherBot(id_t id, int8_t conf){
 	uint8_t emptyIdx=0xFF;
 	qsort(nearBots, NUM_TRACKED_BOTS, sizeof(OtherBot), nearBotsConfCmpFunc);
 	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
-		if(nearBots[i].meas.id==id){
+		if(nearBots[i].myMeas.id==id){
 			return &(nearBots[i]);
 		}
-		if(emptyIdx==0xFF && nearBots[i].meas.id==0){
+		if(emptyIdx==0xFF && nearBots[i].myMeas.id==0){
 			emptyIdx=i;
 		}
 	}
@@ -1015,7 +1016,7 @@ OtherBot* addOtherBot(id_t id, int8_t conf){
 	// least confident in. But only if we're more confident
 	// in the new neighbor.
 	//BotPos* pos = &(nearBots[NUM_TRACKED_BOTS-1].pos);
-	if(nearBots[NUM_TRACKED_BOTS-1].meas.conf<conf){
+	if(nearBots[NUM_TRACKED_BOTS-1].myMeas.conf<conf){
 		POS_DEBUG_PRINT("No empty spot, but higher conf.\r\n");
 		cleanOtherBot(&nearBots[NUM_TRACKED_BOTS-1]);
 		return &(nearBots[NUM_TRACKED_BOTS-1]);
@@ -1031,11 +1032,11 @@ void cleanOtherBot(OtherBot* other){
 	other->pos.y = UNDF;
 	other->pos.o = UNDF;
 	other->pos.conf = 0;
-	other->meas.id = 0;
-	other->meas.r = UNDF;
-	other->meas.b = UNDF;
-	other->meas.h = UNDF;
-	other->meas.conf = 0;
+	other->myMeas.id = 0;
+	other->myMeas.r = UNDF;
+	other->myMeas.b = UNDF;
+	other->myMeas.h = UNDF;
+	other->myMeas.conf = 0;
 }
 
 /*
@@ -1044,7 +1045,7 @@ void cleanOtherBot(OtherBot* other){
  */
 uint8_t user_handle_command(char* command_word, char* command_args){	
 	if(strcmp_P(command_word,PSTR("ball"))==0){
-		if(UNDF!=myPos.x && UNDF!=myPos.y){
+		if((UNDF!=myPos.x) && (UNDF!=myPos.y)){
 			const char delim[2] = " ";
 			char* token = strtok(command_args, delim);
 			int8_t vel = (token!=NULL) ? (int8_t)atoi(token) : 10;
@@ -1092,20 +1093,16 @@ uint8_t user_handle_command(char* command_word, char* command_args){
 
 void addHardBot(id_t id){
 	if(hardBotsList==NULL){
-		ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-			hardBotsList = (HardBot*)malloc(sizeof(HardBot));
-		}
+		hardBotsList = (HardBot*)myMalloc(sizeof(HardBot));
 		hardBotsList->id = id;
 		hardBotsList->next = NULL;
-		}else{
+	}else{
 		HardBot* temp = hardBotsList;
 		while(temp->next!=NULL){
 			if(temp->id==id) return; //requested ID is already added.
 			temp = temp->next;
 		}
-		ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-			temp->next = (HardBot*)malloc(sizeof(HardBot));
-		}
+		temp->next = (HardBot*)myMalloc(sizeof(HardBot));
 		temp->next->id = id;
 		temp->next->next = NULL;
 	}
@@ -1115,9 +1112,7 @@ void cleanHardBots(){
 	HardBot* temp;
 	while(hardBotsList!=NULL){
 		temp = hardBotsList->next;
-		ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-			free(hardBotsList);
-		}
+		myFree(hardBotsList);
 		hardBotsList = temp;
 	}
 }

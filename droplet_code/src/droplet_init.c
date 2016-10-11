@@ -1,9 +1,15 @@
 #include "droplet_init.h"
 
-uint16_t droplet_ID = 0;
+static void init_all_systems();
+static void calculate_id_number();
+static void enable_interrupts();
+static void check_messages();
 
-void init_all_systems()
-{
+/**
+ * \brief Initializes all the subsystems for this Droplet. This function MUST be called
+ * by the user before using any other functions in the API.
+ */ 
+static void init_all_systems(){
 	cli();
 	Config32MHzClock();
 	
@@ -41,16 +47,13 @@ void init_all_systems()
 	ir_comm_init();				INIT_DEBUG_PRINT("IR COM INIT\r\n");
 }
 
-int main()
-{
+int main(){
 	init_all_systems();
 	init();
-	while(1)
-	{
+	while(1){
 		loop();
 		check_messages();
-		if(task_list_check())
-		{
+		if(task_list_check()){
 			printf_P(PSTR("Error! We got ahead of the task list and now nothing will execute.\r\n"));
 			task_list_cleanup();
 		}
@@ -59,8 +62,12 @@ int main()
 	return 0;
 }
 
-void check_messages ()
-{
+/*
+ * This function loops through all messages this robot has received since the last call
+ * to check messages.
+ * For each message, it populates an ir_msg struct and calls handle_msg with it.
+ */
+static void check_messages(){
 	ir_msg* msg_struct;	
 	char actual_struct[sizeof(ir_msg)]; //It's like malloc, but on the stack.
 	char actual_msg[IR_BUFFER_SIZE+1];
@@ -68,22 +75,18 @@ void check_messages ()
 	msg_struct->msg = actual_msg;
 	uint8_t i;
 	
-	if(user_facing_messages_ovf)
-	{
+	if(user_facing_messages_ovf){
 		num_waiting_msgs=MAX_USER_FACING_MESSAGES;
 		user_facing_messages_ovf=0;
 		printf_P(PSTR("Error: Messages overflow. Too many messages received. Try speeding up your loop if you see this a lot.\r\n"));
 	}
 	//if(num_waiting_msgs>0) printf("num_msgs: %hu\r\n",num_waiting_msgs);
-	while(num_waiting_msgs>0)
-	{
+	while(num_waiting_msgs>0){
 		i=num_waiting_msgs-1;
 		//We don't want this block to be interrupted by perform_ir_upkeep because the 
 		//list of messages could get corrupted.
-		ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
-		{
-			if(msg_node[i].msg_length==0)
-			{
+		ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+			if(msg_node[i].msg_length==0){
 				printf_P(PSTR("ERROR: Message length 0 for msg_node.\r\n"));
 			}
 			memcpy(msg_struct->msg, (const void*)msg_node[i].msg, msg_node[i].msg_length);
@@ -91,9 +94,6 @@ void check_messages ()
 			msg_struct->sender_ID						= msg_node[i].sender_ID;
 			msg_struct->dir_received					= msg_node[i].arrival_dir;
 			msg_struct->length							= msg_node[i].msg_length;
-			msg_struct->range							= msg_node[i].range;
-			msg_struct->bearing							= msg_node[i].bearing;
-			msg_struct->heading							= msg_node[i].heading;
 			msg_struct->wasTargeted						= msg_node[i].wasTargeted;
 		}			
 		msg_struct->msg[msg_node[i].msg_length]	= '\0';		
@@ -104,8 +104,7 @@ void check_messages ()
 	}
 }
 
-void calculate_id_number()
-{
+static void calculate_id_number(){
 	INIT_DEBUG_PRINT("get id number\r\n");
 
 	uint32_t pgm_bytes = 0;
@@ -118,8 +117,7 @@ void calculate_id_number()
 
 	uint32_t addrs[16] = {0x00,0x01,0x02,0x03,0x04,0x08,0x09,0x0A,0x0B,0x0C,0x0D,0x10,0x12,0x13,0x14,0x15};
 
-	for (uint8_t i = 0; i < 16; i++)			
-	{
+	for (uint8_t i = 0; i < 16; i++){
 		pgm_bytes = pgm_read_word_far(addrs[i]);
 		crc = _crc16_update(crc, (uint16_t)(pgm_bytes&0xFF));
 	}
@@ -129,8 +127,7 @@ void calculate_id_number()
 	droplet_ID = crc;
 }
 
-void enable_interrupts()
-{
+static void enable_interrupts(){
 	PMIC.CTRL |= PMIC_LOLVLEN_bm;	// enable low level interrupts
 	PMIC.CTRL |= PMIC_MEDLVLEN_bm;	// enable medium level interrupts	(e.g. TXCIF)
 	PMIC.CTRL |= PMIC_HILVLEN_bm;	// enable high level interrupts		(e.g. RTC_OVF)
@@ -138,24 +135,20 @@ void enable_interrupts()
 	sei();
 }
 
-void startup_light_sequence()
-{
+void startup_light_sequence(){
 	set_rgb(100,0,0); delay_ms(100); set_rgb(0,100,0); delay_ms(100); set_rgb(0,0,100); delay_ms(100); led_off();
 	set_rgb(100,0,0); delay_ms(100); set_rgb(0,100,0); delay_ms(100); set_rgb(0,0,100); delay_ms(100); led_off();
 	set_rgb(100,0,0); delay_ms(100); set_rgb(0,100,0); delay_ms(100); set_rgb(0,0,100); delay_ms(100); led_off();
 }
 
 
-void droplet_reboot()
-{
+void droplet_reboot(){
 	CPU_CCP=CCP_IOREG_gc;
 	RST.CTRL = 0x1;
 }
 
-uint8_t get_droplet_ord(id_t id)
-{
-	switch(id)
-	{
+uint8_t get_droplet_ord(id_t id){
+	switch(id){
 		case 0x0000: return 0;
 		case 0x0029: return 1;
 		case 0x0120: return 2;

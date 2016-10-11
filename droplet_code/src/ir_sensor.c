@@ -1,15 +1,16 @@
 #include "ir_sensor.h"
 
-
 #ifdef AUDIO_DROPLET
-	const ADC_CH_t* ir_sense_channels[6]  = {&(ADCA.CH0), &(ADCA.CH1), &(ADCA.CH2), &(ADCB.CH0), &(ADCB.CH1), &(ADCB.CH2)};
+	ADC_CH_t* ir_sense_channels[6]  = {&(ADCA.CH0), &(ADCA.CH1), &(ADCA.CH2), &(ADCB.CH0), &(ADCB.CH1), &(ADCB.CH2)};
 #else
 	const uint8_t mux_sensor_selectors[6] = {MUX_IR_SENSOR_0, MUX_IR_SENSOR_1, MUX_IR_SENSOR_2, MUX_IR_SENSOR_3, MUX_IR_SENSOR_4, MUX_IR_SENSOR_5};
 #endif
 
+static int16_t ir_sense_baseline[6];
+static int16_t min_collision_vals[6];
+
 // IR sensors use ADCB channel 0, all the time
-void ir_sensor_init()
-{
+void ir_sensor_init(){
 	#ifdef AUDIO_DROPLET
 		/* SET INPUT PINS AS INPUTS */
 		PORTA.DIRCLR = PIN5_bm | PIN6_bm | PIN7_bm;
@@ -122,8 +123,7 @@ void update_ir_baselines(){
 
 }
 
-void get_ir_sensors(int16_t* output_arr, uint8_t meas_per_ch)
-{			
+void get_ir_sensors(int16_t* output_arr, uint8_t meas_per_ch){			
 	int16_t meas[6][meas_per_ch];	
 	#ifdef AUDIO_DROPLET
 		for(uint8_t meas_count=0;meas_count<meas_per_ch;meas_count++){
@@ -152,8 +152,7 @@ void get_ir_sensors(int16_t* output_arr, uint8_t meas_per_ch)
 	#endif	
 	
 	
-	for(uint8_t dir=0;dir<6;dir++)
-	{
+	for(uint8_t dir=0;dir<6;dir++){
 		if(meas_per_ch>2){
 			int16_t median = meas_find_median(&(meas[dir][2]),meas_per_ch-2);
 			//printf("%d ",median);
@@ -192,8 +191,7 @@ uint8_t check_collisions(){
 	//printf("\r\n");
 	for(uint8_t i=0;i<6;i++) ir_led_off(i);
 	//printf("{");
-	for(uint8_t i=0;i<6;i++)
-	{
+	for(uint8_t i=0;i<6;i++){
 		int16_t measure_above_base = (measured_vals[i]-baseline_meas[i]);
 		//if(i==5) printf("%4d},\r\n", measure_above_base);
 		//else printf("%4d, ", measure_above_base);
@@ -207,26 +205,3 @@ uint8_t check_collisions(){
 	for(uint8_t i=0;i<6;i++) ir_rxtx[i].status = 0;		
 	return dirs;
 }	
-
-// Finds the median of arr_len numbers by finding the max, finding the min, and returning the other value
-// WARNING! This function modifies the array!
-int16_t meas_find_median(int16_t* meas, uint8_t arr_len)
-{
-	if(arr_len==1) return meas[0];
-	else if(arr_len==2) return (meas[0]+meas[1])/2;
-	
-	for(uint8_t i=0; i<arr_len ; i++)
-	{
-		for(uint8_t j=i+1 ; j<arr_len ; j++)
-		{
-			if(meas[j] < meas[i])
-			{
-				int16_t temp = meas[i];
-				meas[i] = meas[j];
-				meas[j] = temp;
-			}
-		}
-	}
-	if(arr_len%2==0) return (meas[arr_len/2-1]+meas[arr_len/2])/2;
-	else return meas[arr_len/2];
-}

@@ -1,7 +1,12 @@
 #include "random.h"
 
-void random_init()
-{
+static uint8_t r_round;
+static uint8_t r_position;
+
+static uint8_t randNormHasSaved;
+static float randNormSavedValue;
+
+void random_init(){
 	// Advanced Encryption Standard (AES) crypto module [one of two Onboard Crypto Engines]
 
 	// Xmega AU Manual, p. 316:
@@ -79,14 +84,12 @@ void random_init()
 	randNormHasSaved = 0;
 }
 
-uint8_t rand_byte()
-{
+uint8_t rand_byte(){
 	uint8_t r;
 	if (r_position == 0) while (!(AES.STATUS & AES_SRIF_bm));
 	r = AES.STATE;
 	r_position++;
-	if (r_position > 15)
-	{
+	if (r_position > 15){
 		for (uint8_t i = 0; i < 16; i++) AES.STATE = r_round;
 		AES.CTRL = AES_START_bm | AES_XOR_bm;
 		r_position = 0;
@@ -94,13 +97,11 @@ uint8_t rand_byte()
 	return r;
 }
 
-uint16_t rand_short()
-{
+uint16_t rand_short(){
 	return ((uint16_t)rand_byte()<<8)|((uint16_t)rand_byte());
 }
 
-uint32_t rand_quad()
-{
+uint32_t rand_quad(){
 	return ((uint32_t)rand_short()<<16)|((uint32_t)rand_short());
 }
 

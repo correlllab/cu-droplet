@@ -3,12 +3,6 @@
 #include <avr/io.h>
 #include <math.h>
 
-uint8_t r_round;
-uint8_t r_position;
-
-uint8_t randNormHasSaved;
-float randNormSavedValue;
-
 void random_init();
 
 uint8_t rand_byte();

@@ -51,6 +51,9 @@
                        ) 
 #endif // NVM_EXEC 
 
+void LoadR0(uint16_t);
+void LoadZ(uint16_t);
+
 uint8_t FLASH_ReadByte(uint32_t); 
 void FLASH_FlushFlasPageBuffer(void); 
 void FLASH_LoadFlashPageBuffer(const uint8_t *); 

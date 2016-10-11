@@ -68,7 +68,7 @@ uint8_t useOthers;
 #define NEIGHB_MSG_DUR		120
 #define BALL_MSG_DUR		20
 
-#define UNDF	0x8000
+#define UNDF	((int16_t)0x8000)
 
 #define SLOT_LENGTH_MS			307
 #define SLOTS_PER_FRAME			37
@@ -193,7 +193,8 @@ typedef struct particle_struct
 Particle particles[NUM_PARTICLES];
 
 typedef struct other_bot_rnb_struct{
-	BotMeas meas;
+	BotMeas myMeas;
+	BotMeas theirMeas;
 	BotPos pos;
 } OtherBot;
 OtherBot nearBots[NUM_TRACKED_BOTS];
@@ -276,21 +277,30 @@ void		cleanHardBots();
 /*
  * BEGIN INLINE HELPER FUNCTIONS
  */
-static float inline unpackParticleLikelihood(Particle* p){
+ /* This function takes a bearing and heading measurement (b, h) and converts 
+  * them to the bearing and heading (newB, newH) from the measured bot to the
+  * measuring bot implied by that measurement (b, h).
+  */
+inline void convertMeas(int16_t* newB, int16_t* newH, int16_t b, int16_t h){
+	*newB = b-h-180;
+	*newH = -h;
+}
+
+inline static float unpackParticleLikelihood(Particle* p){
 	uint32_t likelihood;
 	likelihood = p->lLow;
 	likelihood |= (((uint32_t)(p->bits)) & 0b10000000)<<9;
 	return ((float)likelihood)/PROB_ONE;
 }
 
-static void inline updateParticleLikelihood(float pL, Particle* p){
+inline static void updateParticleLikelihood(float pL, Particle* p){
 	uint32_t likelihood = (pL*PROB_ONE + 0.5);
 	p->lLow  = (uint16_t)(likelihood&0xFFFF);
 	p->bits &= 0b01111111; //clear out the previous likelihood bits before updating them.
 	p->bits |= (uint8_t)((likelihood>>9)&0b10000000);
 }
 
-static void inline packParticle(int16_t pX, int16_t pY, int16_t pO, float pL, Particle* p){
+inline static void packParticle(int16_t pX, int16_t pY, int16_t pO, float pL, Particle* p){
 	uint32_t likelihood = (pL*PROB_ONE+0.5);
 	pX = (pX < -512) ? -512 : ((pX>1535) ? 1535 : pX);
 	pX += 512;
@@ -306,7 +316,7 @@ static void inline packParticle(int16_t pX, int16_t pY, int16_t pO, float pL, Pa
 	p->bits |= (uint8_t)((likelihood>>9)&0b10000000);
 }
 
-static void inline unpackParticle(int16_t* pX, int16_t* pY, int16_t* pO, float* pL, Particle* p){
+inline static void unpackParticle(int16_t* pX, int16_t* pY, int16_t* pO, float* pL, Particle* p){
 	uint32_t likelihood;
 	uint16_t bits = p->bits;
 	*pX = p->xLow;
@@ -324,7 +334,7 @@ static void inline unpackParticle(int16_t* pX, int16_t* pY, int16_t* pO, float* 
 	*pL = ((float)likelihood)/PROB_ONE;
 }
 
-static void inline packPos(PackedBotPos* pos){
+inline static void packPos(PackedBotPos* pos){
 	pos->conf = myPos.conf;
 	pos->xLow = (uint8_t)((myPos.x)&0xFF);
 	pos->yLow = (uint8_t)((myPos.y)&0xFF);
@@ -334,7 +344,7 @@ static void inline packPos(PackedBotPos* pos){
 	pos->bits |= (uint8_t)(((myPos.o)>>2) & 0b11000000);
 }
 
-static void inline unpackPos(PackedBotPos* pPos, BotPos* otherPos){
+inline static void unpackPos(PackedBotPos* pPos, BotPos* otherPos){
 	otherPos->conf = pPos->conf;
 	otherPos->x = pPos->xLow;
 	otherPos->x |= ((uint16_t)(pPos->bits & 0b00000111))<<8;
@@ -350,42 +360,42 @@ static void inline unpackPos(PackedBotPos* pPos, BotPos* otherPos){
 	otherPos->o = (otherPos->o)/64; //avr-gcc doesn't do arithmetic right shifts, so we're using integer division to get it.
 }
 
-static int8_t inline packAngleMeas(int16_t angle){
+inline static int8_t packAngleMeas(int16_t angle){
 	return (int8_t)(angle>>1);
 }
 
-static int16_t inline unpackAngleMeas(int8_t angle){
+inline static int16_t unpackAngleMeas(int8_t angle){
 	return (((int16_t)angle)<<1);
 }
 
-static uint8_t inline packRange(uint16_t range){
+inline static uint8_t packRange(uint16_t range){
 	range = (range>510) ? 510 : range;
 	return ((uint8_t)((range+1)>>1)); //dividing by two, rounding towards closest.
 }
 
-static uint16_t inline unpackRange(uint8_t packedRange){
+inline static uint16_t unpackRange(uint8_t packedRange){
 	return (((uint16_t)packedRange)<<1); 
 }
 
-static float inline getCoverageRatioA(uint8_t rad, uint16_t dist){ //when ball radius less than bot radius.
+inline static float getCoverageRatioA(uint8_t rad, uint16_t dist){ //when ball radius less than bot radius.
 	const float intermediate = (((float)rad)/(2*DROPLET_RADIUS*DROPLET_RADIUS));
 	return intermediate*(rad+DROPLET_RADIUS-dist);
 }
 
-static float inline getCoverageRatioB(uint8_t rad, uint16_t dist){ //when bot radius less than ball radius.
+inline static float getCoverageRatioB(uint8_t rad, uint16_t dist){ //when bot radius less than ball radius.
 	const float intermediate = 1.0/(2.0*DROPLET_RADIUS);
 	return intermediate*(rad+DROPLET_RADIUS-dist);
 }
 
-static uint8_t inline dirFromAngle(int16_t angle){
+inline static uint8_t dirFromAngle(int16_t angle){
 	return abs((angle - (angle>0 ? 360 : 0))/60);
 }
 
-static int8_t inline checkBallCrossedMe(){
+inline static int8_t checkBallCrossedMe(){
 	return sgn(((theBall.yVel*(theBall.yPos-myPos.y-theBall.xVel) + theBall.xVel*(theBall.xPos-myPos.x+theBall.yVel))));
 }
 
-static int8_t inline checkBounceHard(int16_t Bx, int16_t By, int32_t timePassed){
+inline static int8_t checkBounceHard(int16_t Bx, int16_t By, int32_t timePassed){
 	int16_t Ax = myPos.x;
 	int16_t Ay = myPos.y;
 	int16_t x = theBall.xPos;
@@ -403,7 +413,7 @@ static int8_t inline checkBounceHard(int16_t Bx, int16_t By, int32_t timePassed)
 }
 
 /*Code below from http://stackoverflow.com/questions/573084/how-to-calculate-bounce-angle */
-static void inline calculateBounce(int16_t Bx, int16_t By){
+inline static void calculateBounce(int16_t Bx, int16_t By){
 	int16_t vX = theBall.xVel;
 	int16_t vY = theBall.yVel;
 	int16_t normX = -(By-myPos.y);
@@ -425,12 +435,12 @@ static void inline calculateBounce(int16_t Bx, int16_t By){
 static int nearBotsConfCmpFunc(const void* a, const void* b){
 	OtherBot* aN = (OtherBot*)a;
 	OtherBot* bN = (OtherBot*)b;
-	uint8_t aC = (aN->meas).conf;
-	uint8_t bC = (bN->meas).conf;
-	if((aN->meas).id==0){
+	uint8_t aC = (aN->myMeas).conf;
+	uint8_t bC = (bN->myMeas).conf;
+	if((aN->myMeas).id==0){
 		return 1;
 	}
-	if((bN->meas).id==0){
+	if((bN->myMeas).id==0){
 		return -1;
 	}
 	if(aC < bC){
@@ -462,26 +472,12 @@ static int nearBotMeasBearingCmpFunc(const void* a, const void* b){
 	}
 }
 
-//static int particleCmpFunc(const void* a, const void* b){
-	//Particle* particleA = (Particle*)a;
-	//Particle* particleB = (Particle*)b;
-	//float aL = unpackParticleLikelihood(particleA);
-	//float bL = unpackParticleLikelihood(particleB);
-	//if(aL < bL){
-		//return 1;
-	//}else if(bL < aL){
-		//return -1;
-	//}else{
-		//return 0;
-	//}
-//}
-
-static void inline killBall(){
+inline static void killBall(){
 	set_rgb(255,0,0);
 	theBall.id = 0x0F;
 }
 
-static void inline initPositions(){
+inline static void initPositions(){
 	myPos.x = UNDF;
 	myPos.y = UNDF;
 	myPos.o = UNDF;

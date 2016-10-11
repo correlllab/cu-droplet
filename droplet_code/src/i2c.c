@@ -319,7 +319,6 @@ void TWI_MasterWriteHandler()
 	/* Local variables used in if tests to avoid compiler warning. */
 	uint8_t bytesToWrite  = twi->bytesToWrite;
 	uint8_t bytesToRead   = twi->bytesToRead;
-	//printf("\t\tWH%hd/%hd\r\n",bytesToWrite, twi->bytesWritten);
 
 	/* If NOT acknowledged (NACK) by slave cancel the transaction. */
 	if (twi->interface->MASTER.STATUS & TWI_MASTER_RXACK_bm) {

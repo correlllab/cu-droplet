@@ -21,10 +21,10 @@
 #include <avr/io.h>
 #include <util/crc16.h>
 #include <avr/interrupt.h>
-#include <avr/pgmspace.h>
 #include <stdio.h>
 #include <avr/pgmspace.h>
-#include <avr/pgmspace.h>
+
+#define CMD_DROPLET_ID	0x8F6D
 
 //Any #defines needed by other Droplet files
 #define DIR0		((uint8_t)0x01)
@@ -50,7 +50,6 @@ typedef uint16_t id_t;
 #include "rgb_led.h"
 #include "rgb_sensor.h"
 #include "power.h"
-#include "ecc.h"
 #include "i2c.h"
 #include "range_algs.h"
 #include "rgb_sensor.h"
@@ -64,16 +63,10 @@ typedef uint16_t id_t;
 #include "firefly_sync.h"
 #include "serial_handler.h"
 
-id_t droplet_ID;
-
-
 typedef struct ir_msg_struct
 {
-	uint32_t arrival_time;	// Time of message receipt.	
-	float range;
-	float bearing;
-	float heading;
-	uint16_t sender_ID;		// ID of sending robot.	
+	uint32_t arrival_time;	// Time of message receipt.
+	uint16_t sender_ID;		// ID of sending robot.
 	char* msg;				// The message.
 	uint8_t dir_received;	// Which side was this message received on?
 	uint8_t length;			// Message length.
@@ -86,36 +79,26 @@ extern void handle_msg(ir_msg* msg_struct);
 extern uint8_t user_handle_command(char* command_word, char* command_args);
 extern void	user_leg_status_interrupt();
 
-/**
- * \brief Returns this Droplet's unique 16-bit identifier. 0 will never be an identifier.
- */
-inline id_t get_droplet_id(){ return droplet_ID; }
 
-/**
- * \brief Initializes all the subsystems for this Droplet. This function MUST be called
- * by the user before using any other functions in the API.
- */ 
-void init_all_systems();
 
-/*
- * This function loops through all messages this robot has received since the last call
- * to check messages.
- * For each message, it populates an ir_msg struct and calls handle_msg with it.
- */
-void check_messages();
+id_t droplet_ID;
 
 /**
  * \brief Resets the Droplet's program counter and clears all low-level system buffers.
  */
 void droplet_reboot();
-
-
-void calculate_id_number();
-void enable_interrupts();
 void startup_light_sequence();
-
 uint8_t get_droplet_ord(id_t id);
+
 extern const id_t OrderedBotIDs[121];
-static id_t inline get_id_from_ord(uint8_t ord){
+
+/**
+ * \brief Returns this Droplet's unique 16-bit identifier. 0 will never be an identifier.
+ */
+inline id_t get_droplet_id(){ 
+	return droplet_ID;
+}
+
+inline id_t get_id_from_ord(uint8_t ord){
 	return pgm_read_word(&OrderedBotIDs[ord]);
 }

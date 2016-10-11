@@ -1,5 +1,8 @@
 #include "ir_led.h"
 
+static uint8_t twiWriteWrapper(uint8_t addr, uint8_t* write_buff, uint8_t buff_len, char marker);
+static uint8_t waitForTWIReady(uint32_t startTime, char marker);
+
 USART_t* channel[6] = {
 	&USARTC0,  //   -- Channel 0
 	&USARTC1,  //   -- Channel 1
@@ -9,10 +12,10 @@ USART_t* channel[6] = {
 	&USARTF0   //   -- Channel 5
 };
 
-uint8_t carrier_wave_pins[6] = { PIN0_bm, PIN1_bm, PIN4_bm, PIN5_bm, PIN7_bm, PIN6_bm};
-uint8_t tx_pins[6] = {PIN3_bm, PIN7_bm, PIN3_bm, PIN3_bm, PIN7_bm, PIN3_bm};
-PORT_t* uart_ch[6] = {&PORTC, &PORTC, &PORTD, &PORTE, &PORTE, &PORTF};
-uint8_t saved_usart_ctrlb_vals[6] = {0,0,0,0,0,0};
+static uint8_t carrier_wave_pins[6] = { PIN0_bm, PIN1_bm, PIN4_bm, PIN5_bm, PIN7_bm, PIN6_bm};
+static uint8_t tx_pins[6] = {PIN3_bm, PIN7_bm, PIN3_bm, PIN3_bm, PIN7_bm, PIN3_bm};
+static PORT_t* uart_ch[6] = {&PORTC, &PORTC, &PORTD, &PORTE, &PORTE, &PORTF};
+static uint8_t saved_usart_ctrlb_vals[6] = {0,0,0,0,0,0};
 
 void ir_led_init()
 {
@@ -96,8 +99,8 @@ void set_all_ir_powers(uint16_t power)
 	curr_ir_power = power;
 }
 
-uint8_t twiWriteWrapper(uint8_t addr, uint8_t* write_buff, uint8_t buff_len, char marker){
-	startTime = get_time();
+static uint8_t twiWriteWrapper(uint8_t addr, uint8_t* write_buff, uint8_t buff_len, char marker){
+	uint32_t startTime = get_time();
 	uint8_t result = 0;
 	uint8_t printed = 0;
 	while(!result){
@@ -110,7 +113,7 @@ uint8_t twiWriteWrapper(uint8_t addr, uint8_t* write_buff, uint8_t buff_len, cha
 	return result + printed - 1;
 }
 
-uint8_t waitForTWIReady(uint32_t startTime, char marker){
+static uint8_t waitForTWIReady(uint32_t startTime, char marker){
 	uint8_t printed = 0;
 	while(twi->status!=TWIM_STATUS_READY){
 		if((get_time()-startTime)>1000){

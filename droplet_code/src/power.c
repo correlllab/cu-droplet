@@ -1,6 +1,7 @@
 #include "power.h"
 
 void	user_leg_status_interrupt() __attribute__((weak));
+static uint32_t last_int_time;
 
 void power_init()
 {

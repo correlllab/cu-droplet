@@ -10,8 +10,6 @@
 #include "droplet_init.h"
 #include "ir_led.h"
 
-int16_t ir_sense_baseline[6];
-int16_t min_collision_vals[6];
 
 /**
  * \brief Can be used to check if object(s) are within 1cm of this Droplet.
@@ -24,7 +22,6 @@ void ir_sensor_init();
 void get_ir_sensors(int16_t* output_arr, uint8_t meas_per_ch);
 //int16_t get_ir_sensor(uint8_t sensor_num, uint8_t ir_meas_count);
 uint8_t check_collisions();
-int16_t meas_find_median(int16_t* meas, uint8_t arr_len); // Helper function for getting the middle of the 3 measurements
 void initialize_ir_baselines();
 void update_ir_baselines();
 
@@ -55,5 +52,3 @@ void update_ir_baselines();
 	inline void ir_sensor_enable(){ ADCB.CTRLA |= ADC_ENABLE_bm; }
 	inline void ir_sensor_disable(){ ADCB.CTRLA &= ~ADC_ENABLE_bm; }
 #endif
-
-#pragma once

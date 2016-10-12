@@ -334,7 +334,7 @@ void updateParticles(){
 		botIdx++;
 	}
 
-	P_L_DEBUG_PRINT("Updating particles:\r\n");
+	P_L_DEBUG_PRINT("Updating particles with %hu bots:\r\n", numBots);
 	//start = get_time();
 	float pMGP, conf, pMGP_B, conf_B;
 	float tot_pMGP, tot_conf;

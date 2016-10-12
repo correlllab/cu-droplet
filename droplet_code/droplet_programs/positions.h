@@ -6,10 +6,15 @@
 #define POS_DEBUG_MODE
 #define GEN_DEBUG_MODE
 #define P_SAMPLE_DEBUG_MODE
-#define P_UPDATE_DEBUG_MODE
+#define P_L_DEBUG_MODE
+//#define ALL_PARTICLES_DEBUG_MODE
 #define RNB_DEBUG_MODE
-//#define NB_DEBUG_MODE
+#define NB_DEBUG_MODE
 //#define BALL_DEBUG_MODE
+
+#define MIN_PACKED_X -1024
+#define MIN_PACKED_Y -1024
+#define MIN_PACKED_O -512
 
 uint8_t useOthers;
 
@@ -19,10 +24,10 @@ uint8_t useOthers;
 #define POS_DEBUG_PRINT(format, ...)
 #endif
 
-#ifdef P_UPDATE_DEBUG_MODE
-#define P_UPDATE_DEBUG_PRINT(format, ...) printf_P(PSTR(format), ##__VA_ARGS__)
+#ifdef P_L_DEBUG_MODE
+#define P_L_DEBUG_PRINT(format, ...) printf_P(PSTR(format), ##__VA_ARGS__)
 #else
-#define P_UPDATE_DEBUG_PRINT(format, ...)
+#define P_L_DEBUG_PRINT(format, ...)
 #endif
 
 #ifdef P_SAMPLE_DEBUG_MODE
@@ -221,6 +226,7 @@ uint16_t	loopID;
 int16_t xRange;
 int16_t yRange;
 int16_t maxRange;
+float pMGP_diffScalar;
 
 //float		paddleChange;
 //int16_t		paddleStart;
@@ -238,7 +244,8 @@ void		handleMySlot();
 void		initParticles();
 void		calcPosFromMeas(int16_t* myX, int16_t* myY, int16_t* myO, OtherBot* bot);
 void		printPosFromMeas(OtherBot* bot);
-uint8_t calc_pMGP(int16_t pX, int16_t pY, int16_t pO, float* pMGP, float* conf, BotPos* pos, BotMeas* meas);
+void		calc_pMGP(int16_t pX, int16_t pY, int16_t pO, float* pMGP, float* conf, BotPos* pos, BotMeas* meas);
+void		calc_pMGP_both(int16_t pX, int16_t pY, int16_t pO, float* pMGP_A, float* conf_A, float* pMGP_B, float* conf_B, BotPos* pos, BotMeas* meas_A, BotMeas* meas_B);
 void		updateParticles();
 uint8_t		getPosConf(float xStdDev, float yStdDev, float oStdDev);
 void		jitterParticle(Particle* p);
@@ -339,13 +346,20 @@ inline static void unpackParticle(int16_t* pX, int16_t* pY, int16_t* pO, float* 
 }
 
 inline static void packPos(PackedBotPos* pos){
-	pos->conf = myPos.conf;
-	pos->xLow = (uint8_t)((myPos.x)&0xFF);
-	pos->yLow = (uint8_t)((myPos.y)&0xFF);
-	pos->oLow = (uint8_t)((myPos.o)&0xFF);
-	pos->bits = (uint8_t)(((myPos.x)>>8) & 0b00000111);
-	pos->bits |= (uint8_t)(((myPos.y)>>5) & 0b00111000);
-	pos->bits |= (uint8_t)(((myPos.o)>>2) & 0b11000000);
+	int16_t x, y, o;
+	x = myPos.x;
+	x = (x==UNDF) ? MIN_PACKED_X : x;
+	y = myPos.y;
+	y = (y==UNDF) ? MIN_PACKED_Y : y;
+	o = myPos.o;
+	o = (o==UNDF) ? MIN_PACKED_O : o;
+	pos->conf  = myPos.conf;
+	pos->xLow  = (uint8_t)(x&0xFF);
+	pos->yLow  = (uint8_t)(y&0xFF);
+	pos->oLow  = (uint8_t)(o&0xFF);
+	pos->bits  = (uint8_t)((x>>8) & 0b00000111);
+	pos->bits |= (uint8_t)((y>>5) & 0b00111000);
+	pos->bits |= (uint8_t)((o>>2) & 0b11000000);
 }
 
 inline static void unpackPos(PackedBotPos* pPos, BotPos* otherPos){
@@ -354,14 +368,17 @@ inline static void unpackPos(PackedBotPos* pPos, BotPos* otherPos){
 	otherPos->x |= ((uint16_t)(pPos->bits & 0b00000111))<<8;
 	otherPos->x = (otherPos->x)<<5; //shifting value left (and then right again) in case value is negative.
 	otherPos->x = (otherPos->x)/32; //avr-gcc doesn't do arithmetic right shifts, so we're using integer division to get it.
+	otherPos->x = (otherPos->x==MIN_PACKED_X) ? UNDF : otherPos->x;
 	otherPos->y = pPos->yLow;
 	otherPos->y |= ((uint16_t)(pPos->bits & 0b00111000))<<5;
 	otherPos->y = (otherPos->y)<<5; //shifting value left (and then right again) in case value is negative.
 	otherPos->y = (otherPos->y)/32; //avr-gcc doesn't do arithmetic right shifts, so we're using integer division to get it.
+	otherPos->y = (otherPos->y==MIN_PACKED_Y) ? UNDF : otherPos->y;
 	otherPos->o = pPos->oLow;
 	otherPos->o |= ((uint16_t)(pPos->bits & 0b11000000))<<2;
 	otherPos->o = (otherPos->o)<<6; //shifting value left (and then right again) in case value is negative.
 	otherPos->o = (otherPos->o)/64; //avr-gcc doesn't do arithmetic right shifts, so we're using integer division to get it.
+	otherPos->o = (otherPos->o==MIN_PACKED_O) ? UNDF : otherPos->o;
 }
 
 inline static int8_t packAngleMeas(int16_t angle){

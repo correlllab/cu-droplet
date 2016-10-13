@@ -407,7 +407,7 @@ void resampleParticles(){
 	float meanO = atan2f(oMeanY, oMeanX);
 	float oR = hypotf(oMeanX/totalLikelihood, oMeanY/totalLikelihood);
 	float oStdDev = sqrtf(-2*log(oR));
-	oStdDev = oStdDev < 5.0 ? 5.0 : oStdDev;
+	oStdDev = oStdDev < 0.1 ? 0.1 : oStdDev;
 
 	float totalDiffX = 0;
 	float totalDiffY = 0;

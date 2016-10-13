@@ -15,6 +15,7 @@
 
 
 #define DROPLET_RADIUS 2.22  //cm
+#define DROPLET_SENSOR_RADIUS 1.98
 
 //Synchronization Timing Constants:
 #define POST_BROADCAST_DELAY			30

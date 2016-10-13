@@ -236,22 +236,6 @@ void broadcast_rnb_data(){
 	}
 }
 
-//void receive_rnb_data(){
-	//if(!rnbProcessingFlag && !hp_ir_block_bm){
-		//ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-			//cmdID=cmd_sender_id;
-			//rnbProcessingFlag=1;			
-			//hp_ir_block_bm = 1;
-		//}
-		//ir_range_meas();
-		//ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-			//hp_ir_block_bm = 0;
-		//}
-		////uint8_t power = 25; //TODO: get this from the message.
-		//schedule_task(5, use_rnb_data, NULL);
-	//}
-//}
-
 void use_rnb_data(){
 	//uint32_t start = get_time();
 	uint8_t power = 255;
@@ -378,8 +362,8 @@ static float get_initial_range_guess(float bearing, float heading, uint8_t power
 	//printf("amp_for_inv: %f\t",amplitude);
 	float rMagEst = inverse_amplitude_model(amplitude, power);
 	
-	float RX = rMagEst*cos(bearing)+DROPLET_RADIUS*(bearingBasis[bestS][0]-headingBasis[bestE][0]);
-	float RY = rMagEst*sin(bearing)+DROPLET_RADIUS*(bearingBasis[bestS][1]-headingBasis[bestE][1]);
+	float RX = rMagEst*cos(bearing)+DROPLET_SENSOR_RADIUS*(bearingBasis[bestS][0]-headingBasis[bestE][0]);
+	float RY = rMagEst*sin(bearing)+DROPLET_SENSOR_RADIUS*(bearingBasis[bestS][1]-headingBasis[bestE][1]);
 	
 	float rangeEst = hypotf(RX,RY);
 	
@@ -405,10 +389,10 @@ static float range_estimate(float init_range, float bearing, float heading, uint
 			}
 			
 			if(brightMeas[e][s] > 0){												
-				sensorRXx = DROPLET_RADIUS*getCosBearingBasis(0,s);
-				sensorRXy = DROPLET_RADIUS*getSinBearingBasis(0,s);
-				sensorTXx = DROPLET_RADIUS*cosf(basis_angle[e]+heading) + init_range*cosf(bearing);
-				sensorTXy = DROPLET_RADIUS*sinf(basis_angle[e]+heading) + init_range*sinf(bearing);
+				sensorRXx = DROPLET_SENSOR_RADIUS*getCosBearingBasis(0,s);
+				sensorRXy = DROPLET_SENSOR_RADIUS*getSinBearingBasis(0,s);
+				sensorTXx = DROPLET_SENSOR_RADIUS*cosf(basis_angle[e]+heading) + init_range*cosf(bearing);
+				sensorTXy = DROPLET_SENSOR_RADIUS*sinf(basis_angle[e]+heading) + init_range*sinf(bearing);
 
 				alpha = atan2f(sensorTXy-sensorRXy,sensorTXx-sensorRXx) - basis_angle[s];
 				beta = atan2f(sensorRXy-sensorTXy,sensorRXx-sensorTXx) - basis_angle[e] - heading;
@@ -423,8 +407,8 @@ static float range_estimate(float init_range, float bearing, float heading, uint
 				}else{
 					calcRIJmag = 0;
 				}
-				calcRx = calcRIJmag*cosf(alpha) + sensorRXx - DROPLET_RADIUS*cosf(basis_angle[e]+heading);
-				calcRy = calcRIJmag*sinf(alpha) + sensorRXy - DROPLET_RADIUS*sinf(basis_angle[e]+heading);
+				calcRx = calcRIJmag*cosf(alpha) + sensorRXx - DROPLET_SENSOR_RADIUS*cosf(basis_angle[e]+heading);
+				calcRy = calcRIJmag*sinf(alpha) + sensorRXy - DROPLET_SENSOR_RADIUS*sinf(basis_angle[e]+heading);
 				range_matrix[e][s] = hypotf(calcRx, calcRy);
 				continue;
 			}
@@ -564,22 +548,24 @@ void ir_range_blast(uint8_t power __attribute__ ((unused))){
 
 
 static float sensor_model(float alpha){
-	if(fabsf(alpha)>=1.5){
+	float alphaMag = fabsf(alpha);
+	if(alphaMag>=1.027562595){
 		return 0.0;
-	}else if(fabsf(alpha)<=0.62){
-		return (1-powf(alpha,4));
+	}else if(alphaMag<=0.6180339887){
+		return (1-(powf(alphaMag,2)/2.0));
 	}else{
-		return 0.125/powf(alpha,4);
+		return -1.97548*alphaMag + 2.02993;
 	}
 }
 
-static float emitter_model(float beta){	
-	if(fabsf(beta)>=1.5){
+static float emitter_model(float beta){
+	float betaMag = fabsf(beta);
+	if(betaMag>=1.027562595){
 		return 0.0;
-	}else if(fabsf(beta)<=0.72){
-		return (0.94+powf(beta,2)*0.5-powf(beta,4));
-	}else{
-		return 0.25/powf(beta,4);
+		}else if(betaMag<=0.6180339887){
+		return (1-(powf(betaMag,2)/2.0));
+		}else{
+		return -1.97548*betaMag + 2.02993;
 	}
 }
 

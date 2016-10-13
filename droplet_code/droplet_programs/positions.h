@@ -3,11 +3,12 @@
 #include "droplet_init.h"
 
 
+#define XYO_MODE
+
 #define POS_DEBUG_MODE
 #define GEN_DEBUG_MODE
 #define P_SAMPLE_DEBUG_MODE
 #define P_L_DEBUG_MODE
-//#define ALL_PARTICLES_DEBUG_MODE
 #define RNB_DEBUG_MODE
 #define NB_DEBUG_MODE
 //#define BALL_DEBUG_MODE
@@ -92,7 +93,7 @@ uint8_t useOthers;
 #define NUM_SHARED_BOTS 4
 #define NUM_TRACKED_BOTS 12
 
-const id_t SEED_IDS[NUM_SEEDS] = {0x12AD, 0x086B, 0x73AF, 0x32A7};
+const id_t SEED_IDS[NUM_SEEDS] = {0x12AD, 0x73AF, 0x086B, 0x32A7};
 const int16_t  SEED_X[NUM_SEEDS]   = {0, 200, 0, 200};
 const int16_t  SEED_Y[NUM_SEEDS]   = {160, 160, 0, 0};
 
@@ -226,7 +227,6 @@ uint16_t	loopID;
 int16_t xRange;
 int16_t yRange;
 int16_t maxRange;
-float pMGP_diffScalar;
 
 //float		paddleChange;
 //int16_t		paddleStart;
@@ -242,10 +242,16 @@ void		init();
 void		loop();
 void		handleMySlot();
 void		initParticles();
-void		calcPosFromMeas(int16_t* myX, int16_t* myY, int16_t* myO, OtherBot* bot);
-void		printPosFromMeas(OtherBot* bot);
-void		calc_pMGP(int16_t pX, int16_t pY, int16_t pO, float* pMGP, float* conf, BotPos* pos, BotMeas* meas);
-void		calc_pMGP_both(int16_t pX, int16_t pY, int16_t pO, float* pMGP_A, float* conf_A, float* pMGP_B, float* conf_B, BotPos* pos, BotMeas* meas_A, BotMeas* meas_B);
+void		calcPosFromMeas(BotPos* calcPos, BotPos* pos, BotMeas* meas);
+void		printPosFromMeas(BotPos* pos, BotMeas* meas);
+uint8_t		countAvailableMeasurements();
+void		xyoPrepExpectedPositions(BotPos* posArr); //This is used by initParticles too.
+#ifdef XYO_MODE
+	float		xyoCalc_pMGP(int16_t pX, int16_t pY, int16_t pO, BotPos* pos);
+#else
+	void		rbhPrepGoodBots(BotPos* posArr, BotMeas* measArr);
+	void		rbhCalc_pMGP(int16_t pX, int16_t pY, int16_t pO, float* pMGP, float* conf, BotPos* pos, BotMeas* meas);
+#endif
 void		updateParticles();
 uint8_t		getPosConf(float xStdDev, float yStdDev, float oStdDev);
 void		jitterParticle(Particle* p);
@@ -292,8 +298,13 @@ void		cleanHardBots();
   * them to the bearing and heading (newB, newH) from the measured bot to the
   * measuring bot implied by that measurement (b, h).
   */
+inline uint8_t validNearBotIdx(uint8_t i){
+	return (nearBots[i].pos.x != UNDF && nearBots[i].pos.y!=UNDF && 
+			nearBots[i].pos.o!=UNDF && nearBots[i].pos.conf!=0);
+}
+
 inline void convertMeas(int16_t* newB, int16_t* newH, int16_t b, int16_t h){
-	*newB = b-h-180;
+	*newB = pretty_angle_deg(b-h-180);
 	*newH = -h;
 }
 

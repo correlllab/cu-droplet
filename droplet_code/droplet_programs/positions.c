@@ -107,11 +107,12 @@ void initParticles(){
 	float oTotY = 0;
 	float totConf = 0;
 	float conf; //conf*pos mult should happen in bigger-than-int16 space, and this is easier than a bunch of typecasts later
-	uint8_t minCombinedConf = 63;
 
 	uint8_t numMeas = countAvailableMeasurements();
 	BotPos expPos[numMeas];
-	if(numMeas<2) return;
+	if(!numMeas){ //no measurements to initialize with.
+		return;
+	}
 	xyoPrepExpectedPositions(expPos);
 	for(uint8_t i=0 ; i<numMeas ; i++){
 		conf = expPos[i].conf;
@@ -134,8 +135,8 @@ void initParticles(){
 		pX = rand_norm(xEst, combinedStdDev*xRange);
 		pY = rand_norm(yEst, combinedStdDev*yRange);
 		pO = pretty_angle_deg(rand_norm(oEst, combinedStdDev*180));
-		if(i!=NUM_PARTICLES)	POS_DEBUG_PRINT("\t{%4d, %4d, % 4d}, \r\n", pX, pY, pO);
-		else					POS_DEBUG_PRINT("\t{%4d, %4d, % 4d}};\r\n", pX, pY, pO);
+		//if(i!=NUM_PARTICLES)	POS_DEBUG_PRINT("\t{%4d, %4d, % 4d}, \r\n", pX, pY, pO);
+		//else					POS_DEBUG_PRINT("\t{%4d, %4d, % 4d}};\r\n", pX, pY, pO);
 		packParticle(pX, pY, pO, pL, &(particles[i]));
 	}
 	particlesInitialized = 1;
@@ -171,34 +172,68 @@ uint8_t countAvailableMeasurements(){
 		if(!validNearBotIdx(i)){
 			continue;
 		}
-		numBots++;
-		if(useOthers && (nearBots[i].theirMeas).id == get_droplet_id()){
-			numBots++;
+		if((frameCount - nearBots[i].lastUsed) < OTHERBOT_BLACKLIST_FRAME_COUNT){ //See the comment in prepExpectedPositions for more info about this check.
+			continue;
 		}
+		numBots++;
 	}
 	return numBots;
+}
+
+void fuseMeasurements(BotMeas* fused, BotMeas* measA, BotMeas* measB){
+	float tmpX, tmpY;
+	if(measA->id != measB->id){
+		printf("ERROR: You probably don't want me to fuse measurements of different robots.\r\n");
+	}
+	fused->id = measA->id;
+	tmpX = measA->conf*cosf(deg_to_rad(measA->b)) + measB->conf*cosf(deg_to_rad(measB->b));
+	tmpY = measA->conf*sinf(deg_to_rad(measA->b)) + measB->conf*sinf(deg_to_rad(measB->b));
+	fused->b = rad_to_deg(atan2f(tmpY, tmpX));
+
+	tmpX = measA->conf*cosf(deg_to_rad(measA->h)) + measB->conf*cosf(deg_to_rad(measB->h));
+	tmpY = measA->conf*sinf(deg_to_rad(measA->h)) + measB->conf*sinf(deg_to_rad(measB->h));
+	fused->h = rad_to_deg(atan2f(tmpY, tmpX));
+
+	fused->r = (measA->r*measA->conf + measB->r*measB->conf)/((float)(measA->conf+measB->conf));
+
+	float fusedConf = powf((powf(measA->conf,-2.0) + powf(measB->conf,-2.0)),-0.5);
+	fused->conf = (uint8_t)fusedConf;
+	printf("Fused Conf: %f from %hu & %hu.\r\n", fusedConf, measA->conf, measB->conf);
 }
 
 
 void xyoPrepExpectedPositions(BotPos* posArr){
 	uint8_t botIdx=0;
-	BotMeas adjMeas;
+	BotMeas convertedMeas; //This is their measurement, converted to be from this robots point of view.
+	BotMeas fusedMeas;
 	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
 		if(!validNearBotIdx(i)){
 			continue;
 		}
-		calcPosFromMeas(&(posArr[botIdx]), &(nearBots[i].pos), &(nearBots[i].myMeas));
-		printPosFromMeas(&(nearBots[i].pos), &(nearBots[i].myMeas));
-		botIdx++;
-		if(useOthers && (nearBots[i].theirMeas).id == get_droplet_id()){
-			adjMeas.r = nearBots[i].theirMeas.r;
-			adjMeas.id = nearBots[i].myMeas.id;
-			adjMeas.conf = nearBots[i].theirMeas.conf;
-			convertMeas(&(adjMeas.b), &(adjMeas.h), (nearBots[i].theirMeas).b, (nearBots[i].theirMeas).h);
-			calcPosFromMeas(&(posArr[botIdx]), &(nearBots[i].pos), &adjMeas);
-			printPosFromMeas(&(nearBots[i].pos), &adjMeas);
-			botIdx++;
+		/* 
+		 * If we use the same bot every frame, then the measurement errors between me and this other bot become 
+		 * very much not independent. Thus, we blacklist otherBots for a certain number of frames before using
+		 * them again. This blacklist/waiting period is intended to allow the other bot to incorporate new/different
+		 * information from other robots, and thus become more independent. Honestly it will still be somewhat dependent,
+		 * but the goal here is to mitigate our abuse of the independence assumption.
+		 */
+		if((frameCount - nearBots[i].lastUsed) < OTHERBOT_BLACKLIST_FRAME_COUNT){
+			continue;
 		}
+		if(useOthers && (nearBots[i].theirMeas).id == get_droplet_id()){
+			convertedMeas.r = nearBots[i].theirMeas.r;
+			convertedMeas.id =nearBots[i].myMeas.id;
+			convertedMeas.conf = nearBots[i].theirMeas.conf;
+			convertMeas(&(convertedMeas.b), &(convertedMeas.h), (nearBots[i].theirMeas).b, (nearBots[i].theirMeas).h);
+			fuseMeasurements(&fusedMeas, &(nearBots[i].myMeas), &convertedMeas);
+			calcPosFromMeas(&(posArr[botIdx]), &(nearBots[i].pos), &fusedMeas);
+			printPosFromMeas(&(nearBots[i].pos), &fusedMeas);
+		}else{
+			calcPosFromMeas(&(posArr[botIdx]), &(nearBots[i].pos), &(nearBots[i].myMeas));
+			printPosFromMeas(&(nearBots[i].pos), &(nearBots[i].myMeas));
+		}
+		nearBots[i].lastUsed = frameCount;
+		botIdx++;
 	}
 }
 
@@ -214,35 +249,36 @@ float xyoCalc_pMGP(int16_t pX, int16_t pY, int16_t pO, BotPos* pos){
 	 * - Compare expected position (x,y,p) to particle's (x,y,o)
 	 *       The more similar, the higher the likelihood.
 	 */
-	float pMGP;
-	int32_t xDiff	= abs(pos->x-pX);					
-	xDiff = (xDiff>maxRange) ? maxRange : xDiff;
-	int32_t yDiff	= abs(pos->y-pY);
-	yDiff = (yDiff>maxRange) ? maxRange : yDiff;
+	float dist = 1.0-(hypotf(pos->x-pX,pos->y-pY)/((float)maxRange));
+	dist = (dist>1.0) ? 1.0 : dist;
 	int32_t oDiff	= abs(pretty_angle_deg(pos->o-pO));
-	xDiff = (xDiff>maxRange) ? maxRange : xDiff;
-	pMGP = ((maxRange-xDiff)/((float)maxRange))*((maxRange-yDiff)/((float)maxRange))*((180-oDiff)/180.0);
-	pMGP = (pMGP)*(pMGP);
+	float pMGP = powf(dist,6.0)*powf((180-oDiff)/180.0,2.0);
+	//printf("[%4d, %4d, % 4d] => %5.3f, %3ld => %6.4f\r\n",pX, pY, pO, dist, oDiff, pMGP);
 	return pMGP;
 }
+
 #else
+
 void rbhPrepGoodBots(BotPos* posArr, BotMeas* measArr){
+	BotMeas convertedMeas; //This is their measurement, converted to be from this robots point of view.
+	BotMeas fusedMeas;
 	uint8_t botIdx=0;
 	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
 		if(!validNearBotIdx(i)){
 			continue;
 		}
 		posArr[botIdx] = nearBots[i].pos;
-		measArr[botIdx] = nearBots[i].myMeas;
-		botIdx++;
 		if(useOthers && (nearBots[i].theirMeas).id == get_droplet_id()){
-			posArr[botIdx] = nearBots[i].pos;
-			measArr[botIdx].r = nearBots[i].theirMeas.r;
-			measArr[botIdx].id = nearBots[i].myMeas.id;
-			measArr[botIdx].conf = nearBots[i].theirMeas.conf;
-			convertMeas(&(measArr[botIdx].b), &(measArr[botIdx].h), (nearBots[i].theirMeas).b, (nearBots[i].theirMeas).h);
-			botIdx++;
+			convertedMeas.r = nearBots[i].theirMeas.r;
+			convertedMeas.id =nearBots[i].myMeas.id;
+			convertedMeas.conf = nearBots[i].theirMeas.conf;
+			convertMeas(&(convertedMeas.b), &(convertedMeas.h), (nearBots[i].theirMeas).b, (nearBots[i].theirMeas).h);
+			fuseMeasurements(&fusedMeas, &(nearBots[i].myMeas), &convertedMeas);
+			measArr[botIdx] = fusedMeas;
+		}else{
+			measArr[botIdx] = nearBots[i].myMeas;
 		}
+		botIdx++;
 	}
 }
 
@@ -281,13 +317,16 @@ void rbhCalc_pMGP(int16_t pX, int16_t pY, int16_t pO, float* pMGP, float* conf, 
 }
 #endif
 
-void updateParticles(){
+uint8_t updateParticles(){
 	//uint32_t start, postFor, end;
 	//uint32_t startCalc_pMGP, totCalc_pMGP;
 
 	int16_t pX, pY, pO;
 	float pL;
 	uint8_t numMeas = countAvailableMeasurements();
+	if(!numMeas){
+		return 0; //No new measurements.
+	}
 	#ifdef XYO_MODE
 		BotPos expPos[numMeas];
 		xyoPrepExpectedPositions(expPos);
@@ -305,7 +344,7 @@ void updateParticles(){
 	float totalLikelihood = 0.0;
 	for(uint16_t i=0;i<NUM_PARTICLES;i++){
 		unpackParticle(&pX, &pY, &pO, &pL, &(particles[i]));
-		tot_pMGP = 1.0;
+		tot_pMGP = 0.0;
 		tot_conf = 0;
 		for(uint8_t j=0 ; j<numMeas ; j++){
 			//startCalc_pMGP = get_time();
@@ -330,6 +369,7 @@ void updateParticles(){
 		updateParticleLikelihood(unpackParticleLikelihood(&(particles[i]))/totalLikelihood,&(particles[i]));
 	}
 	//printf("Update Timing: %lu, %lu\r\n", postFor-start, totCalc_pMGP);
+	return 1;
 }
 
 
@@ -351,7 +391,7 @@ void resampleParticles(){
 	int16_t pX, pY;
 	int16_t pO;
 	float pL;
-	P_SAMPLE_DEBUG_PRINT("All Particles (before):\r\n{\r\n");
+	//P_SAMPLE_DEBUG_PRINT("All Particles (before):\r\n{\r\n");
 	float expDistr[NUM_PARTICLES+1];
 	float accumL[NUM_PARTICLES+1];
 	expDistr[0] = 0.0;
@@ -359,15 +399,15 @@ void resampleParticles(){
 	for(uint16_t i=1;i<=NUM_PARTICLES;i++){
 		expDistr[i] = expDistr[i-1] - log(rand_real());
 		accumL[i] = accumL[i-1] +  unpackParticleLikelihood(&(particles[i-1]));
-		#ifdef P_SAMPLE_DEBUG_PRINT
-		unpackParticle(&pX, &pY, &pO, &pL, &(particles[i-1]));
-		if(i!=NUM_PARTICLES)	P_SAMPLE_DEBUG_PRINT("\t\t{%4d, %4d, % 4d, %5.3f}, \r\n", pX, pY, pO, pL);
-		else					P_SAMPLE_DEBUG_PRINT("\t\t{%4d, %4d, % 4d, %5.3f}};\r\n", pX, pY, pO, pL);
-		#endif
+		//#ifdef P_SAMPLE_DEBUG_PRINT
+		//unpackParticle(&pX, &pY, &pO, &pL, &(particles[i-1]));
+		//if(i!=NUM_PARTICLES)	P_SAMPLE_DEBUG_PRINT("\t\t{%4d, %4d, % 4d, %8.6f}, \r\n", pX, pY, pO, pL);
+		//else					P_SAMPLE_DEBUG_PRINT("\t\t{%4d, %4d, % 4d, %8.6f}};\r\n", pX, pY, pO, pL);
+		//#endif
 	}
 	float expDistrMax = expDistr[NUM_PARTICLES];
 
-	Particle* newParticles[NUM_PARTICLES];
+	Particle newParticles[NUM_PARTICLES];
 
 	//Resampling
 	//P_SAMPLE_DEBUG_PRINT("All Particles (resampled):\r\n{\r\n");
@@ -376,10 +416,10 @@ void resampleParticles(){
 	float totalLikelihood = 0.0;
 	while(i < NUM_PARTICLES){
 		if(j>NUM_PARTICLES || accumL[j]*expDistrMax > expDistr[i]){
-			newParticles[i] = &(particles[j-1]);
+			newParticles[i] = particles[j-1];
 			//unpackParticle(&pX, &pY, &pO, &pL, &(newParticles[i]));
-			//if(i!=NUM_PARTICLES)	P_SAMPLE_DEBUG_PRINT("\t\t{%4d, %4d, % 4d, %5.3f}, \r\n", pX, pY, pO, pL);
-			//else					P_SAMPLE_DEBUG_PRINT("\t\t{%4d, %4d, % 4d, %5.3f}};\r\n", pX, pY, pO, pL);
+			//if(i!=NUM_PARTICLES)	P_SAMPLE_DEBUG_PRINT("\t\t{%4d, %4d, % 4d, %8.6f}, \r\n", pX, pY, pO, pL);
+			//else					P_SAMPLE_DEBUG_PRINT("\t\t{%4d, %4d, % 4d, %8.6f}};\r\n", pX, pY, pO, pL);
 			i++;
 		}else{
 			j++;
@@ -387,7 +427,7 @@ void resampleParticles(){
 	}
 
 	for(uint16_t i=0;i<NUM_PARTICLES;i++){
-		particles[i] = *(newParticles[i]);
+		particles[i] = newParticles[i];
 	}
 
 	//This first loop calculates the means.
@@ -481,9 +521,11 @@ void handleFrameEnd(){
 	//Maybe we'll want to remove the N worst nearBots, here.
 	if(!seedFlag){
 		if(particlesInitialized){
-			updateParticles();
+			uint8_t updateOccurred = updateParticles();
 			postUpdate = get_time();
-			resampleParticles();
+			if(updateOccurred){
+				resampleParticles();
+			}
 		}else{
 			initParticles();
 			
@@ -498,7 +540,7 @@ void handleFrameEnd(){
 	printf("\r\n");
 
 	end = get_time();
-	printf("Frame End Timing: %lu, %lu, %lu, %lu\r\n", postSort-start, postUpdate-postSort, postParticles-postUpdate, end-postParticles);
+	printf("End of frame %lu.\r\n\tTiming: %lu, %lu, %lu, %lu\r\n", frameCount, postSort-start, postUpdate-postSort, postParticles-postUpdate, end-postParticles);
 }
 
 void updateHardBots(){
@@ -707,6 +749,9 @@ void useNewRnbMeas(){
 		return;
 	}
 	if(meas->id == 0 || meas->id == last_good_rnb.id_number){
+		if(meas->id == 0){
+			measuredBot->lastUsed = 0;
+		}
 		//We weren't tracking this ID before, so just add the new info.
 		meas->id	= id;
 		meas->r		= range;
@@ -977,7 +1022,6 @@ void handleNearBotsMsg(NearBotsMsg* msg, id_t senderID){
 				nearBot->theirMeas.conf = msg->shared[i].conf;
 
 				NB_DEBUG_PRINT("\t%4u, % 4d, % 4d, %2hu\r\n", nearBot->theirMeas.r, nearBot->theirMeas.b, nearBot->theirMeas.h, nearBot->theirMeas.conf);
-				//if(useOthers) updateParticles(&nearBotConverted);
 			}
 		}
 	}
@@ -1095,6 +1139,7 @@ void cleanOtherBot(OtherBot* other){
 	other->theirMeas.b = UNDF;
 	other->theirMeas.h = UNDF;
 	other->theirMeas.conf = 0;
+	other->lastUsed = 0;
 }
 
 /*

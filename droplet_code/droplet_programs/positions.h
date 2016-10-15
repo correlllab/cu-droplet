@@ -115,6 +115,8 @@ const int16_t  SEED_Y[NUM_SEEDS]   = {160, 160, 0, 0};
 #define SOUTH_PIXEL(state)		((state&STATE_PIXEL)&&(state&STATE_SOUTH))
 #define NS_PIXEL(state)			((state&STATE_PIXEL)&&((state&STATE_NORTH) || (state&STATE_SOUTH)))
 
+#define OTHERBOT_BLACKLIST_FRAME_COUNT 1
+
 typedef enum {
 	POS,
 	SYNC_TEST,
@@ -202,6 +204,7 @@ typedef struct other_bot_rnb_struct{
 	BotMeas myMeas;
 	BotMeas theirMeas;
 	BotPos pos;
+	uint32_t lastUsed;
 } OtherBot;
 OtherBot nearBots[NUM_TRACKED_BOTS];
 
@@ -252,7 +255,7 @@ void		xyoPrepExpectedPositions(BotPos* posArr); //This is used by initParticles 
 	void		rbhPrepGoodBots(BotPos* posArr, BotMeas* measArr);
 	void		rbhCalc_pMGP(int16_t pX, int16_t pY, int16_t pO, float* pMGP, float* conf, BotPos* pos, BotMeas* meas);
 #endif
-void		updateParticles();
+uint8_t		updateParticles();
 uint8_t		getPosConf(float xStdDev, float yStdDev, float oStdDev);
 void		jitterParticle(Particle* p);
 void		handleFrameEnd();

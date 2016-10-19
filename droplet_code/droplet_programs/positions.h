@@ -2,9 +2,6 @@
 
 #include "droplet_init.h"
 
-
-#define XYO_MODE
-
 #define POS_DEBUG_MODE
 #define GEN_DEBUG_MODE
 #define P_SAMPLE_DEBUG_MODE
@@ -93,7 +90,7 @@ uint8_t useOthers;
 #define NUM_SHARED_BOTS 4
 #define NUM_TRACKED_BOTS 12
 
-const id_t SEED_IDS[NUM_SEEDS] = {0x12AD, 0x73AF, 0x086B, 0x32A7};
+const id_t SEED_IDS[NUM_SEEDS] = {0x086B, 0x73AF, 0x12AD, 0x32A7};
 const int16_t  SEED_X[NUM_SEEDS]   = {0, 200, 0, 200};
 const int16_t  SEED_Y[NUM_SEEDS]   = {160, 160, 0, 0};
 
@@ -248,13 +245,8 @@ void		initParticles();
 void		calcPosFromMeas(BotPos* calcPos, BotPos* pos, BotMeas* meas);
 void		printPosFromMeas(BotPos* pos, BotMeas* meas);
 uint8_t		countAvailableMeasurements();
-void		xyoPrepExpectedPositions(BotPos* posArr); //This is used by initParticles too.
-#ifdef XYO_MODE
-	float		xyoCalc_pMGP(int16_t pX, int16_t pY, int16_t pO, BotPos* pos);
-#else
-	void		rbhPrepGoodBots(BotPos* posArr, BotMeas* measArr);
-	void		rbhCalc_pMGP(int16_t pX, int16_t pY, int16_t pO, float* pMGP, float* conf, BotPos* pos, BotMeas* meas);
-#endif
+void		prepExpectedPositions(BotPos* posArr); //This is used by initParticles too.
+float		calc_pMGP(int16_t pX, int16_t pY, int16_t pO, BotPos* pos);
 uint8_t		updateParticles();
 uint8_t		getPosConf(float xStdDev, float yStdDev, float oStdDev);
 void		jitterParticle(Particle* p);

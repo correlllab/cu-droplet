@@ -9,7 +9,7 @@
 #include "delay_x.h"
 #include "droplet_init.h"
 #include "ir_led.h"
-
+#include "flash_api.h"
 
 /**
  * \brief Can be used to check if object(s) are within 1cm of this Droplet.
@@ -20,10 +20,16 @@
  */
 void ir_sensor_init();
 void get_ir_sensors(int16_t* output_arr, uint8_t meas_per_ch);
+
+void read_ir_coll_baselines();
+void write_ir_coll_baselines();
 //int16_t get_ir_sensor(uint8_t sensor_num, uint8_t ir_meas_count);
+void check_collision_values(int16_t meas[6]);
 uint8_t check_collisions();
 void initialize_ir_baselines();
 void update_ir_baselines();
+
+int16_t ir_coll_baseline[6];
 
 #ifdef AUDIO_DROPLET
 	inline void ir_sensor_enable(){ ADCA.CTRLA |= ADC_ENABLE_bm; ADCB.CTRLA |= ADC_ENABLE_bm; }

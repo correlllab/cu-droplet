@@ -79,11 +79,13 @@ void handleMySlot(){
 	broadcast_rnb_data();
 	while(((get_time()-frameStart)%SLOT_LENGTH_MS)<RNB_DUR)
 		delay_us(500);
-	//if(NS_PIXEL(myState) && paddleChange>=1.0){
-////		sendPaddleMsg();
-	//}else{
-		//paddleChange = 0.0;
-	//}
+	printf("Collisions: ");
+	int16_t coll_vals[6];
+	check_collision_values(coll_vals);
+	for(uint8_t i=0;i<6;i++){
+		printf("%5d ", coll_vals[i]);
+	}
+	printf("\r\n");
 	while(((get_time()-frameStart)%SLOT_LENGTH_MS)<(RNB_DUR+PADDLE_MSG_DUR))
 		delay_us(500);		
 	sendNearBotsMsg();
@@ -92,10 +94,6 @@ void handleMySlot(){
 	//if(myDist!=UNDF && otherDist!=UNDF && myDist<otherDist){
 		//sendBallMsg();
 	//}
-	uint32_t before = get_time();
-	check_collisions();
-	printf("\t%lu ms.\r\n", get_time()-before);
-
 	while(((get_time()-frameStart)%SLOT_LENGTH_MS)<(RNB_DUR+PADDLE_MSG_DUR+NEIGHB_MSG_DUR+BALL_MSG_DUR))
 		delay_us(500);	
 }

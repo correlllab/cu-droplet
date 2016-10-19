@@ -112,7 +112,7 @@ const int16_t  SEED_Y[NUM_SEEDS]   = {160, 160, 0, 0};
 #define SOUTH_PIXEL(state)		((state&STATE_PIXEL)&&(state&STATE_SOUTH))
 #define NS_PIXEL(state)			((state&STATE_PIXEL)&&((state&STATE_NORTH) || (state&STATE_SOUTH)))
 
-#define OTHERBOT_BLACKLIST_FRAME_COUNT 1
+#define OTHERBOT_BLACKLIST_FRAME_COUNT 4
 
 typedef enum {
 	POS,

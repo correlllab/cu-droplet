@@ -562,9 +562,9 @@ static float emitter_model(float beta){
 	float betaMag = fabsf(beta);
 	if(betaMag>=1.027562595){
 		return 0.0;
-		}else if(betaMag<=0.6180339887){
+	}else if(betaMag<=0.6180339887){
 		return (1-(powf(betaMag,2)/2.0));
-		}else{
+	}else{
 		return -1.97548*betaMag + 2.02993;
 	}
 }

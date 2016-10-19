@@ -7,7 +7,6 @@
 #endif
 
 static int16_t ir_sense_baseline[6];
-static int16_t min_collision_vals[6];
 
 // IR sensors use ADCB channel 0, all the time
 void ir_sensor_init(){
@@ -81,10 +80,8 @@ void ir_sensor_init(){
 	#endif
 	
 	delay_ms(10);
+	read_ir_coll_baselines();
 	
-	for(uint8_t dir=0; dir<6; dir++){
-		min_collision_vals[dir] = 32767;
-	}
 	for(uint8_t dir=0;dir<6;dir++){
 		ir_sense_baseline[dir]=0;
 	}
@@ -167,8 +164,31 @@ void get_ir_sensors(int16_t* output_arr, uint8_t meas_per_ch){
 	//printf("\r\n");	
 }
 
+void read_ir_coll_baselines(){
+	for(uint8_t i=0; i<6; i++){
+		ir_coll_baseline[i] = (((int16_t)EEPROM_read_byte(0x60+2*i))<<8 | ((int16_t)EEPROM_read_byte(0x60+2*i+1)));
+	}
+}
+
+void write_ir_coll_baselines(){
+	for(uint8_t i=0; i<6; i++){
+		int16_t temp = ir_coll_baseline[i];
+		EEPROM_write_byte(0x60+2*i, (uint8_t)((temp>>8)&0xFF));
+		EEPROM_write_byte(0x60+2*i+1, (uint8_t)(temp&0xFF));
+	}
+}
 
 uint8_t check_collisions(){
+	int16_t meas[6];
+	uint8_t dirs = 0;
+	check_collision_values(meas);
+	for(uint8_t i=0;i<6;i++){
+		dirs |=  ((meas[i]>1000)<<i);
+	}
+	return dirs;
+}
+
+void check_collision_values(int16_t meas[6]){
 	int16_t baseline_meas[6];
 	int16_t measured_vals[6];
 	uint8_t dirs=0;
@@ -190,18 +210,10 @@ uint8_t check_collisions(){
 	//for(uint8_t i=0;i<6;i++) printf("%4d ", measured_vals[i]);
 	//printf("\r\n");
 	for(uint8_t i=0;i<6;i++) ir_led_off(i);
-	//printf("{");
 	for(uint8_t i=0;i<6;i++){
-		int16_t measure_above_base = (measured_vals[i]-baseline_meas[i]);
-		//if(i==5) printf("%4d},\r\n", measure_above_base);
-		//else printf("%4d, ", measure_above_base);
-		if(measure_above_base<min_collision_vals[i]) min_collision_vals[i]=measure_above_base;
-		//printf("%4d ", measure_above_base-min_collision_vals[i]);
-		if((measure_above_base-min_collision_vals[i])>600){
-			dirs = dirs|(1<<i);
-		}
+		meas[i] = (measured_vals[i]-baseline_meas[i]);
+		meas[i] = meas[i] - ir_coll_baseline[i];
 	}
 	set_all_ir_powers(curr_power);
 	for(uint8_t i=0;i<6;i++) ir_rxtx[i].status = 0;		
-	return dirs;
 }	

@@ -12,6 +12,7 @@ static void handle_set_motors(char* command_args);
 static void handle_adjust_motors(char* command_args);
 static void handle_set_mm_per_kilostep(char* command_args);
 static void handle_rnb_broadcast();
+static void handle_ir_coll_baseline_update();
 static void handle_set_led(char* command_args);
 static void handle_broadcast_id();
 static void handle_get_id();
@@ -35,6 +36,7 @@ void handle_serial_command(char* command, uint16_t command_length){
 		else if(strcmp_P(command_word,PSTR("get_rgb"))==0)				handle_get_rgb();
 		else if(strcmp_P(command_word,PSTR("set_ir"))==0)				handle_set_ir(command_args);
 		else if(strcmp_P(command_word,PSTR("coll"))==0)					handle_check_collisions();
+		else if(strcmp_P(command_word,PSTR("coll_b"))==0)				handle_ir_coll_baseline_update();
 		else if(strcmp_P(command_word,PSTR("stop_walk"))==0)			handle_stop_walk();
 		else if(strcmp_P(command_word,PSTR("set_motors"))==0)			handle_set_motors(command_args);
 		else if(strcmp_P(command_word,PSTR("adj_motors"))==0)			handle_adjust_motors(command_args);
@@ -73,6 +75,29 @@ static void handle_check_collisions(){
 	if(!found) printf("None");
 	printf("\r\n");
 }
+
+static void handle_ir_coll_baseline_update(){
+	int16_t sums[6];
+	int16_t tmp[6];
+	for(uint8_t i=0; i<6; i++){
+		ir_coll_baseline[i] = 0;
+		sums[i] = 0;
+	}
+	for(uint8_t i=0; i<10; i++){
+		check_collision_values(tmp);
+		for(uint8_t j=0; j<6; j++){
+			sums[j]+=tmp[j];
+		}
+	}
+	printf("New Baselines: ");
+	for(uint8_t i=0;i<6;i++){
+		ir_coll_baseline[i] = sums[i]/10;
+		printf("%5d ", ir_coll_baseline[i]);
+	}
+	write_ir_coll_baselines();
+	printf("\r\nComplete.\r\n");
+}
+
 
 static void handle_move_steps(char* command_args){
 	const char delim[2] = " ";

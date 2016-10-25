@@ -14,10 +14,6 @@
 #define MIN_PACKED_Y -1024
 #define MIN_PACKED_O -512
 
-uint8_t useNewInfo;
-uint8_t useBlacklist;
-uint8_t useOthers;
-
 #ifdef POS_DEBUG_MODE
 #define POS_DEBUG_PRINT(format, ...) printf_P(PSTR(format), ##__VA_ARGS__)
 #else
@@ -115,8 +111,6 @@ const int16_t  SEED_Y[NUM_SEEDS]   = {200, 200, 0, 0};
 #define SOUTH_PIXEL(state)		((state&STATE_PIXEL)&&(state&STATE_SOUTH))
 #define NS_PIXEL(state)			((state&STATE_PIXEL)&&((state&STATE_NORTH) || (state&STATE_SOUTH)))
 
-#define OTHERBOT_BLACKLIST_FRAME_COUNT 4
-
 typedef enum {
 	POS,
 	SYNC_TEST,
@@ -159,7 +153,6 @@ typedef struct packed_bot_pos_struct{
 typedef struct near_bots_msg_struct{
 	PackedBotMeas shared[NUM_SHARED_BOTS]; //6 bytes each
 	PackedBotPos pos; //5 bytes.
-	id_t used[NUM_USED_BOTS];
 	char flag;	
 }NearBotsMsg;
 
@@ -191,22 +184,10 @@ typedef struct bot_pos_struct
 	uint8_t conf;
 } BotPos;
 
-typedef struct particle_struct
-{
-	uint16_t lLow;
-	uint8_t xLow;
-	uint8_t yLow;
-	uint8_t oLow;
-	uint8_t bits;
-} Particle;
-Particle particles[NUM_PARTICLES];
-
 typedef struct other_bot_rnb_struct{
-	BotMeas myMeas;
-	BotMeas theirMeas;
+	BotMeas meas;
+	BotMeas shared[NUM_SHARED_BOTS];
 	BotPos pos;
-	uint32_t lastUsed;
-	uint8_t hasNewInfo;
 } OtherBot;
 OtherBot nearBots[NUM_TRACKED_BOTS];
 
@@ -249,18 +230,11 @@ uint8_t particlesInitialized;
 void		init();
 void		loop();
 void		handleMySlot();
-void		initParticles();
 void		calcPosFromMeas(BotPos* calcPos, BotPos* pos, BotMeas* meas);
 void		printPosFromMeas(BotPos* pos, BotMeas* meas);
-uint8_t		countAvailableMeasurements();
-uint8_t     nearBotUseabilityCheck(uint8_t i);
-void		prepExpectedPositions(BotPos* posArr); //This is used by initParticles too.
 float		calc_pMGP(int16_t pX, int16_t pY, int16_t pO, BotPos* pos);
-uint8_t		updateParticles();
 uint8_t		getPosConf(float xStdDev, float yStdDev, float oStdDev);
-void		jitterParticle(Particle* p);
 void		handleFrameEnd();
-void		resampleParticles();
 void		updateHardBots();
 void		degradeConfidence();
 void		updatePos();
@@ -294,10 +268,6 @@ void		cleanOtherBot(OtherBot* other);
 void		addHardBot(id_t id);
 void		cleanHardBots();
 
-void getUsedBots(id_t dest[NUM_USED_BOTS]);
-void addUsedBot(id_t bot);
-void initUsedBots();
-
 /*
  * BEGIN INLINE HELPER FUNCTIONS
  */
@@ -313,54 +283,6 @@ inline uint8_t validNearBotIdx(uint8_t i){
 inline void convertMeas(int16_t* newB, int16_t* newH, int16_t b, int16_t h){
 	*newB = pretty_angle_deg(b-h-180);
 	*newH = -h;
-}
-
-inline static float unpackParticleLikelihood(Particle* p){
-	uint32_t likelihood;
-	likelihood = p->lLow;
-	likelihood |= (((uint32_t)(p->bits)) & 0b10000000)<<9;
-	return ((float)likelihood)/PROB_ONE;
-}
-
-inline static void updateParticleLikelihood(float pL, Particle* p){
-	uint32_t likelihood = (pL*PROB_ONE + 0.5);
-	p->lLow  = (uint16_t)(likelihood&0xFFFF);
-	p->bits &= 0b01111111; //clear out the previous likelihood bits before updating them.
-	p->bits |= (uint8_t)((likelihood>>9)&0b10000000);
-}
-
-inline static void packParticle(int16_t pX, int16_t pY, int16_t pO, float pL, Particle* p){
-	uint32_t likelihood = (pL*PROB_ONE+0.5);
-	pX = (pX < -512) ? -512 : ((pX>1535) ? 1535 : pX);
-	pX += 512;
-	pY = (pY < -512) ? -512 : ((pY>1535) ? 1535 : pY);
-	pY += 512;
-	p->xLow  = (uint8_t)(pX&0xFF);
-	p->bits  = (uint8_t)((pX>>8)&0b00000111);
-	p->yLow  = (uint8_t)(pY&0xFF);
-	p->bits |= (uint8_t)((pY>>5)&0b00111000);
-	p->oLow  = (uint8_t)(pO&0xFF);
-	p->bits |= (uint8_t)((pO>>2)&0b01000000);
-	p->lLow  = (uint16_t)(likelihood&0xFFFF);
-	p->bits |= (uint8_t)((likelihood>>9)&0b10000000);
-}
-
-inline static void unpackParticle(int16_t* pX, int16_t* pY, int16_t* pO, float* pL, Particle* p){
-	uint32_t likelihood;
-	uint16_t bits = p->bits;
-	*pX = p->xLow;
-	*pX |= (bits & 0b00000111)<<8;
-	*pX = (*pX)-512;
-	*pY = p->yLow;
-	*pY |= (bits & 0b00111000)<<5;
-	*pY = (*pY)-512;
-	*pO = p->oLow;
-	*pO |= (bits & 0b01000000)<<2;
-	*pO = ((*pO)<<7);
-	*pO = (*pO)/128;
-	likelihood = p->lLow;
-	likelihood |= ((uint32_t)bits & 0b10000000)<<9;
-	*pL = ((float)likelihood)/PROB_ONE;
 }
 
 inline static void packPos(PackedBotPos* pos){
@@ -474,12 +396,12 @@ inline static void calculateBounce(int16_t Bx, int16_t By){
 static int nearBotsConfCmpFunc(const void* a, const void* b){
 	OtherBot* aN = (OtherBot*)a;
 	OtherBot* bN = (OtherBot*)b;
-	uint8_t aC = (aN->myMeas).conf;
-	uint8_t bC = (bN->myMeas).conf;
-	if((aN->myMeas).id==0){
+	uint8_t aC = (aN->meas).conf;
+	uint8_t bC = (bN->meas).conf;
+	if((aN->meas).id==0){
 		return 1;
 	}
-	if((bN->myMeas).id==0){
+	if((bN->meas).id==0){
 		return -1;
 	}
 	if(aC < bC){

@@ -14,6 +14,8 @@
 #define MIN_PACKED_Y -1024
 #define MIN_PACKED_O -512
 
+uint8_t useNewInfo;
+uint8_t useBlacklist;
 uint8_t useOthers;
 
 #ifdef POS_DEBUG_MODE
@@ -88,11 +90,12 @@ uint8_t useOthers;
 #define PADDLE_VEL				0.1
 #define NUM_SEEDS 4
 #define NUM_SHARED_BOTS 4
+#define NUM_USED_BOTS 5
 #define NUM_TRACKED_BOTS 12
 
 const id_t SEED_IDS[NUM_SEEDS] = {0x086B, 0x73AF, 0x12AD, 0x32A7};
 const int16_t  SEED_X[NUM_SEEDS]   = {0, 200, 0, 200};
-const int16_t  SEED_Y[NUM_SEEDS]   = {160, 160, 0, 0};
+const int16_t  SEED_Y[NUM_SEEDS]   = {200, 200, 0, 0};
 
 #define MIN_X 0
 #define MIN_Y 0
@@ -156,6 +159,7 @@ typedef struct packed_bot_pos_struct{
 typedef struct near_bots_msg_struct{
 	PackedBotMeas shared[NUM_SHARED_BOTS]; //6 bytes each
 	PackedBotPos pos; //5 bytes.
+	id_t used[NUM_USED_BOTS];
 	char flag;	
 }NearBotsMsg;
 
@@ -202,6 +206,7 @@ typedef struct other_bot_rnb_struct{
 	BotMeas theirMeas;
 	BotPos pos;
 	uint32_t lastUsed;
+	uint8_t hasNewInfo;
 } OtherBot;
 OtherBot nearBots[NUM_TRACKED_BOTS];
 
@@ -211,7 +216,10 @@ typedef struct hard_bot_struct{
 } HardBot;
 HardBot* hardBotsList;
 
+id_t lastUsedBots[NUM_USED_BOTS];
+
 uint32_t time_before;
+
 
 uint8_t		lastBallID;
 uint8_t		seedFlag;
@@ -245,6 +253,7 @@ void		initParticles();
 void		calcPosFromMeas(BotPos* calcPos, BotPos* pos, BotMeas* meas);
 void		printPosFromMeas(BotPos* pos, BotMeas* meas);
 uint8_t		countAvailableMeasurements();
+uint8_t     nearBotUseabilityCheck(uint8_t i);
 void		prepExpectedPositions(BotPos* posArr); //This is used by initParticles too.
 float		calc_pMGP(int16_t pX, int16_t pY, int16_t pO, BotPos* pos);
 uint8_t		updateParticles();
@@ -270,8 +279,7 @@ void		sendBallMsg();
 void		handleBallMsg(BallMsg* msg, uint32_t arrivalTime);
 void		sendNearBotsMsg();
 void		handleNearBotsMsg(NearBotsMsg* msg, id_t senderID);
-//void		sendPaddleMsg();
-//void		handlePaddleMsg(char flag, int16_t delta);
+uint8_t checkNearBotForNewInfo(id_t usedBots[NUM_USED_BOTS]);
 void		handle_msg			(ir_msg* msg_struct);
 
 void		frameEndPrintout();
@@ -285,6 +293,10 @@ void		cleanOtherBot(OtherBot* other);
 
 void		addHardBot(id_t id);
 void		cleanHardBots();
+
+void getUsedBots(id_t dest[NUM_USED_BOTS]);
+void addUsedBot(id_t bot);
+void initUsedBots();
 
 /*
  * BEGIN INLINE HELPER FUNCTIONS

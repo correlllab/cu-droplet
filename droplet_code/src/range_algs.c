@@ -548,24 +548,22 @@ void ir_range_blast(uint8_t power __attribute__ ((unused))){
 
 
 static float sensor_model(float alpha){
-	float alphaMag = fabsf(alpha);
-	if(alphaMag>=1.027562595){
+	if(fabsf(alpha)>=1.5){
 		return 0.0;
-	}else if(alphaMag<=0.6180339887){
-		return (1-(powf(alphaMag,2)/2.0));
+	}else if(fabsf(alpha)<=0.62){
+		return (1-powf(alpha,4));
 	}else{
-		return -1.97548*alphaMag + 2.02993;
+		return 0.125/powf(alpha,4);
 	}
 }
 
 static float emitter_model(float beta){
-	float betaMag = fabsf(beta);
-	if(betaMag>=1.027562595){
+	if(fabsf(beta)>=1.5){
 		return 0.0;
-	}else if(betaMag<=0.6180339887){
-		return (1-(powf(betaMag,2)/2.0));
+	}else if(fabsf(beta)<=0.72){
+		return (0.94+powf(beta,2)*0.5-powf(beta,4));
 	}else{
-		return -1.97548*betaMag + 2.02993;
+		return 0.25/powf(beta,4);
 	}
 }
 

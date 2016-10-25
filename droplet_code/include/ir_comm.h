@@ -83,7 +83,7 @@ volatile struct
 	volatile id_t target_ID;
 	volatile uint16_t curr_pos;				// Current position in buffer
 	volatile uint16_t calc_crc;
-	volatile char   buf[IR_BUFFER_SIZE];	// Transmit / receive buffer		
+	volatile char buf[IR_BUFFER_SIZE];		// Transmit / receive buffer		
 	volatile uint8_t  data_length;	
 	volatile int8_t inc_dir;
 	volatile uint8_t status;		// Transmit:

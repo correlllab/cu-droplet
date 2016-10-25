@@ -11,6 +11,7 @@ void init(){
 	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
 		cleanOtherBot(&nearBots[i]);
 	}
+	initUsedBots();
 	myState = STATE_PIXEL;
 	colorMode = POS;
 	gameMode = BOUNCE;
@@ -30,6 +31,8 @@ void init(){
 	yRange = MAX_Y-MIN_Y;
 	maxRange = (int16_t)hypotf(xRange, yRange);
 	useOthers = 1;
+	useBlacklist = 1;
+	useNewInfo = 1;
 }
 
 void loop(){
@@ -140,6 +143,8 @@ void initParticles(){
 	particlesInitialized = 1;
 }
 
+//Note! This function assumes that the meas is from the perspective of the bot at pos.
+//		ie, not THIS bot.
 void calcPosFromMeas(BotPos* calcPos, BotPos* pos, BotMeas* meas){
 	float x		 = pos->x;
 	float y		 = pos->y;
@@ -153,7 +158,7 @@ void calcPosFromMeas(BotPos* calcPos, BotPos* pos, BotMeas* meas){
 	float deltaY = (float)r * sin(deg_to_rad(b + 90));
 	calcPos->x = (int16_t)(x + deltaX + 0.5);
 	calcPos->y = (int16_t)(y + deltaY + 0.5);
-	calcPos->o = pretty_angle_deg(o - h);
+	calcPos->o = pretty_angle_deg(o + h);
 	calcPos->conf =  (uint8_t)sqrtf(2.0/(((1.0/(mC*mC)) + (1.0/(pC*pC)))));
 }
 
@@ -167,15 +172,38 @@ void printPosFromMeas(BotPos* pos, BotMeas* meas){
 uint8_t countAvailableMeasurements(){
 	uint8_t numBots=0;
 	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
-		if(!validNearBotIdx(i)){
-			continue;
+		if(nearBotUseabilityCheck(i)){
+			numBots++;
 		}
-		if((frameCount - nearBots[i].lastUsed) < OTHERBOT_BLACKLIST_FRAME_COUNT){ //See the comment in prepExpectedPositions for more info about this check.
-			continue;
-		}
-		numBots++;
 	}
 	return numBots;
+}
+
+/* 
+	* If we use the same bot every frame, then the measurement errors between me and this other bot become 
+	* very much not independent. Thus, we blacklist otherBots for a certain number of frames before using
+	* them again. This blacklist/waiting period is intended to allow the other bot to incorporate new/different
+	* information from other robots, and thus become more independent. Honestly it will still be somewhat dependent,
+	* but the goal here is to mitigate our abuse of the independence assumption.
+	*/
+uint8_t nearBotUseabilityCheck(uint8_t i){
+	if(!validNearBotIdx(i)){
+		return 0;
+	}
+	if(!(nearBots[i].hasNewInfo)){
+		if(useNewInfo){
+			return 0;
+		}
+	}
+	if((frameCount - nearBots[i].lastUsed) < OTHERBOT_BLACKLIST_FRAME_COUNT){
+		if(nearBots[i].lastUsed==0 && frameCount<OTHERBOT_BLACKLIST_FRAME_COUNT){
+			return 1;
+		}
+		if(useBlacklist){
+			return 0;
+		}
+	}
+	return 1;
 }
 
 void fuseMeasurements(BotMeas* fused, BotMeas* measA, BotMeas* measB){
@@ -205,37 +233,27 @@ void prepExpectedPositions(BotPos* posArr){
 	BotMeas convertedMeas; //This is their measurement, converted to be from this robot's point of view.
 	BotMeas fusedMeas;
 	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
-		if(!validNearBotIdx(i)){
-			continue;
+		if(nearBotUseabilityCheck(i)){
+			if(useOthers && (nearBots[i].theirMeas).id == get_droplet_id()){
+				convertedMeas.r = nearBots[i].myMeas.r;
+				convertedMeas.id =nearBots[i].myMeas.id;
+				convertedMeas.conf = nearBots[i].myMeas.conf;
+				convertMeas(&(convertedMeas.b), &(convertedMeas.h), (nearBots[i].myMeas).b, (nearBots[i].myMeas).h);
+				fuseMeasurements(&fusedMeas, &convertedMeas, &(nearBots[i].theirMeas));
+				calcPosFromMeas(&(posArr[botIdx]), &(nearBots[i].pos), &fusedMeas);
+				printPosFromMeas(&(nearBots[i].pos), &fusedMeas);
+			}else{
+				convertedMeas.r = nearBots[i].myMeas.r;
+				convertedMeas.id =nearBots[i].myMeas.id;
+				convertedMeas.conf = nearBots[i].myMeas.conf;
+				convertMeas(&(convertedMeas.b), &(convertedMeas.h), (nearBots[i].myMeas).b, (nearBots[i].myMeas).h);
+				calcPosFromMeas(&(posArr[botIdx]), &(nearBots[i].pos), &convertedMeas);
+				printPosFromMeas(&(nearBots[i].pos), &convertedMeas);
+			}
+			addUsedBot(nearBots[i].myMeas.id);
+			nearBots[i].lastUsed = frameCount;
+			botIdx++;
 		}
-		/* 
-		 * If we use the same bot every frame, then the measurement errors between me and this other bot become 
-		 * very much not independent. Thus, we blacklist otherBots for a certain number of frames before using
-		 * them again. This blacklist/waiting period is intended to allow the other bot to incorporate new/different
-		 * information from other robots, and thus become more independent. Honestly it will still be somewhat dependent,
-		 * but the goal here is to mitigate our abuse of the independence assumption.
-		 */
-		if((frameCount - nearBots[i].lastUsed) < OTHERBOT_BLACKLIST_FRAME_COUNT){
-			continue;
-		}
-		if(useOthers && (nearBots[i].theirMeas).id == get_droplet_id()){
-			convertedMeas.r = nearBots[i].myMeas.r;
-			convertedMeas.id =nearBots[i].myMeas.id;
-			convertedMeas.conf = nearBots[i].myMeas.conf;
-			convertMeas(&(convertedMeas.b), &(convertedMeas.h), (nearBots[i].myMeas).b, (nearBots[i].myMeas).h);
-			fuseMeasurements(&fusedMeas, &convertedMeas, &(nearBots[i].theirMeas));
-			calcPosFromMeas(&(posArr[botIdx]), &(nearBots[i].pos), &fusedMeas);
-			printPosFromMeas(&(nearBots[i].pos), &fusedMeas);
-		}else{
-			convertedMeas.r = nearBots[i].myMeas.r;
-			convertedMeas.id =nearBots[i].myMeas.id;
-			convertedMeas.conf = nearBots[i].myMeas.conf;
-			convertMeas(&(convertedMeas.b), &(convertedMeas.h), (nearBots[i].myMeas).b, (nearBots[i].myMeas).h);
-			calcPosFromMeas(&(posArr[botIdx]), &(nearBots[i].pos), &convertedMeas);
-			printPosFromMeas(&(nearBots[i].pos), &convertedMeas);
-		}
-		nearBots[i].lastUsed = frameCount;
-		botIdx++;
 	}
 }
 
@@ -458,6 +476,8 @@ void handleFrameEnd(){
 			
 			postUpdate = get_time();
 		}
+	}else{
+		postUpdate = get_time();
 	}
 	postParticles = get_time();
 	
@@ -927,6 +947,7 @@ void sendNearBotsMsg(){
 		msg.shared[i].h = packAngleMeas(nearBots[i].myMeas.h);
 		msg.shared[i].conf = nearBots[i].myMeas.conf;
 	}
+	getUsedBots(msg.used);
 	ir_send(ALL_DIRS, (char*)(&msg), sizeof(NearBotsMsg));
 }
 
@@ -939,7 +960,6 @@ void handleNearBotsMsg(NearBotsMsg* msg, id_t senderID){
 			NB_DEBUG_PRINT("\tX: %4d Y: %4d O: %3d C: %2hu", nearBot->pos.x, nearBot->pos.y, nearBot->pos.o, nearBot->pos.conf);
 		}
 		NB_DEBUG_PRINT("\r\n");
-
 		for(uint8_t i=0;i<NUM_SHARED_BOTS;i++){
 			if(msg->shared[i].id == get_droplet_id()){
 				nearBot->theirMeas.r = unpackRange(msg->shared[i].range);
@@ -951,7 +971,21 @@ void handleNearBotsMsg(NearBotsMsg* msg, id_t senderID){
 				break;
 			}
 		}
+		nearBot->hasNewInfo = checkNearBotForNewInfo(msg->used);
 	}
+}
+
+uint8_t checkNearBotForNewInfo(id_t usedBots[NUM_USED_BOTS]){
+	printf("\tUsed Bots: ");
+	uint8_t found = 1;
+	for(uint8_t i=0 ; i < NUM_USED_BOTS ; i++){
+		printf("%04X ", usedBots[i]);
+		if(usedBots[i] == get_droplet_id()){
+			found = 0;
+		}
+	}
+	printf("\r\n");
+	return found;
 }
 
 void handle_msg(ir_msg* msg_struct){
@@ -1067,6 +1101,7 @@ void cleanOtherBot(OtherBot* other){
 	other->theirMeas.h = UNDF;
 	other->theirMeas.conf = 0;
 	other->lastUsed = 0;
+	other->hasNewInfo = 0;
 }
 
 /*
@@ -1113,10 +1148,31 @@ uint8_t user_handle_command(char* command_word, char* command_args){
 		killBall();
 		return 1;
 	}else if(strcmp_P(command_word,PSTR("uO"))==0){
-		useOthers = !useOthers;
+		switch(command_args[0]){
+			case '1': useOthers = 1;
+			case '0': useOthers = 0;
+			default: useOthers = !useOthers;
+		}
 		printf("Use others: %hu\r\n",useOthers);
 		return 1;
+	}else if(strcmp_P(command_word,PSTR("uB"))==0){
+		switch(command_args[0]){
+			case '1': useBlacklist = 1;
+			case '0': useBlacklist = 0;
+			default: useBlacklist = !useBlacklist;
+		}
+		printf("Use others: %hu\r\n",useBlacklist);
+		return 1;
+	}else if(strcmp_P(command_word,PSTR("uN"))==0){
+		switch(command_args[0]){
+			case '1': useNewInfo = 1;
+			case '0': useNewInfo = 0;
+			default: useNewInfo = !useNewInfo;
+		}
+		printf("Use others: %hu\r\n",useNewInfo);
+		return 1;
 	}
+
 	return 0;
 }
 
@@ -1144,5 +1200,34 @@ void cleanHardBots(){
 		temp = hardBotsList->next;
 		myFree(hardBotsList);
 		hardBotsList = temp;
+	}
+}
+
+void getUsedBots(id_t dest[NUM_USED_BOTS]){
+	printf("My Used bots: ");
+	for(uint8_t i=0;i<NUM_USED_BOTS;i++){
+		printf("%04X ", lastUsedBots[i]);
+		dest[i] = lastUsedBots[i];
+	}
+	printf("\r\n");
+}
+
+void addUsedBot(id_t bot){
+	uint8_t curIdx = (NUM_USED_BOTS-1);
+	for(uint8_t i=0;i<NUM_USED_BOTS;i++){
+		if(lastUsedBots[i] == bot){
+			curIdx = i;
+			break;
+		}
+	}
+	for(uint8_t i=curIdx;i>=1;i--){
+		lastUsedBots[i] = lastUsedBots[i-1];
+	}
+	lastUsedBots[0] = bot;
+}
+
+void initUsedBots(){
+	for(uint8_t i=0;i<NUM_USED_BOTS;i++){
+		lastUsedBots[i] = 0;
 	}
 }

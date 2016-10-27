@@ -78,13 +78,13 @@ void handleMySlot(){
 	broadcast_rnb_data();
 	while(((get_time()-frameStart)%SLOT_LENGTH_MS)<RNB_DUR)
 		delay_us(500);
-	printf("Collisions: ");
-	int16_t coll_vals[6];
-	check_collision_values(coll_vals);
-	for(uint8_t i=0;i<6;i++){
-		printf("%5d ", coll_vals[i]);
-	}
-	printf("\r\n");
+	//printf("Collisions: ");
+	//int16_t coll_vals[6];
+	//check_collision_values(coll_vals);
+	//for(uint8_t i=0;i<6;i++){
+		//printf("%5d ", coll_vals[i]);
+	//}
+	//printf("\r\n");
 	while(((get_time()-frameStart)%SLOT_LENGTH_MS)<(RNB_DUR+PADDLE_MSG_DUR))
 		delay_us(500);		
 	sendNearBotsMsg();
@@ -149,7 +149,36 @@ void handleFrameEnd(){
 
 	//Maybe we'll want to remove the N worst nearBots, here.
 	if(!seedFlag){
-		//Collect all measurement data here!
+		id_t id;
+		int16_t r, b, h, mC;
+		for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
+			id = nearBots[i].meas.id;
+			if(!id) continue;
+			if(i==0) printf("{");
+			r = nearBots[i].meas.r;
+			b = nearBots[i].meas.b;
+			h = nearBots[i].meas.h;
+			mC = nearBots[i].meas.conf;
+			printf("{\"%04X\", {%d, %d, %d, %d}, {\r\n", id, r, b, h, mC);
+			for(uint8_t j=0;j<NUM_SHARED_BOTS;j++){
+				id = nearBots[i].shared[j].id;
+				if(!id) continue;
+				r  = nearBots[i].shared[j].r;
+				b  = nearBots[i].shared[j].b;
+				h  = nearBots[i].shared[j].h;
+				mC = nearBots[i].shared[j].conf;
+				printf("\t{\"%04X\", %d, %d, %d, %d}", id, r, b, h, mC);
+				if(j!=(NUM_SHARED_BOTS-1) && nearBots[i].shared[j].id){
+					printf(",\r\n");
+				}else{
+					if(i!=(NUM_TRACKED_BOTS-1) && nearBots[i+1].meas.id){
+						printf("}},\r\n");
+					}else{
+						printf("}}},\r\n");
+					}
+				}
+			}
+		}
 	}
 	
 	updateHardBots();
@@ -157,7 +186,7 @@ void handleFrameEnd(){
 	frameEndPrintout();
 	printf("\r\n");
 
-	printf("End of frame %lu.\r\n", frameCount);
+	GEN_DEBUG_PRINT("End of frame %lu.\r\n", frameCount);
 }
 
 void updateHardBots(){

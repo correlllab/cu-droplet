@@ -2,12 +2,12 @@
 
 #include "droplet_init.h"
 
-#define POS_DEBUG_MODE
-#define GEN_DEBUG_MODE
-#define P_SAMPLE_DEBUG_MODE
-#define P_L_DEBUG_MODE
-#define RNB_DEBUG_MODE
-#define NB_DEBUG_MODE
+//#define POS_DEBUG_MODE
+//#define GEN_DEBUG_MODE
+//#define P_SAMPLE_DEBUG_MODE
+//#define P_L_DEBUG_MODE
+//#define RNB_DEBUG_MODE
+//#define NB_DEBUG_MODE
 //#define BALL_DEBUG_MODE
 
 #define MIN_PACKED_X -1024

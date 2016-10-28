@@ -80,6 +80,7 @@ uint8_t useOthers;
 #define FRAME_LENGTH_MS			(((uint32_t)SLOT_LENGTH_MS)*((uint32_t)SLOTS_PER_FRAME))
 #define LOOP_DELAY_MS			17
 
+#define DROPLET_DIAMETER_MM		44.4
 #define BALL_MSG_FLAG			'B'
 #define NEAR_BOTS_MSG_FLAG		'N'
 //#define N_PADDLE_MSG_FLAG		'P'
@@ -254,12 +255,12 @@ void		calcPosFromMeas(BotPos* calcPos, BotPos* pos, BotMeas* meas);
 void		printPosFromMeas(BotPos* pos, BotMeas* meas);
 uint8_t		countAvailableMeasurements();
 uint8_t     nearBotUseabilityCheck(uint8_t i);
-void		prepExpectedPositions(BotPos* posArr); //This is used by initParticles too.
+void		prepExpectedPositions(BotPos* expPosArr, BotPos* avoidPosArr); //This is used by initParticles too.
 float		calc_pMGP(int16_t pX, int16_t pY, int16_t pO, BotPos* pos);
 uint8_t		updateParticles();
 uint8_t		getPosConf(float xStdDev, float yStdDev, float oStdDev);
 void		jitterParticle(Particle* p);
-void		handleFrameEnd();
+void		handleFrameEnd(); 
 void		resampleParticles();
 void		updateHardBots();
 void		degradeConfidence();

@@ -15,6 +15,7 @@
 
 
 #define DROPLET_RADIUS 2.22  //cm
+#define DROPLET_DIAMETER 4.44 //cm
 #define DROPLET_SENSOR_RADIUS 2.5 //cm
 
 //Synchronization Timing Constants:

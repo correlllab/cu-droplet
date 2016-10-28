@@ -114,7 +114,7 @@ void initParticles(){
 	if(!numMeas){ //no measurements to initialize with.
 		return;
 	}
-	prepExpectedPositions(expPos);
+	prepExpectedPositions(expPos, NULL);
 	for(uint8_t i=0 ; i<numMeas ; i++){
 		conf = expPos[i].conf;
 		totX += conf*expPos[i].x;
@@ -154,8 +154,8 @@ void calcPosFromMeas(BotPos* calcPos, BotPos* pos, BotMeas* meas){
 	int16_t b	 = meas->b;
 	int16_t h    = meas->h;
 	float mC     = meas->conf;
-	float deltaX = (float)r * cos(deg_to_rad(b + 90));
-	float deltaY = (float)r * sin(deg_to_rad(b + 90));
+	float deltaX = (float)r * cos(deg_to_rad(b + o + 90));
+	float deltaY = (float)r * sin(deg_to_rad(b + o + 90));
 	calcPos->x = (int16_t)(x + deltaX + 0.5);
 	calcPos->y = (int16_t)(y + deltaY + 0.5);
 	calcPos->o = pretty_angle_deg(o + h);
@@ -228,7 +228,7 @@ void fuseMeasurements(BotMeas* fused, BotMeas* measA, BotMeas* measB){
 }
 
 
-void prepExpectedPositions(BotPos* posArr){
+void prepExpectedPositions(BotPos* expPosArr, BotPos* avoidPosArr){
 	uint8_t botIdx=0;
 	BotMeas convertedMeas; //This is their measurement, converted to be from this robot's point of view.
 	BotMeas fusedMeas;
@@ -240,15 +240,21 @@ void prepExpectedPositions(BotPos* posArr){
 				convertedMeas.conf = nearBots[i].myMeas.conf;
 				convertMeas(&(convertedMeas.b), &(convertedMeas.h), (nearBots[i].myMeas).b, (nearBots[i].myMeas).h);
 				fuseMeasurements(&fusedMeas, &convertedMeas, &(nearBots[i].theirMeas));
-				calcPosFromMeas(&(posArr[botIdx]), &(nearBots[i].pos), &fusedMeas);
+				calcPosFromMeas(&(expPosArr[botIdx]), &(nearBots[i].pos), &fusedMeas);
 				printPosFromMeas(&(nearBots[i].pos), &fusedMeas);
 			}else{
 				convertedMeas.r = nearBots[i].myMeas.r;
 				convertedMeas.id =nearBots[i].myMeas.id;
 				convertedMeas.conf = nearBots[i].myMeas.conf;
 				convertMeas(&(convertedMeas.b), &(convertedMeas.h), (nearBots[i].myMeas).b, (nearBots[i].myMeas).h);
-				calcPosFromMeas(&(posArr[botIdx]), &(nearBots[i].pos), &convertedMeas);
+				calcPosFromMeas(&(expPosArr[botIdx]), &(nearBots[i].pos), &convertedMeas);
 				printPosFromMeas(&(nearBots[i].pos), &convertedMeas);
+			}
+			if(avoidPosArr!=NULL){
+				avoidPosArr[i].x = nearBots[i].pos.x;
+				avoidPosArr[i].y = nearBots[i].pos.y;
+				avoidPosArr[i].o = 0;
+				avoidPosArr[i].conf = nearBots[i].pos.conf;
 			}
 			addUsedBot(nearBots[i].myMeas.id);
 			nearBots[i].lastUsed = frameCount;
@@ -268,11 +274,13 @@ float calc_pMGP(int16_t pX, int16_t pY, int16_t pO, BotPos* pos){
 	 * - Compare expected position (x,y,p) to particle's (x,y,o)
 	 *       The more similar, the higher the likelihood.
 	 */
-	float dist = 1.0-(hypotf(pos->x-pX,pos->y-pY)/((float)maxRange));
-	dist = (dist>1.0) ? 1.0 : dist;
+	float pMGP;
+	float dist = hypotf(pos->x-pX,pos->y-pY);
+
+	float floatMaxRange = maxRange;
+	float scaledDist = dist>floatMaxRange ? 1.0 : 1.0-dist/maxRange;
 	int32_t oDiff	= abs(pretty_angle_deg(pos->o-pO));
-	float pMGP = powf(dist,6.0)*powf((180-oDiff)/180.0,2.0);
-	//printf("[%4d, %4d, % 4d] => %5.3f, %3ld => %6.4f\r\n",pX, pY, pO, dist, oDiff, pMGP);
+	pMGP = powf(scaledDist,6.0)*powf((180-oDiff)/180.0,2.0);
 	return pMGP;
 }
 
@@ -287,11 +295,13 @@ uint8_t updateParticles(){
 		return 0; //No new measurements.
 	}
 	BotPos expPos[numMeas];
-	prepExpectedPositions(expPos);
+	BotPos avoidPos[numMeas];
+	prepExpectedPositions(expPos, avoidPos);
 	P_L_DEBUG_PRINT("Updating particles with %hu measurements:\r\n", numMeas);
 	//start = get_time();
 	float pMGP;
 	float tot_pMGP, tot_conf;
+	float newLikelihood;
 	float totalLikelihood = 0.0;
 	for(uint16_t i=0;i<NUM_PARTICLES;i++){
 		unpackParticle(&pX, &pY, &pO, &pL, &(particles[i]));
@@ -305,11 +315,33 @@ uint8_t updateParticles(){
 			//totCalc_pMGP += (get_time()-startCalc_pMGP);
 		}
 		float geoMean_pMGP = powf(M_E,(tot_pMGP/tot_conf));
-		float newLikelihood  = geoMean_pMGP*pL;
+		newLikelihood  = geoMean_pMGP*pL;
 		totalLikelihood		+= newLikelihood;
 		updateParticleLikelihood(newLikelihood, &(particles[i]));
 	}	
 	//postFor = get_time();
+	//Now going to update particles based on distance
+	float dist;
+	float distL;
+	float tot_distL = 0.0;
+	tot_conf = 0.0;
+	totalLikelihood = 0.0;
+	for(uint16_t i=0;i<NUM_PARTICLES;i++){
+		unpackParticle(&pX, &pY, &pO, &pL, &(particles[i]));
+		for(uint8_t j=0;j<numMeas;j++){
+			dist = hypotf(pX-avoidPos[j].x,pY-avoidPos[j].y);
+			if(dist<DROPLET_DIAMETER_MM){
+				distL = powf(dist/DROPLET_DIAMETER_MM,3.0);
+				tot_distL = avoidPos[j].conf*log(distL);
+				tot_conf += avoidPos[j].conf;
+			}
+		}
+		float geoMean_distL = powf(M_E, (tot_distL/tot_conf));
+		newLikelihood = geoMean_distL*pL;
+		totalLikelihood += newLikelihood;
+		updateParticleLikelihood(newLikelihood, &(particles[i]));
+	}
+
 	for(uint16_t i=0;i<NUM_PARTICLES;i++){
 		updateParticleLikelihood(unpackParticleLikelihood(&(particles[i]))/totalLikelihood,&(particles[i]));
 	}
@@ -336,6 +368,7 @@ void resampleParticles(){
 	int16_t pX, pY;
 	int16_t pO;
 	float pL;
+
 	//P_SAMPLE_DEBUG_PRINT("All Particles (before):\r\n{\r\n");
 	float expDistr[NUM_PARTICLES+1];
 	float accumL[NUM_PARTICLES+1];
@@ -343,7 +376,7 @@ void resampleParticles(){
 	accumL[0] = 0.0;
 	for(uint16_t i=1;i<=NUM_PARTICLES;i++){
 		expDistr[i] = expDistr[i-1] - log(rand_real());
-		accumL[i] = accumL[i-1] +  unpackParticleLikelihood(&(particles[i-1]));
+		accumL[i] = accumL[i-1] +  (unpackParticleLikelihood(&(particles[i-1])));
 		//#ifdef P_SAMPLE_DEBUG_PRINT
 		//unpackParticle(&pX, &pY, &pO, &pL, &(particles[i-1]));
 		//if(i!=NUM_PARTICLES)	P_SAMPLE_DEBUG_PRINT("\t\t{%4d, %4d, % 4d, %8.6f}, \r\n", pX, pY, pO, pL);
@@ -482,7 +515,7 @@ void handleFrameEnd(){
 	postParticles = get_time();
 	
 	updateHardBots();
-	//degradeConfidence(); //lower confidence of bots for which no measurement was received.
+	degradeConfidence(); //lower confidence of bots for which no measurement was received.
 	frameEndPrintout();
 	printf("\r\n");
 
@@ -1149,27 +1182,27 @@ uint8_t user_handle_command(char* command_word, char* command_args){
 		return 1;
 	}else if(strcmp_P(command_word,PSTR("uO"))==0){
 		switch(command_args[0]){
-			case '1': useOthers = 1;
-			case '0': useOthers = 0;
+			case '1': useOthers = 1; break;
+			case '0': useOthers = 0; break;
 			default: useOthers = !useOthers;
 		}
 		printf("Use others: %hu\r\n",useOthers);
 		return 1;
 	}else if(strcmp_P(command_word,PSTR("uB"))==0){
 		switch(command_args[0]){
-			case '1': useBlacklist = 1;
-			case '0': useBlacklist = 0;
+			case '1': useBlacklist = 1; break;
+			case '0': useBlacklist = 0; break;
 			default: useBlacklist = !useBlacklist;
 		}
-		printf("Use others: %hu\r\n",useBlacklist);
+		printf("Use blacklist: %hu\r\n",useBlacklist);
 		return 1;
 	}else if(strcmp_P(command_word,PSTR("uN"))==0){
 		switch(command_args[0]){
-			case '1': useNewInfo = 1;
-			case '0': useNewInfo = 0;
+			case '1': useNewInfo = 1; break;
+			case '0': useNewInfo = 0; break;
 			default: useNewInfo = !useNewInfo;
 		}
-		printf("Use others: %hu\r\n",useNewInfo);
+		printf("Use newInfo: %hu\r\n",useNewInfo);
 		return 1;
 	}
 

@@ -129,16 +129,15 @@ void initParticles(){
 	float combinedStdDev = ((float)numMeas)/totConf;
 	POS_DEBUG_PRINT("Initializing particles!\r\n");
 	POS_DEBUG_PRINT("xEst: %f, yEst: %f, oEst: %f, stdDev: %f\r\n", xEst, yEst, oEst, combinedStdDev);
-	int16_t pX, pY;
-	int16_t pO;
-	float pL = 1.0/NUM_PARTICLES;
+	Particle p;
+	p.l = 1.0/NUM_PARTICLES;
 	for(uint16_t i=0; i<NUM_PARTICLES; i++){
-		pX = rand_norm(xEst, combinedStdDev*xRange);
-		pY = rand_norm(yEst, combinedStdDev*yRange);
-		pO = pretty_angle_deg(rand_norm(oEst, combinedStdDev*180));
-		//if(i!=NUM_PARTICLES)	POS_DEBUG_PRINT("\t{%4d, %4d, % 4d}, \r\n", pX, pY, pO);
-		//else					POS_DEBUG_PRINT("\t{%4d, %4d, % 4d}};\r\n", pX, pY, pO);
-		packParticle(pX, pY, pO, pL, &(particles[i]));
+		p.x = rand_norm(xEst, combinedStdDev*xRange);
+		p.y = rand_norm(yEst, combinedStdDev*yRange);
+		p.o = pretty_angle_deg(rand_norm(oEst, combinedStdDev*180));
+		//if(i!=NUM_PARTICLES)	POS_DEBUG_PRINT("\t{%4d, %4d, % 4d}, \r\n", p.x, p.y, p.o);
+		//else					POS_DEBUG_PRINT("\t{%4d, %4d, % 4d}};\r\n", p.x, p.y, p.o);
+		packParticle(&p, &(particles[i]));
 	}
 	particlesInitialized = 1;
 }
@@ -263,7 +262,7 @@ void prepExpectedPositions(BotPos* expPosArr, BotPos* avoidPosArr){
 	}
 }
 
-float calc_pMGP(int16_t pX, int16_t pY, int16_t pO, BotPos* pos){
+float calc_pMGP(Particle* p, BotPos* mPos, BotPos* sPos){
 	/*
 	 * bayes rule: P(particle|meas) = (P(meas|particle)*P(particle))/P(meas)
 	 * P(particle) is the prior probability -> particles[i].l
@@ -274,22 +273,23 @@ float calc_pMGP(int16_t pX, int16_t pY, int16_t pO, BotPos* pos){
 	 * - Compare expected position (x,y,p) to particle's (x,y,o)
 	 *       The more similar, the higher the likelihood.
 	 */
-	float pMGP;
-	float dist = hypotf(pos->x-pX,pos->y-pY);
+	float distFromSource = hypotf(sPos->x-p->x, sPos->y-p->y);
+	float scaledDistFromSource = distFromSource>=DROPLET_DIAMETER_MM ? 1.0 : distFromSource/DROPLET_DIAMETER_MM;
 
+	float pMGP;
+	float distFromExpected = hypotf(mPos->x-p->x,mPos->y-p->y);
 	float floatMaxRange = maxRange;
-	float scaledDist = dist>floatMaxRange ? 1.0 : 1.0-dist/maxRange;
-	int32_t oDiff	= abs(pretty_angle_deg(pos->o-pO));
-	pMGP = powf(scaledDist,6.0)*powf((180-oDiff)/180.0,2.0);
+	float scaledDistFromExpected = distFromExpected>floatMaxRange ? 1.0 : 1.0-distFromExpected/maxRange;
+	int32_t oDiff	= abs(pretty_angle_deg(mPos->o-p->o));
+	pMGP = powf(scaledDistFromSource,4)*powf(scaledDistFromExpected,10.0)*powf((180-oDiff)/180.0,2.0);
+	
 	return pMGP;
 }
 
 uint8_t updateParticles(){
 	//uint32_t start, postFor, end;
 	//uint32_t startCalc_pMGP, totCalc_pMGP;
-
-	int16_t pX, pY, pO;
-	float pL;
+	Particle p;
 	uint8_t numMeas = countAvailableMeasurements();
 	if(!numMeas){
 		return 0; //No new measurements.
@@ -304,43 +304,31 @@ uint8_t updateParticles(){
 	float newLikelihood;
 	float totalLikelihood = 0.0;
 	for(uint16_t i=0;i<NUM_PARTICLES;i++){
-		unpackParticle(&pX, &pY, &pO, &pL, &(particles[i]));
+		unpackParticle(&p, &(particles[i]));
 		tot_pMGP = 0.0;
 		tot_conf = 0;
 		for(uint8_t j=0 ; j<numMeas ; j++){
 			//startCalc_pMGP = get_time();
-			pMGP = calc_pMGP(pX, pY, pO, &(expPos[j]));
+			pMGP = calc_pMGP(&p, &(expPos[j]), &(avoidPos[j]));
 			tot_pMGP += expPos[j].conf*log(pMGP);
 			tot_conf += expPos[j].conf;
+			//if(j==(numMeas-1)){
+				//printf("{%8.6f, %hu}}, ", pMGP, expPos[j].conf);
+			//}else if(j==0){
+				//printf("{{{%8.6f, %hu}, ", pMGP, expPos[j].conf);
+			//}else{
+				//printf("{%8.6f, %hu}, ", pMGP, expPos[j].conf);
+			//}
+
 			//totCalc_pMGP += (get_time()-startCalc_pMGP);
 		}
 		float geoMean_pMGP = powf(M_E,(tot_pMGP/tot_conf));
-		newLikelihood  = geoMean_pMGP*pL;
+		//printf("%8.6f},\r\n", geoMean_pMGP);
+		newLikelihood  = geoMean_pMGP*p.l;
 		totalLikelihood		+= newLikelihood;
 		updateParticleLikelihood(newLikelihood, &(particles[i]));
 	}	
 	//postFor = get_time();
-	//Now going to update particles based on distance
-	float dist;
-	float distL;
-	float tot_distL = 0.0;
-	tot_conf = 0.0;
-	totalLikelihood = 0.0;
-	for(uint16_t i=0;i<NUM_PARTICLES;i++){
-		unpackParticle(&pX, &pY, &pO, &pL, &(particles[i]));
-		for(uint8_t j=0;j<numMeas;j++){
-			dist = hypotf(pX-avoidPos[j].x,pY-avoidPos[j].y);
-			if(dist<DROPLET_DIAMETER_MM){
-				distL = powf(dist/DROPLET_DIAMETER_MM,3.0);
-				tot_distL = avoidPos[j].conf*log(distL);
-				tot_conf += avoidPos[j].conf;
-			}
-		}
-		float geoMean_distL = powf(M_E, (tot_distL/tot_conf));
-		newLikelihood = geoMean_distL*pL;
-		totalLikelihood += newLikelihood;
-		updateParticleLikelihood(newLikelihood, &(particles[i]));
-	}
 
 	for(uint16_t i=0;i<NUM_PARTICLES;i++){
 		updateParticleLikelihood(unpackParticleLikelihood(&(particles[i]))/totalLikelihood,&(particles[i]));
@@ -365,9 +353,7 @@ void resampleParticles(){
 	float meanY = 0;
 	float oMeanX = 0;
 	float oMeanY = 0;
-	int16_t pX, pY;
-	int16_t pO;
-	float pL;
+	Particle p;
 
 	//P_SAMPLE_DEBUG_PRINT("All Particles (before):\r\n{\r\n");
 	float expDistr[NUM_PARTICLES+1];
@@ -385,7 +371,7 @@ void resampleParticles(){
 	}
 	float expDistrMax = expDistr[NUM_PARTICLES];
 
-	Particle newParticles[NUM_PARTICLES];
+	PackedParticle newParticles[NUM_PARTICLES];
 
 	//Resampling
 	//P_SAMPLE_DEBUG_PRINT("All Particles (resampled):\r\n{\r\n");
@@ -395,9 +381,9 @@ void resampleParticles(){
 	while(i < NUM_PARTICLES){
 		if(j>NUM_PARTICLES || accumL[j]*expDistrMax > expDistr[i]){
 			newParticles[i] = particles[j-1];
-			//unpackParticle(&pX, &pY, &pO, &pL, &(newParticles[i]));
-			//if(i!=NUM_PARTICLES)	P_SAMPLE_DEBUG_PRINT("\t\t{%4d, %4d, % 4d, %8.6f}, \r\n", pX, pY, pO, pL);
-			//else					P_SAMPLE_DEBUG_PRINT("\t\t{%4d, %4d, % 4d, %8.6f}};\r\n", pX, pY, pO, pL);
+			//unpackParticle(&p, &(newParticles[i]));
+			//if(i!=NUM_PARTICLES)	P_SAMPLE_DEBUG_PRINT("\t\t{%4d, %4d, % 4d, %8.6f}, \r\n", p.x, p.y, p.o, p.l);
+			//else					P_SAMPLE_DEBUG_PRINT("\t\t{%4d, %4d, % 4d, %8.6f}};\r\n", p.x, p.y, p.o, p.l);
 			i++;
 		}else{
 			j++;
@@ -411,13 +397,13 @@ void resampleParticles(){
 	//This first loop calculates the means.
 	//printf("Particles calculating mean:\r\n");
 	for(uint16_t i=0;i<NUM_PARTICLES;i++){
-		unpackParticle(&pX, &pY, &pO, &pL, &(particles[i]));
-		//printf("\t{%4d, %4d, %6.4f}\r\n", pX, pY, pL);
-		meanX += pL*pX;
-		meanY += pL*pY;
-		oMeanX += pL*cosf(deg_to_rad(pO));
-		oMeanY += pL*sinf(deg_to_rad(pO));
-		totalLikelihood += pL;
+		unpackParticle(&p, &(particles[i]));
+		//printf("\t{%4d, %4d, %6.4f}\r\n", p.x, p.y, p.l);
+		meanX += p.l*p.x;
+		meanY += p.l*p.y;
+		oMeanX += p.l*cosf(deg_to_rad(p.o));
+		oMeanY += p.l*sinf(deg_to_rad(p.o));
+		totalLikelihood += p.l;
 	}
 	P_SAMPLE_DEBUG_PRINT("weightedTotX: %f, weightedTotY: %f, tot: %f\r\n", meanX, meanY, totalLikelihood);
 	meanX = meanX/totalLikelihood;
@@ -432,9 +418,9 @@ void resampleParticles(){
 
 	//This second loop calculates the standard deviations from the mean and renormalizes the likelihoods.
 	for(uint16_t i=0;i<NUM_PARTICLES;i++){
-		unpackParticle(&pX, &pY, &pO, &pL, &(particles[i]));
-		totalDiffX += pL*powf(pX - meanX, 2);
-		totalDiffY += pL*powf(pY - meanY, 2);
+		unpackParticle(&p, &(particles[i]));
+		totalDiffX += p.l*powf(p.x - meanX, 2);
+		totalDiffY += p.l*powf(p.y - meanY, 2);
 		//updateParticleLikelihood(pL/totalLikelihood, &(particles[i]));
 	}
 
@@ -447,11 +433,12 @@ void resampleParticles(){
 
 	P_SAMPLE_DEBUG_PRINT("meanX: %4d (%6f), meanY: %4d (%6f), meanO: %4d (%6f)\r\n", (int16_t)meanX, xStdDev, (int16_t)meanY, yStdDev, (int16_t)rad_to_deg(meanO), rad_to_deg(oStdDev));
 
+	p.l = 1.0/NUM_PARTICLES;
 	for(uint16_t i=0;i<NUM_PARTICLES;i++){
-		pX = rand_norm(meanX, xStdDev)+0.5;
-		pY = rand_norm(meanY, yStdDev)+0.5;
-		pO = rad_to_deg(rand_norm(meanO, oStdDev))+0.5;
-		packParticle(pX, pY, pO, 1.0/NUM_PARTICLES, &(particles[i]));
+		p.x = rand_norm(meanX, xStdDev)+0.5;
+		p.y = rand_norm(meanY, yStdDev)+0.5;
+		p.o = rad_to_deg(rand_norm(meanO, oStdDev))+0.5;
+		packParticle(&p, &(particles[i]));
 	}
 	myPos.conf = getPosConf(xStdDev, yStdDev, oStdDev);
 	if(!(myPos.conf)){
@@ -478,16 +465,14 @@ uint8_t getPosConf(float xStdDev, float yStdDev, float oStdDev){
 	return (uint8_t)(overallConf+0.5);
 }
 
-void jitterParticle(Particle* p){
-	int16_t pX, pY;
-	int16_t pO;
-	float pL;
-	unpackParticle(&pX, &pY, &pO, &pL, p);
+void jitterParticle(PackedParticle* pP){
+	Particle p;
+	unpackParticle(&p, pP);
 	
-	pX = rand_norm(pX, 10);
-	pY = rand_norm(pY, 10);
-	pO = rad_to_deg(deg_to_rad(rand_norm(pO, 10)));
-	packParticle(pX, pY, pO, pL, p);
+	p.x = rand_norm(p.x, 10);
+	p.y = rand_norm(p.y, 10);
+	p.o = rad_to_deg(deg_to_rad(rand_norm(p.o, 10)));
+	packParticle(&p, pP);
 }
 
 void handleFrameEnd(){

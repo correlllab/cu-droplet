@@ -192,15 +192,25 @@ typedef struct bot_pos_struct
 	uint8_t conf;
 } BotPos;
 
-typedef struct particle_struct
+typedef struct unpacked_particle_struct
+{
+	float l;
+	int16_t x;
+	int16_t y;
+	int16_t o;
+} Particle;
+
+typedef struct packed_particle_struct
 {
 	uint16_t lLow;
 	uint8_t xLow;
 	uint8_t yLow;
 	uint8_t oLow;
 	uint8_t bits;
-} Particle;
-Particle particles[NUM_PARTICLES];
+} PackedParticle;
+PackedParticle particles[NUM_PARTICLES];
+
+
 
 typedef struct other_bot_rnb_struct{
 	BotMeas myMeas;
@@ -256,10 +266,10 @@ void		printPosFromMeas(BotPos* pos, BotMeas* meas);
 uint8_t		countAvailableMeasurements();
 uint8_t     nearBotUseabilityCheck(uint8_t i);
 void		prepExpectedPositions(BotPos* expPosArr, BotPos* avoidPosArr); //This is used by initParticles too.
-float		calc_pMGP(int16_t pX, int16_t pY, int16_t pO, BotPos* pos);
+float calc_pMGP(Particle* p, BotPos* mPos, BotPos* sPos);
 uint8_t		updateParticles();
 uint8_t		getPosConf(float xStdDev, float yStdDev, float oStdDev);
-void		jitterParticle(Particle* p);
+void		jitterParticle(PackedParticle* p);
 void		handleFrameEnd(); 
 void		resampleParticles();
 void		updateHardBots();
@@ -316,52 +326,56 @@ inline void convertMeas(int16_t* newB, int16_t* newH, int16_t b, int16_t h){
 	*newH = -h;
 }
 
-inline static float unpackParticleLikelihood(Particle* p){
+inline static float unpackParticleLikelihood(PackedParticle* p){
 	uint32_t likelihood;
 	likelihood = p->lLow;
 	likelihood |= (((uint32_t)(p->bits)) & 0b10000000)<<9;
 	return ((float)likelihood)/PROB_ONE;
 }
 
-inline static void updateParticleLikelihood(float pL, Particle* p){
+inline static void updateParticleLikelihood(float pL, PackedParticle* p){
 	uint32_t likelihood = (pL*PROB_ONE + 0.5);
 	p->lLow  = (uint16_t)(likelihood&0xFFFF);
 	p->bits &= 0b01111111; //clear out the previous likelihood bits before updating them.
 	p->bits |= (uint8_t)((likelihood>>9)&0b10000000);
 }
 
-inline static void packParticle(int16_t pX, int16_t pY, int16_t pO, float pL, Particle* p){
+inline static void packParticle(Particle* p, PackedParticle* pP){
+	int16_t pX = p->x;
+	int16_t pY = p->y;
+	int16_t pO = p->o;
+	float   pL = p->l;
 	uint32_t likelihood = (pL*PROB_ONE+0.5);
 	pX = (pX < -512) ? -512 : ((pX>1535) ? 1535 : pX);
 	pX += 512;
 	pY = (pY < -512) ? -512 : ((pY>1535) ? 1535 : pY);
 	pY += 512;
-	p->xLow  = (uint8_t)(pX&0xFF);
-	p->bits  = (uint8_t)((pX>>8)&0b00000111);
-	p->yLow  = (uint8_t)(pY&0xFF);
-	p->bits |= (uint8_t)((pY>>5)&0b00111000);
-	p->oLow  = (uint8_t)(pO&0xFF);
-	p->bits |= (uint8_t)((pO>>2)&0b01000000);
-	p->lLow  = (uint16_t)(likelihood&0xFFFF);
-	p->bits |= (uint8_t)((likelihood>>9)&0b10000000);
+	pP->xLow  = (uint8_t)(pX&0xFF);
+	pP->bits  = (uint8_t)((pX>>8)&0b00000111);
+	pP->yLow  = (uint8_t)(pY&0xFF);
+	pP->bits |= (uint8_t)((pY>>5)&0b00111000);
+	pP->oLow  = (uint8_t)(pO&0xFF);
+	pP->bits |= (uint8_t)((pO>>2)&0b01000000);
+	pP->lLow  = (uint16_t)(likelihood&0xFFFF);
+	pP->bits |= (uint8_t)((likelihood>>9)&0b10000000);
 }
 
-inline static void unpackParticle(int16_t* pX, int16_t* pY, int16_t* pO, float* pL, Particle* p){
+inline static void unpackParticle(Particle* p, PackedParticle* pP){
 	uint32_t likelihood;
-	uint16_t bits = p->bits;
-	*pX = p->xLow;
-	*pX |= (bits & 0b00000111)<<8;
-	*pX = (*pX)-512;
-	*pY = p->yLow;
-	*pY |= (bits & 0b00111000)<<5;
-	*pY = (*pY)-512;
-	*pO = p->oLow;
-	*pO |= (bits & 0b01000000)<<2;
-	*pO = ((*pO)<<7);
-	*pO = (*pO)/128;
-	likelihood = p->lLow;
+	uint16_t bits = pP->bits;
+	p->x = pP->xLow;
+	p->x |= (bits & 0b00000111)<<8;
+	p->x -= 512;
+	p->y = pP->yLow;
+	p->y |= (bits & 0b00111000)<<5;
+	p->y -= 512;
+	p->o = pP->oLow;
+	p->o |= (bits & 0b01000000)<<2;
+	p->o <<= 7;
+	p->o /= 128;
+	likelihood = pP->lLow;
 	likelihood |= ((uint32_t)bits & 0b10000000)<<9;
-	*pL = ((float)likelihood)/PROB_ONE;
+	p->l = ((float)likelihood)/PROB_ONE;
 }
 
 inline static void packPos(PackedBotPos* pos){

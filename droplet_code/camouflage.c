@@ -111,7 +111,7 @@ void init()
 	
 	frameStart = get_time();
 	
-	printf("Initializing Camouflage Project. mySlot is %003hu\r\n", me.mySlot);		
+	printf("Initializing Camouflage Project. mySlot is %03hu\r\n", me.mySlot);		
 }
 
 /*
@@ -178,16 +178,15 @@ void sendTuringMsg(){
 void handle_msg(ir_msg* msg_struct)
 {
 	switch (phase){
-		case 0: handle_neighbor_msg(msg_struct); break;
-		case 1: handle_rgb_msg(msg_struct); break;
-		case 2: handle_pattern_msg(msg_struct); break;
-		case 3: handle_turing_msg(msg_struct); break;
+		case 0: handle_neighbor_msg((neighborMsg*)msg_struct->msg); break;
+		case 1: handle_rgb_msg((rgbMsg*)msg_struct->msg); break;
+		case 2: handle_pattern_msg((patternMsg*)msg_struct->msg); break;
+		case 3: handle_turing_msg((turingMsg*)msg_struct->msg); break;
 		default: break;
 	}
 }
 
-void handle_neighbor_msg(ir_msg* msg_struct){
-	neighborMsg* msg = (neighborMsg**)(msg_struct->msg);
+void handle_neighbor_msg(neighborMsg* msg){
 	if(msg->flag == NEIGHBOR_MSG_FLAG){
 		for (uint8_t i=0; i<NUM_NEIGHBOR_4; i++)
 		{
@@ -201,8 +200,7 @@ void handle_neighbor_msg(ir_msg* msg_struct){
 	}	
 }
 
-void handle_rgb_msg(ir_msg* msg_struct){
-	rgbMsg* msg = (rgbMsg**)(msg_struct->msg);
+void handle_rgb_msg(rgbMsg* msg){
 	if(msg->flag == RGB_MSG_FLAG){
 		for (uint8_t i=0; i<NUM_NEIGHBOR_4; i++)
 		{
@@ -215,8 +213,7 @@ void handle_rgb_msg(ir_msg* msg_struct){
 	}
 }
 
-void handle_pattern_msg(ir_msg* msg_struct){
-	patternMsg* msg = (patternMsg**)(msg_struct->msg);
+void handle_pattern_msg(patternMsg* msg){
 	if(msg->flag == PATTERN_MSG_FLAG){
 		for (uint8_t i=0; i<NUM_NEIGHBOR_8; i++)
 		{
@@ -229,8 +226,7 @@ void handle_pattern_msg(ir_msg* msg_struct){
 	}
 }
 
-void handle_turing_msg(ir_msg* msg_struct){
-	turingMsg* msg = (turingMsg**)(msg_struct->msg);
+void handle_turing_msg(turingMsg* msg){
 	if(msg->flag == TURING_MSG_FLAG){
 		for (uint8_t i=0; i<NUM_NEIGHBOR_12; i++)
 		{
@@ -295,9 +291,9 @@ void preparePhase(){
 			}
 			else {
 				phase++; frameCount = 1;
-				me.rgb[0] = meas_find_median(&red_array, NUM_PREPARE);
-				me.rgb[1] = meas_find_median(&green_array, NUM_PREPARE);
-				me.rgb[2] = meas_find_median(&blue_array, NUM_PREPARE);
+				me.rgb[0] = meas_find_median(red_array, NUM_PREPARE);
+				me.rgb[1] = meas_find_median(green_array, NUM_PREPARE);
+				me.rgb[2] = meas_find_median(blue_array, NUM_PREPARE);
 				
 				if(TEST_PREPARE){
 					for (uint8_t i=0; i<NUM_NEIGHBOR_12; i++){
@@ -785,37 +781,11 @@ void changeColor(){
 	
 }
 
-uint8_t user_handle_command(char* command_word, char* command_args){
-	if(strcmp(command_word, "pn")==0){ 
-		printns();
-	}
-	if(strcmp(command_word, "pp")==0){
-		printprob();
-	}
-	if(strcmp(command_word, "pt")==0){
-		printturing();
-	}	
-	if(strcmp(command_word, "pa")==0){
-		printprob();
-		printturing();
-		printns();
-		//printrgbs();
-		//printrgbs_ordered();
-		printfrgb();
-	}
-
-	if(strcmp(command_word, "set_thresh")==0){
-		threshold_mottled = atoi(command_args);
-	}
-
-	return 0;	
-}
-
 void displayMenu(){
-	printf("pn: print neighbors' ID\r\n"); // 
-	printf("pp: print all pattern probs\r\n"); 
-	printf("pt: print neighbors' turing colors\r\n"); // 
-	printf("pa: print all above info\r\n"); 
+printf("pn: print neighbors' ID\r\n"); //
+printf("pp: print all pattern probs\r\n");
+printf("pt: print neighbors' turing colors\r\n"); //
+printf("pa: print all above info\r\n");
 }
 
 void printns(){
@@ -874,4 +844,30 @@ void printturing(){
 			printf("%u[    ] Color: #\r\n", i);
 		}
 	}	
+}
+
+uint8_t user_handle_command(char* command_word, char* command_args){
+	if(strcmp(command_word, "pn")==0){
+		printns();
+	}
+	if(strcmp(command_word, "pp")==0){
+		printprob();
+	}
+	if(strcmp(command_word, "pt")==0){
+		printturing();
+	}
+	if(strcmp(command_word, "pa")==0){
+		printprob();
+		printturing();
+		printns();
+		//printrgbs();
+		//printrgbs_ordered();
+		printfrgb();
+	}
+
+	if(strcmp(command_word, "set_thresh")==0){
+		threshold_mottled = atoi(command_args);
+	}
+
+	return 0;
 }

@@ -135,12 +135,24 @@ int threshold_mottled = 40;
 void init();
 void loop();
 void handle_msg	(ir_msg* msg_struct);
+void handle_neighbor_msg(neighborMsg* msg);
+void handle_rgb_msg(rgbMsg* msg);
+void handle_pattern_msg(patternMsg* msg);
+void handle_turing_msg(turingMsg* msg);
+
+void extendNeighbors();
 uint8_t user_handle_command(char* command_word, char* command_args);
 
 void preparePhase();
 void gradientPhase();
 void consensusPhase();
 void turingPhase();
+
+void decidePattern();
+void weightedAverage();
+void changeColor();
+
+void displayMenu();
 
 uint8_t get_droplet_order_camouflage(uint16_t id)
 {

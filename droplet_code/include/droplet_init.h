@@ -116,6 +116,6 @@ void startup_light_sequence();
 
 uint8_t get_droplet_ord(id_t id);
 extern const id_t OrderedBotIDs[121];
-static id_t inline get_id_from_ord(uint8_t ord){
+inline static id_t  get_id_from_ord(uint8_t ord){
 	return pgm_read_word(&OrderedBotIDs[ord]);
 }

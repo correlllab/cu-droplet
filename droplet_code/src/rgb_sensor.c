@@ -162,8 +162,7 @@ void read_color_settings()
 	#endif		
 }
 
-void get_rgb(int16_t *r, int16_t *g, int16_t *b)
-{
+void get_rgb(int16_t *r, int16_t *g, int16_t *b){
 	#ifdef AUDIO_DROPLET
 		uint8_t write_sequence = 0xB4;
 		uint8_t result = TWI_MasterWriteRead(RGB_SENSE_ADDR, &write_sequence, 1, 8);

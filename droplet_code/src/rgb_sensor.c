@@ -1,7 +1,15 @@
 #include "rgb_sensor.h"
 #define RGB_SENSE_ADDR 0x29
 
+static const char RGB_SENSE_POWERON_FAILURE[] PROGMEM = "RGB sense power-on failed %u.\r\n";
+#ifndef AUDIO_DROPLET
+static int16_t r_baseline, g_baseline, b_baseline;
+#endif
 
+typedef union{
+	uint32_t i;
+	float f;
+} u;
 
 void rgb_sensor_init()
 {
@@ -138,24 +146,24 @@ int16_t get_blue_sensor(){
 void write_color_settings(){
 	printf("Writing color settings:");
 	printf("\tr: %4d, g: %4d, b: %4d\r\n", r_baseline, g_baseline, b_baseline);
-	EEPROM_write_byte(0x60, (uint8_t)(r_baseline&0xFF));
-	EEPROM_write_byte(0x61, (uint8_t)((r_baseline>>8)&0xFF));
-	EEPROM_write_byte(0x62, (uint8_t)(g_baseline&0xFF));
-	EEPROM_write_byte(0x63, (uint8_t)((g_baseline>>8)&0xFF));
-	EEPROM_write_byte(0x64, (uint8_t)(b_baseline&0xFF));
-	EEPROM_write_byte(0x65, (uint8_t)((b_baseline>>8)&0xFF));	
+	EEPROM_write_byte(0x70, (uint8_t)(r_baseline&0xFF));
+	EEPROM_write_byte(0x71, (uint8_t)((r_baseline>>8)&0xFF));
+	EEPROM_write_byte(0x72, (uint8_t)(g_baseline&0xFF));
+	EEPROM_write_byte(0x73, (uint8_t)((g_baseline>>8)&0xFF));
+	EEPROM_write_byte(0x74, (uint8_t)(b_baseline&0xFF));
+	EEPROM_write_byte(0x75, (uint8_t)((b_baseline>>8)&0xFF));	
 }
 
 void read_color_settings()
 {
 	#ifndef AUDIO_DROPLET
 		printf("Reading Color Calibration:");
-		r_baseline =((uint16_t)EEPROM_read_byte(0x60));
-		r_baseline |= ((uint16_t)EEPROM_read_byte(0x61))<<8;
-		g_baseline =((uint16_t)EEPROM_read_byte(0x62));
-		g_baseline |= ((uint16_t)EEPROM_read_byte(0x63))<<8;
-		b_baseline =((uint16_t)EEPROM_read_byte(0x64));
-		b_baseline |= ((uint16_t)EEPROM_read_byte(0x65))<<8;
+		r_baseline =((uint16_t)EEPROM_read_byte(0x70));
+		r_baseline |= ((uint16_t)EEPROM_read_byte(0x71))<<8;
+		g_baseline =((uint16_t)EEPROM_read_byte(0x72));
+		g_baseline |= ((uint16_t)EEPROM_read_byte(0x73))<<8;
+		b_baseline =((uint16_t)EEPROM_read_byte(0x74));
+		b_baseline |= ((uint16_t)EEPROM_read_byte(0x75))<<8;
 		printf("\tr: %4d, g: %4d, b: %4d\r\n", r_baseline, g_baseline, b_baseline);
 	#else
 		printf_P(PSTR("ERROR: Audio droplets don't use color_settings.\r\n"));
@@ -191,4 +199,23 @@ void get_rgb(int16_t *r, int16_t *g, int16_t *b){
 		if(g!=NULL) *g = gTemp;
 		if(b!=NULL) *b = bTemp;
 	#endif
+}
+
+// Finds the median of arr_len numbers by finding the max, finding the min, and returning the other value
+// WARNING! This function modifies the array!
+int16_t meas_find_median(int16_t* meas, uint8_t arr_len){
+	if(arr_len==1) return meas[0];
+	else if(arr_len==2) return (meas[0]+meas[1])/2;
+	
+	for(uint8_t i=0; i<arr_len ; i++){
+		for(uint8_t j=i+1 ; j<arr_len ; j++){
+			if(meas[j] < meas[i]){
+				int16_t temp = meas[i];
+				meas[i] = meas[j];
+				meas[j] = temp;
+			}
+		}
+	}
+	if(arr_len%2==0) return (meas[arr_len/2-1]+meas[arr_len/2])/2;
+	else return meas[arr_len/2];
 }

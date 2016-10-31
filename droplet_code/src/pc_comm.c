@@ -1,9 +1,16 @@
 #include "pc_comm.h"
 
+static char serial_in_buffer[BUFFER_SIZE];
+static uint8_t escaped;
+static uint8_t escaped_arrow;
+static uint16_t serial_in_index; //Points to where the next character we get will be added to the buffer.
+
+static void handle_serial_input();
+static int pc_comm_putchar(char c, FILE *stream);
+static void handle_up_arrow();
 static FILE mystdout = FDEV_SETUP_STREAM (pc_comm_putchar,NULL,_FDEV_SETUP_WRITE);
 
-void pc_comm_init()
-{
+void pc_comm_init(){
 	PC_PORT.DIRSET = PIN7_bm; 	// TX as output
 	PC_PORT.DIRCLR = PIN6_bm;	// RX as input
 
@@ -24,48 +31,32 @@ void pc_comm_init()
 
 ISR( USARTD1_RXC_vect ) { handle_serial_input(); }
 
-void handle_serial_input()
-{
+static void handle_serial_input(){
 	char data = PC_USART.DATA;
-	if(escaped_arrow==1)
-	{
-		if(data == 65)
-		{
+	if(escaped_arrow==1){
+		if(data == 65){
 			handle_up_arrow();
 		}
 		escaped_arrow=0;
-	}
-	else if(escaped)
-	{
-		if(data == 91)
-		{
+	}else if(escaped){
+		if(data == 91){
 			escaped_arrow=1;	
 		}
 		escaped=0;
-	}
-	else if(data == '\r' || data == '\n') //We got the newline character.
-	{
+	}else if(data == '\r' || data == '\n'){ //We got the newline character.
 		printf("\r\n");
 		serial_in_buffer[serial_in_index]='\0';
 		handle_serial_command(serial_in_buffer,serial_in_index);
 		serial_in_index = 0;
-	}
-	else if(data == '\b') //We got the backspace character.
-	{
+	}else if(data == '\b'){ //We got the backspace character.
 		if(serial_in_index > 0) serial_in_index--;
 		printf("\b \b");
-	}
-	else if(data == 27) //escape pressed.
-	{
+	}else if(data == 27){ //escape pressed.
 		escaped = 1;
-	}
-	else if(serial_in_index==BUFFER_SIZE) //Buffer overflow
-	{
+	}else if(serial_in_index==BUFFER_SIZE){ //Buffer overflow
 		printf_P(PSTR("\r\nERROR: Serial input buffer capacity of %u characters exceeded.\r\n"),BUFFER_SIZE);
 		serial_in_index = 0;
-	}
-	else //Everything is fine. Add the character to the buffer.
-	{
+	}else{ //Everything is fine. Add the character to the buffer.
 		serial_in_buffer[serial_in_index] = data;
 		//printf("Got char '%c'\r\n",data);
 		serial_in_index++;
@@ -73,12 +64,10 @@ void handle_serial_input()
 	}
 }
 
-void handle_up_arrow()
-{
+static void handle_up_arrow(){
 	uint8_t temp_index = serial_in_index;
 			
-	while(serial_in_buffer[temp_index] != '\0')
-	{
+	while(serial_in_buffer[temp_index] != '\0'){
 		putchar(serial_in_buffer[temp_index]);
 		temp_index++;
 	}
@@ -86,23 +75,9 @@ void handle_up_arrow()
 	serial_in_index = temp_index;
 }
 
-int pc_comm_putchar(char c, FILE *stream)
-{
+static int pc_comm_putchar(char c, FILE *stream __attribute__ ((unused))){
 	while( (PC_USART.STATUS & USART_DREIF_bm) == 0 ) {}
 	PC_USART.DATA = c;
 	return 1;
 }
  
-int pc_comm_getchar(FILE *stream)
-{
-	while( (PC_USART.STATUS & USART_RXCIF_bm) == 0 ) {}
-	return PC_USART.DATA;
-}
-
-char get_char_nonblocking()
-{
-	if (PC_USART.STATUS & USART_RXCIF_bm)
-	return PC_USART.DATA;
-	else
-	return 0;
-}

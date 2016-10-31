@@ -10,17 +10,28 @@
 #include <avr/pgmspace.h>
 #include "rgb_led.h"
 
+inline void* myMalloc(size_t size){
+	void* tmp = NULL;
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+		tmp = malloc(size);
+	}
+	return tmp;
+}
+
+inline void myFree(void* ptr){
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+		free(ptr);
+	}
+}
 
 #define RTC_COMP_INT_LEVEL RTC_COMPINTLVL_LO_gc;
-
 #define MAX_NUM_SCHEDULED_TASKS 10
-
 #define MIN_TASK_TIME_IN_FUTURE 20
 
 typedef union flex_function
 {
 	void (*arg_function)(void*);
-	void (*noarg_function)();	
+	void (*noarg_function)();
 } flex_function;
 
 // A task is a function, possibly with an argument, to be called at a specific time
@@ -45,7 +56,7 @@ volatile uint16_t rtc_epoch;
 volatile uint8_t num_tasks, task_executing;
 
 // Get the current 32-bit time, as measured in ms from the last reset
-extern inline uint32_t get_time() __attribute__((OS_task));
+ uint32_t get_time();
 
 void scheduler_init();
 void Config32MHzClock(void);
@@ -65,91 +76,15 @@ void task_list_cleanup();
 volatile Task_t* schedule_task(uint32_t time, void (*function)(), void* arg);
 // This function primarily calls the above, but always to run 10ms in the future, and then repeat with a certain period.
 volatile Task_t* schedule_periodic_task(uint32_t period, void (*function)(), void* arg);
-void add_task_to_list(volatile Task_t* task);
+
 void remove_task(volatile Task_t* task); // Removes a task from the queue
 void print_task_queue();
 
-// TO BE CALLED FROM INTERRUPT HANDLER ONLY
-// DO NOT CALL
-int8_t run_tasks();
-
-/* To avoid issues caused by malloc, we're going to have some "fake" malloc functions.
- * We'll keep an array of MAX_NUM_SCHEDULED_TASKS Task_t structs, and fake_malloc()
- * will return pointers to those as appropriate.
- */
-static volatile Task_t task_storage_arr[MAX_NUM_SCHEDULED_TASKS];
-//static uint8_t curr_pointer;
-
-
-//static inline Task_t* scheduler_malloc()
-//{
-	//if(num_tasks>=MAX_NUM_SCHEDULED_TASKS) return NULL;
-	//
-	//uint8_t tmp;
-	//for(tmp=(curr_pointer+1)%MAX_NUM_SCHEDULED_TASKS ; tmp!=curr_pointer ; tmp=(tmp+1)%MAX_NUM_SCHEDULED_TASKS)
-	//{
-		////This code assumes that all tasks will have non-null function pointers.
-		//if((task_storage_arr[tmp].func).noarg_function == NULL) break;
-	//}
-	//curr_pointer = tmp;
-	//return &(task_storage_arr[curr_pointer]);
-//}
-
-//static inline volatile Task_t* scheduler_malloc()
-//{
-	//if(num_tasks>=MAX_NUM_SCHEDULED_TASKS) return NULL;
-//
-	//for(uint8_t tmp=0 ; tmp<MAX_NUM_SCHEDULED_TASKS ; tmp++)
-	//{
-		////This code assumes that all tasks will have non-null function pointers.
-		//if((task_storage_arr[tmp].func.noarg_function) == NULL)
-		//{
-			//return &(task_storage_arr[tmp]);
-		//}
-	//}
-	//
-	//return (volatile Task_t*)0xFFFF;
-//
-//}
-
 //Returns '1' if the next task to run is scheduled for more than 255ms in the past. If this occurs, call task_list_cleanup.
-inline uint8_t task_list_check()
-{ 
+inline uint8_t task_list_check(){ 
 	if(task_executing)	return 0;
 	else				return (((int32_t)(get_time()-(task_list->scheduled_time)))>3000); 
 }
-
-//static inline void scheduler_free(Task_t* tgt)
-//{
-	//for(uint8_t tmp=curr_pointer; tmp!=(curr_pointer+1)%MAX_NUM_SCHEDULED_TASKS; tmp = (tmp+(MAX_NUM_SCHEDULED_TASKS-1))%MAX_NUM_SCHEDULED_TASKS)
-	//{
-		//if(&(task_storage_arr[tmp])==tgt)
-		//{
-			//(task_storage_arr[tmp].func).noarg_function = NULL;
-			//curr_pointer = ((tmp+(MAX_NUM_SCHEDULED_TASKS-1))%MAX_NUM_SCHEDULED_TASKS);
-			//return;
-		//}
-	//}
-	//printf("In scheduler_free, task_storage_arr[tmp] was never equal to tgt.\r\n");
-//}
-
-//static void scheduler_free(volatile Task_t* tgt)
-//{
-	//if((tgt<task_storage_arr)||(tgt>(&(task_storage_arr[MAX_NUM_SCHEDULED_TASKS]))))
-	//{
-		//printf_P(PSTR("In scheduler_free, tgt (%X) was outside valid Task* range.\r\n"),tgt);
-		//set_rgb(0,0,255);
-		//delay_ms(60000);
-	//}
-	//tgt->arg = 0;
-	//tgt->period = 0;
-	//(tgt->func).noarg_function = NULL;
-	//tgt->scheduled_time = 0;
-	//tgt->next = NULL;
-//}
-
-//void task_list_checkup();
-
 
 #define SAVE_CONTEXT()                                  \
     asm volatile (  "push   r0                      \n\t"   \

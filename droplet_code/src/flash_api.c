@@ -241,7 +241,7 @@ uint8_t FLASH_ReadByte(uint32_t flash_address)
 void FLASH_ReadFlashPage(uint8_t *ram_buffer, uint32_t page_number)
 {
 	uint32_t base_address = page_number << FLASH_FWORD_SIZE;
-	//printf("\n\rbase_address=%x",base_address);
+	//printf("\n\rbase_address=%lx",base_address);
 	SP_ReadFlashPage(ram_buffer,base_address);
 	SP_WaitForSPM();
 	NVM_CMD = NVM_CMD_NO_OPERATION_gc;

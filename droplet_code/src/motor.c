@@ -1,5 +1,39 @@
 #include "motor.h"
 
+static volatile uint8_t motor_status;
+static volatile Task_t* current_motor_task;
+
+static int16_t motor_on_time;
+static int16_t motor_off_time;
+
+static inline void motor_forward(uint8_t num)
+{
+	switch(num)
+	{
+		#ifdef AUDIO_DROPLET
+		case 0: printf_P(PSTR("ERROR! motor_fw called with num=0\r\n")); break;
+		#else
+		case 0: TCC0.CTRLB |= TC0_CCBEN_bm; break;
+		#endif
+		case 1: TCC1.CTRLB |= TC1_CCBEN_bm; break;
+		case 2: TCD0.CTRLB |= TC0_CCBEN_bm; break;
+	}
+}
+
+static inline void motor_backward(uint8_t num)
+{
+	switch(num)
+	{
+		#ifdef AUDIO_DROPLET
+		case 0: printf_P(PSTR("ERROR! motor_bw called with num=0\r\n")); break;
+		#else
+		case 0: TCC0.CTRLB |= TC0_CCAEN_bm; break;
+		#endif
+		case 1: TCC1.CTRLB |= TC1_CCAEN_bm; break;
+		case 2: TCD0.CTRLB |= TC0_CCAEN_bm; break;
+	}
+}
+
 void motor_init()
 {
 	#ifdef AUDIO_DROPLET
@@ -95,7 +129,7 @@ uint8_t move_steps(uint8_t direction, uint16_t num_steps)
 		current_offset += mot_durs[mot] + 32*motor_off_time;//If we left the motor on for longer to compensate, we should wait a little longer before starting again.
 	}
 	
-	if(current_offset != total_time) printf_P(PSTR("ERROR: current_offset: %hu and total_time: %hu not equal!\r\n"), current_offset, total_time);
+	if(current_offset != total_time) printf_P(PSTR("ERROR: current_offset: %u and total_time: %u not equal!\r\n"), current_offset, total_time);
 	//printf("Just about to turn on motors: %lu\r\n",get_time());
 	for(uint8_t mot=0 ; mot<3 ; mot++) 	//Now we just need to tell the motors to go!
 	{
@@ -105,7 +139,7 @@ uint8_t move_steps(uint8_t direction, uint16_t num_steps)
 	uint32_t total_movement_duration = (((uint32_t)total_time)*((uint32_t)num_steps))/32;
 	//printf("Total duration: %lu ms.\r\n\n",total_movement_duration);
 	current_motor_task = schedule_task(total_movement_duration, stop_move, NULL);
-	if(current_motor_task==NULL) printf("Error! Failed to schedule stop_move task.");
+	if(current_motor_task==NULL) printf_P(PSTR("Error! Failed to schedule stop_move task."));
 	return 1;
 }
 
@@ -113,7 +147,7 @@ void walk(uint8_t direction, uint16_t mm)
 {
 	uint16_t mm_per_kilostep = get_mm_per_kilostep(direction);
 	if(abs((0xFFFF-((uint32_t)mm_per_kilostep)))<1000){
-		printf("Error: Don't have calibrated values for this direction.\r\n");
+		printf_P(PSTR("Error: Don't have calibrated values for this direction.\r\n"));
 		if(direction>5){
 			mm_per_kilostep = 2000;
 		}else{
@@ -208,7 +242,7 @@ void print_motor_values()
 	printf_P(PSTR("Motor Values\r\n"));
 	for(uint8_t direction=0;direction<8;direction++)
 	{
-		printf_P(PSTR("\tdir: %d\t"),direction);
+		printf_P(PSTR("\tdir: %hu\t"),direction);
 		for(uint8_t motor=0;motor<3;motor++)
 		{
 			printf("%d\t", motor_adjusts[direction][motor]);
@@ -227,6 +261,6 @@ void print_dist_per_step()
 	printf_P(PSTR("Dist (mm) per kilostep\r\n"));
 	for(uint8_t direction = 0 ; direction<8; direction++)
 	{
-		printf_P(PSTR("\t%i\t%hu\r\n"), direction, mm_per_kilostep[direction]);	
+		printf_P(PSTR("\t%hu\t%u\r\n"), direction, mm_per_kilostep[direction]);	
 	}
 }

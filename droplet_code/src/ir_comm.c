@@ -1,12 +1,27 @@
 #include "ir_comm.h"
 #include "rgb_led.h"
 
-volatile uint16_t	cmd_length;
-volatile char		cmd_buffer[BUFFER_SIZE];
+static volatile uint8_t processing_cmd;
+static volatile uint8_t processing_ffsync;
+
+static void clear_ir_buffer(uint8_t dir);
+static void perform_ir_upkeep();
+static void ir_receive(uint8_t dir); //Called by Interrupt Handler Only
+static void received_ir_cmd(uint8_t dir);
+static void received_rnb_r(uint8_t delay, id_t senderID, uint32_t last_byte);
+static void received_ir_sync(uint8_t delay, id_t senderID);
+static void ir_transmit(uint8_t dir);
+static void ir_remote_send(uint8_t dir, uint16_t data);
+static void ir_transmit_complete(uint8_t dir);
+
+static volatile uint16_t	cmd_length;
+static volatile char		cmd_buffer[BUFFER_SIZE];
+/* Hardware addresses for the port pins with the carrier wave */
+static uint8_t ir_carrier_bm[] = { PIN0_bm, PIN1_bm, PIN4_bm, PIN5_bm, PIN6_bm, PIN7_bm };
 
 //#define HARDCORE_DEBUG_DIR 1
 
-void clear_ir_buffer(uint8_t dir){
+static void clear_ir_buffer(uint8_t dir){
 	#ifdef AUDIO_DROPLET
 		ir_sense_channels[dir]->INTCTRL = ADC_CH_INTLVL_OFF_gc;
 	#endif
@@ -27,9 +42,6 @@ void clear_ir_buffer(uint8_t dir){
 	channel[dir]->CTRLB |= USART_RXEN_bm; //this enables receive on the USART
 
 }
-
-/* Hardware addresses for the port pins with the carrier wave */
-uint8_t ir_carrier_bm[] = { PIN0_bm, PIN1_bm, PIN4_bm, PIN5_bm, PIN6_bm, PIN7_bm };
 
 void ir_comm_init(){
 	/* Initialize UARTs */
@@ -54,18 +66,18 @@ void ir_comm_init(){
 		channel[i]->CTRLB |= USART_TXEN_bm;
 	}
 	#ifdef AUDIO_DROPLET
-	PORTC.PIN2CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_FALLING_gc;
-	PORTC.PIN6CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_FALLING_gc;
-	PORTD.PIN2CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_FALLING_gc;
-	PORTE.PIN2CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_FALLING_gc;
-	PORTE.PIN6CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_FALLING_gc;
-	PORTF.PIN2CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_FALLING_gc;
-	EVSYS.CH1MUX = EVSYS_CHMUX_PORTC_PIN2_gc;
-	EVSYS.CH2MUX = EVSYS_CHMUX_PORTC_PIN6_gc;
-	EVSYS.CH3MUX = EVSYS_CHMUX_PORTD_PIN2_gc;
-	EVSYS.CH5MUX = EVSYS_CHMUX_PORTE_PIN2_gc;
-	EVSYS.CH6MUX = EVSYS_CHMUX_PORTE_PIN6_gc;
-	EVSYS.CH7MUX = EVSYS_CHMUX_PORTF_PIN2_gc;
+		PORTC.PIN2CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_FALLING_gc;
+		PORTC.PIN6CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_FALLING_gc;
+		PORTD.PIN2CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_FALLING_gc;
+		PORTE.PIN2CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_FALLING_gc;
+		PORTE.PIN6CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_FALLING_gc;
+		PORTF.PIN2CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_FALLING_gc;
+		EVSYS.CH1MUX = EVSYS_CHMUX_PORTC_PIN2_gc;
+		EVSYS.CH2MUX = EVSYS_CHMUX_PORTC_PIN6_gc;
+		EVSYS.CH3MUX = EVSYS_CHMUX_PORTD_PIN2_gc;
+		EVSYS.CH5MUX = EVSYS_CHMUX_PORTE_PIN2_gc;
+		EVSYS.CH6MUX = EVSYS_CHMUX_PORTE_PIN6_gc;
+		EVSYS.CH7MUX = EVSYS_CHMUX_PORTF_PIN2_gc;
 	#endif	
 
 	curr_ir_power=0;	
@@ -96,51 +108,7 @@ void handle_cmd_wrapper(){
 	}
 }
 
-float closestSensorAngle(float alpha){
-	float val;
-	if (alpha >= 0) val = fmodf(alpha + M_PI/6., M_PI/3.) - M_PI/6.;
-	else val = fmodf(alpha - M_PI/6., M_PI/3.) + M_PI/6.;
-	return val;
-}
-
-#ifdef AUDIO_DROPLET
-
-void getIrCommRnBEst(volatile float* range, volatile float* bearing, volatile float* heading){
-	float bearingX = 0;
-	float bearingY = 0;
-	float headingX = 0;
-	float headingY = 0;
-	uint8_t e=255;
-	int16_t meas;
-	uint16_t numMeas=0;
-	for(uint8_t s=0;s<6;s++){
-		if((ir_rxtx[s].inc_dir>=0)&&(ir_rxtx[s].inc_dir<6)){
-			e = ir_rxtx[s].inc_dir;
-		}else{
-			e=255;
-		}
-		for(uint8_t i=0;i<(IR_BUFFER_SIZE+HEADER_LEN);i++){
-			meas = ir_rxtx[s].ir_meas[i];
-			if(meas!=0){
-				numMeas++;
-				bearingX += meas*getCosBearingBasis(0,s);
-				bearingY += meas*getSinBearingBasis(0,s);
-				if(e!=255){
-					headingX += meas*getCosHeadingBasis(e,s);
-					headingY += meas*getSinHeadingBasis(e,s);
-				}
-				ir_rxtx[s].ir_meas[i]=0;
-			}
-		}
-	}
-	*range = comm_inverse_amplitude_model(hypotf(bearingX, bearingY)/numMeas);
-	*bearing = atan2f(bearingY, bearingX);
-	*heading = atan2f(headingY, headingX);
-}
-
-#endif
-
-void perform_ir_upkeep(){		
+static void perform_ir_upkeep(){		
 	uint16_t seen_crcs[6] = {0,0,0,0,0,0};
 	uint8_t crc_seen;
 	int8_t check_dir;
@@ -169,11 +137,8 @@ void perform_ir_upkeep(){
 					msg_node[num_waiting_msgs].sender_ID = ir_rxtx[dir].sender_ID;
 					msg_node[num_waiting_msgs].msg_length = ir_rxtx[dir].data_length;
 					msg_node[num_waiting_msgs].wasTargeted = !!(ir_rxtx[dir].status&IR_STATUS_TARGETED_bm);
-					#ifdef AUDIO_DROPLET
-						getIrCommRnBEst(&(msg_node[num_waiting_msgs].range),&(msg_node[num_waiting_msgs].bearing),&(msg_node[num_waiting_msgs].heading));
-					#endif
 					if(msg_node[num_waiting_msgs].msg_length > IR_BUFFER_SIZE){
-						printf("ERROR! Message too long?\r\n");
+						printf_P(PSTR("ERROR! Message too long?\r\n"));
 					}
 				}
 				num_waiting_msgs++;
@@ -230,7 +195,7 @@ void send_msg(uint8_t dirs, char *data, uint8_t data_length, uint8_t hp_flag){
  */
 inline uint8_t all_ir_sends(uint8_t dirs_to_go, char* data, uint8_t data_length, id_t target, uint8_t cmd_flag){
 	if(hp_ir_block_bm){
-		printf("Normal send blocked by hp.\r\n");
+		printf_P(PSTR("Normal send blocked by hp.\r\n"));
 		return 0;
 	}
 	if(!ir_is_available(dirs_to_go)){
@@ -250,7 +215,6 @@ inline uint8_t all_ir_sends(uint8_t dirs_to_go, char* data, uint8_t data_length,
 		}
 	}
 	send_msg(dirs_to_go, data, data_length, 0);
-	//printf("Sent msg of length %hu at time%%10000: %u.\r\n", data_length, (uint16_t)(get_time()%10000));
     return 1;
 }
 
@@ -321,7 +285,7 @@ void waitForTransmission(uint8_t dirs){
 
 
 // To be called from interrupt handler only. Do not call.
-void ir_receive(uint8_t dir){
+static void ir_receive(uint8_t dir){
 	uint8_t in_byte = channel[dir]->DATA;				// Some data just came in
 	#ifdef AUDIO_DROPLET
 		//ir_sense_channels[dir]->INTCTRL = ADC_CH_INTLVL_HI_gc;
@@ -331,7 +295,7 @@ void ir_receive(uint8_t dir){
 	if(now-ir_rxtx[dir].last_byte > IR_MSG_TIMEOUT)	clear_ir_buffer(dir);	
 	ir_rxtx[dir].last_byte = now;
 	#ifdef HARDCORE_DEBUG_DIR
-		if(dir==HARDCORE_DEBUG_DIR) printf("%02hhx ", in_byte); //Used for debugging - prints raw bytes as we get them.
+		if(dir==HARDCORE_DEBUG_DIR) printf("%02hx ", in_byte); //Used for debugging - prints raw bytes as we get them.
 	#endif	
 	switch(ir_rxtx[dir].curr_pos){
 		case HEADER_POS_SENDER_ID_LOW:	ir_rxtx[dir].sender_ID		= (uint16_t)in_byte;		break;
@@ -390,7 +354,7 @@ void ir_receive(uint8_t dir){
 	}
 }
 
-void received_ir_cmd(uint8_t dir){
+static void received_ir_cmd(uint8_t dir){
 	uint8_t processThisCommand = 0;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 		if(!processing_cmd){
@@ -415,7 +379,7 @@ void received_ir_cmd(uint8_t dir){
 	}
 }
 
-void received_ir_sync(uint8_t delay, id_t senderID){
+static void received_ir_sync(uint8_t delay, id_t senderID){
 	uint8_t processThisFFSync = 0;
 	uint16_t count;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
@@ -441,7 +405,7 @@ void received_ir_sync(uint8_t delay, id_t senderID){
 	}
 }
 
-void received_rnb_r(uint8_t delay, id_t senderID, uint32_t last_byte){
+static void received_rnb_r(uint8_t delay, id_t senderID, uint32_t last_byte){
 	uint8_t processThisRNB = 0;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 		if(!rnbProcessingFlag && !hp_ir_block_bm){
@@ -476,8 +440,8 @@ void received_rnb_r(uint8_t delay, id_t senderID, uint32_t last_byte){
 
 // TO BE CALLED FROM INTERRUPT HANDLER ONLY
 // DO NOT CALL
-volatile uint8_t next_byte;
-void ir_transmit(uint8_t dir){
+static volatile uint8_t next_byte;
+static void ir_transmit(uint8_t dir){
 	switch(ir_rxtx[dir].curr_pos){
 		case HEADER_POS_SENDER_ID_LOW:  next_byte  = (uint8_t)(ir_rxtx[dir].sender_ID&0xFF);		break;
 		case HEADER_POS_SENDER_ID_HIGH: next_byte  = (uint8_t)((ir_rxtx[dir].sender_ID>>8)&0xFF);	break;	
@@ -519,8 +483,7 @@ void ir_transmit(uint8_t dir){
 
 }
 
-void ir_remote_send(uint8_t dir, uint16_t data)
-{	
+static void ir_remote_send(uint8_t dir, uint16_t data){	
 	channel[dir]->CTRLB &= ~USART_RXEN_bm;
 	channel[dir]->CTRLB &= ~USART_TXEN_bm;
 	//printf("Sending:\t");
@@ -562,7 +525,7 @@ void ir_remote_send(uint8_t dir, uint16_t data)
 
 // TO BE CALLED FROM INTERRUPT HANDLER ONLY
 // DO NOT CALL
-void ir_transmit_complete(uint8_t dir){
+static void ir_transmit_complete(uint8_t dir){
 	// this code is being executed because a TXCIF interrupt was executed, see pg. 305 AU manual:
 	//	TXCIF: Transmit Complete Interrupt Flag
 	//	This flag is set when the entire frame in the transmit shift register has been shifted out and there
@@ -584,10 +547,6 @@ void ir_transmit_complete(uint8_t dir){
 		channel[dir]->CTRLB |= USART_RXEN_bm;	// this enables receive on the USART
 		hp_ir_block_bm &= (~(1<<dir));
 	}
-}
-
-void ir_reset_rx(uint8_t dir){
-	ir_transmit_complete(dir); //main reason I can see not to this is that when we're receiving we don't need to turn off the carrier wave. Doing shouldn't hurt, however?
 }
 
 uint8_t ir_is_available(uint8_t dirs_mask){
@@ -630,20 +589,3 @@ ISR( USARTE1_DRE_vect ) { ir_transmit(4); }
 ISR( USARTF0_RXC_vect ) { ir_receive(5); }
 ISR( USARTF0_TXC_vect ) { ir_transmit_complete(5); }
 ISR( USARTF0_DRE_vect ) { ir_transmit(5); }
-
-#ifdef AUDIO_DROPLET
-
-	static void inline on_demand_ir_meas(uint8_t dir){
-		ir_rxtx[dir].ir_meas[ir_rxtx[dir].curr_pos] =  (ir_sense_channels[dir]->RES-ir_sense_baseline[dir]);
-		ir_sense_channels[dir]->INTCTRL = ADC_CH_INTLVL_OFF_gc;
-	}
-	
-	ISR( ADCA_CH0_vect ) { on_demand_ir_meas(0); }
-	ISR( ADCA_CH1_vect ) { on_demand_ir_meas(1); }
-	ISR( ADCA_CH2_vect ) { on_demand_ir_meas(2); }
-	ISR( ADCB_CH0_vect ) { on_demand_ir_meas(3); }
-	ISR( ADCB_CH1_vect ) { on_demand_ir_meas(4); }
-	ISR( ADCB_CH2_vect ) { on_demand_ir_meas(5); }
-
-#endif
-

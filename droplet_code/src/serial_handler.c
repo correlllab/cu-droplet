@@ -1,5 +1,29 @@
 #include "serial_handler.h"
 
+static const char CMD_NOT_RECOGNIZED_STR[] PROGMEM = "\tCommand ( %s ) not recognized.\r\n";
+
+static void handle_check_collisions();
+static void handle_move_steps(char* command_args);
+static void handle_walk(char* command_args);
+static void handle_get_rgb();
+static void handle_set_ir(char* command_args);
+static void handle_stop_walk();
+static void handle_set_motors(char* command_args);
+static void handle_adjust_motors(char* command_args);
+static void handle_set_mm_per_kilostep(char* command_args);
+static void handle_rnb_broadcast();
+static void handle_ir_coll_baseline_update();
+static void handle_set_led(char* command_args);
+static void handle_broadcast_id();
+static void handle_get_id();
+static void handle_cmd(char* command_args);
+static void handle_targeted_cmd(char* command_args);
+static void handle_shout(char* command_args);
+static void handle_msg_test(char* command_args);
+static void handle_target(char* command_args);
+static void handle_reset();
+static void get_command_word_and_args(char* command, uint16_t command_length, char* command_word, char* command_args);
+
 uint8_t user_handle_command(char* command_word, char* command_args) __attribute__((weak));
 
 void handle_serial_command(char* command, uint16_t command_length){
@@ -12,6 +36,7 @@ void handle_serial_command(char* command, uint16_t command_length){
 		else if(strcmp_P(command_word,PSTR("get_rgb"))==0)				handle_get_rgb();
 		else if(strcmp_P(command_word,PSTR("set_ir"))==0)				handle_set_ir(command_args);
 		else if(strcmp_P(command_word,PSTR("coll"))==0)					handle_check_collisions();
+		else if(strcmp_P(command_word,PSTR("coll_b"))==0)				handle_ir_coll_baseline_update();
 		else if(strcmp_P(command_word,PSTR("stop_walk"))==0)			handle_stop_walk();
 		else if(strcmp_P(command_word,PSTR("set_motors"))==0)			handle_set_motors(command_args);
 		else if(strcmp_P(command_word,PSTR("adj_motors"))==0)			handle_adjust_motors(command_args);
@@ -38,20 +63,43 @@ void handle_serial_command(char* command, uint16_t command_length){
 	}
 }
 
-void handle_check_collisions(){
+static void handle_check_collisions(){
 	uint8_t dirs = check_collisions();
 	uint8_t found=0;
 	for(uint8_t i=0;i<6;i++){
 		if(dirs&(1<<i)){
 			found=1;
-			printf("%hhu",i);
+			printf("%hu",i);
 		}
 	}
 	if(!found) printf("None");
 	printf("\r\n");
 }
 
-void handle_move_steps(char* command_args){
+static void handle_ir_coll_baseline_update(){
+	int16_t sums[6];
+	int16_t tmp[6];
+	for(uint8_t i=0; i<6; i++){
+		ir_coll_baseline[i] = 0;
+		sums[i] = 0;
+	}
+	for(uint8_t i=0; i<10; i++){
+		check_collision_values(tmp);
+		for(uint8_t j=0; j<6; j++){
+			sums[j]+=tmp[j];
+		}
+	}
+	printf("New Baselines: ");
+	for(uint8_t i=0;i<6;i++){
+		ir_coll_baseline[i] = sums[i]/10;
+		printf("%5d ", ir_coll_baseline[i]);
+	}
+	write_ir_coll_baselines();
+	printf("\r\nComplete.\r\n");
+}
+
+
+static void handle_move_steps(char* command_args){
 	const char delim[2] = " ";
 	
 	char* token = strtok(command_args,delim);
@@ -60,12 +108,12 @@ void handle_move_steps(char* command_args){
 	token = strtok(NULL,delim);
 	uint16_t num_steps = (uint16_t)atoi(token);
 	if (num_steps > 0){	
-		printf_P(PSTR("walk direction %u, num_steps %u\r\n"), direction, num_steps);	
+		printf_P(PSTR("walk direction %hu, num_steps %u\r\n"), direction, num_steps);	
 		move_steps(direction, num_steps);
 	}	
 }	
 
-void handle_walk(char* command_args){	
+static void handle_walk(char* command_args){	
 	const char delim[2] = " ";
 	
 	char* token = strtok(command_args,delim);
@@ -77,13 +125,13 @@ void handle_walk(char* command_args){
 	walk(direction, distance_mm);
 }
 
-void handle_get_rgb(){
+static void handle_get_rgb(){
 	int16_t r, g, b;
 	get_rgb(&r, &g, &b);
 	printf_P(PSTR("r: %hu, g: %hu, b: %hu\r\n"), r, g, b);
 }
 
-void handle_set_ir(char* command_args){
+static void handle_set_ir(char* command_args){
 	const char delim[2] = " ";
 	
 	char* token = strtok(command_args,delim);
@@ -92,11 +140,11 @@ void handle_set_ir(char* command_args){
 	schedule_task(10, set_all_ir_powers, (void*)ir_val);
 }
 
-void handle_stop_walk(){
+static void handle_stop_walk(){
 	stop_move(0);
 }
 
-void handle_set_motors(char* command_args){	
+static void handle_set_motors(char* command_args){	
 	uint8_t r = get_red_led(), g = get_green_led(), b = get_blue_led();
 	set_rgb(0,0,255);
 	const char delim[2] = " ";
@@ -104,7 +152,7 @@ void handle_set_motors(char* command_args){
 	char* token = strtok(command_args,delim);
 	if(token==NULL){ printf_P(PSTR("strtok returned NULL on direction.\r\n")); return;}
 	uint8_t direction = atoi(token);
-	if(direction> 7){ printf_P(PSTR("Bad direction. Got: %hhu.\r\n"), direction); return;}
+	if(direction> 7){ printf_P(PSTR("Bad direction. Got: %hu.\r\n"), direction); return;}
 
 	token = strtok(NULL,delim);
 	if(token==NULL){ printf_P(PSTR("strtok returned NULL on first val.\r\n")); return;}	
@@ -118,11 +166,11 @@ void handle_set_motors(char* command_args){
 	if(token==NULL){ printf_P(PSTR("strtok returned NULL on third val.\r\n")); return;}
 	motor_adjusts[direction][2] = atoi(token);	
 
-	printf_P(PSTR("Got set_motors command. direction: %hhu, vals: (%d, %d, %d)\r\n"), direction, motor_adjusts[direction][0], motor_adjusts[direction][1], motor_adjusts[direction][2]);
+	printf_P(PSTR("Got set_motors command. direction: %hu, vals: (%d, %d, %d)\r\n"), direction, motor_adjusts[direction][0], motor_adjusts[direction][1], motor_adjusts[direction][2]);
 	set_rgb(r,g,b);
 }
 
-void handle_adjust_motors(char* command_args){
+static void handle_adjust_motors(char* command_args){
 	uint8_t r = get_red_led(), g = get_green_led(), b = get_blue_led();
 	set_rgb(0,0,255);
 	const char delim[2] = " ";
@@ -130,7 +178,7 @@ void handle_adjust_motors(char* command_args){
 	char* token = strtok(command_args,delim);
 	if(token==NULL){ printf_P(PSTR("strtok returned NULL on direction.\r\n")); return;}
 	uint8_t direction = atoi(token);
-	if(direction> 7){ printf_P(PSTR("Bad direction. Got: %hhu.\r\n"), direction); return;}
+	if(direction> 7){ printf_P(PSTR("Bad direction. Got: %hu.\r\n"), direction); return;}
 
 	token = strtok(NULL,delim);
 	if(token==NULL){ printf_P(PSTR("strtok returned NULL on first val.\r\n")); return;}
@@ -153,11 +201,11 @@ void handle_adjust_motors(char* command_args){
 	else
 	motor_adjusts[direction][2]-= atoi(token);
 
-	printf_P(PSTR("Got adjust_motors command. direction: %hhu, New Settings: (%d, %d, %d)\r\n"), direction, motor_adjusts[direction][0], motor_adjusts[direction][1], motor_adjusts[direction][2]);
+	printf_P(PSTR("Got adjust_motors command. direction: %hu, New Settings: (%d, %d, %d)\r\n"), direction, motor_adjusts[direction][0], motor_adjusts[direction][1], motor_adjusts[direction][2]);
 	set_rgb(r,g,b);
 }
 
-void handle_set_mm_per_kilostep(char* command_args){
+static void handle_set_mm_per_kilostep(char* command_args){
 	const char delim[2] = " ";
 	
 	char* token = strtok(command_args,delim);
@@ -173,11 +221,11 @@ void handle_set_mm_per_kilostep(char* command_args){
 /* This tells the droplet that it should tell other droplets nearby their rnb to it.
  * In other words, this tells nearby droplets to listen, and then performs an ir_range_blast.
  */
-void handle_rnb_broadcast(){
+static void handle_rnb_broadcast(){
 	schedule_task(5,broadcast_rnb_data,NULL);
 }
 
-void handle_set_led(char* command_args){
+static void handle_set_led(char* command_args){
 	const char delim[2] = " ";
 	char* token;
 
@@ -225,11 +273,11 @@ void handle_set_led(char* command_args){
 	}
 }
 
-void handle_broadcast_id(){
+static void handle_broadcast_id(){
 	schedule_task(5, send_id, NULL);
 }
 
-void handle_get_id(){
+static void handle_get_id(){
 	printf_P(PSTR("My ID is: %04X\r\n"),get_droplet_id());
 }
 
@@ -239,7 +287,7 @@ void send_id(){
 	ir_send(ALL_DIRS, msg, 4);
 }
 
-void handle_cmd(char* command_args){
+static void handle_cmd(char* command_args){
 	printf_P(PSTR("Broadcasting command: \"%s\", of length %i.\r\n"),(uint8_t*)command_args, strlen(command_args));
 	ir_cmd(ALL_DIRS, command_args,strlen(command_args));
 	//if(0==ir_send_command(0,(uint8_t*)command_args,strlen(command_args)))
@@ -253,7 +301,7 @@ void handle_cmd(char* command_args){
 	//}
 }
 
-void handle_targeted_cmd(char* command_args){
+static void handle_targeted_cmd(char* command_args){
 	uint8_t loc = strcspn(command_args, " ");
 	char targetString[5];
 	char cmdString[32];
@@ -262,28 +310,28 @@ void handle_targeted_cmd(char* command_args){
 	strcpy(cmdString, command_args+loc+1);
 	
 	uint16_t target = strtoul(targetString, NULL, 16);
-	printf_P(PSTR("command string: %s, length: %d\r\n"),cmdString, strlen(cmdString));
+	printf_P(PSTR("command string: %s, length: %z\r\n"),cmdString, strlen(cmdString));
 	ir_targeted_cmd(ALL_DIRS, cmdString,strlen(cmdString), target);
 }
 
-void handle_shout(char* command_args){
+static void handle_shout(char* command_args){
 	if(strlen(command_args)==0){
 		command_args = "Unique New York.";
 	}else if(strlen(command_args)>IR_BUFFER_SIZE){ 
-		printf_P(PSTR("Message length was %d chars, which exceeds the maximum of %d"), strlen(command_args), IR_BUFFER_SIZE);
+		printf_P(PSTR("Message length was %z chars, which exceeds the maximum of %u"), strlen(command_args), IR_BUFFER_SIZE);
 		return;
 	}
 	ir_send(ALL_DIRS, command_args,strlen(command_args));
 }
 
-void handle_msg_test(char* command_args){
+static void handle_msg_test(char* command_args){
 	uint8_t dir_mask = atoi(command_args);
 	char msg[16] = "Unique New York.";
 	
 	ir_send(dir_mask, msg,16);
 }
 
-void handle_target(char* command_args){
+static void handle_target(char* command_args){
 	uint8_t loc = strcspn(command_args, " ");
 	char targetString[5];
 	char msgString[32];
@@ -299,7 +347,7 @@ void handle_target(char* command_args){
 } 
 
 
-void get_command_word_and_args(char* command, uint16_t command_length, char* command_word, char* command_args){
+static void get_command_word_and_args(char* command, uint16_t command_length, char* command_word, char* command_args){
 	//printf("\tIn gcwaa.\r\n");
 	uint16_t write_index = 0;
 	uint8_t writing_word_boole = 1;
@@ -327,6 +375,6 @@ void get_command_word_and_args(char* command, uint16_t command_length, char* com
 	}
 }
 
-void handle_reset(){
+static void handle_reset(){
 	droplet_reboot();
 }

@@ -24,15 +24,7 @@
 #include "scheduler.h"
 #include "flash_api.h"
 
-volatile uint8_t motor_status;
-volatile Task_t* current_motor_task;
-
-int16_t motor_on_time;
-int16_t motor_off_time;
-
 int16_t motor_adjusts[8][3];
-//int8_t motor_signs[8][3];
-
 uint16_t mm_per_kilostep[8]; //For the spin directions, this is degrees per kilostep.
 
 // Sets up the timers for the motors PWM, pins to motor controller, and 
@@ -58,31 +50,3 @@ void		print_dist_per_step();
 void		broadcast_dist_per_step();
 uint16_t	get_mm_per_kilostep(uint8_t direction);
 void		set_mm_per_kilostep(uint8_t direction, uint16_t dist);
-
-static inline void motor_forward(uint8_t num)
-{
-	switch(num)
-	{
-		#ifdef AUDIO_DROPLET
-			case 0: printf_P(PSTR("ERROR! motor_fw called with num=0\r\n")); break;
-		#else
-			case 0: TCC0.CTRLB |= TC0_CCBEN_bm; break;
-		#endif		
-		case 1: TCC1.CTRLB |= TC1_CCBEN_bm; break;
-		case 2: TCD0.CTRLB |= TC0_CCBEN_bm; break;
-	}
-}
-
-static inline void motor_backward(uint8_t num)
-{
-	switch(num)
-	{
-		#ifdef AUDIO_DROPLET
-			case 0: printf_P(PSTR("ERROR! motor_bw called with num=0\r\n")); break;
-		#else
-			case 0: TCC0.CTRLB |= TC0_CCAEN_bm; break;
-		#endif
-		case 1: TCC1.CTRLB |= TC1_CCAEN_bm; break;
-		case 2: TCD0.CTRLB |= TC0_CCAEN_bm; break;
-	}
-}

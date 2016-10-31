@@ -2,6 +2,7 @@
 
 #include "avr/io.h" //includes stdlib
 #include <stdlib.h>
+#include <math.h>
 
 #define LED_R_PIN_bm			PIN5_bm
 #define LED_G_PIN_bm			PIN4_bm

@@ -1,0 +1,9 @@
+DRC Rules Export File for PCB: C:\Users\John K\Dropbox\Droplets Stuff\Droplet Schematics Live Here, Now\Droplet_Main\Droplet_PCB.PcbDoc
+RuleKind=SolderMaskExpansion|RuleName=SolderMaskExpansion_1|Scope=Board|Minimum=-19.69
+RuleKind=ShortCircuit|RuleName=ShortCircuit|Scope=Board|Allowed=0
+RuleKind=SolderMaskExpansion|RuleName=SolderMaskExpansion|Scope=Board|Minimum=1.00
+RuleKind=Width|RuleName=Width|Scope=Board|Minimum=5.00
+RuleKind=Width|RuleName=Leg Width|Scope=Board|Minimum=5.00
+RuleKind=Width|RuleName=High Power Width|Scope=Board|Minimum=5.00
+RuleKind=Clearance|RuleName=Clearance|Scope=Board|Minimum=5.00
+RuleKind=Clearance|RuleName=High Power Clearance|Scope=Board|Minimum=10.00

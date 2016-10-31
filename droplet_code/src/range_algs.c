@@ -461,9 +461,9 @@ void ir_range_blast(uint8_t power){
 	//times[0] = get_time();
 	while((get_time()-rnbCmdSentTime)<POST_BROADCAST_DELAY);
 	//times[1] = get_time();
+	uint32_t pre_sync_op = get_time();
+	set_all_ir_powers(256);	
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){		
-		uint32_t pre_sync_op = get_time();
-		set_all_ir_powers(256);
 		while((get_time() - pre_sync_op) < TIME_FOR_SET_IR_POWERS);
 		//times[2] = get_time();
 		for(uint8_t dir = 0; dir < 6; dir++){
@@ -523,19 +523,22 @@ float emitter_model(float beta){
 }
 
 float amplitude_model(float r, uint8_t power){
-	if(power==255)			return 15.91+(12985.5/powf(r+0.89,2.0));
-	//else if(power ==250)	return (1100./((r-4.)*(r-4.)))+12.5;
-	else					printf_P(PSTR("ERROR: Unexpected power: %hhu\r\n"),power);
+	if(power==255){
+		return (r<=0.5) ? 2597.1 : (3.90804+(13427.5/(5.17716+powf(r-0.528561,2.0))));
+		}else{
+		printf_P(PSTR("ERROR: Unexpected power: %hhu\r\n"),power);
+	}
 	return 0;
 }
 
-float inverse_amplitude_model(float ADC_val, uint8_t power){
-	if(power == 255)		return 2*(-1.5+(131.5/sqrtf(ADC_val-3.85)));
-	//else if(power == 250) return (33.166/sqrtf(ADC_val - 12.5)) + 4;
-	else					printf_P(PSTR("ERROR: Unexpected power: %hhu\r\n"),power);
+float inverse_amplitude_model(float lambda, uint8_t power){
+	if(power==255){
+		return (lambda>=2597.1) ? 0.5 : (sqrtf(13427.5/(lambda-3.90804)-5.17716)+0.528561);
+		}else{
+		printf_P(PSTR("ERROR: Unexpected power: %hhu\r\n"),power);
+	}
 	return 0;
 }
-
 
 void debug_print_timer(uint32_t timer[14]){
 	printf_P(PSTR("Duration: %lu\r\n"),(timer[13] - timer[0]));

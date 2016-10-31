@@ -78,63 +78,51 @@ void set_all_ir_powers(uint16_t power)
 	uint8_t power_low = (power&0xFF);
 	uint8_t write_buffer[6] = {0x00|power_high,power_low,0x10|power_high,power_low,0x60|power_high, power_low};
 	
-	uint32_t startTime = get_time();
-	uint8_t result;	
-	uint8_t printed = 0;
-	while(twi->status!=TWIM_STATUS_READY){
-		if((get_time()-startTime)>100){
-			printf_P(TWI_WAITING_STR);
-			printed = 1;
-			delay_ms(10);
-		}else if((get_time()-startTime)>1000){
-			printf_P(TWI_TIMEOUT_STR);
-			printf("(a)\r\n");
-			return;
-		}			
+	uint8_t aResult = 0;
+	uint8_t bResult = 0;
+	
+	aResult = twiWriteWrapper(IR_POWER_ADDR_A, write_buffer, 6, 'a');
+	if(!aResult){
+		return;
 	}
-	result = TWI_MasterWrite(IR_POWER_ADDR_A, write_buffer, 6);
-	while(!result){
-		while(twi->status!=TWIM_STATUS_READY){
-			if((get_time()-startTime)>100){
-			printf_P(TWI_WAITING_STR);
-				printed = 1;				
-				delay_ms(10);				
-			}else if((get_time()-startTime)>1000){
-				printf_P(TWI_TIMEOUT_STR);
-				printf("(b)\r\n");
-				return;
-			}
-		}	
-		result = TWI_MasterWrite(IR_POWER_ADDR_A, write_buffer, 6);
+	bResult = twiWriteWrapper(IR_POWER_ADDR_B, write_buffer, 6, 'b');
+	if(!bResult){
+		return;
 	}
-	while(twi->status!=TWIM_STATUS_READY){
-		if((get_time()-startTime)>100){
-			printf_P(TWI_WAITING_STR);
-			printed = 1;			
-			delay_ms(10);			
-		}else if((get_time()-startTime)>1000){
-			printf_P(TWI_TIMEOUT_STR);
-			printf("(c)\r\n");
-			return;
-		}
-	}
-	result = TWI_MasterWrite(IR_POWER_ADDR_B, write_buffer, 6);	
-	while(!result){
-		while(twi->status!=TWIM_STATUS_READY){
-			if((get_time()-startTime)>100){
-				printf_P(TWI_WAITING_STR);
-				printed = 1;				
-				delay_ms(10);					
-			}else if((get_time()-startTime)>1000){
-				printf_P(TWI_TIMEOUT_STR);
-				printf("(d)\r\n");
-				return;
-			}
-		}
-		result = TWI_MasterWrite(IR_POWER_ADDR_B, write_buffer, 6);
-	}
-	if(printed){
+	
+	if((aResult+bResult)>2){
 		printf_P(PSTR("\tDone waiting for TWI. IR powers set successfully.\r\n"));
 	}
 	curr_ir_power = power;
+}
+
+uint8_t twiWriteWrapper(uint8_t addr, uint8_t* write_buff, uint8_t buff_len, char marker){
+	startTime = get_time();
+	uint8_t result = 0;
+	uint8_t printed = 0;
+	while(!result){
+		if(printed = waitForTWIReady(startTime, marker)){
+			result = TWI_MasterWrite(addr, write_buff, buff_len);
+		}else{
+			return 0;
+		}
+	}
+	return result + printed - 1;
+}
+
+uint8_t waitForTWIReady(uint32_t startTime, char marker){
+	uint8_t printed = 0;
+	while(twi->status!=TWIM_STATUS_READY){
+		if((get_time()-startTime)>1000){
+			printf_P(PSTR("\tTWI timeout when setting IR Powers [%c]\r\n"), marker);
+			return 0;
+		}else if((get_time()-startTime)>100){
+			if(!printed){
+				printf_P(PSTR("Waiting for TWI [%c]...\r\n"), marker);
+				printed = 1;				
+			}
+			delay_ms(10);
+		}
+	}
+	return 1 + printed;
 }

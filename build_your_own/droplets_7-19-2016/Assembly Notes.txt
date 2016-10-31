@@ -1,0 +1,7 @@
+Be sure that all of the IR emitters and sensors are oriented so the green mark
+is on the left from the perspective of an observer on the center of the board.
+Compared to the previous assembly, the IR Emitters (white, on top) were WRONG.
+IR Sensors (black, on bottom) were correct.
+
+The IR Receivers need to be pushed all the way in to their holes; they should be
+flush with the IR sensor beneath them.

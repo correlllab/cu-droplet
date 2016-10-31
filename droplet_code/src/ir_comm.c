@@ -228,7 +228,7 @@ void send_msg(uint8_t dirs, char *data, uint8_t data_length, uint8_t hp_flag){
  * in claiming channels and starting the message send process. Note that this function returning '1' doesn't
  * guarantee a successful transmission, as it's still possible for something to go wrong with the send.
  */
-inline uint8_t all_ir_sends(uint8_t dirs_to_go, char* data, uint8_t data_length, uint16_t target, uint8_t cmd_flag){
+inline uint8_t all_ir_sends(uint8_t dirs_to_go, char* data, uint8_t data_length, id_t target, uint8_t cmd_flag){
 	if(hp_ir_block_bm){
 		printf("Normal send blocked by hp.\r\n");
 		return 0;
@@ -254,7 +254,7 @@ inline uint8_t all_ir_sends(uint8_t dirs_to_go, char* data, uint8_t data_length,
     return 1;
 }
 
-uint8_t ir_targeted_cmd(uint8_t dirs, char *data, uint8_t data_length, uint16_t target){
+uint8_t ir_targeted_cmd(uint8_t dirs, char *data, uint8_t data_length, id_t target){
 	return all_ir_sends(dirs, data, data_length, target, 1);
 }
 
@@ -262,7 +262,7 @@ uint8_t ir_cmd(uint8_t dirs, char *data, uint8_t data_length){
 	return all_ir_sends(dirs, data, data_length, 0, 1);
 }
 
-uint8_t ir_targeted_send(uint8_t dirs, char *data, uint8_t data_length, uint16_t target){
+uint8_t ir_targeted_send(uint8_t dirs, char *data, uint8_t data_length, id_t target){
 	return all_ir_sends(dirs, data, data_length, target, 0);
 }
 
@@ -270,7 +270,7 @@ uint8_t ir_send(uint8_t dirs, char *data, uint8_t data_length){
 	return all_ir_sends(dirs, data, data_length, 0, 0);
 }
 
-static inline uint8_t all_hp_ir_cmds(uint8_t dirs, char* data, uint8_t data_length, uint16_t target){
+static inline uint8_t all_hp_ir_cmds(uint8_t dirs, char* data, uint8_t data_length, id_t target){
 	if(hp_ir_block_bm){
 		return 0;
 	}
@@ -299,7 +299,7 @@ uint8_t hp_ir_cmd(uint8_t dirs, char *data, uint8_t data_length){
 	return all_hp_ir_cmds(dirs, data, data_length, 0);
 }
 
-uint8_t hp_ir_targeted_cmd(uint8_t dirs, char *data, uint8_t data_length, uint16_t target){
+uint8_t hp_ir_targeted_cmd(uint8_t dirs, char *data, uint8_t data_length, id_t target){
 	return all_hp_ir_cmds(dirs, data, data_length, target);
 }
 
@@ -415,7 +415,7 @@ void received_ir_cmd(uint8_t dir){
 	}
 }
 
-void received_ir_sync(uint8_t delay, uint16_t senderID){
+void received_ir_sync(uint8_t delay, id_t senderID){
 	uint8_t processThisFFSync = 0;
 	uint16_t count;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
@@ -441,7 +441,7 @@ void received_ir_sync(uint8_t delay, uint16_t senderID){
 	}
 }
 
-void received_rnb_r(uint8_t delay, uint16_t senderID, uint32_t last_byte){
+void received_rnb_r(uint8_t delay, id_t senderID, uint32_t last_byte){
 	uint8_t processThisRNB = 0;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 		if(!rnbProcessingFlag && !hp_ir_block_bm){
@@ -507,9 +507,14 @@ void ir_transmit(uint8_t dir){
 	ir_rxtx[dir].curr_pos++;
 	/* CHECK TO SEE IF MESSAGE IS COMPLETE */
 	if(ir_rxtx[dir].curr_pos >= (ir_rxtx[dir].data_length+HEADER_LEN)){
+		//printf("transmit of %hu-byte long message completed on dir %hu.\r\n\t", ir_rxtx[dir].data_length & DATA_LEN_VAL_bm, dir);
+		//for(uint8_t i=0;i<ir_rxtx[dir].data_length & DATA_LEN_VAL_bm; i++){
+			//printf("%02hX ", ir_rxtx[dir].buf[i]);
+		//}
+		//printf("\r\n");
 		clear_ir_buffer(dir);
 		channel[dir]->CTRLA &= ~USART_DREINTLVL_gm; //Turn off interrupt things.
-		//printf("\r\n");
+		
 	}
 
 }

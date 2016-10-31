@@ -80,13 +80,13 @@ int16_t brightMeas[6][6];
 
 rnb last_good_rnb;
 volatile uint8_t rnb_updated;
-volatile uint16_t rnbCmdID;
+volatile id_t rnbCmdID;
 volatile uint32_t rnbCmdSentTime;
 volatile uint8_t rnbProcessingFlag;
 
 void range_algs_init();
 
-void broadcast_rnb_data();
+void broadcast_rnb_data(); //takes about 142ms.
 //void receive_rnb_data();
 void use_rnb_data();
 
@@ -140,7 +140,7 @@ static inline int8_t sgn(float x){
 }
 
 static float inline amplitude_modelNF(float r){
-	return 15.91f+(12985.5f/powf(r+0.89f,2.0));
+	return (r<=0.5) ? 2597.1 : (3.90804+(13427.5/(5.17716+powf(r-0.528561,2.0))));
 }
 
 static inline float rnb_constrain(float x){ //constrains the value to be within or equal to the bounds.

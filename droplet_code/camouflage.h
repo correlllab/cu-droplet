@@ -13,6 +13,8 @@
 #define NUM_NEIGHBOR_8		8
 #define NUM_NEIGHBOR_4		4
 
+#define NEIGHBOR_ANGLE_THRESH 20
+
 #define NEIGHBOR_MSG_FLAG	'N'
 #define RGB_MSG_FLAG		'R'
 #define PATTERN_MSG_FLAG	'P'
@@ -24,7 +26,7 @@
 #define NUM_TURING			20 //20
 #define NUM_DROPLETS		9
 
-#define SLOT_LENGTH_MS		350
+#define SLOT_LENGTH_MS		263
 #define SLOTS_PER_FRAME		37
 #define FRAME_LENGTH_MS		(((uint32_t)SLOT_LENGTH_MS)*((uint32_t)SLOTS_PER_FRAME))
 #define LOOP_DELAY_MS		17
@@ -39,11 +41,6 @@
 #define TEST_CONSENSUS		1
 #define TEST_TURING			1
 
-const uint16_t dropletsID_set[NUM_DROPLETS] =
-//{0xA649, 0x4DB0, 0x43BA, 0xC24B, 0x8b46}; //Joe
-{0xF60A, 0x2B4E, 0x0A0B, 0x4177, 0x1B4B, 0xA649, 0x4DB0, 0x43BA, 0x8b46}; //Yang
-//0xC24B,
-
 const float rgb_weights[3] = {0.2989, 0.5870, 0.1140};  // RGB to Gray
 
 const uint8_t vIndex[NUM_NEIGHBOR_4] = {0, 2, 8, 10};
@@ -51,42 +48,39 @@ const uint8_t hIndex[NUM_NEIGHBOR_4] = {1, 3, 9, 11};
 
 /*  */
 typedef struct Droplet_struct{
-	uint16_t dropletId;
+	float myPattern_f[NUM_PATTERNS];
 	uint16_t neighborIds[NUM_NEIGHBOR_12];
-	
 	int16_t rgb[3];
-	
+	uint16_t dropletId;
 	uint8_t mySlot;
 	uint8_t myDegree;
 	uint8_t turing_color;
-	
-	float myPattern_f[NUM_PATTERNS];
 } Droplet;
 
 typedef struct NeighborId_struct{
-	char flag;
-	uint16_t dropletId;
 	uint16_t Ids[NUM_NEIGHBOR_4];
+	uint16_t dropletId;
 	uint8_t  gotMsg_flags[NUM_NEIGHBOR_4];
+	char flag;
 } neighborMsg;
 
 typedef struct RGB_struct{
-	char flag;
-	uint16_t dropletId;
 	int16_t rgb[3];
+	uint16_t dropletId;
+	char flag;
 } rgbMsg;
 
 typedef struct Pattern_struct{
-	char flag;
-	uint16_t dropletId;
 	float pattern_f[NUM_PATTERNS];
+	uint16_t dropletId;
 	uint8_t degree;
+	char flag;
 } patternMsg;
 
 typedef struct Turing_struct{
-	char flag;
 	uint16_t dropletId;
 	uint8_t color;
+	char flag;
 } turingMsg;
 
 
@@ -111,6 +105,8 @@ int16_t red_array[NUM_PREPARE];
 int16_t green_array[NUM_PREPARE];
 int16_t blue_array[NUM_PREPARE];
 
+
+
 // Store information from neighboring Droplets
 /*
 Neighbor Index document:
@@ -124,10 +120,27 @@ Neighbor Index document:
 */
 Droplet neighborDroplets[NUM_NEIGHBOR_12];
 
+typedef enum{
+	Prepare=0,
+	Gradient=1,
+	Consensus=2,
+	Turing=3
+} Phase;
+
+typedef struct rnb_node_struct{
+	int16_t range;
+	int16_t bearing;
+	id_t id;
+	struct rnb_node_struct* next;
+	uint8_t conf;
+} RnbNode;
+RnbNode* measRoot;
+RnbNode* lastMeasAdded;
+
 uint32_t frameStart;
 uint32_t frameCount;
 uint16_t loopID;
-uint8_t phase;
+Phase phase;
 uint8_t counter;			// to exit phases
 
 int threshold_mottled = 40;
@@ -140,28 +153,27 @@ void handle_rgb_msg(rgbMsg* msg);
 void handle_pattern_msg(patternMsg* msg);
 void handle_turing_msg(turingMsg* msg);
 
+void handleRNB();
+
 void extendNeighbors();
 uint8_t user_handle_command(char* command_word, char* command_args);
 
-void preparePhase();
-void gradientPhase();
-void consensusPhase();
-void turingPhase();
+void prepareSlot();
+void prepareEOP();
+void gradientEOP();
+void consensusEOP();
+void turingEOP();
+void setColor();
 
+void sendRGBMsg();
+void sendPatternMsg();
+void sendTuringMsg();
+void sendNeiMsg();
 void decidePattern();
 void weightedAverage();
 void changeColor();
 
 void displayMenu();
-
-uint8_t get_droplet_order_camouflage(uint16_t id)
-{
-	for(uint8_t i=0; i<NUM_DROPLETS; i++){
-		if(dropletsID_set[i] == id) return i;
-	}
-	return 0xFF;
-}
-
 
 /*
 in math.h

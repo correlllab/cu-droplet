@@ -6,6 +6,7 @@
 #include "rgb_led.h"
 #include "scheduler.h"
 #include "i2c.h"
+#include "flash_api.h"
 
 void rgb_sensor_init();
 

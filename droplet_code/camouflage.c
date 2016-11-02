@@ -72,7 +72,6 @@ void init(){
 	//me.mySlot = get_droplet_ord(me.dropletId)-100; // For AUDIO_DROPLET
 	me.mySlot = (get_droplet_id()%(SLOTS_PER_FRAME-1));
 	me.myDegree = 1;
-	me.turing_color = rand_byte()%2;
 	for (uint8_t i=0; i<NUM_NEIGHBOR_12; i++){
 		me.neighborIds[i] = 0;
 		twelveNeiTuring[i].color = 0;
@@ -96,13 +95,17 @@ void init(){
 	
 	for (uint8_t i=0; i<NUM_NEIGHBOR_8; i++){
 		eightNeiPattern[i].dropletId = 0;
+		eightNeiPattern[i].degree = 0;
+		for(uint8_t j=0;j<NUM_PATTERNS; j++){
+			eightNeiPattern[i].pattern_f[j] = 0.0;
+		}
 	}
 	
 	for (uint8_t i=0; i<NUM_PATTERNS; i++){
 		me.myPattern_f[i] = 0.0f;
 	}
 	measRoot = NULL;
-	lastMeasAdded = measRoot;
+	lastMeasAdded = NULL;
 
 	// global
 	frameCount = 0;
@@ -125,20 +128,24 @@ void loop(){
 	if(loopID!=(frameTime/SLOT_LENGTH_MS)){
 		loopID = frameTime/SLOT_LENGTH_MS;
 		if(loopID == me.mySlot){
-			delay_ms(10);
+			printf("Start of my slot, frame %lu.\r\n", frameCount);
+			delay_ms(20);
 			switch (phase){
 				case Prepare:	prepareSlot();		break;
 				case Gradient:	sendRGBMsg();		break;
 				case Consensus:	sendPatternMsg();	break;
 				case Turing:	sendTuringMsg();	break;
+				case Waiting: /*Do nothing.*/		break;
 			}
-			delay_ms(10);
+			delay_ms(20);
+			printf("End of my slot, frame %lu.\r\n", frameCount);
 		}else if(loopID == SLOTS_PER_FRAME-1){
 			switch (phase){
 				case Prepare:	prepareEOP();		break;
 				case Gradient:	gradientEOP();		break;
 				case Consensus: consensusEOP();		break;
 				case Turing:	turingEOP();		break;
+				case Waiting:   waitingEOP();		break;
 			}
 			printf("End of frame %lu.\r\n", frameCount);
 		}
@@ -164,6 +171,7 @@ void setColor(){
 			case Gradient: set_rgb(255, 0, 0); break;
 			case Consensus: set_rgb(255, 0, 0); break;
 			case Turing: /*Do nothing.*/ break;
+			case Waiting: /*Do nothing.*/ break;
 		}
 	}else if(loopID == SLOTS_PER_FRAME-1){
 		switch (phase){
@@ -177,6 +185,7 @@ void setColor(){
 				}
 				break;
 			case Turing: changeColor(); break;
+			case Waiting: /*Do nothing.*/ break;
 		}
 	}else{
 		if(phase!=Turing){
@@ -188,16 +197,20 @@ void setColor(){
 void handleRNB(){
 	uint8_t conf = (uint8_t)(sqrt(last_good_rnb.conf+1.0)+0.5);
 	if(conf>2 && last_good_rnb.range < 8.0){
-		RnbNode* tmp = (RnbNode*)myMalloc(sizeof(RnbNode));
-		tmp->bearing = rad_to_deg(last_good_rnb.bearing);
-		tmp->range = 10*last_good_rnb.range;
-		tmp->id = last_good_rnb.id_number;
-		tmp->conf = conf;
-		tmp->next = NULL;
-		lastMeasAdded->next = tmp;
-		lastMeasAdded = tmp;
+		if(lastMeasAdded==NULL){
+			lastMeasAdded = (RnbNode*)myMalloc(sizeof(RnbNode));
+			measRoot = lastMeasAdded;
+		}else{
+			lastMeasAdded->next = (RnbNode*)myMalloc(sizeof(RnbNode));
+			lastMeasAdded = lastMeasAdded->next;
+		}
+		lastMeasAdded->bearing = rad_to_deg(last_good_rnb.bearing);
+		lastMeasAdded->range = 10*last_good_rnb.range;
+		lastMeasAdded->id = last_good_rnb.id_number;
+		lastMeasAdded->conf = conf;
+		lastMeasAdded->next = NULL;
 
-		printf("ID: %04X Range: %4d Bearing: % 4d\r\n", tmp->id, tmp->range, tmp->bearing);
+		printf("ID: %04X Range: %4d Bearing: % 4d\r\n", lastMeasAdded->id, lastMeasAdded->range, lastMeasAdded->bearing);
 	}
 }
 
@@ -207,7 +220,7 @@ void sendNeiMsg(){
 }
 
 void sendRGBMsg(){
-	if((50<me.rgb[0] && me.rgb[0]<400) && (50<me.rgb[1] && me.rgb[1]<400) && (50<me.rgb[2] && me.rgb[2]<400)){
+	//if((50<me.rgb[0] && me.rgb[0]<400) && (50<me.rgb[1] && me.rgb[1]<400) && (50<me.rgb[2] && me.rgb[2]<400)){
 		rgbMsg msg;
 		msg.flag = RGB_MSG_FLAG;
 		msg.dropletId = me.dropletId;
@@ -215,7 +228,7 @@ void sendRGBMsg(){
 			msg.rgb[i] = me.rgb[i];
 		}
 		ir_send(ALL_DIRS, (char*)(&msg), sizeof(rgbMsg));
-	}
+	//}
 }
 
 void sendPatternMsg(){
@@ -255,12 +268,15 @@ void handle_msg(ir_msg* msg_struct)
 
 void handle_neighbor_msg(neighborMsg* msg){
 	if(msg->flag == NEIGHBOR_MSG_FLAG){
-		for (uint8_t i=0; i<NUM_NEIGHBOR_4; i++)
-		{
-			if (msg->dropletId == myFourDr.Ids[i])
-			{
+		for (uint8_t i=0; i<NUM_NEIGHBOR_4; i++){
+			if (msg->dropletId == myFourDr.Ids[i]){
 				myFourDr.gotMsg_flags[i] = 1;
-				fourNeiInfo[i] = (*msg);
+				fourNeiInfo[i].dropletId = msg->dropletId;
+				fourNeiInfo[i].flag = msg->flag;
+				for(uint8_t j=0; j<NUM_NEIGHBOR_4;j++){
+					fourNeiInfo[i].gotMsg_flags[j] = msg->gotMsg_flags[j];
+					fourNeiInfo[i].Ids[j] = msg->Ids[j];
+				}
 				break;
 			}
 		}
@@ -271,7 +287,11 @@ void handle_rgb_msg(rgbMsg* msg){
 	if(msg->flag == RGB_MSG_FLAG){
 		for (uint8_t i=0; i<NUM_NEIGHBOR_4; i++){
 			if (msg->dropletId == myFourDr.Ids[i]){
-				fourNeiRGB[i] = (*msg);
+				fourNeiRGB[i].dropletId = msg->dropletId;
+				fourNeiRGB[i].flag = msg->flag;
+				fourNeiRGB[i].rgb[0] = msg->rgb[0];
+				fourNeiRGB[i].rgb[1] = msg->rgb[1];
+				fourNeiRGB[i].rgb[2] = msg->rgb[2];
 				break;
 			}
 		}
@@ -282,7 +302,14 @@ void handle_pattern_msg(patternMsg* msg){
 	if(msg->flag == PATTERN_MSG_FLAG){
 		for (uint8_t i=0; i<NUM_NEIGHBOR_8; i++){
 			if (msg->dropletId == me.neighborIds[i]){
-				eightNeiPattern[i] = (*msg);
+				eightNeiPattern[i].dropletId = msg->dropletId;
+				eightNeiPattern[i].degree = msg->degree;
+				eightNeiPattern[i].flag = msg->flag;
+				printf("Got Pattern Msg from %04X.\r\n",eightNeiPattern[i].dropletId);
+				printf("\t%hu | %f %f %f\r\n", eightNeiPattern[i].degree, eightNeiPattern[i].pattern_f[0], eightNeiPattern[i].pattern_f[1], eightNeiPattern[i].pattern_f[2]);
+				for(uint8_t j=0;j<NUM_PATTERNS;j++){
+					eightNeiPattern[i].pattern_f[j] = msg->pattern_f[j];
+				}
 				break;
 			}
 		}
@@ -293,7 +320,9 @@ void handle_turing_msg(turingMsg* msg){
 	if(msg->flag == TURING_MSG_FLAG){
 		for (uint8_t i=0; i<NUM_NEIGHBOR_12; i++){
 			if (msg->dropletId == me.neighborIds[i]){
-				twelveNeiTuring[i] = (*msg);
+				twelveNeiTuring[i].dropletId = msg->dropletId;
+				twelveNeiTuring[i].color = msg->color;
+				twelveNeiTuring[i].flag = msg->flag;
 				break;
 			}
 		}
@@ -304,7 +333,7 @@ void prepareSlot(){
 	/* Do stuff. send messages. do rnb broadcast. */
 	//set_rgb(255, 0, 0);
 	broadcast_rnb_data();
-	delay_ms(10);
+	delay_ms(20);
 	sendNeiMsg();
 
 	// read colors
@@ -319,62 +348,72 @@ void prepareSlot(){
 	red_array[frameCount] = red;
 	green_array[frameCount] = green;
 	blue_array[frameCount] = blue;
-	//printf("X[%04X] R: %d G: %d B: %d (ori)\r\n",	//me.dropletId,red_led, green_led, blue_led);
+	printf("X[%04X] R: %d G: %d B: %d (ori)\r\n", me.dropletId, red, green, blue);
+}
+
+void processMeasList(RnbNode* node){
+	printf("\t[%04X] R: %4d, B: % 4d, C: %2hu |-> %04x\r\n",node->id, node->range, node->bearing, node->conf,  (uint16_t)node->next);
+	if(abs(node->bearing-90) <= NEIGHBOR_ANGLE_THRESH){// left
+		if(node->conf>myFourDrConfs[3]){
+			myFourDr.Ids[3] = node->id;
+			myFourDrConfs[3] = node->conf;
+		}
+	}else if(abs(node->bearing+90) <= NEIGHBOR_ANGLE_THRESH) {// right
+		if(node->conf>myFourDrConfs[1]){
+			myFourDr.Ids[1] = node->id;
+			myFourDrConfs[1] = node->conf;
+		}
+	}else if( abs(node->bearing) <= NEIGHBOR_ANGLE_THRESH) {// top
+		if(node->conf>myFourDrConfs[0]){
+			myFourDr.Ids[0] = node->id;
+			myFourDrConfs[0] = node->conf;
+		}
+	}else if( ( abs(node->bearing-180) <= NEIGHBOR_ANGLE_THRESH || abs(node->bearing+180) <= NEIGHBOR_ANGLE_THRESH )) {// bottom
+		if(node->conf>myFourDrConfs[2]){
+			myFourDr.Ids[2] = node->id;
+			myFourDrConfs[2] = node->conf;
+		}
+	}
+}
+
+void updateNeighbors(){
+	printf("Going through meas list.\r\n");
+	RnbNode* tmp;
+	while(measRoot!=NULL){
+		processMeasList(measRoot);
+		tmp = measRoot->next;
+		myFree(measRoot);
+		measRoot = tmp;
+	}
+	lastMeasAdded = NULL;
+	printf("Neighbors: ");
+	for(uint8_t i=0;i<NUM_NEIGHBOR_4;i++){
+		if(myFourDr.Ids[i]!=0){
+			printf("%04X ", myFourDr.Ids[i]);
+		}else{
+			printf("---- ");
+		}
+	}
+	printf("\r\n");
 }
 
 void prepareEOP(){
 	/* End of frame. Do some final processing here */
+	updateNeighbors();
 	extendNeighbors();
-	if (frameCount<NUM_PREPARE) {
+	if (frameCount<(NUM_PREPARE-1)) {
 		if(TEST_PREPARE){
 			printf("X[%04X] R: %d G: %d B: %d\r\n", me.dropletId, allRGB[frameCount].rgb[0], allRGB[frameCount].rgb[1], allRGB[frameCount].rgb[2]);
 		}
+
 	}else{
-		id_t maxIDs[NUM_NEIGHBOR_4] = {0,0,0,0};
-		uint8_t maxConfs[NUM_NEIGHBOR_4] = {0,0,0,0};
-		RnbNode* tmp;
-		while(measRoot!=NULL){
-			tmp	= measRoot;
-			if(abs(tmp->bearing-90) <= NEIGHBOR_ANGLE_THRESH){// left
-				if(tmp->conf>maxConfs[3]){
-					maxIDs[3] = tmp->id;
-					maxConfs[3] = tmp->conf;
-				}
-			}else if(abs(tmp->bearing+90) <= NEIGHBOR_ANGLE_THRESH) {// right
-				if(tmp->conf>maxConfs[1]){
-					maxIDs[1] = tmp->id;
-					maxConfs[1] = tmp->conf;
-				}
-			}else if( abs(tmp->bearing) <= NEIGHBOR_ANGLE_THRESH) {// top
-				if(tmp->conf>maxConfs[0]){
-					maxIDs[0] = tmp->id;
-					maxConfs[0] = tmp->conf;
-				}
-			}else if( ( abs(tmp->bearing-180) <= NEIGHBOR_ANGLE_THRESH || abs(tmp->bearing+180) <= NEIGHBOR_ANGLE_THRESH )) {// bottom
-				if(tmp->conf>maxConfs[2]){
-					maxIDs[2] = tmp->id;
-					maxConfs[2] = tmp->conf;
-				}
-			}
-			measRoot = tmp->next;
-			myFree(tmp);
-		}
-		printf("Neighbors: ");
-		for(uint8_t i=0;i<NUM_NEIGHBOR_4;i++){
-			myFourDr.Ids[i] = maxIDs[i];
-			if(myFourDr.Ids[i]!=0){
-				printf("%04X ", myFourDr.Ids[i]);
-			}else{
-				printf("---- ");
-			}
-		}
-		printf("\r\n");
-
-
+		printf("Once only loop in Prepare\r\n");
 		me.rgb[0] = meas_find_median(red_array, NUM_PREPARE);
 		me.rgb[1] = meas_find_median(green_array, NUM_PREPARE);
 		me.rgb[2] = meas_find_median(blue_array, NUM_PREPARE);
 	
+		me.turing_color = (me.rgb[0]+me.rgb[1]+me.rgb[2])>500;
+
 		if(TEST_PREPARE){
 			for (uint8_t i=0; i<NUM_NEIGHBOR_12; i++){
 				if (me.neighborIds[i] != 0){
@@ -399,7 +438,7 @@ void gradientEOP(){
 	// At the end of this phase, decide the pattern
 	// based on the information received
 	// check if go to another phase
-	if(frameCount>=NUM_GRADIENT){
+	if(frameCount>=(NUM_GRADIENT-1)){
 		decidePattern();
 		for (uint8_t i=0; i<NUM_PATTERNS; i++){
 			allPattern[0].pattern_f[i] = me.myPattern_f[i];
@@ -411,7 +450,7 @@ void gradientEOP(){
 
 void consensusEOP(){
 	weightedAverage();
-	if (frameCount<NUM_CONSENSUS) {
+	if (frameCount<(NUM_CONSENSUS-1)) {
 		for (uint8_t i=0; i<NUM_PATTERNS; i++){
 			allPattern[frameCount].pattern_f[i] = me.myPattern_f[i];
 		}
@@ -424,13 +463,22 @@ void consensusEOP(){
 void turingEOP(){
 	/* End of frame. Do some final processing here */
 	changeColor();
-	if (frameCount>=NUM_TURING){
+	if (frameCount>=(NUM_TURING-1)){
 		printf("\r\nAll Done!\r\n");
 		displayMenu();
 		frameCount = 0;
+		phase++;
 	}
 }
 
+
+void waitingEOP(){
+	if (frameCount>=(NUM_WAITING-1)){
+		printf("\r\nRestarting!\r\n");
+		frameCount = 0;
+		phase = 0;
+	}
+}
 
 // Inside of __preparePhase__
 // get information about neighbor's neighbor
@@ -506,9 +554,7 @@ void decidePattern(){
 	// Compute two gradients and decide which pattern
 	// At this point, only use Red channel
 	uint8_t channel = 1;
-	if((50<me.rgb[0]&& me.rgb[0]<400) &&
-	(50<me.rgb[1]&& me.rgb[1]<400) &&
-	(50<me.rgb[2]&& me.rgb[2]<400) ){  // ignore and set to 0.5f
+	if((50<me.rgb[0]&& me.rgb[0]<400) && (50<me.rgb[1]&& me.rgb[1]<400) && (50<me.rgb[2]&& me.rgb[2]<400) ){  // ignore and set to 0.5f
 		for(uint8_t i=0; i<NUM_NEIGHBOR_4; i++){
 			if (fourNeiRGB[i].dropletId == 0){
 				for (uint8_t j=0; j<3; j++){
@@ -547,15 +593,12 @@ void decidePattern(){
 		// Decide which pattern to be
 		if(diff_col - diff_row > (float)threshold_mottled){ // row less than col: horizontal
 			me.myPattern_f[0] = 1.0f;
-		}
-		else if (diff_row - diff_col > (float)threshold_mottled){ // col less than row: vertical
+		}else if (diff_row - diff_col > (float)threshold_mottled){ // col less than row: vertical
 			me.myPattern_f[1] = 1.0f;
-		}
-		else{ // for the corner ones
+		}else{ // for the corner ones
 			me.myPattern_f[2] = 1.0f;
 		}
-	}
-	else{
+	}else{
 		for (uint8_t i=0; i<NUM_PATTERNS; i++){
 			me.myPattern_f[i] = 0.333333333f;
 		}	
@@ -574,19 +617,19 @@ void decidePattern(){
 void weightedAverage(){
 	float wi;
 	float wc;
-	float pattern[3] = {0.0f, 0.0f, 0.0f};
+	float pattern[3] ={0.0, 0.0, 0.0};
 	uint8_t maxDegree;
-	wc = 1.0f;
+	wc = 1.0;
 	for (uint8_t i=0; i<NUM_NEIGHBOR_8; i++){
-		if (eightNeiPattern[i].dropletId != 0){
+		if (eightNeiPattern[i].dropletId){
 			maxDegree = me.myDegree;
 			if (maxDegree < eightNeiPattern[i].degree){
 				maxDegree = eightNeiPattern[i].degree;
 			}
-			wi = 1.0f/(1.0f+(float)maxDegree);
+			wi = 1.0/(1.0+maxDegree);
 			wc -= wi;
 			for(uint8_t j=0; j<NUM_PATTERNS; j++){
-				pattern[j] += wi*(float)eightNeiPattern[i].pattern_f[j];
+				pattern[j] += wi*eightNeiPattern[i].pattern_f[j];
 			}
 		}
 	}

@@ -21,12 +21,12 @@
 #define TURING_MSG_FLAG		'T'
 #define NUM_PATTERNS		3
 #define NUM_PREPARE			20 //20
-#define NUM_GRADIENT		10
-#define NUM_CONSENSUS		35 //30
+#define NUM_GRADIENT		10 //10
+#define NUM_CONSENSUS		30 //30
 #define NUM_TURING			20 //20
-#define NUM_DROPLETS		9
+#define NUM_WAITING			30
 
-#define SLOT_LENGTH_MS		263
+#define SLOT_LENGTH_MS		271
 #define SLOTS_PER_FRAME		37
 #define FRAME_LENGTH_MS		(((uint32_t)SLOT_LENGTH_MS)*((uint32_t)SLOTS_PER_FRAME))
 #define LOOP_DELAY_MS		17
@@ -49,17 +49,17 @@ const uint8_t hIndex[NUM_NEIGHBOR_4] = {1, 3, 9, 11};
 /*  */
 typedef struct Droplet_struct{
 	float myPattern_f[NUM_PATTERNS];
-	uint16_t neighborIds[NUM_NEIGHBOR_12];
+	id_t neighborIds[NUM_NEIGHBOR_12];
 	int16_t rgb[3];
-	uint16_t dropletId;
+	id_t dropletId;
 	uint8_t mySlot;
 	uint8_t myDegree;
 	uint8_t turing_color;
 } Droplet;
 
 typedef struct NeighborId_struct{
-	uint16_t Ids[NUM_NEIGHBOR_4];
-	uint16_t dropletId;
+	id_t Ids[NUM_NEIGHBOR_4];
+	id_t dropletId;
 	uint8_t  gotMsg_flags[NUM_NEIGHBOR_4];
 	char flag;
 } neighborMsg;
@@ -72,13 +72,13 @@ typedef struct RGB_struct{
 
 typedef struct Pattern_struct{
 	float pattern_f[NUM_PATTERNS];
-	uint16_t dropletId;
+	id_t dropletId;
 	uint8_t degree;
 	char flag;
 } patternMsg;
 
 typedef struct Turing_struct{
-	uint16_t dropletId;
+	id_t dropletId;
 	uint8_t color;
 	char flag;
 } turingMsg;
@@ -87,6 +87,7 @@ typedef struct Turing_struct{
 Droplet me;
 
 neighborMsg myFourDr;
+uint8_t myFourDrConfs[NUM_NEIGHBOR_4];
 // store 4 neighbor's neighbor information
 neighborMsg fourNeiInfo[NUM_NEIGHBOR_4];
 // store 4 neighbor's RGB information
@@ -105,8 +106,6 @@ int16_t red_array[NUM_PREPARE];
 int16_t green_array[NUM_PREPARE];
 int16_t blue_array[NUM_PREPARE];
 
-
-
 // Store information from neighboring Droplets
 /*
 Neighbor Index document:
@@ -124,7 +123,8 @@ typedef enum{
 	Prepare=0,
 	Gradient=1,
 	Consensus=2,
-	Turing=3
+	Turing=3,
+	Waiting=4
 } Phase;
 
 typedef struct rnb_node_struct{
@@ -154,6 +154,8 @@ void handle_pattern_msg(patternMsg* msg);
 void handle_turing_msg(turingMsg* msg);
 
 void handleRNB();
+void updateNeighbors();
+void processMeasList(RnbNode* node);
 
 void extendNeighbors();
 uint8_t user_handle_command(char* command_word, char* command_args);
@@ -163,6 +165,7 @@ void prepareEOP();
 void gradientEOP();
 void consensusEOP();
 void turingEOP();
+void waitingEOP();
 void setColor();
 
 void sendRGBMsg();

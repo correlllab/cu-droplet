@@ -51,7 +51,7 @@ void rgb_sensor_init()
 		ADCA.CALH = PRODSIGNATURES_ADCACAL1;
 
 		ADCA.CTRLA = ADC_ENABLE_bm;
-	
+
 		read_color_settings();
 		/* 
 		 * Only include the line below if you want to overwrite the stored

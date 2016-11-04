@@ -24,7 +24,7 @@
 #define NUM_GRADIENT		10 //10
 #define NUM_CONSENSUS		30 //30
 #define NUM_TURING			20 //20
-#define NUM_WAITING			30
+#define NUM_WAITING			500
 
 #define SLOT_LENGTH_MS		271
 #define SLOTS_PER_FRAME		37
@@ -41,7 +41,7 @@
 #define TEST_CONSENSUS		1
 #define TEST_TURING			1
 
-const float rgb_weights[3] = {0.2989, 0.5870, 0.1140};  // RGB to Gray
+const float rgb_weights[3] = {0.5, 0.5, 0.0};  // RGB to Gray
 
 const uint8_t vIndex[NUM_NEIGHBOR_4] = {0, 2, 8, 10};
 const uint8_t hIndex[NUM_NEIGHBOR_4] = {1, 3, 9, 11};
@@ -143,7 +143,7 @@ uint16_t loopID;
 Phase phase;
 uint8_t counter;			// to exit phases
 
-int threshold_mottled = 40;
+int threshold_mottled = 0;
 
 void init();
 void loop();

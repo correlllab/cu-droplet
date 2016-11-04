@@ -237,7 +237,9 @@ void sendPatternMsg(){
 	msg.dropletId = me.dropletId;
 	msg.degree = me.myDegree;
 	for (uint8_t i=0; i<NUM_PATTERNS; i++){
-		msg.pattern_f[i] = me.myPattern_f[i];
+		float tmp = me.myPattern_f[i];
+		msg.pattern_f[i] = (tmp>1.0) ? 1.0 : ((tmp<0.0) ? 0.0 : tmp);
+		me.myPattern_f[i] = msg.pattern_f[i];
 	}
 	ir_send(ALL_DIRS, (char*)(&msg), sizeof(patternMsg));
 }
@@ -308,7 +310,8 @@ void handle_pattern_msg(patternMsg* msg){
 				printf("Got Pattern Msg from %04X.\r\n",eightNeiPattern[i].dropletId);
 				printf("\t%hu | %f %f %f\r\n", eightNeiPattern[i].degree, eightNeiPattern[i].pattern_f[0], eightNeiPattern[i].pattern_f[1], eightNeiPattern[i].pattern_f[2]);
 				for(uint8_t j=0;j<NUM_PATTERNS;j++){
-					eightNeiPattern[i].pattern_f[j] = msg->pattern_f[j];
+					float tmp = msg->pattern_f[j];
+					eightNeiPattern[i].pattern_f[j] = (tmp>1.0) ? 1.0 : ((tmp<0.0) ? 0.0 : tmp);
 				}
 				break;
 			}
@@ -321,7 +324,7 @@ void handle_turing_msg(turingMsg* msg){
 		for (uint8_t i=0; i<NUM_NEIGHBOR_12; i++){
 			if (msg->dropletId == me.neighborIds[i]){
 				twelveNeiTuring[i].dropletId = msg->dropletId;
-				twelveNeiTuring[i].color = msg->color;
+				twelveNeiTuring[i].color = !!(msg->color);
 				twelveNeiTuring[i].flag = msg->flag;
 				break;
 			}
@@ -412,7 +415,7 @@ void prepareEOP(){
 		me.rgb[1] = meas_find_median(green_array, NUM_PREPARE);
 		me.rgb[2] = meas_find_median(blue_array, NUM_PREPARE);
 	
-		me.turing_color = (me.rgb[0]+me.rgb[1]+me.rgb[2])>500;
+		me.turing_color = (me.rgb[0]+me.rgb[1])>130;
 
 		if(TEST_PREPARE){
 			for (uint8_t i=0; i<NUM_NEIGHBOR_12; i++){
@@ -554,7 +557,7 @@ void decidePattern(){
 	// Compute two gradients and decide which pattern
 	// At this point, only use Red channel
 	uint8_t channel = 1;
-	if((50<me.rgb[0]&& me.rgb[0]<400) && (50<me.rgb[1]&& me.rgb[1]<400) && (50<me.rgb[2]&& me.rgb[2]<400) ){  // ignore and set to 0.5f
+	if((30<me.rgb[0]&& me.rgb[0]<400) && (30<me.rgb[1]&& me.rgb[1]<400) && (30<me.rgb[2]&& me.rgb[2]<400) ){  // ignore and set to 0.5f
 		for(uint8_t i=0; i<NUM_NEIGHBOR_4; i++){
 			if (fourNeiRGB[i].dropletId == 0){
 				for (uint8_t j=0; j<3; j++){
@@ -685,42 +688,45 @@ void changeColor(){
 	if ( (me.myPattern_f[0] > me.myPattern_f[1]) && (me.myPattern_f[0] > me.myPattern_f[2]) ) {	// pattern = 0: horizontal
 		// exclude activator from inhibitor
 		printf("Horizontal stripe!\r\n");
-		for (uint8_t i=0; i<NUM_NEIGHBOR_4; i++){
-			if (twelveNeiTuring[hIndex[i]].color == 1){
-				na += 1;
-			}
-		}
-		for (uint8_t i=0; i<NUM_NEIGHBOR_8; i++){
-			if (i==1 || i==3) continue;
-			else if (twelveNeiTuring[i].color == 1){
-				ni += 1;
-			}
-		}
+		na += (twelveNeiTuring[1].color == 1);
+		na += (twelveNeiTuring[3].color == 1);
+		na += (twelveNeiTuring[9].color == 1);
+		na += (twelveNeiTuring[11].color == 1);
+
+		ni += (twelveNeiTuring[0].color == 1);
+		ni += (twelveNeiTuring[2].color == 1);
+		ni += (twelveNeiTuring[4].color == 1);
+		ni += (twelveNeiTuring[5].color == 1);
+		ni += (twelveNeiTuring[6].color == 1);
+		ni += (twelveNeiTuring[7].color == 1);
 	}else if ((me.myPattern_f[1] > me.myPattern_f[0]) && (me.myPattern_f[1] > me.myPattern_f[2])){	// pattern = 1: vertical
 		printf("Vertical stripe!\r\n");
-		for (uint8_t i=0; i<NUM_NEIGHBOR_4; i++){
-			if (twelveNeiTuring[vIndex[i]].color == 1){
-				na += 1;
-			}
-		}
-		for (uint8_t i=0; i<NUM_NEIGHBOR_8; i++){
-			if (i==0 || i==2) continue;
-			else if (twelveNeiTuring[i].color == 1){
-				ni += 1;
-			}
-		}		
+		na += (twelveNeiTuring[0].color == 1);
+		na += (twelveNeiTuring[2].color == 1);
+		na += (twelveNeiTuring[8].color == 1);
+		na += (twelveNeiTuring[10].color == 1);
+
+		ni += (twelveNeiTuring[1].color == 1);
+		ni += (twelveNeiTuring[3].color == 1);
+		ni += (twelveNeiTuring[4].color == 1);
+		ni += (twelveNeiTuring[5].color == 1);
+		ni += (twelveNeiTuring[6].color == 1);
+		ni += (twelveNeiTuring[7].color == 1);
 	}else{
 		printf("Mottled Pattern!\r\n");		
-		for (uint8_t i=0; i<NUM_NEIGHBOR_4; i++){
-			if (twelveNeiTuring[vIndex[i]].color == 1){
-				na += 1;
-			}
-		}
-		for (uint8_t i=4; i<NUM_NEIGHBOR_12; i++){
-			if (twelveNeiTuring[i].color == 1){
-				ni += 1;
-			}
-		}		
+		na += (twelveNeiTuring[0].color == 1);
+		na += (twelveNeiTuring[1].color == 1);
+		na += (twelveNeiTuring[2].color == 1);
+		na += (twelveNeiTuring[3].color == 1);
+
+		ni += (twelveNeiTuring[4].color == 1);
+		ni += (twelveNeiTuring[5].color == 1);
+		ni += (twelveNeiTuring[6].color == 1);
+		ni += (twelveNeiTuring[7].color == 1);
+		ni += (twelveNeiTuring[8].color == 1);
+		ni += (twelveNeiTuring[9].color == 1);	
+		ni += (twelveNeiTuring[10].color == 1);	
+		ni += (twelveNeiTuring[11].color == 1);	
 	}
 	
 	ss += (float)na - (float)ni*TURING_F;
@@ -731,9 +737,10 @@ void changeColor(){
 	}
 
 	if (me.turing_color == 0){
-		set_rgb(255, 255, 255);
-	}else{
 		set_rgb(0, 0, 0);
+	}else{
+		set_rgb(255, 255, 255);
+		
 	}	
 	
 	if (TEST_TURING) {

@@ -673,10 +673,50 @@ void changeColor(){
 				case 1: twelveNeiTuring[i].color = twelveNeiTuring[3].color; break;
 				case 2: twelveNeiTuring[i].color = twelveNeiTuring[0].color; break;
 				case 3: twelveNeiTuring[i].color = twelveNeiTuring[1].color; break;
-				case 4: twelveNeiTuring[i].color = twelveNeiTuring[7].color; break;
-				case 5: twelveNeiTuring[i].color = twelveNeiTuring[6].color; break;
-				case 6: twelveNeiTuring[i].color = twelveNeiTuring[5].color; break;
-				case 7: twelveNeiTuring[i].color = twelveNeiTuring[4].color; break;
+				case 4:
+					if((twelveNeiTuring[7].dropletId == 0) && (twelveNeiTuring[5].dropletId == 0)){
+						twelveNeiTuring[i].color = twelveNeiTuring[6].color;
+					}else if((twelveNeiTuring[5].dropletId != 0)){
+						twelveNeiTuring[i].color = twelveNeiTuring[5].color;
+					}else if(twelveNeiTuring[7].dropletId !=0){
+						twelveNeiTuring[i].color = twelveNeiTuring[7].color;
+					}else{
+						twelveNeiTuring[i].color = 0;
+					}
+					break;				
+				case 5: 
+					if((twelveNeiTuring[4].dropletId == 0) && (twelveNeiTuring[6].dropletId == 0)){
+						twelveNeiTuring[i].color = twelveNeiTuring[7].color;
+						}else if((twelveNeiTuring[4].dropletId != 0)){
+						twelveNeiTuring[i].color = twelveNeiTuring[4].color;
+						}else if(twelveNeiTuring[6].dropletId !=0){
+						twelveNeiTuring[i].color = twelveNeiTuring[6].color;
+						}else{
+						twelveNeiTuring[i].color = 0;
+					}				
+					break;
+				case 6: 
+					if((twelveNeiTuring[7].dropletId == 0) && (twelveNeiTuring[5].dropletId == 0)){
+						twelveNeiTuring[i].color = twelveNeiTuring[4].color;
+						}else if((twelveNeiTuring[5].dropletId != 0)){
+						twelveNeiTuring[i].color = twelveNeiTuring[5].color;
+						}else if(twelveNeiTuring[7].dropletId !=0){
+						twelveNeiTuring[i].color = twelveNeiTuring[7].color;
+						}else{
+						twelveNeiTuring[i].color = 0;
+					}				
+					break;
+				case 7: 
+					if((twelveNeiTuring[4].dropletId == 0) && (twelveNeiTuring[6].dropletId == 0)){
+						twelveNeiTuring[i].color = twelveNeiTuring[5].color;
+						}else if((twelveNeiTuring[4].dropletId != 0)){
+						twelveNeiTuring[i].color = twelveNeiTuring[4].color;
+						}else if(twelveNeiTuring[6].dropletId !=0){
+						twelveNeiTuring[i].color = twelveNeiTuring[6].color;
+						}else{
+						twelveNeiTuring[i].color = 0;
+					}
+					break;
 				case 8: twelveNeiTuring[i].color = twelveNeiTuring[10].color; break;
 				case 9: twelveNeiTuring[i].color = twelveNeiTuring[11].color; break;
 				case 10: twelveNeiTuring[i].color = twelveNeiTuring[8].color; break;

@@ -20,6 +20,15 @@ void loop(){
 		frameStart += FRAME_LENGTH_MS;
 		frameCount++;
 	}
+	if(loopID!=(frameTime/SLOT_LENGTH_MS)){
+		loopID = frameTime/SLOT_LENGTH_MS;
+		if(loopID==mySlot){
+			//code you want to execute on your slot.
+		}else if(loopID==SLOTS_PER_FRAME-1){
+			//code you want to execute at the end of a frame.
+		}
+	}
+	delay_ms(LOOP_DELAY_MS);
 }
 
 /*

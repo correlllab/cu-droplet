@@ -240,9 +240,10 @@ void use_rnb_data(){
 	//uint32_t start = get_time();
 	uint8_t power = 255;
 	int16_t matrixSum = processBrightMeas();
+	//if(rand_byte()%2) broadcastBrightMeas();
 	float bearing, heading;
 	float error;
-	//print_brightMeas();
+	print_brightMeas();
 	calculate_bearing_and_heading(&bearing, &heading);
 	float initial_range = get_initial_range_guess(bearing, heading, power);
 	if(initial_range!=0&&!isnanf(initial_range)){	
@@ -300,7 +301,7 @@ void use_rnb_data(){
 				conf = 0.01;
 			}
 	
-			last_good_rnb.id_number = rnbCmdID;
+			last_good_rnb.id = rnbCmdID;
 			last_good_rnb.range		= range;
 			last_good_rnb.bearing	= bearing;
 			last_good_rnb.heading	 = heading;
@@ -461,7 +462,7 @@ static int16_t processBrightMeas(){
 		for(uint8_t s = 0; s < 6; s++){
 			val = brightMeas[e][s];
 			allColZeroCheck &= ~((!!val)<<s);	
-			val=val*(val>0);
+			//val=val*(val>0);
 			brightMeas[e][s] = val;
 			valSum+=val;	
 		}
@@ -591,7 +592,7 @@ static void debug_print_timer(uint32_t timer[14]){
 }
 
 static void print_brightMeas(){
-	printf("{\r\n");
+	printf("{%04X, %04X, {\r\n", rnbCmdID, get_droplet_id());
 	for(uint8_t emitter_num=0 ; emitter_num<6 ; emitter_num++){
 		printf("\t{");
 		for(uint8_t sensor_num=0 ; sensor_num<6 ; sensor_num++){
@@ -602,7 +603,7 @@ static void print_brightMeas(){
 		if(emitter_num<5) printf(",");
 		printf("\r\n");
 	}
-	printf("};\r\n");
+	printf("}},\r\n");
 }
 
 static void print_range_matrix(float range_matrix[6][6]){

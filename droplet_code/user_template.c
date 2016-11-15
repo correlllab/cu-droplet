@@ -8,6 +8,9 @@ void init(){
 	frameCount = 0;
 	mySlot = (get_droplet_id()%(SLOTS_PER_FRAME-1));
 	frameStart = get_time();
+	motor_adjusts[6][0] = 1000;
+	motor_adjusts[6][1] = 1000;
+	motor_adjusts[6][2] = 1000;
 }
 
 /*
@@ -19,18 +22,27 @@ void loop(){
 		frameTime = frameTime - FRAME_LENGTH_MS;
 		frameStart += FRAME_LENGTH_MS;
 		frameCount++;
+		if(frameCount%5==0){
+			move_steps(6,1000);
+		}
 	}
 	if(loopID!=(frameTime/SLOT_LENGTH_MS)){
 		loopID = frameTime/SLOT_LENGTH_MS;
 		if(loopID==mySlot){
-			//code you want to execute on your slot.
-		}else if(loopID==SLOTS_PER_FRAME-1){
-			//code you want to execute at the end of a frame.
+			if(is_moving()==-1){
+				delay_ms(12);
+				broadcast_rnb_data();
+				delay_ms(12);
+			}else{
+				stop_move();
+			}
 		}
+	}
+	if(rnb_updated){
+		rnb_updated = 0;
 	}
 	delay_ms(LOOP_DELAY_MS);
 }
-
 /*
  * After each pass through loop(), the robot checks for all messages it has 
  * received, and calls this function once for each message.
@@ -53,7 +65,6 @@ void handle_msg(ir_msg* msg_struct){
  //*/
 //uint8_t user_handle_command(char* command_word, char* command_args)
 //{
-	//return 0;
 //}
 
 ///*

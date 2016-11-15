@@ -181,6 +181,7 @@ void stop_move()
 	
 	motor_status = 0;
 	remove_task((Task_t*)current_motor_task);
+	current_motor_task = NULL;
 }
 
 int8_t is_moving() // returns -1 if droplet is not moving, movement dir otherwise.

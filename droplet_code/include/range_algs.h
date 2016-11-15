@@ -47,9 +47,8 @@ typedef struct rnb_data {
 	float bearing;
 	float heading;
 	float conf;
-	uint16_t id_number;
+	id_t id;
 } rnb;
-
 
 
 rnb last_good_rnb;

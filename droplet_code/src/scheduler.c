@@ -168,6 +168,9 @@ static void add_task_to_list(volatile Task_t* task){
 // Remove a task from the task queue
 void remove_task(volatile Task_t* task){
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+		if(task==NULL){
+			continue;
+		}
 		if(task_list==task)	{
 			task_list=task->next;
 			num_tasks--;

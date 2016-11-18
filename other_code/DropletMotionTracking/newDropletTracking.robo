@@ -1,16 +1,15 @@
-<head><version>2.77.8</version></head>
+<head><version>2.80.48</version></head>
 <Affine>
+  <maintain_aspect_ratio>FALSE</maintain_aspect_ratio>
   <perspective_compensation>TRUE</perspective_compensation>
-  <point_1_x>681.5</point_1_x>
-  <point_1_y>1075.5</point_1_y>
-  <point_2_x>1620</point_2_x>
-  <point_2_y>1068</point_2_y>
-  <point_3_x>556.5</point_3_x>
-  <point_3_y>82.5</point_3_y>
-  <point_4_x>1751.5</point_4_x>
-  <point_4_y>35.5</point_4_y>
-  <scroll_x_offset>133</scroll_x_offset>
-  <scroll_y_offset>558</scroll_y_offset>
+  <point_1_x>728.571</point_1_x>
+  <point_1_y>1057.14</point_1_y>
+  <point_2_x>1656.14</point_2_x>
+  <point_2_y>1058.29</point_2_y>
+  <point_3_x>609.714</point_3_x>
+  <point_3_y>75.8572</point_3_y>
+  <point_4_x>1791.57</point_4_x>
+  <point_4_y>20</point_4_y>
   <transform_height>1000</transform_height>
   <transform_width>1000</transform_width>
   <zoom>12</zoom>
@@ -20,14 +19,12 @@
   <name>Corrected</name>
   <revert_to>Current</revert_to>
 </Marker>
-<HSV_Channel disabled>
-  <channel>1</channel>
-</HSV_Channel>
 <Fiducial>
   <adaptive_threshold>30</adaptive_threshold>
-  <base_folder>.\fids3</base_folder>
+  <base_folder>.\fids4</base_folder>
+  <color_fiducials>FALSE</color_fiducials>
   <create_shape_array>TRUE</create_shape_array>
-  <display_confidence>FALSE</display_confidence>
+  <display_confidence>TRUE</display_confidence>
   <display_contrast>FALSE</display_contrast>
   <display_coord>FALSE</display_coord>
   <display_distance>FALSE</display_distance>
@@ -38,25 +35,26 @@
   <display_scale>FALSE</display_scale>
   <display_tx>FALSE</display_tx>
   <display_ty>FALSE</display_ty>
-  <fiducial_height>3.3</fiducial_height>
-  <fiducial_width>3.3</fiducial_width>
+  <fiducial_height>3.5</fiducial_height>
+  <fiducial_width>3.5</fiducial_width>
   <field_of_view>61</field_of_view>
   <focal_length>250</focal_length>
   <font_size_index>2</font_size_index>
+  <high_precision>TRUE</high_precision>
   <matched_color_index>3</matched_color_index>
   <max_angle>360</max_angle>
   <max_confidence>100</max_confidence>
   <max_contrast>100</max_contrast>
-  <max_size>1000</max_size>
-  <max_x_angle>0</max_x_angle>
-  <max_y_angle>0</max_y_angle>
+  <max_size>6</max_size>
+  <max_x_angle>20</max_x_angle>
+  <max_y_angle>20</max_y_angle>
   <min_angle>0</min_angle>
-  <min_confidence>70</min_confidence>
+  <min_confidence>50</min_confidence>
   <min_contrast>0</min_contrast>
-  <min_size>0</min_size>
-  <min_x_angle>0</min_x_angle>
-  <min_y_angle>0</min_y_angle>
-  <monitor_folder>TRUE</monitor_folder>
+  <min_size>2</min_size>
+  <min_x_angle>340</min_x_angle>
+  <min_y_angle>340</min_y_angle>
+  <monitor_folder>FALSE</monitor_folder>
   <occurrence_threshold>0</occurrence_threshold>
   <select_top_blobs>20</select_top_blobs>
   <sort_array_on_x>FALSE</sort_array_on_x>
@@ -110,65 +108,4 @@
 <function>
 <function_name>Tab2</function_name>
 <function_always_run>0</function_always_run>
-<Affine>
-  <perspective_compensation>TRUE</perspective_compensation>
-  <point_1_x>564.5</point_1_x>
-  <point_1_y>1083.5</point_1_y>
-  <point_2_x>1497</point_2_x>
-  <point_2_y>1080.5</point_2_y>
-  <point_3_x>443</point_3_x>
-  <point_3_y>65.5</point_3_y>
-  <point_4_x>1638.5</point_4_x>
-  <point_4_y>73</point_4_y>
-  <scroll_x_offset>510</scroll_x_offset>
-  <transform_height>1000</transform_height>
-  <transform_width>1000</transform_width>
-  <zoom>12</zoom>
-</Affine>
-<Marker>
-  <include_graphics>0</include_graphics>
-  <name>Corrected</name>
-  <revert_to>Current</revert_to>
-</Marker>
-<HSV_Channel>
-  <channel>2</channel>
-</HSV_Channel>
-<Reduce_Colors>
-  <detail_size>40</detail_size>
-  <tolerance>128</tolerance>
-</Reduce_Colors>
-<Blob_Filter>
-  <create_blob_array_variable>TRUE</create_blob_array_variable>
-  <filters>
-    <tab>
-      <filter>
-        <count_threshold>0</count_threshold>
-        <create_array>0</create_array>
-        <filter_id>86</filter_id>
-        <invert_count>0</invert_count>
-        <invert_threshold>0</invert_threshold>
-        <weight_threshold>0.8</weight_threshold>
-      </filter>
-    </tab>
-    <tab:2/>
-    <tab:3/>
-    <tab:4/>
-    <tab:5/>
-    <tab:6/>
-  </filters>
-  <font_size>Normal (10pt)</font_size>
-  <largest_is_background>TRUE</largest_is_background>
-  <show_weights>FALSE</show_weights>
-  <sort_array_on_x>FALSE</sort_array_on_x>
-  <sort_array_on_y>FALSE</sort_array_on_y>
-</Blob_Filter>
-<Blob_Colorize>
-  <comparison_mode>1</comparison_mode>
-  <sensitivity>75</sensitivity>
-  <source_image>Corrected</source_image>
-  <threshold>0</threshold>
-</Blob_Colorize>
-<Watch_Variables>
-  <on_top>TRUE</on_top>
-</Watch_Variables>
 </function>

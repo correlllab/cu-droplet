@@ -592,16 +592,15 @@ static void debug_print_timer(uint32_t timer[14]){
 }
 
 static void print_brightMeas(){
-	printf("{%04X, %04X, {\r\n", rnbCmdID, get_droplet_id());
+	printf("{\"%04X\", \"%04X\", {", rnbCmdID, get_droplet_id());
 	for(uint8_t emitter_num=0 ; emitter_num<6 ; emitter_num++){
-		printf("\t{");
+		printf("{");
 		for(uint8_t sensor_num=0 ; sensor_num<6 ; sensor_num++){
-			printf("%4d",brightMeas[emitter_num][sensor_num]);
+			printf("%d",brightMeas[emitter_num][sensor_num]);
 			if(sensor_num<5) printf(",");
 		}
 		printf("}");		
 		if(emitter_num<5) printf(",");
-		printf("\r\n");
 	}
 	printf("}},\r\n");
 }

@@ -8,9 +8,6 @@ void init(){
 	frameCount = 0;
 	mySlot = (get_droplet_id()%(SLOTS_PER_FRAME-1));
 	frameStart = get_time();
-	motor_adjusts[6][0] = 1000;
-	motor_adjusts[6][1] = 1000;
-	motor_adjusts[6][2] = 1000;
 }
 
 /*
@@ -22,30 +19,16 @@ void loop(){
 		frameTime = frameTime - FRAME_LENGTH_MS;
 		frameStart += FRAME_LENGTH_MS;
 		frameCount++;
-		if(frameCount%5==0){
-			move_steps(6,1000);
-			set_rgb(0,0,255);
-		}
 	}
 	if(loopID!=(frameTime/SLOT_LENGTH_MS)){
 		loopID = frameTime/SLOT_LENGTH_MS;
-		if(loopID==mySlot){
-			set_rgb(0,255,0);
-			if(is_moving()==-1){
-				delay_ms(12);
-				broadcast_rnb_data();
-				delay_ms(12);
-			}else{
-				stop_move();
-			}
-		}else{
-			if(is_moving()==-1){
-				set_rgb(0,0,0);
-			}
+		if(loopID==mySlot){ //my slot.
+			
+		}else if(loopID==(SLOTS_PER_FRAME-1)){ //last slot; won't ever be a robot's mySlot.
+			
+		}else{ //someone else's slot.
+
 		}
-	}
-	if(rnb_updated){
-		rnb_updated = 0;
 	}
 	delay_ms(LOOP_DELAY_MS);
 }
@@ -54,15 +37,7 @@ void loop(){
  * received, and calls this function once for each message.
  */
 void handle_msg(ir_msg* msg_struct){
-	//if(((NearBotsMsg*)(msg_struct->msg))->flag==NEAR_BOTS_MSG_FLAG){
-		//handleNearBotsMsg((NearBotsMsg*)(msg_struct->msg), msg_struct->sender_ID);
-	//}else{
-		//printf_P(PSTR("%hu byte msg from %04X:\r\n\t"), msg_struct->length, msg_struct->sender_ID);
-		//for(uint8_t i=0;i<msg_struct->length;i++){
-			//printf("%02hX ", msg_struct->msg[i]);
-		//}
-		//printf("\r\n");
-	//}
+
 }
 
 ///*

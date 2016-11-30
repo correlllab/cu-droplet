@@ -243,7 +243,7 @@ void use_rnb_data(){
 	//if(rand_byte()%2) broadcastBrightMeas();
 	float bearing, heading;
 	float error;
-	print_brightMeas();
+	//print_brightMeas();
 	calculate_bearing_and_heading(&bearing, &heading);
 	float initial_range = get_initial_range_guess(bearing, heading, power);
 	if(initial_range!=0&&!isnanf(initial_range)){	

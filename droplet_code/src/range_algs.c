@@ -63,12 +63,12 @@ void broadcast_rnb_data(){
 }
 
 void use_rnb_data(){
-	checkSensorHealth();
+	//checkSensorHealth();
 	float bearing, var;
 	calculate_bearing(&bearing, &var);
 	int16_t intBearing = (int16_t)rad_to_deg(bearing);
 
-	printf("{\"%04X\", \"%04X\", % 6d, % 6d, % 6d, % 6d, % 6d, % 6d, % 4d, %8.6f\r\n", rnbCmdID, 
+	printf("{\"%04X\", \"%04X\", % 6d, % 6d, % 6d, % 6d, % 6d, % 6d, % 4d, %8.6f},\r\n", rnbCmdID, 
 					get_droplet_id(), bm[0], bm[1], bm[2], bm[3], bm[4], bm[5], intBearing, var);
 	last_good_rnb.id		= rnbCmdID;
 	last_good_rnb.range		= 0;
@@ -101,15 +101,17 @@ static void checkSensorHealth(){
 static void calculate_bearing(float* bearing, float* var){
 	float bearingX = 0;
 	float bearingY = 0;
+	float totalBM = 0;
 
 	for(uint8_t i=0;i<6;i++){
 		bearingX+=bm[i]*bearingBasis[i][0];
 		bearingY+=bm[i]*bearingBasis[i][1];
+		totalBM+=bm[i];
 	}
 	
-	*bearing  = atan2f(bearingY, bearingX);	
+	*bearing  = pretty_angle(atan2f(bearingY, bearingX)+M_PI_2);	
 	//Check wikipedia: "Directional_statistics#measures_of_location_and_spread" to justify next few lines
-	float r = hypotf(bearingX, bearingY)/6.0;
+	float r = hypotf(bearingX/totalBM, bearingY/totalBM);
 	*var = (1.0 - r); 
 	//*stdDev = sqrtf(-2.0*log(r));
 }

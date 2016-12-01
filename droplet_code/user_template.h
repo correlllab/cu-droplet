@@ -2,8 +2,8 @@
 
 #include "droplet_init.h"
 
-#define SLOT_LENGTH_MS			173
-#define SLOTS_PER_FRAME			43
+#define SLOT_LENGTH_MS			107
+#define SLOTS_PER_FRAME			47
 #define FRAME_LENGTH_MS			(((uint32_t)SLOT_LENGTH_MS)*((uint32_t)SLOTS_PER_FRAME))
 #define LOOP_DELAY_MS			17
 

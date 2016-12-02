@@ -10,6 +10,10 @@
 */
 #include "range_algs.h"
 
+
+
+static const float basisAngle[6] =	{-M_PI_6, -M_PI_2, -5.0*M_PI_6, 5.0*M_PI_6, M_PI_2, M_PI_6};
+
 static const float bearingBasis[6][2]=	{
 	{SQRT3_OVER2 , -0.5},
 	{0           , -1  },
@@ -18,6 +22,20 @@ static const float bearingBasis[6][2]=	{
 	{0           ,  1  },
 	{SQRT3_OVER2 ,  0.5}
 };
+
+
+static float sensorModel(float alpha){
+	if(fabsf(alpha)>=1.5){
+		return 0.0;
+	}else if(fabsf(alpha)<=0.62){
+		return (1-powf(alpha,4));
+	}else{
+		return 0.125/powf(alpha,4);
+	}
+}
+static float inverseAmplitudeModel(float lambda){
+	return (lambda>=2597.1) ? 0.5 : (sqrtf(13427.5/(lambda-3.90804)-5.17716)+0.528561);
+}
 
 static int16_t bm[6];
 static uint32_t sensorHealthHistory;
@@ -79,23 +97,22 @@ void use_rnb_data(){
 	}
 }
 
-static void checkSensorHealth(){
-	uint8_t problem = 0;
-	for(uint8_t i = 0; i<6; i++){
-		if(bm[i]==0){
-			sensorHealthHistory+=(1<<(5*i));
+static float calculate_range(float bearing){
+	float alpha, expCon, rMag;
+	float rEsts[6];
+	for(uint8_t s=0;s<6;s++){
+		alpha = pretty_angle(bearing-basisAngle[s]);
+		expCon = sensorModel(alpha);
+		if(expCon!=0){
+			rMag = inverseAmplitudeModel(bm[s]/expCon);
+			rEsts[s] = 2*DROPLET_RADIUS*cosf(alpha) + M_SQRT2*sqrtf(
+					-(DROPLET_RADIUS*DROPLET_RADIUS) + 2*rMag*rMag+DROPLET_RADIUS*DROPLET_RADIUS*cosf(2*alpha)
+														);
 		}else{
-			sensorHealthHistory&=~(0x1F<<(5*i));
-		}
-		if(((sensorHealthHistory>>(5*i))&0x1F)==0x1F){
-			printf_P(PSTR("!!!\tGot 31 consecutive nothings from sensor %hu.\t!!!\r\n"), i);
-			sensorHealthHistory&=~(0xF<<(4*i));
-			problem = 1;
+			rEsts[s] = NAN;
 		}
 	}
-	if(problem){
-		startup_light_sequence();
-	}
+
 }
 
 static void calculate_bearing(float* bearing, float* var){
@@ -111,11 +128,29 @@ static void calculate_bearing(float* bearing, float* var){
 	
 	*bearing  = pretty_angle(atan2f(bearingY, bearingX)+M_PI_2);	
 	//Check wikipedia: "Directional_statistics#measures_of_location_and_spread" to justify next few lines
-	float r = hypotf(bearingX/totalBM, bearingY/totalBM);
+	float r = hypotf(bearingX, bearingY)/totalBM;
 	*var = (1.0 - r); 
 	//*stdDev = sqrtf(-2.0*log(r));
 }
 
+static void checkSensorHealth(){
+	uint8_t problem = 0;
+	for(uint8_t i = 0; i<6; i++){
+		if(bm[i]==0){
+			sensorHealthHistory+=(1<<(5*i));
+			}else{
+			sensorHealthHistory&=~(0x1F<<(5*i));
+		}
+		if(((sensorHealthHistory>>(5*i))&0x1F)==0x1F){
+			printf_P(PSTR("!!!\tGot 31 consecutive nothings from sensor %hu.\t!!!\r\n"), i);
+			sensorHealthHistory&=~(0xF<<(4*i));
+			problem = 1;
+		}
+	}
+	if(problem){
+		startup_light_sequence();
+	}
+}
 void ir_range_meas(){
 	while((get_time()-rnbCmdSentTime+8)<POST_BROADCAST_DELAY);
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){		

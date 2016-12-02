@@ -21,6 +21,7 @@
 #define TIME_FOR_IR_MEAS				30
 
 #define SQRT3_OVER2				0.8660254f
+#define M_PI_6					0.5235988f
 
 typedef struct rnb_data {
 	int16_t range; //distance, in mm.

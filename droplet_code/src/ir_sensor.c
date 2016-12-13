@@ -191,10 +191,9 @@ uint8_t check_collisions(){
 void check_collision_values(int16_t meas[6]){
 	int16_t baseline_meas[6];
 	int16_t measured_vals[6];
-	uint8_t dirs=0;
 	if(!ir_is_available(ALL_DIRS)){
 		printf_P(PSTR("IR Hardware busy, probably sending a message? Can't check collisions.\r\n"));
-		return 0;
+		return;
 	}
 	for(uint8_t i=0;i<6;i++) ir_rxtx[i].status = IR_STATUS_BUSY_bm;	
 	uint16_t curr_power = get_all_ir_powers();

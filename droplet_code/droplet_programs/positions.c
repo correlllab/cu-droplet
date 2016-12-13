@@ -366,11 +366,9 @@ void degradeConfidence(){
 
 void useNewRnbMeas(){
 	//Pulling everything out of the global struct.
-	uint16_t id = last_good_rnb.id_number;
-	uint16_t range = last_good_rnb.range*10; //converting to mm
-	int16_t bearing = rad_to_deg(last_good_rnb.bearing);
-	int16_t heading = rad_to_deg(last_good_rnb.heading);
-	uint8_t conf = (uint8_t)(sqrt(last_good_rnb.conf+1.0)+0.5);
+	uint16_t id = last_good_rnb.id;
+	uint16_t range = last_good_rnb.range;
+	int16_t bearing = last_good_rnb.bearing;
 	rnb_updated=0;
 	if(conf<=4) return;
 	conf <<= 1; //
@@ -409,67 +407,6 @@ void updateBall(){
 
 			//int8_t crossedAfter = checkBallCrossedMe();
 			//myDist = (uint16_t)hypotf(theBall.xPos-myPos.x,theBall.yPos-myPos.y);			
-			//theBall.lastUpdate = now;			
-			//if(myDist<=30 && crossedBefore!=crossedAfter){ //BOUNCE CHECK
-				//uint8_t ballInPaddle = ((theBall.xPos+theBall.radius)>=paddleStart && (theBall.xPos-theBall.radius)<=paddleEnd);
-				//uint8_t ballLeaving = (NORTH_PIXEL(myState) && theBall.yVel<0) || (SOUTH_PIXEL(myState) && theBall.yVel>0);
-				//if(gameMode==PONG && !ballInPaddle && ballLeaving){
-					//killBall();
-				//}else{
-					//check_bounce(theBall.xVel, theBall.yVel, &(theBall.xVel), &(theBall.yVel));
-				//}
-			//}else{
-			theBall.xPos += (int16_t)((((int32_t)(theBall.xVel))*timePassed)/1000.0);
-			theBall.yPos += (int16_t)((((int32_t)(theBall.yVel))*timePassed)/1000.0);
-			theBall.lastUpdate = now;			
-			BALL_DEBUG_PRINT("B[%hu]: %d, %d\r\n", theBall.id, theBall.xPos, theBall.yPos);
-			uint8_t bounced = 0;
-			HardBot* tmp = hardBotsList;
-			myDist = (uint16_t)hypotf(myPos.x-theBall.xPos, myPos.y-theBall.yPos);
-			while(tmp!=NULL){
-				OtherBot* bot = getOtherBot(tmp->id);			
-				if(myDist<(((bot->myMeas).r*10)/6)){
-					BALL_DEBUG_PRINT("\t%04X | ", tmp->id);
-					if(checkBounceHard((bot->pos).x,(bot->pos).y, timePassed)){
-						if(gameMode==PONG && ((SOUTH_PIXEL(myState) && theBall.yVel<=0) || (NORTH_PIXEL(myState) && theBall.yVel>=0))){
-							if(!isCovered){
-								//Other Side scores a point!
-								killBall();
-								set_rgb(255,0,0);
-							}
-						}
-						calculateBounce((bot->pos).x,(bot->pos).y);
-						BALL_DEBUG_PRINT("Ball bounced off boundary between me and %04X!\r\n", tmp->id);
-						otherDist = (((bot->myMeas).r*10)/6);
-						bounced = 1;
-						break;
-					}
-				}
-				tmp = tmp->next;
-			}
-			if(theBall.xPos<MIN_X || theBall.xPos>MAX_X || theBall.yPos<MIN_Y || theBall.yPos>MAX_Y){
-				BALL_DEBUG_PRINT("Ball hit boundary, so we must have lost track.\r\n");
-				theBall.xPos = UNDF;
-				theBall.yPos = UNDF;
-				myDist = UNDF;
-				otherDist = UNDF;
-			}
-		}else{
-			myDist = UNDF;
-			otherDist = UNDF;
-		}
-	}
-}
-
-//void check_bounce(int8_t xVel, int8_t yVel, int8_t* newXvel, int8_t* newYvel){
-	//float inAngle = atan2(yVel, xVel)-M_PI_2;
-////	float inVel = hypotf(xVel, yVel);
-	//uint8_t in_dir = dirFromAngle(inAngle+180);
-	//BALL_DEBUG_PRINT(PSTR("In check bounce:\r\n"));
-	//BALL_DEBUG_PRINT(PSTR("\tIn angle: %f, inDir: %hu, xVel: %hd, yVel: %hd\r\n"), rad_to_deg(inAngle), in_dir, xVel, yVel);
-	//BALL_DEBUG_PRINT("Note! check_bounce currently doesn't do anything! Eventually, it will look to see if there's a robot in direction 'inAngle'.\r\n");
-//}
-
 void updateColor(){
 	uint8_t newR = 0, newG = 0, newB = 0;
 	if(colorMode==POS){

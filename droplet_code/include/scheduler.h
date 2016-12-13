@@ -85,6 +85,7 @@ inline uint8_t task_list_check(){
 	if(task_executing)	return 0;
 	else				return (((int32_t)(get_time()-(task_list->scheduled_time)))>3000); 
 }
+static volatile Task_t task_storage_arr[MAX_NUM_SCHEDULED_TASKS];
 
 #define SAVE_CONTEXT()                                  \
     asm volatile (  "push   r0                      \n\t"   \

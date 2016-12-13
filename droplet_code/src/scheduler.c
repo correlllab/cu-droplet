@@ -3,10 +3,43 @@
 static void add_task_to_list(volatile Task_t* task);
 static int8_t run_tasks();
 
+static volatile Task_t* scheduler_malloc()
+{
+	if(num_tasks>=MAX_NUM_SCHEDULED_TASKS) return NULL;
+
+	for(uint8_t tmp=0 ; tmp<MAX_NUM_SCHEDULED_TASKS ; tmp++)
+	{
+		//This code assumes that all tasks will have non-null function pointers.
+		if((task_storage_arr[tmp].func.noarg_function) == NULL)
+		{
+			return &(task_storage_arr[tmp]);
+		}
+	}
+	
+	return (volatile Task_t*)0xFFFF;
+
+}
+
+static void scheduler_free(volatile Task_t* tgt)
+{
+	if((tgt<task_storage_arr)||(tgt>(&(task_storage_arr[MAX_NUM_SCHEDULED_TASKS]))))
+	{
+		printf_P(PSTR("ERROR: In scheduler_free, tgt (%X) was outside valid Task* range.\r\n"),tgt);
+		set_rgb(0,0,255);
+		delay_ms(60000);
+	}
+	tgt->arg = 0;
+	tgt->period = 0;
+	(tgt->func).noarg_function = NULL;
+	tgt->scheduled_time = 0;
+	tgt->next = NULL;
+}
+
 void scheduler_init(){
 	task_list = NULL;
 	num_tasks = 0;
 	task_executing = 0;
+	for(uint8_t i=0; i<MAX_NUM_SCHEDULED_TASKS; i++) scheduler_free(&task_storage_arr[i]);
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){  // Disable interrupts during initialization
 		// Set up real-time clock
 		rtc_epoch = 0;
@@ -61,26 +94,48 @@ void delay_ms(uint16_t ms){
 
 //This function checks for errors or inconsistencies in the task list, and attempts to correct them.
 //Is this still needed?
-
 void task_list_cleanup(){
 	printf_P(PSTR("\tAttempting to restore task_list (by dropping all non-periodic tasks.\r\n\tIf you only see this message rarely, don't worry too much.\r\n"));
 
 	volatile Task_t* cur_task = task_list;
-	volatile Task_t* prev_task;
+	volatile Task_t* task_ptr_arr[MAX_NUM_SCHEDULED_TASKS];
+	uint8_t num_periodic_tasks = 0;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-		RTC.INTCTRL &= ~RTC_COMP_INT_LEVEL;		
+		RTC.INTCTRL &= ~RTC_COMP_INT_LEVEL;
 		while (cur_task != NULL){
 			if(cur_task->period==0){
-				prev_task = cur_task;
-				cur_task = prev_task->next;
-				remove_task(prev_task);
+				cur_task = cur_task->next;
 			}else{
 				cur_task->scheduled_time=get_time()+cur_task->period+50;
-				cur_task = cur_task->next;				
+				task_ptr_arr[num_periodic_tasks] = cur_task;
+				cur_task = cur_task->next;
+				task_ptr_arr[num_periodic_tasks]->next=NULL;
+				num_periodic_tasks++;
 			}
+		}
+		uint8_t task_is_periodic = 0;
+		for(uint8_t i=0;i<MAX_NUM_SCHEDULED_TASKS;i++){
+			for(uint8_t j=0;j<num_periodic_tasks;j++){
+				if(&(task_storage_arr[i])==task_ptr_arr[j]){
+					//printf_P(PSTR("\tSaving task %X because it is periodic.\r\n"),&(task_storage_arr[i]));
+					task_is_periodic = 1;
+					break;
+				}
+			}
+			if(!task_is_periodic){
+				//printf_P(PSTR("\tClearing memory of task %X.\r\n"), &(task_storage_arr[i]));
+				remove_task(&(task_storage_arr[i]));
+			}
+			task_is_periodic = 0;
+		}
+		num_tasks = 0;
+		task_list=NULL; //Now, the task list has been cleared out, but only non-periodic tasks have had their memory purged.
+		for(uint8_t i=0;i<num_periodic_tasks;i++){
+			add_task_to_list(task_ptr_arr[i]);
 		}
 	}
 }
+
 
 // Adds a new task to the task queue
 // time is number of milliseconds until function is executed
@@ -89,16 +144,21 @@ void task_list_cleanup(){
 volatile Task_t* schedule_task(uint32_t time, void (*function)(), void* arg){
 	volatile Task_t* new_task;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-		new_task = myMalloc(sizeof(Task_t));
-		if (new_task == NULL){
-			return NULL;
+		new_task = scheduler_malloc();
+		if (new_task == NULL) return NULL;
+		else if(new_task == ((volatile Task_t*)0xFFFF)){
+			printf_P(PSTR("ERROR: No empty spot found in scheduler_malloc, but num_tasks wasn't greater than or equal max_tasks.\r\n"));
+			task_list_cleanup();
+		}else if((new_task<task_storage_arr)||(new_task>(&(task_storage_arr[MAX_NUM_SCHEDULED_TASKS-1])))){
+			printf_P(PSTR("ERROR: scheduler_malloc returned a new_task pointer outside of the task storage array.\r\n"));
 		}
-		time+=MIN_TASK_TIME_IN_FUTURE*(time<MIN_TASK_TIME_IN_FUTURE);	
+
+		time+=MIN_TASK_TIME_IN_FUTURE*(time<MIN_TASK_TIME_IN_FUTURE);
 		new_task->scheduled_time = time + get_time();
 		new_task->arg = arg;
 		new_task->func.noarg_function = function;
 		new_task->period = 0;
-		new_task->next = NULL; 		
+		new_task->next = NULL;
 	}
 	add_task_to_list(new_task);
 	//printf("Task (%X->%X) scheduled for %lu\t[%hhu]\r\n", new_task, (new_task->func).noarg_function, new_task->scheduled_time, num_tasks);
@@ -167,7 +227,14 @@ static void add_task_to_list(volatile Task_t* task){
 
 // Remove a task from the task queue
 void remove_task(volatile Task_t* task){
+	if((task<task_storage_arr)||(task>(&(task_storage_arr[MAX_NUM_SCHEDULED_TASKS-1])))){
+		printf("ERROR: Asked to remove_task for task pointer outside the bounds of task_storage_arr.\r\n");
+		return;
+	}
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+		if(task==NULL){
+			continue;
+		}
 		if(task_list==task)	{
 			task_list=task->next;
 			num_tasks--;
@@ -179,7 +246,7 @@ void remove_task(volatile Task_t* task){
 				num_tasks--;
 			}
 		}
-		myFree((Task_t*)task);		
+		scheduler_free(task);		
 	}
 }
 
@@ -200,12 +267,29 @@ void print_task_queue(){
 
 // TO BE CALLED FROM INTERRUPT HANDLER ONLY
 // DO NOT CALL
-static int8_t run_tasks(){
+int8_t run_tasks(){
 	volatile Task_t* cur_task;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){ // Disable interrupts
 		// Run all tasks that are scheduled to execute in the next 2ms
 		// (The RTC compare register takes 2 RTC clock cycles to update)
 		while (task_list != NULL && task_list->scheduled_time <= get_time() + 2){
+			uint8_t num_slots_used = 0;
+			for(uint8_t i=0;i<MAX_NUM_SCHEDULED_TASKS;i++){
+				if(((uint16_t)(task_storage_arr[i].func.noarg_function))!=0){
+					num_slots_used++;
+					volatile Task_t* next_ptr = task_storage_arr[i].next;
+					if((next_ptr!=0)&&((next_ptr<task_storage_arr)||(next_ptr>(&(task_storage_arr[MAX_NUM_SCHEDULED_TASKS-1]))))){
+						printf_P(PSTR("Pre-call, task has next_ptr pointing outside of array.\r\n"));
+						printf("\t%X\r\n",((uint16_t)(&(task_storage_arr[i]))));
+						delay_ms(10);
+					}
+				}
+			}
+			//printf_P(PSTR("\tCalling %X. Tasks: %2hu. Slots Used: %2hu.\r\n"),cur_task->func.noarg_function, num_tasks, num_slots_used);
+			if(num_slots_used!=num_tasks){
+				printf_P(PSTR("ERROR: Pre-call, task storage consistency check failure.\r\n"));
+				return -1;
+			}
 			cur_task = task_list;
 			task_list = cur_task->next;
 
@@ -224,14 +308,31 @@ static int8_t run_tasks(){
 				cur_task->next=NULL;
 				num_tasks--;
 				add_task_to_list(cur_task);
-			}else{		
-				myFree((Task_t*)cur_task);
+			}else{
+				scheduler_free(cur_task);
 				cur_task = NULL;
 				num_tasks--;
-			}	
+			}
+			
+			num_slots_used = 0;
+			for(uint8_t i=0;i<MAX_NUM_SCHEDULED_TASKS;i++){
+				if(((uint16_t)(task_storage_arr[i].func.noarg_function))!=0){
+					num_slots_used++;
+					volatile Task_t* next_ptr = task_storage_arr[i].next;
+					if((next_ptr!=0)&&((next_ptr<task_storage_arr)||(next_ptr>(&(task_storage_arr[MAX_NUM_SCHEDULED_TASKS-1]))))){
+						printf_P(PSTR("Post-call, task %X has next_ptr pointing outside of array.\r\n"),task_storage_arr[i]);
+						delay_ms(10);
+					}
+				}
+			}
+			//printf_P(PSTR("\tReturned %X. Tasks: %2hu. Slots Used: %2hu.\r\n"),cur_task->func.noarg_function, num_tasks, num_slots_used);
+			if(num_slots_used!=num_tasks){
+				printf_P(PSTR("ERROR: Post-return, task storage consistency check failure.\r\n"));
+				return -1;
+			}
 		}
-		// If the next task to be executed is in the current epoch, set the RTC compare register and interrupt		
-		if (task_list != NULL && task_list->scheduled_time <= ((((uint32_t)rtc_epoch) << 16) | (uint32_t)RTC.PER)){	
+		// If the next task to be executed is in the current epoch, set the RTC compare register and interrupt
+		if (task_list != NULL && task_list->scheduled_time <= ((((uint32_t)rtc_epoch) << 16) | (uint32_t)RTC.PER)){
 			while (RTC.STATUS & RTC_SYNCBUSY_bm);
 			RTC.COMP = ((uint16_t)(task_list->scheduled_time))|0x8;
 			RTC.INTCTRL |= RTC_COMP_INT_LEVEL;

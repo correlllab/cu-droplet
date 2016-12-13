@@ -12,45 +12,22 @@
 #include "i2c.h"
 #include "delay_x.h"
 
-
-
-#define DROPLET_RADIUS 2.22  //cm
-#define DROPLET_DIAMETER 4.44 //cm
-#define DROPLET_SENSOR_RADIUS 2.5 //cm
+#define DROPLET_RADIUS 22  //mm
 
 //Synchronization Timing Constants:
 #define POST_BROADCAST_DELAY			30
 #define TIME_FOR_SET_IR_POWERS			2
 #define TIME_FOR_GET_IR_VALS			8
-#define DELAY_BETWEEN_RB_TRANSMISSIONS	8
+#define TIME_FOR_IR_MEAS				30
 
-//Constants for rnb processing:
-#define MIN_MATRIX_SUM_THRESH	115
 #define SQRT3_OVER2				0.8660254f
-#define FD_MAX_STEP				0.5236f
-#define FD_INIT_STEP			0.05f
-#define FD_MIN_STEP				0.0017f
-#define FD_DELTA_B				0.004f
-#define FD_DELTA_H				0.004f
-
-typedef struct list_el {
-	float Rx;
-	float Ry;
-	float rijMag;
-	uint8_t e;
-	uint8_t s;
-	struct list_el *next;
-} rVectorNode;
+#define M_PI_6					0.5235988f
 
 typedef struct rnb_data {
-	float range;
-	float bearing;
-	float heading;
-	float conf;
-	uint16_t id_number;
+	int16_t range; //distance, in mm.
+	int16_t bearing; //bearing, in degrees.
+	id_t id;
 } rnb;
-
-
 
 rnb last_good_rnb;
 volatile uint8_t rnb_updated;
@@ -60,10 +37,8 @@ volatile uint8_t rnbProcessingFlag;
 
 void range_algs_init();
 
-void broadcast_rnb_data(); //takes about 142ms.
-//void receive_rnb_data();
+void broadcast_rnb_data(); //should take no more than 76 seconds.
 void use_rnb_data();
-
 
 void ir_range_meas();
 void ir_range_blast(uint8_t power);

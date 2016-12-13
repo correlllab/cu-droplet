@@ -23,24 +23,12 @@ static const float bearingBasis[6][2]=	{
 	{SQRT3_OVER2 ,  0.5}
 };
 
-
-static float sensorModel(float alpha){
-	if(fabsf(alpha)>=1.5){
-		return 0.0;
-	}else if(fabsf(alpha)<=0.62){
-		return (1-powf(alpha,4));
-	}else{
-		return 0.125/powf(alpha,4);
-	}
-}
-static float inverseAmplitudeModel(float lambda){
-	return (lambda>=2597.1) ? 0.5 : (sqrtf(13427.5/(lambda-3.90804)-5.17716)+0.528561);
-}
-
 static int16_t bm[6];
 static uint32_t sensorHealthHistory;
+static int16_t calculate_range(float bearing);
 static void calculate_bearing(float* bearing, float* var);
 static void checkSensorHealth();
+
 
 void range_algs_init(){
 	sensorHealthHistory = 0;
@@ -82,14 +70,13 @@ void broadcast_rnb_data(){
 
 void use_rnb_data(){
 	//checkSensorHealth();
-	float bearing, var;
-	calculate_bearing(&bearing, &var);
+	float bearing = calculate_bearing();
+	int16_t intRange = calculate_range(bearing);
 	int16_t intBearing = (int16_t)rad_to_deg(bearing);
-
-	printf("{\"%04X\", \"%04X\", % 6d, % 6d, % 6d, % 6d, % 6d, % 6d, % 4d, %8.6f},\r\n", rnbCmdID, 
-					get_droplet_id(), bm[0], bm[1], bm[2], bm[3], bm[4], bm[5], intBearing, var);
+	//printf("{\"%04X\", \"%04X\", % 6d, % 6d, % 6d, % 6d, % 6d, % 6d, %4d, % 4d},\r\n", rnbCmdID, 
+				//get_droplet_id(), bm[0], bm[1], bm[2], bm[3], bm[4], bm[5], intRange, intBearing);
 	last_good_rnb.id		= rnbCmdID;
-	last_good_rnb.range		= 0;
+	last_good_rnb.range		= intRange;
 	last_good_rnb.bearing	= intBearing;
 	rnb_updated=1;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
@@ -97,25 +84,27 @@ void use_rnb_data(){
 	}
 }
 
-static float calculate_range(float bearing){
-	float alpha, expCon, rMag;
-	float rEsts[6];
+static int16_t calculate_range(float bearing){
+	float alpha;
+	float cosScaledBM = 0.0;
 	for(uint8_t s=0;s<6;s++){
 		alpha = pretty_angle(bearing-basisAngle[s]);
-		expCon = sensorModel(alpha);
-		if(expCon!=0){
-			rMag = inverseAmplitudeModel(bm[s]/expCon);
-			rEsts[s] = 2*DROPLET_RADIUS*cosf(alpha) + M_SQRT2*sqrtf(
-					-(DROPLET_RADIUS*DROPLET_RADIUS) + 2*rMag*rMag+DROPLET_RADIUS*DROPLET_RADIUS*cosf(2*alpha)
-														);
-		}else{
-			rEsts[s] = NAN;
+		if(alpha>(-M_PI_2) && alpha<M_PI_2){
+			cosScaledBM += cosf(alpha)*bm[s];
 		}
 	}
-
+	if(cosScaledBM > 0 && cosScaledBM < 1713.56){
+		return (int16_t)(488.533 - 0.03291*cosScaledBM - 49.7895*log(cosScaledBM));
+	}else if(cosScaledBM >= 1713.56 && cosScaledBM < 5390.22){
+		return (int16_t)(89.8554-0.00969*cosScaledBM);
+	}else if(cosScaledBM >= 5390.22){
+		return 44;
+	}else{ //last case is <= 0.
+		return 0;
+	}
 }
 
-static void calculate_bearing(float* bearing, float* var){
+static float calculate_bearing(){
 	float bearingX = 0;
 	float bearingY = 0;
 	float totalBM = 0;
@@ -125,11 +114,10 @@ static void calculate_bearing(float* bearing, float* var){
 		bearingY+=bm[i]*bearingBasis[i][1];
 		totalBM+=bm[i];
 	}
-	
-	*bearing  = pretty_angle(atan2f(bearingY, bearingX)+M_PI_2);	
+	return pretty_angle(atan2f(bearingY, bearingX));	
 	//Check wikipedia: "Directional_statistics#measures_of_location_and_spread" to justify next few lines
-	float r = hypotf(bearingX, bearingY)/totalBM;
-	*var = (1.0 - r); 
+	//float r = hypotf(bearingX, bearingY)/totalBM;
+	//*var = (1.0 - r); 
 	//*stdDev = sqrtf(-2.0*log(r));
 }
 
@@ -138,7 +126,7 @@ static void checkSensorHealth(){
 	for(uint8_t i = 0; i<6; i++){
 		if(bm[i]==0){
 			sensorHealthHistory+=(1<<(5*i));
-			}else{
+		}else{
 			sensorHealthHistory&=~(0x1F<<(5*i));
 		}
 		if(((sensorHealthHistory>>(5*i))&0x1F)==0x1F){

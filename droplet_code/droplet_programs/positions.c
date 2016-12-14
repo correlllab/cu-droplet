@@ -29,9 +29,9 @@ void init(){
 	xRange = MAX_X-MIN_X;
 	yRange = MAX_Y-MIN_Y;
 	maxRange = (int16_t)hypotf(xRange, yRange);
-	useOthers = 1;
 	useBlacklist = 1;
 	useNewInfo = 0;
+	useMeasAveraging = 0;
 }
 
 void loop(){
@@ -82,16 +82,16 @@ void handleMySlot(){
 	broadcast_rnb_data();
 	while(((get_time()-frameStart)%SLOT_LENGTH_MS)<RNB_DUR)
 		delay_us(500);
-	printf("\tCollisions: ");
-	int16_t coll_vals[6];
-	check_collision_values(coll_vals);
-	for(uint8_t i=0;i<6;i++){
-		printf("%5d ", coll_vals[i]);
-	}
-	printf("\r\n\tColors: ");
-	int16_t r, g, b;
-	get_rgb(&r, &g, &b);
-	printf("%5d %5d %5d\r\n", r, g, b);
+	//printf("\tCollisions: ");
+	//int16_t coll_vals[6];
+	//check_collision_values(coll_vals);
+	//for(uint8_t i=0;i<6;i++){
+		//printf("%5d ", coll_vals[i]);
+	//}
+	//printf("\r\n\tColors: ");
+	//int16_t r, g, b;
+	//get_rgb(&r, &g, &b);
+	//printf("%5d %5d %5d\r\n", r, g, b);
 	while(((get_time()-frameStart)%SLOT_LENGTH_MS)<(RNB_DUR+PADDLE_MSG_DUR))
 		delay_us(500);		
 	sendNearBotsMsg();
@@ -110,17 +110,15 @@ void calcPosFromMeas(BotPos* calcPos, BotPos* pos, BotMeas* meas){
 	float x		 = pos->x;
 	float y		 = pos->y;
 	int16_t o	 = pos->o;
-	float pC	 = pos->conf;
 	uint16_t r   = meas->r;
 	int16_t b	 = meas->b;
 	int16_t h    = meas->h;
-	float mC     = meas->conf;
 	float deltaX = (float)r * cos(deg_to_rad(b + o + 90));
 	float deltaY = (float)r * sin(deg_to_rad(b + o + 90));
 	calcPos->x = (int16_t)(x + deltaX + 0.5);
 	calcPos->y = (int16_t)(y + deltaY + 0.5);
 	calcPos->o = pretty_angle_deg(o + h);
-	calcPos->conf =  (uint8_t)sqrtf(2.0/(((1.0/(mC*mC)) + (1.0/(pC*pC)))));
+	calcPos->conf =  pos->conf;
 }
 
 void printPosFromMeas(BotPos* pos, BotMeas* meas){
@@ -156,6 +154,9 @@ uint8_t nearBotUseabilityCheck(uint8_t i){
 			return 0;
 		}
 	}
+	if((nearBots[i].theirMeas).id != get_droplet_id()){
+		return 0;
+	}
 	if((frameCount - nearBots[i].lastUsed) < OTHERBOT_BLACKLIST_FRAME_COUNT){
 		if(nearBots[i].lastUsed==0 && frameCount<OTHERBOT_BLACKLIST_FRAME_COUNT){
 			return 1;
@@ -167,50 +168,27 @@ uint8_t nearBotUseabilityCheck(uint8_t i){
 	return 1;
 }
 
-void fuseMeasurements(BotMeas* fused, BotMeas* measA, BotMeas* measB){
-	float tmpX, tmpY;
-	if(measA->id != measB->id){
-		printf("ERROR: You probably don't want me to fuse measurements of different robots.\r\n");
-	}
-	fused->id = measA->id;
-	tmpX = measA->conf*cosf(deg_to_rad(measA->b)) + measB->conf*cosf(deg_to_rad(measB->b));
-	tmpY = measA->conf*sinf(deg_to_rad(measA->b)) + measB->conf*sinf(deg_to_rad(measB->b));
-	fused->b = rad_to_deg(atan2f(tmpY, tmpX));
 
-	tmpX = measA->conf*cosf(deg_to_rad(measA->h)) + measB->conf*cosf(deg_to_rad(measB->h));
-	tmpY = measA->conf*sinf(deg_to_rad(measA->h)) + measB->conf*sinf(deg_to_rad(measB->h));
-	fused->h = rad_to_deg(atan2f(tmpY, tmpX));
-
-	fused->r = (measA->r*measA->conf + measB->r*measB->conf)/((float)(measA->conf+measB->conf));
-
-	float fusedConf = powf((powf(measA->conf,-2.0) + powf(measB->conf,-2.0)),-0.5);
+//Fused measurement is from other robot's perspective
+void fuseMeasurements(BotMeas* fused, BotMeas* myMeas, BotMeas* theirMeas){
+	fused->id = myMeas->id;
+	fused->b = theirMeas->b;
+	fused->h = pretty_angle_deg(180 - myMeas->b + theirMeas->b);
+	fused->r = (uint16_t)(((int32_t)myMeas->r)*(myMeas->conf) + ((int32_t)theirMeas->r)*theirMeas->conf)/((float)(myMeas->conf+theirMeas->conf));
+	float fusedConf = powf((powf(myMeas->conf,-2.0) + powf(theirMeas->conf,-2.0)),-0.5);
 	fused->conf = (uint8_t)fusedConf;
-	printf("Fused Conf: %f from %hu & %hu.\r\n", fusedConf, measA->conf, measB->conf);
+	printf("Fused Conf: %f from %hu & %hu.\r\n", fusedConf, myMeas->conf, theirMeas->conf);
 }
 
 
 void prepExpectedPositions(BotPos* expPosArr, BotPos* avoidPosArr){
 	uint8_t botIdx=0;
-	BotMeas convertedMeas; //This is their measurement, converted to be from this robot's point of view.
 	BotMeas fusedMeas;
 	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
 		if(nearBotUseabilityCheck(i)){
-			if(useOthers && (nearBots[i].theirMeas).id == get_droplet_id()){
-				convertedMeas.r = nearBots[i].myMeas.r;
-				convertedMeas.id =nearBots[i].myMeas.id;
-				convertedMeas.conf = nearBots[i].myMeas.conf;
-				convertMeas(&(convertedMeas.b), &(convertedMeas.h), (nearBots[i].myMeas).b, (nearBots[i].myMeas).h);
-				fuseMeasurements(&fusedMeas, &convertedMeas, &(nearBots[i].theirMeas));
-				calcPosFromMeas(&(expPosArr[botIdx]), &(nearBots[i].pos), &fusedMeas);
-				printPosFromMeas(&(nearBots[i].pos), &fusedMeas);
-			}else{
-				convertedMeas.r = nearBots[i].myMeas.r;
-				convertedMeas.id =nearBots[i].myMeas.id;
-				convertedMeas.conf = nearBots[i].myMeas.conf;
-				convertMeas(&(convertedMeas.b), &(convertedMeas.h), (nearBots[i].myMeas).b, (nearBots[i].myMeas).h);
-				calcPosFromMeas(&(expPosArr[botIdx]), &(nearBots[i].pos), &convertedMeas);
-				printPosFromMeas(&(nearBots[i].pos), &convertedMeas);
-			}
+			fuseMeasurements(&fusedMeas, &(nearBots[i].myMeas), &(nearBots[i].theirMeas));
+			calcPosFromMeas(&(expPosArr[botIdx]), &(nearBots[i].pos), &fusedMeas);
+			printPosFromMeas(&(nearBots[i].pos), &fusedMeas);
 			if(avoidPosArr!=NULL){
 				avoidPosArr[i].x = nearBots[i].pos.x;
 				avoidPosArr[i].y = nearBots[i].pos.y;
@@ -237,6 +215,7 @@ void updatePosition(){
 	float myConf = myPos.conf;
 
 	uint8_t numMeas = countAvailableMeasurements();
+	printf("Num Meas: %hu\r\n", numMeas);
 	if(!numMeas){ //no measurements to initialize with.
 		printf("\tCan't update; no new measurements available.\r\n");
 		return;
@@ -302,6 +281,12 @@ printf("Frame End Calculations\r\n");
 	}
 	postUpdate = get_time();
 	
+	//Removing the worst 3/4s of the nearBots.
+	for(uint8_t i=NUM_TRACKED_BOTS/4; i<NUM_TRACKED_BOTS;i++){
+		cleanOtherBot(&(nearBots[i]));
+	}
+
+
 	updateHardBots();
 	degradeConfidence(); //lower confidence of bots for which no measurement was received.
 	frameEndPrintout();
@@ -370,26 +355,30 @@ void useNewRnbMeas(){
 	uint16_t range = last_good_rnb.range;
 	int16_t bearing = last_good_rnb.bearing;
 	rnb_updated=0;
-	if(conf<=4) return;
-	conf <<= 1; //
-	conf = conf>63 ? 63 : conf;
-	RNB_DEBUG_PRINT("(RNB) ID: %04X\r\n\tR: %4u B: %4d H: %4d | %4hu\r\n", id, range, bearing, heading, conf);
-	OtherBot* measuredBot = addOtherBot(last_good_rnb.id_number, conf);
+	uint8_t conf = 8; //ARBITRARY
+	RNB_DEBUG_PRINT("(RNB) ID: %04X\r\n\tR: %4u B: %4d\r\n", id, range, bearing);
+	OtherBot* measuredBot = addOtherBot(id, range, conf);
 	BotMeas* meas;
 	if(measuredBot){
 		meas = &(measuredBot->myMeas);
 	}else{
 		return;
 	}
-	if(meas->id == 0 || meas->id == last_good_rnb.id_number){
-		if(meas->id == 0){
-			measuredBot->lastUsed = 0;
-		}
-		//We weren't tracking this ID before, so just add the new info.
+
+	if(meas->id == 0 || (useMeasAveraging==0 && meas->id == id)){ //We weren't tracking this ID before, so just add the new info.
+		measuredBot->lastUsed = 0;
 		meas->id	= id;
 		meas->r		= range;
 		meas->b		= bearing;
-		meas->h		= heading;
+		meas->h		= UNDF;
+		meas->conf  = conf;
+	}else if(useMeasAveraging==1 && meas->id == id){
+		meas->id	= id;
+		meas->r		= (range*conf+meas->r*meas->conf)/(conf+meas->conf);
+		float tempX = conf*cos(deg_to_rad(bearing))+meas->conf*cos(deg_to_rad(meas->b));
+		float tempY = conf*sin(deg_to_rad(bearing))+meas->conf*sin(deg_to_rad(meas->b));
+		meas->b		= rad_to_deg(atan2f(tempY, tempX));
+		meas->h     = UNDF;
 		meas->conf  = conf;
 	}else{
 		printf_P(PSTR("Error: Unexpected botPos->ID in use_new_rnb_meas.\r\n"));
@@ -406,7 +395,68 @@ void updateBall(){
 			//int8_t crossedBefore = checkBallCrossedMe();
 
 			//int8_t crossedAfter = checkBallCrossedMe();
-			//myDist = (uint16_t)hypotf(theBall.xPos-myPos.x,theBall.yPos-myPos.y);			
+			//myDist = (uint16_t)hypotf(theBall.xPos-myPos.x,theBall.yPos-myPos.y);
+			//theBall.lastUpdate = now;
+			//if(myDist<=30 && crossedBefore!=crossedAfter){ //BOUNCE CHECK
+			//uint8_t ballInPaddle = ((theBall.xPos+theBall.radius)>=paddleStart && (theBall.xPos-theBall.radius)<=paddleEnd);
+			//uint8_t ballLeaving = (NORTH_PIXEL(myState) && theBall.yVel<0) || (SOUTH_PIXEL(myState) && theBall.yVel>0);
+			//if(gameMode==PONG && !ballInPaddle && ballLeaving){
+			//killBall();
+			//}else{
+			//check_bounce(theBall.xVel, theBall.yVel, &(theBall.xVel), &(theBall.yVel));
+			//}
+			//}else{
+			theBall.xPos += (int16_t)((((int32_t)(theBall.xVel))*timePassed)/1000.0);
+			theBall.yPos += (int16_t)((((int32_t)(theBall.yVel))*timePassed)/1000.0);
+			theBall.lastUpdate = now;
+			BALL_DEBUG_PRINT("B[%hu]: %d, %d\r\n", theBall.id, theBall.xPos, theBall.yPos);
+			uint8_t bounced = 0;
+			HardBot* tmp = hardBotsList;
+			myDist = (uint16_t)hypotf(myPos.x-theBall.xPos, myPos.y-theBall.yPos);
+			while(tmp!=NULL){
+				OtherBot* bot = getOtherBot(tmp->id);
+				if(myDist<((int16_t)((bot->myMeas).r*10)/6)){
+					BALL_DEBUG_PRINT("\t%04X | ", tmp->id);
+					if(checkBounceHard((bot->pos).x,(bot->pos).y, timePassed)){
+						if(gameMode==PONG && ((SOUTH_PIXEL(myState) && theBall.yVel<=0) || (NORTH_PIXEL(myState) && theBall.yVel>=0))){
+							if(!isCovered){
+								//Other Side scores a point!
+								killBall();
+								set_rgb(255,0,0);
+							}
+						}
+						calculateBounce((bot->pos).x,(bot->pos).y);
+						BALL_DEBUG_PRINT("Ball bounced off boundary between me and %04X!\r\n", tmp->id);
+						otherDist = (((bot->myMeas).r*10)/6);
+						bounced = 1;
+						break;
+					}
+				}
+				tmp = tmp->next;
+			}
+			if(theBall.xPos<MIN_X || theBall.xPos>MAX_X || theBall.yPos<MIN_Y || theBall.yPos>MAX_Y){
+				BALL_DEBUG_PRINT("Ball hit boundary, so we must have lost track.\r\n");
+				theBall.xPos = UNDF;
+				theBall.yPos = UNDF;
+				myDist = UNDF;
+				otherDist = UNDF;
+			}
+			}else{
+			myDist = UNDF;
+			otherDist = UNDF;
+		}
+	}
+}
+
+//void check_bounce(int8_t xVel, int8_t yVel, int8_t* newXvel, int8_t* newYvel){
+//float inAngle = atan2(yVel, xVel)-M_PI_2;
+////	float inVel = hypotf(xVel, yVel);
+//uint8_t in_dir = dirFromAngle(inAngle+180);
+//BALL_DEBUG_PRINT(PSTR("In check bounce:\r\n"));
+//BALL_DEBUG_PRINT(PSTR("\tIn angle: %f, inDir: %hu, xVel: %hd, yVel: %hd\r\n"), rad_to_deg(inAngle), in_dir, xVel, yVel);
+//BALL_DEBUG_PRINT("Note! check_bounce currently doesn't do anything! Eventually, it will look to see if there's a robot in direction 'inAngle'.\r\n");
+//}
+
 void updateColor(){
 	uint8_t newR = 0, newG = 0, newB = 0;
 	if(colorMode==POS){
@@ -565,9 +615,9 @@ void handleNearBotsMsg(NearBotsMsg* msg, id_t senderID){
 				nearBot->theirMeas.r = unpackRange(msg->shared[i].range);
 				nearBot->theirMeas.b = unpackAngleMeas(msg->shared[i].b);
 				nearBot->theirMeas.h = unpackAngleMeas(msg->shared[i].h);
-				nearBot->theirMeas.id = senderID;
+				nearBot->theirMeas.id = get_droplet_id();
 				nearBot->theirMeas.conf = msg->shared[i].conf;
-				NB_DEBUG_PRINT("\t%4u, % 4d, % 4d, %2hu\r\n", nearBot->theirMeas.r, nearBot->theirMeas.b, nearBot->theirMeas.h, nearBot->theirMeas.conf);
+				NB_DEBUG_PRINT("\t%4u, % 4d, %2hu\r\n", nearBot->theirMeas.r, nearBot->theirMeas.b, nearBot->theirMeas.conf);
 				break;
 			}
 		}
@@ -646,7 +696,7 @@ void removeOtherBot(uint8_t idx){
 	numNearBots--;
 }
 
-OtherBot* addOtherBot(id_t id, int8_t conf){
+OtherBot* addOtherBot(id_t id, uint16_t range, int8_t conf){
 	uint8_t emptyIdx=0xFF;
 	qsort(nearBots, NUM_TRACKED_BOTS, sizeof(OtherBot), nearBotsConfCmpFunc);
 	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
@@ -666,7 +716,12 @@ OtherBot* addOtherBot(id_t id, int8_t conf){
 	// least confident in. But only if we're more confident
 	// in the new neighbor.
 	//BotPos* pos = &(nearBots[NUM_TRACKED_BOTS-1].pos);
-	if(nearBots[NUM_TRACKED_BOTS-1].myMeas.conf<conf){
+	OtherBot tmp;
+	(tmp.myMeas).id = id;
+	(tmp.myMeas).r = range;
+	(tmp.myMeas).conf = conf;
+	(tmp.theirMeas.id) = 0;
+	if(compareNearBots(&(nearBots[NUM_TRACKED_BOTS-1]),&tmp)==1){
 		POS_DEBUG_PRINT("No empty spot, but higher conf.\r\n");
 		cleanOtherBot(&nearBots[NUM_TRACKED_BOTS-1]);
 		return &(nearBots[NUM_TRACKED_BOTS-1]);
@@ -738,14 +793,6 @@ uint8_t user_handle_command(char* command_word, char* command_args){
 		return 1;
 	}else if(strcmp_P(command_word,PSTR("ball_kill"))==0){
 		killBall();
-		return 1;
-	}else if(strcmp_P(command_word,PSTR("uO"))==0){
-		switch(command_args[0]){
-			case '1': useOthers = 1; break;
-			case '0': useOthers = 0; break;
-			default: useOthers = !useOthers;
-		}
-		printf("Use others: %hu\r\n",useOthers);
 		return 1;
 	}else if(strcmp_P(command_word,PSTR("uB"))==0){
 		switch(command_args[0]){

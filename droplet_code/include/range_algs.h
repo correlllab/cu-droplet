@@ -37,7 +37,7 @@ volatile uint8_t rnbProcessingFlag;
 
 void range_algs_init();
 
-void broadcast_rnb_data(); //should take no more than 76 seconds.
+void broadcast_rnb_data(); //should take no more than 76 milliseconds.
 void use_rnb_data();
 
 void ir_range_meas();

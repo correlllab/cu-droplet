@@ -9,7 +9,6 @@
 #define RNB_DEBUG_MODE
 #define NB_DEBUG_MODE
 //#define BALL_DEBUG_MODE
-//#define NEW_INFO_DEBUG_MODE
 
 #define MIN_PACKED_X -1024
 #define MIN_PACKED_Y -1024
@@ -17,18 +16,12 @@
 
 uint8_t useNewInfo;
 uint8_t useBlacklist;
-uint8_t useOthers;
+uint8_t useMeasAveraging;
 
 #ifdef POS_DEBUG_MODE
 #define POS_DEBUG_PRINT(format, ...) printf_P(PSTR(format), ##__VA_ARGS__)
 #else
 #define POS_DEBUG_PRINT(format, ...)
-#endif
-
-#ifdef NEW_INFO_DEBUG_MODE
-#define NEW_INFO_DEBUG_PRINT(format, ...) printf_P(PSTR(format), ##__VA_ARGS__)
-#else
-#define NEW_INFO_DEBUG_PRINT(format, ...)
 #endif
 
 #ifdef P_L_DEBUG_MODE
@@ -68,6 +61,12 @@ uint8_t useOthers;
 #define RNB_DEBUG_PRINT(format, ...)
 #endif
 
+#ifdef NEW_INFO_DEBUG_MODE
+#define NEW_INFO_DEBUG_PRINT(format, ...) printf_P(PSTR(format), ##__VA_ARGS__)
+#else
+#define NEW_INFO_DEBUG_PRINT(format, ...)
+#endif
+
 /*
  * rnb takes 142 ms
  * messages take 2.5ms per byte. 
@@ -75,14 +74,14 @@ uint8_t useOthers;
  * neighbMsg is 38 bytes. header is 8 bytes, so NeighbMsg should take 115ms
  * ballMsg is 7 bytes. header is 8 bytes, so ballMsg should take 37.5ms 
  */
-#define RNB_DUR		145
+#define RNB_DUR		76
 #define PADDLE_MSG_DUR		20
 #define NEIGHB_MSG_DUR		120
 #define BALL_MSG_DUR		20
 
 #define UNDF	((int16_t)0x8000)
 
-#define SLOT_LENGTH_MS			307
+#define SLOT_LENGTH_MS			239
 #define SLOTS_PER_FRAME			37
 #define FRAME_LENGTH_MS			(((uint32_t)SLOT_LENGTH_MS)*((uint32_t)SLOTS_PER_FRAME))
 #define LOOP_DELAY_MS			17
@@ -99,16 +98,21 @@ uint8_t useOthers;
 #define NUM_SEEDS 4
 #define NUM_SHARED_BOTS 4
 #define NUM_USED_BOTS 5
-#define NUM_TRACKED_BOTS 12
+#define NUM_TRACKED_BOTS 24
 
-const id_t SEED_IDS[NUM_SEEDS] = {0x086B, 0x73AF, 0x12AD, 0x32A7};
-const int16_t  SEED_X[NUM_SEEDS]   = {0, 200, 0, 0};
-const int16_t  SEED_Y[NUM_SEEDS]   = {200, 200, 0, 0};
+const id_t SEED_IDS[NUM_SEEDS] = {0x6B6F, 0xCB64, 0x9669, 0xDF64};
+const int16_t  SEED_X[NUM_SEEDS]   = {100, 900, 100, 900};
+const int16_t  SEED_Y[NUM_SEEDS]   = {900, 900, 100, 100};
 
 #define MIN_X 0
 #define MIN_Y 0
 #define MAX_X 1000
 #define MAX_Y 1000
+
+#define NUM_PARTICLES 200
+#define PROB_ONE 131071L
+#define LIKELIHOOD_THRESH (PROB_ONE/NUM_PARTICLES)
+
 
 #define STATE_PIXEL		0x1
 #define STATE_NORTH		0x2
@@ -194,6 +198,26 @@ typedef struct bot_pos_struct
 	uint8_t conf;
 } BotPos;
 
+typedef struct unpacked_particle_struct
+{
+	float l;
+	int16_t x;
+	int16_t y;
+	int16_t o;
+} Particle;
+
+typedef struct packed_particle_struct
+{
+	uint16_t lLow;
+	uint8_t xLow;
+	uint8_t yLow;
+	uint8_t oLow;
+	uint8_t bits;
+} PackedParticle;
+PackedParticle particles[NUM_PARTICLES];
+
+
+
 typedef struct other_bot_rnb_struct{
 	BotMeas myMeas;
 	BotMeas theirMeas;
@@ -235,22 +259,28 @@ int16_t maxRange;
 uint8_t		isCovered;
 
 BotPos myPos;
-uint16_t myDist;
+int16_t myDist;
 uint16_t otherDist;
+uint8_t particlesInitialized;
 
 void		init();
 void		loop();
 void		handleMySlot();
+void		initParticles();
 void		calcPosFromMeas(BotPos* calcPos, BotPos* pos, BotMeas* meas);
 void		printPosFromMeas(BotPos* pos, BotMeas* meas);
 uint8_t		countAvailableMeasurements();
-void		prepExpectedPositions(BotPos* expPosArr, BotPos* avoidPosArr);
-void		updatePosition();
 uint8_t     nearBotUseabilityCheck(uint8_t i);
+void		prepExpectedPositions(BotPos* expPosArr, BotPos* avoidPosArr); //This is used by initParticles too.
+float		calc_pMGP(Particle* p, BotPos* mPos, BotPos* sPos);
+uint8_t		updateParticles();
 uint8_t		getPosConf(float xStdDev, float yStdDev, float oStdDev);
+void		jitterParticle(PackedParticle* p);
 void		handleFrameEnd(); 
+void		resampleParticles();
 void		updateHardBots();
 void		degradeConfidence();
+void		updatePos();
 void		useNewRnbMeas();
 void		updateBall();
 //check_bounce is a helper function for updateBall.
@@ -275,7 +305,7 @@ void		frameEndPrintout();
 OtherBot*	getOtherBot(id_t id);
 void		findAndRemoveOtherBot(id_t id);
 void		removeOtherBot(uint8_t idx);
-OtherBot*	addOtherBot(id_t id, int8_t conf);
+OtherBot* addOtherBot(id_t id, uint16_t range, int8_t conf);
 void		cleanOtherBot(OtherBot* other);
 
 void		addHardBot(id_t id);
@@ -297,9 +327,56 @@ inline uint8_t validNearBotIdx(uint8_t i){
 			nearBots[i].pos.o!=UNDF && nearBots[i].pos.conf!=0);
 }
 
-inline void convertMeas(int16_t* newB, int16_t* newH, int16_t b, int16_t h){
-	*newB = pretty_angle_deg(b-h-180);
-	*newH = -h;
+inline static float unpackParticleLikelihood(PackedParticle* p){
+	uint32_t likelihood;
+	likelihood = p->lLow;
+	likelihood |= (((uint32_t)(p->bits)) & 0b10000000)<<9;
+	return ((float)likelihood)/PROB_ONE;
+}
+
+inline static void updateParticleLikelihood(float pL, PackedParticle* p){
+	uint32_t likelihood = (pL*PROB_ONE + 0.5);
+	p->lLow  = (uint16_t)(likelihood&0xFFFF);
+	p->bits &= 0b01111111; //clear out the previous likelihood bits before updating them.
+	p->bits |= (uint8_t)((likelihood>>9)&0b10000000);
+}
+
+inline static void packParticle(Particle* p, PackedParticle* pP){
+	int16_t pX = p->x;
+	int16_t pY = p->y;
+	int16_t pO = p->o;
+	float   pL = p->l;
+	uint32_t likelihood = (pL*PROB_ONE+0.5);
+	pX = (pX < -512) ? -512 : ((pX>1535) ? 1535 : pX);
+	pX += 512;
+	pY = (pY < -512) ? -512 : ((pY>1535) ? 1535 : pY);
+	pY += 512;
+	pP->xLow  = (uint8_t)(pX&0xFF);
+	pP->bits  = (uint8_t)((pX>>8)&0b00000111);
+	pP->yLow  = (uint8_t)(pY&0xFF);
+	pP->bits |= (uint8_t)((pY>>5)&0b00111000);
+	pP->oLow  = (uint8_t)(pO&0xFF);
+	pP->bits |= (uint8_t)((pO>>2)&0b01000000);
+	pP->lLow  = (uint16_t)(likelihood&0xFFFF);
+	pP->bits |= (uint8_t)((likelihood>>9)&0b10000000);
+}
+
+inline static void unpackParticle(Particle* p, PackedParticle* pP){
+	uint32_t likelihood;
+	uint16_t bits = pP->bits;
+	p->x = pP->xLow;
+	p->x |= (bits & 0b00000111)<<8;
+	p->x -= 512;
+	p->y = pP->yLow;
+	p->y |= (bits & 0b00111000)<<5;
+	p->y -= 512;
+	p->o = pP->oLow;
+	p->o |= (bits & 0b01000000)<<2;
+	p->o <<= 7;
+	p->o /= 128;
+	likelihood = pP->lLow;
+	likelihood |= ((uint32_t)bits & 0b10000000)<<9;
+	p->l = ((float)likelihood)/PROB_ONE;
 }
 
 inline static void packPos(PackedBotPos* pos){
@@ -339,11 +416,19 @@ inline static void unpackPos(PackedBotPos* pPos, BotPos* otherPos){
 }
 
 inline static int8_t packAngleMeas(int16_t angle){
-	return (int8_t)(angle>>1);
+	if(angle==UNDF){
+		return 0x7E;
+	}else{
+		return (int8_t)(angle>>1);
+	}
 }
 
 inline static int16_t unpackAngleMeas(int8_t angle){
-	return (((int16_t)angle)<<1);
+	if(angle==0x7E){
+		return UNDF;
+	}else{
+		return (((int16_t)angle)<<1);
+	}
 }
 
 inline static uint8_t packRange(uint16_t range){
@@ -410,24 +495,44 @@ inline static void calculateBounce(int16_t Bx, int16_t By){
 	//
 //}
 
-static int nearBotsConfCmpFunc(const void* a, const void* b){
-	OtherBot* aN = (OtherBot*)a;
-	OtherBot* bN = (OtherBot*)b;
-	uint8_t aC = (aN->myMeas).conf;
-	uint8_t bC = (bN->myMeas).conf;
+static int16_t compareNearBots(OtherBot* aN, OtherBot* bN){
+	uint8_t aConf = (aN->myMeas).conf;
+	uint8_t bConf = (bN->myMeas).conf;
+	uint16_t aRange = (aN->myMeas).r;
+	uint16_t bRange = (bN->myMeas).r;
+	uint8_t aID = (aN->theirMeas).id == get_droplet_id();
+	uint8_t bID = (bN->theirMeas).id == get_droplet_id();
 	if((aN->myMeas).id==0){
 		return 1;
 	}
 	if((bN->myMeas).id==0){
 		return -1;
 	}
-	if(aC < bC){
+	if(aConf < bConf){
 		return 1;
-	}else if(bC < aC){
+	}else if(bConf < aConf){
 		return -1;
 	}else{
-		return 0;
+		if(aID && !bID){
+			return -1;
+		}else if(bID && !aID){
+			return 1;
+		}else{
+			if(aRange < bRange){
+				return -1;
+			}else if(bRange < aRange){
+				return 1;
+			}else{
+				return 0;
+			}
+		}
 	}
+}
+
+static int nearBotsConfCmpFunc(const void* a, const void* b){
+	OtherBot* aN = (OtherBot*)a;
+	OtherBot* bN = (OtherBot*)b;
+	return  compareNearBots(aN, bN);
 }
 
 static int nearBotMeasBearingCmpFunc(const void* a, const void* b){

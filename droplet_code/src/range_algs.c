@@ -26,7 +26,7 @@ static const float bearingBasis[6][2]=	{
 static int16_t bm[6];
 static uint32_t sensorHealthHistory;
 static int16_t calculate_range(float bearing);
-static void calculate_bearing(float* bearing, float* var);
+static float calculate_bearing();
 static void checkSensorHealth();
 
 

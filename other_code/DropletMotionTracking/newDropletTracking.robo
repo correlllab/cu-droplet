@@ -2,14 +2,16 @@
 <Affine>
   <maintain_aspect_ratio>FALSE</maintain_aspect_ratio>
   <perspective_compensation>TRUE</perspective_compensation>
-  <point_1_x>728.571</point_1_x>
-  <point_1_y>1057.14</point_1_y>
-  <point_2_x>1656.14</point_2_x>
-  <point_2_y>1058.29</point_2_y>
-  <point_3_x>609.714</point_3_x>
-  <point_3_y>75.8572</point_3_y>
-  <point_4_x>1791.57</point_4_x>
-  <point_4_y>20</point_4_y>
+  <point_1_x>735.5</point_1_x>
+  <point_1_y>1069</point_1_y>
+  <point_2_x>1671.5</point_2_x>
+  <point_2_y>1048</point_2_y>
+  <point_3_x>592.5</point_3_x>
+  <point_3_y>89</point_3_y>
+  <point_4_x>1774.5</point_4_x>
+  <point_4_y>5</point_4_y>
+  <scroll_x_offset>995</scroll_x_offset>
+  <scroll_y_offset>695</scroll_y_offset>
   <transform_height>1000</transform_height>
   <transform_width>1000</transform_width>
   <zoom>12</zoom>

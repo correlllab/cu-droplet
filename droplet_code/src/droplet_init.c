@@ -54,7 +54,10 @@ int main(){
 		loop();
 		check_messages();
 		if(task_list_check()){
-			printf_P(PSTR("Error! We got ahead of the task list and now nothing will execute.\r\n"));
+			printf_P(PSTR("Error! We got ahead of the task list and now nothing will execute. T=%lu\r\n"), get_time());
+			printf_P(PSTR("Last P Func: %p @ %lu\r\n"),lastScheduledFunc.noarg_function, lsfCompleteTime);
+			printf_P(PSTR("Last NonP Func: %p @ %lu\r\n"),lastNpScheduledFunc.noarg_function, lsfNpCompleteTime);
+			print_task_queue();
 			task_list_cleanup();
 		}
 		delay_ms(1);	

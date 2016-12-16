@@ -44,8 +44,9 @@ void broadcast_rnb_data(){
 	uint8_t power = 255;
 	uint8_t goAhead =0;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-		if(!rnbProcessingFlag){
+		if(!rnbProcessingFlag || (get_time()-rnbPFsetTime>RNB_PROCESSING_TIMEOUT)){
 			rnbProcessingFlag = 1;
+			rnbPFsetTime = get_time();
 			goAhead = 1;
 		}
 	}
@@ -56,7 +57,7 @@ void broadcast_rnb_data(){
 		if(result){
 			ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 				hp_ir_block_bm = 0xFF;
-			}		
+			}
 			ir_range_blast(power);
 			ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 				hp_ir_block_bm = 0;
@@ -81,6 +82,7 @@ void use_rnb_data(){
 	rnb_updated=1;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 		rnbProcessingFlag=0;
+		
 	}
 }
 
@@ -89,7 +91,7 @@ static int16_t calculate_range(float bearing){
 	float cosScaledBM = 0.0;
 	for(uint8_t s=0;s<6;s++){
 		alpha = pretty_angle(bearing-basisAngle[s]);
-		if(alpha>(-M_PI_2) && alpha<M_PI_2){
+		if(alpha>(-M_PI_2) && alpha<M_PI_2 && bm[s]>0){
 			cosScaledBM += cosf(alpha)*bm[s];
 		}
 	}
@@ -110,9 +112,9 @@ static float calculate_bearing(){
 	float totalBM = 0;
 
 	for(uint8_t i=0;i<6;i++){
-		bearingX+=bm[i]*bearingBasis[i][0];
-		bearingY+=bm[i]*bearingBasis[i][1];
-		totalBM+=bm[i];
+		bearingX += bm[i]*bearingBasis[i][0];
+		bearingY += bm[i]*bearingBasis[i][1];
+		totalBM  += bm[i];
 	}
 	return pretty_angle(atan2f(bearingY, bearingX));	
 	//Check wikipedia: "Directional_statistics#measures_of_location_and_spread" to justify next few lines

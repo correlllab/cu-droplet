@@ -14,7 +14,7 @@
 #define MIN_PACKED_Y -1024
 #define MIN_PACKED_O -512
 
-uint8_t useNewInfo;
+//uint8_t useNewInfo;
 uint8_t useBlacklist;
 uint8_t useMeasAveraging;
 
@@ -71,17 +71,17 @@ uint8_t useMeasAveraging;
  * rnb takes 142 ms
  * messages take 2.5ms per byte. 
  * paddleMsg is 3 bytes. header is 8 bytes, so PaddleMsg should take 27.5
- * neighbMsg is 38 bytes. header is 8 bytes, so NeighbMsg should take 115ms
+ * neighbMsg is 30 bytes. header is 8 bytes, so NeighbMsg should take 115ms
  * ballMsg is 7 bytes. header is 8 bytes, so ballMsg should take 37.5ms 
  */
-#define RNB_DUR		76
+#define RNB_DUR		80
 #define PADDLE_MSG_DUR		20
-#define NEIGHB_MSG_DUR		120
+#define NEIGHB_MSG_DUR		100
 #define BALL_MSG_DUR		20
 
 #define UNDF	((int16_t)0x8000)
 
-#define SLOT_LENGTH_MS			239
+#define SLOT_LENGTH_MS			223
 #define SLOTS_PER_FRAME			37
 #define FRAME_LENGTH_MS			(((uint32_t)SLOT_LENGTH_MS)*((uint32_t)SLOTS_PER_FRAME))
 #define LOOP_DELAY_MS			17
@@ -96,9 +96,9 @@ uint8_t useMeasAveraging;
 //#define PADDLE_WIDTH		(FLOOR_WIDTH/3)
 #define PADDLE_VEL				0.1
 #define NUM_SEEDS 4
-#define NUM_SHARED_BOTS 4
+#define NUM_SHARED_BOTS 6
 #define NUM_USED_BOTS 5
-#define NUM_TRACKED_BOTS 24
+#define NUM_TRACKED_BOTS 12
 
 const id_t SEED_IDS[NUM_SEEDS] = {0x6B6F, 0xCB64, 0x9669, 0xDF64};
 const int16_t  SEED_X[NUM_SEEDS]   = {100, 900, 100, 900};
@@ -150,9 +150,7 @@ typedef struct ball_msg_struct{
 typedef struct packed_bot_meas_struct{
 	id_t id;
 	uint8_t range;
-	uint8_t conf;
 	int8_t b;
-	int8_t h;
 }PackedBotMeas;
 
 typedef struct packed_bot_pos_struct{
@@ -164,9 +162,9 @@ typedef struct packed_bot_pos_struct{
 }PackedBotPos;
 
 typedef struct near_bots_msg_struct{
-	PackedBotMeas shared[NUM_SHARED_BOTS]; //6 bytes each
+	PackedBotMeas shared[NUM_SHARED_BOTS]; //4 bytes each
 	PackedBotPos pos; //5 bytes.
-	id_t used[NUM_USED_BOTS];
+	//id_t used[NUM_USED_BOTS];
 	char flag;	
 }NearBotsMsg;
 
@@ -216,16 +214,14 @@ typedef struct packed_particle_struct
 } PackedParticle;
 PackedParticle particles[NUM_PARTICLES];
 
-
-
 typedef struct other_bot_rnb_struct{
 	BotMeas myMeas;
 	BotMeas theirMeas;
 	BotPos pos;
 	uint32_t lastUsed;
-	uint8_t hasNewInfo;
+	//uint8_t hasNewInfo;
 } OtherBot;
-OtherBot nearBots[NUM_TRACKED_BOTS];
+OtherBot nearBots[NUM_TRACKED_BOTS+1];
 
 typedef struct hard_bot_struct{
 	id_t id;
@@ -296,7 +292,6 @@ void		sendBallMsg();
 void		handleBallMsg(BallMsg* msg, uint32_t arrivalTime);
 void		sendNearBotsMsg();
 void		handleNearBotsMsg(NearBotsMsg* msg, id_t senderID);
-uint8_t checkNearBotForNewInfo(id_t usedBots[NUM_USED_BOTS]);
 void		handle_msg			(ir_msg* msg_struct);
 
 void		frameEndPrintout();
@@ -305,15 +300,17 @@ void		frameEndPrintout();
 OtherBot*	getOtherBot(id_t id);
 void		findAndRemoveOtherBot(id_t id);
 void		removeOtherBot(uint8_t idx);
-OtherBot* addOtherBot(id_t id, uint16_t range, int8_t conf);
+OtherBot*	addOtherBot(id_t id);
 void		cleanOtherBot(OtherBot* other);
+void		printOtherBot(OtherBot* bot);
 
 void		addHardBot(id_t id);
 void		cleanHardBots();
 
-void getUsedBots(id_t dest[NUM_USED_BOTS]);
-void addUsedBot(id_t bot);
-void initUsedBots();
+//uint8_t checkNearBotForNewInfo(id_t usedBots[NUM_USED_BOTS]);
+//void getUsedBots(id_t dest[NUM_USED_BOTS]);
+//void addUsedBot(id_t bot);
+//void initUsedBots();
 
 /*
  * BEGIN INLINE HELPER FUNCTIONS
@@ -495,44 +492,34 @@ inline static void calculateBounce(int16_t Bx, int16_t By){
 	//
 //}
 
-static int16_t compareNearBots(OtherBot* aN, OtherBot* bN){
+static int nearBotsConfCmpFunc(const void* a, const void* b){
+	OtherBot* aN = (OtherBot*)a;
+	OtherBot* bN = (OtherBot*)b;
 	uint8_t aConf = (aN->myMeas).conf;
 	uint8_t bConf = (bN->myMeas).conf;
 	uint16_t aRange = (aN->myMeas).r;
 	uint16_t bRange = (bN->myMeas).r;
-	uint8_t aID = (aN->theirMeas).id == get_droplet_id();
-	uint8_t bID = (bN->theirMeas).id == get_droplet_id();
-	if((aN->myMeas).id==0){
-		return 1;
-	}
-	if((bN->myMeas).id==0){
-		return -1;
-	}
-	if(aConf < bConf){
-		return 1;
-	}else if(bConf < aConf){
-		return -1;
-	}else{
+	uint8_t aID = ((aN->theirMeas).id == get_droplet_id());
+	uint8_t bID = ((bN->theirMeas).id == get_droplet_id());
+	if(aRange<100 && bRange<100){
 		if(aID && !bID){
 			return -1;
-		}else if(bID && !aID){
+		}else if(!aID && bID){
+			return  1;
+		}
+		if(aConf < bConf){
 			return 1;
-		}else{
-			if(aRange < bRange){
-				return -1;
-			}else if(bRange < aRange){
-				return 1;
-			}else{
-				return 0;
-			}
+		}else if(bConf < aConf){
+			return -1;
+		}
+	}else{
+		if(aRange < bRange){
+			return -1;
+		}else if(bRange < aRange){
+			return 1;
 		}
 	}
-}
-
-static int nearBotsConfCmpFunc(const void* a, const void* b){
-	OtherBot* aN = (OtherBot*)a;
-	OtherBot* bN = (OtherBot*)b;
-	return  compareNearBots(aN, bN);
+	return 0;
 }
 
 static int nearBotMeasBearingCmpFunc(const void* a, const void* b){

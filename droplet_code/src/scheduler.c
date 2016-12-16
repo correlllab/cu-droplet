@@ -52,6 +52,10 @@ void scheduler_init(){
 		while (RTC.STATUS & RTC_SYNCBUSY_bm);
 		RTC.CNT = 0;
 	}
+	lastScheduledFunc.noarg_function = NULL;
+	lsfCompleteTime = get_time();
+	lastNpScheduledFunc.noarg_function = NULL;
+	lsfNpCompleteTime = get_time();
 }
 
 void Config32MHzClock(void){
@@ -92,10 +96,60 @@ void delay_ms(uint16_t ms){
 	}
 }
 
+////This function checks for errors or inconsistencies in the task list, and attempts to correct them.
+////Is this still needed?
+//void task_list_cleanup(){
+	//printf_P(PSTR("\tAttempting to restore task_list.\r\n\tIf you only see this message rarely, don't worry too much.\r\n"));
+//
+	//volatile Task_t* cur_task = task_list;
+	//volatile Task_t* task_ptr_arr[MAX_NUM_SCHEDULED_TASKS];
+	//uint8_t num_tasks = 0;
+	//ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+		//RTC.INTCTRL &= ~RTC_COMP_INT_LEVEL;
+		//while (cur_task != NULL){
+			//uint8_t seenFunc = 0;
+			//for(uint8_t i=0;i<MAX_NUM_SCHEDULED_TASKS;i++){
+				//if((task_ptr_arr[i]->func).noarg_function==(cur_task->func).noarg_function){
+					//seenFunc = 1;
+					//break;
+				//}
+			//}
+			//if(seenFunc){
+				//cur_task = cur_task->next;
+			//}else{
+				//cur_task->scheduled_time=get_time()+rand_byte()+50;
+				//task_ptr_arr[num_tasks] = cur_task;
+				//cur_task = cur_task->next;
+				//task_ptr_arr[num_tasks]->next=NULL;
+				//num_tasks++;
+			//}
+		//}
+		//uint8_t saving_task = 0;
+		//for(uint8_t i=0;i<MAX_NUM_SCHEDULED_TASKS;i++){
+			//for(uint8_t j=0;j<num_tasks;j++){
+				//if(&(task_storage_arr[i])==task_ptr_arr[j]){
+					////printf_P(PSTR("\tSaving task %X because it is periodic.\r\n"),&(task_storage_arr[i]));
+					//saving_task = 1;
+					//break;
+				//}
+			//}
+			//if(!saving_task){
+				////printf_P(PSTR("\tClearing memory of task %X.\r\n"), &(task_storage_arr[i]));
+				//remove_task(&(task_storage_arr[i]));
+			//}
+			//saving_task = 0;
+		//}
+		//num_tasks = 0;
+		//task_list=NULL; //Now task list has been cleared out.
+		//for(uint8_t i=0;i<num_tasks;i++){
+			//add_task_to_list(task_ptr_arr[i]);
+		//}
+	//}
+//}
 //This function checks for errors or inconsistencies in the task list, and attempts to correct them.
 //Is this still needed?
 void task_list_cleanup(){
-	printf_P(PSTR("\tAttempting to restore task_list (by dropping all non-periodic tasks.\r\n\tIf you only see this message rarely, don't worry too much.\r\n"));
+	printf_P(PSTR("\tAttempting to restore task_list by dropping all non-periodic tasks.\r\n\tIf you only see this message rarely, don't worry too much.\r\n"));
 
 	volatile Task_t* cur_task = task_list;
 	volatile Task_t* task_ptr_arr[MAX_NUM_SCHEDULED_TASKS];
@@ -197,13 +251,13 @@ static void add_task_to_list(volatile Task_t* task){
 			// find its position in the linked list, and insert it there.
 			volatile Task_t* tmp_task_ptr = task_list;
 			while (tmp_task_ptr->next != NULL && task->scheduled_time > (tmp_task_ptr->next)->scheduled_time){
-				if(tmp_task_ptr->next==tmp_task_ptr){
-					//set_rgb(255, 50, 0);
-					printf_P(PSTR("ERROR! Task list has self-reference.\r\n"));
-					printf_P(PSTR("New Task %p (%p) scheduled at %lu with period %lu, %lu current\r\n"), task, (task->func).noarg_function, task->scheduled_time, task->period, get_time());
-					print_task_queue();
-					return;				
-				}
+				//if(tmp_task_ptr->next==tmp_task_ptr){
+					////set_rgb(255, 50, 0);
+					//printf_P(PSTR("ERROR! Task list has self-reference.\r\n"));
+					//printf_P(PSTR("New Task %p (%p) scheduled at %lu with period %lu, %lu current\r\n"), task, (task->func).noarg_function, task->scheduled_time, task->period, get_time());
+					//print_task_queue();
+					//return;				
+				//}
 				tmp_task_ptr = tmp_task_ptr->next;
 			}
 			//set_rgb(r, g, b);
@@ -273,6 +327,7 @@ int8_t run_tasks(){
 		// Run all tasks that are scheduled to execute in the next 2ms
 		// (The RTC compare register takes 2 RTC clock cycles to update)
 		while (task_list != NULL && task_list->scheduled_time <= get_time() + 2){
+			/*
 			uint8_t num_slots_used = 0;
 			for(uint8_t i=0;i<MAX_NUM_SCHEDULED_TASKS;i++){
 				if(((uint16_t)(task_storage_arr[i].func.noarg_function))!=0){
@@ -285,11 +340,12 @@ int8_t run_tasks(){
 					}
 				}
 			}
-			//printf_P(PSTR("\tCalling %X. Tasks: %2hu. Slots Used: %2hu.\r\n"),cur_task->func.noarg_function, num_tasks, num_slots_used);
+			printf_P(PSTR("\tCalling %X. Tasks: %2hu. Slots Used: %2hu.\r\n"),cur_task->func.noarg_function, num_tasks, num_slots_used);
 			if(num_slots_used!=num_tasks){
 				printf_P(PSTR("ERROR: Pre-call, task storage consistency check failure.\r\n"));
 				return -1;
 			}
+			*/
 			cur_task = task_list;
 			task_list = cur_task->next;
 
@@ -303,17 +359,25 @@ int8_t run_tasks(){
 				}
 			}
 			
+			uint32_t now = get_time();
 			if(cur_task->period>0){
-				cur_task->scheduled_time+=cur_task->period;
+				cur_task->scheduled_time += cur_task->period;
+				if(cur_task->scheduled_time < now){
+					cur_task->scheduled_time = now + 10;
+				}
+				lastScheduledFunc.noarg_function = cur_task->func.noarg_function;
+				lsfCompleteTime = now;
 				cur_task->next=NULL;
 				num_tasks--;
 				add_task_to_list(cur_task);
 			}else{
+				lastNpScheduledFunc.noarg_function = cur_task->func.noarg_function;
+				lsfNpCompleteTime = now;
 				scheduler_free(cur_task);
 				cur_task = NULL;
 				num_tasks--;
 			}
-			
+			/*
 			num_slots_used = 0;
 			for(uint8_t i=0;i<MAX_NUM_SCHEDULED_TASKS;i++){
 				if(((uint16_t)(task_storage_arr[i].func.noarg_function))!=0){
@@ -325,11 +389,12 @@ int8_t run_tasks(){
 					}
 				}
 			}
-			//printf_P(PSTR("\tReturned %X. Tasks: %2hu. Slots Used: %2hu.\r\n"),cur_task->func.noarg_function, num_tasks, num_slots_used);
+			printf_P(PSTR("\tReturned %X. Tasks: %2hu. Slots Used: %2hu.\r\n"),cur_task->func.noarg_function, num_tasks, num_slots_used);
 			if(num_slots_used!=num_tasks){
 				printf_P(PSTR("ERROR: Post-return, task storage consistency check failure.\r\n"));
 				return -1;
 			}
+			*/
 		}
 		// If the next task to be executed is in the current epoch, set the RTC compare register and interrupt
 		if (task_list != NULL && task_list->scheduled_time <= ((((uint32_t)rtc_epoch) << 16) | (uint32_t)RTC.PER)){

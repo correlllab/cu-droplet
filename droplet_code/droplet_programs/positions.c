@@ -11,7 +11,7 @@ void init(){
 	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
 		cleanOtherBot(&nearBots[i]);
 	}
-	initUsedBots();
+	//initUsedBots();
 	initPositions();
 	myState = STATE_PIXEL;
 	colorMode = POS;
@@ -29,8 +29,8 @@ void init(){
 	xRange = MAX_X-MIN_X;
 	yRange = MAX_Y-MIN_Y;
 	maxRange = (int16_t)hypotf(xRange, yRange);
-	useBlacklist = 1;
-	useNewInfo = 0;
+	useBlacklist = 0;
+	//useNewInfo = 0;
 	useMeasAveraging = 0;
 }
 
@@ -44,13 +44,9 @@ void loop(){
 	if(loopID!=(frameTime/SLOT_LENGTH_MS)){
 		loopID = frameTime/SLOT_LENGTH_MS;
 		if(loopID==mySlot){
-			uint32_t before = get_time();
 			handleMySlot();
-			GEN_DEBUG_PRINT("My slot processing took %lu ms.\r\n", get_time()-before);
 		}else if(loopID==SLOTS_PER_FRAME-1){
-			uint32_t before = get_time();
 			handleFrameEnd();
-			GEN_DEBUG_PRINT("End of Frame Processing/Printing Took %lu ms.\r\n",get_time()-before);
 		}
 		//if(loopID!=mySlot){
 			//uint32_t curSlotTime = (get_time()-frameStart)%SLOT_LENGTH_MS;
@@ -78,7 +74,6 @@ void loop(){
 }
 
 void handleMySlot(){
-	printf("My Slot\r\n");
 	broadcast_rnb_data();
 	while(((get_time()-frameStart)%SLOT_LENGTH_MS)<RNB_DUR)
 		delay_us(500);
@@ -118,13 +113,21 @@ void calcPosFromMeas(BotPos* calcPos, BotPos* pos, BotMeas* meas){
 	calcPos->x = (int16_t)(x + deltaX + 0.5);
 	calcPos->y = (int16_t)(y + deltaY + 0.5);
 	calcPos->o = pretty_angle_deg(o + h);
-	calcPos->conf =  pos->conf;
+	if(r>300){
+		calcPos->conf = (pos->conf)>>2;
+	}else if(r>200){
+		calcPos->conf = (pos->conf)/3;
+	}else if(r>100){
+		calcPos->conf = (pos->conf)>>1;
+	}else{
+		calcPos->conf = ((pos->conf)*2)/3;
+	}
 }
 
 void printPosFromMeas(BotPos* pos, BotMeas* meas){
 	BotPos calcPos;
 	calcPosFromMeas(&calcPos, pos, meas);
-	printf("\t[%04X] {%4d, %4d, % 4d, %2hu, %4u, % 4d, % 4d, %2hu, ", meas->id, pos->x, pos->y, pos->o, pos->conf, meas->r, meas->b, meas->h, meas->conf);
+	printf("\t[%04X] {%4d, %4d, % 4d, %2hu, %4u, % 4d, % 4d, ", meas->id, pos->x, pos->y, pos->o, pos->conf, meas->r, meas->b, meas->h);
 	printf("%4d, %4d, %4d, %2hu}\r\n", calcPos.x, calcPos.y, calcPos.o, calcPos.conf);
 }
 
@@ -149,11 +152,11 @@ uint8_t nearBotUseabilityCheck(uint8_t i){
 	if(!validNearBotIdx(i)){
 		return 0;
 	}
-	if(!(nearBots[i].hasNewInfo)){
-		if(useNewInfo){
-			return 0;
-		}
-	}
+	//if(!(nearBots[i].hasNewInfo)){
+		//if(useNewInfo){
+			//return 0;
+		//}
+	//}
 	if((nearBots[i].theirMeas).id != get_droplet_id()){
 		return 0;
 	}
@@ -172,12 +175,12 @@ uint8_t nearBotUseabilityCheck(uint8_t i){
 //Fused measurement is from other robot's perspective
 void fuseMeasurements(BotMeas* fused, BotMeas* myMeas, BotMeas* theirMeas){
 	fused->id = myMeas->id;
-	fused->b = theirMeas->b;
-	fused->h = pretty_angle_deg(180 - myMeas->b + theirMeas->b);
-	fused->r = (uint16_t)(((int32_t)myMeas->r)*(myMeas->conf) + ((int32_t)theirMeas->r)*theirMeas->conf)/((float)(myMeas->conf+theirMeas->conf));
-	float fusedConf = powf((powf(myMeas->conf,-2.0) + powf(theirMeas->conf,-2.0)),-0.5);
-	fused->conf = (uint8_t)fusedConf;
-	printf("Fused Conf: %f from %hu & %hu.\r\n", fusedConf, myMeas->conf, theirMeas->conf);
+	fused->b = myMeas->b;
+	fused->h = pretty_angle_deg(180 - theirMeas->b + myMeas->b);
+	fused->r = (myMeas->r + theirMeas->r)/2;
+	//fused->r = (uint16_t)(((int32_t)myMeas->r)*(myMeas->conf) + ((int32_t)theirMeas->r)*theirMeas->conf)/((float)(myMeas->conf+theirMeas->conf));
+	//float fusedConf = powf((powf(myMeas->conf,-2.0) + powf(theirMeas->conf,-2.0)),-0.5);
+	fused->conf = myMeas->conf;
 }
 
 
@@ -195,7 +198,7 @@ void prepExpectedPositions(BotPos* expPosArr, BotPos* avoidPosArr){
 				avoidPosArr[i].o = 0;
 				avoidPosArr[i].conf = nearBots[i].pos.conf;
 			}
-			addUsedBot(nearBots[i].myMeas.id);
+			//addUsedBot(nearBots[i].myMeas.id);
 			nearBots[i].lastUsed = frameCount;
 			botIdx++;
 		}
@@ -215,7 +218,6 @@ void updatePosition(){
 	float myConf = myPos.conf;
 
 	uint8_t numMeas = countAvailableMeasurements();
-	printf("Num Meas: %hu\r\n", numMeas);
 	if(!numMeas){ //no measurements to initialize with.
 		printf("\tCan't update; no new measurements available.\r\n");
 		return;
@@ -236,7 +238,7 @@ void updatePosition(){
 	float newY = totY/totConf;
 	float newO = rad_to_deg(atan2f(oTotY, oTotX));
 	float newConf = totConf/((float)numMeas);
-	printf("\tNew Pos: %6f, %6f, %6f, %6f", newX, newY, newO, newConf);
+	printf("New Pos: %6f, %6f, %6f, %6f", newX, newY, newO, newConf);
 	if(myPos.x !=UNDF && myPos.y !=UNDF && myPos.o!=UNDF && myPos.conf!=0){
 		float posInnovation = hypotf(newX-myPos.x,newY-myPos.y);
 		float oInnovation = fabsf(pretty_angle_deg(newO-myPos.o));
@@ -269,31 +271,28 @@ uint8_t getPosConf(float xStdDev, float yStdDev, float oStdDev){
 }
 
 void handleFrameEnd(){
-printf("Frame End Calculations\r\n");
-	uint32_t start, postSort, postUpdate, end;
-	start = get_time();
-	qsort(nearBots, NUM_TRACKED_BOTS, sizeof(OtherBot), nearBotsConfCmpFunc);
-	postSort = get_time();
+	printf("Frame End Calculations\r\n");
+	qsort(nearBots, NUM_TRACKED_BOTS+1, sizeof(OtherBot), nearBotsConfCmpFunc);
+	printf("\tNear Bots:\r\n");
+	for(uint8_t i=0; i<NUM_TRACKED_BOTS+1; i++){
+		printOtherBot(&nearBots[i]);
+	}
+	printf("\r\n");
 
 	//Maybe we'll want to remove the N worst nearBots, here.
 	if(!seedFlag){
 		updatePosition();
 	}
-	postUpdate = get_time();
 	
-	//Removing the worst 3/4s of the nearBots.
-	for(uint8_t i=NUM_TRACKED_BOTS/4; i<NUM_TRACKED_BOTS;i++){
+	//Removing the worst half of the nearBots.
+	for(uint8_t i=NUM_TRACKED_BOTS/2; i<NUM_TRACKED_BOTS;i++){
 		cleanOtherBot(&(nearBots[i]));
 	}
-
 
 	updateHardBots();
 	degradeConfidence(); //lower confidence of bots for which no measurement was received.
 	frameEndPrintout();
 	printf("\r\n");
-
-	end = get_time();
-	printf("End of frame %lu.\r\n\tTiming: %lu, %lu, %lu\r\n", frameCount, postSort-start, postUpdate-postSort, end-postUpdate);
 }
 
 void updateHardBots(){
@@ -355,9 +354,13 @@ void useNewRnbMeas(){
 	uint16_t range = last_good_rnb.range;
 	int16_t bearing = last_good_rnb.bearing;
 	rnb_updated=0;
-	uint8_t conf = 8; //ARBITRARY
-	RNB_DEBUG_PRINT("(RNB) ID: %04X\r\n\tR: %4u B: %4d\r\n", id, range, bearing);
-	OtherBot* measuredBot = addOtherBot(id, range, conf);
+	/* 
+	 * conf is ARBITRARY - only matters if degrading confidence is turned on.
+	 * In this case it controls how long before things dissapear.
+	 */
+	uint8_t conf = 8; 
+	RNB_DEBUG_PRINT("            (RNB) ID: %04X | R: %4u B: %4d\r\n", id, range, bearing);
+	OtherBot* measuredBot = addOtherBot(id);
 	BotMeas* meas;
 	if(measuredBot){
 		meas = &(measuredBot->myMeas);
@@ -373,6 +376,7 @@ void useNewRnbMeas(){
 		meas->h		= UNDF;
 		meas->conf  = conf;
 	}else if(useMeasAveraging==1 && meas->id == id){
+		measuredBot->lastUsed = 0;
 		meas->id	= id;
 		meas->r		= (range*conf+meas->r*meas->conf)/(conf+meas->conf);
 		float tempX = conf*cos(deg_to_rad(bearing))+meas->conf*cos(deg_to_rad(meas->b));
@@ -589,54 +593,52 @@ void sendNearBotsMsg(){
 	NearBotsMsg msg;
 	msg.flag = NEAR_BOTS_MSG_FLAG;
 	packPos(&(msg.pos));
-	qsort(nearBots, NUM_TRACKED_BOTS, sizeof(OtherBot), nearBotsConfCmpFunc);
+	//qsort(nearBots, NUM_TRACKED_BOTS+1, sizeof(OtherBot), nearBotsConfCmpFunc);
 	for(uint8_t i=0;i<NUM_SHARED_BOTS;i++){
 		msg.shared[i].id = nearBots[i].myMeas.id;		
 		msg.shared[i].range = packRange(nearBots[i].myMeas.r);
 		msg.shared[i].b = packAngleMeas(nearBots[i].myMeas.b);
-		msg.shared[i].h = packAngleMeas(nearBots[i].myMeas.h);
-		msg.shared[i].conf = nearBots[i].myMeas.conf;
 	}
-	getUsedBots(msg.used);
+	//getUsedBots(msg.used);
 	ir_send(ALL_DIRS, (char*)(&msg), sizeof(NearBotsMsg));
 }
 
 void handleNearBotsMsg(NearBotsMsg* msg, id_t senderID){
 	OtherBot* nearBot = getOtherBot(senderID);
 	if(nearBot){
-		NB_DEBUG_PRINT("(NearBotsMsg) ID: %04X", senderID);
+		NB_DEBUG_PRINT("    (NearBotsMsg) ID: %04X ", senderID);
 		unpackPos(&(msg->pos), &(nearBot->pos));
 		if(nearBot->pos.x!=UNDF && nearBot->pos.y!=UNDF && nearBot->pos.o!=UNDF){
-			NB_DEBUG_PRINT("\tX: %4d Y: %4d O: %3d C: %2hu", nearBot->pos.x, nearBot->pos.y, nearBot->pos.o, nearBot->pos.conf);
+			NB_DEBUG_PRINT("| X: %4d Y: %4d O: %3d C: %2hu", nearBot->pos.x, nearBot->pos.y, nearBot->pos.o, nearBot->pos.conf);
 		}
-		NB_DEBUG_PRINT("\r\n");
 		for(uint8_t i=0;i<NUM_SHARED_BOTS;i++){
 			if(msg->shared[i].id == get_droplet_id()){
 				nearBot->theirMeas.r = unpackRange(msg->shared[i].range);
 				nearBot->theirMeas.b = unpackAngleMeas(msg->shared[i].b);
-				nearBot->theirMeas.h = unpackAngleMeas(msg->shared[i].h);
+				nearBot->theirMeas.h = UNDF;
 				nearBot->theirMeas.id = get_droplet_id();
-				nearBot->theirMeas.conf = msg->shared[i].conf;
-				NB_DEBUG_PRINT("\t%4u, % 4d, %2hu\r\n", nearBot->theirMeas.r, nearBot->theirMeas.b, nearBot->theirMeas.conf);
+				nearBot->theirMeas.conf = 8;
+				NB_DEBUG_PRINT("| R: %4u, B: % 4d", nearBot->theirMeas.r, nearBot->theirMeas.b);
 				break;
 			}
 		}
-		nearBot->hasNewInfo = checkNearBotForNewInfo(msg->used);
+		printf("\r\n");
+		//nearBot->hasNewInfo = checkNearBotForNewInfo(msg->used);
 	}
 }
 
-uint8_t checkNearBotForNewInfo(id_t usedBots[NUM_USED_BOTS]){
-	NEW_INFO_DEBUG_PRINT("\tUsed Bots: ");
-	uint8_t found = 1;
-	for(uint8_t i=0 ; i < NUM_USED_BOTS ; i++){
-		NEW_INFO_DEBUG_PRINT("%04X ", usedBots[i]);
-		if(usedBots[i] == get_droplet_id()){
-			found = 0;
-		}
-	}
-	NEW_INFO_DEBUG_PRINT("\r\n");
-	return found;
-}
+//uint8_t checkNearBotForNewInfo(id_t usedBots[NUM_USED_BOTS]){
+	//NEW_INFO_DEBUG_PRINT("\tUsed Bots: ");
+	//uint8_t found = 1;
+	//for(uint8_t i=0 ; i < NUM_USED_BOTS ; i++){
+		//NEW_INFO_DEBUG_PRINT("%04X ", usedBots[i]);
+		//if(usedBots[i] == get_droplet_id()){
+			//found = 0;
+		//}
+	//}
+	//NEW_INFO_DEBUG_PRINT("\r\n");
+	//return found;
+//}
 
 void handle_msg(ir_msg* msg_struct){
 	if(((BallMsg*)(msg_struct->msg))->flag==BALL_MSG_FLAG){
@@ -655,7 +657,7 @@ void handle_msg(ir_msg* msg_struct){
 }
 
 void frameEndPrintout(){
-	printf_P(PSTR("\n\tID: %04X T: %lu [ "), get_droplet_id(), get_time());
+	printf_P(PSTR("\nID: %04X T: %lu [ "), get_droplet_id(), get_time());
 	switch(myState){
 		case STATE_PIXEL:					printf("Pixel");		break;
 		case (STATE_PIXEL|STATE_NORTH):		printf("North Pixel");	break;
@@ -664,10 +666,10 @@ void frameEndPrintout(){
 	}
 	printf_P(PSTR(" ]\r\n"));
 	if((myPos.x != UNDF) && (myPos.y != UNDF) && (myPos.o != UNDF)){
-		printf_P(PSTR("\t\tMy Pos: {%d, %d, %d, %hu}\r\n"), myPos.x, myPos.y, myPos.o, myPos.conf);
+		printf_P(PSTR("\tMy Pos: {%d, %d, %d, %hu}\r\n"), myPos.x, myPos.y, myPos.o, myPos.conf);
 	}
 	if((theBall.xPos != UNDF) && (theBall.yPos != UNDF)){
-		printf_P(PSTR("\t\tBall ID: %hu; radius: %hu; Pos: (%d, %d) @ vel (%hd, %hd)\r\n"), theBall.id, theBall.radius, theBall.xPos, theBall.yPos, theBall.xVel, theBall.yVel);
+		printf_P(PSTR("\tBall ID: %hu; radius: %hu; Pos: (%d, %d) @ vel (%hd, %hd)\r\n"), theBall.id, theBall.radius, theBall.xPos, theBall.yPos, theBall.xVel, theBall.yVel);
 	}
 	printf("\r\n");	
 }
@@ -696,9 +698,9 @@ void removeOtherBot(uint8_t idx){
 	numNearBots--;
 }
 
-OtherBot* addOtherBot(id_t id, uint16_t range, int8_t conf){
+OtherBot* addOtherBot(id_t id){
 	uint8_t emptyIdx=0xFF;
-	qsort(nearBots, NUM_TRACKED_BOTS, sizeof(OtherBot), nearBotsConfCmpFunc);
+	qsort(nearBots, NUM_TRACKED_BOTS+1, sizeof(OtherBot), nearBotsConfCmpFunc);
 	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
 		if(nearBots[i].myMeas.id==id){
 			return &(nearBots[i]);
@@ -716,19 +718,8 @@ OtherBot* addOtherBot(id_t id, uint16_t range, int8_t conf){
 	// least confident in. But only if we're more confident
 	// in the new neighbor.
 	//BotPos* pos = &(nearBots[NUM_TRACKED_BOTS-1].pos);
-	OtherBot tmp;
-	(tmp.myMeas).id = id;
-	(tmp.myMeas).r = range;
-	(tmp.myMeas).conf = conf;
-	(tmp.theirMeas.id) = 0;
-	if(compareNearBots(&(nearBots[NUM_TRACKED_BOTS-1]),&tmp)==1){
-		POS_DEBUG_PRINT("No empty spot, but higher conf.\r\n");
-		cleanOtherBot(&nearBots[NUM_TRACKED_BOTS-1]);
-		return &(nearBots[NUM_TRACKED_BOTS-1]);
-	}else{
-		POS_DEBUG_PRINT("No empty spot, and conf too low.\r\n");
-		return NULL;
-	}
+	cleanOtherBot(&nearBots[NUM_TRACKED_BOTS]);
+	return &(nearBots[NUM_TRACKED_BOTS]);
 }
 
 void cleanOtherBot(OtherBot* other){
@@ -748,7 +739,23 @@ void cleanOtherBot(OtherBot* other){
 	other->theirMeas.h = UNDF;
 	other->theirMeas.conf = 0;
 	other->lastUsed = 0;
-	other->hasNewInfo = 0;
+	//other->hasNewInfo = 0;
+}
+
+void printOtherBot(OtherBot* bot){
+	if(bot==NULL) return;
+	BotPos*  pos = &(bot->pos);
+	BotMeas* myM = &(bot->myMeas);
+	BotMeas* thM = &(bot->theirMeas);
+	if(myM->id == 0) return;
+	printf("\t\t%04X: {%4u, % 4d} ", myM->id, myM->r, myM->b);
+	if(thM->id==get_droplet_id()){
+		printf("{%4u, % 4d} ", thM->r, thM->b);
+	}
+	if(pos->x!=UNDF && pos->y!=UNDF && pos->o!=UNDF && pos->conf!=0){
+		printf(" {%4d, %4d, % 4d, %2hu}", pos->x, pos->y, pos->o, pos->conf);
+	}
+	printf("\r\n");
 }
 
 /*
@@ -781,14 +788,14 @@ uint8_t user_handle_command(char* command_word, char* command_args){
 		return 1;
 	}else if(strcmp_P(command_word,PSTR("mode"))==0){
 		switch(command_args[0]){
-			case 'p': colorMode = POS;			break;
-			case 's': colorMode = SYNC_TEST;	break;
-			case 'o': colorMode = OFF;			break;
+			case 'p':	colorMode = POS;		break;
+			case 's':	colorMode = SYNC_TEST;	break;
+			case 'o':	colorMode = OFF;		break;
 		}
 		switch(command_args[1]){
-			case 'p': gameMode = PONG;			break;
-			case 'b': gameMode = BOUNCE;		break;
-			default:  gameMode = BOUNCE;		break;
+			case 'p':	gameMode = PONG;		break;
+			case 'b':	gameMode = BOUNCE;		break;
+			default:	gameMode = BOUNCE;		break;
 		}
 		return 1;
 	}else if(strcmp_P(command_word,PSTR("ball_kill"))==0){
@@ -796,21 +803,30 @@ uint8_t user_handle_command(char* command_word, char* command_args){
 		return 1;
 	}else if(strcmp_P(command_word,PSTR("uB"))==0){
 		switch(command_args[0]){
-			case '1': useBlacklist = 1; break;
-			case '0': useBlacklist = 0; break;
-			default: useBlacklist = !useBlacklist;
+			case '1':	useBlacklist = 1; break;
+			case '0':	useBlacklist = 0; break;
+			default:	useBlacklist = !useBlacklist;
 		}
 		printf("Use blacklist: %hu\r\n",useBlacklist);
 		return 1;
-	}else if(strcmp_P(command_word,PSTR("uN"))==0){
+	}else if(strcmp_P(command_word, PSTR("uA"))==0){
 		switch(command_args[0]){
-			case '1': useNewInfo = 1; break;
-			case '0': useNewInfo = 0; break;
-			default: useNewInfo = !useNewInfo;
+			case '1':	useMeasAveraging = 1; break;
+			case '0':	useMeasAveraging = 0; break;
+			default:	useMeasAveraging = !useMeasAveraging;
 		}
-		printf("Use newInfo: %hu\r\n",useNewInfo);
+		printf("Use meas averaging: %hu\r\n",useMeasAveraging);
 		return 1;
 	}
+	//else if(strcmp_P(command_word,PSTR("uN"))==0){
+		//switch(command_args[0]){
+			//case '1': useNewInfo = 1; break;
+			//case '0': useNewInfo = 0; break;
+			//default: useNewInfo = !useNewInfo;
+		//}
+		//printf("Use newInfo: %hu\r\n",useNewInfo);
+		//return 1;
+	//}
 
 	return 0;
 }
@@ -841,32 +857,32 @@ void cleanHardBots(){
 		hardBotsList = temp;
 	}
 }
-
-void getUsedBots(id_t dest[NUM_USED_BOTS]){
-	NEW_INFO_DEBUG_PRINT("My Used bots: ");
-	for(uint8_t i=0;i<NUM_USED_BOTS;i++){
-		NEW_INFO_DEBUG_PRINT("%04X ", lastUsedBots[i]);
-		dest[i] = lastUsedBots[i];
-	}
-	NEW_INFO_DEBUG_PRINT("\r\n");
-}
-
-void addUsedBot(id_t bot){
-	uint8_t curIdx = (NUM_USED_BOTS-1);
-	for(uint8_t i=0;i<NUM_USED_BOTS;i++){
-		if(lastUsedBots[i] == bot){
-			curIdx = i;
-			break;
-		}
-	}
-	for(uint8_t i=curIdx;i>=1;i--){
-		lastUsedBots[i] = lastUsedBots[i-1];
-	}
-	lastUsedBots[0] = bot;
-}
-
-void initUsedBots(){
-	for(uint8_t i=0;i<NUM_USED_BOTS;i++){
-		lastUsedBots[i] = 0;
-	}
-}
+//
+//void getUsedBots(id_t dest[NUM_USED_BOTS]){
+	//NEW_INFO_DEBUG_PRINT("My Used bots: ");
+	//for(uint8_t i=0;i<NUM_USED_BOTS;i++){
+		//NEW_INFO_DEBUG_PRINT("%04X ", lastUsedBots[i]);
+		//dest[i] = lastUsedBots[i];
+	//}
+	//NEW_INFO_DEBUG_PRINT("\r\n");
+//}
+//
+//void addUsedBot(id_t bot){
+	//uint8_t curIdx = (NUM_USED_BOTS-1);
+	//for(uint8_t i=0;i<NUM_USED_BOTS;i++){
+		//if(lastUsedBots[i] == bot){
+			//curIdx = i;
+			//break;
+		//}
+	//}
+	//for(uint8_t i=curIdx;i>=1;i--){
+		//lastUsedBots[i] = lastUsedBots[i-1];
+	//}
+	//lastUsedBots[0] = bot;
+//}
+//
+//void initUsedBots(){
+	//for(uint8_t i=0;i<NUM_USED_BOTS;i++){
+		//lastUsedBots[i] = 0;
+	//}
+//}

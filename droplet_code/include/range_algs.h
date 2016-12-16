@@ -34,6 +34,9 @@ volatile uint8_t rnb_updated;
 volatile id_t rnbCmdID;
 volatile uint32_t rnbCmdSentTime;
 volatile uint8_t rnbProcessingFlag;
+volatile Task_t* rnbProcessingTask;
+volatile uint32_t rnbPFsetTime;
+#define RNB_PROCESSING_TIMEOUT 1000
 
 void range_algs_init();
 

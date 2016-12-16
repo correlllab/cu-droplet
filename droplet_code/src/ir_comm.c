@@ -1,8 +1,11 @@
 #include "ir_comm.h"
 #include "rgb_led.h"
 
-static volatile uint8_t processing_cmd;
-static volatile uint8_t processing_ffsync;
+static volatile uint8_t cmdProcessingFlag;
+volatile uint32_t cmdPFsetTime;
+volatile Task_t* cmdProcessingTask;
+#define CMD_PROCESSING_TIMEOUT 1000
+static volatile uint8_t ffsyncProcessingFlag;
 
 static void clear_ir_buffer(uint8_t dir);
 static void perform_ir_upkeep();
@@ -85,9 +88,10 @@ void ir_comm_init(){
 	cmd_arrival_time=0;
 	num_waiting_msgs=0;
 	user_facing_messages_ovf=0;
-	processing_cmd = 0;
-	processing_ffsync = 0;
-
+	cmdProcessingFlag = 0;
+	ffsyncProcessingFlag = 0;
+	rnbProcessingTask = NULL;
+	cmdProcessingTask = NULL;
 	schedule_periodic_task(1000/IR_UPKEEP_FREQUENCY, perform_ir_upkeep, NULL);
 	
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
@@ -104,7 +108,7 @@ void handle_cmd_wrapper(){
 	local_msg_len = cmd_length;
 	handle_serial_command(local_msg_copy, local_msg_len);
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-		processing_cmd = 0;
+		cmdProcessingFlag = 0;
 	}
 }
 
@@ -344,7 +348,7 @@ static void ir_receive(uint8_t dir){
 				ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 					ir_rxtx[dir].status |= IR_STATUS_COMPLETE_bm;
 					ir_rxtx[dir].status |= IR_STATUS_BUSY_bm; //mark as busy so we don't overwrite it.
-					channel[dir]->CTRLB &= ~USART_RXEN_bm; //Disable receiving messages on this channel until the message has been processed.
+					channel[dir]->CTRLB &= ~USART_RXEN_bm;    //Disable receiving messages on this channel until the message has been processed.
 				}
 			}
 			//printf("\r\n");
@@ -357,7 +361,12 @@ static void ir_receive(uint8_t dir){
 static void received_ir_cmd(uint8_t dir){
 	uint8_t processThisCommand = 0;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-		if(!processing_cmd){
+		uint8_t timedOut = ((get_time()-cmdPFsetTime)>CMD_PROCESSING_TIMEOUT);
+		if(!cmdProcessingFlag || timedOut){
+			if(cmdProcessingFlag && timedOut){
+				printf_P(PSTR("cmd process timed out.\r\n"));
+				remove_task(cmdProcessingTask);
+			}
 			processThisCommand = 1;
 			memcpy((void*)cmd_buffer, (char*)ir_rxtx[dir].buf, ir_rxtx[dir].data_length);
 			cmd_buffer[ir_rxtx[dir].data_length]='\0';
@@ -366,11 +375,12 @@ static void received_ir_cmd(uint8_t dir){
 			cmd_sender_id = ir_rxtx[dir].sender_ID;		//This is a 'global' value, referenced by other *.c files.
 			cmd_arrival_dir = dir;
 			cmd_sender_dir  = ir_rxtx[dir].inc_dir;
-			processing_cmd = 1;
+			cmdProcessingFlag = 1;
+			cmdPFsetTime = get_time();
 		}
 	}
 	if(processThisCommand){
-		schedule_task(5, handle_cmd_wrapper, NULL);
+		cmdProcessingTask = schedule_task(5, handle_cmd_wrapper, NULL);
 		ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 			for(uint8_t other_dir=0;other_dir<6;other_dir++){
 				clear_ir_buffer(other_dir);
@@ -383,11 +393,11 @@ static void received_ir_sync(uint8_t delay, id_t senderID){
 	uint8_t processThisFFSync = 0;
 	uint16_t count;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-		if(!processing_ffsync){
+		if(!ffsyncProcessingFlag){
 			count = TCE0.CNT;
 			if(delay!=0xFF){
 				processThisFFSync = 1;
-				processing_ffsync = 1;
+				ffsyncProcessingFlag = 1;
 			}
 		}
 	}
@@ -400,7 +410,7 @@ static void received_ir_sync(uint8_t delay, id_t senderID){
 					clear_ir_buffer(dir);
 				}
 			}
-			processing_ffsync = 0;
+			ffsyncProcessingFlag = 0;
 		}
 	}
 }
@@ -408,16 +418,21 @@ static void received_ir_sync(uint8_t delay, id_t senderID){
 static void received_rnb_r(uint8_t delay, id_t senderID, uint32_t last_byte){
 	uint8_t processThisRNB = 0;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-		if(!rnbProcessingFlag && !hp_ir_block_bm){
+		uint8_t timedOut = ((get_time()-rnbPFsetTime)>RNB_PROCESSING_TIMEOUT);
+		if(!hp_ir_block_bm && (!rnbProcessingFlag || timedOut)){
 			if(delay!=0xFF){
+				if(rnbProcessingFlag && timedOut){
+					printf_P(PSTR("rnb process timed out.\r\n"));
+					remove_task(rnbProcessingTask);
+				}
 				rnbCmdID = senderID;
 				//printf("%04X: %hu\r\n", rnbCmdID, delay+5);			
 				if(delay<5) delay = 20-delay;
 				rnbCmdSentTime = last_byte-(delay+5);
 				processThisRNB = 1;
 				rnbProcessingFlag = 1;
+				rnbPFsetTime = get_time();
 				hp_ir_block_bm = 0xFF;
-
 			}
 		}
 	}
@@ -430,11 +445,11 @@ static void received_rnb_r(uint8_t delay, id_t senderID, uint32_t last_byte){
 			}
 		}
 		rnbCmdSentTime-= (processThisRNB>1) ? (20-delay) : 0;
-		ir_range_meas();	
+		ir_range_meas();
 		ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 			hp_ir_block_bm = 0;
 		}
-		schedule_task(10, use_rnb_data, NULL);
+		rnbProcessingTask = schedule_task(10, use_rnb_data, NULL);
 	}
 }
 

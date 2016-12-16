@@ -55,6 +55,12 @@ volatile Task_t *task_list;
 volatile uint16_t rtc_epoch;
 volatile uint8_t num_tasks, task_executing;
 
+volatile flex_function	lastScheduledFunc;
+volatile uint32_t		lsfCompleteTime;
+volatile flex_function	lastNpScheduledFunc;
+volatile uint32_t		lsfNpCompleteTime;
+
+
 // Get the current 32-bit time, as measured in ms from the last reset
  uint32_t get_time();
 

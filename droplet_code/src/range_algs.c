@@ -26,7 +26,7 @@ static const float bearingBasis[6][2]=	{
 static int16_t bm[6];
 static uint32_t sensorHealthHistory;
 static int16_t calculate_range(float bearing);
-static void calculate_bearing(float* bearing, float* var);
+static float calculate_bearing();
 static void checkSensorHealth();
 
 
@@ -73,8 +73,7 @@ void use_rnb_data(){
 	float bearing = calculate_bearing();
 	int16_t intRange = calculate_range(bearing);
 	int16_t intBearing = (int16_t)rad_to_deg(bearing);
-	//printf("{\"%04X\", \"%04X\", % 6d, % 6d, % 6d, % 6d, % 6d, % 6d, %4d, % 4d},\r\n", rnbCmdID, 
-				//get_droplet_id(), bm[0], bm[1], bm[2], bm[3], bm[4], bm[5], intRange, intBearing);
+	printf("{\"%04X\", %4d, % 4d},\r\n", rnbCmdID, intRange, intBearing);
 	last_good_rnb.id		= rnbCmdID;
 	last_good_rnb.range		= intRange;
 	last_good_rnb.bearing	= intBearing;

@@ -24,13 +24,13 @@ void loop(){
 		frameCount++;
 		if(frameCount%5==0){
 			move_steps(6,1000);
-			set_rgb(0,0,255);
+			//set_rgb(0,0,255);
 		}
 	}
 	if(loopID!=(frameTime/SLOT_LENGTH_MS)){
 		loopID = frameTime/SLOT_LENGTH_MS;
 		if(loopID==mySlot){
-			set_rgb(0,255,0);
+			//set_rgb(0,255,0);
 			if(is_moving()==-1){
 				delay_ms(12);
 				broadcast_rnb_data();

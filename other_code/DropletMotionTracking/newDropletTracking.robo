@@ -1,16 +1,16 @@
-<head><version>2.77.8</version></head>
+<head><version>2.80.48</version></head>
 <Affine>
+  <maintain_aspect_ratio>FALSE</maintain_aspect_ratio>
   <perspective_compensation>TRUE</perspective_compensation>
-  <point_1_x>681.5</point_1_x>
-  <point_1_y>1075.5</point_1_y>
-  <point_2_x>1620</point_2_x>
-  <point_2_y>1068</point_2_y>
-  <point_3_x>556.5</point_3_x>
-  <point_3_y>82.5</point_3_y>
-  <point_4_x>1751.5</point_4_x>
-  <point_4_y>35.5</point_4_y>
-  <scroll_x_offset>133</scroll_x_offset>
-  <scroll_y_offset>558</scroll_y_offset>
+  <point_1_x>738</point_1_x>
+  <point_1_y>1071.75</point_1_y>
+  <point_2_x>1669.5</point_2_x>
+  <point_2_y>1047.75</point_2_y>
+  <point_3_x>591.25</point_3_x>
+  <point_3_y>92.25</point_3_y>
+  <point_4_x>1774</point_4_x>
+  <point_4_y>3.5</point_4_y>
+  <scroll_x_offset>424</scroll_x_offset>
   <transform_height>1000</transform_height>
   <transform_width>1000</transform_width>
   <zoom>12</zoom>
@@ -26,6 +26,7 @@
 <Fiducial>
   <adaptive_threshold>30</adaptive_threshold>
   <base_folder>.\fids3</base_folder>
+  <color_fiducials>FALSE</color_fiducials>
   <create_shape_array>TRUE</create_shape_array>
   <display_confidence>FALSE</display_confidence>
   <display_contrast>FALSE</display_contrast>
@@ -43,6 +44,7 @@
   <field_of_view>61</field_of_view>
   <focal_length>250</focal_length>
   <font_size_index>2</font_size_index>
+  <high_precision>TRUE</high_precision>
   <matched_color_index>3</matched_color_index>
   <max_angle>360</max_angle>
   <max_confidence>100</max_confidence>
@@ -111,6 +113,7 @@
 <function_name>Tab2</function_name>
 <function_always_run>0</function_always_run>
 <Affine>
+  <maintain_aspect_ratio>FALSE</maintain_aspect_ratio>
   <perspective_compensation>TRUE</perspective_compensation>
   <point_1_x>564.5</point_1_x>
   <point_1_y>1083.5</point_1_y>
@@ -165,6 +168,7 @@
 <Blob_Colorize>
   <comparison_mode>1</comparison_mode>
   <sensitivity>75</sensitivity>
+  <show_labels>FALSE</show_labels>
   <source_image>Corrected</source_image>
   <threshold>0</threshold>
 </Blob_Colorize>

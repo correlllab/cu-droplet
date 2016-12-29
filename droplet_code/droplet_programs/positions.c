@@ -104,6 +104,7 @@ void calcPosFromMeas(BotPos* calcPos, BotPos* pos, BotMeas* meas){
 	float x		 = pos->x;
 	float y		 = pos->y;
 	int16_t o	 = pos->o;
+	float conf   = pos->conf;
 	uint16_t r   = meas->r;
 	int16_t b	 = meas->b;
 	int16_t h    = meas->h;
@@ -112,15 +113,15 @@ void calcPosFromMeas(BotPos* calcPos, BotPos* pos, BotMeas* meas){
 	calcPos->x = (int16_t)(x + deltaX + 0.5);
 	calcPos->y = (int16_t)(y + deltaY + 0.5);
 	calcPos->o = pretty_angle_deg(o + h);
-	if(r>300){
-		calcPos->conf = (pos->conf)/4;
-	}else if(r>200){
-		calcPos->conf = (pos->conf)/3;
-	}else if(r>100){
-		calcPos->conf = (pos->conf)/2;
+	float sigmoidDenom = 1 + exp(2 - 0.125*conf);
+	if(r>250){
+		calcPos->conf = (uint8_t)((4.0/sigmoidDenom)+0.5);
+	}else if(r>125){
+		calcPos->conf = (uint8_t)((8.0/sigmoidDenom)+0.5);
 	}else{
-		calcPos->conf = ((pos->conf)*3)/4;
+		calcPos->conf = (uint8_t)((16.0/sigmoidDenom)+0.5);
 	}
+	//printf("%p | %4d, %4d, %4d, %2hu\r\n", calcPos, calcPos->x, calcPos->y, calcPos->o, calcPos->conf);
 }
 
 void printPosFromMeas(BotPos* pos, BotMeas* meas){
@@ -149,6 +150,9 @@ uint8_t countAvailableMeasurements(){
 	*/
 uint8_t nearBotUseabilityCheck(uint8_t i){
 	if(!validNearBotIdx(i)){
+		return 0;
+	}
+	if(nearBots[i].pos.conf<16){
 		return 0;
 	}
 	//if(!(nearBots[i].hasNewInfo)){
@@ -197,10 +201,60 @@ void prepExpectedPositions(BotPos* expPosArr, BotPos* avoidPosArr){
 				avoidPosArr[i].o = 0;
 				avoidPosArr[i].conf = nearBots[i].pos.conf;
 			}
-			//addUsedBot(nearBots[i].myMeas.id);
-			nearBots[i].lastUsed = frameCount;
 			botIdx++;
 		}
+	}
+}
+
+void prepExpectedPositionsUnbatch(BotPos* expPosArr, BotPos* avoidPosArr){
+	uint8_t botIdx=0;
+	BotMeas fusedMeas;
+	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
+		if(nearBotUseabilityCheck(i)){
+			fuseMeasurements(&fusedMeas, &(nearBots[i].myMeas), &(nearBots[i].theirMeas));
+			calcPosFromMeas(&(expPosArr[botIdx]), &(nearBots[i].uPos), &fusedMeas);
+			//printPosFromMeas(&(nearBots[i].uPos), &fusedMeas);
+			if(avoidPosArr!=NULL){
+				avoidPosArr[i].x = nearBots[i].uPos.x;
+				avoidPosArr[i].y = nearBots[i].uPos.y;
+				avoidPosArr[i].o = 0;
+				avoidPosArr[i].conf = nearBots[i].uPos.conf;
+			}
+			botIdx++;
+		}
+	}
+}
+
+void psuedoKalmanUpdate(BotPos* newPos){
+	float myX    = unbatchPos.x;
+	float myY    = unbatchPos.y;
+	float myO    = unbatchPos.o;
+	float myConf = unbatchPos.conf;
+	float newX   = newPos->x;
+	float newY   = newPos->y;
+	float newO   = newPos->o;
+	float newConf = newPos->conf;
+	if(unbatchPos.x !=UNDF && unbatchPos.y !=UNDF && unbatchPos.o!=UNDF && unbatchPos.conf!=0){
+		float xInnov = newX-myX;
+		float yInnov = newY-myY;
+		float oInnov = newO-myO;
+		float stdDev = stdDevFromConf(myConf);
+		float measStdDev = stdDevFromConf(newConf);
+		float measVar = measStdDev*measStdDev;
+		float var = stdDev*stdDev;
+		float kalmanGain = var/(var + measVar);
+		unbatchPos.x = (int16_t)(myX + kalmanGain*xInnov + 0.5);
+		unbatchPos.y = (int16_t)(myY + kalmanGain*yInnov + 0.5);
+		unbatchPos.o = pretty_angle_deg((int16_t)(myO+kalmanGain*oInnov+0.5));
+		float newVar = (1.0-kalmanGain)*var;
+		newConf = confFromStdDev(sqrtf(newVar));
+		//printf(", %6f | K: %f\r\n", newConf, kalmanGain);
+		unbatchPos.conf = (uint8_t)(newConf+0.5);
+	}else{
+		unbatchPos.x = (int16_t)(newX+0.5);
+		unbatchPos.y = (int16_t)(newY+0.5);
+		unbatchPos.o = (int16_t)(newO+0.5);
+		unbatchPos.conf = (int16_t)(newConf+0.5);
 	}
 }
 
@@ -211,61 +265,77 @@ void updatePosition(){
 	float oTotY = 0;
 	float totConf = 0;
 	float conf; //conf*pos mult should happen in bigger-than-int16 space, and this is easier than a bunch of typecasts later
-	float myX = myPos.x;
-	float myY = myPos.y;
-	float myO = myPos.o;
-	float myConf = myPos.conf;
+	float myX = batchPos.x;
+	float myY = batchPos.y;
+	float myO = batchPos.o;
+	float myConf = batchPos.conf;
 
 	uint8_t numMeas = countAvailableMeasurements();
+	printf("Num Meas: %hu\r\n", numMeas);
 	if(!numMeas){ //no measurements to initialize with.
 		printf("\tCan't update; no new measurements available.\r\n");
 		return;
 	}
 	BotPos expPos[numMeas];
-	BotPos avoidPos[numMeas];
-	prepExpectedPositions(expPos, avoidPos);
+	//BotPos avoidPos[numMeas];
+	prepExpectedPositions(expPos, NULL);
+	BotPos expPosU[numMeas];
+	//BotPos avoidPosU[numMeas];
+	prepExpectedPositionsUnbatch(expPosU, NULL);
 	for(uint8_t i=0 ; i<numMeas ; i++){
+		psuedoKalmanUpdate(&(expPosU[i]));
 		conf = expPos[i].conf;
 		totX += conf*expPos[i].x;
 		totY += conf*expPos[i].y;
 		oTotX += conf*cosf(deg_to_rad(expPos[i].o));
 		oTotY += conf*sinf(deg_to_rad(expPos[i].o));
 		totConf += conf;
+		//addUsedBot(nearBots[i].myMeas.id);
+		nearBots[i].lastUsed = frameCount;
 	}
 	//TODO: Use avoidPos information.
 	float newX = totX/totConf;
 	float newY = totY/totConf;
 	float newO = rad_to_deg(atan2f(oTotY, oTotX));
-	float newConf = totConf/((float)numMeas);
-	printf("New Pos: %6f, %6f, %6f, %6f", newX, newY, newO, newConf);
-	if(myPos.x !=UNDF && myPos.y !=UNDF && myPos.o!=UNDF && myPos.conf!=0){
-		float posInnovation = hypotf(newX-myPos.x,newY-myPos.y);
-		float oInnovation = fabsf(pretty_angle_deg(newO-myPos.o));
-		printf(" || pI: %6f oI: %6f\r\n", posInnovation, oInnovation);
-
-		myPos.x = (int16_t)((myConf*myX + newConf*newX)/(myConf+newConf));
-		myPos.y = (int16_t)((myConf*myY + newConf*newY)/(myConf+newConf));
-		oTotX = myConf*cosf(deg_to_rad(myO))+newConf*cosf(deg_to_rad(newO));
-		oTotY = myConf*sinf(deg_to_rad(myO))+newConf*sinf(deg_to_rad(newO));
-		myPos.o = (int16_t)rad_to_deg(atan2f(oTotY, oTotX));
-		myPos.conf = (uint8_t)((myConf+newConf)/2.0);
+	float measConf = totConf/((float)numMeas);
+	//printf("myX: %f, myY: %f, myO: %f, myC: %f\r\n",myPos.x==UNDF ? NAN : myX, myPos.y==UNDF ? NAN : myY, myPos.o==UNDF ? NAN: myO, myPos.conf == 0 ? NAN : myConf);
+	//printf("New Pos: %6f, %6f, %6f", newX, newY, newO);
+	if(myX !=UNDF && myY !=UNDF && myO!=UNDF && myConf!=0){
+		float xInnov = newX-myX;
+		float yInnov = newY-myY;
+		float oInnov = newO-myO;
+		float stdDev = stdDevFromConf(myConf);
+		float var = stdDev*stdDev;
+		float measStdDev = stdDevFromConf(measConf);
+		float measVar = measStdDev*measStdDev;
+		float kalmanGain = var/(var + measVar);
+		batchPos.x = (int16_t)(myX + kalmanGain*xInnov + 0.5);
+		batchPos.y = (int16_t)(myY + kalmanGain*yInnov + 0.5);
+		batchPos.o  = pretty_angle_deg((int16_t)(myO + kalmanGain*oInnov+0.5));
+		float newVar = (1.0-kalmanGain)*var;
+		measConf = confFromStdDev(sqrtf(newVar));		
+		//printf(", %6f | K: %f\r\n", newConf, kalmanGain);
+		batchPos.conf = (uint8_t)(measConf+0.5);
+		//predicted state: myPos.x, myPos.y, myPos.o
+		//predicted covariance proportional to myPos.conf
+		//innovation: difference between measurement and expected measurement given previous estimate.
+		//				?~= difference bewtween newPos and myPos?
+		//kalman gain ~=  predicted covar/(predicted covar + constant noise term)
+		//new state: prevState + kalman gain* residual.
 	}else{
-		printf("\r\n");
-		myPos.x = (int16_t)newX;
-		myPos.y = (int16_t)newY;
-		myPos.o = (int16_t)newO;
-		myPos.conf = (uint8_t)newConf;
+		batchPos.x = (int16_t)(newX+0.5);
+		batchPos.y = (int16_t)(newY+0.5);
+		batchPos.o = (int16_t)(newO+0.5);
+		batchPos.conf = (uint8_t)(measConf+0.5);
+		//printf(", %6f\r\n", newConf);
 	}
+	
 }
 
 void handleFrameEnd(){
 	printf("Frame End Calculations\r\n");
 	qsort(nearBots, NUM_TRACKED_BOTS+1, sizeof(OtherBot), nearBotsConfCmpFunc);
-	printf("\tNear Bots:\r\n");
-	for(uint8_t i=0; i<NUM_TRACKED_BOTS+1; i++){
-		printOtherBot(&nearBots[i]);
-	}
-	printf("\r\n");
+	printNearBots();
 
 	//Maybe we'll want to remove the N worst nearBots, here.
 	if(!seedFlag){
@@ -296,7 +366,6 @@ void updateHardBots(){
 		nearBotsMeas[i].conf = nearBots[i].myMeas.conf;
 		numNearBots++;
 	}
-	printf("nNB: %hu\r\n",numNearBots);
 	cleanHardBots(); //clean out the previous hardBots list -- we start fresh each farme.
 	//sort nearBots according to their bearing.
 	qsort(nearBotsMeas, numNearBots, sizeof(BotMeas), nearBotMeasBearingCmpFunc);
@@ -325,7 +394,7 @@ void updateHardBots(){
 void degradeConfidence(){
 	//confidence degrades if we don't get new measurements.
 	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
-		nearBots[i].myMeas.conf>>=1;
+		nearBots[i].myMeas.conf>>=2;
 		if(nearBots[i].myMeas.conf==0){
 			removeOtherBot(i);
 		}else{
@@ -351,7 +420,7 @@ void useNewRnbMeas(){
 	 * conf is ARBITRARY - only matters if degrading confidence is turned on.
 	 * In this case it controls how long before things dissapear.
 	 */
-	uint8_t conf = 8; 
+	uint8_t conf = 16; 
 	RNB_DEBUG_PRINT("            (RNB) ID: %04X | R: %4u B: %4d\r\n", id, range, bearing);
 	OtherBot* measuredBot = addOtherBot(id);
 	BotMeas* meas;
@@ -387,7 +456,7 @@ void updateBall(){
 	if(theBall.lastUpdate){
 		uint32_t now = get_time();
 		int32_t timePassed = now-theBall.lastUpdate;
-		if((myPos.x!=UNDF) && (myPos.y!=UNDF) && (theBall.xPos!=UNDF) && (theBall.yPos!=UNDF)){
+		if((batchPos.x!=UNDF) && (batchPos.y!=UNDF) && (theBall.xPos!=UNDF) && (theBall.yPos!=UNDF)){
 
 			//int8_t crossedBefore = checkBallCrossedMe();
 
@@ -409,7 +478,7 @@ void updateBall(){
 			BALL_DEBUG_PRINT("B[%hu]: %d, %d\r\n", theBall.id, theBall.xPos, theBall.yPos);
 			uint8_t bounced = 0;
 			HardBot* tmp = hardBotsList;
-			myDist = (uint16_t)hypotf(myPos.x-theBall.xPos, myPos.y-theBall.yPos);
+			myDist = (uint16_t)hypotf(batchPos.x-theBall.xPos, batchPos.y-theBall.yPos);
 			while(tmp!=NULL){
 				OtherBot* bot = getOtherBot(tmp->id);
 				if(myDist<(((bot->myMeas).r*10)/6)){
@@ -457,11 +526,11 @@ void updateBall(){
 void updateColor(){
 	uint8_t newR = 0, newG = 0, newB = 0;
 	if(colorMode==POS){
-		if(myPos.x==UNDF||myPos.y==UNDF){
+		if(batchPos.x==UNDF||batchPos.y==UNDF){
 			newR = newG = newB = 50;
 		}else{
-			int16_t xColVal = (int16_t)(6.0*pow(41.0,(myPos.x-MIN_X)/((float)xRange))+9.0);
-			int16_t yColVal = (int16_t)(3.0*pow(84.0,(myPos.y-MIN_Y)/((float)yRange))+3.0);
+			int16_t xColVal = (int16_t)(6.0*pow(41.0,(batchPos.x-MIN_X)/((float)xRange))+9.0);
+			int16_t yColVal = (int16_t)(3.0*pow(84.0,(batchPos.y-MIN_Y)/((float)yRange))+3.0);
 			newR = (uint8_t)(xColVal);
 			newG = (uint8_t)(yColVal);
 		}
@@ -477,7 +546,7 @@ void updateColor(){
 		}
 		//printf("\r\n");
 	}
-	if(myPos.x!=UNDF && myPos.y!=UNDF){
+	if(batchPos.x!=UNDF && batchPos.y!=UNDF){
 		float coverage = getBallCoverage() /*+ getPaddleCoverage()*/;
 		coverage = (coverage > 1.0) ? 1.0 : coverage;
 		uint8_t intensityIncrease = 0;
@@ -586,6 +655,7 @@ void sendNearBotsMsg(){
 	NearBotsMsg msg;
 	msg.flag = NEAR_BOTS_MSG_FLAG;
 	packPos(&(msg.pos));
+	packPosU(&(msg.uPos));
 	//qsort(nearBots, NUM_TRACKED_BOTS+1, sizeof(OtherBot), nearBotsConfCmpFunc);
 	for(uint8_t i=0;i<NUM_SHARED_BOTS;i++){
 		msg.shared[i].id = nearBots[i].myMeas.id;		
@@ -601,8 +671,10 @@ void handleNearBotsMsg(NearBotsMsg* msg, id_t senderID){
 	if(nearBot){
 		NB_DEBUG_PRINT("    (NearBotsMsg) ID: %04X ", senderID);
 		unpackPos(&(msg->pos), &(nearBot->pos));
+		unpackPos(&(msg->uPos), &(nearBot->uPos));
 		if(nearBot->pos.x!=UNDF && nearBot->pos.y!=UNDF && nearBot->pos.o!=UNDF){
 			NB_DEBUG_PRINT("| X: %4d Y: %4d O: %3d C: %2hu", nearBot->pos.x, nearBot->pos.y, nearBot->pos.o, nearBot->pos.conf);
+			NB_DEBUG_PRINT("| X: %4d Y: %4d O: %3d C: %2hu", nearBot->uPos.x, nearBot->uPos.y, nearBot->uPos.o, nearBot->uPos.conf);
 		}
 		for(uint8_t i=0;i<NUM_SHARED_BOTS;i++){
 			if(msg->shared[i].id == get_droplet_id()){
@@ -610,12 +682,12 @@ void handleNearBotsMsg(NearBotsMsg* msg, id_t senderID){
 				nearBot->theirMeas.b = unpackAngleMeas(msg->shared[i].b);
 				nearBot->theirMeas.h = UNDF;
 				nearBot->theirMeas.id = get_droplet_id();
-				nearBot->theirMeas.conf = 8;
+				nearBot->theirMeas.conf = 16;
 				NB_DEBUG_PRINT("| R: %4u, B: % 4d", nearBot->theirMeas.r, nearBot->theirMeas.b);
 				break;
 			}
 		}
-		printf("\r\n");
+		NB_DEBUG_PRINT("\r\n");
 		//nearBot->hasNewInfo = checkNearBotForNewInfo(msg->used);
 	}
 }
@@ -658,8 +730,9 @@ void frameEndPrintout(){
 		default:							printf("???");			break;
 	}
 	printf_P(PSTR(" ]\r\n"));
-	if((myPos.x != UNDF) && (myPos.y != UNDF) && (myPos.o != UNDF)){
-		printf_P(PSTR("\tMy Pos: {%d, %d, %d, %hu}\r\n"), myPos.x, myPos.y, myPos.o, myPos.conf);
+	if((batchPos.x != UNDF) && (batchPos.y != UNDF) && (batchPos.o != UNDF)){
+		printf_P(PSTR("\tMy bPos: {%d, %d, %d, %hu}\r\n"), batchPos.x, batchPos.y, batchPos.o, batchPos.conf);
+		printf_P(PSTR("\tMy uPos: {%d, %d, %d, %hu}\r\n"), unbatchPos.x, unbatchPos.y, unbatchPos.o, unbatchPos.conf);
 	}
 	if((theBall.xPos != UNDF) && (theBall.yPos != UNDF)){
 		printf_P(PSTR("\tBall ID: %hu; radius: %hu; Pos: (%d, %d) @ vel (%hd, %hd)\r\n"), theBall.id, theBall.radius, theBall.xPos, theBall.yPos, theBall.xVel, theBall.yVel);
@@ -718,6 +791,10 @@ void cleanOtherBot(OtherBot* other){
 	other->pos.y = UNDF;
 	other->pos.o = UNDF;
 	other->pos.conf = 0;
+	other->uPos.x = UNDF;
+	other->uPos.y = UNDF;
+	other->uPos.o = UNDF;
+	other->uPos.conf = 0;
 	other->myMeas.id = 0;
 	other->myMeas.r = UNDF;
 	other->myMeas.b = UNDF;
@@ -732,18 +809,32 @@ void cleanOtherBot(OtherBot* other){
 	//other->hasNewInfo = 0;
 }
 
+void printNearBots(){
+	printf_P(PSTR("\t                         Near Bots                        \r\n"));
+	printf_P(PSTR("\t ID  |   x  |   y  |   o  |  c |  myR |  myB | thR |  thB \r\n"));
+	for(uint8_t i=0; i<NUM_TRACKED_BOTS+1; i++){
+		printOtherBot(&nearBots[i]);
+	}
+	printf("\r\n");
+}
+
 void printOtherBot(OtherBot* bot){
 	if(bot==NULL) return;
 	BotPos*  pos = &(bot->pos);
 	BotMeas* myM = &(bot->myMeas);
 	BotMeas* thM = &(bot->theirMeas);
 	if(myM->id == 0) return;
-	printf("\t\t%04X: {%4u, % 4d} ", myM->id, myM->r, myM->b);
-	if(thM->id==get_droplet_id()){
-		printf("{%4u, % 4d} ", thM->r, thM->b);
-	}
+	printf("\t%04X ", myM->id);
 	if(pos->x!=UNDF && pos->y!=UNDF && pos->o!=UNDF && pos->conf!=0){
-		printf(" {%4d, %4d, % 4d, %2hu}", pos->x, pos->y, pos->o, pos->conf);
+		printf_P(PSTR("| %4d | %4d | % 4d | %2hu "), pos->x, pos->y, pos->o, pos->conf);
+	}else{
+		printf_P(PSTR("|  --  |  --  |  --  | -- "));
+	}
+	printf_P(PSTR("| %4u | % 4d "), myM->r, myM->b);
+	if(thM->id==get_droplet_id()){
+		printf_P(PSTR("| %4u | % 4d "), thM->r, thM->b);
+	}else{
+		printf_P(PSTR("|  --  |  --  "));
 	}
 	printf("\r\n");
 }
@@ -754,14 +845,14 @@ void printOtherBot(OtherBot* bot){
  */
 uint8_t user_handle_command(char* command_word, char* command_args){	
 	if(strcmp_P(command_word,PSTR("ball"))==0){
-		if((UNDF!=myPos.x) && (UNDF!=myPos.y)){
+		if((UNDF!=batchPos.x) && (UNDF!=batchPos.y)){
 			const char delim[2] = " ";
 			char* token = strtok(command_args, delim);
 			int8_t vel = (token!=NULL) ? (int8_t)atoi(token) : 10;
 			token = strtok(NULL, delim);
 			uint8_t size = (token!=NULL) ? (uint8_t)atoi(token) : 60;
-			theBall.xPos = myPos.x;
-			theBall.yPos = myPos.y;
+			theBall.xPos = batchPos.x;
+			theBall.yPos = batchPos.y;
 			int16_t randomDir = rand_short()%360;
 			theBall.xVel = vel*cos(deg_to_rad(randomDir));
 			theBall.yVel = vel*sin(deg_to_rad(randomDir));

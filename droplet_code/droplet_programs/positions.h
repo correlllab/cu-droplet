@@ -6,8 +6,8 @@
 #define GEN_DEBUG_MODE
 #define P_SAMPLE_DEBUG_MODE
 #define P_L_DEBUG_MODE
-#define RNB_DEBUG_MODE
-#define NB_DEBUG_MODE
+//#define RNB_DEBUG_MODE
+//#define NB_DEBUG_MODE
 //#define BALL_DEBUG_MODE
 
 #define MIN_PACKED_X -1024
@@ -17,6 +17,8 @@
 //uint8_t useNewInfo;
 uint8_t useBlacklist;
 uint8_t useMeasAveraging;
+
+#define STOCK_MEAS_VAR 900.0 //this is 'R' in Kalman Filter notation. 22*22.
 
 #ifdef POS_DEBUG_MODE
 #define POS_DEBUG_PRINT(format, ...) printf_P(PSTR(format), ##__VA_ARGS__)
@@ -96,7 +98,7 @@ uint8_t useMeasAveraging;
 //#define PADDLE_WIDTH		(FLOOR_WIDTH/3)
 #define PADDLE_VEL				0.1
 #define NUM_SEEDS 4
-#define NUM_SHARED_BOTS 6
+#define NUM_SHARED_BOTS 4
 #define NUM_USED_BOTS 5
 #define NUM_TRACKED_BOTS 12
 
@@ -108,11 +110,6 @@ const int16_t  SEED_Y[NUM_SEEDS]   = {900, 900, 100, 100};
 #define MIN_Y 0
 #define MAX_X 1000
 #define MAX_Y 1000
-
-#define NUM_PARTICLES 200
-#define PROB_ONE 131071L
-#define LIKELIHOOD_THRESH (PROB_ONE/NUM_PARTICLES)
-
 
 #define STATE_PIXEL		0x1
 #define STATE_NORTH		0x2
@@ -164,6 +161,7 @@ typedef struct packed_bot_pos_struct{
 typedef struct near_bots_msg_struct{
 	PackedBotMeas shared[NUM_SHARED_BOTS]; //4 bytes each
 	PackedBotPos pos; //5 bytes.
+	PackedBotPos uPos; //5 bytes.
 	//id_t used[NUM_USED_BOTS];
 	char flag;	
 }NearBotsMsg;
@@ -196,28 +194,11 @@ typedef struct bot_pos_struct
 	uint8_t conf;
 } BotPos;
 
-typedef struct unpacked_particle_struct
-{
-	float l;
-	int16_t x;
-	int16_t y;
-	int16_t o;
-} Particle;
-
-typedef struct packed_particle_struct
-{
-	uint16_t lLow;
-	uint8_t xLow;
-	uint8_t yLow;
-	uint8_t oLow;
-	uint8_t bits;
-} PackedParticle;
-PackedParticle particles[NUM_PARTICLES];
-
 typedef struct other_bot_rnb_struct{
 	BotMeas myMeas;
 	BotMeas theirMeas;
 	BotPos pos;
+	BotPos uPos;
 	uint32_t lastUsed;
 	//uint8_t hasNewInfo;
 } OtherBot;
@@ -253,25 +234,23 @@ int16_t maxRange;
 //int16_t		paddleEnd;
 uint8_t		isCovered;
 
-BotPos myPos;
+BotPos batchPos;
+BotPos unbatchPos;
 uint16_t myDist;
 uint16_t otherDist;
-uint8_t particlesInitialized;
+
+void psuedoKalmanUpdate(BotPos* newPos);
+void prepExpectedPositionsUnbatch(BotPos* expPosArr, BotPos* avoidPosArr);
 
 void		init();
 void		loop();
 void		handleMySlot();
-void		initParticles();
 void		calcPosFromMeas(BotPos* calcPos, BotPos* pos, BotMeas* meas);
 void		printPosFromMeas(BotPos* pos, BotMeas* meas);
 uint8_t		countAvailableMeasurements();
 uint8_t     nearBotUseabilityCheck(uint8_t i);
 void		prepExpectedPositions(BotPos* expPosArr, BotPos* avoidPosArr); //This is used by initParticles too.
-float		calc_pMGP(Particle* p, BotPos* mPos, BotPos* sPos);
-uint8_t		updateParticles();
-void		jitterParticle(PackedParticle* p);
 void		handleFrameEnd(); 
-void		resampleParticles();
 void		updateHardBots();
 void		degradeConfidence();
 void		updatePos();
@@ -300,6 +279,7 @@ void		findAndRemoveOtherBot(id_t id);
 void		removeOtherBot(uint8_t idx);
 OtherBot*	addOtherBot(id_t id);
 void		cleanOtherBot(OtherBot* other);
+void		printNearBots();
 void		printOtherBot(OtherBot* bot);
 
 void		addHardBot(id_t id);
@@ -322,15 +302,52 @@ inline uint8_t validNearBotIdx(uint8_t i){
 			nearBots[i].pos.o!=UNDF && nearBots[i].pos.conf!=0);
 }
 
+inline float stdDevFromConf(float conf){
+	if(conf<=4){
+		return 176-22*conf;
+	}else if(conf<=32){
+		return 352.0/conf;
+	}else{
+		return 22-(11.0/32.0)*conf;
+	}
+}
+
+inline float confFromStdDev(float stdDev){
+	if(stdDev<=11){
+		return (32.0/11.0)*(22.0-stdDev);
+	}else if(stdDev<=88){
+		return 352.0/stdDev;
+	}else{
+		return (stdDev-176.0)/-22.0;
+	}
+}
+
 inline static void packPos(PackedBotPos* pos){
 	int16_t x, y, o;
-	x = myPos.x;
+	x = batchPos.x;
 	x = (x==UNDF) ? MIN_PACKED_X : x;
-	y = myPos.y;
+	y = batchPos.y;
 	y = (y==UNDF) ? MIN_PACKED_Y : y;
-	o = myPos.o;
+	o = batchPos.o;
 	o = (o==UNDF) ? MIN_PACKED_O : o;
-	pos->conf  = myPos.conf;
+	pos->conf  = batchPos.conf;
+	pos->xLow  = (uint8_t)(x&0xFF);
+	pos->yLow  = (uint8_t)(y&0xFF);
+	pos->oLow  = (uint8_t)(o&0xFF);
+	pos->bits  = (uint8_t)((x>>8) & 0b00000111);
+	pos->bits |= (uint8_t)((y>>5) & 0b00111000);
+	pos->bits |= (uint8_t)((o>>2) & 0b11000000);
+}
+
+inline static void packPosU(PackedBotPos* pos){
+	int16_t x, y, o;
+	x = unbatchPos.x;
+	x = (x==UNDF) ? MIN_PACKED_X : x;
+	y = unbatchPos.y;
+	y = (y==UNDF) ? MIN_PACKED_Y : y;
+	o = unbatchPos.o;
+	o = (o==UNDF) ? MIN_PACKED_O : o;
+	pos->conf  = unbatchPos.conf;
 	pos->xLow  = (uint8_t)(x&0xFF);
 	pos->yLow  = (uint8_t)(y&0xFF);
 	pos->oLow  = (uint8_t)(o&0xFF);
@@ -398,12 +415,12 @@ inline static uint8_t dirFromAngle(int16_t angle){
 }
 
 inline static int8_t checkBallCrossedMe(){
-	return sgn(((theBall.yVel*(theBall.yPos-myPos.y-theBall.xVel) + theBall.xVel*(theBall.xPos-myPos.x+theBall.yVel))));
+	return sgn(((theBall.yVel*(theBall.yPos-batchPos.y-theBall.xVel) + theBall.xVel*(theBall.xPos-batchPos.x+theBall.yVel))));
 }
 
 inline static int8_t checkBounceHard(int16_t Bx, int16_t By, int32_t timePassed){
-	int16_t Ax = myPos.x;
-	int16_t Ay = myPos.y;
+	int16_t Ax = batchPos.x;
+	int16_t Ay = batchPos.y;
 	int16_t x = theBall.xPos;
 	int16_t y = theBall.yPos;
 	int8_t signBefore = sgn((Bx-Ax)*(y-Ay) - (By-Ay)*(x-Ax));
@@ -422,8 +439,8 @@ inline static int8_t checkBounceHard(int16_t Bx, int16_t By, int32_t timePassed)
 inline static void calculateBounce(int16_t Bx, int16_t By){
 	int16_t vX = theBall.xVel;
 	int16_t vY = theBall.yVel;
-	int16_t normX = -(By-myPos.y);
-	int16_t normY = (Bx-myPos.x);
+	int16_t normX = -(By-batchPos.y);
+	int16_t normY = (Bx-batchPos.x);
 	int16_t nDotN = normX*normX + normY*normY;
 	int16_t vDotN = vX*normX + vY*normY;
 	int16_t uX = normX*vDotN/nDotN;
@@ -494,20 +511,28 @@ inline static void killBall(){
 }
 
 inline static void initPositions(){
-	myPos.x = UNDF;
-	myPos.y = UNDF;
-	myPos.o = UNDF;
-	myPos.conf = 0;	
+	batchPos.x = UNDF;
+	batchPos.y = UNDF;
+	batchPos.o = UNDF;
+	batchPos.conf = 0;	
+	unbatchPos.x = UNDF;
+	unbatchPos.y = UNDF;
+	unbatchPos.o = UNDF;
+	unbatchPos.conf = 0;
 	myDist = UNDF;
 
 	seedFlag = 0;	
 	for(uint8_t i=0;i<NUM_SEEDS;i++){
 		if(get_droplet_id()==SEED_IDS[i]){
 			seedFlag = 1;
-			myPos.x = SEED_X[i];
-			myPos.y = SEED_Y[i];
-			myPos.o = 0;
-			myPos.conf = 63;
+			batchPos.x = SEED_X[i];
+			batchPos.y = SEED_Y[i];
+			batchPos.o = 0;
+			batchPos.conf = 63;
+			unbatchPos.x = SEED_X[i];
+			unbatchPos.y = SEED_Y[i];
+			unbatchPos.o = 0;
+			unbatchPos.conf = 63;
 			break;
 		}
 	}

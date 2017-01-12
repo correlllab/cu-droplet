@@ -30,7 +30,10 @@ void init(){
 	maxRange = (int16_t)hypotf(xRange, yRange);
 	useBlacklist = 1;
 	//useNewInfo = 0;
+	stdDevThreshold = 100;
 	useMeasAveraging = 0;
+	addedPosStdDev = 11;
+	addedMeasStdDev = 22;
 }
 
 void loop(){
@@ -73,7 +76,7 @@ void loop(){
 }
 
 void handleMySlot(){
-	broadcast_rnb_data();
+	broadcast_rnb_data();	
 	while(((get_time()-frameStart)%SLOT_LENGTH_MS)<RNB_DUR)
 		delay_us(500);
 	//printf("\tCollisions: ");
@@ -104,31 +107,26 @@ void calcPosFromMeas(BotPos* calcPos, BotPos* pos, BotMeas* meas){
 	float x		 = pos->x;
 	float y		 = pos->y;
 	int16_t o	 = pos->o;
-	float conf   = pos->conf;
+	float posStdDev   = pos->stdDev;
 	uint16_t r   = meas->r;
 	int16_t b	 = meas->b;
 	int16_t h    = meas->h;
+	float measStdDev = meas->stdDev;
 	float deltaX = (float)r * cos(deg_to_rad(b + o + 90));
 	float deltaY = (float)r * sin(deg_to_rad(b + o + 90));
 	calcPos->x = (int16_t)(x + deltaX + 0.5);
 	calcPos->y = (int16_t)(y + deltaY + 0.5);
 	calcPos->o = pretty_angle_deg(o + h);
-	float sigmoidDenom = 1 + exp(2 - 0.125*conf);
-	if(r>250){
-		calcPos->conf = (uint8_t)((4.0/sigmoidDenom)+0.5);
-	}else if(r>125){
-		calcPos->conf = (uint8_t)((8.0/sigmoidDenom)+0.5);
-	}else{
-		calcPos->conf = (uint8_t)((16.0/sigmoidDenom)+0.5);
-	}
-	//printf("%p | %4d, %4d, %4d, %2hu\r\n", calcPos, calcPos->x, calcPos->y, calcPos->o, calcPos->conf);
+	float newStdDev = (hypotf(posStdDev,measStdDev)+0.5);
+	newStdDev = (newStdDev>255) ? 255 : newStdDev;
+	calcPos->stdDev = (uint8_t)newStdDev;
 }
 
 void printPosFromMeas(BotPos* pos, BotMeas* meas){
 	BotPos calcPos;
 	calcPosFromMeas(&calcPos, pos, meas);
-	printf("\t[%04X] {%4d, %4d, % 4d, %2hu, %4u, % 4d, % 4d, ", meas->id, pos->x, pos->y, pos->o, pos->conf, meas->r, meas->b, meas->h);
-	printf("%4d, %4d, %4d, %2hu}\r\n", calcPos.x, calcPos.y, calcPos.o, calcPos.conf);
+	printf("\t[%04X] {%4d, %4d, % 4d, %2hu, %4u, % 4d, % 4d, ", meas->id, pos->x, pos->y, pos->o, pos->stdDev, meas->r, meas->b, meas->h);
+	printf("%4d, %4d, %4d, %3hu}\r\n", calcPos.x, calcPos.y, calcPos.o, calcPos.stdDev);
 }
 
 uint8_t countAvailableMeasurements(){
@@ -152,7 +150,10 @@ uint8_t nearBotUseabilityCheck(uint8_t i){
 	if(!validNearBotIdx(i)){
 		return 0;
 	}
-	if(nearBots[i].pos.conf<16){
+	if(nearBots[i].pos.stdDev > stdDevThreshold){
+		return 0;
+	}
+	if(nearBots[i].occluded){
 		return 0;
 	}
 	//if(!(nearBots[i].hasNewInfo)){
@@ -181,9 +182,9 @@ void fuseMeasurements(BotMeas* fused, BotMeas* myMeas, BotMeas* theirMeas){
 	fused->b = theirMeas->b;
 	fused->h = pretty_angle_deg(180 - myMeas->b + theirMeas->b);
 	fused->r = (myMeas->r + theirMeas->r)/2;
-	//fused->r = (uint16_t)(((int32_t)myMeas->r)*(myMeas->conf) + ((int32_t)theirMeas->r)*theirMeas->conf)/((float)(myMeas->conf+theirMeas->conf));
-	//float fusedConf = powf((powf(myMeas->conf,-2.0) + powf(theirMeas->conf,-2.0)),-0.5);
-	fused->conf = myMeas->conf;
+	float myStdDev = myMeas->stdDev;
+	float theirStdDev = theirMeas->stdDev;
+	fused->stdDev = (uint8_t)( 2.0/((1.0/theirStdDev) + (1.0/myStdDev)) + 0.5);
 }
 
 
@@ -199,7 +200,7 @@ void prepExpectedPositions(BotPos* expPosArr, BotPos* avoidPosArr){
 				avoidPosArr[i].x = nearBots[i].pos.x;
 				avoidPosArr[i].y = nearBots[i].pos.y;
 				avoidPosArr[i].o = 0;
-				avoidPosArr[i].conf = nearBots[i].pos.conf;
+				avoidPosArr[i].stdDev = nearBots[i].pos.stdDev;
 			}
 			botIdx++;
 		}
@@ -218,7 +219,7 @@ void prepExpectedPositionsUnbatch(BotPos* expPosArr, BotPos* avoidPosArr){
 				avoidPosArr[i].x = nearBots[i].uPos.x;
 				avoidPosArr[i].y = nearBots[i].uPos.y;
 				avoidPosArr[i].o = 0;
-				avoidPosArr[i].conf = nearBots[i].uPos.conf;
+				avoidPosArr[i].stdDev = nearBots[i].uPos.stdDev;
 			}
 			botIdx++;
 		}
@@ -229,46 +230,46 @@ void psuedoKalmanUpdate(BotPos* newPos){
 	float myX    = unbatchPos.x;
 	float myY    = unbatchPos.y;
 	float myO    = unbatchPos.o;
-	float myConf = unbatchPos.conf;
+	float myStdDev = unbatchPos.stdDev;
 	float newX   = newPos->x;
 	float newY   = newPos->y;
 	float newO   = newPos->o;
-	float newConf = newPos->conf;
-	if(unbatchPos.x !=UNDF && unbatchPos.y !=UNDF && unbatchPos.o!=UNDF && unbatchPos.conf!=0){
+	float newStdDev = newPos->stdDev;
+	newStdDev += addedMeasStdDev;
+	newStdDev = newStdDev>255 ? 255 : newStdDev;
+	myStdDev += addedPosStdDev; //this is like adding 'Q_{k-1}' to predicted covariance. I think.
+	myStdDev = myStdDev>255 ? 255 : myStdDev;
+	if(unbatchPos.x !=UNDF && unbatchPos.y !=UNDF && unbatchPos.o!=UNDF){
 		float xInnov = newX-myX;
 		float yInnov = newY-myY;
 		float oInnov = newO-myO;
-		float stdDev = stdDevFromConf(myConf);
-		float measStdDev = stdDevFromConf(newConf);
-		float measVar = measStdDev*measStdDev;
-		float var = stdDev*stdDev;
-		float kalmanGain = var/(var + measVar);
+		float measVar = newStdDev*newStdDev;
+		float myVar = myStdDev*myStdDev;
+		float kalmanGain = myVar/(myVar + measVar);
 		unbatchPos.x = (int16_t)(myX + kalmanGain*xInnov + 0.5);
 		unbatchPos.y = (int16_t)(myY + kalmanGain*yInnov + 0.5);
 		unbatchPos.o = pretty_angle_deg((int16_t)(myO+kalmanGain*oInnov+0.5));
-		float newVar = (1.0-kalmanGain)*var;
-		newConf = confFromStdDev(sqrtf(newVar));
-		//printf(", %6f | K: %f\r\n", newConf, kalmanGain);
-		unbatchPos.conf = (uint8_t)(newConf+0.5);
+		float newVar = (1.0-kalmanGain)*myVar;
+		newStdDev = sqrtf(newVar)+0.5;
+		newStdDev = newStdDev>255 ? 255 : newStdDev;			
+		unbatchPos.stdDev = (uint8_t)(newStdDev);
 	}else{
 		unbatchPos.x = (int16_t)(newX+0.5);
 		unbatchPos.y = (int16_t)(newY+0.5);
 		unbatchPos.o = (int16_t)(newO+0.5);
-		unbatchPos.conf = (int16_t)(newConf+0.5);
+		float newStdDev = newStdDev + 20 + 0.5; //The '+20' is to err on the side of our initial error estimate being large.
+		newStdDev = newStdDev>255 ? 255 : newStdDev;
+		unbatchPos.stdDev = (uint8_t)(newStdDev);
 	}
 }
 
 void updatePosition(){
-	float totX = 0;
-	float totY = 0;
 	float oTotX = 0;
 	float oTotY = 0;
-	float totConf = 0;
-	float conf; //conf*pos mult should happen in bigger-than-int16 space, and this is easier than a bunch of typecasts later
 	float myX = batchPos.x;
 	float myY = batchPos.y;
 	float myO = batchPos.o;
-	float myConf = batchPos.conf;
+	float myStdDev = batchPos.stdDev;
 
 	uint8_t numMeas = countAvailableMeasurements();
 	printf("Num Meas: %hu\r\n", numMeas);
@@ -282,42 +283,73 @@ void updatePosition(){
 	BotPos expPosU[numMeas];
 	//BotPos avoidPosU[numMeas];
 	prepExpectedPositionsUnbatch(expPosU, NULL);
+
+	float meanX = 0;
+	float meanY = 0;
+	float totWeight = 0;
+	float totVarX = 0;
+	float totVarY = 0;
+	float thisWeight, thisX, thisY;
+	float prevMeanX, prevMeanY;
 	for(uint8_t i=0 ; i<numMeas ; i++){
 		psuedoKalmanUpdate(&(expPosU[i]));
-		conf = expPos[i].conf;
-		totX += conf*expPos[i].x;
-		totY += conf*expPos[i].y;
-		oTotX += conf*cosf(deg_to_rad(expPos[i].o));
-		oTotY += conf*sinf(deg_to_rad(expPos[i].o));
-		totConf += conf;
+		thisWeight	= 1.0/(expPos[i].stdDev);
+		thisX		= expPos[i].x;
+		thisY		= expPos[i].y;
+
+		totWeight  += thisWeight;
+		prevMeanX	= meanX;
+		prevMeanY   = meanY;
+		meanX	   += (thisWeight/totWeight)*(thisX-prevMeanX);
+		meanY	   += (thisWeight/totWeight)*(thisY-prevMeanY);
+		totVarX	   += thisWeight*(thisX-prevMeanX)*(thisX-meanX);
+		totVarY    += thisWeight*(thisY-prevMeanY)*(thisY-meanY);
+
+		oTotX += thisWeight*cosf(deg_to_rad(expPos[i].o));
+		oTotY += thisWeight*sinf(deg_to_rad(expPos[i].o));
+
 		//addUsedBot(nearBots[i].myMeas.id);
 		nearBots[i].lastUsed = frameCount;
 	}
 	//TODO: Use avoidPos information.
-	float newX = totX/totConf;
-	float newY = totY/totConf;
+	float newX = meanX;
+	float newY = meanY;
 	float newO = rad_to_deg(atan2f(oTotY, oTotX));
-	float measConf = totConf/((float)numMeas);
-	//printf("myX: %f, myY: %f, myO: %f, myC: %f\r\n",myPos.x==UNDF ? NAN : myX, myPos.y==UNDF ? NAN : myY, myPos.o==UNDF ? NAN: myO, myPos.conf == 0 ? NAN : myConf);
-	//printf("New Pos: %6f, %6f, %6f", newX, newY, newO);
-	if(myX !=UNDF && myY !=UNDF && myO!=UNDF && myConf!=0){
+
+	//float xVar = totVarX/totWeight;
+	//float yVar = totVarY/totWeight;
+	//float oVar = 1-hypotf(oTotX/totWeight,oTotY/totWeight);
+	//float posStdDev = sqrtf(xVar+yVar);
+	//float oStdDev = rad_to_deg(sqrtf(-2*log((-oVar)+1)));
+
+	float measStdDev = 1.0/totWeight;
+	if(numMeas>2){
+		measStdDev *= (float)(numMeas-1);
+	}else{
+		measStdDev *= (float)(numMeas);
+	}
+	measStdDev += addedMeasStdDev;
+	measStdDev = measStdDev>255 ? 255 : measStdDev;
+	myStdDev += addedPosStdDev; //this is like adding 'Q_{k-1}' to predicted covariance. I think.
+	myStdDev = myStdDev>255 ? 255 : myStdDev;
+	printf("\tmStdDev: %d\r\n", (int16_t)measStdDev);
+	float newStdDev;
+	if(myX !=UNDF && myY !=UNDF && myO!=UNDF){
+
 		float xInnov = newX-myX;
 		float yInnov = newY-myY;
 		float oInnov = newO-myO;
-		float stdDev = stdDevFromConf(myConf);
-		float var = stdDev*stdDev;
-		float measStdDev = stdDevFromConf(measConf);
+		float var = myStdDev*myStdDev;
 		float measVar = measStdDev*measStdDev;
 		float kalmanGain = var/(var + measVar);
 		batchPos.x = (int16_t)(myX + kalmanGain*xInnov + 0.5);
 		batchPos.y = (int16_t)(myY + kalmanGain*yInnov + 0.5);
 		batchPos.o  = pretty_angle_deg((int16_t)(myO + kalmanGain*oInnov+0.5));
 		float newVar = (1.0-kalmanGain)*var;
-		measConf = confFromStdDev(sqrtf(newVar));		
-		//printf(", %6f | K: %f\r\n", newConf, kalmanGain);
-		batchPos.conf = (uint8_t)(measConf+0.5);
+		newStdDev = sqrtf(newVar)+0.5;
+		newStdDev = newStdDev>255 ? 255 : newStdDev;
+		batchPos.stdDev = (uint8_t)(newStdDev);
 		//predicted state: myPos.x, myPos.y, myPos.o
-		//predicted covariance proportional to myPos.conf
 		//innovation: difference between measurement and expected measurement given previous estimate.
 		//				?~= difference bewtween newPos and myPos?
 		//kalman gain ~=  predicted covar/(predicted covar + constant noise term)
@@ -326,29 +358,64 @@ void updatePosition(){
 		batchPos.x = (int16_t)(newX+0.5);
 		batchPos.y = (int16_t)(newY+0.5);
 		batchPos.o = (int16_t)(newO+0.5);
-		batchPos.conf = (uint8_t)(measConf+0.5);
-		//printf(", %6f\r\n", newConf);
+		float newStdDev = measStdDev + 20 + 0.5; //The '+20' is to err on the side of our initial error estimate being large.
+		newStdDev = newStdDev>255 ? 255 : newStdDev;
+		batchPos.stdDev = (uint8_t)newStdDev;
 	}
 	
 }
 
+//Note: This function assumes that nearBots have been sorted by range!
+void updateNearBotOcclusions(){
+	OCC_DEBUG_PRINT("\tUpdating Occlusions\r\n");
+	float range;
+	float halfOccConeArc;
+	float rForPadding;
+	float halfPaddedConeArc;
+	int16_t intervals[NUM_TRACKED_BOTS][2];
+	uint8_t numIntervals=0;
+	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
+		if(nearBots[i].myMeas.id == 0) continue;
+		for(uint8_t j=0;j<numIntervals;j++){
+			if(abs(intervals[j][0] - nearBots[i].myMeas.b)<=(intervals[j][1])){
+				nearBots[i].occluded=1;
+				OCC_DEBUG_PRINT("\t\t%04X occluded.\r\n",nearBots[i].myMeas.id);
+				break;
+			}
+		}
+		if(!(nearBots[i].occluded)){
+			range = nearBots[i].myMeas.r;
+			halfOccConeArc = asin(DROPLET_DIAMETER_MM/(2*range));
+			rForPadding = DROPLET_DIAMETER_MM*cosf(halfOccConeArc);
+			halfPaddedConeArc = asin(DROPLET_DIAMETER_MM/(range+rForPadding));
+			intervals[numIntervals][0] = nearBots[i].myMeas.b;
+			intervals[numIntervals][1] = rad_to_deg(halfPaddedConeArc);
+			nearBots[i].occluded = 0;
+			OCC_DEBUG_PRINT("\t\t%hu| %04X -> % 4d, % 3d\r\n", numIntervals, nearBots[i].myMeas.id, intervals[numIntervals][0], intervals[numIntervals][1]);
+			numIntervals++;
+		}
+	}
+}
+
 void handleFrameEnd(){
 	printf("Frame End Calculations\r\n");
-	qsort(nearBots, NUM_TRACKED_BOTS+1, sizeof(OtherBot), nearBotsConfCmpFunc);
+	qsort(nearBots, NUM_TRACKED_BOTS+1, sizeof(OtherBot), nearBotsCmpFunc);
 	printNearBots();
+
 
 	//Maybe we'll want to remove the N worst nearBots, here.
 	if(!seedFlag){
+		updateNearBotOcclusions();
 		updatePosition();
 	}
 	
-	//Removing the worst half of the nearBots.
-	for(uint8_t i=NUM_TRACKED_BOTS/2; i<NUM_TRACKED_BOTS;i++){
-		cleanOtherBot(&(nearBots[i]));
-	}
+	////Removing the worst half of the nearBots.
+	//for(uint8_t i=NUM_TRACKED_BOTS/2; i<NUM_TRACKED_BOTS;i++){
+		//cleanOtherBot(&(nearBots[i]));
+	//}
 
 	updateHardBots();
-	degradeConfidence(); //lower confidence of bots for which no measurement was received.
+	increaseStdDev();
 	frameEndPrintout();
 	printf("\r\n");
 }
@@ -363,7 +430,7 @@ void updateHardBots(){
 		nearBotsMeas[i].r    = nearBots[i].myMeas.r;
 		nearBotsMeas[i].b    = nearBots[i].myMeas.b;
 		nearBotsMeas[i].h    = nearBots[i].myMeas.h;
-		nearBotsMeas[i].conf = nearBots[i].myMeas.conf;
+		nearBotsMeas[i].stdDev = nearBots[i].myMeas.stdDev;
 		numNearBots++;
 	}
 	cleanHardBots(); //clean out the previous hardBots list -- we start fresh each farme.
@@ -391,21 +458,14 @@ void updateHardBots(){
 	}
 }
 
-void degradeConfidence(){
-	//confidence degrades if we don't get new measurements.
+void increaseStdDev(){
+	float stdDev;
 	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
-		nearBots[i].myMeas.conf>>=2;
-		if(nearBots[i].myMeas.conf==0){
+		stdDev = ((nearBots[i].myMeas.stdDev)*2.0);
+		if(stdDev > 255){
 			removeOtherBot(i);
 		}else{
-			nearBots[i].theirMeas.conf>>=1;
-			if(nearBots[i].theirMeas.conf==0){
-				nearBots[i].theirMeas.conf = 0;
-				nearBots[i].theirMeas.r = UNDF;
-				nearBots[i].theirMeas.b = UNDF;
-				nearBots[i].theirMeas.h = UNDF;
-				nearBots[i].theirMeas.id = 0;
-			}
+			nearBots[i].myMeas.stdDev = (uint8_t)stdDev;
 		}
 	}
 }
@@ -416,36 +476,35 @@ void useNewRnbMeas(){
 	uint16_t range = last_good_rnb.range;
 	int16_t bearing = last_good_rnb.bearing;
 	rnb_updated=0;
-	/* 
-	 * conf is ARBITRARY - only matters if degrading confidence is turned on.
-	 * In this case it controls how long before things dissapear.
-	 */
-	uint8_t conf = 16; 
+
+	uint8_t stdDev = getStdDevFromRange(range);
 	RNB_DEBUG_PRINT("            (RNB) ID: %04X | R: %4u B: %4d\r\n", id, range, bearing);
 	OtherBot* measuredBot = addOtherBot(id);
 	BotMeas* meas;
 	if(measuredBot){
 		meas = &(measuredBot->myMeas);
 	}else{
+		RNB_DEBUG_PRINT("No room in other bots, aborting.\r\n");
 		return;
 	}
-
 	if(meas->id == 0 || (useMeasAveraging==0 && meas->id == id)){ //We weren't tracking this ID before, so just add the new info.
 		measuredBot->lastUsed = 0;
-		meas->id	= id;
-		meas->r		= range;
-		meas->b		= bearing;
-		meas->h		= UNDF;
-		meas->conf  = conf;
+		meas->id	 = id;
+		meas->r		 = range;
+		meas->b		 = bearing;
+		meas->h		 = UNDF;
+		meas->stdDev = stdDev;
 	}else if(useMeasAveraging==1 && meas->id == id){
 		measuredBot->lastUsed = 0;
 		meas->id	= id;
-		meas->r		= (range*conf+meas->r*meas->conf)/(conf+meas->conf);
-		float tempX = conf*cos(deg_to_rad(bearing))+meas->conf*cos(deg_to_rad(meas->b));
-		float tempY = conf*sin(deg_to_rad(bearing))+meas->conf*sin(deg_to_rad(meas->b));
+		float newWeight = 1.0/stdDev;
+		float prevWeight = 1.0/meas->stdDev;
+		meas->r		= (range*newWeight+meas->r*prevWeight)/(newWeight + prevWeight);
+		float tempX = newWeight*cos(deg_to_rad(bearing))+prevWeight*cos(deg_to_rad(meas->b));
+		float tempY = newWeight*sin(deg_to_rad(bearing))+prevWeight*sin(deg_to_rad(meas->b));
 		meas->b		= rad_to_deg(atan2f(tempY, tempX));
 		meas->h     = UNDF;
-		meas->conf  = conf;
+		meas->stdDev  = (uint8_t)(2.0/(newWeight+prevWeight)+0.5);
 	}else{
 		printf_P(PSTR("Error: Unexpected botPos->ID in use_new_rnb_meas.\r\n"));
 		return;
@@ -652,11 +711,14 @@ void handleBallMsg(BallMsg* msg, uint32_t arrivalTime){
 }
 
 void sendNearBotsMsg(){ 
+	if(batchPos.x==UNDF && batchPos.y==UNDF && batchPos.o==UNDF){
+		return;
+	}
 	NearBotsMsg msg;
 	msg.flag = NEAR_BOTS_MSG_FLAG;
 	packPos(&(msg.pos));
 	packPosU(&(msg.uPos));
-	//qsort(nearBots, NUM_TRACKED_BOTS+1, sizeof(OtherBot), nearBotsConfCmpFunc);
+	//qsort(nearBots, NUM_TRACKED_BOTS+1, sizeof(OtherBot), nearBotsCmpFunc);
 	for(uint8_t i=0;i<NUM_SHARED_BOTS;i++){
 		msg.shared[i].id = nearBots[i].myMeas.id;		
 		msg.shared[i].range = packRange(nearBots[i].myMeas.r);
@@ -673,8 +735,8 @@ void handleNearBotsMsg(NearBotsMsg* msg, id_t senderID){
 		unpackPos(&(msg->pos), &(nearBot->pos));
 		unpackPos(&(msg->uPos), &(nearBot->uPos));
 		if(nearBot->pos.x!=UNDF && nearBot->pos.y!=UNDF && nearBot->pos.o!=UNDF){
-			NB_DEBUG_PRINT("| X: %4d Y: %4d O: %3d C: %2hu", nearBot->pos.x, nearBot->pos.y, nearBot->pos.o, nearBot->pos.conf);
-			NB_DEBUG_PRINT("| X: %4d Y: %4d O: %3d C: %2hu", nearBot->uPos.x, nearBot->uPos.y, nearBot->uPos.o, nearBot->uPos.conf);
+			NB_DEBUG_PRINT("| X: %4d Y: %4d O: %3d C: %3hu", nearBot->pos.x, nearBot->pos.y, nearBot->pos.o, nearBot->pos.stdDev);
+			NB_DEBUG_PRINT("| X: %4d Y: %4d O: %3d C: %3hu", nearBot->uPos.x, nearBot->uPos.y, nearBot->uPos.o, nearBot->uPos.stdDev);
 		}
 		for(uint8_t i=0;i<NUM_SHARED_BOTS;i++){
 			if(msg->shared[i].id == get_droplet_id()){
@@ -682,7 +744,7 @@ void handleNearBotsMsg(NearBotsMsg* msg, id_t senderID){
 				nearBot->theirMeas.b = unpackAngleMeas(msg->shared[i].b);
 				nearBot->theirMeas.h = UNDF;
 				nearBot->theirMeas.id = get_droplet_id();
-				nearBot->theirMeas.conf = 16;
+				nearBot->theirMeas.stdDev = getStdDevFromRange(nearBot->theirMeas.r);
 				NB_DEBUG_PRINT("| R: %4u, B: % 4d", nearBot->theirMeas.r, nearBot->theirMeas.b);
 				break;
 			}
@@ -731,8 +793,8 @@ void frameEndPrintout(){
 	}
 	printf_P(PSTR(" ]\r\n"));
 	if((batchPos.x != UNDF) && (batchPos.y != UNDF) && (batchPos.o != UNDF)){
-		printf_P(PSTR("\tMy bPos: {%d, %d, %d, %hu}\r\n"), batchPos.x, batchPos.y, batchPos.o, batchPos.conf);
-		printf_P(PSTR("\tMy uPos: {%d, %d, %d, %hu}\r\n"), unbatchPos.x, unbatchPos.y, unbatchPos.o, unbatchPos.conf);
+		printf_P(PSTR("\tMy bPos: {%d, %d, %d, %hu}\r\n"), batchPos.x, batchPos.y, batchPos.o, batchPos.stdDev);
+		printf_P(PSTR("\tMy uPos: {%d, %d, %d, %hu}\r\n"), unbatchPos.x, unbatchPos.y, unbatchPos.o, unbatchPos.stdDev);
 	}
 	if((theBall.xPos != UNDF) && (theBall.yPos != UNDF)){
 		printf_P(PSTR("\tBall ID: %hu; radius: %hu; Pos: (%d, %d) @ vel (%hd, %hd)\r\n"), theBall.id, theBall.radius, theBall.xPos, theBall.yPos, theBall.xVel, theBall.yVel);
@@ -764,7 +826,7 @@ void removeOtherBot(uint8_t idx){
 
 OtherBot* addOtherBot(id_t id){
 	uint8_t emptyIdx=0xFF;
-	qsort(nearBots, NUM_TRACKED_BOTS+1, sizeof(OtherBot), nearBotsConfCmpFunc);
+	qsort(nearBots, NUM_TRACKED_BOTS+1, sizeof(OtherBot), nearBotsCmpFunc);
 	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
 		if(nearBots[i].myMeas.id==id){
 			return &(nearBots[i]);
@@ -777,9 +839,7 @@ OtherBot* addOtherBot(id_t id){
 	if(emptyIdx!=0xFF){ //An empty spot was available.
 		return &(nearBots[emptyIdx]);
 	}
-	// No empty spot, so we'll remove the neighbor we're
-	// least confident in. But only if we're more confident
-	// in the new neighbor.
+
 	//BotPos* pos = &(nearBots[NUM_TRACKED_BOTS-1].pos);
 	cleanOtherBot(&nearBots[NUM_TRACKED_BOTS]);
 	return &(nearBots[NUM_TRACKED_BOTS]);
@@ -790,28 +850,29 @@ void cleanOtherBot(OtherBot* other){
 	other->pos.x = UNDF;
 	other->pos.y = UNDF;
 	other->pos.o = UNDF;
-	other->pos.conf = 0;
+	other->pos.stdDev = 255;
 	other->uPos.x = UNDF;
 	other->uPos.y = UNDF;
 	other->uPos.o = UNDF;
-	other->uPos.conf = 0;
+	other->uPos.stdDev = 255;
 	other->myMeas.id = 0;
 	other->myMeas.r = UNDF;
 	other->myMeas.b = UNDF;
 	other->myMeas.h = UNDF;
-	other->myMeas.conf = 0;
+	other->myMeas.stdDev = 255;
 	other->theirMeas.id = 0;
 	other->theirMeas.r = UNDF;
 	other->theirMeas.b = UNDF;
 	other->theirMeas.h = UNDF;
-	other->theirMeas.conf = 0;
+	other->theirMeas.stdDev =255;
 	other->lastUsed = 0;
+	other->occluded = 0;
 	//other->hasNewInfo = 0;
 }
 
 void printNearBots(){
 	printf_P(PSTR("\t                         Near Bots                        \r\n"));
-	printf_P(PSTR("\t ID  |   x  |   y  |   o  |  c |  myR |  myB | thR |  thB \r\n"));
+	printf_P(PSTR("\t ID  |   x  |   y  |   o  |  c  |  myR |  myB | thR |  thB \r\n"));
 	for(uint8_t i=0; i<NUM_TRACKED_BOTS+1; i++){
 		printOtherBot(&nearBots[i]);
 	}
@@ -820,15 +881,15 @@ void printNearBots(){
 
 void printOtherBot(OtherBot* bot){
 	if(bot==NULL) return;
-	BotPos*  pos = &(bot->pos);
+	BotPos*  pos = &(bot->uPos);
 	BotMeas* myM = &(bot->myMeas);
 	BotMeas* thM = &(bot->theirMeas);
 	if(myM->id == 0) return;
 	printf("\t%04X ", myM->id);
-	if(pos->x!=UNDF && pos->y!=UNDF && pos->o!=UNDF && pos->conf!=0){
-		printf_P(PSTR("| %4d | %4d | % 4d | %2hu "), pos->x, pos->y, pos->o, pos->conf);
+	if(pos->x!=UNDF && pos->y!=UNDF && pos->o!=UNDF){
+		printf_P(PSTR("| %4d | %4d | % 4d | %3hu "), pos->x, pos->y, pos->o, pos->stdDev);
 	}else{
-		printf_P(PSTR("|  --  |  --  |  --  | -- "));
+		printf_P(PSTR("|  --  |  --  |  --  |  -- "));
 	}
 	printf_P(PSTR("| %4u | % 4d "), myM->r, myM->b);
 	if(thM->id==get_droplet_id()){
@@ -897,6 +958,18 @@ uint8_t user_handle_command(char* command_word, char* command_args){
 			default:	useMeasAveraging = !useMeasAveraging;
 		}
 		printf("Use meas averaging: %hu\r\n",useMeasAveraging);
+		return 1;
+	}else if(strcmp_P(command_word, PSTR("sCT"))==0){
+		stdDevThreshold = (uint8_t)atoi(command_args);
+		printf("stdDevThreshold: %hu\r\n", stdDevThreshold);
+		return 1;
+	}else if(strcmp_P(command_word, PSTR("aPSD"))==0){
+		addedPosStdDev = (uint8_t)atoi(command_args);
+		printf("addedPosStdDev: %hu\r\n", addedPosStdDev);
+		return 1;
+	}else if(strcmp_P(command_word, PSTR("aMSD"))==0){
+		addedMeasStdDev = (uint8_t)atoi(command_args);
+		printf("addedMeasStdDev: %hu\r\n", addedMeasStdDev);
 		return 1;
 	}
 	//else if(strcmp_P(command_word,PSTR("uN"))==0){

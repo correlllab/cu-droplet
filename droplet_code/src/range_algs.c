@@ -73,11 +73,13 @@ void use_rnb_data(){
 	float bearing = calculate_bearing();
 	int16_t intRange = calculate_range(bearing);
 	int16_t intBearing = (int16_t)rad_to_deg(bearing);
-	//printf("{\"%04X\", %4d, % 4d},\r\n", rnbCmdID, intRange, intBearing);
-	last_good_rnb.id		= rnbCmdID;
-	last_good_rnb.range		= intRange;
-	last_good_rnb.bearing	= intBearing;
-	rnb_updated=1;
+	if(intRange>0){
+		//printf("{\"%04X\", %4d, % 4d},\r\n", rnbCmdID, intRange, intBearing);
+		last_good_rnb.id		= rnbCmdID;
+		last_good_rnb.range		= intRange;
+		last_good_rnb.bearing	= intBearing;
+		rnb_updated=1;
+	}
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 		rnbProcessingFlag=0;
 	}

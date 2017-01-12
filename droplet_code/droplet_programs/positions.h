@@ -6,6 +6,7 @@
 #define GEN_DEBUG_MODE
 #define P_SAMPLE_DEBUG_MODE
 #define P_L_DEBUG_MODE
+#define OCC_DEBUG_MODE
 //#define RNB_DEBUG_MODE
 //#define NB_DEBUG_MODE
 //#define BALL_DEBUG_MODE
@@ -16,9 +17,16 @@
 
 //uint8_t useNewInfo;
 uint8_t useBlacklist;
+uint8_t stdDevThreshold;
 uint8_t useMeasAveraging;
+uint8_t addedPosStdDev;
+uint8_t addedMeasStdDev;
 
-#define STOCK_MEAS_VAR 900.0 //this is 'R' in Kalman Filter notation. 22*22.
+#ifdef OCC_DEBUG_MODE
+#define OCC_DEBUG_PRINT(format, ...) printf_P(PSTR(format), ##__VA_ARGS__)
+#else
+#define OCC_DEBUG_PRINT(format, ...)
+#endif
 
 #ifdef POS_DEBUG_MODE
 #define POS_DEBUG_PRINT(format, ...) printf_P(PSTR(format), ##__VA_ARGS__)
@@ -73,17 +81,17 @@ uint8_t useMeasAveraging;
  * rnb takes 142 ms
  * messages take 2.5ms per byte. 
  * paddleMsg is 3 bytes. header is 8 bytes, so PaddleMsg should take 27.5
- * neighbMsg is 30 bytes. header is 8 bytes, so NeighbMsg should take 115ms
+ * neighbMsg is 35 bytes. header is 8 bytes, so NeighbMsg should take 115ms
  * ballMsg is 7 bytes. header is 8 bytes, so ballMsg should take 37.5ms 
  */
-#define RNB_DUR		80
-#define PADDLE_MSG_DUR		20
-#define NEIGHB_MSG_DUR		100
-#define BALL_MSG_DUR		20
+#define RNB_DUR		100 //80 ms should be enough.
+#define PADDLE_MSG_DUR		40 //padding. Probably excessive.
+#define NEIGHB_MSG_DUR		120 
+#define BALL_MSG_DUR		40 //padding. Probably excessive.
 
 #define UNDF	((int16_t)0x8000)
 
-#define SLOT_LENGTH_MS			223
+#define SLOT_LENGTH_MS			307
 #define SLOTS_PER_FRAME			37
 #define FRAME_LENGTH_MS			(((uint32_t)SLOT_LENGTH_MS)*((uint32_t)SLOTS_PER_FRAME))
 #define LOOP_DELAY_MS			17
@@ -98,11 +106,11 @@ uint8_t useMeasAveraging;
 //#define PADDLE_WIDTH		(FLOOR_WIDTH/3)
 #define PADDLE_VEL				0.1
 #define NUM_SEEDS 4
-#define NUM_SHARED_BOTS 4
+#define NUM_SHARED_BOTS 6
 #define NUM_USED_BOTS 5
 #define NUM_TRACKED_BOTS 12
 
-const id_t SEED_IDS[NUM_SEEDS] = {0x6B6F, 0xCB64, 0xB41B, 0xDF64};
+const id_t	   SEED_IDS[NUM_SEEDS]	   = {0x6B6F, 0xCB64, 0xB41B, 0xDF64};
 const int16_t  SEED_X[NUM_SEEDS]   = {100, 900, 100, 900};
 const int16_t  SEED_Y[NUM_SEEDS]   = {900, 900, 100, 100};
 
@@ -155,7 +163,7 @@ typedef struct packed_bot_pos_struct{
 	uint8_t yLow;
 	uint8_t oLow;
 	uint8_t bits;
-	uint8_t conf;
+	uint8_t stdDev;
 }PackedBotPos;
 
 typedef struct near_bots_msg_struct{
@@ -183,7 +191,7 @@ typedef struct bot_meas_struct
 	uint16_t r;
 	int16_t b;
 	int16_t h;
-	uint8_t conf;	
+	uint8_t stdDev;	
 } BotMeas;
 
 typedef struct bot_pos_struct
@@ -191,7 +199,7 @@ typedef struct bot_pos_struct
 	int16_t x;
 	int16_t y;
 	int16_t o;
-	uint8_t conf;
+	uint8_t stdDev;
 } BotPos;
 
 typedef struct other_bot_rnb_struct{
@@ -200,6 +208,7 @@ typedef struct other_bot_rnb_struct{
 	BotPos pos;
 	BotPos uPos;
 	uint32_t lastUsed;
+	uint8_t occluded;
 	//uint8_t hasNewInfo;
 } OtherBot;
 OtherBot nearBots[NUM_TRACKED_BOTS+1];
@@ -229,6 +238,7 @@ int16_t xRange;
 int16_t yRange;
 int16_t maxRange;
 
+
 //float		paddleChange;
 //int16_t		paddleStart;
 //int16_t		paddleEnd;
@@ -252,8 +262,9 @@ uint8_t     nearBotUseabilityCheck(uint8_t i);
 void		prepExpectedPositions(BotPos* expPosArr, BotPos* avoidPosArr); //This is used by initParticles too.
 void		handleFrameEnd(); 
 void		updateHardBots();
-void		degradeConfidence();
-void		updatePos();
+void		increaseStdDev();
+void		updatePosition();
+void		updateNearBotOcclusions();
 void		useNewRnbMeas();
 void		updateBall();
 //check_bounce is a helper function for updateBall.
@@ -299,27 +310,12 @@ void		cleanHardBots();
   */
 inline uint8_t validNearBotIdx(uint8_t i){
 	return (nearBots[i].pos.x != UNDF && nearBots[i].pos.y!=UNDF && 
-			nearBots[i].pos.o!=UNDF && nearBots[i].pos.conf!=0);
+			nearBots[i].pos.o!=UNDF);
 }
 
-inline float stdDevFromConf(float conf){
-	if(conf<=4){
-		return 176-22*conf;
-	}else if(conf<=32){
-		return 352.0/conf;
-	}else{
-		return 22-(11.0/32.0)*conf;
-	}
-}
 
-inline float confFromStdDev(float stdDev){
-	if(stdDev<=11){
-		return (32.0/11.0)*(22.0-stdDev);
-	}else if(stdDev<=88){
-		return 352.0/stdDev;
-	}else{
-		return (stdDev-176.0)/-22.0;
-	}
+static uint8_t getStdDevFromRange(uint16_t range){
+	return (range>=250) ? 200 : ( (range>=125) ? 50 : 25 );
 }
 
 inline static void packPos(PackedBotPos* pos){
@@ -330,7 +326,7 @@ inline static void packPos(PackedBotPos* pos){
 	y = (y==UNDF) ? MIN_PACKED_Y : y;
 	o = batchPos.o;
 	o = (o==UNDF) ? MIN_PACKED_O : o;
-	pos->conf  = batchPos.conf;
+	pos->stdDev  = batchPos.stdDev;
 	pos->xLow  = (uint8_t)(x&0xFF);
 	pos->yLow  = (uint8_t)(y&0xFF);
 	pos->oLow  = (uint8_t)(o&0xFF);
@@ -347,7 +343,7 @@ inline static void packPosU(PackedBotPos* pos){
 	y = (y==UNDF) ? MIN_PACKED_Y : y;
 	o = unbatchPos.o;
 	o = (o==UNDF) ? MIN_PACKED_O : o;
-	pos->conf  = unbatchPos.conf;
+	pos->stdDev  = unbatchPos.stdDev;
 	pos->xLow  = (uint8_t)(x&0xFF);
 	pos->yLow  = (uint8_t)(y&0xFF);
 	pos->oLow  = (uint8_t)(o&0xFF);
@@ -357,7 +353,7 @@ inline static void packPosU(PackedBotPos* pos){
 }
 
 inline static void unpackPos(PackedBotPos* pPos, BotPos* otherPos){
-	otherPos->conf = pPos->conf;
+	otherPos->stdDev = pPos->stdDev;
 	otherPos->x = pPos->xLow;
 	otherPos->x |= ((uint16_t)(pPos->bits & 0b00000111))<<8;
 	otherPos->x = (otherPos->x)<<5; //shifting value left (and then right again) in case value is negative.
@@ -455,30 +451,28 @@ inline static void calculateBounce(int16_t Bx, int16_t By){
 	//
 //}
 
-static int nearBotsConfCmpFunc(const void* a, const void* b){
+static int nearBotsCmpFunc(const void* a, const void* b){
 	OtherBot* aN = (OtherBot*)a;
 	OtherBot* bN = (OtherBot*)b;
-	uint8_t aConf = (aN->myMeas).conf;
-	uint8_t bConf = (bN->myMeas).conf;
+	uint8_t aStdDev = (aN->myMeas).stdDev;
+	uint8_t bStdDev = (bN->myMeas).stdDev;
 	uint16_t aRange = (aN->myMeas).r;
 	uint16_t bRange = (bN->myMeas).r;
 	uint8_t aID = ((aN->theirMeas).id == get_droplet_id());
 	uint8_t bID = ((bN->theirMeas).id == get_droplet_id());
-	if(aRange<100 && bRange<100){
+	if(aRange < bRange){
+		return -1;
+	}else if(bRange < aRange){
+		return 1;
+	}else{
 		if(aID && !bID){
 			return -1;
 		}else if(!aID && bID){
 			return  1;
 		}
-		if(aConf < bConf){
-			return 1;
-		}else if(bConf < aConf){
+		if(aStdDev < bStdDev){
 			return -1;
-		}
-	}else{
-		if(aRange < bRange){
-			return -1;
-		}else if(bRange < aRange){
+		}else if(bStdDev < aStdDev){
 			return 1;
 		}
 	}
@@ -514,11 +508,11 @@ inline static void initPositions(){
 	batchPos.x = UNDF;
 	batchPos.y = UNDF;
 	batchPos.o = UNDF;
-	batchPos.conf = 0;	
+	batchPos.stdDev = 255;	
 	unbatchPos.x = UNDF;
 	unbatchPos.y = UNDF;
 	unbatchPos.o = UNDF;
-	unbatchPos.conf = 0;
+	unbatchPos.stdDev = 255;
 	myDist = UNDF;
 
 	seedFlag = 0;	
@@ -528,11 +522,11 @@ inline static void initPositions(){
 			batchPos.x = SEED_X[i];
 			batchPos.y = SEED_Y[i];
 			batchPos.o = 0;
-			batchPos.conf = 63;
+			batchPos.stdDev = 11;
 			unbatchPos.x = SEED_X[i];
 			unbatchPos.y = SEED_Y[i];
 			unbatchPos.o = 0;
-			unbatchPos.conf = 63;
+			unbatchPos.stdDev = 11;
 			break;
 		}
 	}

@@ -62,6 +62,7 @@ typedef uint16_t id_t;
 #include "random.h"
 #include "firefly_sync.h"
 #include "serial_handler.h"
+#include "matrix_utils.h"
 
 typedef struct ir_msg_struct
 {

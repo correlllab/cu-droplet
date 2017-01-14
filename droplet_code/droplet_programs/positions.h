@@ -2,11 +2,13 @@
 
 #include "droplet_init.h"
 
+extern Matrix identity_matrix;
+
 #define POS_DEBUG_MODE
 #define GEN_DEBUG_MODE
 #define P_SAMPLE_DEBUG_MODE
 #define P_L_DEBUG_MODE
-#define OCC_DEBUG_MODE
+//#define OCC_DEBUG_MODE
 //#define RNB_DEBUG_MODE
 //#define NB_DEBUG_MODE
 //#define BALL_DEBUG_MODE
@@ -14,6 +16,15 @@
 #define MIN_PACKED_X -1024
 #define MIN_PACKED_Y -1024
 #define MIN_PACKED_O -512
+
+/*
+ * Constant term for process noise. 
+ * We don't actually have a process, but adding some process noise
+ * keeps our pK from getting too (unrealistically) small over time,
+ * which it would otherwise do as a result of aspects of system not
+ * modelled by Kalman filter.
+ */
+Matrix qK = {{100,0,0},{0,100,0},{0,0,100}}; 
 
 //uint8_t useNewInfo;
 uint8_t useBlacklist;
@@ -81,12 +92,12 @@ uint8_t addedMeasStdDev;
  * rnb takes 142 ms
  * messages take 2.5ms per byte. 
  * paddleMsg is 3 bytes. header is 8 bytes, so PaddleMsg should take 27.5
- * neighbMsg is 35 bytes. header is 8 bytes, so NeighbMsg should take 115ms
+ * neighbMsg is 30 bytes. header is 8 bytes, so NeighbMsg should take 95ms
  * ballMsg is 7 bytes. header is 8 bytes, so ballMsg should take 37.5ms 
  */
 #define RNB_DUR		100 //80 ms should be enough.
 #define PADDLE_MSG_DUR		40 //padding. Probably excessive.
-#define NEIGHB_MSG_DUR		120 
+#define NEIGHB_MSG_DUR		100
 #define BALL_MSG_DUR		40 //padding. Probably excessive.
 
 #define UNDF	((int16_t)0x8000)
@@ -169,7 +180,6 @@ typedef struct packed_bot_pos_struct{
 typedef struct near_bots_msg_struct{
 	PackedBotMeas shared[NUM_SHARED_BOTS]; //4 bytes each
 	PackedBotPos pos; //5 bytes.
-	PackedBotPos uPos; //5 bytes.
 	//id_t used[NUM_USED_BOTS];
 	char flag;	
 }NearBotsMsg;
@@ -206,7 +216,6 @@ typedef struct other_bot_rnb_struct{
 	BotMeas myMeas;
 	BotMeas theirMeas;
 	BotPos pos;
-	BotPos uPos;
 	uint32_t lastUsed;
 	uint8_t occluded;
 	//uint8_t hasNewInfo;
@@ -244,13 +253,10 @@ int16_t maxRange;
 //int16_t		paddleEnd;
 uint8_t		isCovered;
 
-BotPos batchPos;
-BotPos unbatchPos;
+BotPos myPos;
+Matrix pK;
 uint16_t myDist;
 uint16_t otherDist;
-
-void psuedoKalmanUpdate(BotPos* newPos);
-void prepExpectedPositionsUnbatch(BotPos* expPosArr, BotPos* avoidPosArr);
 
 void		init();
 void		loop();
@@ -259,10 +265,17 @@ void		calcPosFromMeas(BotPos* calcPos, BotPos* pos, BotMeas* meas);
 void		printPosFromMeas(BotPos* pos, BotMeas* meas);
 uint8_t		countAvailableMeasurements();
 uint8_t     nearBotUseabilityCheck(uint8_t i);
-void		prepExpectedPositions(BotPos* expPosArr, BotPos* avoidPosArr); //This is used by initParticles too.
+
+void		extrapolateCovarFromScalar(Matrix* A, float stdDev);
+float		distillCovarIntoScalar();
+
+void		prepExpectedPositions(BotPos* expPosArr);
+void		combineExpectedPositions(float (*pos)[3], float* stdDev, uint8_t numMeas, BotPos* expPosArr);
 void		handleFrameEnd(); 
 void		updateHardBots();
 void		increaseStdDev();
+
+
 void		updatePosition();
 void		updateNearBotOcclusions();
 void		useNewRnbMeas();
@@ -315,35 +328,18 @@ inline uint8_t validNearBotIdx(uint8_t i){
 
 
 static uint8_t getStdDevFromRange(uint16_t range){
-	return (range>=250) ? 200 : ( (range>=125) ? 50 : 25 );
+	return (range>=250) ? 200 : ( (range>=125) ? 60 : 30 );
 }
 
 inline static void packPos(PackedBotPos* pos){
 	int16_t x, y, o;
-	x = batchPos.x;
+	x = myPos.x;
 	x = (x==UNDF) ? MIN_PACKED_X : x;
-	y = batchPos.y;
+	y = myPos.y;
 	y = (y==UNDF) ? MIN_PACKED_Y : y;
-	o = batchPos.o;
+	o = myPos.o;
 	o = (o==UNDF) ? MIN_PACKED_O : o;
-	pos->stdDev  = batchPos.stdDev;
-	pos->xLow  = (uint8_t)(x&0xFF);
-	pos->yLow  = (uint8_t)(y&0xFF);
-	pos->oLow  = (uint8_t)(o&0xFF);
-	pos->bits  = (uint8_t)((x>>8) & 0b00000111);
-	pos->bits |= (uint8_t)((y>>5) & 0b00111000);
-	pos->bits |= (uint8_t)((o>>2) & 0b11000000);
-}
-
-inline static void packPosU(PackedBotPos* pos){
-	int16_t x, y, o;
-	x = unbatchPos.x;
-	x = (x==UNDF) ? MIN_PACKED_X : x;
-	y = unbatchPos.y;
-	y = (y==UNDF) ? MIN_PACKED_Y : y;
-	o = unbatchPos.o;
-	o = (o==UNDF) ? MIN_PACKED_O : o;
-	pos->stdDev  = unbatchPos.stdDev;
+	pos->stdDev  = myPos.stdDev;
 	pos->xLow  = (uint8_t)(x&0xFF);
 	pos->yLow  = (uint8_t)(y&0xFF);
 	pos->oLow  = (uint8_t)(o&0xFF);
@@ -411,12 +407,12 @@ inline static uint8_t dirFromAngle(int16_t angle){
 }
 
 inline static int8_t checkBallCrossedMe(){
-	return sgn(((theBall.yVel*(theBall.yPos-batchPos.y-theBall.xVel) + theBall.xVel*(theBall.xPos-batchPos.x+theBall.yVel))));
+	return sgn(((theBall.yVel*(theBall.yPos-myPos.y-theBall.xVel) + theBall.xVel*(theBall.xPos-myPos.x+theBall.yVel))));
 }
 
 inline static int8_t checkBounceHard(int16_t Bx, int16_t By, int32_t timePassed){
-	int16_t Ax = batchPos.x;
-	int16_t Ay = batchPos.y;
+	int16_t Ax = myPos.x;
+	int16_t Ay = myPos.y;
 	int16_t x = theBall.xPos;
 	int16_t y = theBall.yPos;
 	int8_t signBefore = sgn((Bx-Ax)*(y-Ay) - (By-Ay)*(x-Ax));
@@ -435,8 +431,8 @@ inline static int8_t checkBounceHard(int16_t Bx, int16_t By, int32_t timePassed)
 inline static void calculateBounce(int16_t Bx, int16_t By){
 	int16_t vX = theBall.xVel;
 	int16_t vY = theBall.yVel;
-	int16_t normX = -(By-batchPos.y);
-	int16_t normY = (Bx-batchPos.x);
+	int16_t normX = -(By-myPos.y);
+	int16_t normY = (Bx-myPos.x);
 	int16_t nDotN = normX*normX + normY*normY;
 	int16_t vDotN = vX*normX + vY*normY;
 	int16_t uX = normX*vDotN/nDotN;
@@ -505,28 +501,20 @@ inline static void killBall(){
 }
 
 inline static void initPositions(){
-	batchPos.x = UNDF;
-	batchPos.y = UNDF;
-	batchPos.o = UNDF;
-	batchPos.stdDev = 255;	
-	unbatchPos.x = UNDF;
-	unbatchPos.y = UNDF;
-	unbatchPos.o = UNDF;
-	unbatchPos.stdDev = 255;
+	myPos.x = UNDF;
+	myPos.y = UNDF;
+	myPos.o = UNDF;
+	myPos.stdDev = 255;	
 	myDist = UNDF;
 
 	seedFlag = 0;	
 	for(uint8_t i=0;i<NUM_SEEDS;i++){
 		if(get_droplet_id()==SEED_IDS[i]){
 			seedFlag = 1;
-			batchPos.x = SEED_X[i];
-			batchPos.y = SEED_Y[i];
-			batchPos.o = 0;
-			batchPos.stdDev = 11;
-			unbatchPos.x = SEED_X[i];
-			unbatchPos.y = SEED_Y[i];
-			unbatchPos.o = 0;
-			unbatchPos.stdDev = 11;
+			myPos.x = SEED_X[i];
+			myPos.y = SEED_Y[i];
+			myPos.o = 0;
+			myPos.stdDev = 1;
 			break;
 		}
 	}

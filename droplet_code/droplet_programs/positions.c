@@ -248,6 +248,7 @@ void combineExpectedPositions(Vector* pos, float* stdDev, uint8_t numMeas, BotPo
 		sD *= (float)(numMeas);
 	}
 	*stdDev = sD;
+	printf("\t{%4d, %4d, %4d, %3hu}\r\n", (int16_t)(*pos)[0], (int16_t)(*pos)[1], (int16_t)(*pos)[2], (uint8_t)(*stdDev));
 }
 
 void updatePosition(){
@@ -330,9 +331,9 @@ void updateNearBotOcclusions(){
 }
 
 void handleFrameEnd(){
-	printf("Frame End Calculations\r\n");
+	//printf("Frame End Calculations\r\n");
 	qsort(nearBots, NUM_TRACKED_BOTS+1, sizeof(OtherBot), nearBotsCmpFunc);
-	printNearBots();
+	//printNearBots();
 
 
 	//Maybe we'll want to remove the N worst nearBots, here.
@@ -420,6 +421,9 @@ void useNewRnbMeas(){
 		return;
 	}
 	if(meas->id == 0 || (useMeasAveraging==0 && meas->id == id)){ //We weren't tracking this ID before, so just add the new info.
+		if(meas->id == id){
+			printf("\tG");
+		}
 		measuredBot->lastUsed = 0;
 		meas->id	 = id;
 		meas->r		 = range;
@@ -727,7 +731,6 @@ void frameEndPrintout(){
 	if((theBall.xPos != UNDF) && (theBall.yPos != UNDF)){
 		printf_P(PSTR("\tBall ID: %hu; radius: %hu; Pos: (%d, %d) @ vel (%hd, %hd)\r\n"), theBall.id, theBall.radius, theBall.xPos, theBall.yPos, theBall.xVel, theBall.yVel);
 	}
-	printf("\r\n");	
 }
 
 OtherBot* getOtherBot(id_t id){

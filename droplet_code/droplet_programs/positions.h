@@ -2,8 +2,6 @@
 
 #include "droplet_init.h"
 
-extern Matrix identity_matrix;
-
 #define POS_DEBUG_MODE
 #define GEN_DEBUG_MODE
 #define P_SAMPLE_DEBUG_MODE
@@ -24,7 +22,7 @@ extern Matrix identity_matrix;
  * which it would otherwise do as a result of aspects of system not
  * modelled by Kalman filter.
  */
-Matrix qK = {{100,0,0},{0,100,0},{0,0,100}}; 
+Matrix66 processNoise = {{100,0,0,0,0,0},{0,100,0,0,0,0},{0,0,100,0,0,0},{0,0,0,100,0,0},{0,0,0,0,100,0},{0,0,0,0,0,100}}; 
 
 //uint8_t useNewInfo;
 uint8_t useBlacklist;
@@ -92,12 +90,12 @@ uint8_t addedMeasStdDev;
  * rnb takes 142 ms
  * messages take 2.5ms per byte. 
  * paddleMsg is 3 bytes. header is 8 bytes, so PaddleMsg should take 27.5
- * neighbMsg is 30 bytes. header is 8 bytes, so NeighbMsg should take 95ms
+ * neighbMsg is 34 bytes. header is 8 bytes, so NeighbMsg should take 105ms
  * ballMsg is 7 bytes. header is 8 bytes, so ballMsg should take 37.5ms 
  */
 #define RNB_DUR		100 //80 ms should be enough.
 #define PADDLE_MSG_DUR		40 //padding. Probably excessive.
-#define NEIGHB_MSG_DUR		100
+#define NEIGHB_MSG_DUR		110
 #define BALL_MSG_DUR		40 //padding. Probably excessive.
 
 #define UNDF	((int16_t)0x8000)
@@ -153,6 +151,15 @@ typedef enum {
 } GameMode;
 GameMode gameMode;
 
+typedef struct dense_pos_covar_struct{
+	uint8_t xx;
+	uint8_t xy;
+	uint8_t xo;
+	uint8_t yy;
+	uint8_t yo;
+	uint8_t oo;
+}DensePosCovar;
+
 typedef struct ball_msg_struct{
 	char flag;
 	uint8_t xPos;
@@ -174,12 +181,12 @@ typedef struct packed_bot_pos_struct{
 	uint8_t yLow;
 	uint8_t oLow;
 	uint8_t bits;
-	uint8_t stdDev;
 }PackedBotPos;
 
-typedef struct near_bots_msg_struct{
+typedef struct near_bots_msg_struct{ 
 	PackedBotMeas shared[NUM_SHARED_BOTS]; //4 bytes each
-	PackedBotPos pos; //5 bytes.
+	PackedBotPos pos; //4 bytes.
+	DensePosCovar posCovar; //6 bytes
 	//id_t used[NUM_USED_BOTS];
 	char flag;	
 }NearBotsMsg;
@@ -201,7 +208,6 @@ typedef struct bot_meas_struct
 	uint16_t r;
 	int16_t b;
 	int16_t h;
-	uint8_t stdDev;	
 } BotMeas;
 
 typedef struct bot_pos_struct
@@ -209,14 +215,13 @@ typedef struct bot_pos_struct
 	int16_t x;
 	int16_t y;
 	int16_t o;
-	uint8_t stdDev;
 } BotPos;
 
 typedef struct other_bot_rnb_struct{
 	BotMeas myMeas;
 	BotMeas theirMeas;
 	BotPos pos;
-	uint32_t lastUsed;
+	DensePosCovar posCovar;
 	uint8_t occluded;
 	//uint8_t hasNewInfo;
 } OtherBot;
@@ -227,8 +232,6 @@ typedef struct hard_bot_struct{
 	struct hard_bot_struct* next;
 } HardBot;
 HardBot* hardBotsList;
-
-id_t lastUsedBots[NUM_USED_BOTS];
 
 uint32_t time_before;
 
@@ -254,30 +257,27 @@ int16_t maxRange;
 uint8_t		isCovered;
 
 BotPos myPos;
-Matrix pK;
+DensePosCovar myPosCovar;
 uint16_t myDist;
 uint16_t otherDist;
 
 void		init();
 void		loop();
 void		handleMySlot();
-void		calcPosFromMeas(BotPos* calcPos, BotPos* pos, BotMeas* meas);
-void		printPosFromMeas(BotPos* pos, BotMeas* meas);
-uint8_t		countAvailableMeasurements();
-uint8_t     nearBotUseabilityCheck(uint8_t i);
-
-void		extrapolateCovarFromScalar(Matrix* A, float stdDev);
-float		distillCovarIntoScalar();
-
-void		prepExpectedPositions(BotPos* expPosArr);
-void		combineExpectedPositions(float (*pos)[3], float* stdDev, uint8_t numMeas, BotPos* expPosArr);
 void		handleFrameEnd(); 
-void		updateHardBots();
-void		increaseStdDev();
 
-
+uint8_t     nearBotUseabilityCheck(uint8_t i);
+void		fuseMeasurements(BotMeas* fused, Matrix33* measCovar, BotMeas* myMeas, BotMeas* theirMeas);
+void		unpackDenseCovarTopLeft(Matrix66* DST, DensePosCovar* covar);
+void		unpackDenseCovarBottomRight(Matrix66* DST, DensePosCovar* covar);
+void		prepareMergedCovar(Matrix66* P, DensePosCovar* covar);
 void		updatePosition();
+void		kalmanUpdate(BotPos* pos, BotMeas* meas, Matrix66* P, Matrix33* R);
+void		kalmanObsFunction(Vector3* dst, Vector6* x);
+void		getObsJacobian(Matrix36* DST, Vector6* x);
 void		updateNearBotOcclusions();
+void		updateHardBots();
+
 void		useNewRnbMeas();
 void		updateBall();
 //check_bounce is a helper function for updateBall.
@@ -291,6 +291,8 @@ void		checkLightLevel();
 
 void		sendBallMsg();
 void		handleBallMsg(BallMsg* msg, uint32_t arrivalTime);
+void		copyDenseCovar(DensePosCovar* dst, DensePosCovar* src);
+void		resetDenseCovar(DensePosCovar* a);
 void		sendNearBotsMsg();
 void		handleNearBotsMsg(NearBotsMsg* msg, id_t senderID);
 void		handle_msg			(ir_msg* msg_struct);
@@ -326,10 +328,17 @@ inline uint8_t validNearBotIdx(uint8_t i){
 			nearBots[i].pos.o!=UNDF);
 }
 
+/*
+ * See the top of page 16 in my notebook for basis for measCovar stuff below.
+ */
 
-static uint8_t getStdDevFromRange(uint16_t range){
-	return (range>=250) ? 200 : ( (range>=125) ? 60 : 30 );
-}
+//Matrix33 rbrbCovarClose = {{900, 0, 0},{0, 900, 300},{0,300,900}};
+//Matrix33 rbrbCovarMedium = {{3600, 0, 0},{0, 3600, 1800},{0,1800,3600}};
+//Matrix33 rbrbCovarFar = {{40000, 0, 0},{0, 40000, 40000},{0,40000,40000}};
+
+Matrix33 measCovarClose  = {{900,0,0},{0,900,-1200},{0,-1200,2400}};
+Matrix33 measCovarMedium = {{3600, 0, 0}, {0, 3600, -5400}, {0, -5400, 10800}};
+Matrix33 measCovarFar	 = {{40000, 0, 0}, {0, 40000, -70000}, {0, -70000, 140000}};
 
 inline static void packPos(PackedBotPos* pos){
 	int16_t x, y, o;
@@ -339,7 +348,6 @@ inline static void packPos(PackedBotPos* pos){
 	y = (y==UNDF) ? MIN_PACKED_Y : y;
 	o = myPos.o;
 	o = (o==UNDF) ? MIN_PACKED_O : o;
-	pos->stdDev  = myPos.stdDev;
 	pos->xLow  = (uint8_t)(x&0xFF);
 	pos->yLow  = (uint8_t)(y&0xFF);
 	pos->oLow  = (uint8_t)(o&0xFF);
@@ -349,7 +357,6 @@ inline static void packPos(PackedBotPos* pos){
 }
 
 inline static void unpackPos(PackedBotPos* pPos, BotPos* otherPos){
-	otherPos->stdDev = pPos->stdDev;
 	otherPos->x = pPos->xLow;
 	otherPos->x |= ((uint16_t)(pPos->bits & 0b00000111))<<8;
 	otherPos->x = (otherPos->x)<<5; //shifting value left (and then right again) in case value is negative.
@@ -450,8 +457,6 @@ inline static void calculateBounce(int16_t Bx, int16_t By){
 static int nearBotsCmpFunc(const void* a, const void* b){
 	OtherBot* aN = (OtherBot*)a;
 	OtherBot* bN = (OtherBot*)b;
-	uint8_t aStdDev = (aN->myMeas).stdDev;
-	uint8_t bStdDev = (bN->myMeas).stdDev;
 	uint16_t aRange = (aN->myMeas).r;
 	uint16_t bRange = (bN->myMeas).r;
 	uint8_t aID = ((aN->theirMeas).id == get_droplet_id());
@@ -465,11 +470,6 @@ static int nearBotsCmpFunc(const void* a, const void* b){
 			return -1;
 		}else if(!aID && bID){
 			return  1;
-		}
-		if(aStdDev < bStdDev){
-			return -1;
-		}else if(bStdDev < aStdDev){
-			return 1;
 		}
 	}
 	return 0;
@@ -504,7 +504,7 @@ inline static void initPositions(){
 	myPos.x = UNDF;
 	myPos.y = UNDF;
 	myPos.o = UNDF;
-	myPos.stdDev = 255;	
+	resetDenseCovar(&myPosCovar);
 	myDist = UNDF;
 
 	seedFlag = 0;	
@@ -514,7 +514,6 @@ inline static void initPositions(){
 			myPos.x = SEED_X[i];
 			myPos.y = SEED_Y[i];
 			myPos.o = 0;
-			myPos.stdDev = 1;
 			break;
 		}
 	}

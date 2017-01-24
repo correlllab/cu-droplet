@@ -100,6 +100,17 @@ void handleMySlot(){
 		delay_us(500);	
 }
 
+float densePosCovarDet(DensePosCovar* P){
+	float a = P->xx;
+	float b = P->xy;
+	float c = P->xo;
+	float d = P->yy;
+	float e = P->yo;
+	float f = P->oo;
+	a*=a; b*=b; c*=c; d*=d; e*=e; f*=f;
+	return (a*d*f + 2*b*c*e - a*e*e - d*c*c - f*b*b);
+}
+
 /* 
 	* If we use the same bot every frame, then the measurement errors between me and this other bot become 
 	* very much not independent. Thus, we blacklist otherBots for a certain number of frames before using
@@ -118,6 +129,12 @@ uint8_t nearBotUseabilityCheck(uint8_t i){
 		return 0;
 	}
 	if((nearBots[i].theirMeas).id != get_droplet_id()){
+		return 0;
+	}
+	if((nearBots[i].myMeas.r > 125) && (myPos.x==UNDF || myPos.y==UNDF || myPos.o==UNDF)){
+		return 0;
+	}
+	if(powf(densePosCovarDet(&(nearBots[i].posCovar)), 1.0/6.0)>=50){
 		return 0;
 	}
 	//if((frameCount - nearBots[i].lastUsed) < OTHERBOT_BLACKLIST_FRAME_COUNT){
@@ -158,7 +175,7 @@ void unpackDenseCovarTopLeft(Matrix66* DST, DensePosCovar* covar){
 	(*DST)[2][2] = covar->oo;
 	for(uint8_t i=0;i<3;i++){
 		for(uint8_t j=0;j<3;j++){
-			(*DST)[i][j] = powf(2 * (*DST)[i][j], 2);
+			(*DST)[i][j] = sgn((*DST)[i][j])*powf((*DST)[i][j], 2);
 		}
 	}
 }
@@ -175,17 +192,37 @@ void unpackDenseCovarBottomRight(Matrix66* DST, DensePosCovar* covar){
 	(*DST)[5][5] = covar->oo;
 	for(uint8_t i=3;i<6;i++){
 		for(uint8_t j=3;j<6;j++){
-			(*DST)[i][j] = powf(2 * (*DST)[i][j], 2);
+			(*DST)[i][j] = sgn((*DST)[i][j])*powf((*DST)[i][j], 2);
 		}
 	}
 }
 
-void prepareMergedCovar(Matrix66* P, DensePosCovar* covar){
-	unpackDenseCovarTopLeft(P, &myPosCovar);
+void unpackDenseCrossCovar(Matrix66* DST, DenseCrossCovar* covar){
+	for(uint8_t i=0;i<3;i++){
+		for(uint8_t j=3;j<6;j++){
+			(*DST)[i][j] = (*covar)[i][j-3];
+			(*DST)[i][j] = sgn((*DST)[i][j])*powf(2.0*(*DST)[i][j], 2);
+			(*DST)[j][i] = (*DST)[i][j];
+		}
+	}
+}
+
+void prepareMergedCovar(Matrix66* P, DensePosCovar* covar, DenseCrossCovar* crossCovar){
+	if(myPos.x!=UNDF && myPos.y!=UNDF && myPos.o!=UNDF){
+		unpackDenseCovarTopLeft(P, &myPosCovar);
+	}else{
+		(*P)[0][0] = 40000;
+		(*P)[0][1] = 0;
+		(*P)[0][2] = 10000;
+		(*P)[1][0] = 0;
+		(*P)[1][1] = 40000;
+		(*P)[1][2] = 10000;
+		(*P)[2][0] = 10000;
+		(*P)[2][1] = 10000;
+		(*P)[2][2] = 40000;
+	}
 	unpackDenseCovarBottomRight(P, covar);
-	//TODO: Something for off-diagonal block matrices.
-	//	TODO Addendum -> This is done, but code is in kalman Update. Seems fairly heavy.
-	
+	unpackDenseCrossCovar(P, crossCovar);	
 }
 
 void updatePosition(){
@@ -193,61 +230,62 @@ void updatePosition(){
 	Matrix66 P;
 	Matrix33 R;
 	uint8_t numMeas = 0;
+	uint32_t timeBefore = get_time();
 	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
 		if(nearBotUseabilityCheck(i)){
 			fuseMeasurements(&fusedMeas, &R, &(nearBots[i].myMeas), &(nearBots[i].theirMeas));
-			prepareMergedCovar(&P, &(nearBots[i].posCovar));
-			kalmanUpdate(&(nearBots[i].pos), &fusedMeas, &P, &R);
+			prepareMergedCovar(&P, &(nearBots[i].posCovar), &(nearBots[i].crossCovar));
+			printf("Updating with %04X\r\n",fusedMeas.id);
+			printf("\tMy Pos: {%d, %d, %d}\r\n", myPos.x, myPos.y, myPos.o);
+			printf("\ttheirPos: {%d, %d, %d}\r\n", nearBots[i].pos.x, nearBots[i].pos.y, nearBots[i].pos.o);
+			printf("\tMeas: {%d, %d, %d}\r\n", fusedMeas.r, fusedMeas.b, fusedMeas.h);
+			kalmanUpdate(&(nearBots[i].pos), &fusedMeas,  &P, &R);
+			printf("New P:\r\n");
+			printMatrix66Mathematica(&P);
+			packMyDensePosCovar(&P);
+			packDenseCrossCovar(&P, &(nearBots[i].crossCovar));
+			if(!positiveDefiniteQ(&P)){
+				//printf("Error! Covariance isn't positive definite.\r\n");
+				set_rgb(0,0,255);
+				delay_ms(1000);
+			}
 			numMeas++;
 		}
 	}
+
 	if(!numMeas){ //no measurements to initialize with.
 		printf("\tNo measurements this frame.\r\n");
 		return;
+	}else{
+		printf("kalmanUpdate Took: %lums for %hu meas.\r\n", get_time()-timeBefore, numMeas);
 	}
 }
 
 void kalmanUpdate(BotPos* pos, BotMeas* meas, Matrix66* P, Matrix33* R){
+	if(myPos.x==UNDF || myPos.y==UNDF || myPos.o==UNDF){
+		calcPosFromMeas(&myPos, pos, meas);
+		return;
+	}
 	Vector6 x = {myPos.x, myPos.y, myPos.o, pos->x, pos->y, pos->o};
 	Vector3 z = {meas->r, meas->b, meas->h};
 	Matrix63 tmp63;
-	Matrix66 tmp66;
+	//P = P + Q
+	matrixAdd66(P, P, &processNoise);
+	//y = z - h(x)
+	Vector3 hOfX;
+	Vector3 y;
+	kalmanObsFunction(&hOfX, &x);
+	//printf("hOfX= {%f, %f, %f}\r\n", hOfX[0], hOfX[1], hOfX[2]);
+	vectorSubtract3(&y, &z, &hOfX);
+	//printf("y= {%f, %f, %f}\r\n", y[0], y[1], y[2]);
+	y[1] = pretty_angle_deg(y[1]);
+	y[2] = pretty_angle_deg(y[2]);
+	//S = HPH' + R
 	Matrix36 H;
 	Matrix63 Htp;
 	Matrix33 S;
 	getObsJacobian(&H, &x);
 	matrixTranspose36(&Htp, &H);
-
-	/************************************************************************/
-	/* DEVIATION!															*/
-	/* Instead of just adding Q, I'm going to use the matrix ricati         */
-	/* equation to move merged covar forward one step with this jacobian    */
-	/* The point of this is to get something reasonable in the				*/
-	/* off-block-diagonal regions of P.									    */
-	/************************************************************************/
-	Matrix63 otherTmp63;
-	matrixMultiply66_63(&tmp63, P, &Htp);
-	matrixMultiply36_63(&S, &H, &tmp63);
-	matrixAdd33(&S, &S, R);
-	matrixInverse33(&S, &S); //in place, ok.
-	//at this point S= (HPH' + R)^{-1}
-	matrixMultiply63_33(&otherTmp63, &tmp63, &S); //tmp63 is still PH'
-	matrixMultiply63_36(&tmp66, &otherTmp63, &H);
-	matrixMultiply66_66(&tmp66, &tmp66, P); //in place, ok.
-	matrixSubtract66(P, P, &tmp66);
-	matrixAdd66(P, P, &processNoise);
-	/************************************************************************/
-	/* END DEVIATION! Non-deviant version:	                                */
-	/*     //P = P + Q														*/
-	/*     matrixAdd66(P, P, &processNoise);								*/
-	/************************************************************************/
-	//y = z - h(x)
-	Vector3 hOfX;
-	Vector3 y;
-	kalmanObsFunction(&hOfX, &x);
-	vectorSubtract3(&y, &z, &hOfX);
-	y[2] = pretty_angle_deg(y[2]);
-	//S = HPH' + R
 	matrixMultiply66_63(&tmp63, P, &Htp);
 	matrixMultiply36_63(&S, &H, &tmp63);
 	matrixAdd33(&S, &S, R);
@@ -261,13 +299,87 @@ void kalmanUpdate(BotPos* pos, BotMeas* meas, Matrix66* P, Matrix33* R){
 	matrixTimesVector63_3(&dX, &K, &y);
 	vectorAdd6(&x, &x, &dX);
 	//P = (I-KH)P
-	matrixMultiply63_36(&tmp66, &K, &H);
-	matrixIdentMinus66(&tmp66, &tmp66);
-	matrixMultiply66_66(P, &tmp66, P); //in place, ok.
+	Matrix66 iMinusKH;
+	matrixMultiply63_36(&iMinusKH, &K, &H);
+	matrixIdentMinus66(&iMinusKH, &iMinusKH);
+	matrixMultiply66_66(P, &iMinusKH, P); //in place, ok.
+	//It turns out P=(I-KH)P is only sufficient if K is optimal Kalman gain.
+	//If K isn't that, we can use the Joseph form of the covariance update:
+	//P = (I-KH) P tp(I-KH) + K R tp(K)
+	//matrixInplaceTranspose66(&iMinusKH);
+	//matrixMultiply66_66(P, P, &iMinusKH); //in place ok.
+	//matrixMultiply63_33(&tmp63, &K, R);
+	////Now, 'H' will be tp(K)
+	//matrixTranspose63(&H, &K);
+	////Now, 'iMinusKH' will be K R tp(K)
+	//matrixMultiply63_36(&iMinusKH, &tmp63, &H);
+	//matrixAdd66(P, P, &iMinusKH);
 	myPos.x = (int16_t)(x[0] + 0.5);
 	myPos.y = (int16_t)(x[1] + 0.5);
 	myPos.o = pretty_angle_deg((int16_t)(x[2]+0.5));
+	////Updating cross-covariances for other measurements.
+	//Matrix33* Ka = (Matrix33*)(&K); //Ka is the top 3x3 block of K
+	////Matrix33 Ha;
+	////matrixCopy33(&Ha, (Matrix33*)(&Htp));
+	////matrixInplaceTranspose33(&Ha);
+	////Matrix33 Hb;
+	////matrixCopy33(&Hb, (Matrix33*)(&(Htp[3][0])));
+	////matrixInplaceTranspose33(&Hb);
+	//for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
+		//if((nearBots[i].myMeas.id != meas->id) && nearBotUseabilityCheck(i)){
+			//updateOffCrossCovar(&(nearBots[i].crossCovar), Ka);
+		//}
+	//}
 }
+
+//Under the simplifying assumption described in the commented-out version of this function below,
+//We get an (Ha+Hc) term. However, we actually know this term to always be the matrix: {{0,0,0},{0,0,-1},{0,0,0}}.
+//This would enable further simplifications, except we never get a symmetrical covar under that assumption.
+//Overall, this indicates certain requirements on the 'shape' of Pbc to ensure this update is symmetrical??
+
+//void updateOffCrossCovar(DensePosCovar* covar, Matrix33* Ha, Matrix33* Hb, Matrix33* K){
+	////If we were doing this "right", the bottom 3x3 block of P, below, would
+	////be the cross covar between this bot and the other bot in my measurement.
+	////But we don't have that, so I'm pretending the two are the same (???).
+	//Matrix33 P;
+	//for(uint8_t i=0;i<3;i++){
+		//for(uint8_t j=0;j<3;j++){
+			//P[i][j] = (*covar)[i][j];
+			//P[i][j] = powf(P[i][j]*2,2)*sgn(P[i][j]);
+		//}
+	//}
+	//printf("In updateOffCrossCovar\r\n");
+	//printf("P:\r\n");
+	//printMatrix33Mathematica(&P);
+	//printf("K:\r\n");
+	//printMatrix33Mathematica(K);
+	//Matrix33 tmp;
+	///************************************************************************/
+	///*  We should be doing:													*/
+	///*		Pab = Pab - Ka**(Ha**Pab + Hc**Pac)                             */
+	///*  But since that information isn't available, I'm doing:				*/
+	///*		Pab = Pab - Ka**(Ha**Pab + Hc**Pab)								*/
+	///*			= Pab - Ka**(Ha+Hc)**Pab									*/
+	///*	Where Pab is cross covar between me and this other bot, and Pbc is  */
+	///*	the cross covar between this other bot and the bot we just updated  */
+	///*	our position estimate with a measurement from.						*/
+	///************************************************************************/
+	//matrixAdd33(&tmp, Ha, Hb);
+	//matrixMultiply33_33(&tmp, &tmp, &P); //In place, but that's okay.
+	//matrixMultiply33_33(&tmp, K, &tmp); //In place, but that's okay.
+	//matrixSubtract33(&P, &P, &tmp);
+	//printf("NewP:\r\n");
+	//printMatrix33Mathematica(&P);
+	////repacking the covar:
+	//for(uint8_t i=0;i<3;i++){
+		//for(uint8_t j=0;j<3;j++){
+			//P[i][j] = sqrt(P[i][j]/2.0);
+			//P[i][j] = P[i][j]>127 ? 127 : P[i][j];
+			//P[i][j] = P[i][j]<-128 ? -128 : P[i][j];
+			//(*covar)[i][j] = (int8_t)P[i][j];
+		//}
+	//}
+//}
 
 void kalmanObsFunction(Vector3* dst, Vector6* x){
 	float xDiff = (*x)[0] - (*x)[3];
@@ -291,7 +403,7 @@ void getObsJacobian(Matrix36* DST, Vector6* x){
 	(*DST)[0][2] = 0;			(*DST)[1][2] = 0;				 (*DST)[2][2] = 1;
 	(*DST)[0][3] = -xDiff/dist;	(*DST)[1][3] =  yDiff/distSqDeg; (*DST)[2][3] = 0;
 	(*DST)[0][4] = -yDiff/dist;	(*DST)[1][4] = -xDiff/distSqDeg; (*DST)[2][4] = 0;
-	(*DST)[0][5] = 0;			(*DST)[1][5] = 0;				 (*DST)[2][5] = -1;
+	(*DST)[0][5] = 0;			(*DST)[1][5] = -1;				 (*DST)[2][5] = -1;
 }
 
 //Note: This function assumes that nearBots have been sorted by range!
@@ -324,6 +436,21 @@ void updateNearBotOcclusions(){
 			numIntervals++;
 		}
 	}
+}
+
+void calcPosFromMeas(BotPos* calcPos, BotPos* pos, BotMeas* meas){
+	float x		 = pos->x;
+	float y		 = pos->y;
+	int16_t o	 = pos->o;
+	uint16_t r   = meas->r;
+	int16_t b	 = meas->b;
+	int16_t h    = meas->h;
+	float deltaX = (float)r * cos(deg_to_rad(b + o + 90));
+	float deltaY = (float)r * sin(deg_to_rad(b + o + 90));
+	calcPos->x = (int16_t)(x + deltaX + 0.5);
+	calcPos->y = (int16_t)(y + deltaY + 0.5);
+	calcPos->o = pretty_angle_deg(o + h);
+	printf("Initial Position: {%d, %d, %d}\r\n", calcPos->x, calcPos->y, calcPos->o);
 }
 
 void handleFrameEnd(){
@@ -391,7 +518,6 @@ void useNewRnbMeas(){
 	uint16_t range = last_good_rnb.range;
 	int16_t bearing = last_good_rnb.bearing;
 	rnb_updated=0;
-
 	RNB_DEBUG_PRINT("            (RNB) ID: %04X | R: %4u B: %4d\r\n", id, range, bearing);
 	OtherBot* measuredBot = addOtherBot(id);
 	BotMeas* meas = &(measuredBot->myMeas);
@@ -698,10 +824,67 @@ void frameEndPrintout(){
 	printf_P(PSTR(" ]\r\n"));
 	if((myPos.x != UNDF) && (myPos.y != UNDF) && (myPos.o != UNDF)){
 		printf_P(PSTR("\tMy Pos: {%d, %d, %d}\r\n"), myPos.x, myPos.y, myPos.o);
+		printf("\tMy P:\r\n");
+		printPosCovar(&myPosCovar);
 	}
 	if((theBall.xPos != UNDF) && (theBall.yPos != UNDF)){
 		printf_P(PSTR("\tBall ID: %hu; radius: %hu; Pos: (%d, %d) @ vel (%hd, %hd)\r\n"), theBall.id, theBall.radius, theBall.xPos, theBall.yPos, theBall.xVel, theBall.yVel);
 	}
+}
+
+void packMyDensePosCovar(Matrix66* P){
+	int16_t xx = sqrtf((*P)[0][0]);
+	if(xx>255) xx=255;
+	int16_t xy = sqrtf(fabsf((*P)[0][1]))*sgn((*P)[0][1]);
+	if(xy>127) xy=127;
+	else if(xy<-128) xy=-128;
+	int16_t xo = sqrtf(fabsf((*P)[0][2]))*sgn((*P)[0][2]);
+	if(xo>127) xo=127;
+	else if(xo<-128) xo=-128;
+	int16_t yy = sqrtf((*P)[1][1]);
+	if(yy>255) yy=255;
+	int16_t yo = sqrtf(fabsf((*P)[1][2]))*sgn((*P)[1][2]);
+	if(yo>127) yo=127;
+	else if(yo<-128) yo=-128;
+	int16_t oo = sqrtf((*P)[2][2]);
+	if(oo>255) oo=255;
+
+	myPosCovar.xx = xx;
+	myPosCovar.xy = xy;
+	myPosCovar.xo = xo;
+	myPosCovar.yy = yy;
+	myPosCovar.yo = yo;
+	myPosCovar.oo = oo;
+}
+
+void packDenseCrossCovar(Matrix66* P, DenseCrossCovar* covar){
+	int16_t tmp;
+	for(uint8_t i=0;i<3;i++){
+		for(uint8_t j=3;j<6;j++){
+			tmp = sqrt((*P)[i][j])*sgn((*P)[i][j])/2;
+			tmp = (tmp>127) ? 127 : tmp;
+			tmp = (tmp<-128) ? 128 : tmp;
+			(*covar)[i][j-3] = tmp;
+		}
+	}
+}
+
+void printPosCovar(DensePosCovar* P){
+	float xx = P->xx;
+	float xy = P->xy;
+	float xo = P->xo;
+	float yy = P->yy;
+	float yo = P->yo;
+	float oo = P->oo;
+	xx = xx * xx;
+	xy = sgn(xy) * xy * xy;
+	xo = sgn(xo) * xo * xo;
+	yy = yy * yy;
+	yo = sgn(yo) * yo * yo;
+	oo = oo * oo;
+	printf("\t{\r\n\t  {%7.1f, %7.1f, %7.1f},\r\n", xx, xy, xo);
+	printf("\t  {%7.1f, %7.1f, %7.1f},\r\n",	    xy, yy, yo);
+	printf("\t  {%7.1f, %7.1f, %7.1f}\r\n\t}\r\n",  xo, yo, oo);
 }
 
 OtherBot* getOtherBot(id_t id){
@@ -747,7 +930,7 @@ OtherBot* addOtherBot(id_t id){
 	return &(nearBots[NUM_TRACKED_BOTS]);
 }
 
-void resetDenseCovar(DensePosCovar* a){
+void resetDensePosCovar(DensePosCovar* a){
 	a->xx = 1;
 	a->xy = 0;
 	a->xo = 0;
@@ -756,12 +939,25 @@ void resetDenseCovar(DensePosCovar* a){
 	a->oo = 1;
 }
 
+void resetDenseCrossCovar(DenseCrossCovar* a){
+	(*a)[0][0] = 1;
+	(*a)[0][1] = 0;
+	(*a)[0][2] = 0;
+	(*a)[1][0] = 0;
+	(*a)[1][1] = 1;
+	(*a)[1][2] = 0;
+	(*a)[2][0] = 0;
+	(*a)[2][1] = 0;
+	(*a)[2][2] = 1;
+}
+
 void cleanOtherBot(OtherBot* other){
 	if(other==NULL) return;
 	other->pos.x = UNDF;
 	other->pos.y = UNDF;
 	other->pos.o = UNDF;
-	resetDenseCovar(&(other->posCovar));
+	resetDensePosCovar(&(other->posCovar));
+	resetDenseCrossCovar(&(other->crossCovar));
 	other->myMeas.id = 0;
 	other->myMeas.r = UNDF;
 	other->myMeas.b = UNDF;
@@ -793,7 +989,7 @@ void printOtherBot(OtherBot* bot){
 	if(pos->x!=UNDF && pos->y!=UNDF && pos->o!=UNDF){
 		printf_P(PSTR("| %4d | %4d | % 4d "), pos->x, pos->y, pos->o);
 	}else{
-		printf_P(PSTR("|  --  |  --  |  --  |  -- "));
+		printf_P(PSTR("|  --  |  --  |  --  "));
 	}
 	printf_P(PSTR("| %4u | % 4d "), myM->r, myM->b);
 	if(thM->id==get_droplet_id()){

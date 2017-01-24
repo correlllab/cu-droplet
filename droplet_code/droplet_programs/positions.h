@@ -22,7 +22,7 @@
  * which it would otherwise do as a result of aspects of system not
  * modelled by Kalman filter.
  */
-Matrix66 processNoise = {{100,0,0,0,0,0},{0,100,0,0,0,0},{0,0,100,0,0,0},{0,0,0,100,0,0},{0,0,0,0,100,0},{0,0,0,0,0,100}}; 
+Matrix66 processNoise = {{400,0,0,0,0,0},{0,400,0,0,0,0},{0,0,400,0,0,0},{0,0,0,400,0,0},{0,0,0,0,400,0},{0,0,0,0,0,400}}; 
 
 //uint8_t useNewInfo;
 uint8_t useBlacklist;
@@ -153,12 +153,14 @@ GameMode gameMode;
 
 typedef struct dense_pos_covar_struct{
 	uint8_t xx;
-	uint8_t xy;
-	uint8_t xo;
+	int8_t xy;
+	int8_t xo;
 	uint8_t yy;
-	uint8_t yo;
+	int8_t yo;
 	uint8_t oo;
 }DensePosCovar;
+
+typedef int8_t DenseCrossCovar[3][3];
 
 typedef struct ball_msg_struct{
 	char flag;
@@ -222,6 +224,7 @@ typedef struct other_bot_rnb_struct{
 	BotMeas theirMeas;
 	BotPos pos;
 	DensePosCovar posCovar;
+	DenseCrossCovar crossCovar;
 	uint8_t occluded;
 	//uint8_t hasNewInfo;
 } OtherBot;
@@ -270,11 +273,14 @@ uint8_t     nearBotUseabilityCheck(uint8_t i);
 void		fuseMeasurements(BotMeas* fused, Matrix33* measCovar, BotMeas* myMeas, BotMeas* theirMeas);
 void		unpackDenseCovarTopLeft(Matrix66* DST, DensePosCovar* covar);
 void		unpackDenseCovarBottomRight(Matrix66* DST, DensePosCovar* covar);
-void		prepareMergedCovar(Matrix66* P, DensePosCovar* covar);
+void		unpackDenseCrossCovar(Matrix66* DST, DenseCrossCovar* covar);
+void		prepareMergedCovar(Matrix66* P, DensePosCovar* covar, DenseCrossCovar* crossCovar);
 void		updatePosition();
 void		kalmanUpdate(BotPos* pos, BotMeas* meas, Matrix66* P, Matrix33* R);
+void		updateOffCrossCovar(DensePosCovar* covar, Matrix33* Ha, Matrix33* Hb, Matrix33* K);
 void		kalmanObsFunction(Vector3* dst, Vector6* x);
 void		getObsJacobian(Matrix36* DST, Vector6* x);
+void		calcPosFromMeas(BotPos* calcPos, BotPos* pos, BotMeas* meas);
 void		updateNearBotOcclusions();
 void		updateHardBots();
 
@@ -292,12 +298,17 @@ void		checkLightLevel();
 void		sendBallMsg();
 void		handleBallMsg(BallMsg* msg, uint32_t arrivalTime);
 void		copyDenseCovar(DensePosCovar* dst, DensePosCovar* src);
-void		resetDenseCovar(DensePosCovar* a);
+void		resetDensePosCovar(DensePosCovar* a);
+void		resetDenseCrossCovar(DenseCrossCovar* a);
 void		sendNearBotsMsg();
 void		handleNearBotsMsg(NearBotsMsg* msg, id_t senderID);
 void		handle_msg			(ir_msg* msg_struct);
 
 void		frameEndPrintout();
+
+void		packMyDensePosCovar(Matrix66* P);
+void		packDenseCrossCovar(Matrix66* P, DenseCrossCovar* covar);
+void		printPosCovar(DensePosCovar* P);
 
 //These four functions are for interacting with the OtherBot data structure.
 OtherBot*	getOtherBot(id_t id);
@@ -336,9 +347,13 @@ inline uint8_t validNearBotIdx(uint8_t i){
 //Matrix33 rbrbCovarMedium = {{3600, 0, 0},{0, 3600, 1800},{0,1800,3600}};
 //Matrix33 rbrbCovarFar = {{40000, 0, 0},{0, 40000, 40000},{0,40000,40000}};
 
-Matrix33 measCovarClose  = {{900,0,0},{0,900,-1200},{0,-1200,2400}};
-Matrix33 measCovarMedium = {{3600, 0, 0}, {0, 3600, -5400}, {0, -5400, 10800}};
-Matrix33 measCovarFar	 = {{40000, 0, 0}, {0, 40000, -70000}, {0, -70000, 140000}};
+//Matrix33 measCovarClose  = {{2500,0,0},{0,900,-450},{0,-450,900}};
+//Matrix33 measCovarMedium = {{6400, 0, 0}, {0, 8100, -4100}, {0, -4100, 8200}};
+//Matrix33 measCovarFar	 = {{100000, 0, 0}, {0, 32400, -16400}, {0, -16400, 32800}};
+
+Matrix33 measCovarClose  = {{900,0,0},{0,400,-400},{0,-400,800}};
+Matrix33 measCovarMedium = {{4900, 0, 0}, {0, 3600, -3600}, {0, -3600, 7200}};
+Matrix33 measCovarFar	 = {{10000, 0, 0}, {0, 8100, -8100}, {0, -8100, 16200}};
 
 inline static void packPos(PackedBotPos* pos){
 	int16_t x, y, o;
@@ -504,7 +519,7 @@ inline static void initPositions(){
 	myPos.x = UNDF;
 	myPos.y = UNDF;
 	myPos.o = UNDF;
-	resetDenseCovar(&myPosCovar);
+	resetDensePosCovar(&myPosCovar);
 	myDist = UNDF;
 
 	seedFlag = 0;	

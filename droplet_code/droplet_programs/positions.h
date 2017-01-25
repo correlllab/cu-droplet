@@ -15,15 +15,6 @@
 #define MIN_PACKED_Y -1024
 #define MIN_PACKED_O -512
 
-/*
- * Constant term for process noise. 
- * We don't actually have a process, but adding some process noise
- * keeps our pK from getting too (unrealistically) small over time,
- * which it would otherwise do as a result of aspects of system not
- * modelled by Kalman filter.
- */
-Matrix66 processNoise = {{400,0,0,0,0,0},{0,400,0,0,0,0},{0,0,400,0,0,0},{0,0,0,400,0,0},{0,0,0,0,400,0},{0,0,0,0,0,400}}; 
-
 //uint8_t useNewInfo;
 uint8_t useBlacklist;
 uint8_t stdDevThreshold;
@@ -90,43 +81,41 @@ uint8_t addedMeasStdDev;
  * rnb takes 142 ms
  * messages take 2.5ms per byte. 
  * paddleMsg is 3 bytes. header is 8 bytes, so PaddleMsg should take 27.5
- * neighbMsg is 34 bytes. header is 8 bytes, so NeighbMsg should take 105ms
+ * neighbMsg is 40 bytes. header is 8 bytes, so NeighbMsg should take 105ms
  * ballMsg is 7 bytes. header is 8 bytes, so ballMsg should take 37.5ms 
  */
 #define RNB_DUR		100 //80 ms should be enough.
 #define PADDLE_MSG_DUR		40 //padding. Probably excessive.
-#define NEIGHB_MSG_DUR		110
+#define NEIGHB_MSG_DUR		125
 #define BALL_MSG_DUR		40 //padding. Probably excessive.
-
-#define UNDF	((int16_t)0x8000)
 
 #define SLOT_LENGTH_MS			307
 #define SLOTS_PER_FRAME			37
 #define FRAME_LENGTH_MS			(((uint32_t)SLOT_LENGTH_MS)*((uint32_t)SLOTS_PER_FRAME))
 #define LOOP_DELAY_MS			17
 
-#define DROPLET_DIAMETER_MM		44.4
-#define BALL_MSG_FLAG			'B'
-#define NEAR_BOTS_MSG_FLAG		'N'
-//#define N_PADDLE_MSG_FLAG		'P'
-//#define S_PADDLE_MSG_FLAG		'S'
+/*
+ * See the top of page 16 in my notebook for basis for measCovar stuff below.
+ */
+Matrix33 measCovarClose  = {{900,0,0},{0,400,-400},{0,-400,800}};
+Matrix33 measCovarMedium = {{4900, 0, 0}, {0, 3600, -3600}, {0, -3600, 7200}};
 
 //TODO: Make paddle_width dynamically calculated!
 //#define PADDLE_WIDTH		(FLOOR_WIDTH/3)
 #define PADDLE_VEL				0.1
 #define NUM_SEEDS 4
-#define NUM_SHARED_BOTS 6
+#define NUM_SHARED_BOTS 3
 #define NUM_USED_BOTS 5
 #define NUM_TRACKED_BOTS 12
-
 const id_t	   SEED_IDS[NUM_SEEDS]	   = {0x6B6F, 0xCB64, 0xB41B, 0xDF64};
 const int16_t  SEED_X[NUM_SEEDS]   = {100, 900, 100, 900};
 const int16_t  SEED_Y[NUM_SEEDS]   = {900, 900, 100, 100};
-
 #define MIN_X 0
 #define MIN_Y 0
 #define MAX_X 1000
 #define MAX_Y 1000
+
+#define UNDF	((int16_t)0x8000)
 
 #define STATE_PIXEL		0x1
 #define STATE_NORTH		0x2
@@ -136,7 +125,11 @@ const int16_t  SEED_Y[NUM_SEEDS]   = {900, 900, 100, 100};
 #define SOUTH_PIXEL(state)		((state&STATE_PIXEL)&&(state&STATE_SOUTH))
 #define NS_PIXEL(state)			((state&STATE_PIXEL)&&((state&STATE_NORTH) || (state&STATE_SOUTH)))
 
-#define OTHERBOT_BLACKLIST_FRAME_COUNT 4
+#define DROPLET_DIAMETER_MM		44.4
+#define BALL_MSG_FLAG			'B'
+#define NEAR_BOTS_MSG_FLAG		'N'
+//#define N_PADDLE_MSG_FLAG		'P'
+//#define S_PADDLE_MSG_FLAG		'S'
 
 typedef enum {
 	POS,
@@ -151,17 +144,6 @@ typedef enum {
 } GameMode;
 GameMode gameMode;
 
-typedef struct dense_pos_covar_struct{
-	uint8_t xx;
-	int8_t xy;
-	int8_t xo;
-	uint8_t yy;
-	int8_t yo;
-	uint8_t oo;
-}DensePosCovar;
-
-typedef int8_t DenseCrossCovar[3][3];
-
 typedef struct ball_msg_struct{
 	char flag;
 	uint8_t xPos;
@@ -172,11 +154,12 @@ typedef struct ball_msg_struct{
 	uint8_t radius; //bits 0-1 are two high bits for id. rest is radius (which must be divisible by 4)
 }BallMsg;
 
-typedef struct packed_bot_meas_struct{
-	id_t id;
-	uint8_t range;
-	int8_t b;
-}PackedBotMeas;
+typedef union flex_byte_union{
+	uint8_t u;
+	int8_t d;
+}FlexByte;
+
+typedef FlexByte DensePosCovar[6];
 
 typedef struct packed_bot_pos_struct{
 	uint8_t xLow;
@@ -185,10 +168,16 @@ typedef struct packed_bot_pos_struct{
 	uint8_t bits;
 }PackedBotPos;
 
+typedef struct packed_bot_meas_struct{
+	id_t id;			//2 bytes
+	int8_t b;			//1 byte
+	PackedBotPos pos;	//4 bytes
+	DensePosCovar covar;	//6 bytes
+}PackedBotMeas;
+
 typedef struct near_bots_msg_struct{ 
-	PackedBotMeas shared[NUM_SHARED_BOTS]; //4 bytes each
-	PackedBotPos pos; //4 bytes.
-	DensePosCovar posCovar; //6 bytes
+	PackedBotMeas shared[NUM_SHARED_BOTS]; //13 bytes each
+	//PackedBotPos pos; //4 bytes.
 	//id_t used[NUM_USED_BOTS];
 	char flag;	
 }NearBotsMsg;
@@ -221,10 +210,8 @@ typedef struct bot_pos_struct
 
 typedef struct other_bot_rnb_struct{
 	BotMeas myMeas;
-	BotMeas theirMeas;
-	BotPos pos;
+	BotPos posFromMe;
 	DensePosCovar posCovar;
-	DenseCrossCovar crossCovar;
 	uint8_t occluded;
 	//uint8_t hasNewInfo;
 } OtherBot;
@@ -236,8 +223,8 @@ typedef struct hard_bot_struct{
 } HardBot;
 HardBot* hardBotsList;
 
-uint32_t time_before;
-
+BotPos myPos;
+DensePosCovar myPosCovar;
 
 uint8_t		lastBallID;
 uint8_t		seedFlag;
@@ -249,18 +236,15 @@ uint32_t	lastBallMsg;
 uint32_t	lastLightCheck;
 uint16_t	mySlot;
 uint16_t	loopID;
-int16_t xRange;
-int16_t yRange;
-int16_t maxRange;
+int16_t		xRange;
+int16_t		yRange;
+int16_t		maxRange;
 
 
 //float		paddleChange;
 //int16_t		paddleStart;
 //int16_t		paddleEnd;
 uint8_t		isCovered;
-
-BotPos myPos;
-DensePosCovar myPosCovar;
 uint16_t myDist;
 uint16_t otherDist;
 
@@ -270,45 +254,39 @@ void		handleMySlot();
 void		handleFrameEnd(); 
 
 uint8_t     nearBotUseabilityCheck(uint8_t i);
-void		fuseMeasurements(BotMeas* fused, Matrix33* measCovar, BotMeas* myMeas, BotMeas* theirMeas);
-void		unpackDenseCovarTopLeft(Matrix66* DST, DensePosCovar* covar);
-void		unpackDenseCovarBottomRight(Matrix66* DST, DensePosCovar* covar);
-void		unpackDenseCrossCovar(Matrix66* DST, DenseCrossCovar* covar);
-void		prepareMergedCovar(Matrix66* P, DensePosCovar* covar, DenseCrossCovar* crossCovar);
-void		updatePosition();
-void		kalmanUpdate(BotPos* pos, BotMeas* meas, Matrix66* P, Matrix33* R);
-void		updateOffCrossCovar(DensePosCovar* covar, Matrix33* Ha, Matrix33* Hb, Matrix33* K);
-void		kalmanObsFunction(Vector3* dst, Vector6* x);
-void		getObsJacobian(Matrix36* DST, Vector6* x);
-void		calcPosFromMeas(BotPos* calcPos, BotPos* pos, BotMeas* meas);
-void		updateNearBotOcclusions();
-void		updateHardBots();
+void		ciUpdatePos(BotPos* pos, DensePosCovar* covar);
+void		updatePositions();
+void		getMeasCovar(Matrix33* R, BotMeas* meas);
+void		calcRelativePose(Vector3* pose, BotMeas* meas);
+void		populateGammaMatrix(Matrix33* G, Vector3* pos);
+void		populateHMatrix(Matrix33* H, Vector3* x_me, Vector3* x_you);
+void		compressP(Matrix33* P, DensePosCovar* covar);
+void		decompressP(Matrix33* P, DensePosCovar* covar);
 
 void		useNewRnbMeas();
+//float getPaddleCoverage();
+
+void		checkLightLevel();
+
+
+void		sendNearBotsMsg();
+void		handleNearBotsMsg(NearBotsMsg* msg, id_t senderID);
+
 void		updateBall();
 //check_bounce is a helper function for updateBall.
 void		check_bounce(int8_t xVel, int8_t yVel, int8_t* newXvel, int8_t* newYvel);
 void		updateColor();
 //Coverage functions below are helper functions for 'updateColor'.
 float		getBallCoverage();
-//float getPaddleCoverage();
-
-void		checkLightLevel();
-
+void		updateNearBotOcclusions();
+void		updateHardBots();
 void		sendBallMsg();
 void		handleBallMsg(BallMsg* msg, uint32_t arrivalTime);
-void		copyDenseCovar(DensePosCovar* dst, DensePosCovar* src);
-void		resetDensePosCovar(DensePosCovar* a);
-void		resetDenseCrossCovar(DenseCrossCovar* a);
-void		sendNearBotsMsg();
-void		handleNearBotsMsg(NearBotsMsg* msg, id_t senderID);
 void		handle_msg			(ir_msg* msg_struct);
 
-void		frameEndPrintout();
 
-void		packMyDensePosCovar(Matrix66* P);
-void		packDenseCrossCovar(Matrix66* P, DenseCrossCovar* covar);
 void		printPosCovar(DensePosCovar* P);
+void		frameEndPrintout();
 
 //These four functions are for interacting with the OtherBot data structure.
 OtherBot*	getOtherBot(id_t id);
@@ -316,52 +294,22 @@ void		findAndRemoveOtherBot(id_t id);
 void		removeOtherBot(uint8_t idx);
 OtherBot*	addOtherBot(id_t id);
 void		cleanOtherBot(OtherBot* other);
-void		printNearBots();
-void		printOtherBot(OtherBot* bot);
+//void		printNearBots();
+//void		printOtherBot(OtherBot* bot);
 
 void		addHardBot(id_t id);
 void		cleanHardBots();
 
-//uint8_t checkNearBotForNewInfo(id_t usedBots[NUM_USED_BOTS]);
-//void getUsedBots(id_t dest[NUM_USED_BOTS]);
-//void addUsedBot(id_t bot);
-//void initUsedBots();
+void printNearBots();
+void printOtherBot(OtherBot* bot);
 
-/*
- * BEGIN INLINE HELPER FUNCTIONS
- */
- /* This function takes a bearing and heading measurement (b, h) and converts 
-  * them to the bearing and heading (newB, newH) from the measured bot to the
-  * measuring bot implied by that measurement (b, h).
-  */
-inline uint8_t validNearBotIdx(uint8_t i){
-	return (nearBots[i].pos.x != UNDF && nearBots[i].pos.y!=UNDF && 
-			nearBots[i].pos.o!=UNDF);
-}
-
-/*
- * See the top of page 16 in my notebook for basis for measCovar stuff below.
- */
-
-//Matrix33 rbrbCovarClose = {{900, 0, 0},{0, 900, 300},{0,300,900}};
-//Matrix33 rbrbCovarMedium = {{3600, 0, 0},{0, 3600, 1800},{0,1800,3600}};
-//Matrix33 rbrbCovarFar = {{40000, 0, 0},{0, 40000, 40000},{0,40000,40000}};
-
-//Matrix33 measCovarClose  = {{2500,0,0},{0,900,-450},{0,-450,900}};
-//Matrix33 measCovarMedium = {{6400, 0, 0}, {0, 8100, -4100}, {0, -4100, 8200}};
-//Matrix33 measCovarFar	 = {{100000, 0, 0}, {0, 32400, -16400}, {0, -16400, 32800}};
-
-Matrix33 measCovarClose  = {{900,0,0},{0,400,-400},{0,-400,800}};
-Matrix33 measCovarMedium = {{4900, 0, 0}, {0, 3600, -3600}, {0, -3600, 7200}};
-Matrix33 measCovarFar	 = {{10000, 0, 0}, {0, 8100, -8100}, {0, -8100, 16200}};
-
-inline static void packPos(PackedBotPos* pos){
+inline static void packPos(PackedBotPos* pos, BotPos* otherPos){
 	int16_t x, y, o;
-	x = myPos.x;
+	x = otherPos->x;
 	x = (x==UNDF) ? MIN_PACKED_X : x;
-	y = myPos.y;
+	y = otherPos->y;
 	y = (y==UNDF) ? MIN_PACKED_Y : y;
-	o = myPos.o;
+	o = otherPos->o;
 	o = (o==UNDF) ? MIN_PACKED_O : o;
 	pos->xLow  = (uint8_t)(x&0xFF);
 	pos->yLow  = (uint8_t)(y&0xFF);
@@ -474,23 +422,16 @@ static int nearBotsCmpFunc(const void* a, const void* b){
 	OtherBot* bN = (OtherBot*)b;
 	uint16_t aRange = (aN->myMeas).r;
 	uint16_t bRange = (bN->myMeas).r;
-	uint8_t aID = ((aN->theirMeas).id == get_droplet_id());
-	uint8_t bID = ((bN->theirMeas).id == get_droplet_id());
 	if(aRange < bRange){
 		return -1;
 	}else if(bRange < aRange){
 		return 1;
 	}else{
-		if(aID && !bID){
-			return -1;
-		}else if(!aID && bID){
-			return  1;
-		}
+		return 0;
 	}
-	return 0;
 }
 
-static int nearBotMeasBearingCmpFunc(const void* a, const void* b){
+static int nearBotMeasCmpFunc(const void* a, const void* b){
 	BotMeas* aN = (BotMeas*)a;
 	BotMeas* bN = (BotMeas*)b;
 	int16_t aC = aN->b;
@@ -519,8 +460,10 @@ inline static void initPositions(){
 	myPos.x = UNDF;
 	myPos.y = UNDF;
 	myPos.o = UNDF;
-	resetDensePosCovar(&myPosCovar);
 	myDist = UNDF;
+	for(uint8_t i=0;i<6;i++){
+		myPosCovar[i].u = 0;
+	}
 
 	seedFlag = 0;	
 	for(uint8_t i=0;i<NUM_SEEDS;i++){
@@ -529,6 +472,9 @@ inline static void initPositions(){
 			myPos.x = SEED_X[i];
 			myPos.y = SEED_Y[i];
 			myPos.o = 0;
+			myPosCovar[0].u = 1;
+			myPosCovar[3].u = 1;
+			myPosCovar[5].u = 1;
 			break;
 		}
 	}

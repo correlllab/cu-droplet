@@ -182,6 +182,13 @@ typedef struct near_bots_msg_struct{
 	char flag;	
 }NearBotsMsg;
 
+typedef struct bot_meas_msg_struct{
+	id_t id;
+	PackedBotPos pos;
+	DensePosCovar covar;
+	char flag;
+}BotMeasMsg;
+
 typedef struct ball_dat_struct{
 	uint32_t lastUpdate;	
 	int16_t xPos;

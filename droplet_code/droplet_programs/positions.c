@@ -132,9 +132,13 @@ void ciUpdatePos(BotPos* pos, DensePosCovar* covar){
 	printf("xMeFromYou= { %f, %f, %f};\r\n", xMeFromYou[0], xMeFromYou[1], xMeFromYou[2]);
 	Matrix33 myPinv;
 	decompressP(&myPinv, &myPosCovar);
+	printf("myP=\r\n");
+	printMatrix33Mathematica(&myPinv);
 	matrixInplaceInverse33(&myPinv);
 	Matrix33 yourPinv;
 	decompressP(&yourPinv, covar);
+	printf("yourP=\r\n");
+	printMatrix33Mathematica(&yourPinv);
 	matrixInplaceInverse33(&yourPinv);
 	Matrix33 myNewP;
 	Vector3 myNewPos;
@@ -168,6 +172,7 @@ void ciUpdatePos(BotPos* pos, DensePosCovar* covar){
 	myPos.x = myNewPos[0]>1023 ? 1023 : (myNewPos[0]<-1023 ? -1023 : myNewPos[0]);
 	myPos.y = myNewPos[1]>1023 ? 1023 : (myNewPos[1]<-1023 ? -1023 : myNewPos[1]);
 	myPos.o = pretty_angle_deg(myNewPos[2]);
+	compressP(&myNewP, &myPosCovar);
 }
 
 void updatePositions(){
@@ -175,39 +180,39 @@ void updatePositions(){
 		printf("Can't adjust others' positions until I know where I am.\r\n");
 		return;
 	}
-	printf("Updating Positions!\r\n");
+	//printf("Updating Positions!\r\n");
 	Vector3 x_me = {myPos.x, myPos.y, myPos.o};
-	printf("x_me= {%f, %f, %f};\r\n", x_me[0], x_me[1], x_me[2]);
+	//printf("x_me= {%f, %f, %f};\r\n", x_me[0], x_me[1], x_me[2]);
 	Matrix33 G;
 	populateGammaMatrix(&G, &x_me);
-	printf("G=\r\n");
-	printMatrix33Mathematica(&G);
+	//printf("G=\r\n");
+	//printMatrix33Mathematica(&G);
 	Matrix33 Gtp;
 	matrixTranspose33(&Gtp, &G);
 	Matrix33 myP;
 	decompressP(&myP, &myPosCovar);
-	printf("myP=\r\n");
-	printMatrix33Mathematica(&myP);
+	//printf("myP=\r\n");
+	//printMatrix33Mathematica(&myP);
 
 	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
 		if(nearBotUseabilityCheck(i)){		
 			Vector3 z;
 			calcRelativePose(&z, &(nearBots[i].myMeas));
-			printf("z= {%f, %f, %f};\r\n", z[0], z[1], z[2]);
+			//printf("z= {%f, %f, %f};\r\n", z[0], z[1], z[2]);
 			Matrix33 R;
 			getMeasCovar(&R, &(nearBots[i].myMeas));
-			printf("R=\r\n");
-			printMatrix33Mathematica(&R);			
+			//printf("R=\r\n");
+			//printMatrix33Mathematica(&R);			
 			//yourX = myX + G.z
 			Vector3 x_you;
 			matrixTimesVector33_3(&x_you, &G, &z);
-			printf("G.z={%f, %f, %f}\r\n", x_you[0], x_you[1], x_you[2]);
+			//printf("G.z={%f, %f, %f}\r\n", x_you[0], x_you[1], x_you[2]);
 			vectorAdd3(&x_you, &x_me, &x_you);
-			printf("G.z+x_me={%f, %f, %f}\r\n", x_you[0], x_you[1], x_you[2]);
+			//printf("G.z+x_me={%f, %f, %f}\r\n", x_you[0], x_you[1], x_you[2]);
 			Matrix33 H;
 			populateHMatrix(&H, &x_me, &x_you);
-			printf("H=\r\n");
-			printMatrix33Mathematica(&H);
+			//printf("H=\r\n");
+			//printMatrix33Mathematica(&H);
 			Matrix33 tmp;
 			Matrix33 yourP;
 			//yourP = H.myP.tp(H) + G.R.tp(G)
@@ -218,9 +223,9 @@ void updatePositions(){
 			matrixInplaceMultiply33_33(&tmp, &tmp, &H); //now tmp is H.myP.tp(H)
 			matrixAdd33(&yourP, &tmp, &yourP);
 			
-			printf("yourX= {%f, %f, %f};\r\n", x_you[0], x_you[1], x_you[2]);
-			printf("yourP=\r\n");
-			printMatrix33Mathematica(&yourP);
+			//printf("yourX= {%f, %f, %f};\r\n", x_you[0], x_you[1], x_you[2]);
+			//printf("yourP=\r\n");
+			//printMatrix33Mathematica(&yourP);
 
 			nearBots[i].posFromMe.x = x_you[0]>1023 ? 1023 : (x_you[0]<-1023 ? -1023 : x_you[0]);
 			nearBots[i].posFromMe.y = x_you[1]>1023 ? 1023 : (x_you[1]<-1023 ? -1023 : x_you[1]);
@@ -231,12 +236,15 @@ void updatePositions(){
 }
 
 void getMeasCovar(Matrix33* R, BotMeas* meas){
-	(*R)[0][0] = 2500;
-	(*R)[1][1] = 2500;
-	(*R)[2][2] = 3600;
-	(*R)[0][1] = (*R)[1][0] = 0;
-	(*R)[0][2] = (*R)[2][0] = 800;
-	(*R)[1][2] = (*R)[2][1] = 800;
+	(*R)[0][0] = 900;
+	(*R)[1][1] = 900;
+	(*R)[2][2] = 900;
+	(*R)[0][1] = 0;
+	(*R)[1][0] = 0;
+	(*R)[0][2] = 150;
+	(*R)[2][0] = 150;
+	(*R)[1][2] = 150;
+	(*R)[2][1] = 150;
 	//Matrix33* start = (meas->r)<125 ? &measCovarClose : &measCovarMedium;
 	//matrixCopy33(R, start);
 	//Matrix33 H; //This is the jacobian of the transformation from (r,b,h) to (deltaX, deltaY, deltaO)
@@ -281,15 +289,16 @@ void populateGammaMatrix(Matrix33* G, Vector3* pos){
 }
 
 void populateHMatrix(Matrix33* H, Vector3* x_me, Vector3* x_you){
+	float degToRad = M_PI/180.0;
 	(*H)[0][0] = 1;
 	(*H)[0][1] = 0;
-	(*H)[0][2] = (*x_me)[1] - (*x_you)[1];
+	(*H)[0][2] = degToRad*((*x_me)[1] - (*x_you)[1]);
 	(*H)[1][0] = 0;
 	(*H)[1][1] = 1;
-	(*H)[1][2] = (*x_you)[0] - (*x_me)[0];
+	(*H)[1][2] = degToRad*((*x_you)[0] - (*x_me)[0]);
 	(*H)[2][0] = 0;
 	(*H)[2][1] = 0;
-	(*H)[2][2] = 1;
+	(*H)[2][2] = -1;
 }
 
 void compressP(Matrix33* P, DensePosCovar* covar){
@@ -424,14 +433,17 @@ void useNewRnbMeas(){
 	RNB_DEBUG_PRINT("            (RNB) ID: %04X | R: %4u B: %4d\r\n", id, range, bearing);
 	OtherBot* measuredBot = addOtherBot(id);
 	BotMeas* meas = &(measuredBot->myMeas);
-	if(meas->id == 0 || meas->id == id){ 
-		if(meas->id == id){
-			//printf("\tG");
-		}
+	if(meas->id == 0){ 
 		meas->id	 = id;
 		meas->r		 = range;
 		meas->b		 = bearing;
 		meas->h		 = UNDF;
+	}else if(meas->id == id){
+		meas->r		 = range;
+		if(meas->h != UNDF){
+			meas->h      = pretty_angle_deg(meas->h - meas->b + bearing);
+		}
+		meas->b		 = bearing;
 	}else{
 		printf_P(PSTR("Error: Unexpected botPos->ID in use_new_rnb_meas.\r\n"));
 	}
@@ -659,6 +671,7 @@ void handleNearBotsMsg(NearBotsMsg* msg, id_t senderID){
 		for(uint8_t i=0;i<NUM_SHARED_BOTS;i++){
 			if(msg->shared[i].id == get_droplet_id()){
 				int16_t b = unpackAngleMeas(msg->shared[i].b);
+				NB_DEBUG_PRINT(" b: % 4d", b);
 				if(b != UNDF){
 					nearBots[i].myMeas.h = pretty_angle_deg(nearBots[i].myMeas.b - b +180);
 				}else{
@@ -678,9 +691,9 @@ void handleNearBotsMsg(NearBotsMsg* msg, id_t senderID){
 						for(uint8_t j=0;j<6;j++){
 							myPosCovar[j] = msg->shared[i].covar[j];
 						}
-						return;
+					}else{
+						ciUpdatePos(&hisEstOfMe, &(msg->shared[i].covar));
 					}
-					ciUpdatePos(&hisEstOfMe, &(msg->shared[i].covar));
 				}
 				break;
 			}

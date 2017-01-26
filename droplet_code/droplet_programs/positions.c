@@ -1,7 +1,7 @@
 #include "droplet_programs/positions.h"
 
 void init(){
-	if((RNB_DUR+PADDLE_MSG_DUR+NEIGHB_MSG_DUR+BALL_MSG_DUR)>=(SLOT_LENGTH_MS)){
+	if((RNB_DUR+PADDLE_MSG_DUR+BALL_MSG_DUR+MEAS_MSG_DUR)>=(SLOT_LENGTH_MS)){
 		printf_P(PSTR("You've got problems! SLOT_LENGTH_MS needs to be longer than all the things that take place during a slot!\r\n"));
 	}
 	loopID = 0xFFFF;
@@ -28,9 +28,7 @@ void init(){
 	xRange = MAX_X-MIN_X;
 	yRange = MAX_Y-MIN_Y;
 	maxRange = (int16_t)hypotf(xRange, yRange);
-	useBlacklist = 1;
 	stdDevThreshold = 100;
-	useMeasAveraging = 0;
 	addedPosStdDev = 11;
 	addedMeasStdDev = 22;
 	msgToSendThisSlot = 0;
@@ -57,7 +55,7 @@ void loop(){
 					if(pos->x != UNDF && pos->y != UNDF && pos->o != UNDF){
 						msgToSendThisSlot = 1;
 						msgRecipIdx = i;
-						msgExtraDelay = (rand_byte()&0x1)*20;
+						msgExtraDelay = (rand_short()%3)*20;
 					}
 					break;
 				}
@@ -66,7 +64,7 @@ void loop(){
 		updateBall();
 		updateColor();
 	}
-	if(msgToSendThisSlot && ((get_time()-frameStart)%SLOT_LENGTH_MS)>=(RNB_DUR+PADDLE_MSG_DUR+NEIGHB_MSG_DUR+BALL_MSG_DUR+msgExtraDelay)){
+	if(msgToSendThisSlot && ((get_time()-frameStart)%SLOT_LENGTH_MS)>=(RNB_DUR+PADDLE_MSG_DUR+msgExtraDelay)){
 		sendBotMeasMsg(msgRecipIdx);
 		msgToSendThisSlot = 0;
 		removeOtherBot(msgRecipIdx);
@@ -85,46 +83,13 @@ void handleMySlot(){
 	broadcast_rnb_data();	
 	while(((get_time()-frameStart)%SLOT_LENGTH_MS)<RNB_DUR)
 		delay_us(500);
-	//printf("\tCollisions: ");
-	//int16_t coll_vals[6];
-	//check_collision_values(coll_vals);
-	//for(uint8_t i=0;i<6;i++){
-		//printf("%5d ", coll_vals[i]);
-	//}
-	//printf("\r\n\tColors: ");
-	//int16_t r, g, b;
-	//get_rgb(&r, &g, &b);
-	//printf("%5d %5d %5d\r\n", r, g, b);
-	while(((get_time()-frameStart)%SLOT_LENGTH_MS)<(RNB_DUR+PADDLE_MSG_DUR))
-		delay_us(500);		
-	sendNearBotsMsg();
-	//while(((get_time()-frameStart)%SLOT_LENGTH_MS)<(RNB_DUR+PADDLE_MSG_DUR+NEIGHB_MSG_DUR))
-		//delay_us(500);			
-	////if(myDist!=UNDF && otherDist!=UNDF && myDist<otherDist){
-		////sendBallMsg();
-	////}
-	//while(((get_time()-frameStart)%SLOT_LENGTH_MS)<(RNB_DUR+PADDLE_MSG_DUR+NEIGHB_MSG_DUR+BALL_MSG_DUR))
-		//delay_us(500);	
-//
-	//while(((get_time()-frameStart)%SLOT_LENGTH_MS)<(RNB_DUR+PADDLE_MSG_DUR+NEIGHB_MSG_DUR+BALL_MSG_DUR+MEAS_MSG_DUR))
-		//delay_us(500);
 }
 
-/* 
-	* If we use the same bot every frame, then the measurement errors between me and this other bot become 
-	* very much not independent. Thus, we blacklist otherBots for a certain number of frames before using
-	* them again. This blacklist/waiting period is intended to allow the other bot to incorporate new/different
-	* information from other robots, and thus become more independent. Honestly it will still be somewhat dependent,
-	* but the goal here is to mitigate our abuse of the independence assumption.
-	*/
 uint8_t nearBotUseabilityCheck(uint8_t i){
 	if(!(nearBots[i].myMeas.id)){
 		return 0;
 	}
 	if(nearBots[i].occluded){
-		return 0;
-	}
-	if((nearBots[i].myMeas.h) == UNDF){
 		return 0;
 	}
 	for(uint8_t j=0;j<NUM_SEEDS;j++){
@@ -137,7 +102,11 @@ uint8_t nearBotUseabilityCheck(uint8_t i){
 
 void ciUpdatePos(BotPos* pos, DensePosCovar* covar){
 	Vector3 xMe = {myPos.x, myPos.y, myPos.o};
+	if(pos->x==UNDF || pos->y==UNDF || pos->o==UNDF){
+		return;
+	}
 	printf("thinks I'm at {%d, %d, %d}", pos->x, pos->y, pos->o);
+	
 	//printf("xMe= {%f, %f, %f};\r\n", xMe[0], xMe[1], xMe[2]);
 	Vector3 xMeFromYou = {pos->x, pos->y, pos->o};
 	//printf("xMeFromYou= { %f, %f, %f};\r\n", xMeFromYou[0], xMeFromYou[1], xMeFromYou[2]);
@@ -252,27 +221,27 @@ void updatePositions(){
 }
 
 void getMeasCovar(Matrix33* R, BotMeas* meas){
-	(*R)[0][0] = 400;	(*R)[0][1] = 0;		(*R)[0][2] = 0;
-	(*R)[1][0] = 0;		(*R)[1][1] = 400; 	(*R)[1][2] = 0;
-	(*R)[2][0] = 0;		(*R)[2][1] = 0;		(*R)[2][2] = 250;
-	//Matrix33* start = (meas->r)<125 ? &measCovarClose : &measCovarMedium;
-	//matrixCopy33(R, start);
-	//Matrix33 H; //This is the jacobian of the transformation from (r,b,h) to (deltaX, deltaY, deltaO)
-	//float cosO = cos(deg_to_rad(meas->b+90));
-	//float sinO = sin(deg_to_rad(meas->b+90));
-	//float degToRad = M_PI/180.0;
-	//H[0][0] = cosO;
-	//H[0][1] = -degToRad*(meas->r)*sinO;
-	//H[0][2] = 0;
-	//H[1][0] = sinO;
-	//H[1][1] = degToRad*(meas->r)*cosO;
-	//H[1][2] = 0;
-	//H[2][0] = 0;
-	//H[2][1] = 0;
-	//H[2][2] = 1;
-	//matrixInplaceMultiply33_33(R, &H, R);
-	//matrixInplaceTranspose33(&H);
-	//matrixInplaceMultiply33_33(R, R, &H);
+	//(*R)[0][0] = 400;	(*R)[0][1] = 0;		(*R)[0][2] = 0;
+	//(*R)[1][0] = 0;		(*R)[1][1] = 400; 	(*R)[1][2] = 0;
+	//(*R)[2][0] = 0;		(*R)[2][1] = 0;		(*R)[2][2] = 250;
+	Matrix33* start = (meas->r)<125 ? &measCovarClose : &measCovarMedium;
+	matrixCopy33(R, start);
+	Matrix33 H; //This is the jacobian of the transformation from (r,b,h) to (deltaX, deltaY, deltaO)
+	float cosO = cos(deg_to_rad(meas->b+90));
+	float sinO = sin(deg_to_rad(meas->b+90));
+	float degToRad = M_PI/180.0;
+	H[0][0] = cosO;
+	H[0][1] = -degToRad*(meas->r)*sinO;
+	H[0][2] = 0;
+	H[1][0] = sinO;
+	H[1][1] = degToRad*(meas->r)*cosO;
+	H[1][2] = 0;
+	H[2][0] = 0;
+	H[2][1] = 0;
+	H[2][2] = 1;
+	matrixInplaceMultiply33_33(R, &H, R);
+	matrixInplaceTranspose33(&H);
+	matrixInplaceMultiply33_33(R, R, &H);
 }
 
 void calcRelativePose(Vector3* pose, BotMeas* meas){
@@ -438,22 +407,18 @@ void useNewRnbMeas(){
 	uint16_t id = last_good_rnb.id;
 	uint16_t range = last_good_rnb.range;
 	int16_t bearing = last_good_rnb.bearing;
+	int16_t heading = last_good_rnb.heading;
+	uint8_t conf = last_good_rnb.conf;
 	rnb_updated=0;
 	if(range>250) return;
-	RNB_DEBUG_PRINT("            (RNB) ID: %04X | R: %4u B: %4d\r\n", id, range, bearing);
+	RNB_DEBUG_PRINT("            (RNB) ID: %04X | R: %4u B: %4d H: %4d C: %hu\r\n", id, range, bearing, heading, conf);
 	OtherBot* measuredBot = addOtherBot(id);
 	BotMeas* meas = &(measuredBot->myMeas);
-	if(meas->id == 0){ 
+	if(meas->id == 0 || meas->id == id){ 
 		meas->id	 = id;
 		meas->r		 = range;
 		meas->b		 = bearing;
-		meas->h		 = UNDF;
-	}else if(meas->id == id){
-		meas->r		 = range;
-		if(meas->h != UNDF){
-			meas->h      = pretty_angle_deg(meas->h - meas->b + bearing);
-		}
-		meas->b		 = bearing;
+		meas->h		 = heading;
 	}else{
 		printf_P(PSTR("Error: Unexpected botPos->ID in use_new_rnb_meas.\r\n"));
 	}
@@ -691,37 +656,9 @@ void handleBotMeasMsg(BotMeasMsg* msg, id_t senderID){
 	}
 }
 
-void sendNearBotsMsg(){ 
-	NearBotsMsg msg;
-	msg.flag = NEAR_BOTS_MSG_FLAG;
-	for(uint8_t i=0;i<NUM_SHARED_BOTS;i++){
-		msg.shared[i].id = nearBots[i].myMeas.id;		
-		msg.shared[i].b  = nearBots[i].myMeas.b;
-	}
-	ir_send(ALL_DIRS, (char*)(&msg), sizeof(NearBotsMsg));
-}
-
-void handleNearBotsMsg(NearBotsMsg* msg, id_t senderID){
-	OtherBot* nearBot = getOtherBot(senderID);
-	if(nearBot){
-		NB_DEBUG_PRINT("    (NearBotsMsg) ID: %04X ", senderID);
-		for(uint8_t i=0;i<NUM_SHARED_BOTS;i++){
-			if(msg->shared[i].id == get_droplet_id()){
-				int16_t b = msg->shared[i].b;
-				NB_DEBUG_PRINT(" b: % 4d", b);
-				nearBots[i].myMeas.h = pretty_angle_deg(nearBots[i].myMeas.b - b +180);
-				break;
-			}
-		}
-		NB_DEBUG_PRINT("\r\n");
-	}
-}
-
 void handle_msg(ir_msg* msg_struct){
 	if(((BallMsg*)(msg_struct->msg))->flag==BALL_MSG_FLAG && msg_struct->length==sizeof(BallMsg)){
 		handleBallMsg((BallMsg*)(msg_struct->msg), msg_struct->arrival_time);
-	}else if(((NearBotsMsg*)(msg_struct->msg))->flag==NEAR_BOTS_MSG_FLAG && msg_struct->length==sizeof(NearBotsMsg)){
-		handleNearBotsMsg((NearBotsMsg*)(msg_struct->msg), msg_struct->sender_ID);
 	}else if(((BotMeasMsg*)(msg_struct->msg))->flag==BOT_MEAS_MSG_FLAG && msg_struct->length==sizeof(BotMeasMsg)){
 		handleBotMeasMsg((BotMeasMsg*)(msg_struct->msg), msg_struct->sender_ID);
 	}else{
@@ -901,22 +838,6 @@ uint8_t user_handle_command(char* command_word, char* command_args){
 		return 1;
 	}else if(strcmp_P(command_word,PSTR("ball_kill"))==0){
 		killBall();
-		return 1;
-	}else if(strcmp_P(command_word,PSTR("uB"))==0){
-		switch(command_args[0]){
-			case '1':	useBlacklist = 1; break;
-			case '0':	useBlacklist = 0; break;
-			default:	useBlacklist = !useBlacklist;
-		}
-		printf("Use blacklist: %hu\r\n",useBlacklist);
-		return 1;
-	}else if(strcmp_P(command_word, PSTR("uA"))==0){
-		switch(command_args[0]){
-			case '1':	useMeasAveraging = 1; break;
-			case '0':	useMeasAveraging = 0; break;
-			default:	useMeasAveraging = !useMeasAveraging;
-		}
-		printf("Use meas averaging: %hu\r\n",useMeasAveraging);
 		return 1;
 	}else if(strcmp_P(command_word, PSTR("sCT"))==0){
 		stdDevThreshold = (uint8_t)atoi(command_args);

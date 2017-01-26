@@ -11,7 +11,7 @@ static void received_ir_cmd(uint8_t dir);
 static void received_rnb_r(uint8_t delay, id_t senderID, uint32_t last_byte);
 static void received_ir_sync(uint8_t delay, id_t senderID);
 static void ir_transmit(uint8_t dir);
-static void ir_remote_send(uint8_t dir, uint16_t data);
+//static void ir_remote_send(uint8_t dir, uint16_t data);
 static void ir_transmit_complete(uint8_t dir);
 
 static volatile uint16_t	cmd_length;
@@ -484,46 +484,46 @@ static void ir_transmit(uint8_t dir){
 	}
 
 }
-
-static void ir_remote_send(uint8_t dir, uint16_t data){	
-	channel[dir]->CTRLB &= ~USART_RXEN_bm;
-	channel[dir]->CTRLB &= ~USART_TXEN_bm;
-	//printf("Sending:\t");
-	TCF2.CTRLB |= ir_carrier_bm[dir];
-	PORT_t* port = 0;
-	if((dir==0)|(dir==1))		port=&PORTC;
-	else if(dir==2)			port=&PORTD;
-	else if((dir==3)|(dir==4))	port=&PORTE;
-	else if(dir==5)			port=&PORTF;
-	uint8_t pin_mask=0;
-	if((dir==0)|(dir==2)|(dir==3)|(dir==5)) pin_mask=PIN3_bm;
-	else if((dir==1)|(dir==4))				pin_mask=PIN7_bm;
-	
-	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-		port->DIRSET = pin_mask;	
-		//start bit
-		port->OUTCLR = pin_mask;				delay_us(5000);
-		port->OUTSET = pin_mask;				delay_us(5000);
-		//send E0E0:
-		for(uint8_t i=0;i<16;i++){
-			port->OUTCLR = pin_mask;	delay_us(560);		
-			if((0xE0E0<<i)&0x8000){	port->OUTSET = pin_mask;	delay_us(1600);}
-			else{					port->OUTSET = pin_mask;	delay_us(560);	}
-		}
-		//send data:
-		for(uint8_t i=0;i<16;i++){
-			port->OUTCLR = pin_mask;	delay_us(560);		
-			if((data<<i)&0x8000){		port->OUTSET = pin_mask;	delay_us(1600);}
-			else{						port->OUTSET = pin_mask;	delay_us(560);	}
-		}	
-		//stop bit
-		port->OUTCLR = pin_mask;		delay_us(560);
-		port->OUTSET = pin_mask;
-	}
-	channel[dir]->CTRLB |= USART_TXEN_bm;
-	ir_transmit_complete(dir);
-	//printf("End of ir_remote_send.\r\n");	
-}
+//
+//static void ir_remote_send(uint8_t dir, uint16_t data){	
+	//channel[dir]->CTRLB &= ~USART_RXEN_bm;
+	//channel[dir]->CTRLB &= ~USART_TXEN_bm;
+	////printf("Sending:\t");
+	//TCF2.CTRLB |= ir_carrier_bm[dir];
+	//PORT_t* port = 0;
+	//if((dir==0)|(dir==1))		port=&PORTC;
+	//else if(dir==2)			port=&PORTD;
+	//else if((dir==3)|(dir==4))	port=&PORTE;
+	//else if(dir==5)			port=&PORTF;
+	//uint8_t pin_mask=0;
+	//if((dir==0)|(dir==2)|(dir==3)|(dir==5)) pin_mask=PIN3_bm;
+	//else if((dir==1)|(dir==4))				pin_mask=PIN7_bm;
+	//
+	//ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+		//port->DIRSET = pin_mask;	
+		////start bit
+		//port->OUTCLR = pin_mask;				delay_us(5000);
+		//port->OUTSET = pin_mask;				delay_us(5000);
+		////send E0E0:
+		//for(uint8_t i=0;i<16;i++){
+			//port->OUTCLR = pin_mask;	delay_us(560);		
+			//if((0xE0E0<<i)&0x8000){	port->OUTSET = pin_mask;	delay_us(1600);}
+			//else{					port->OUTSET = pin_mask;	delay_us(560);	}
+		//}
+		////send data:
+		//for(uint8_t i=0;i<16;i++){
+			//port->OUTCLR = pin_mask;	delay_us(560);		
+			//if((data<<i)&0x8000){		port->OUTSET = pin_mask;	delay_us(1600);}
+			//else{						port->OUTSET = pin_mask;	delay_us(560);	}
+		//}	
+		////stop bit
+		//port->OUTCLR = pin_mask;		delay_us(560);
+		//port->OUTSET = pin_mask;
+	//}
+	//channel[dir]->CTRLB |= USART_TXEN_bm;
+	//ir_transmit_complete(dir);
+	////printf("End of ir_remote_send.\r\n");	
+//}
 
 // TO BE CALLED FROM INTERRUPT HANDLER ONLY
 // DO NOT CALL

@@ -16,9 +16,7 @@
 #define MIN_PACKED_O -512
 
 //uint8_t useNewInfo;
-uint8_t useBlacklist;
 uint8_t stdDevThreshold;
-uint8_t useMeasAveraging;
 uint8_t addedPosStdDev;
 uint8_t addedMeasStdDev;
 
@@ -85,14 +83,13 @@ uint8_t addedMeasStdDev;
  * ballMsg is 7 bytes. header is 8 bytes, so ballMsg should take 37.5ms 
  * BotMeasMsg is 11 bytes. Header is 8 bytes, so msg should take 47.5ms
  */
-#define RNB_DUR		100 //80 ms should be enough.
+#define RNB_DUR		215 //80 ms should be enough.
 #define PADDLE_MSG_DUR		40 //padding. Probably excessive.
-#define NEIGHB_MSG_DUR		85
-#define BALL_MSG_DUR		60 //padding. Probably excessive.
 #define MEAS_MSG_DUR		60
+#define BALL_MSG_DUR		40 //padding. Probably excessive.
 
-#define SLOT_LENGTH_MS			349
-#define SLOTS_PER_FRAME			37
+#define SLOT_LENGTH_MS			367
+#define SLOTS_PER_FRAME			29
 #define FRAME_LENGTH_MS			(((uint32_t)SLOT_LENGTH_MS)*((uint32_t)SLOTS_PER_FRAME))
 #define LOOP_DELAY_MS			17
 
@@ -170,16 +167,6 @@ typedef struct packed_bot_pos_struct{
 	uint8_t oLow;
 	uint8_t bits;
 }PackedBotPos;
-
-typedef struct bot_bearing_struct{
-	id_t id;			//2 bytes
-	int16_t b;			//2 bytes
-}BotBearing;
-
-typedef struct near_bots_msg_struct{ 
-	BotBearing shared[NUM_SHARED_BOTS]; //4 bytes each
-	char flag;	
-}NearBotsMsg;
 
 typedef struct bot_meas_msg_struct{
 	PackedBotPos pos; //4 bytes
@@ -276,9 +263,6 @@ void		useNewRnbMeas();
 
 void		checkLightLevel();
 
-
-void		sendNearBotsMsg();
-void		handleNearBotsMsg(NearBotsMsg* msg, id_t senderID);
 void		sendBotMeasMsg(uint8_t i);
 void		handleBotMeasMsg(BotMeasMsg* msg, id_t senderID);
 

@@ -247,6 +247,7 @@ int16_t		maxRange;
 
 uint8_t msgToSendThisSlot;
 uint8_t msgRecipIdx;
+uint16_t msgExtraDelay;
 
 //float		paddleChange;
 //int16_t		paddleStart;
@@ -279,7 +280,7 @@ void		checkLightLevel();
 void		sendNearBotsMsg();
 void		handleNearBotsMsg(NearBotsMsg* msg, id_t senderID);
 void		sendBotMeasMsg(uint8_t i);
-void		handleBotMeasMsg(BotMeasMsg* msg);
+void		handleBotMeasMsg(BotMeasMsg* msg, id_t senderID);
 
 void		updateBall();
 //check_bounce is a helper function for updateBall.

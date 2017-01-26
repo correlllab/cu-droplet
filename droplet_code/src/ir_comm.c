@@ -140,8 +140,9 @@ static void perform_ir_upkeep(){
 					if(msg_node[num_waiting_msgs].msg_length > IR_BUFFER_SIZE){
 						printf_P(PSTR("ERROR! Message too long?\r\n"));
 					}
+					num_waiting_msgs++;
 				}
-				num_waiting_msgs++;
+
 				clear_ir_buffer(dir);
 			}
 		}
@@ -320,6 +321,7 @@ static void ir_receive(uint8_t dir){
 	}
 	ir_rxtx[dir].curr_pos++;
 	if(ir_rxtx[dir].curr_pos>=(ir_rxtx[dir].data_length+HEADER_LEN)){
+		ir_rxtx[dir].status |= ir_rxtx[dir].target_ID ? IR_STATUS_TARGETED_bm : 0;
 		//pre checks.
 		const uint8_t crcMismatch = ir_rxtx[dir].calc_crc!=ir_rxtx[dir].data_crc;
 		const uint8_t nullCrc	  = ir_rxtx[dir].calc_crc==0;

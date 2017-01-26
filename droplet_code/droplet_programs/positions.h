@@ -81,15 +81,17 @@ uint8_t addedMeasStdDev;
  * rnb takes 142 ms
  * messages take 2.5ms per byte. 
  * paddleMsg is 3 bytes. header is 8 bytes, so PaddleMsg should take 27.5
- * neighbMsg is 40 bytes. header is 8 bytes, so NeighbMsg should take 105ms
+ * neighbMsg is 25 bytes. header is 8 bytes, so NeighbMsg should take 82.5
  * ballMsg is 7 bytes. header is 8 bytes, so ballMsg should take 37.5ms 
+ * BotMeasMsg is 11 bytes. Header is 8 bytes, so msg should take 47.5ms
  */
 #define RNB_DUR		100 //80 ms should be enough.
 #define PADDLE_MSG_DUR		40 //padding. Probably excessive.
-#define NEIGHB_MSG_DUR		125
-#define BALL_MSG_DUR		40 //padding. Probably excessive.
+#define NEIGHB_MSG_DUR		85
+#define BALL_MSG_DUR		60 //padding. Probably excessive.
+#define MEAS_MSG_DUR		60
 
-#define SLOT_LENGTH_MS			307
+#define SLOT_LENGTH_MS			349
 #define SLOTS_PER_FRAME			37
 #define FRAME_LENGTH_MS			(((uint32_t)SLOT_LENGTH_MS)*((uint32_t)SLOTS_PER_FRAME))
 #define LOOP_DELAY_MS			17
@@ -104,7 +106,7 @@ Matrix33 measCovarMedium = {{4900, 0, 0}, {0, 3600, -3600}, {0, -3600, 7200}};
 //#define PADDLE_WIDTH		(FLOOR_WIDTH/3)
 #define PADDLE_VEL				0.1
 #define NUM_SEEDS 4
-#define NUM_SHARED_BOTS 3
+#define NUM_SHARED_BOTS 6
 #define NUM_USED_BOTS 5
 #define NUM_TRACKED_BOTS 12
 const id_t	   SEED_IDS[NUM_SEEDS]	   = {0x6B6F, 0xCB64, 0xB41B, 0xDF64};
@@ -128,6 +130,7 @@ const int16_t  SEED_Y[NUM_SEEDS]   = {900, 900, 100, 100};
 #define DROPLET_DIAMETER_MM		44.4
 #define BALL_MSG_FLAG			'B'
 #define NEAR_BOTS_MSG_FLAG		'N'
+#define BOT_MEAS_MSG_FLAG		'X'
 //#define N_PADDLE_MSG_FLAG		'P'
 //#define S_PADDLE_MSG_FLAG		'S'
 
@@ -168,24 +171,19 @@ typedef struct packed_bot_pos_struct{
 	uint8_t bits;
 }PackedBotPos;
 
-typedef struct packed_bot_meas_struct{
+typedef struct bot_bearing_struct{
 	id_t id;			//2 bytes
-	int8_t b;			//1 byte
-	PackedBotPos pos;	//4 bytes
-	DensePosCovar covar;	//6 bytes
-}PackedBotMeas;
+	int16_t b;			//2 bytes
+}BotBearing;
 
 typedef struct near_bots_msg_struct{ 
-	PackedBotMeas shared[NUM_SHARED_BOTS]; //13 bytes each
-	//PackedBotPos pos; //4 bytes.
-	//id_t used[NUM_USED_BOTS];
+	BotBearing shared[NUM_SHARED_BOTS]; //4 bytes each
 	char flag;	
 }NearBotsMsg;
 
 typedef struct bot_meas_msg_struct{
-	id_t id;
-	PackedBotPos pos;
-	DensePosCovar covar;
+	PackedBotPos pos; //4 bytes
+	DensePosCovar covar; //6 bytes
 	char flag;
 }BotMeasMsg;
 
@@ -247,6 +245,8 @@ int16_t		xRange;
 int16_t		yRange;
 int16_t		maxRange;
 
+uint8_t msgToSendThisSlot;
+uint8_t msgRecipIdx;
 
 //float		paddleChange;
 //int16_t		paddleStart;
@@ -278,6 +278,8 @@ void		checkLightLevel();
 
 void		sendNearBotsMsg();
 void		handleNearBotsMsg(NearBotsMsg* msg, id_t senderID);
+void		sendBotMeasMsg(uint8_t i);
+void		handleBotMeasMsg(BotMeasMsg* msg);
 
 void		updateBall();
 //check_bounce is a helper function for updateBall.
@@ -495,4 +497,8 @@ inline static void initPositions(){
 	theBall.radius = 0;
 	//paddleStart	    = MIN_DIM + (FLOOR_WIDTH>>1) - (PADDLE_WIDTH>>1);
 	//paddleEnd		= MIN_DIM + (FLOOR_WIDTH>>1) + (PADDLE_WIDTH>>1);
+}
+
+inline static uint16_t getSlot(id_t id){
+	return (id%(SLOTS_PER_FRAME-1));
 }

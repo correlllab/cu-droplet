@@ -95,9 +95,10 @@ static void check_messages(){
 			msg_struct->dir_received					= msg_node[i].arrival_dir;
 			msg_struct->length							= msg_node[i].msg_length;
 			msg_struct->wasTargeted						= msg_node[i].wasTargeted;
+			num_waiting_msgs--;
 		}			
 		msg_struct->msg[msg_node[i].msg_length]	= '\0';		
-		num_waiting_msgs--;
+
 
 
 		handle_msg(msg_struct);

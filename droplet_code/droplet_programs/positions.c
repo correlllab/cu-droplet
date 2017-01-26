@@ -19,7 +19,7 @@ void init(){
 	lastBallMsg = 0;
 	//lastPaddleMsg = 0;
 	lastLightCheck = get_time();
-	mySlot = (get_droplet_id()%(SLOTS_PER_FRAME-1));
+	mySlot = getSlot(get_droplet_id());
 	//mySlot = get_droplet_ord(get_droplet_id());
 	printf("mySlot: %u, frame_length: %lu\r\n", mySlot, FRAME_LENGTH_MS);
 	frameEndPrintout();
@@ -33,6 +33,7 @@ void init(){
 	useMeasAveraging = 0;
 	addedPosStdDev = 11;
 	addedMeasStdDev = 22;
+	msgToSendThisSlot = 0;
 }
 
 void loop(){
@@ -48,21 +49,25 @@ void loop(){
 			handleMySlot();
 		}else if(loopID==SLOTS_PER_FRAME-1){
 			handleFrameEnd();
+		}else{
+			for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
+				id_t id = nearBots[i].myMeas.id;
+				BotPos* pos = &(nearBots[i].posFromMe);
+				if(id!=0 && loopID==getSlot(id)){
+					if(pos->x != UNDF && pos->y != UNDF && pos->o != UNDF){
+						msgToSendThisSlot = 1;
+						msgRecipIdx = i;
+					}
+					break;
+				}
+			}
 		}
-		//if(loopID!=mySlot){
-			//uint32_t curSlotTime = (get_time()-frameStart)%SLOT_LENGTH_MS;
-			////if(NS_PIXEL(myState) && paddleChange>=1.0){
-				//////schedule_task((RNB_DUR-curSlotTime),sendPaddleMsg(), NULL);
-			////}else{
-				////paddleChange = 0.0;
-			//////}
-			//if(/*myState<=2 &&*/ myDist!=UNDF && otherDist!=UNDF && myDist<otherDist){
-				//uint32_t curSlotTime = (get_time()-frameStart)%SLOT_LENGTH_MS;
-				//schedule_task(((RNB_DUR+PADDLE_MSG_DUR+NEIGHB_MSG_DUR)-curSlotTime), sendBallMsg, NULL);
-			//}
-		//}
 		updateBall();
 		updateColor();
+	}
+	if(msgToSendThisSlot && ((get_time()-frameStart)%SLOT_LENGTH_MS)>=(RNB_DUR+PADDLE_MSG_DUR+NEIGHB_MSG_DUR+BALL_MSG_DUR)){
+		sendBotMeasMsg(msgRecipIdx);
+		msgToSendThisSlot = 0;
 	}
 	//These things happen every single loop: once every LOOP_DELAY_MS.
 	if(NS_PIXEL(myState)){
@@ -91,13 +96,16 @@ void handleMySlot(){
 	while(((get_time()-frameStart)%SLOT_LENGTH_MS)<(RNB_DUR+PADDLE_MSG_DUR))
 		delay_us(500);		
 	sendNearBotsMsg();
-	while(((get_time()-frameStart)%SLOT_LENGTH_MS)<(RNB_DUR+PADDLE_MSG_DUR+NEIGHB_MSG_DUR))
-		delay_us(500);			
-	//if(myDist!=UNDF && otherDist!=UNDF && myDist<otherDist){
-		//sendBallMsg();
-	//}
-	while(((get_time()-frameStart)%SLOT_LENGTH_MS)<(RNB_DUR+PADDLE_MSG_DUR+NEIGHB_MSG_DUR+BALL_MSG_DUR))
-		delay_us(500);	
+	//while(((get_time()-frameStart)%SLOT_LENGTH_MS)<(RNB_DUR+PADDLE_MSG_DUR+NEIGHB_MSG_DUR))
+		//delay_us(500);			
+	////if(myDist!=UNDF && otherDist!=UNDF && myDist<otherDist){
+		////sendBallMsg();
+	////}
+	//while(((get_time()-frameStart)%SLOT_LENGTH_MS)<(RNB_DUR+PADDLE_MSG_DUR+NEIGHB_MSG_DUR+BALL_MSG_DUR))
+		//delay_us(500);	
+//
+	//while(((get_time()-frameStart)%SLOT_LENGTH_MS)<(RNB_DUR+PADDLE_MSG_DUR+NEIGHB_MSG_DUR+BALL_MSG_DUR+MEAS_MSG_DUR))
+		//delay_us(500);
 }
 
 /* 
@@ -127,18 +135,18 @@ uint8_t nearBotUseabilityCheck(uint8_t i){
 
 void ciUpdatePos(BotPos* pos, DensePosCovar* covar){
 	Vector3 xMe = {myPos.x, myPos.y, myPos.o};
-	printf("xMe= {%f, %f, %f};\r\n", xMe[0], xMe[1], xMe[2]);
+	//printf("xMe= {%f, %f, %f};\r\n", xMe[0], xMe[1], xMe[2]);
 	Vector3 xMeFromYou = {pos->x, pos->y, pos->o};
-	printf("xMeFromYou= { %f, %f, %f};\r\n", xMeFromYou[0], xMeFromYou[1], xMeFromYou[2]);
+	//printf("xMeFromYou= { %f, %f, %f};\r\n", xMeFromYou[0], xMeFromYou[1], xMeFromYou[2]);
 	Matrix33 myPinv;
 	decompressP(&myPinv, &myPosCovar);
-	printf("myP=\r\n");
-	printMatrix33Mathematica(&myPinv);
+	//printf("myP=\r\n");
+	//printMatrix33Mathematica(&myPinv);
 	matrixInplaceInverse33(&myPinv);
 	Matrix33 yourPinv;
 	decompressP(&yourPinv, covar);
-	printf("yourP=\r\n");
-	printMatrix33Mathematica(&yourPinv);
+	//printf("yourP=\r\n");
+	//printMatrix33Mathematica(&yourPinv);
 	matrixInplaceInverse33(&yourPinv);
 	Matrix33 myNewP;
 	Vector3 myNewPos;
@@ -153,7 +161,7 @@ void ciUpdatePos(BotPos* pos, DensePosCovar* covar){
 	float myTrace = matrixTrace33(&myPinv);
 	float yourTrace = matrixTrace33(&yourPinv);
 	omega = myTrace/(myTrace+yourTrace);
-	printf("omega = %f;\r\n", omega);
+	//printf("omega = %f;\r\n", omega);
 	omega = omega>1.0 ? 1.0 : omega;
 	//myNewP = (omega*myPinv + (1-omega)*yourPinv)^{-1}
 	matrixScale33(&myPinv, omega);
@@ -166,9 +174,9 @@ void ciUpdatePos(BotPos* pos, DensePosCovar* covar){
 	matrixTimesVector33_3(&tmp, &yourPinv, &xMeFromYou);
 	vectorAdd3(&tmp, &myNewPos, &tmp);
 	matrixTimesVector33_3(&myNewPos, &myNewP, &tmp);
-	printf("myNewPos= {%f, %f, %f}\r\n", myNewPos[0], myNewPos[1], myNewPos[2]);
-	printf("myNewP=\r\n");
-	printMatrix33Mathematica(&myNewP);
+	//printf("myNewPos= {%f, %f, %f}\r\n", myNewPos[0], myNewPos[1], myNewPos[2]);
+	//printf("myNewP=\r\n");
+	//printMatrix33Mathematica(&myNewP);
 	myPos.x = myNewPos[0]>1023 ? 1023 : (myNewPos[0]<-1023 ? -1023 : myNewPos[0]);
 	myPos.y = myNewPos[1]>1023 ? 1023 : (myNewPos[1]<-1023 ? -1023 : myNewPos[1]);
 	myPos.o = pretty_angle_deg(myNewPos[2]);
@@ -236,15 +244,15 @@ void updatePositions(){
 }
 
 void getMeasCovar(Matrix33* R, BotMeas* meas){
-	(*R)[0][0] = 900;
-	(*R)[1][1] = 900;
-	(*R)[2][2] = 900;
+	(*R)[0][0] = 400;
+	(*R)[1][1] = 400;
+	(*R)[2][2] = 250;
 	(*R)[0][1] = 0;
 	(*R)[1][0] = 0;
-	(*R)[0][2] = 150;
-	(*R)[2][0] = 150;
-	(*R)[1][2] = 150;
-	(*R)[2][1] = 150;
+	(*R)[0][2] = 0;
+	(*R)[2][0] = 0;
+	(*R)[1][2] = 0;
+	(*R)[2][1] = 0;
 	//Matrix33* start = (meas->r)<125 ? &measCovarClose : &measCovarMedium;
 	//matrixCopy33(R, start);
 	//Matrix33 H; //This is the jacobian of the transformation from (r,b,h) to (deltaX, deltaY, deltaO)
@@ -648,18 +656,44 @@ void handleBallMsg(BallMsg* msg, uint32_t arrivalTime){
 	BALL_DEBUG_PRINT("\tPos: (%5.1f, %5.1f)   Vel: (%hd, %hd) | lastUpdate: %lu\r\n", theBall.xPos, theBall.yPos, theBall.xVel, theBall.yVel, theBall.lastUpdate);
 }
 
+void sendBotMeasMsg(uint8_t i){ //i: index in nearBots array.
+	uint8_t dir = dirFromAngle(nearBots[i].myMeas.b);
+	printf("Sending bot meas msg to %04X in direction %hu.\r\n", nearBots[i].myMeas.id, dir);
+	BotMeasMsg msg;
+	msg.flag = BOT_MEAS_MSG_FLAG;
+	packPos(&(msg.pos), &(nearBots[i].posFromMe));
+	for(uint8_t j=0;j<6;j++){
+		msg.covar[j].u = nearBots[i].posCovar[j].u;
+	}
+	uint8_t dir_mask = 0;
+	dir_mask |= 1<<((dir+5)%6);
+	dir_mask |= 1<<(dir);
+	dir_mask |= 1<<((dir+1)%6);	
+	ir_targeted_send(dir_mask, (char*)(&msg), sizeof(BotMeasMsg), nearBots[i].myMeas.id);
+}
+
+void handleBotMeasMsg(BotMeasMsg* msg){
+	printf("Received bot meas msg.\r\n");
+	BotPos hisEstOfMe;
+	unpackPos(&(msg->pos), &hisEstOfMe);
+	if(myPos.x==UNDF || myPos.y==UNDF || myPos.o==UNDF){
+		myPos.x = hisEstOfMe.x;
+		myPos.y = hisEstOfMe.y;
+		myPos.o = hisEstOfMe.o;
+		for(uint8_t i=0;i<6;i++){
+			myPosCovar[i].u = msg->covar[i].u;
+		}
+	}else{
+		ciUpdatePos(&hisEstOfMe, &(msg->covar));
+	}
+}
+
 void sendNearBotsMsg(){ 
 	NearBotsMsg msg;
 	msg.flag = NEAR_BOTS_MSG_FLAG;
-	//qsort(nearBots, NUM_TRACKED_BOTS+1, sizeof(OtherBot), nearBotsCmpFunc);
-	//printf("Sending to: %04X, %04X, %04X\r\n", nearBots[0].myMeas.id, nearBots[1].myMeas.id, nearBots[2].myMeas.id);
 	for(uint8_t i=0;i<NUM_SHARED_BOTS;i++){
 		msg.shared[i].id = nearBots[i].myMeas.id;		
-		msg.shared[i].b = packAngleMeas(nearBots[i].myMeas.b);
-		packPos(&(msg.shared[i].pos), &(nearBots[i].posFromMe));
-		for(uint8_t j=0;j<6;j++){
-			msg.shared[i].covar[j].u = nearBots[i].posCovar[j].u;
-		}
+		msg.shared[i].b  = nearBots[i].myMeas.b;
 	}
 	ir_send(ALL_DIRS, (char*)(&msg), sizeof(NearBotsMsg));
 }
@@ -670,46 +704,23 @@ void handleNearBotsMsg(NearBotsMsg* msg, id_t senderID){
 		NB_DEBUG_PRINT("    (NearBotsMsg) ID: %04X ", senderID);
 		for(uint8_t i=0;i<NUM_SHARED_BOTS;i++){
 			if(msg->shared[i].id == get_droplet_id()){
-				int16_t b = unpackAngleMeas(msg->shared[i].b);
+				int16_t b = msg->shared[i].b;
 				NB_DEBUG_PRINT(" b: % 4d", b);
-				if(b != UNDF){
-					nearBots[i].myMeas.h = pretty_angle_deg(nearBots[i].myMeas.b - b +180);
-				}else{
-					nearBots[i].myMeas.h = UNDF;
-				}
-				BotPos hisEstOfMe;
-				unpackPos(&(msg->shared[i].pos), &hisEstOfMe);
-				//printf("hisEstOfME: %d, %d, %d\r\n", hisEstOfMe.x, hisEstOfMe.y, hisEstOfMe.o);
-				if(hisEstOfMe.x!=UNDF && hisEstOfMe.y!=UNDF && hisEstOfMe.o!=UNDF && !seedFlag){
-					if(myPos.x==UNDF || myPos.y==UNDF || myPos.o==UNDF){
-						myPos.x = hisEstOfMe.x;
-						myPos.y = hisEstOfMe.y;
-						myPos.o = hisEstOfMe.o;
-						printf("InitialPos = {%d, %d, %d} from %04X.\r\n", myPos.x, myPos.y, myPos.o, senderID);
-						printf("Initial Covar:\r\n");
-						printPosCovar(&(msg->shared[i].covar));
-						for(uint8_t j=0;j<6;j++){
-							myPosCovar[j] = msg->shared[i].covar[j];
-						}
-					}else{
-						ciUpdatePos(&hisEstOfMe, &(msg->shared[i].covar));
-					}
-				}
+				nearBots[i].myMeas.h = pretty_angle_deg(nearBots[i].myMeas.b - b +180);
 				break;
 			}
 		}
 		NB_DEBUG_PRINT("\r\n");
-		//nearBot->hasNewInfo = checkNearBotForNewInfo(msg->used);
 	}
 }
 
 void handle_msg(ir_msg* msg_struct){
-	if(((BallMsg*)(msg_struct->msg))->flag==BALL_MSG_FLAG){
+	if(((BallMsg*)(msg_struct->msg))->flag==BALL_MSG_FLAG && msg_struct->length==sizeof(BallMsg)){
 		handleBallMsg((BallMsg*)(msg_struct->msg), msg_struct->arrival_time);
-	}else if(((NearBotsMsg*)(msg_struct->msg))->flag==NEAR_BOTS_MSG_FLAG){
+	}else if(((NearBotsMsg*)(msg_struct->msg))->flag==NEAR_BOTS_MSG_FLAG && msg_struct->length==sizeof(NearBotsMsg)){
 		handleNearBotsMsg((NearBotsMsg*)(msg_struct->msg), msg_struct->sender_ID);
-	//}else if(flag==N_PADDLE_MSG_FLAG || flag==S_PADDLE_MSG_FLAG){
-		//handlePaddleMsg(flag, ((PaddleMsg*)(msg_struct->msg))->deltaPos);
+	}else if(((BotMeasMsg*)(msg_struct->msg))->flag==BOT_MEAS_MSG_FLAG && msg_struct->length==sizeof(BotMeasMsg)){
+		handleBotMeasMsg((BotMeasMsg*)(msg_struct->msg));
 	}else{
 		printf_P(PSTR("%hu byte msg from %04X:\r\n\t"), msg_struct->length, msg_struct->sender_ID);
 		for(uint8_t i=0;i<msg_struct->length;i++){

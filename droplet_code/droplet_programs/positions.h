@@ -106,7 +106,7 @@ Matrix33 measCovarMedium = {{4900, 0, 0}, {0, 3600, -3600}, {0, -3600, 7200}};
 #define NUM_SHARED_BOTS 6
 #define NUM_USED_BOTS 5
 #define NUM_TRACKED_BOTS 12
-const id_t	   SEED_IDS[NUM_SEEDS]	   = {0x6B6F, 0xCB64, 0xB41B, 0xDF64};
+const id_t	   SEED_IDS[NUM_SEEDS]	   = {0x5F2D, 0x12AD, 0x3F9D, 0x0120};
 const int16_t  SEED_X[NUM_SEEDS]   = {100, 900, 100, 900};
 const int16_t  SEED_Y[NUM_SEEDS]   = {900, 900, 100, 100};
 #define MIN_X 0

@@ -25,7 +25,7 @@
 </HSV_Channel>
 <Fiducial>
   <adaptive_threshold>30</adaptive_threshold>
-  <base_folder>.\fids3</base_folder>
+  <base_folder>.\Fiducials\fids4</base_folder>
   <color_fiducials>FALSE</color_fiducials>
   <create_shape_array>TRUE</create_shape_array>
   <display_confidence>FALSE</display_confidence>

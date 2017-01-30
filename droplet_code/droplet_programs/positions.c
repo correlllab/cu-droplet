@@ -105,16 +105,11 @@ void ciUpdatePos(BotPos* pos, DensePosCovar* covar){
 	if(pos->x==UNDF || pos->y==UNDF || pos->o==UNDF){
 		return;
 	}
-	printf("thinks I'm at {%d, %d, %d}", pos->x, pos->y, pos->o);
-	
-	//printf("xMe= {%f, %f, %f};\r\n", xMe[0], xMe[1], xMe[2]);
+	POS_DEBUG_PRINT("thinks I'm at {%d, %d, %d}", pos->x, pos->y, pos->o);
 	Vector3 xMeFromYou = {pos->x, pos->y, pos->o};
-	//printf("xMeFromYou= { %f, %f, %f};\r\n", xMeFromYou[0], xMeFromYou[1], xMeFromYou[2]);
 	Matrix33 myP;
 	Matrix33 myPinv;
 	decompressP(&myP, &myPosCovar);
-	//printf("myP=\r\n");
-	//printMatrix33Mathematica(&myPinv);
 	matrixInverse33(&myPinv, &myP);
 	Matrix33 yourP;
 	Matrix33 yourPinv;
@@ -133,7 +128,6 @@ void ciUpdatePos(BotPos* pos, DensePosCovar* covar){
 	float myTrace = matrixTrace33(&myPinv);
 	float yourTrace = matrixTrace33(&yourPinv);
 	omega = myTrace/(myTrace+yourTrace);
-	//printf("omega = %f;\r\n", omega);
 	omega = omega>1.0 ? 1.0 : omega;
 	//myNewP = (omega*myPinv + (1-omega)*yourPinv)^{-1}
 	matrixScale33(&myPinv, omega);
@@ -149,11 +143,13 @@ void ciUpdatePos(BotPos* pos, DensePosCovar* covar){
 	myPos.x = myNewPos[0]>1023 ? 1023 : (myNewPos[0]<-1023 ? -1023 : myNewPos[0]);
 	myPos.y = myNewPos[1]>1023 ? 1023 : (myNewPos[1]<-1023 ? -1023 : myNewPos[1]);
 	myPos.o = pretty_angle_deg(myNewPos[2]);
-	printf(" so my new estimated pos is {%d, %d, %d}.\r\n", myPos.x, myPos.y, myPos.o);
-	printf("Covar of his estimate:\r\n");
-	printMatrix33Mathematica(&yourP);
-	printf("My new covar:\r\n");
-	printMatrix33Mathematica(&myNewP);
+	#ifdef POS_DEBUG_MODE
+		POS_DEBUG_PRINT(" giving pos {%d, %d, %d} (omega: %5.3f).\r\n", myPos.x, myPos.y, myPos.o, omega);
+		POS_DEBUG_PRINT("His Est Covar:\r\n");
+		printMatrix33Mathematica(&yourP);
+		POS_DEBUG_PRINT("My new covar:\r\n");
+		printMatrix33Mathematica(&myNewP);
+	#endif
 	compressP(&myNewP, &myPosCovar);		
 }
 
@@ -162,39 +158,27 @@ void updatePositions(){
 		printf("Can't adjust others' positions until I know where I am.\r\n");
 		return;
 	}
-	printf("Updating Positions!\r\n");
+	POS_DEBUG_PRINT("Updating Positions!\r\n");
 	Vector3 x_me = {myPos.x, myPos.y, myPos.o};
-	//printf("x_me= {%f, %f, %f};\r\n", x_me[0], x_me[1], x_me[2]);
 	Matrix33 G;
 	populateGammaMatrix(&G, &x_me);
-	//printf("G=\r\n");
-	//printMatrix33Mathematica(&G);
 	Matrix33 Gtp;
 	matrixTranspose33(&Gtp, &G);
 	Matrix33 myP;
 	decompressP(&myP, &myPosCovar);
-	//printf("myP=\r\n");
-	//printMatrix33Mathematica(&myP);
 
 	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
 		if(nearBotUseabilityCheck(i)){		
 			Vector3 z;
 			calcRelativePose(&z, &(nearBots[i].myMeas));
-			//printf("z= {%f, %f, %f};\r\n", z[0], z[1], z[2]);
 			Matrix33 R;
 			getMeasCovar(&R, &(nearBots[i].myMeas));
-			//printf("R=\r\n");
-			//printMatrix33Mathematica(&R);			
 			//yourX = myX + G.z
 			Vector3 x_you;
 			matrixTimesVector33_3(&x_you, &G, &z);
-			//printf("G.z={%f, %f, %f}\r\n", x_you[0], x_you[1], x_you[2]);
 			vectorAdd3(&x_you, &x_me, &x_you);
-			//printf("G.z+x_me={%f, %f, %f}\r\n", x_you[0], x_you[1], x_you[2]);
 			Matrix33 H;
 			populateHMatrix(&H, &x_me, &x_you);
-			//printf("H=\r\n");
-			//printMatrix33Mathematica(&H);
 			Matrix33 tmp;
 			Matrix33 yourP;
 			//yourP = H.myP.tp(H) + G.R.tp(G)
@@ -206,9 +190,7 @@ void updatePositions(){
 			matrixAdd33(&yourP, &tmp, &yourP);
 			
 			if(positiveDefiniteQ(&yourP)){
-				printf("\t%04X @ {%6.1f, %6.1f, % 5.0f} from {% 4d, % 4d, % 4d}\r\n", nearBots[i].myMeas.id, x_you[0], x_you[1], x_you[2], nearBots[i].myMeas.r, nearBots[i].myMeas.b, nearBots[i].myMeas.h);
-				//printf("yourP=\r\n");
-				//printMatrix33Mathematica(&yourP);
+				POS_DEBUG_PRINT("\t%04X @ {%6.1f, %6.1f, % 5.0f} from {% 4d, % 4d, % 4d}\r\n", nearBots[i].myMeas.id, x_you[0], x_you[1], x_you[2], nearBots[i].myMeas.r, nearBots[i].myMeas.b, nearBots[i].myMeas.h);
 				nearBots[i].posFromMe.x = x_you[0]>1023 ? 1023 : (x_you[0]<-1023 ? -1023 : x_you[0]);
 				nearBots[i].posFromMe.y = x_you[1]>1023 ? 1023 : (x_you[1]<-1023 ? -1023 : x_you[1]);
 				nearBots[i].posFromMe.o = pretty_angle_deg(x_you[2]);
@@ -625,7 +607,6 @@ void handleBallMsg(BallMsg* msg, uint32_t arrivalTime){
 
 void sendBotMeasMsg(uint8_t i){ //i: index in nearBots array.
 	uint8_t dir = dirFromAngle(nearBots[i].myMeas.b);
-	//printf("Sending bot meas msg to %04X in direction %hu.\r\n", nearBots[i].myMeas.id, dir);
 	BotMeasMsg msg;
 	msg.flag = BOT_MEAS_MSG_FLAG;
 	packPos(&(msg.pos), &(nearBots[i].posFromMe));
@@ -640,7 +621,6 @@ void sendBotMeasMsg(uint8_t i){ //i: index in nearBots array.
 }
 
 void handleBotMeasMsg(BotMeasMsg* msg, id_t senderID){
-	//printf("Received bot meas msg.\r\n");
 	BotPos hisEstOfMe;
 	unpackPos(&(msg->pos), &hisEstOfMe);
 	if(myPos.x==UNDF || myPos.y==UNDF || myPos.o==UNDF){
@@ -651,7 +631,7 @@ void handleBotMeasMsg(BotMeasMsg* msg, id_t senderID){
 			myPosCovar[i].u = msg->covar[i].u;
 		}
 	}else{
-		printf("%04X ", senderID);
+		POS_DEBUG_PRINT("%04X ", senderID);
 		ciUpdatePos(&hisEstOfMe, &(msg->covar));
 	}
 }
@@ -678,11 +658,13 @@ void frameEndPrintout(){
 		case (STATE_PIXEL|STATE_SOUTH):		printf("South Pixel");	break;
 		default:							printf("???");			break;
 	}
-	printf_P(PSTR(" ]\r\n"));
+	printf_P(PSTR(" ]"));
 	if((myPos.x != UNDF) && (myPos.y != UNDF) && (myPos.o != UNDF)){
 		printf_P(PSTR("\tMy Pos: {%d, %d, %d}\r\n"), myPos.x, myPos.y, myPos.o);
 		printf("\tMy P:\r\n");
 		printPosCovar(&myPosCovar);
+	}else{
+		printf("\r\n");
 	}
 	if((theBall.xPos != UNDF) && (theBall.yPos != UNDF)){
 		printf_P(PSTR("\tBall ID: %hu; radius: %hu; Pos: (%d, %d) @ vel (%hd, %hd)\r\n"), theBall.id, theBall.radius, theBall.xPos, theBall.yPos, theBall.xVel, theBall.yVel);

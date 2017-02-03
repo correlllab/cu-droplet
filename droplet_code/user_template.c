@@ -1,43 +1,54 @@
 //#include "user_template.h"
 //
-//uint32_t	frameCount;
-//uint32_t	frameStart;
-//uint16_t	loopID;
-//uint16_t	mySlot;
-//
 ///*
  //* Any code in this function will be run once, when the robot starts.
  //*/
 //void init(){
-//
+	//loopID = 0xFFFF;
+	//frameCount = 0;
+	//mySlot = (get_droplet_id()%(SLOTS_PER_FRAME-1));
+	//frameStart = get_time();
+	//motor_adjusts[6][0] = 1000;
+	//motor_adjusts[6][1] = 1000;
+	//motor_adjusts[6][2] = 1000;
 //}
 //
 ///*
  //* The code in this function will be called repeatedly, as fast as it can execute.
  //*/
 //void loop(){
-//
+	//uint32_t frameTime = get_time()-frameStart;
+	//if(frameTime>FRAME_LENGTH_MS){
+		//frameTime = frameTime - FRAME_LENGTH_MS;
+		//frameStart += FRAME_LENGTH_MS;
+		//frameCount++;
+		//if(frameCount%5==0){
+			//move_steps(6,1000);
+			//set_rgb(0,0,255);
+		//}
+	//}
+	//if(loopID!=(frameTime/SLOT_LENGTH_MS)){
+		//loopID = frameTime/SLOT_LENGTH_MS;
+		//if(loopID==mySlot){
+			//set_rgb(0,255,0);
+			//if(is_moving()==-1){
+				//delay_ms(12);
+				//broadcast_rnb_data();
+				//delay_ms(12);
+			//}else{
+				//stop_move();
+			//}
+		//}else{
+			//if(is_moving()==-1){
+				//set_rgb(0,0,0);
+			//}
+		//}
+	//}
+	//if(rnb_updated){
+		//rnb_updated = 0;
+	//}
+	//delay_ms(LOOP_DELAY_MS);
 //}
-//
-//void handleNearBotsMsg(NearBotsMsg* msg, id_t senderID){
-	////printf("%04X", senderID);
-	////if(msg->x!=UNDF && msg->y!=UNDF) printf("\t%4d\t%4d\t%hd\r\n", msg->x, msg->y, msg->posConf);
-	////else printf("\t -- \t -- \t -- \r\n");
-	////id_t id;
-	////uint16_t range;
-	////int16_t bearing, heading;
-	////int8_t conf;
-	////for(uint8_t i=0;i<NUM_SHARED_BOTS;i++){
-		////id = msg->shared[i].id;
-		////if(id == 0) continue;
-		////range = unpackRange(msg->shared[i].range);
-		////bearing = unpackAngleMeas(msg->shared[i].b);
-		////heading = unpackAngleMeas(msg->shared[i].h);
-		////conf = msg->shared[i].conf;
-		////printf("\t%04X\t%4u\t%4d\t%4d\t%4hd\r\n", id, range, bearing, heading, conf);
-	////}
-//}
-//
 ///*
  //* After each pass through loop(), the robot checks for all messages it has 
  //* received, and calls this function once for each message.
@@ -60,7 +71,6 @@
  ////*/
 ////uint8_t user_handle_command(char* command_word, char* command_args)
 ////{
-	////return 0;
 ////}
 //
 /////*

@@ -2,7 +2,7 @@
 
 #include "droplet_init.h"
 
-#define SLOT_LENGTH_MS			163
+#define SLOT_LENGTH_MS			251
 #define SLOTS_PER_FRAME			29
 #define FRAME_LENGTH_MS			(((uint32_t)SLOT_LENGTH_MS)*((uint32_t)SLOTS_PER_FRAME))
 #define LOOP_DELAY_MS			17
@@ -34,14 +34,19 @@ typedef struct near_bots_msg_struct{
 	char flag;
 }NearBotsMsg;
 
+uint32_t	frameCount;
+uint32_t	frameStart;
+uint16_t	mySlot;
+uint16_t	loopID;
+
 void handleNearBotsMsg(NearBotsMsg* msg, id_t senderID);
 
 void		handle_msg			(ir_msg* msg_struct);
 
-static int16_t inline unpackAngleMeas(int8_t angle){
+inline static int16_t unpackAngleMeas(int8_t angle){
 	return (((int16_t)angle)<<1);
 }
 
-static uint16_t inline unpackRange(uint8_t packedRange){
+inline static uint16_t unpackRange(uint8_t packedRange){
 	return (((uint16_t)packedRange)+2)>>2; //dividing by four, rounding towards closest.
 }

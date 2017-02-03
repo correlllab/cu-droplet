@@ -125,10 +125,13 @@ void ciUpdatePos(BotPos* pos, DensePosCovar* covar){
 	//Intersection for Distributed Data Fusion"
 	//...except that had TERRIBLE problems w.r.t. numerical stability. :(
 	//LAZIER VERSION FROM THAT PAPER:
-	float myTrace = matrixTrace33(&myPinv);
-	float yourTrace = matrixTrace33(&yourPinv);
-	omega = myTrace/(myTrace+yourTrace);
-	omega = omega>1.0 ? 1.0 : omega;
+	Matrix33 sum;
+	matrixAdd33(&sum, &myPinv, &yourPinv);
+	float sumDet = matrixDet33(&sum);
+	float myInvDet = matrixDet33(&myPinv);
+	float yourInvDet = matrixDet33(&yourPinv);
+	omega = (sumDet - yourInvDet + myInvDet)/(2*sumDet);
+	omega = omega>1.0 ? 1.0 : (omega<0.0 ? 0.0 : omega);
 	//myNewP = (omega*myPinv + (1-omega)*yourPinv)^{-1}
 	matrixScale33(&myPinv, omega);
 	matrixScale33(&yourPinv, 1.0-omega);
@@ -206,7 +209,7 @@ void getMeasCovar(Matrix33* R, BotMeas* meas){
 	//(*R)[0][0] = 400;	(*R)[0][1] = 0;		(*R)[0][2] = 0;
 	//(*R)[1][0] = 0;		(*R)[1][1] = 400; 	(*R)[1][2] = 0;
 	//(*R)[2][0] = 0;		(*R)[2][1] = 0;		(*R)[2][2] = 250;
-	Matrix33* start = (meas->r)<125 ? &measCovarClose : &measCovarMedium;
+	Matrix33* start = (meas->r)<140 ? &measCovarClose : &measCovarFar;
 	matrixCopy33(R, start);
 	Matrix33 H; //This is the jacobian of the transformation from (r,b,h) to (deltaX, deltaY, deltaO)
 	float cosO = cos(deg_to_rad(meas->b+90));
@@ -267,16 +270,16 @@ void compressP(Matrix33* P, DensePosCovar* covar){
 		(*P)[i][i] = sqrt((*P)[i][i]) + 0.5;
 		(*P)[i][i] = ((*P)[i][i] > 255) ? 255 : (*P)[i][i];
 		for(uint8_t j=i+1;j<3;j++){
-			(*P)[i][j] = sgn((*P)[i][j])*sqrt(abs((*P)[i][j]))/2 + 0.5*sgn((*P)[i][j]);
+			(*P)[i][j] = sgn((*P)[i][j])*sqrt(abs((*P)[i][j])) + 0.5*sgn((*P)[i][j]);
 			(*P)[i][j] = ((*P)[i][j] > 127) ? 127 : ( ((*P)[i][j]<-128) ? -128 : (*P)[i][j]);
 		}
 	}
-	(*covar)[0].u = (uint8_t)( (*P)[0][0] + 0.5);
-	(*covar)[1].d =  (int8_t)( (*P)[0][1] + 0.5);
-	(*covar)[2].d =  (int8_t)( (*P)[0][2] + 0.5);
-	(*covar)[3].u = (uint8_t)( (*P)[1][1] + 0.5);
-	(*covar)[4].d =  (int8_t)( (*P)[1][2] + 0.5);
-	(*covar)[5].u = (uint8_t)( (*P)[2][2] + 0.5);
+	(*covar)[0].u = (uint8_t)(*P)[0][0];
+	(*covar)[1].d =  (int8_t)(*P)[0][1];
+	(*covar)[2].d =  (int8_t)(*P)[0][2];
+	(*covar)[3].u = (uint8_t)(*P)[1][1];
+	(*covar)[4].d =  (int8_t)(*P)[1][2];
+	(*covar)[5].u = (uint8_t)(*P)[2][2];
 }
 
 void decompressP(Matrix33* P, DensePosCovar* covar){
@@ -289,7 +292,7 @@ void decompressP(Matrix33* P, DensePosCovar* covar){
 	for(uint8_t i=0;i<3;i++){
 		(*P)[i][i] = (*P)[i][i] * (*P)[i][i];
 		for(uint8_t j=i+1;j<3;j++){
-			(*P)[i][j] = sgn((*P)[i][j]) * (*P)[i][j] * (*P)[i][j] * 4;
+			(*P)[i][j] = sgn((*P)[i][j]) * (*P)[i][j] * (*P)[i][j];
 			(*P)[j][i] = (*P)[i][j];
 		}
 	}
@@ -390,10 +393,11 @@ void useNewRnbMeas(){
 	uint16_t range = last_good_rnb.range;
 	int16_t bearing = last_good_rnb.bearing;
 	int16_t heading = last_good_rnb.heading;
-	uint8_t conf = last_good_rnb.conf;
 	rnb_updated=0;
-	if(range>250) return;
-	RNB_DEBUG_PRINT("            (RNB) ID: %04X | R: %4u B: %4d H: %4d C: %hu\r\n", id, range, bearing, heading, conf);
+	if(range>200){
+		return;
+	}
+	RNB_DEBUG_PRINT("            (RNB) ID: %04X | R: %4u B: %4d H: %4d\r\n", id, range, bearing, heading);
 	OtherBot* measuredBot = addOtherBot(id);
 	BotMeas* meas = &(measuredBot->myMeas);
 	if(meas->id == 0 || meas->id == id){ 

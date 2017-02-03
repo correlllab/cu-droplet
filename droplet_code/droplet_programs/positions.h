@@ -7,7 +7,7 @@
 #define P_SAMPLE_DEBUG_MODE
 #define P_L_DEBUG_MODE
 //#define OCC_DEBUG_MODE
-//#define RNB_DEBUG_MODE
+#define RNB_DEBUG_MODE
 //#define NB_DEBUG_MODE
 //#define BALL_DEBUG_MODE
 
@@ -76,19 +76,19 @@ uint8_t addedMeasStdDev;
 #endif
 
 /*
- * rnb takes 142 ms
+ * rnb takes 188 ms
  * messages take 2.5ms per byte. 
  * paddleMsg is 3 bytes. header is 8 bytes, so PaddleMsg should take 27.5
  * neighbMsg is 25 bytes. header is 8 bytes, so NeighbMsg should take 82.5
  * ballMsg is 7 bytes. header is 8 bytes, so ballMsg should take 37.5ms 
  * BotMeasMsg is 11 bytes. Header is 8 bytes, so msg should take 47.5ms
  */
-#define RNB_DUR		215 //80 ms should be enough.
+#define RNB_DUR				200
 #define PADDLE_MSG_DUR		40 //padding. Probably excessive.
 #define MEAS_MSG_DUR		60
 #define BALL_MSG_DUR		40 //padding. Probably excessive.
 
-#define SLOT_LENGTH_MS			367
+#define SLOT_LENGTH_MS			347
 #define SLOTS_PER_FRAME			29
 #define FRAME_LENGTH_MS			(((uint32_t)SLOT_LENGTH_MS)*((uint32_t)SLOTS_PER_FRAME))
 #define LOOP_DELAY_MS			17
@@ -96,8 +96,8 @@ uint8_t addedMeasStdDev;
 /*
  * See the top of page 16 in my notebook for basis for measCovar stuff below.
  */
-Matrix33 measCovarClose  = {{900,0,0},{0,400,-400},{0,-400,800}};
-Matrix33 measCovarMedium = {{4900, 0, 0}, {0, 3600, -3600}, {0, -3600, 7200}};
+Matrix33 measCovarClose  = {{252, -12, -18},{-12,144,177},{-18,177,468}};
+Matrix33 measCovarFar = {{1947, -229, -371}, {-229, 3119, 1610}, {-371, 1610, 4188}};
 
 //TODO: Make paddle_width dynamically calculated!
 //#define PADDLE_WIDTH		(FLOOR_WIDTH/3)
@@ -106,7 +106,7 @@ Matrix33 measCovarMedium = {{4900, 0, 0}, {0, 3600, -3600}, {0, -3600, 7200}};
 #define NUM_SHARED_BOTS 6
 #define NUM_USED_BOTS 5
 #define NUM_TRACKED_BOTS 12
-const id_t	   SEED_IDS[NUM_SEEDS]	   = {0x5F2D, 0x12AD, 0x3F9D, 0x0120};
+const id_t	   SEED_IDS[NUM_SEEDS]	   = {0xBD2D, 0xDF64, 0x3F9D, 0xFA6F};
 const int16_t  SEED_X[NUM_SEEDS]   = {100, 900, 100, 900};
 const int16_t  SEED_Y[NUM_SEEDS]   = {900, 900, 100, 100};
 #define MIN_X 0
@@ -223,11 +223,11 @@ uint8_t		seedFlag;
 uint8_t		myState;
 uint32_t	frameCount;
 uint32_t	frameStart;
+uint16_t	mySlot;
+uint16_t	loopID;
 uint32_t	lastBallMsg;
 //uint32_t	lastPaddleMsg;
 uint32_t	lastLightCheck;
-uint16_t	mySlot;
-uint16_t	loopID;
 int16_t		xRange;
 int16_t		yRange;
 int16_t		maxRange;

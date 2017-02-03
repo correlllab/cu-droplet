@@ -80,8 +80,6 @@ extern void handle_msg(ir_msg* msg_struct);
 extern uint8_t user_handle_command(char* command_word, char* command_args);
 extern void	user_leg_status_interrupt();
 
-
-
 id_t droplet_ID;
 
 /**

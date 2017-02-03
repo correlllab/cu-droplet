@@ -14,11 +14,6 @@
 // of a message sent from dir N, and when the TXing droplet finishes on its last channel.
 static const uint8_t txDirOffset[6] = {7, 6, 3, 5, 4, 2};
 
-typedef union fd_step_union{
-	float f;
-	int32_t d;
-} fdStep;
-
 static const float bearingBasis[6][2]=	{
 	{SQRT3_OVER2 , -0.5},
 	{0           , -1  },
@@ -28,13 +23,13 @@ static const float bearingBasis[6][2]=	{
 	{SQRT3_OVER2 ,  0.5}
 };
 
-static const float scaledBearingBasis[6][2]= {
-	{1.8038f , -1.0414f},
-	{0.0f  , -2.0828f},
-	{-1.8038f, -1.0414f},
-	{-1.8038f,  1.0414f},
-	{0.0f  ,  2.0828f},
-	{1.8038f ,  1.0414f}
+static const float hats[6][2]={
+	{11, ELEVEN_SQRT3},
+	{22, 0},
+	{11, -ELEVEN_SQRT3},
+	{-11, -ELEVEN_SQRT3},
+	{-22, 0},
+	{-11, ELEVEN_SQRT3}
 };
 
 static const float headingBasis[6][2]={
@@ -66,38 +61,16 @@ static inline float getSinHeadingBasis(uint8_t i, uint8_t j){
 	return headingBasis[(j+(6-i))%6][1];
 }
 
-static inline float getBearingAngle(uint8_t i, uint8_t j){
-	//return pretty_angle((-M_PI/6.0)-j*(M_PI/3.0));
-	return atan2f(getSinBearingBasis(i,j),getCosBearingBasis(i,j));
-}
-
-static inline float getHeadingAngle(uint8_t i, uint8_t j){
-	//return pretty_angle((-M_PI/6.0)-((j+(6-i))%6)*(M_PI/3.0));
-	return atan2f(getSinHeadingBasis(i,j), getCosHeadingBasis(i,j));
-}
-
-static inline float rnb_constrain(float x){ //constrains the value to be within or equal to the bounds.
-	return (x < FD_MIN_STEP ? FD_MIN_STEP : (x > FD_MAX_STEP ? FD_MAX_STEP : x));
-}
-
-
-static void calculate_bearing_and_heading(float* bearing, float* heading);
-static float get_initial_range_guess(float bearing, float heading, uint8_t power);
-static float range_estimate(float init_range, float bearing, float heading, uint8_t power);
+void calculate_bearing_and_heading(float* bearing, float* heading);
+float calculate_range(float iRange, float bearing, float heading);
+float calculate_error(float r, float b, float h);
 
 static int16_t processBrightMeas();
 
-static float sensor_model(float alpha);
-static float emitter_model(float beta);
+static float magicRangeFunc(float a);
 static float amplitude_model(float r);
-static float inverse_amplitude_model(float ADC_val, uint8_t power);
 
-static void debug_print_timer(uint32_t timer[19]);
 static void print_brightMeas();
-
-static float calculate_innovation(float r, float b, float h);
-
-static void full_expected_bright_mat(float bM[6][6], float r, float b, float h);
 												
 void range_algs_init(){
 	sensorHealthHistory = 0;
@@ -108,57 +81,6 @@ void range_algs_init(){
 	}
 	rnbCmdID=0;
 	rnbProcessingFlag=0;
-}
-
-
-static void full_expected_bright_mat(float bM[6][6], float r, float b, float h){
-	float rX = r*cosf(b);
-	float rY = r*sinf(b);
-	float riX, riY;
-	float jX, jY;
-	float rijX, rijY;
-	float alpha, beta;
-	float rijMag, rijMagSq;
-	for(uint8_t i=0;i<6;i++){
-		jX = DROPLET_RADIUS*cosf(basis_angle[i]+h);
-		jY = DROPLET_RADIUS*sinf(basis_angle[i]+h);
-		riX = rX + jX;
-		riY = rY + jY;
-		for(uint8_t j=0;j<6;j++){
-			rijX = riX-scaledBearingBasis[j][0];
-			rijY = riY-scaledBearingBasis[j][1];
-			alpha = rijX*bearingBasis[j][0]+rijY*bearingBasis[j][1];
-			beta =  -rijX*jX - rijY*jY;
-			rijMagSq = rijX*rijX+rijY*rijY;
-			rijMag = sqrtf(rijMagSq);
-			bM[i][j] = (alpha>0 && beta>0) ? ((alpha*beta*amplitude_model(rijMag))/rijMagSq) : 0;
-		}
-	}
-}
-
-static float calculate_innovation(float r, float b, float h){
-	float expBM[6][6];
-	full_expected_bright_mat(expBM, r, b, h);
-	float expNorm  = 0.0;
-	float realNorm = 0.0;
-
-	float* fastExpBM = (float*)expBM;
-	int16_t* fastBM = (int16_t*)brightMeas;
-
-	for(uint8_t i=0;i<36;i++){
-		expNorm += fastExpBM[i]*fastExpBM[i];
-		realNorm += ((int32_t)fastBM[i])*((int32_t)fastBM[i]);
-	}
-	float expNormInv  = powf(expNorm,-0.5);
-	float realNormInv = powf(realNorm,-0.5);
-	//printf("%04X | %7.3f %7.3f %7.1f %7.1f\r\n",cmdID, realFrob, expFrob, realTot, expTot);
-	
-	
-	float error=0.0;
-	for(uint8_t i=0;i<36;i++){
-		error+=fabsf(fastBM[i]*realNormInv-fastExpBM[i]*expNormInv);
-	}
-	return error;
 }
 
 //TODO: handle variable power.
@@ -193,40 +115,29 @@ void broadcast_rnb_data(){
 
 void use_rnb_data(){
 	//uint32_t start = get_time();
-	uint8_t power = 255;
 	int16_t matrixSum = processBrightMeas();
 	//if(rand_byte()%2) broadcastBrightMeas();
 	float bearing, heading;
 	float error;
 	calculate_bearing_and_heading(&bearing, &heading);
-	print_brightMeas();
-	float initial_range = get_initial_range_guess(bearing, heading, power);
-	if(initial_range!=0&&!isnanf(initial_range)){	
-		float range = range_estimate(initial_range, bearing, heading, power);
+	float initialRange = magicRangeFunc(matrixSum/2.0739212652);
+	if(initialRange!=0&&!isnanf(initialRange)){	
+		float range = calculate_range(initialRange, bearing, heading);
 		if(!isnanf(range)){
-			if(range<2*DROPLET_RADIUS) range=5.0;
-
-			float conf = sqrtf(matrixSum);
-			error = calculate_innovation(range, bearing, heading);
-			if(error>2.5){
+			if(range<2*DROPLET_RADIUS) range=46;
+			error = calculate_error(range, bearing, heading);
+			if(error>1.1 && range<140){
 				ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 					rnbProcessingFlag=0;
 				}
 				return;
 			}
-			conf = conf/(error*error);
-			if(error>3.0){
-				conf = conf/10.0; //Nerf the confidence hard if the calculated error was too high.
-			}
-			if(isnan(conf)){
-				conf = 0.01;
-			}
-	
+			//printf("ID: %04X, R: %4u, B: % 4d, H: % 4d\r\n", rnbCmdID, (uint16_t)range, (int16_t)rad_to_deg(bearing), (int16_t)rad_to_deg(heading), (uint8_t)error);
 			last_good_rnb.id = rnbCmdID;
-			last_good_rnb.range		= (uint16_t)(10.0*range);
+			last_good_rnb.range		= (uint16_t)(range);
 			last_good_rnb.bearing	= (int16_t)rad_to_deg(bearing);
 			last_good_rnb.heading	= (int16_t)rad_to_deg(heading);
-			last_good_rnb.conf		= (uint8_t)conf;
+			//print_brightMeas();
 			rnb_updated=1;
 		}
 	}
@@ -235,7 +146,80 @@ void use_rnb_data(){
 	}
 }
 
-static void calculate_bearing_and_heading(float* bearing, float* heading){
+float calculate_range(float iRange, float bearing, float heading){
+	float bigR[2] = {-iRange*sin(bearing), iRange*cos(bearing)};
+	float txHats[6][2];
+	for(uint8_t i=0;i<6;i++){
+		txHats[i][0] = hats[i][0]*cos(heading) - hats[i][1]*sin(heading);
+		txHats[i][1] = hats[i][0]*sin(heading) + hats[i][1]*cos(heading);
+	}
+	float rij[2];
+	float rijMagSq;
+	float alphaDotP, betaDotP;
+	float cosAcosB;
+	float total = 0;
+	int16_t* fast_bm = (int16_t*)brightMeas;
+	for(uint8_t i=0;i<36;i++){
+		uint8_t rx = i%6;
+		uint8_t tx = i/6;
+		rij[0] = bigR[0] + txHats[tx][0] - hats[rx][0];
+		rij[1] = bigR[1] + txHats[tx][1] - hats[rx][1];
+		alphaDotP = rij[0]*hats[rx][0] + rij[1]*hats[rx][1];
+		alphaDotP = rij[0]*hats[rx][0] + rij[1]*hats[rx][1];
+		betaDotP = (-rij[0])*txHats[tx][0] + (-rij[1])*txHats[tx][1];
+		betaDotP = betaDotP < 0 ? 0 : betaDotP;
+		rijMagSq = rij[0]*rij[0] + rij[1]*rij[1];
+		cosAcosB = (alphaDotP*betaDotP)/(rijMagSq*DROPLET_RADIUS_SQ);
+
+		total += fast_bm[i]*cosAcosB;
+	}
+
+	return magicRangeFunc(total);
+}
+
+float calculate_error(float r, float b, float h){
+	r = r<46 ? 46 : r;
+	float bigR[2] = {-r*sin(b), r*cos(b)};
+	float txHats[6][2];
+	for(uint8_t i=0;i<6;i++){
+		txHats[i][0] = hats[i][0]*cos(h) - hats[i][1]*sin(h);
+		txHats[i][1] = hats[i][0]*sin(h) + hats[i][1]*cos(h);
+	}
+	float rij[2];
+	float rijMagSq;
+	float alphaDotP, betaDotP;
+	float cosAlpha, cosBeta;
+	float meas;
+	float measTotal = 0;
+	float cosAcosBTotal = 0;
+	float cosAcosB[36];
+	int16_t* fast_bm = (int16_t*)brightMeas;
+	for(uint8_t i=0;i<36;i++){
+		uint8_t rx = i%6;
+		uint8_t tx = i/6;
+		rij[0] = bigR[0] + txHats[tx][0] - hats[rx][0];
+		rij[1] = bigR[1] + txHats[tx][1] - hats[rx][1];
+		alphaDotP = rij[0]*hats[rx][0] + rij[1]*hats[rx][1];
+		alphaDotP = alphaDotP < 0 ? 0 : alphaDotP;
+		betaDotP = (-rij[0])*txHats[tx][0] + (-rij[1])*txHats[tx][1];
+		betaDotP = betaDotP < 0 ? 0 : betaDotP;
+		rijMagSq = rij[0]*rij[0] + rij[1]*rij[1];
+
+		measTotal += meas;
+		cosAcosB[i] = (alphaDotP*betaDotP)/(rijMagSq*DROPLET_RADIUS_SQ);
+		cosAcosBTotal += cosAcosB[i];
+	}
+
+	float conf = 0;
+	for(uint8_t i=0;i<36;i++){
+		meas = fast_bm[i];
+		conf += fabsf( (meas/measTotal) - (cosAcosB[i]/cosAcosBTotal) );
+	}
+	
+	return conf;
+}
+
+void calculate_bearing_and_heading(float* bearing, float* heading){
 	int16_t* fast_bm = (int16_t*)brightMeas;
 	
 	float bearingX = 0;
@@ -255,111 +239,6 @@ static void calculate_bearing_and_heading(float* bearing, float* heading){
 	*heading = atan2f(headingY, headingX);
 }
 
-static float get_initial_range_guess(float bearing, float heading, uint8_t power){
-	int8_t bestS = (6-((int8_t)ceilf((3.0*bearing)/M_PI)))%6;
-	float alpha = pretty_angle(bearing - basis_angle[bestS]);				  //alpha using infinite approximation
-	int8_t bestE = (6-((int8_t)ceilf((3.0*(bearing-heading-M_PI))/M_PI)))%6;					
-	float  beta = pretty_angle(bearing - heading - basis_angle[bestE] - M_PI); //beta using infinite approximation	
-	
-	//printf("(alpha: %f, sensor %hd)\r\n", alpha, bestS); 	
-	if((alpha > M_PI_2) || (alpha < -M_PI_2)){
-		printf("ERROR: alpha out of range (alpha: %f, sensor %hd)\r\n", rad_to_deg(alpha), bestS); 
-		return 0;
-	}
-	//printf("(beta: %f, emitter %hd)\r\n",  beta, bestE); 	
-	if((beta > M_PI_2)  || (beta < -M_PI_2)){
-		printf("ERROR: beta out of range (beta: %f, emitter %hd)\r\n",  beta, bestE); 
-		return 0;
-	}
-
-	// expected contribution (using infinite distance approximation)
-	float amplitude;
-	float exp_con = sensor_model(alpha)*emitter_model(beta);
-	
-	if(exp_con > 0)	amplitude = brightMeas[bestE][bestS]/exp_con;	
-	else{
-		printf("ERROR: exp_con (%f) is negative (or zero)!\r\n", exp_con); 
-		return 0;
-	}
-	//printf("amp_for_inv: %f\t",amplitude);
-	float rMagEst = inverse_amplitude_model(amplitude, power);
-	
-	float RX = rMagEst*cos(bearing)+DROPLET_SENSOR_RADIUS*(bearingBasis[bestS][0]-headingBasis[bestE][0]);
-	float RY = rMagEst*sin(bearing)+DROPLET_SENSOR_RADIUS*(bearingBasis[bestS][1]-headingBasis[bestE][1]);
-	
-	float rangeEst = hypotf(RX,RY);
-	
-	return rangeEst;
-}
-
-static float range_estimate(float init_range, float bearing, float heading, uint8_t power){
-	float range_matrix[6][6];
-	
-	float sensorRXx, sensorRXy, sensorTXx, sensorTXy;
-	float alpha, beta, sense_emit_contr;
-	float calcRIJmag, calcRx, calcRy;
-
-	int16_t maxBright = -32768;
-	uint8_t maxE=0;
-	uint8_t maxS=0;
-	for(uint8_t e = 0; e < 6; e++){
-		for(uint8_t s = 0; s < 6; s++){
-			if(brightMeas[e][s]>maxBright){
-				maxBright = brightMeas[e][s];
-				maxE = e;
-				maxS = s;
-			}
-			if(brightMeas[e][s] > 0){												
-				sensorRXx = DROPLET_SENSOR_RADIUS*getCosBearingBasis(0,s);
-				sensorRXy = DROPLET_SENSOR_RADIUS*getSinBearingBasis(0,s);
-				sensorTXx = DROPLET_SENSOR_RADIUS*cosf(basis_angle[e]+heading) + init_range*cosf(bearing);
-				sensorTXy = DROPLET_SENSOR_RADIUS*sinf(basis_angle[e]+heading) + init_range*sinf(bearing);
-
-				alpha = atan2f(sensorTXy-sensorRXy,sensorTXx-sensorRXx) - basis_angle[s];
-				beta = atan2f(sensorRXy-sensorTXy,sensorRXx-sensorTXx) - basis_angle[e] - heading;
-
-				alpha = pretty_angle(alpha);
-				beta = pretty_angle(beta);
-				
-				sense_emit_contr = sensor_model(alpha)*emitter_model(beta);
-				if(sense_emit_contr>0){
-					calcRIJmag = inverse_amplitude_model(brightMeas[e][s]/sense_emit_contr, power);
-				}else{
-					calcRIJmag = 0;
-				}
-				calcRx = calcRIJmag*cosf(alpha) + sensorRXx - DROPLET_SENSOR_RADIUS*cosf(basis_angle[e]+heading);
-				calcRy = calcRIJmag*sinf(alpha) + sensorRXy - DROPLET_SENSOR_RADIUS*sinf(basis_angle[e]+heading);
-				range_matrix[e][s] = hypotf(calcRx, calcRy);
-				continue;
-			}
-			range_matrix[e][s]=0;
-		}
-	}
-	
-	float rangeMatSubset[3][3];
-	float brightMatSubset[3][3];
-	float froebNormSquared=0;
-	for(uint8_t e = 0; e < 3; e++){
-		for(uint8_t s = 0; s < 3; s++){
-			uint8_t otherE = ((maxE+(e+5))%6);
-			uint8_t otherS = ((maxS+(s+5))%6);
-			rangeMatSubset[e][s] = range_matrix[otherE][otherS];
-			brightMatSubset[e][s] = (float)brightMeas[otherE][otherS];
-			froebNormSquared+=powf(brightMatSubset[e][s],2);
-		}
-	}
-	float froebNorm = sqrtf(froebNormSquared);
-	float range = 0;
-	float froebWeight;
-	for(uint8_t e = 0; e < 3; e++){
-		for(uint8_t s = 0; s < 3; s++){
-			froebWeight = powf(brightMatSubset[e][s]/froebNorm,2);
-			range += rangeMatSubset[e][s]*froebWeight;
-		}
-	}
-	return range;
-}
-
 static int16_t processBrightMeas(){
 	int16_t val;
 	int16_t valSum=0;
@@ -369,7 +248,7 @@ static int16_t processBrightMeas(){
 		for(uint8_t s = 0; s < 6; s++){
 			val = brightMeas[e][s];
 			allColZeroCheck &= ~((!!val)<<s);	
-			//val=val*(val>0);
+			val=val*(val>0);
 			brightMeas[e][s] = val;
 			valSum+=val;	
 		}
@@ -441,48 +320,30 @@ void ir_range_blast(uint8_t power __attribute__ ((unused))){
 	}
 }
 
-
-static float sensor_model(float alpha){
-	if(fabsf(alpha)>=1.5){
-		return 0.0;
-	}else if(fabsf(alpha)<=0.62){
-		return (1-powf(alpha,4));
+static float magicRangeFunc(float a){
+	if(a<=0){
+		return NAN;
 	}else{
-		return 0.125/powf(alpha,4);
+		float result = -24.3675811184*(0.0259969683 + powf(a, -0.5));
+		result = 1 + exp(result);
+		result = (778.0270114700/result) - 528.0270114700;
+		return result;
 	}
 }
 
-static float emitter_model(float beta){
-	if(fabsf(beta)>=1.5){
-		return 0.0;
-	}else if(fabsf(beta)<=0.72){
-		return (0.94+powf(beta,2)*0.5-powf(beta,4));
+static float invMagicRangeFunc(float r){
+	if(r<=250){
+		float logTerm = log((778.0270114700/(r+528.0270114700))-1);
+		float result = 2.2757149424 + logTerm*(5.6708428452*logTerm+7.1847677203);
+		result = 3367.2274479842/result;
+		return result;
 	}else{
-		return 0.25/powf(beta,4);
+		return NAN;
 	}
 }
 
 static float amplitude_model(float r){
 	return (r<=0.5) ? 2597.1 : (3.90804+(13427.5/(5.17716+powf(r-0.528561,2.0))));
-}
-
-static float inverse_amplitude_model(float lambda, uint8_t power){
-	if(power==255){
-		return (lambda>=2597.1) ? 0.5 : (sqrtf(13427.5/(lambda-3.90804)-5.17716)+0.528561);
-	}else{
-		printf_P(PSTR("ERROR: Unexpected power: %hu\r\n"),power);
-	}
-	return 0;
-}
-
-static void debug_print_timer(uint32_t timer[14]){
-	printf_P(PSTR("Duration: %lu\r\n"),(timer[13] - timer[0]));
-	printf("|  ");
-	for(uint8_t i=1 ; i<13 ; i++)
-	{
-		printf_P(PSTR("%3lu  |  "),timer[i] - timer[i-1]);
-	}
-	printf("\r\n");
 }
 
 static void print_brightMeas(){

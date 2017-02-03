@@ -86,7 +86,7 @@ void ir_sensor_init(){
 		ir_sense_baseline[dir]=0;
 	}
 	schedule_task(1000,initialize_ir_baselines,NULL);
-	schedule_periodic_task(13331, update_ir_baselines, NULL);
+	schedule_periodic_task(63311, update_ir_baselines, NULL);
 }
 
 void initialize_ir_baselines(){

@@ -7,7 +7,7 @@
 #define P_SAMPLE_DEBUG_MODE
 #define P_L_DEBUG_MODE
 //#define OCC_DEBUG_MODE
-#define RNB_DEBUG_MODE
+//#define RNB_DEBUG_MODE
 //#define NB_DEBUG_MODE
 //#define BALL_DEBUG_MODE
 
@@ -81,14 +81,14 @@ uint8_t addedMeasStdDev;
  * paddleMsg is 3 bytes. header is 8 bytes, so PaddleMsg should take 27.5
  * neighbMsg is 25 bytes. header is 8 bytes, so NeighbMsg should take 82.5
  * ballMsg is 7 bytes. header is 8 bytes, so ballMsg should take 37.5ms 
- * BotMeasMsg is 11 bytes. Header is 8 bytes, so msg should take 47.5ms
+ * BotMeasMsg is 18 bytes. Header is 8 bytes, so msg should take 65ms
  */
 #define RNB_DUR				200
 #define PADDLE_MSG_DUR		40 //padding. Probably excessive.
-#define MEAS_MSG_DUR		60
-#define BALL_MSG_DUR		40 //padding. Probably excessive.
+#define MEAS_MSG_DUR		70
+#define BALL_MSG_DUR		70 //padding. Probably excessive.
 
-#define SLOT_LENGTH_MS			347
+#define SLOT_LENGTH_MS			397
 #define SLOTS_PER_FRAME			29
 #define FRAME_LENGTH_MS			(((uint32_t)SLOT_LENGTH_MS)*((uint32_t)SLOTS_PER_FRAME))
 #define LOOP_DELAY_MS			17
@@ -96,8 +96,8 @@ uint8_t addedMeasStdDev;
 /*
  * See the top of page 16 in my notebook for basis for measCovar stuff below.
  */
-Matrix33 measCovarClose  = {{252, -12, -18},{-12,144,177},{-18,177,468}};
-Matrix33 measCovarFar = {{1947, -229, -371}, {-229, 3119, 1610}, {-371, 1610, 4188}};
+Matrix measCovarClose  = {{252, -12, -18},{-12,144,177},{-18,177,468}};
+Matrix measCovarFar = {{1947, -229, -371}, {-229, 3119, 1610}, {-371, 1610, 4188}};
 
 //TODO: Make paddle_width dynamically calculated!
 //#define PADDLE_WIDTH		(FLOOR_WIDTH/3)
@@ -106,9 +106,9 @@ Matrix33 measCovarFar = {{1947, -229, -371}, {-229, 3119, 1610}, {-371, 1610, 41
 #define NUM_SHARED_BOTS 6
 #define NUM_USED_BOTS 5
 #define NUM_TRACKED_BOTS 12
-const id_t	   SEED_IDS[NUM_SEEDS]	   = {0xBD2D, 0xDF64, 0x3F9D, 0xFA6F};
-const int16_t  SEED_X[NUM_SEEDS]   = {100, 900, 100, 900};
-const int16_t  SEED_Y[NUM_SEEDS]   = {900, 900, 100, 100};
+const id_t	   SEED_IDS[NUM_SEEDS]	   = {0xBD2D, 0xDF64, 0xCB64, 0xFA6F};
+const int16_t  SEED_X[NUM_SEEDS]   = {100, 350, 100, 900};
+const int16_t  SEED_Y[NUM_SEEDS]   = {900, 150, 100, 100};
 #define MIN_X 0
 #define MIN_Y 0
 #define MAX_X 1000
@@ -155,8 +155,8 @@ typedef struct ball_msg_struct{
 }BallMsg;
 
 typedef union flex_byte_union{
-	uint8_t u;
-	int8_t d;
+	uint16_t u;
+	int16_t d;
 }FlexByte;
 
 typedef FlexByte DensePosCovar[6];
@@ -170,7 +170,8 @@ typedef struct packed_bot_pos_struct{
 
 typedef struct bot_meas_msg_struct{
 	PackedBotPos pos; //4 bytes
-	DensePosCovar covar; //6 bytes
+	DensePosCovar covar; //12 bytes
+	uint8_t seedIdx;
 	char flag;
 }BotMeasMsg;
 
@@ -205,6 +206,7 @@ typedef struct other_bot_rnb_struct{
 	BotPos posFromMe;
 	DensePosCovar posCovar;
 	uint8_t occluded;
+	uint8_t seedIdx;
 	//uint8_t hasNewInfo;
 } OtherBot;
 OtherBot nearBots[NUM_TRACKED_BOTS+1];
@@ -216,7 +218,8 @@ typedef struct hard_bot_struct{
 HardBot* hardBotsList;
 
 BotPos myPos;
-DensePosCovar myPosCovar;
+BotPos perSeedPos[NUM_SEEDS];
+DensePosCovar myPosCovars[NUM_SEEDS];
 
 uint8_t		lastBallID;
 uint8_t		seedFlag;
@@ -249,14 +252,14 @@ void		handleMySlot();
 void		handleFrameEnd(); 
 
 uint8_t     nearBotUseabilityCheck(uint8_t i);
-void		ciUpdatePos(BotPos* pos, DensePosCovar* covar);
+void		ciUpdatePos(uint8_t idx, BotPos* pos, DensePosCovar* covar);
 void		updatePositions();
-void		getMeasCovar(Matrix33* R, BotMeas* meas);
-void		calcRelativePose(Vector3* pose, BotMeas* meas);
-void		populateGammaMatrix(Matrix33* G, Vector3* pos);
-void		populateHMatrix(Matrix33* H, Vector3* x_me, Vector3* x_you);
-void		compressP(Matrix33* P, DensePosCovar* covar);
-void		decompressP(Matrix33* P, DensePosCovar* covar);
+void		getMeasCovar(Matrix* R, BotMeas* meas);
+void		calcRelativePose(Vector* pose, BotMeas* meas);
+void		populateGammaMatrix(Matrix* G, Vector* pos);
+void		populateHMatrix(Matrix* H, Vector* x_me, Vector* x_you);
+void		compressP(Matrix* P, DensePosCovar* covar);
+void		decompressP(Matrix* P, DensePosCovar* covar);
 
 void		useNewRnbMeas();
 //float getPaddleCoverage();
@@ -278,8 +281,11 @@ void		sendBallMsg();
 void		handleBallMsg(BallMsg* msg, uint32_t arrivalTime);
 void		handle_msg			(ir_msg* msg_struct);
 
+void		fusePerSeedMeas();
+
 
 void		printPosCovar(DensePosCovar* P);
+void		printTwoPosCovar(DensePosCovar* P1, DensePosCovar* P2);
 void		frameEndPrintout();
 
 //These four functions are for interacting with the OtherBot data structure.
@@ -455,9 +461,15 @@ inline static void initPositions(){
 	myPos.y = UNDF;
 	myPos.o = UNDF;
 	myDist = UNDF;
-	for(uint8_t i=0;i<6;i++){
-		myPosCovar[i].u = 0;
+	for(uint8_t i=0;i<NUM_SEEDS;i++){
+		perSeedPos[i].x = UNDF;
+		perSeedPos[i].y = UNDF;
+		perSeedPos[i].o = UNDF;
+		for(uint8_t j=0;j<6;j++){
+			myPosCovars[i][j].u = 0;
+		}
 	}
+	
 
 	seedFlag = 0;	
 	for(uint8_t i=0;i<NUM_SEEDS;i++){
@@ -466,9 +478,12 @@ inline static void initPositions(){
 			myPos.x = SEED_X[i];
 			myPos.y = SEED_Y[i];
 			myPos.o = 0;
-			myPosCovar[0].u = 1;
-			myPosCovar[3].u = 1;
-			myPosCovar[5].u = 1;
+			perSeedPos[i].x = myPos.x;
+			perSeedPos[i].y = myPos.y;
+			perSeedPos[i].o = myPos.o;
+			myPosCovars[i][0].u = 1;
+			myPosCovars[i][3].u = 1;
+			myPosCovars[i][5].u = 1;
 			break;
 		}
 	}

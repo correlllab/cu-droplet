@@ -55,7 +55,7 @@ void loop(){
 					if(pos->x != UNDF && pos->y != UNDF && pos->o != UNDF){
 						msgToSendThisSlot = 1;
 						msgRecipIdx = i;
-						msgExtraDelay = (rand_short()%3)*20;
+						msgExtraDelay = (rand_byte()%2)*MEAS_MSG_DUR;
 					}
 					break;
 				}
@@ -100,23 +100,27 @@ uint8_t nearBotUseabilityCheck(uint8_t i){
 	return 1;
 }
 
-void ciUpdatePos(BotPos* pos, DensePosCovar* covar){
-	Vector3 xMe = {myPos.x, myPos.y, myPos.o};
+void ciUpdatePos(uint8_t idx, BotPos* pos, DensePosCovar* covar){
+	Vector xMe = {perSeedPos[idx].x, perSeedPos[idx].y, perSeedPos[idx].o};
 	if(pos->x==UNDF || pos->y==UNDF || pos->o==UNDF){
 		return;
 	}
 	POS_DEBUG_PRINT("thinks I'm at {%d, %d, %d}", pos->x, pos->y, pos->o);
-	Vector3 xMeFromYou = {pos->x, pos->y, pos->o};
-	Matrix33 myP;
-	Matrix33 myPinv;
-	decompressP(&myP, &myPosCovar);
-	matrixInverse33(&myPinv, &myP);
-	Matrix33 yourP;
-	Matrix33 yourPinv;
+	Vector xMeFromYou = {pos->x, pos->y, pos->o};
+	Matrix myP;
+	Matrix myPinv;
+	decompressP(&myP, &(myPosCovars[idx]));
+	matrixInverse(&myPinv, &myP);
+	Matrix yourP;
+	Matrix yourPinv;
 	decompressP(&yourP, covar);
-	matrixInverse33(&yourPinv, &yourP);
-	Matrix33 myNewP;
-	Vector3 myNewPos;
+	matrixInverse(&yourPinv, &yourP);
+	Matrix myNewP;
+	Vector myNewPos;
+	float yourDet = matrixDet(&yourP);
+	if(powf(yourDet,1.0/6.0)>80){
+		POS_DEBUG_PRINT(" but he wasn't confident (%f) enough for me.\r\n", powf(yourDet,1.0/6.0));
+	}
 
 	float omega;
 	//omega SHOULD be selected to minimize (omega*myPinv + (1-omega)*yourPinv)^{-1}
@@ -125,72 +129,121 @@ void ciUpdatePos(BotPos* pos, DensePosCovar* covar){
 	//Intersection for Distributed Data Fusion"
 	//...except that had TERRIBLE problems w.r.t. numerical stability. :(
 	//LAZIER VERSION FROM THAT PAPER:
-	Matrix33 sum;
-	matrixAdd33(&sum, &myPinv, &yourPinv);
-	float sumDet = matrixDet33(&sum);
-	float myInvDet = matrixDet33(&myPinv);
-	float yourInvDet = matrixDet33(&yourPinv);
+	Matrix sum;
+	matrixAdd(&sum, &myPinv, &yourPinv);
+	float sumDet = matrixDet(&sum);
+	float myInvDet = matrixDet(&myPinv);
+	float yourInvDet = matrixDet(&yourPinv);
 	omega = (sumDet - yourInvDet + myInvDet)/(2*sumDet);
 	omega = omega>1.0 ? 1.0 : (omega<0.0 ? 0.0 : omega);
 	//myNewP = (omega*myPinv + (1-omega)*yourPinv)^{-1}
-	matrixScale33(&myPinv, omega);
-	matrixScale33(&yourPinv, 1.0-omega);
-	matrixAdd33(&myNewP, &myPinv, &yourPinv);
-	matrixInplaceInverse33(&myNewP);
+	matrixScale(&myPinv, omega);
+	matrixScale(&yourPinv, 1.0-omega);
+	matrixAdd(&myNewP, &myPinv, &yourPinv);
+	matrixInplaceInverse(&myNewP);
 	//myNewPos = myNewP*(omega*myPinv*myPrevPos + (1-omega)*yourPinv*yourPos)
-	matrixTimesVector33_3(&myNewPos, &myPinv, &xMe);
-	Vector3 tmp;
-	matrixTimesVector33_3(&tmp, &yourPinv, &xMeFromYou);
-	vectorAdd3(&tmp, &myNewPos, &tmp);
-	matrixTimesVector33_3(&myNewPos, &myNewP, &tmp);
-	myPos.x = myNewPos[0]>1023 ? 1023 : (myNewPos[0]<-1023 ? -1023 : myNewPos[0]);
-	myPos.y = myNewPos[1]>1023 ? 1023 : (myNewPos[1]<-1023 ? -1023 : myNewPos[1]);
-	myPos.o = pretty_angle_deg(myNewPos[2]);
+	matrixTimesVector(&myNewPos, &myPinv, &xMe);
+	Vector tmp;
+	matrixTimesVector(&tmp, &yourPinv, &xMeFromYou);
+	vectorAdd(&tmp, &myNewPos, &tmp);
+	matrixTimesVector(&myNewPos, &myNewP, &tmp);
+	perSeedPos[idx].x = myNewPos[0]>1023 ? 1023 : (myNewPos[0]<-1023 ? -1023 : myNewPos[0]);
+	perSeedPos[idx].y = myNewPos[1]>1023 ? 1023 : (myNewPos[1]<-1023 ? -1023 : myNewPos[1]);
+	perSeedPos[idx].o = pretty_angle_deg(myNewPos[2]);
 	#ifdef POS_DEBUG_MODE
-		POS_DEBUG_PRINT(" giving pos {%d, %d, %d} (omega: %5.3f).\r\n", myPos.x, myPos.y, myPos.o, omega);
-		POS_DEBUG_PRINT("His Est Covar:\r\n");
-		printMatrix33Mathematica(&yourP);
-		POS_DEBUG_PRINT("My new covar:\r\n");
-		printMatrix33Mathematica(&myNewP);
+		POS_DEBUG_PRINT(" giving pos {%d, %d, %d} (omega: %5.3f).\r\n", perSeedPos[idx].x, perSeedPos[idx].y, perSeedPos[idx].o, omega);
+		//POS_DEBUG_PRINT("His Est Covar:\r\n");
+		//printMatrixMathematica(&yourP);
+		//POS_DEBUG_PRINT("My new covar:\r\n");
+		//printMatrixMathematica(&myNewP);
 	#endif
-	compressP(&myNewP, &myPosCovar);		
+	compressP(&myNewP, &(myPosCovars[idx]));		
+}
+
+void fusePerSeedMeas(){
+	// This function needs to intelligently combine the independent position estimates 
+	// which we have from each seed.
+	// TODO: Current fusion is QUICK AND DIRTY. Replace with the RIGHT THING.
+	// Current fusion: weighted average of each position, weighted with inverse of trace of covar.
+	float totX = 0;
+	float totY = 0;
+	float totO_x = 0;
+	float totO_y = 0;
+	float totWeight = 0;
+	float thisWeight;
+	for(uint8_t i=0;i<NUM_SEEDS;i++){
+		if(perSeedPos[i].x!=UNDF && perSeedPos[i].y!=UNDF && perSeedPos[i].o!=UNDF){
+			thisWeight = 1.0/(myPosCovars[i][0].u + myPosCovars[i][3].u + myPosCovars[i][5].u);
+			totX += thisWeight*perSeedPos[i].x;
+			totY += thisWeight*perSeedPos[i].y;
+			totO_x += thisWeight*cos(deg_to_rad(perSeedPos[i].o));
+			totO_y += thisWeight*sin(deg_to_rad(perSeedPos[i].o));
+			totWeight += thisWeight;
+		}
+	}
+	if(totWeight>0){
+		myPos.x = totX/totWeight;
+		myPos.y = totY/totWeight;
+		myPos.o = atan2(totO_y, totO_x);
+	}
 }
 
 void updatePositions(){
+	fusePerSeedMeas();
 	if(myPos.x==UNDF || myPos.y == UNDF || myPos.o == UNDF){
 		printf("Can't adjust others' positions until I know where I am.\r\n");
 		return;
 	}
 	POS_DEBUG_PRINT("Updating Positions!\r\n");
-	Vector3 x_me = {myPos.x, myPos.y, myPos.o};
-	Matrix33 G;
-	populateGammaMatrix(&G, &x_me);
-	Matrix33 Gtp;
-	matrixTranspose33(&Gtp, &G);
-	Matrix33 myP;
-	decompressP(&myP, &myPosCovar);
-
+	//TODO : Tweak the randomization so I'm more likely to send updates if I'm more confident???
+	uint8_t initSeedIdx = rand_byte()%NUM_SEEDS;
+	uint8_t thisSeedIdx;
+	Matrix myP;
 	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
-		if(nearBotUseabilityCheck(i)){		
-			Vector3 z;
+		if(nearBotUseabilityCheck(i)){
+			thisSeedIdx=0xFF;
+			for(uint8_t j=initSeedIdx;j<(initSeedIdx+NUM_SEEDS);j++){
+				if(perSeedPos[j%NUM_SEEDS].x!=UNDF && perSeedPos[j%NUM_SEEDS].y!=UNDF && perSeedPos[j%NUM_SEEDS].o!=UNDF){
+					thisSeedIdx = (j%NUM_SEEDS);
+					decompressP(&myP, &(myPosCovars[thisSeedIdx]));
+					float myPdet = matrixDet(&myP);
+					if(powf(myPdet,1.0/6.0)>80){
+						printf("Won't adjust others' positions until I'm confident of where I am for this seed. (%f)\r\n", powf(myPdet, 1.0/6.0));
+						thisSeedIdx = 0xFF;
+					}else{
+						break;
+					}
+					
+				}
+			}
+			if(thisSeedIdx==0xFF){
+				printf("Not suffficiently confident for any seedIdxs.\r\n");
+				continue;
+			}
+			Vector x_me = {perSeedPos[thisSeedIdx].x, perSeedPos[thisSeedIdx].y, perSeedPos[thisSeedIdx].o};
+			Matrix G;
+			populateGammaMatrix(&G, &x_me);
+			Matrix Gtp;
+			matrixTranspose(&Gtp, &G);
+			Vector z;
 			calcRelativePose(&z, &(nearBots[i].myMeas));
-			Matrix33 R;
+			Matrix R;
 			getMeasCovar(&R, &(nearBots[i].myMeas));
 			//yourX = myX + G.z
-			Vector3 x_you;
-			matrixTimesVector33_3(&x_you, &G, &z);
-			vectorAdd3(&x_you, &x_me, &x_you);
-			Matrix33 H;
+			Vector x_you;
+			matrixTimesVector(&x_you, &G, &z);
+			vectorAdd(&x_you, &x_me, &x_you);
+			Matrix H;
 			populateHMatrix(&H, &x_me, &x_you);
-			Matrix33 tmp;
-			Matrix33 yourP;
+			Matrix tmp;
+			Matrix yourP;
 			//yourP = H.myP.tp(H) + G.R.tp(G)
-			matrixMultiply33_33(&tmp, &G, &R);
-			matrixMultiply33_33(&yourP, &tmp, &Gtp); //now yourP is G.R.tp(G)
-			matrixMultiply33_33(&tmp, &H, &myP);
-			matrixInplaceTranspose33(&H);
-			matrixInplaceMultiply33_33(&tmp, &tmp, &H); //now tmp is H.myP.tp(H)
-			matrixAdd33(&yourP, &tmp, &yourP);
+			matrixMultiply(&tmp, &G, &R);
+			matrixMultiply(&yourP, &tmp, &Gtp); //now yourP is G.R.tp(G)
+			matrixMultiply(&tmp, &H, &myP);
+			matrixInplaceTranspose(&H);
+			matrixInplaceMultiply(&tmp, &tmp, &H); //now tmp is H.myP.tp(H)
+			matrixAdd(&yourP, &tmp, &yourP);
 			
 			if(positiveDefiniteQ(&yourP)){
 				POS_DEBUG_PRINT("\t%04X @ {%6.1f, %6.1f, % 5.0f} from {% 4d, % 4d, % 4d}\r\n", nearBots[i].myMeas.id, x_you[0], x_you[1], x_you[2], nearBots[i].myMeas.r, nearBots[i].myMeas.b, nearBots[i].myMeas.h);
@@ -198,6 +251,7 @@ void updatePositions(){
 				nearBots[i].posFromMe.y = x_you[1]>1023 ? 1023 : (x_you[1]<-1023 ? -1023 : x_you[1]);
 				nearBots[i].posFromMe.o = pretty_angle_deg(x_you[2]);
 				compressP(&yourP, &(nearBots[i].posCovar));
+				nearBots[i].seedIdx = thisSeedIdx;
 			}else{
 				removeOtherBot(i);
 			}
@@ -205,13 +259,13 @@ void updatePositions(){
 	}
 }
 
-void getMeasCovar(Matrix33* R, BotMeas* meas){
+void getMeasCovar(Matrix* R, BotMeas* meas){
 	//(*R)[0][0] = 400;	(*R)[0][1] = 0;		(*R)[0][2] = 0;
 	//(*R)[1][0] = 0;		(*R)[1][1] = 400; 	(*R)[1][2] = 0;
 	//(*R)[2][0] = 0;		(*R)[2][1] = 0;		(*R)[2][2] = 250;
-	Matrix33* start = (meas->r)<140 ? &measCovarClose : &measCovarFar;
-	matrixCopy33(R, start);
-	Matrix33 H; //This is the jacobian of the transformation from (r,b,h) to (deltaX, deltaY, deltaO)
+	Matrix* start = (meas->r)<140 ? &measCovarClose : &measCovarFar;
+	matrixCopy(R, start);
+	Matrix H; //This is the jacobian of the transformation from (r,b,h) to (deltaX, deltaY, deltaO)
 	float cosO = cos(deg_to_rad(meas->b+90));
 	float sinO = sin(deg_to_rad(meas->b+90));
 	float degToRad = M_PI/180.0;
@@ -224,12 +278,12 @@ void getMeasCovar(Matrix33* R, BotMeas* meas){
 	H[2][0] = 0;
 	H[2][1] = 0;
 	H[2][2] = 1;
-	matrixInplaceMultiply33_33(R, &H, R);
-	matrixInplaceTranspose33(&H);
-	matrixInplaceMultiply33_33(R, R, &H);
+	matrixInplaceMultiply(R, &H, R);
+	matrixInplaceTranspose(&H);
+	matrixInplaceMultiply(R, R, &H);
 }
 
-void calcRelativePose(Vector3* pose, BotMeas* meas){
+void calcRelativePose(Vector* pose, BotMeas* meas){
 	uint16_t r   = meas->r;
 	int16_t b	 = meas->b;
 	int16_t h    = meas->h;
@@ -238,7 +292,7 @@ void calcRelativePose(Vector3* pose, BotMeas* meas){
 	(*pose)[2] = h;
 }
 
-void populateGammaMatrix(Matrix33* G, Vector3* pos){
+void populateGammaMatrix(Matrix* G, Vector* pos){
 	float cosO = cos(deg_to_rad((*pos)[2]));
 	float sinO = sin(deg_to_rad((*pos)[2]));
 	(*G)[0][0] = cosO;
@@ -252,7 +306,7 @@ void populateGammaMatrix(Matrix33* G, Vector3* pos){
 	(*G)[2][2] = 1;
 }
 
-void populateHMatrix(Matrix33* H, Vector3* x_me, Vector3* x_you){
+void populateHMatrix(Matrix* H, Vector* x_me, Vector* x_you){
 	float degToRad = M_PI/180.0;
 	(*H)[0][0] = -1;
 	(*H)[0][1] = 0;
@@ -265,24 +319,24 @@ void populateHMatrix(Matrix33* H, Vector3* x_me, Vector3* x_you){
 	(*H)[2][2] = -1;
 }
 
-void compressP(Matrix33* P, DensePosCovar* covar){
+void compressP(Matrix* P, DensePosCovar* covar){
 	for(uint8_t i=0;i<3;i++){
-		(*P)[i][i] = sqrt((*P)[i][i]) + 0.5;
-		(*P)[i][i] = ((*P)[i][i] > 255) ? 255 : (*P)[i][i];
+		(*P)[i][i] = ((*P)[i][i])/4 + 0.5;
+		(*P)[i][i] = ((*P)[i][i] > 65535) ? 65535 : (*P)[i][i];
 		for(uint8_t j=i+1;j<3;j++){
-			(*P)[i][j] = sgn((*P)[i][j])*sqrt(abs((*P)[i][j])) + 0.5*sgn((*P)[i][j]);
-			(*P)[i][j] = ((*P)[i][j] > 127) ? 127 : ( ((*P)[i][j]<-128) ? -128 : (*P)[i][j]);
+			(*P)[i][j] = ((*P)[i][j])/8 + 0.5;
+			(*P)[i][j] = ((*P)[i][j] > 32767) ? 32767 : ( ((*P)[i][j]<-32768) ? -32768 : (*P)[i][j] );
 		}
 	}
-	(*covar)[0].u = (uint8_t)(*P)[0][0];
-	(*covar)[1].d =  (int8_t)(*P)[0][1];
-	(*covar)[2].d =  (int8_t)(*P)[0][2];
-	(*covar)[3].u = (uint8_t)(*P)[1][1];
-	(*covar)[4].d =  (int8_t)(*P)[1][2];
-	(*covar)[5].u = (uint8_t)(*P)[2][2];
+	(*covar)[0].u = (uint16_t)(*P)[0][0];
+	(*covar)[1].d =  (int16_t)(*P)[0][1];
+	(*covar)[2].d =  (int16_t)(*P)[0][2];
+	(*covar)[3].u = (uint16_t)(*P)[1][1];
+	(*covar)[4].d =  (int16_t)(*P)[1][2];
+	(*covar)[5].u = (uint16_t)(*P)[2][2];
 }
 
-void decompressP(Matrix33* P, DensePosCovar* covar){
+void decompressP(Matrix* P, DensePosCovar* covar){
 	(*P)[0][0] = (*covar)[0].u;
 	(*P)[0][1] = (*covar)[1].d;
 	(*P)[0][2] = (*covar)[2].d;
@@ -290,9 +344,9 @@ void decompressP(Matrix33* P, DensePosCovar* covar){
 	(*P)[1][2] = (*covar)[4].d;
 	(*P)[2][2] = (*covar)[5].u;
 	for(uint8_t i=0;i<3;i++){
-		(*P)[i][i] = (*P)[i][i] * (*P)[i][i];
+		(*P)[i][i] = 4*((*P)[i][i]);
 		for(uint8_t j=i+1;j<3;j++){
-			(*P)[i][j] = sgn((*P)[i][j]) * (*P)[i][j] * (*P)[i][j];
+			(*P)[i][j] = 8*((*P)[i][j]);
 			(*P)[j][i] = (*P)[i][j];
 		}
 	}
@@ -617,6 +671,7 @@ void sendBotMeasMsg(uint8_t i){ //i: index in nearBots array.
 	for(uint8_t j=0;j<6;j++){
 		msg.covar[j].u = nearBots[i].posCovar[j].u;
 	}
+	msg.seedIdx = nearBots[i].seedIdx;
 	uint8_t dir_mask = 0;
 	dir_mask |= 1<<((dir+5)%6);
 	dir_mask |= 1<<(dir);
@@ -627,16 +682,17 @@ void sendBotMeasMsg(uint8_t i){ //i: index in nearBots array.
 void handleBotMeasMsg(BotMeasMsg* msg, id_t senderID){
 	BotPos hisEstOfMe;
 	unpackPos(&(msg->pos), &hisEstOfMe);
-	if(myPos.x==UNDF || myPos.y==UNDF || myPos.o==UNDF){
-		myPos.x = hisEstOfMe.x;
-		myPos.y = hisEstOfMe.y;
-		myPos.o = hisEstOfMe.o;
+	uint8_t seedIdx = msg->seedIdx;
+	if(perSeedPos[seedIdx].x==UNDF || perSeedPos[seedIdx].y==UNDF || perSeedPos[seedIdx].o==UNDF){
+		perSeedPos[seedIdx].x = hisEstOfMe.x;
+		perSeedPos[seedIdx].y = hisEstOfMe.y;
+		perSeedPos[seedIdx].o = hisEstOfMe.o;
 		for(uint8_t i=0;i<6;i++){
-			myPosCovar[i].u = msg->covar[i].u;
+			myPosCovars[seedIdx][i].u = msg->covar[i].u;
 		}
 	}else{
 		POS_DEBUG_PRINT("%04X ", senderID);
-		ciUpdatePos(&hisEstOfMe, &(msg->covar));
+		ciUpdatePos(seedIdx, &hisEstOfMe, &(msg->covar));
 	}
 }
 
@@ -665,14 +721,66 @@ void frameEndPrintout(){
 	printf_P(PSTR(" ]"));
 	if((myPos.x != UNDF) && (myPos.y != UNDF) && (myPos.o != UNDF)){
 		printf_P(PSTR("\tMy Pos: {%d, %d, %d}\r\n"), myPos.x, myPos.y, myPos.o);
-		printf("\tMy P:\r\n");
-		printPosCovar(&myPosCovar);
+		if(perSeedPos[0].x == UNDF || perSeedPos[0].y == UNDF || perSeedPos[0].o == UNDF){
+			printf("\tNW Pos: { -- ,  -- ,  -- }");
+		}else{
+			printf("\tNW Pos: {%4d, % 4d, % 4d}", perSeedPos[0].x, perSeedPos[0].y, perSeedPos[0].o);
+		}
+		if(perSeedPos[1].x == UNDF || perSeedPos[1].y == UNDF || perSeedPos[1].o == UNDF){
+			printf("           NE Pos: { -- ,  -- ,  -- }\r\n");
+		}else{
+			printf("           NE Pos: {%4d, % 4d, % 4d}\r\n",	perSeedPos[1].x, perSeedPos[1].y, perSeedPos[1].o);
+		}
+		printTwoPosCovar(&(myPosCovars[0]), &(myPosCovars[1]));
+		if(perSeedPos[2].x == UNDF || perSeedPos[2].y == UNDF || perSeedPos[2].o == UNDF){
+			printf("\tSW Pos: { -- ,  -- ,  -- }");
+			}else{
+			printf("\tSW Pos: {%4d, % 4d, % 4d}", perSeedPos[2].x, perSeedPos[2].y, perSeedPos[2].o);
+		}
+		if(perSeedPos[3].x == UNDF || perSeedPos[3].y == UNDF || perSeedPos[3].o == UNDF){
+			printf("           SE Pos: { -- ,  -- ,  -- }\r\n");
+		}else{
+			printf("           SE Pos: {%4d, % 4d, % 4d}\r\n",	perSeedPos[3].x, perSeedPos[3].y, perSeedPos[3].o);
+		}
+		printTwoPosCovar(&(myPosCovars[2]), &(myPosCovars[3]));
 	}else{
 		printf("\r\n");
 	}
 	if((theBall.xPos != UNDF) && (theBall.yPos != UNDF)){
 		printf_P(PSTR("\tBall ID: %hu; radius: %hu; Pos: (%d, %d) @ vel (%hd, %hd)\r\n"), theBall.id, theBall.radius, theBall.xPos, theBall.yPos, theBall.xVel, theBall.yVel);
 	}
+}
+
+void printTwoPosCovar(DensePosCovar* P1, DensePosCovar* P2){
+	float xx1 = (*P1)[0].u;
+	float xy1 = (*P1)[1].d;
+	float xo1 = (*P1)[2].d;
+	float yy1 = (*P1)[3].u;
+	float yo1 = (*P1)[4].d;
+	float oo1 = (*P1)[5].u;
+	float xx2 = (*P2)[0].u;
+	float xy2 = (*P2)[1].d;
+	float xo2 = (*P2)[2].d;
+	float yy2 = (*P2)[3].u;
+	float yo2 = (*P2)[4].d;
+	float oo2 = (*P2)[5].u;
+	xx1 = xx1*4;
+	xy1 = xy1*8;
+	xo1 = xo1*8;
+	yy1 = yy1*4;
+	yo1 = yo1*8;
+	oo1 = oo1*4;
+	xx2 = xx2*4;
+	xy2 = xy2*8;
+	xo2 = xo2*8;
+	yy2 = yy2*4;
+	yo2 = yo2*8;
+	oo2 = oo2*4;
+	printf("\t{                                    {\r\n");
+	printf("\t  {%7.1f, %7.1f, %7.1f},          {%7.1f, %7.1f, %7.1f},\r\n", xx1, xy1, xo1, xx2, xy2, xo2);
+	printf("\t  {%7.1f, %7.1f, %7.1f},          {%7.1f, %7.1f, %7.1f},\r\n", xy1, yy1, yo1, xy2, yy2, yo2);
+	printf("\t  {%7.1f, %7.1f, %7.1f}           {%7.1f, %7.1f, %7.1f},\r\n", xo1, yo1, oo1, xo2, yo2, oo2);
+	printf("\t}                                    }\r\n");
 }
 
 void printPosCovar(DensePosCovar* P){
@@ -682,12 +790,12 @@ void printPosCovar(DensePosCovar* P){
 	float yy = (*P)[3].u;
 	float yo = (*P)[4].d;
 	float oo = (*P)[5].u;
-	xx = xx * xx;
-	xy = sgn(xy) * xy * xy * 4;
-	xo = sgn(xo) * xo * xo * 4;
-	yy = yy * yy;
-	yo = sgn(yo) * yo * yo * 4;
-	oo = oo * oo;
+	xx = xx*4;
+	xy = xy*8;
+	xo = xo*8;
+	yy = yy*4;
+	yo = yo*8;
+	oo = oo*4;
 	printf("\t{\r\n\t  {%7.1f, %7.1f, %7.1f},\r\n", xx, xy, xo);
 	printf("\t  {%7.1f, %7.1f, %7.1f},\r\n",	    xy, yy, yo);
 	printf("\t  {%7.1f, %7.1f, %7.1f}\r\n\t}\r\n",  xo, yo, oo);
@@ -749,6 +857,7 @@ void cleanOtherBot(OtherBot* other){
 		other->posCovar[i].u = 0;
 	}
 	other->occluded = 0;
+	other->seedIdx = 255;
 	//other->hasNewInfo = 0;
 }
 

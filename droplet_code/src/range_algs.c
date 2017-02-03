@@ -68,7 +68,6 @@ float calculate_error(float r, float b, float h);
 static int16_t processBrightMeas();
 
 static float magicRangeFunc(float a);
-static float amplitude_model(float r);
 
 static void print_brightMeas();
 												
@@ -188,7 +187,6 @@ float calculate_error(float r, float b, float h){
 	float rij[2];
 	float rijMagSq;
 	float alphaDotP, betaDotP;
-	float cosAlpha, cosBeta;
 	float meas;
 	float measTotal = 0;
 	float cosAcosBTotal = 0;
@@ -329,21 +327,6 @@ static float magicRangeFunc(float a){
 		result = (778.0270114700/result) - 528.0270114700;
 		return result;
 	}
-}
-
-static float invMagicRangeFunc(float r){
-	if(r<=250){
-		float logTerm = log((778.0270114700/(r+528.0270114700))-1);
-		float result = 2.2757149424 + logTerm*(5.6708428452*logTerm+7.1847677203);
-		result = 3367.2274479842/result;
-		return result;
-	}else{
-		return NAN;
-	}
-}
-
-static float amplitude_model(float r){
-	return (r<=0.5) ? 2597.1 : (3.90804+(13427.5/(5.17716+powf(r-0.528561,2.0))));
 }
 
 static void print_brightMeas(){

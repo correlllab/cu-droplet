@@ -2,7 +2,7 @@
 
 #include "droplet_init.h"
 
-#define POS_DEBUG_MODE
+//#define POS_DEBUG_MODE
 #define GEN_DEBUG_MODE
 #define P_SAMPLE_DEBUG_MODE
 #define P_L_DEBUG_MODE
@@ -16,9 +16,6 @@
 #define MIN_PACKED_O -512
 
 //uint8_t useNewInfo;
-uint8_t stdDevThreshold;
-uint8_t addedPosStdDev;
-uint8_t addedMeasStdDev;
 
 #ifdef OCC_DEBUG_MODE
 #define OCC_DEBUG_PRINT(format, ...) printf_P(PSTR(format), ##__VA_ARGS__)
@@ -79,25 +76,28 @@ uint8_t addedMeasStdDev;
  * rnb takes 188 ms
  * messages take 2.5ms per byte. 
  * paddleMsg is 3 bytes. header is 8 bytes, so PaddleMsg should take 27.5
- * neighbMsg is 25 bytes. header is 8 bytes, so NeighbMsg should take 82.5
  * ballMsg is 7 bytes. header is 8 bytes, so ballMsg should take 37.5ms 
- * BotMeasMsg is 18 bytes. Header is 8 bytes, so msg should take 65ms
+ * BotMeasMsg is 20 bytes. Header is 8 bytes, so msg should take 70ms (tripled)
+ * BotPosMsg is 7 bytes. Header is 8 bytes, so msg should take 37.5ms
  */
-#define RNB_DUR				200
-#define PADDLE_MSG_DUR		40 //padding. Probably excessive.
-#define MEAS_MSG_DUR		70
-#define BALL_MSG_DUR		70 //padding. Probably excessive.
+#define RNB_DUR				220
+#define PADDING_DUR			20 //padding.
+#define POS_MSG_DUR			40
+#define MEAS_MSG_DUR		71
 
-#define SLOT_LENGTH_MS			397
-#define SLOTS_PER_FRAME			29
+
+#define SLOT_LENGTH_MS			547
+#define SLOTS_PER_FRAME			37
 #define FRAME_LENGTH_MS			(((uint32_t)SLOT_LENGTH_MS)*((uint32_t)SLOTS_PER_FRAME))
 #define LOOP_DELAY_MS			17
 
-/*
- * See the top of page 16 in my notebook for basis for measCovar stuff below.
- */
-Matrix measCovarClose  = {{252, -12, -18},{-12,144,177},{-18,177,468}};
-Matrix measCovarFar = {{1947, -229, -371}, {-229, 3119, 1610}, {-371, 1610, 4188}};
+///*
+ //* See the top of page 16 in my notebook for basis for measCovar stuff below.
+ //*/
+//Matrix measCovarClose  = {{252, -12, -18},{-12,144,177},{-18,177,468}};
+//Matrix measCovarFar = {{1947, -229, -371}, {-229, 3119, 1610}, {-371, 1610, 4188}};
+Matrix deltaPoseCovarClose = {{76, 15, 29}, {15, 83, 44}, {29, 44, 220}};
+Matrix deltaPoseCovarMed   = {{1569, 106, -163}, {106, 633, 35}, {-163, 35, 871}};
 
 //TODO: Make paddle_width dynamically calculated!
 //#define PADDLE_WIDTH		(FLOOR_WIDTH/3)
@@ -106,9 +106,9 @@ Matrix measCovarFar = {{1947, -229, -371}, {-229, 3119, 1610}, {-371, 1610, 4188
 #define NUM_SHARED_BOTS 6
 #define NUM_USED_BOTS 5
 #define NUM_TRACKED_BOTS 12
-const id_t	   SEED_IDS[NUM_SEEDS]	   = {0xBD2D, 0xDF64, 0xCB64, 0xFA6F};
-const int16_t  SEED_X[NUM_SEEDS]   = {100, 350, 100, 900};
-const int16_t  SEED_Y[NUM_SEEDS]   = {900, 150, 100, 100};
+const id_t	   SEED_IDS[NUM_SEEDS]	   = {0xDC62, 0x9363, 0x6597, 0x6C6F};
+const int16_t  SEED_X[NUM_SEEDS]   = {100, 900, 100, 900};
+const int16_t  SEED_Y[NUM_SEEDS]   = {900, 900, 100, 100};
 #define MIN_X 0
 #define MIN_Y 0
 #define MAX_X 1000
@@ -128,6 +128,7 @@ const int16_t  SEED_Y[NUM_SEEDS]   = {900, 150, 100, 100};
 #define BALL_MSG_FLAG			'B'
 #define NEAR_BOTS_MSG_FLAG		'N'
 #define BOT_MEAS_MSG_FLAG		'X'
+#define BOT_POS_MSG_FLAG		'P'
 //#define N_PADDLE_MSG_FLAG		'P'
 //#define S_PADDLE_MSG_FLAG		'S'
 
@@ -161,6 +162,13 @@ typedef union flex_byte_union{
 
 typedef FlexByte DensePosCovar[6];
 
+typedef struct bot_pos_struct
+{
+	int16_t x;
+	int16_t y;
+	int16_t o;
+} BotPos;
+
 typedef struct packed_bot_pos_struct{
 	uint8_t xLow;
 	uint8_t yLow;
@@ -169,11 +177,16 @@ typedef struct packed_bot_pos_struct{
 }PackedBotPos;
 
 typedef struct bot_meas_msg_struct{
-	PackedBotPos pos; //4 bytes
+	BotPos pos; //6 bytes
 	DensePosCovar covar; //12 bytes
 	uint8_t seedIdx;
 	char flag;
 }BotMeasMsg;
+
+typedef struct bot_pos_msg_struct{
+	BotPos pos; //6 bytes
+	char flag;
+}BotPosMsg;
 
 typedef struct ball_dat_struct{
 	uint32_t lastUpdate;	
@@ -194,13 +207,6 @@ typedef struct bot_meas_struct
 	int16_t h;
 } BotMeas;
 
-typedef struct bot_pos_struct
-{
-	int16_t x;
-	int16_t y;
-	int16_t o;
-} BotPos;
-
 typedef struct other_bot_rnb_struct{
 	BotMeas myMeas;
 	BotPos posFromMe;
@@ -219,7 +225,7 @@ HardBot* hardBotsList;
 
 BotPos myPos;
 BotPos perSeedPos[NUM_SEEDS];
-DensePosCovar myPosCovars[NUM_SEEDS];
+DensePosCovar perSeedCovars[NUM_SEEDS];
 
 uint8_t		lastBallID;
 uint8_t		seedFlag;
@@ -265,9 +271,10 @@ void		useNewRnbMeas();
 //float getPaddleCoverage();
 
 void		checkLightLevel();
-
+void		sendBotPosMsg();
 void		sendBotMeasMsg(uint8_t i);
 void		handleBotMeasMsg(BotMeasMsg* msg, id_t senderID);
+void		handleBotPosMsg(BotPosMsg* msg, id_t senderID);
 
 void		updateBall();
 //check_bounce is a helper function for updateBall.
@@ -303,63 +310,10 @@ void		cleanHardBots();
 void printNearBots();
 void printOtherBot(OtherBot* bot);
 
-inline static void packPos(PackedBotPos* pos, BotPos* otherPos){
-	int16_t x, y, o;
-	x = otherPos->x;
-	x = (x==UNDF) ? MIN_PACKED_X : x;
-	y = otherPos->y;
-	y = (y==UNDF) ? MIN_PACKED_Y : y;
-	o = otherPos->o;
-	o = (o==UNDF) ? MIN_PACKED_O : o;
-	pos->xLow  = (uint8_t)(x&0xFF);
-	pos->yLow  = (uint8_t)(y&0xFF);
-	pos->oLow  = (uint8_t)(o&0xFF);
-	pos->bits  = (uint8_t)((x>>8) & 0b00000111);
-	pos->bits |= (uint8_t)((y>>5) & 0b00111000);
-	pos->bits |= (uint8_t)((o>>2) & 0b11000000);
-}
-
-inline static void unpackPos(PackedBotPos* pPos, BotPos* otherPos){
-	otherPos->x = pPos->xLow;
-	otherPos->x |= ((uint16_t)(pPos->bits & 0b00000111))<<8;
-	otherPos->x = (otherPos->x)<<5; //shifting value left (and then right again) in case value is negative.
-	otherPos->x = (otherPos->x)/32; //avr-gcc doesn't do arithmetic right shifts, so we're using integer division to get it.
-	otherPos->x = (otherPos->x==MIN_PACKED_X) ? UNDF : otherPos->x;
-	otherPos->y = pPos->yLow;
-	otherPos->y |= ((uint16_t)(pPos->bits & 0b00111000))<<5;
-	otherPos->y = (otherPos->y)<<5; //shifting value left (and then right again) in case value is negative.
-	otherPos->y = (otherPos->y)/32; //avr-gcc doesn't do arithmetic right shifts, so we're using integer division to get it.
-	otherPos->y = (otherPos->y==MIN_PACKED_Y) ? UNDF : otherPos->y;
-	otherPos->o = pPos->oLow;
-	otherPos->o |= ((uint16_t)(pPos->bits & 0b11000000))<<2;
-	otherPos->o = (otherPos->o)<<6; //shifting value left (and then right again) in case value is negative.
-	otherPos->o = (otherPos->o)/64; //avr-gcc doesn't do arithmetic right shifts, so we're using integer division to get it.
-	otherPos->o = (otherPos->o==MIN_PACKED_O) ? UNDF : otherPos->o;
-}
-
-inline static int8_t packAngleMeas(int16_t angle){
-	if(angle==UNDF){
-		return 0x7E;
-	}else{
-		return (int8_t)(angle>>1);
-	}
-}
-
-inline static int16_t unpackAngleMeas(int8_t angle){
-	if(angle==0x7E){
-		return UNDF;
-	}else{
-		return (((int16_t)angle)<<1);
-	}
-}
-
-inline static uint8_t packRange(uint16_t range){
-	range = (range>510) ? 510 : range;
-	return ((uint8_t)((range+1)>>1)); //dividing by two, rounding towards closest.
-}
-
-inline static uint16_t unpackRange(uint8_t packedRange){
-	return (((uint16_t)packedRange)<<1); 
+inline static void copyBotPos(BotPos* src, BotPos* dest){
+	dest->x = src->x;
+	dest->y = src->y;
+	dest->o = src->o;
 }
 
 inline static float getCoverageRatioA(uint8_t rad, uint16_t dist){ //when ball radius less than bot radius.
@@ -466,7 +420,7 @@ inline static void initPositions(){
 		perSeedPos[i].y = UNDF;
 		perSeedPos[i].o = UNDF;
 		for(uint8_t j=0;j<6;j++){
-			myPosCovars[i][j].u = 0;
+			perSeedCovars[i][j].u = 0;
 		}
 	}
 	
@@ -481,9 +435,9 @@ inline static void initPositions(){
 			perSeedPos[i].x = myPos.x;
 			perSeedPos[i].y = myPos.y;
 			perSeedPos[i].o = myPos.o;
-			myPosCovars[i][0].u = 1;
-			myPosCovars[i][3].u = 1;
-			myPosCovars[i][5].u = 1;
+			perSeedCovars[i][0].u = 1;
+			perSeedCovars[i][3].u = 1;
+			perSeedCovars[i][5].u = 1;
 			break;
 		}
 	}

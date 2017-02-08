@@ -1,7 +1,7 @@
 #include "droplet_programs/positions.h"
 
 void init(){
-	if((RNB_DUR+PADDLE_MSG_DUR+BALL_MSG_DUR+MEAS_MSG_DUR)>=(SLOT_LENGTH_MS)){
+	if((PADDING_DUR+RNB_DUR+PADDING_DUR+POS_MSG_DUR+PADDING_DUR+MEAS_MSG_DUR+MEAS_MSG_DUR+MEAS_MSG_DUR)>=(SLOT_LENGTH_MS)){
 		printf_P(PSTR("You've got problems! SLOT_LENGTH_MS needs to be longer than all the things that take place during a slot!\r\n"));
 	}
 	loopID = 0xFFFF;
@@ -20,7 +20,6 @@ void init(){
 	//lastPaddleMsg = 0;
 	lastLightCheck = get_time();
 	mySlot = getSlot(get_droplet_id());
-	//mySlot = get_droplet_ord(get_droplet_id());
 	printf("mySlot: %u, frame_length: %lu\r\n", mySlot, FRAME_LENGTH_MS);
 	frameEndPrintout();
 	hardBotsList = NULL;
@@ -28,9 +27,6 @@ void init(){
 	xRange = MAX_X-MIN_X;
 	yRange = MAX_Y-MIN_Y;
 	maxRange = (int16_t)hypotf(xRange, yRange);
-	stdDevThreshold = 100;
-	addedPosStdDev = 11;
-	addedMeasStdDev = 22;
 	msgToSendThisSlot = 0;
 }
 
@@ -55,7 +51,7 @@ void loop(){
 					if(pos->x != UNDF && pos->y != UNDF && pos->o != UNDF){
 						msgToSendThisSlot = 1;
 						msgRecipIdx = i;
-						msgExtraDelay = (rand_byte()%2)*MEAS_MSG_DUR;
+						msgExtraDelay = (rand_short()%3)*MEAS_MSG_DUR;
 					}
 					break;
 				}
@@ -64,7 +60,7 @@ void loop(){
 		updateBall();
 		updateColor();
 	}
-	if(msgToSendThisSlot && ((get_time()-frameStart)%SLOT_LENGTH_MS)>=(RNB_DUR+PADDLE_MSG_DUR+msgExtraDelay)){
+	if(msgToSendThisSlot && ((get_time()-frameStart)%SLOT_LENGTH_MS)>=(RNB_DUR+PADDING_DUR+POS_MSG_DUR+PADDING_DUR+msgExtraDelay)){
 		sendBotMeasMsg(msgRecipIdx);
 		msgToSendThisSlot = 0;
 		removeOtherBot(msgRecipIdx);
@@ -80,9 +76,14 @@ void loop(){
 }
 
 void handleMySlot(){
-	broadcast_rnb_data();	
-	while(((get_time()-frameStart)%SLOT_LENGTH_MS)<RNB_DUR)
+	while(((get_time()-frameStart)&SLOT_LENGTH_MS)<PADDING_DUR)
 		delay_us(500);
+	broadcast_rnb_data();
+	if(myPos.x!=UNDF && myPos.y!=UNDF && myPos.o!=UNDF){
+		while(((get_time()-frameStart)%SLOT_LENGTH_MS)<RNB_DUR+PADDING_DUR)
+			delay_us(500);
+		sendBotPosMsg();
+	}
 }
 
 uint8_t nearBotUseabilityCheck(uint8_t i){
@@ -109,7 +110,7 @@ void ciUpdatePos(uint8_t idx, BotPos* pos, DensePosCovar* covar){
 	Vector xMeFromYou = {pos->x, pos->y, pos->o};
 	Matrix myP;
 	Matrix myPinv;
-	decompressP(&myP, &(myPosCovars[idx]));
+	decompressP(&myP, &(perSeedCovars[idx]));
 	matrixInverse(&myPinv, &myP);
 	Matrix yourP;
 	Matrix yourPinv;
@@ -157,34 +158,47 @@ void ciUpdatePos(uint8_t idx, BotPos* pos, DensePosCovar* covar){
 		//POS_DEBUG_PRINT("My new covar:\r\n");
 		//printMatrixMathematica(&myNewP);
 	#endif
-	compressP(&myNewP, &(myPosCovars[idx]));		
+	compressP(&myNewP, &(perSeedCovars[idx]));		
 }
 
 void fusePerSeedMeas(){
 	// This function needs to intelligently combine the independent position estimates 
 	// which we have from each seed.
-	// TODO: Current fusion is QUICK AND DIRTY. Replace with the RIGHT THING.
-	// Current fusion: weighted average of each position, weighted with inverse of trace of covar.
-	float totX = 0;
-	float totY = 0;
-	float totO_x = 0;
-	float totO_y = 0;
-	float totWeight = 0;
-	float thisWeight;
-	for(uint8_t i=0;i<NUM_SEEDS;i++){
-		if(perSeedPos[i].x!=UNDF && perSeedPos[i].y!=UNDF && perSeedPos[i].o!=UNDF){
-			thisWeight = 1.0/(myPosCovars[i][0].u + myPosCovars[i][3].u + myPosCovars[i][5].u);
-			totX += thisWeight*perSeedPos[i].x;
-			totY += thisWeight*perSeedPos[i].y;
-			totO_x += thisWeight*cos(deg_to_rad(perSeedPos[i].o));
-			totO_y += thisWeight*sin(deg_to_rad(perSeedPos[i].o));
-			totWeight += thisWeight;
+	Vector posSum;
+	Matrix infoMatSum;
+	uint8_t lastSeed = 0xFF;
+	for(uint8_t i=0;i<3;i++){
+		posSum[i] = 0;
+		for(uint8_t j=0;j<3;j++){
+			infoMatSum[i][j] = 0;
 		}
 	}
-	if(totWeight>0){
-		myPos.x = totX/totWeight;
-		myPos.y = totY/totWeight;
-		myPos.o = atan2(totO_y, totO_x);
+	for(uint8_t i=0;i<NUM_SEEDS;i++){
+		if(perSeedPos[i].x!=UNDF && perSeedPos[i].y!=UNDF && perSeedPos[i].o!=UNDF){
+			lastSeed = (lastSeed==0xFF) ? i : 0x0F;
+			Matrix thisInfoMat;
+			decompressP(&thisInfoMat, &(perSeedCovars[i]));
+			Vector thisPos = {perSeedPos[i].x, perSeedPos[i].y, perSeedPos[i].o};
+			Vector tmp;
+			matrixInplaceInverse(&thisInfoMat);
+			matrixAdd(&infoMatSum, &thisInfoMat, &infoMatSum);
+			matrixTimesVector(&tmp, &thisInfoMat, &thisPos);
+			vectorAdd(&posSum, &tmp, &posSum);
+		}
+	}
+	if(lastSeed==0xFF){
+		myPos.x = myPos.y = myPos.o = UNDF;
+	}else if(lastSeed<=NUM_SEEDS){
+		myPos.x = perSeedPos[lastSeed].x;
+		myPos.y = perSeedPos[lastSeed].y;
+		myPos.o = perSeedPos[lastSeed].o;
+	}else{
+		Vector tmp;
+		matrixInplaceInverse(&infoMatSum);
+		matrixTimesVector(&tmp, &infoMatSum, &posSum);
+		myPos.x = (int16_t)tmp[0];
+		myPos.y = (int16_t)tmp[1];
+		myPos.o = pretty_angle_deg(tmp[2]);
 	}
 }
 
@@ -195,30 +209,57 @@ void updatePositions(){
 		return;
 	}
 	POS_DEBUG_PRINT("Updating Positions!\r\n");
-	//TODO : Tweak the randomization so I'm more likely to send updates if I'm more confident???
-	uint8_t initSeedIdx = rand_byte()%NUM_SEEDS;
-	uint8_t thisSeedIdx;
 	Matrix myP;
+	float pDets[NUM_SEEDS];
+	float pDetsTotal=0;
+	for(uint8_t i=0;i<NUM_SEEDS;i++){
+		if(perSeedPos[i].x!=UNDF && perSeedPos[i].y!=UNDF && perSeedPos[i].o!=UNDF){
+			decompressP(&myP, &(perSeedCovars[i]));
+			pDets[i] = matrixDet(&myP);
+			pDets[i] = powf(pDets[i],1.0/6.0);
+			pDetsTotal+=1.0/pDets[i];
+		}else{
+			pDets[i]=NAN;
+		}
+	}
+	uint8_t prev = 255;
+	uint8_t thresh[NUM_SEEDS];
+	uint8_t tmp;
+	for(uint8_t i=0;i<NUM_SEEDS;i++){
+		if(isnan(pDets[i])){
+			thresh[i] = prev;
+		}else{
+			tmp = (255*((1.0/pDets[i])*(1.0/pDetsTotal))+0.5);
+			if(tmp > prev){
+				thresh[i] = 0;
+			}else{
+				thresh[i] = prev-tmp;
+			}
+		}
+		prev = thresh[i];
+	}
+
+	if(pDetsTotal==0){
+		printf("Not suffficiently confident for any seedIdxs.\r\n");
+		return;
+	}
+	//printf("\tThresholds: {%hu, %hu, %hu, %hu}\r\n", thresh[0], thresh[1], thresh[2], thresh[3]);
+	for(uint8_t i=0;i<NUM_SEEDS;i++){
+	
+	}
+	uint8_t thisSeedIdx;
 	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
+		thisSeedIdx=0xFF;
 		if(nearBotUseabilityCheck(i)){
-			thisSeedIdx=0xFF;
-			for(uint8_t j=initSeedIdx;j<(initSeedIdx+NUM_SEEDS);j++){
-				if(perSeedPos[j%NUM_SEEDS].x!=UNDF && perSeedPos[j%NUM_SEEDS].y!=UNDF && perSeedPos[j%NUM_SEEDS].o!=UNDF){
-					thisSeedIdx = (j%NUM_SEEDS);
-					decompressP(&myP, &(myPosCovars[thisSeedIdx]));
-					float myPdet = matrixDet(&myP);
-					if(powf(myPdet,1.0/6.0)>80){
-						printf("Won't adjust others' positions until I'm confident of where I am for this seed. (%f)\r\n", powf(myPdet, 1.0/6.0));
-						thisSeedIdx = 0xFF;
-					}else{
-						break;
-					}
-					
+			uint8_t chooser = rand_byte();
+			for(uint8_t j=0;j<NUM_SEEDS;j++){
+				if(chooser>thresh[j]){
+					thisSeedIdx = j;
+					break;
 				}
 			}
 			if(thisSeedIdx==0xFF){
-				printf("Not suffficiently confident for any seedIdxs.\r\n");
-				continue;
+				printf("Something has gone very wrong with thisSeedIdx!\r\n");
 			}
 			Vector x_me = {perSeedPos[thisSeedIdx].x, perSeedPos[thisSeedIdx].y, perSeedPos[thisSeedIdx].o};
 			Matrix G;
@@ -263,24 +304,25 @@ void getMeasCovar(Matrix* R, BotMeas* meas){
 	//(*R)[0][0] = 400;	(*R)[0][1] = 0;		(*R)[0][2] = 0;
 	//(*R)[1][0] = 0;		(*R)[1][1] = 400; 	(*R)[1][2] = 0;
 	//(*R)[2][0] = 0;		(*R)[2][1] = 0;		(*R)[2][2] = 250;
-	Matrix* start = (meas->r)<140 ? &measCovarClose : &measCovarFar;
+	//Matrix* start = (meas->r)<140 ? &measCovarClose : &measCovarFar;
+	Matrix* start = (meas->r)<=80 ? &deltaPoseCovarClose : &deltaPoseCovarMed;
 	matrixCopy(R, start);
-	Matrix H; //This is the jacobian of the transformation from (r,b,h) to (deltaX, deltaY, deltaO)
-	float cosO = cos(deg_to_rad(meas->b+90));
-	float sinO = sin(deg_to_rad(meas->b+90));
-	float degToRad = M_PI/180.0;
-	H[0][0] = cosO;
-	H[0][1] = -degToRad*(meas->r)*sinO;
-	H[0][2] = 0;
-	H[1][0] = sinO;
-	H[1][1] = degToRad*(meas->r)*cosO;
-	H[1][2] = 0;
-	H[2][0] = 0;
-	H[2][1] = 0;
-	H[2][2] = 1;
-	matrixInplaceMultiply(R, &H, R);
-	matrixInplaceTranspose(&H);
-	matrixInplaceMultiply(R, R, &H);
+	//Matrix H; //This is the jacobian of the transformation from (r,b,h) to (deltaX, deltaY, deltaO)
+	//float cosO = cos(deg_to_rad(meas->b+90));
+	//float sinO = sin(deg_to_rad(meas->b+90));
+	//float degToRad = M_PI/180.0;
+	//H[0][0] = cosO;
+	//H[0][1] = -degToRad*(meas->r)*sinO;
+	//H[0][2] = 0;
+	//H[1][0] = sinO;
+	//H[1][1] = degToRad*(meas->r)*cosO;
+	//H[1][2] = 0;
+	//H[2][0] = 0;
+	//H[2][1] = 0;
+	//H[2][2] = 1;
+	//matrixInplaceMultiply(R, &H, R);
+	//matrixInplaceTranspose(&H);
+	//matrixInplaceMultiply(R, R, &H);
 }
 
 void calcRelativePose(Vector* pose, BotMeas* meas){
@@ -398,7 +440,6 @@ void handleFrameEnd(){
 	//for(uint8_t i=NUM_TRACKED_BOTS/2; i<NUM_TRACKED_BOTS;i++){
 		//cleanOtherBot(&(nearBots[i]));
 	//}
-
 	updateHardBots();
 	frameEndPrintout();
 	printf("\r\n");
@@ -667,7 +708,7 @@ void sendBotMeasMsg(uint8_t i){ //i: index in nearBots array.
 	uint8_t dir = dirFromAngle(nearBots[i].myMeas.b);
 	BotMeasMsg msg;
 	msg.flag = BOT_MEAS_MSG_FLAG;
-	packPos(&(msg.pos), &(nearBots[i].posFromMe));
+	copyBotPos(&(nearBots[i].posFromMe), &(msg.pos));
 	for(uint8_t j=0;j<6;j++){
 		msg.covar[j].u = nearBots[i].posCovar[j].u;
 	}
@@ -680,20 +721,29 @@ void sendBotMeasMsg(uint8_t i){ //i: index in nearBots array.
 }
 
 void handleBotMeasMsg(BotMeasMsg* msg, id_t senderID){
-	BotPos hisEstOfMe;
-	unpackPos(&(msg->pos), &hisEstOfMe);
 	uint8_t seedIdx = msg->seedIdx;
 	if(perSeedPos[seedIdx].x==UNDF || perSeedPos[seedIdx].y==UNDF || perSeedPos[seedIdx].o==UNDF){
-		perSeedPos[seedIdx].x = hisEstOfMe.x;
-		perSeedPos[seedIdx].y = hisEstOfMe.y;
-		perSeedPos[seedIdx].o = hisEstOfMe.o;
+		perSeedPos[seedIdx].x = (msg->pos).x;
+		perSeedPos[seedIdx].y = (msg->pos).y;
+		perSeedPos[seedIdx].o = (msg->pos).o;
 		for(uint8_t i=0;i<6;i++){
-			myPosCovars[seedIdx][i].u = msg->covar[i].u;
+			perSeedCovars[seedIdx][i].u = msg->covar[i].u;
 		}
 	}else{
 		POS_DEBUG_PRINT("%04X ", senderID);
-		ciUpdatePos(seedIdx, &hisEstOfMe, &(msg->covar));
+		ciUpdatePos(seedIdx, &(msg->pos), &(msg->covar));
 	}
+}
+
+void sendBotPosMsg(){
+	BotPosMsg msg;
+	copyBotPos(&myPos, &(msg.pos));
+	msg.flag = BOT_POS_MSG_FLAG;
+	ir_send(ALL_DIRS, (char*)(&msg), sizeof(BotPosMsg));
+}
+
+void handleBotPosMsg(BotPosMsg* msg, id_t senderID){
+	printf("%04X @ {%4d, %4d, % 4d}\r\n", senderID, (msg->pos).x, (msg->pos).y, (msg->pos).o);
 }
 
 void handle_msg(ir_msg* msg_struct){
@@ -701,6 +751,8 @@ void handle_msg(ir_msg* msg_struct){
 		handleBallMsg((BallMsg*)(msg_struct->msg), msg_struct->arrival_time);
 	}else if(((BotMeasMsg*)(msg_struct->msg))->flag==BOT_MEAS_MSG_FLAG && msg_struct->length==sizeof(BotMeasMsg)){
 		handleBotMeasMsg((BotMeasMsg*)(msg_struct->msg), msg_struct->sender_ID);
+	}else if(((BotPosMsg*)(msg_struct->msg))->flag==BOT_POS_MSG_FLAG && msg_struct->length==sizeof(BotPosMsg)){
+		handleBotPosMsg((BotPosMsg*)(msg_struct->msg), msg_struct->sender_ID);
 	}else{
 		printf_P(PSTR("%hu byte msg from %04X:\r\n\t"), msg_struct->length, msg_struct->sender_ID);
 		for(uint8_t i=0;i<msg_struct->length;i++){
@@ -731,7 +783,7 @@ void frameEndPrintout(){
 		}else{
 			printf("           NE Pos: {%4d, % 4d, % 4d}\r\n",	perSeedPos[1].x, perSeedPos[1].y, perSeedPos[1].o);
 		}
-		printTwoPosCovar(&(myPosCovars[0]), &(myPosCovars[1]));
+		printTwoPosCovar(&(perSeedCovars[0]), &(perSeedCovars[1]));
 		if(perSeedPos[2].x == UNDF || perSeedPos[2].y == UNDF || perSeedPos[2].o == UNDF){
 			printf("\tSW Pos: { -- ,  -- ,  -- }");
 			}else{
@@ -742,7 +794,7 @@ void frameEndPrintout(){
 		}else{
 			printf("           SE Pos: {%4d, % 4d, % 4d}\r\n",	perSeedPos[3].x, perSeedPos[3].y, perSeedPos[3].o);
 		}
-		printTwoPosCovar(&(myPosCovars[2]), &(myPosCovars[3]));
+		printTwoPosCovar(&(perSeedCovars[2]), &(perSeedCovars[3]));
 	}else{
 		printf("\r\n");
 	}
@@ -933,18 +985,6 @@ uint8_t user_handle_command(char* command_word, char* command_args){
 		return 1;
 	}else if(strcmp_P(command_word,PSTR("ball_kill"))==0){
 		killBall();
-		return 1;
-	}else if(strcmp_P(command_word, PSTR("sCT"))==0){
-		stdDevThreshold = (uint8_t)atoi(command_args);
-		printf("stdDevThreshold: %hu\r\n", stdDevThreshold);
-		return 1;
-	}else if(strcmp_P(command_word, PSTR("aPSD"))==0){
-		addedPosStdDev = (uint8_t)atoi(command_args);
-		printf("addedPosStdDev: %hu\r\n", addedPosStdDev);
-		return 1;
-	}else if(strcmp_P(command_word, PSTR("aMSD"))==0){
-		addedMeasStdDev = (uint8_t)atoi(command_args);
-		printf("addedMeasStdDev: %hu\r\n", addedMeasStdDev);
 		return 1;
 	}
 	//else if(strcmp_P(command_word,PSTR("uN"))==0){

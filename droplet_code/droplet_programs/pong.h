@@ -268,18 +268,28 @@ void		compressP(Matrix* P, DensePosCovar* covar);
 void		decompressP(Matrix* P, DensePosCovar* covar);
 
 void		useNewRnbMeas();
+//float getPaddleCoverage();
 
+void		checkLightLevel();
 void		sendBotPosMsg();
 void		sendBotMeasMsg(uint8_t i);
 void		handleBotMeasMsg(BotMeasMsg* msg, id_t senderID);
 void		handleBotPosMsg(BotPosMsg* msg, id_t senderID);
 
+void		updateBall();
+//check_bounce is a helper function for updateBall.
+void		check_bounce(int8_t xVel, int8_t yVel, int8_t* newXvel, int8_t* newYvel);
 void		updateColor();
 //Coverage functions below are helper functions for 'updateColor'.
+float		getBallCoverage();
 void		updateNearBotOcclusions();
+void		updateHardBots();
+void		sendBallMsg();
+void		handleBallMsg(BallMsg* msg, uint32_t arrivalTime);
 void		handle_msg			(ir_msg* msg_struct);
 
 void		fusePerSeedMeas();
+
 
 void		printPosCovar(DensePosCovar* P);
 void		printTwoPosCovar(DensePosCovar* P1, DensePosCovar* P2);
@@ -291,6 +301,8 @@ void		findAndRemoveOtherBot(id_t id);
 void		removeOtherBot(uint8_t idx);
 OtherBot*	addOtherBot(id_t id);
 void		cleanOtherBot(OtherBot* other);
+//void		printNearBots();
+//void		printOtherBot(OtherBot* bot);
 
 void		addHardBot(id_t id);
 void		cleanHardBots();
@@ -304,10 +316,54 @@ inline static void copyBotPos(BotPos* src, BotPos* dest){
 	dest->o = src->o;
 }
 
+inline static float getCoverageRatioA(uint8_t rad, uint16_t dist){ //when ball radius less than bot radius.
+	const float intermediate = (((float)rad)/(2*DROPLET_RADIUS*DROPLET_RADIUS));
+	return intermediate*(rad+DROPLET_RADIUS-dist);
+}
+
+inline static float getCoverageRatioB(uint8_t rad, uint16_t dist){ //when bot radius less than ball radius.
+	const float intermediate = 1.0/(2.0*DROPLET_RADIUS);
+	return intermediate*(rad+DROPLET_RADIUS-dist);
+}
+
 inline static uint8_t dirFromAngle(int16_t angle){
 	return abs((angle - (angle>0 ? 360 : 0))/60);
 }
 
+inline static int8_t checkBallCrossedMe(){
+	return sgn(((theBall.yVel*(theBall.yPos-myPos.y-theBall.xVel) + theBall.xVel*(theBall.xPos-myPos.x+theBall.yVel))));
+}
+
+inline static int8_t checkBounceHard(int16_t Bx, int16_t By, int32_t timePassed){
+	int16_t Ax = myPos.x;
+	int16_t Ay = myPos.y;
+	int16_t x = theBall.xPos;
+	int16_t y = theBall.yPos;
+	int8_t signBefore = sgn((Bx-Ax)*(y-Ay) - (By-Ay)*(x-Ax));
+	int16_t xAfter = x + (int16_t)((((int32_t)(theBall.xVel))*timePassed)/1000.0);
+	int16_t yAfter = y + (int16_t)((((int32_t)(theBall.yVel))*timePassed)/1000.0);
+	int8_t signAfter = sgn((Bx-Ax)*(yAfter-Ay) - (By-Ay)*(xAfter-Ax));
+	BALL_DEBUG_PRINT("(%4d, %4d) [%hd] -> (%4d, %4d) [%hd]\r\n", x, y, signBefore, xAfter, yAfter, signAfter);
+	if(signBefore!=signAfter){
+		return 1;
+	}else{
+		return 0;
+	}
+}
+
+/*Code below from http://stackoverflow.com/questions/573084/how-to-calculate-bounce-angle */
+inline static void calculateBounce(int16_t Bx, int16_t By){
+	int16_t vX = theBall.xVel;
+	int16_t vY = theBall.yVel;
+	int16_t normX = -(By-myPos.y);
+	int16_t normY = (Bx-myPos.x);
+	int16_t nDotN = normX*normX + normY*normY;
+	int16_t vDotN = vX*normX + vY*normY;
+	int16_t uX = normX*vDotN/nDotN;
+	int16_t uY = normY*vDotN/nDotN;
+	theBall.xVel = vX - 2*uX;
+	theBall.yVel = vY - 2*uY;
+}
 
 ////This function assumes that bP->x and bP->y are not UNDF.
 //static void inline getOtherXY(BotMeas* bM, BotPos* bP, int16_t* oX, int16_t* oY){
@@ -327,6 +383,31 @@ static int nearBotsCmpFunc(const void* a, const void* b){
 	}else{
 		return 0;
 	}
+}
+
+static int nearBotMeasCmpFunc(const void* a, const void* b){
+	BotMeas* aN = (BotMeas*)a;
+	BotMeas* bN = (BotMeas*)b;
+	int16_t aC = aN->b;
+	int16_t bC = bN->b;
+	if(aN->id==0){
+		return 1;
+	}
+	if(bN->id==0){
+		return -1;
+	}
+	if(aC < bC){
+		return 1;
+	}else if(bC < aC){
+		return -1;
+	}else{
+		return 0;
+	}
+}
+
+inline static void killBall(){
+	set_rgb(255,0,0);
+	theBall.id = 0x0F;
 }
 
 inline static void initPositions(){
@@ -360,6 +441,16 @@ inline static void initPositions(){
 			break;
 		}
 	}
+	//paddleChange = 0.0;
+	theBall.lastUpdate = 0;
+	theBall.xPos = UNDF;
+	theBall.yPos = UNDF;
+	theBall.xVel = 0;
+	theBall.yVel = 0;
+	theBall.id = 0;
+	theBall.radius = 0;
+	//paddleStart	    = MIN_DIM + (FLOOR_WIDTH>>1) - (PADDLE_WIDTH>>1);
+	//paddleEnd		= MIN_DIM + (FLOOR_WIDTH>>1) + (PADDLE_WIDTH>>1);
 }
 
 inline static uint16_t getSlot(id_t id){

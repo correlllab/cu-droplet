@@ -22,13 +22,14 @@ void loop(){
 	}
 	if(loopID!=(frameTime/SLOT_LENGTH_MS)){
 		loopID = frameTime/SLOT_LENGTH_MS;
-		if(loopID==mySlot){ //my slot.
-			
-		}else if(loopID==(SLOTS_PER_FRAME-1)){ //last slot; won't ever be a robot's mySlot.
-			
-		}else{ //someone else's slot.
-
+		if(loopID==mySlot){
+			//do stuff during my slot.
+		}else{
+			//do stuff during someone else's slot.
 		}
+	}
+	if(rnb_updated){
+		//Handle rnb data in last_good_rnb struct.
 	}
 	delay_ms(LOOP_DELAY_MS);
 }
@@ -42,17 +43,10 @@ void handle_msg(ir_msg* msg_struct){
 
 ///*
  //*	The function below is optional - commenting it in can be useful for debugging if you want to query
- //*	user variables over a serial connection.
+ //*	user variables over a serial connection. It should return '1' if command_word was a valid command,
+ //*  '0' otherwise.
  //*/
-//uint8_t user_handle_command(char* command_word, char* command_args)
-//{
+//uint8_t user_handle_command(char* command_word, char* command_args){
+	//return 0;
 //}
 
-///*
- //*	The function below is optional - if it is commented in, and the leg interrupts have been turned on
- //*	with enable_leg_status_interrupt(), this function will get called when that interrupt triggers.
- //*/	
-//void	user_leg_status_interrupt()
-//{
-	//
-//}

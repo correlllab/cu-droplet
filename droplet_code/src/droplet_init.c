@@ -51,8 +51,8 @@ int main(){
 	init_all_systems();
 	init();
 	while(1){
-		loop();
 		check_messages();
+		loop();
 		if(task_list_check()){
 			printf_P(PSTR("Error! We got ahead of the task list and now nothing will execute.\r\n"));
 			task_list_cleanup();

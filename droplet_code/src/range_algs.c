@@ -285,12 +285,12 @@ void use_rnb_data(){
 			//heading = fdH;
 			//print_brightMeas();
 			error = calculate_innovation(range, bearing, heading);
-			if(error>2.5){
-				ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-					rnbProcessingFlag=0;
-				}
-				return;
-			}
+			//if(error>2.5){
+				//ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+					//rnbProcessingFlag=0;
+				//}
+				//return;
+			//}
 			//printf("\t After: % 5.1f, % 6.1f, % 6.1f, %6.2f [%hu]\r\n", fdR, rad_to_deg(fdB), rad_to_deg(fdH), error>3.0 ? (conf/(10.0*error*error)) : (conf/(error*error)), i);			
 			//printf("\tTook %lu ms.\r\n", get_time()-start);
 			conf = conf/(error*error);

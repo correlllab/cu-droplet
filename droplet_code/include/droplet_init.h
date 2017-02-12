@@ -99,6 +99,7 @@ inline id_t get_droplet_id(){
 	return droplet_ID;
 }
 
+
 inline id_t get_id_from_ord(uint8_t ord){
 	return pgm_read_word(&OrderedBotIDs[ord]);
 }

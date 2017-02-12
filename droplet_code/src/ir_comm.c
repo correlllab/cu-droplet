@@ -290,7 +290,10 @@ static void ir_receive(uint8_t dir){
 	#ifdef AUDIO_DROPLET
 		//ir_sense_channels[dir]->INTCTRL = ADC_CH_INTLVL_HI_gc;
 	#endif	
-	
+	//printf("Time :%d\n\r",msg_struct->arrival_time);
+	//printf("Got message of length %hu from %04X:\r\n\t",msg_struct->length, msg_struct->sender_ID);
+//	printf("RANGE%d",last_good_rnb.range);
+
 	uint32_t now = get_time();
 	if(now-ir_rxtx[dir].last_byte > IR_MSG_TIMEOUT)	clear_ir_buffer(dir);	
 	ir_rxtx[dir].last_byte = now;
@@ -347,7 +350,7 @@ static void ir_receive(uint8_t dir){
 					channel[dir]->CTRLB &= ~USART_RXEN_bm; //Disable receiving messages on this channel until the message has been processed.
 				}
 			}
-			//printf("\r\n");
+			printf("\r\n");
 		}else{
 			clear_ir_buffer(dir);
 		}
@@ -475,7 +478,7 @@ static void ir_transmit(uint8_t dir){
 		//for(uint8_t i=0;i<ir_rxtx[dir].data_length & DATA_LEN_VAL_bm; i++){
 			//printf("%02hX ", ir_rxtx[dir].buf[i]);
 		//}
-		//printf("\r\n");
+	//	printf("\r\n");
 		clear_ir_buffer(dir);
 		channel[dir]->CTRLA &= ~USART_DREINTLVL_gm; //Turn off interrupt things.
 		

@@ -149,9 +149,9 @@ static void updateRTC(){
 }
 
 void sendPing(void* val){
-	uint8_t result = hp_ir_targeted_cmd(ALL_DIRS, NULL, 64, (uint16_t)val);
-	if(!result){
-		printf_P(PSTR("Unable to send ff_sync ping due to other hp ir activity.\r\n"));
-	}
+	/*uint8_t result = */hp_ir_targeted_cmd(ALL_DIRS, NULL, 64, (uint16_t)val);
+	//if(!result){
+		//printf_P(PSTR("Unable to send ff_sync ping due to other hp ir activity.\r\n"));
+	//}
 	schedule_task(FFSYNC_W, processObsQueue, NULL);
 }

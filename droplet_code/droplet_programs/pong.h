@@ -24,9 +24,9 @@
 #endif
 
 #ifdef POS_DEBUG_MODE
-#define POS_DEBUG_PRINT(format, ...) printf_P(PSTR(format), ##__VA_ARGS__)
+#define POS_CALC_DEBUG_PRINT(format, ...) printf_P(PSTR(format), ##__VA_ARGS__)
 #else
-#define POS_DEBUG_PRINT(format, ...)
+#define POS_CALC_DEBUG_PRINT(format, ...)
 #endif
 
 #ifdef P_L_DEBUG_MODE
@@ -81,12 +81,12 @@
  * BotPosMsg is 7 bytes. Header is 8 bytes, so msg should take 37.5ms
  */
 #define RNB_DUR				220
-#define PADDING_DUR			20 //padding.
+#define PADDING_DUR			10 //padding.
 #define POS_MSG_DUR			40
-#define MEAS_MSG_DUR		71
+#define MEAS_MSG_DUR		80
 
 
-#define SLOT_LENGTH_MS			547
+#define SLOT_LENGTH_MS			557
 #define SLOTS_PER_FRAME			37
 #define FRAME_LENGTH_MS			(((uint32_t)SLOT_LENGTH_MS)*((uint32_t)SLOTS_PER_FRAME))
 #define LOOP_DELAY_MS			17
@@ -272,7 +272,7 @@ void		useNewRnbMeas();
 
 void		checkLightLevel();
 void		sendBotPosMsg();
-void		sendBotMeasMsg(uint8_t i);
+void		prepBotMeasMsg(uint8_t i);
 void		handleBotMeasMsg(BotMeasMsg* msg, id_t senderID);
 void		handleBotPosMsg(BotPosMsg* msg, id_t senderID);
 
@@ -327,7 +327,7 @@ inline static float getCoverageRatioB(uint8_t rad, uint16_t dist){ //when bot ra
 }
 
 inline static uint8_t dirFromAngle(int16_t angle){
-	return abs((angle - (angle>0 ? 360 : 0))/60);
+	return abs((angle - (angle>=0 ? 360 : 0))/60);
 }
 
 inline static int8_t checkBallCrossedMe(){

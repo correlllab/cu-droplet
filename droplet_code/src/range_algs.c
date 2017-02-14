@@ -69,7 +69,7 @@ static int16_t processBrightMeas();
 
 static float magicRangeFunc(float a);
 
-static void print_brightMeas();
+//static void print_brightMeas();
 												
 void range_algs_init(){
 	sensorHealthHistory = 0;
@@ -328,17 +328,17 @@ static float magicRangeFunc(float a){
 		return result;
 	}
 }
-
-static void print_brightMeas(){
-	printf("{\"%04X\", \"%04X\", {", rnbCmdID, get_droplet_id());
-	for(uint8_t emitter_num=0 ; emitter_num<6 ; emitter_num++){
-		printf("{");
-		for(uint8_t sensor_num=0 ; sensor_num<6 ; sensor_num++){
-			printf("%d",brightMeas[emitter_num][sensor_num]);
-			if(sensor_num<5) printf(",");
-		}
-		printf("}");		
-		if(emitter_num<5) printf(",");
-	}
-	printf("}},\r\n");
-}
+//
+//static void print_brightMeas(){
+	//printf("{\"%04X\", \"%04X\", {", rnbCmdID, get_droplet_id());
+	//for(uint8_t emitter_num=0 ; emitter_num<6 ; emitter_num++){
+		//printf("{");
+		//for(uint8_t sensor_num=0 ; sensor_num<6 ; sensor_num++){
+			//printf("%d",brightMeas[emitter_num][sensor_num]);
+			//if(sensor_num<5) printf(",");
+		//}
+		//printf("}");		
+		//if(emitter_num<5) printf(",");
+	//}
+	//printf("}},\r\n");
+//}

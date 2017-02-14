@@ -2,20 +2,12 @@
 
 #include "droplet_init.h"
 
-//#define POS_DEBUG_MODE
-#define GEN_DEBUG_MODE
-#define P_SAMPLE_DEBUG_MODE
-#define P_L_DEBUG_MODE
 //#define OCC_DEBUG_MODE
+//#define POS_CALC_DEBUG_MODE
+//#define POS_MSG_DEBUG_MODE
+#define GEN_DEBUG_MODE
 //#define RNB_DEBUG_MODE
-//#define NB_DEBUG_MODE
-//#define BALL_DEBUG_MODE
-
-#define MIN_PACKED_X -1024
-#define MIN_PACKED_Y -1024
-#define MIN_PACKED_O -512
-
-//uint8_t useNewInfo;
+#define MY_POS_DEBUG_MODE
 
 #ifdef OCC_DEBUG_MODE
 #define OCC_DEBUG_PRINT(format, ...) printf_P(PSTR(format), ##__VA_ARGS__)
@@ -23,29 +15,16 @@
 #define OCC_DEBUG_PRINT(format, ...)
 #endif
 
-#ifdef POS_DEBUG_MODE
-#define POS_DEBUG_PRINT(format, ...) printf_P(PSTR(format), ##__VA_ARGS__)
+#ifdef POS_CALC_DEBUG_MODE
+#define POS_CALC_DEBUG_PRINT(format, ...) printf_P(PSTR(format), ##__VA_ARGS__)
 #else
-#define POS_DEBUG_PRINT(format, ...)
+#define POS_CALC_DEBUG_PRINT(format, ...)
 #endif
 
-#ifdef P_L_DEBUG_MODE
-#define P_L_DEBUG_PRINT(format, ...) printf_P(PSTR(format), ##__VA_ARGS__)
+#ifdef POS_MSG_DEBUG_MODE
+#define POS_MSG_DEBUG_PRINT(format, ...) printf_P(PSTR(format), ##__VA_ARGS__)
 #else
-#define P_L_DEBUG_PRINT(format, ...)
-#endif
-
-#ifdef P_SAMPLE_DEBUG_MODE
-#define P_SAMPLE_DEBUG_PRINT(format, ...) printf_P(PSTR(format), ##__VA_ARGS__)
-#else
-#define P_SAMPLE_DEBUG_PRINT(format, ...)
-#endif
-
-
-#ifdef BALL_DEBUG_MODE
-#define BALL_DEBUG_PRINT(format, ...) printf_P(PSTR(format), ##__VA_ARGS__)
-#else
-#define BALL_DEBUG_PRINT(format, ...)
+#define POS_MSG_DEBUG_PRINT(format, ...)
 #endif
 
 #ifdef GEN_DEBUG_MODE
@@ -54,22 +33,16 @@
 #define GEN_DEBUG_PRINT(format, ...)
 #endif
 
-#ifdef NB_DEBUG_MODE
-#define NB_DEBUG_PRINT(format, ...) printf_P(PSTR(format), ##__VA_ARGS__)
-#else
-#define NB_DEBUG_PRINT(format, ...)
-#endif
-
 #ifdef RNB_DEBUG_MODE
 #define RNB_DEBUG_PRINT(format, ...) printf_P(PSTR(format), ##__VA_ARGS__)
 #else
 #define RNB_DEBUG_PRINT(format, ...)
 #endif
 
-#ifdef NEW_INFO_DEBUG_MODE
-#define NEW_INFO_DEBUG_PRINT(format, ...) printf_P(PSTR(format), ##__VA_ARGS__)
+#ifdef MY_POS_DEBUG_MODE
+#define MY_POS_DEBUG_PRINT(format, ...) printf_P(PSTR(format), ##__VA_ARGS__)
 #else
-#define NEW_INFO_DEBUG_PRINT(format, ...)
+#define MY_POS_DEBUG_PRINT(format, ...)
 #endif
 
 /*
@@ -85,65 +58,38 @@
 #define POS_MSG_DUR			40
 #define MEAS_MSG_DUR		71
 
-
-#define SLOT_LENGTH_MS			547
-#define SLOTS_PER_FRAME			37
+#define SLOT_LENGTH_MS			487
+#define SLOTS_PER_FRAME			28
 #define FRAME_LENGTH_MS			(((uint32_t)SLOT_LENGTH_MS)*((uint32_t)SLOTS_PER_FRAME))
 #define LOOP_DELAY_MS			17
 
 ///*
  //* See the top of page 16 in my notebook for basis for measCovar stuff below.
  //*/
-//Matrix measCovarClose  = {{252, -12, -18},{-12,144,177},{-18,177,468}};
-//Matrix measCovarFar = {{1947, -229, -371}, {-229, 3119, 1610}, {-371, 1610, 4188}};
-Matrix deltaPoseCovarClose = {{76, 15, 29}, {15, 83, 44}, {29, 44, 220}};
-Matrix deltaPoseCovarMed   = {{1569, 106, -163}, {106, 633, 35}, {-163, 35, 871}};
+Matrix measCovarClose  = {{213, 11, 31}, {11, 124, 139}, {31, 139, 290}};
+Matrix measCovarMed = {{384, -9, -119}, {-9, 626, 166}, {-119, 166, 724}};
+Matrix measCovarFar = {{1643, 408, -204}, {408, 9374, 141}, {-204, 141, 3392}};
+//Matrix deltaPoseCovarClose = {{76, 15, 29}, {15, 83, 44}, {29, 44, 220}};
+//Matrix deltaPoseCovarMed   = {{1569, 106, -163}, {106, 633, 35}, {-163, 35, 871}};
 
-//TODO: Make paddle_width dynamically calculated!
-//#define PADDLE_WIDTH		(FLOOR_WIDTH/3)
-#define PADDLE_VEL				0.1
 #define NUM_SEEDS 4
 #define NUM_SHARED_BOTS 6
-#define NUM_USED_BOTS 5
 #define NUM_TRACKED_BOTS 12
 const id_t	   SEED_IDS[NUM_SEEDS]	   = {0xDC62, 0x9363, 0x6597, 0x6C6F};
-const int16_t  SEED_X[NUM_SEEDS]   = {100, 900, 100, 900};
-const int16_t  SEED_Y[NUM_SEEDS]   = {900, 900, 100, 100};
+const int16_t  SEED_X[NUM_SEEDS]   = {100, 600, 100, 600};
+const int16_t  SEED_Y[NUM_SEEDS]   = {600, 600, 100, 100};
 #define MIN_X 0
 #define MIN_Y 0
-#define MAX_X 1000
-#define MAX_Y 1000
+#define MAX_X 700
+#define MAX_Y 700
 
 #define UNDF	((int16_t)0x8000)
 
-#define STATE_PIXEL		0x1
-#define STATE_NORTH		0x2
-#define STATE_SOUTH		0x4
-
-#define NORTH_PIXEL(state)		((state&STATE_PIXEL)&&(state&STATE_NORTH))
-#define SOUTH_PIXEL(state)		((state&STATE_PIXEL)&&(state&STATE_SOUTH))
-#define NS_PIXEL(state)			((state&STATE_PIXEL)&&((state&STATE_NORTH) || (state&STATE_SOUTH)))
-
 #define DROPLET_DIAMETER_MM		44.4
-#define BALL_MSG_FLAG			'B'
-#define NEAR_BOTS_MSG_FLAG		'N'
 #define BOT_MEAS_MSG_FLAG		'X'
 #define BOT_POS_MSG_FLAG		'P'
-//#define N_PADDLE_MSG_FLAG		'P'
-//#define S_PADDLE_MSG_FLAG		'S'
 
-typedef enum {
-	POS,
-	SYNC_TEST,
-	OFF
-} ColorMode;
-ColorMode	colorMode;
-
-typedef enum {
-	PONG,
-	BOUNCE
-} GameMode;
-GameMode gameMode;
+#define POS_DEFINED(pos) ((((pos)->x)!=UNDF)&&(((pos)->y)!=UNDF)&&(((pos)->o)!=UNDF))
 
 typedef struct ball_msg_struct{
 	char flag;
@@ -169,13 +115,6 @@ typedef struct bot_pos_struct
 	int16_t o;
 } BotPos;
 
-typedef struct packed_bot_pos_struct{
-	uint8_t xLow;
-	uint8_t yLow;
-	uint8_t oLow;
-	uint8_t bits;
-}PackedBotPos;
-
 typedef struct bot_meas_msg_struct{
 	BotPos pos; //6 bytes
 	DensePosCovar covar; //12 bytes
@@ -187,17 +126,6 @@ typedef struct bot_pos_msg_struct{
 	BotPos pos; //6 bytes
 	char flag;
 }BotPosMsg;
-
-typedef struct ball_dat_struct{
-	uint32_t lastUpdate;	
-	int16_t xPos;
-	int16_t yPos;
-	int8_t xVel;
-	int8_t yVel;
-	uint8_t id;
-	uint8_t radius;
-}BallDat;
-BallDat theBall;
 
 typedef struct bot_meas_struct
 {
@@ -217,48 +145,37 @@ typedef struct other_bot_rnb_struct{
 } OtherBot;
 OtherBot nearBots[NUM_TRACKED_BOTS+1];
 
-typedef struct hard_bot_struct{
-	id_t id;
-	struct hard_bot_struct* next;
-} HardBot;
-HardBot* hardBotsList;
-
 BotPos myPos;
 BotPos perSeedPos[NUM_SEEDS];
 DensePosCovar perSeedCovars[NUM_SEEDS];
+//BotMeasMsg preppedMsg;
+//id_t preppedMsgTarget;
+//uint8_t preppedMsgDirMask;
+//uint16_t msgExtraDelay;
 
-uint8_t		lastBallID;
 uint8_t		seedFlag;
 uint8_t		myState;
 uint32_t	frameCount;
 uint32_t	frameStart;
 uint16_t	mySlot;
 uint16_t	loopID;
-uint32_t	lastBallMsg;
-//uint32_t	lastPaddleMsg;
-uint32_t	lastLightCheck;
 int16_t		xRange;
 int16_t		yRange;
 int16_t		maxRange;
 
-uint8_t msgToSendThisSlot;
-uint8_t msgRecipIdx;
-uint16_t msgExtraDelay;
 
-//float		paddleChange;
-//int16_t		paddleStart;
-//int16_t		paddleEnd;
-uint8_t		isCovered;
-uint16_t myDist;
-uint16_t otherDist;
 
 void		init();
 void		loop();
 void		handleMySlot();
 void		handleFrameEnd(); 
 
+
+void		getWeightedRandOtherBots(uint8_t* botIdxs, uint8_t n);
+
 uint8_t     nearBotUseabilityCheck(uint8_t i);
-void		ciUpdatePos(uint8_t idx, BotPos* pos, DensePosCovar* covar);
+float		chooseOmega(Matrix* myPinv, Matrix* yourPinv);
+void		ciUpdatePos(uint8_t idx, BotPos* pos, Matrix* yourP);
 void		updatePositions();
 void		getMeasCovar(Matrix* R, BotMeas* meas);
 void		calcRelativePose(Vector* pose, BotMeas* meas);
@@ -271,6 +188,7 @@ void		useNewRnbMeas();
 
 void		sendBotPosMsg();
 void		sendBotMeasMsg(uint8_t i);
+//void		prepBotMeasMsg(uint8_t i);
 void		handleBotMeasMsg(BotMeasMsg* msg, id_t senderID);
 void		handleBotPosMsg(BotPosMsg* msg, id_t senderID);
 
@@ -292,9 +210,6 @@ void		removeOtherBot(uint8_t idx);
 OtherBot*	addOtherBot(id_t id);
 void		cleanOtherBot(OtherBot* other);
 
-void		addHardBot(id_t id);
-void		cleanHardBots();
-
 void printNearBots();
 void printOtherBot(OtherBot* bot);
 
@@ -307,13 +222,6 @@ inline static void copyBotPos(BotPos* src, BotPos* dest){
 inline static uint8_t dirFromAngle(int16_t angle){
 	return abs((angle - (angle>0 ? 360 : 0))/60);
 }
-
-
-////This function assumes that bP->x and bP->y are not UNDF.
-//static void inline getOtherXY(BotMeas* bM, BotPos* bP, int16_t* oX, int16_t* oY){
-	//int16_t xOffset = 
-	//
-//}
 
 static int nearBotsCmpFunc(const void* a, const void* b){
 	OtherBot* aN = (OtherBot*)a;
@@ -333,7 +241,6 @@ inline static void initPositions(){
 	myPos.x = UNDF;
 	myPos.y = UNDF;
 	myPos.o = UNDF;
-	myDist = UNDF;
 	for(uint8_t i=0;i<NUM_SEEDS;i++){
 		perSeedPos[i].x = UNDF;
 		perSeedPos[i].y = UNDF;
@@ -342,7 +249,6 @@ inline static void initPositions(){
 			perSeedCovars[i][j].u = 0;
 		}
 	}
-	
 
 	seedFlag = 0;	
 	for(uint8_t i=0;i<NUM_SEEDS;i++){

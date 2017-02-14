@@ -1,7 +1,7 @@
 #include "droplet_programs/positions.h"
 
 void init(){
-	if((PADDING_DUR+RNB_DUR+PADDING_DUR+POS_MSG_DUR+PADDING_DUR+MEAS_MSG_DUR+MEAS_MSG_DUR+MEAS_MSG_DUR)>=(SLOT_LENGTH_MS)){
+	if((RNB_DUR+PADDING_DUR+POS_MSG_DUR+PADDING_DUR+MEAS_MSG_DUR+PADDING_DUR+MEAS_MSG_DUR+PADDING_DUR)>=(SLOT_LENGTH_MS)){
 		printf_P(PSTR("You've got problems! SLOT_LENGTH_MS needs to be longer than all the things that take place during a slot!\r\n"));
 	}
 	loopID = 0xFFFF;
@@ -17,7 +17,6 @@ void init(){
 	xRange = MAX_X-MIN_X;
 	yRange = MAX_Y-MIN_Y;
 	maxRange = (int16_t)hypotf(xRange, yRange);
-	msgToSendThisSlot = 0;
 }
 
 void loop(){
@@ -29,36 +28,36 @@ void loop(){
 	}
 	if(loopID!=(frameTime/SLOT_LENGTH_MS)){
 		loopID = frameTime/SLOT_LENGTH_MS;
+		//preppedMsgTarget = 0;
 		if(loopID==mySlot){
 			handleMySlot();
 		}else if(loopID==SLOTS_PER_FRAME-1){
 			handleFrameEnd();
 		}else{
-			for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
-				id_t id = nearBots[i].myMeas.id;
-				BotPos* pos = &(nearBots[i].posFromMe);
-				if(id!=0 && loopID==getSlot(id)){
-					if(pos->x != UNDF && pos->y != UNDF && pos->o != UNDF){
-						msgToSendThisSlot = 1;
-						msgRecipIdx = i;
-						msgExtraDelay = (rand_short()%3)*MEAS_MSG_DUR;
-					}
-					break;
-				}
-			}
+			//for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
+				//id_t id = nearBots[i].myMeas.id;
+				//BotPos* pos = &(nearBots[i].posFromMe);
+				//if(id!=0 && loopID==getSlot(id)){
+					//if(pos->x != UNDF && pos->y != UNDF && pos->o != UNDF){
+						//prepBotMeasMsg(i);
+						//msgExtraDelay = (/*rand_short()%3*/0)*(MEAS_MSG_DUR+PADDING_DUR);
+						//POS_MSG_DEBUG_PRINT("Prepped to send %04X an update with delay %u. (Slot T: %u)\r\n", id, msgExtraDelay, (uint16_t)(frameTime%SLOT_LENGTH_MS));
+					//}
+					//break;
+				//}
+			//}
 		}
-		updateBall();
 		updateColor();
 	}
-	if(msgToSendThisSlot && ((get_time()-frameStart)%SLOT_LENGTH_MS)>=(RNB_DUR+PADDING_DUR+POS_MSG_DUR+PADDING_DUR+msgExtraDelay)){
-		sendBotMeasMsg(msgRecipIdx);
-		msgToSendThisSlot = 0;
-		removeOtherBot(msgRecipIdx);
-	}
+	//if(preppedMsgTarget && (frameTime%SLOT_LENGTH_MS)>=(RNB_DUR+PADDING_DUR+POS_MSG_DUR+PADDING_DUR+msgExtraDelay)){
+		//set_all_ir_powers(150);
+		//ir_targeted_send(preppedMsgDirMask, (char*)(&preppedMsg), sizeof(BotMeasMsg), preppedMsgTarget);
+		//set_all_ir_powers(256);
+		//findAndRemoveOtherBot(preppedMsgTarget);		
+		//POS_MSG_DEBUG_PRINT("\t%04X sent pos msg in dirs %02hX. (Slot T: %u)\r\n", preppedMsgTarget, preppedMsgDirMask, (uint16_t)(frameTime%SLOT_LENGTH_MS));
+		//preppedMsgTarget = 0;
+	//}
 	//These things happen every single loop: once every LOOP_DELAY_MS.
-	if(NS_PIXEL(myState)){
-		checkLightLevel();
-	}
 	if(rnb_updated){
 		useNewRnbMeas();
 	}
@@ -69,10 +68,57 @@ void handleMySlot(){
 	while(((get_time()-frameStart)&SLOT_LENGTH_MS)<PADDING_DUR)
 		delay_us(500);
 	broadcast_rnb_data();
-	if(myPos.x!=UNDF && myPos.y!=UNDF && myPos.o!=UNDF){
-		while(((get_time()-frameStart)%SLOT_LENGTH_MS)<RNB_DUR+PADDING_DUR)
-			delay_us(500);
+	while(((get_time()-frameStart)%SLOT_LENGTH_MS)<RNB_DUR+PADDING_DUR)
+		delay_us(500);
+	if(POS_DEFINED(&myPos)){
 		sendBotPosMsg();
+	}
+	while(((get_time()-frameStart)%SLOT_LENGTH_MS)<RNB_DUR+PADDING_DUR+POS_MSG_DUR)
+		delay_us(500);
+	uint8_t targetBotIdxs[2] = {0xFF, 0xFF};
+	getWeightedRandOtherBots(targetBotIdxs, 2);
+	while(((get_time()-frameStart)%SLOT_LENGTH_MS)<RNB_DUR+PADDING_DUR+POS_MSG_DUR+PADDING_DUR)	
+		delay_us(500);
+	if(targetBotIdxs[0]!=0xFF){
+		sendBotMeasMsg(targetBotIdxs[0]);
+	}
+	while(((get_time()-frameStart)%SLOT_LENGTH_MS)<RNB_DUR+PADDING_DUR+POS_MSG_DUR+PADDING_DUR+MEAS_MSG_DUR+PADDING_DUR)
+		delay_us(500);
+	if(targetBotIdxs[1]!=0xFF){
+		sendBotMeasMsg(targetBotIdxs[1]);
+	}
+}
+
+void getWeightedRandOtherBots(uint8_t* botIdxs, uint8_t n){
+	qsort(nearBots, NUM_TRACKED_BOTS+1, sizeof(OtherBot), nearBotsCmpFunc);
+	float totalRange = 0;
+	float values[NUM_TRACKED_BOTS];
+	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
+		if(POS_DEFINED(&(nearBots[i].posFromMe))){
+			values[i] = 1.0/(nearBots[i].myMeas.r);
+			totalRange += values[i];
+		}
+	}
+	float chooser;
+	uint8_t numSoFar = 0;
+	while( numSoFar<n ){
+		chooser = rand_real()*totalRange;
+		for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
+			if(POS_DEFINED(&(nearBots[i].posFromMe))){
+				if(chooser < values[i]){
+					botIdxs[numSoFar] = i;
+					totalRange -= values[i];
+					values[i] = 0;
+					break;
+				}
+				chooser -= values[i];
+			}
+		}
+		if(botIdxs[numSoFar]==0xFF){
+			break;	
+		}else{
+			numSoFar++;
+		}
 	}
 }
 
@@ -91,42 +137,43 @@ uint8_t nearBotUseabilityCheck(uint8_t i){
 	return 1;
 }
 
-void ciUpdatePos(uint8_t idx, BotPos* pos, DensePosCovar* covar){
+/************************************************************************/
+/* omega: selected to minimize (omega*myPinv + (1-omega)*yourPinv)^{-1} */
+/* but that's hard. So, insted we're doing a cheat, as described in		*/
+/* Franken & Hupper's 2005 Information Fusion paper, "Improved Fast		*/
+/* Covariance Intersection for Distributed Data Fusion"					*/
+/* TODO (small):														*/
+/* I am somewhat worried about the numerical stability of this cheat.   */
+/************************************************************************/
+float chooseOmega(Matrix* myPinv, Matrix* yourPinv){
+	float omega;
+	Matrix sum;
+	matrixAdd(&sum, myPinv, yourPinv);
+	float sumDet = matrixDet(&sum);
+	float myInvDet = matrixDet(myPinv);
+	float yourInvDet = matrixDet(yourPinv);
+	omega = (sumDet - yourInvDet + myInvDet)/(2*sumDet);
+	omega = omega>1.0 ? 1.0 : (omega<0.0 ? 0.0 : omega);
+	return omega;
+}
+
+void ciUpdatePos(uint8_t idx, BotPos* pos, Matrix* yourP){
 	Vector xMe = {perSeedPos[idx].x, perSeedPos[idx].y, perSeedPos[idx].o};
-	if(pos->x==UNDF || pos->y==UNDF || pos->o==UNDF){
+	if(!POS_DEFINED(pos)){
+		MY_POS_DEBUG_PRINT(" sent me an undefined position.\r\n");
 		return;
 	}
-	POS_DEBUG_PRINT("thinks I'm at {%d, %d, %d}", pos->x, pos->y, pos->o);
+	MY_POS_DEBUG_PRINT("thinks I'm at {%d, %d, %d}", pos->x, pos->y, pos->o);
 	Vector xMeFromYou = {pos->x, pos->y, pos->o};
 	Matrix myP;
 	Matrix myPinv;
 	decompressP(&myP, &(perSeedCovars[idx]));
 	matrixInverse(&myPinv, &myP);
-	Matrix yourP;
 	Matrix yourPinv;
-	decompressP(&yourP, covar);
-	matrixInverse(&yourPinv, &yourP);
+	matrixInverse(&yourPinv, yourP);
 	Matrix myNewP;
 	Vector myNewPos;
-	float yourDet = matrixDet(&yourP);
-	if(powf(yourDet,1.0/6.0)>80){
-		POS_DEBUG_PRINT(" but he wasn't confident (%f) enough for me.\r\n", powf(yourDet,1.0/6.0));
-	}
-
-	float omega;
-	//omega SHOULD be selected to minimize (omega*myPinv + (1-omega)*yourPinv)^{-1}
-	//but that's hard. So, insted we're doing a cheat, as described in
-	//Franken & Hupper's 2005 Information Fusion paper, "Improved Fast Covariance
-	//Intersection for Distributed Data Fusion"
-	//...except that had TERRIBLE problems w.r.t. numerical stability. :(
-	//LAZIER VERSION FROM THAT PAPER:
-	Matrix sum;
-	matrixAdd(&sum, &myPinv, &yourPinv);
-	float sumDet = matrixDet(&sum);
-	float myInvDet = matrixDet(&myPinv);
-	float yourInvDet = matrixDet(&yourPinv);
-	omega = (sumDet - yourInvDet + myInvDet)/(2*sumDet);
-	omega = omega>1.0 ? 1.0 : (omega<0.0 ? 0.0 : omega);
+	float omega = chooseOmega(&myPinv, &yourPinv);
 	//myNewP = (omega*myPinv + (1-omega)*yourPinv)^{-1}
 	matrixScale(&myPinv, omega);
 	matrixScale(&yourPinv, 1.0-omega);
@@ -141,13 +188,13 @@ void ciUpdatePos(uint8_t idx, BotPos* pos, DensePosCovar* covar){
 	perSeedPos[idx].x = myNewPos[0]>1023 ? 1023 : (myNewPos[0]<-1023 ? -1023 : myNewPos[0]);
 	perSeedPos[idx].y = myNewPos[1]>1023 ? 1023 : (myNewPos[1]<-1023 ? -1023 : myNewPos[1]);
 	perSeedPos[idx].o = pretty_angle_deg(myNewPos[2]);
-	#ifdef POS_DEBUG_MODE
-		POS_DEBUG_PRINT(" giving pos {%d, %d, %d} (omega: %5.3f).\r\n", perSeedPos[idx].x, perSeedPos[idx].y, perSeedPos[idx].o, omega);
+	MY_POS_DEBUG_PRINT(" giving pos {%d, %d, %d} (omega: %5.3f).\r\n", perSeedPos[idx].x, perSeedPos[idx].y, perSeedPos[idx].o, omega);
+	//#ifdef MY_POS_DEBUG_MODE
 		//POS_DEBUG_PRINT("His Est Covar:\r\n");
 		//printMatrixMathematica(&yourP);
 		//POS_DEBUG_PRINT("My new covar:\r\n");
 		//printMatrixMathematica(&myNewP);
-	#endif
+	//#endif
 	compressP(&myNewP, &(perSeedCovars[idx]));		
 }
 
@@ -164,7 +211,7 @@ void fusePerSeedMeas(){
 		}
 	}
 	for(uint8_t i=0;i<NUM_SEEDS;i++){
-		if(perSeedPos[i].x!=UNDF && perSeedPos[i].y!=UNDF && perSeedPos[i].o!=UNDF){
+		if(POS_DEFINED(&(perSeedPos[i]))){
 			lastSeed = (lastSeed==0xFF) ? i : 0x0F;
 			Matrix thisInfoMat;
 			decompressP(&thisInfoMat, &(perSeedCovars[i]));
@@ -194,16 +241,16 @@ void fusePerSeedMeas(){
 
 void updatePositions(){
 	fusePerSeedMeas();
-	if(myPos.x==UNDF || myPos.y == UNDF || myPos.o == UNDF){
+	if(!POS_DEFINED(&myPos)){
 		printf("Can't adjust others' positions until I know where I am.\r\n");
 		return;
 	}
-	POS_DEBUG_PRINT("Updating Positions!\r\n");
+	POS_CALC_DEBUG_PRINT("Updating Positions!\r\n");
 	Matrix myP;
 	float pDets[NUM_SEEDS];
 	float pDetsTotal=0;
 	for(uint8_t i=0;i<NUM_SEEDS;i++){
-		if(perSeedPos[i].x!=UNDF && perSeedPos[i].y!=UNDF && perSeedPos[i].o!=UNDF){
+		if(POS_DEFINED(&(perSeedPos[i]))){
 			decompressP(&myP, &(perSeedCovars[i]));
 			pDets[i] = matrixDet(&myP);
 			pDets[i] = powf(pDets[i],1.0/6.0);
@@ -234,14 +281,11 @@ void updatePositions(){
 		return;
 	}
 	//printf("\tThresholds: {%hu, %hu, %hu, %hu}\r\n", thresh[0], thresh[1], thresh[2], thresh[3]);
-	for(uint8_t i=0;i<NUM_SEEDS;i++){
-	
-	}
 	uint8_t thisSeedIdx;
 	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
 		thisSeedIdx=0xFF;
 		if(nearBotUseabilityCheck(i)){
-			uint8_t chooser = rand_byte();
+			uint8_t chooser = (uint8_t)(rand_short()%255 + 1);
 			for(uint8_t j=0;j<NUM_SEEDS;j++){
 				if(chooser>thresh[j]){
 					thisSeedIdx = j;
@@ -277,7 +321,7 @@ void updatePositions(){
 			matrixAdd(&yourP, &tmp, &yourP);
 			
 			if(positiveDefiniteQ(&yourP)){
-				POS_DEBUG_PRINT("\t%04X @ {%6.1f, %6.1f, % 5.0f} from {% 4d, % 4d, % 4d}\r\n", nearBots[i].myMeas.id, x_you[0], x_you[1], x_you[2], nearBots[i].myMeas.r, nearBots[i].myMeas.b, nearBots[i].myMeas.h);
+				POS_CALC_DEBUG_PRINT("\t%04X @ {%6.1f, %6.1f, % 5.0f} from {% 4d, % 4d, % 4d}\r\n", nearBots[i].myMeas.id, x_you[0], x_you[1], x_you[2], nearBots[i].myMeas.r, nearBots[i].myMeas.b, nearBots[i].myMeas.h);
 				nearBots[i].posFromMe.x = x_you[0]>1023 ? 1023 : (x_you[0]<-1023 ? -1023 : x_you[0]);
 				nearBots[i].posFromMe.y = x_you[1]>1023 ? 1023 : (x_you[1]<-1023 ? -1023 : x_you[1]);
 				nearBots[i].posFromMe.o = pretty_angle_deg(x_you[2]);
@@ -291,28 +335,25 @@ void updatePositions(){
 }
 
 void getMeasCovar(Matrix* R, BotMeas* meas){
-	//(*R)[0][0] = 400;	(*R)[0][1] = 0;		(*R)[0][2] = 0;
-	//(*R)[1][0] = 0;		(*R)[1][1] = 400; 	(*R)[1][2] = 0;
-	//(*R)[2][0] = 0;		(*R)[2][1] = 0;		(*R)[2][2] = 250;
-	//Matrix* start = (meas->r)<140 ? &measCovarClose : &measCovarFar;
-	Matrix* start = (meas->r)<=80 ? &deltaPoseCovarClose : &deltaPoseCovarMed;
+	//Matrix* start = (meas->r)<=80 ? &deltaPoseCovarClose : &deltaPoseCovarMed;
+	Matrix* start = (meas->r)<=130 ? &measCovarClose : ( (meas->r)<=185 ? &measCovarMed : &measCovarFar );
 	matrixCopy(R, start);
-	//Matrix H; //This is the jacobian of the transformation from (r,b,h) to (deltaX, deltaY, deltaO)
-	//float cosO = cos(deg_to_rad(meas->b+90));
-	//float sinO = sin(deg_to_rad(meas->b+90));
-	//float degToRad = M_PI/180.0;
-	//H[0][0] = cosO;
-	//H[0][1] = -degToRad*(meas->r)*sinO;
-	//H[0][2] = 0;
-	//H[1][0] = sinO;
-	//H[1][1] = degToRad*(meas->r)*cosO;
-	//H[1][2] = 0;
-	//H[2][0] = 0;
-	//H[2][1] = 0;
-	//H[2][2] = 1;
-	//matrixInplaceMultiply(R, &H, R);
-	//matrixInplaceTranspose(&H);
-	//matrixInplaceMultiply(R, R, &H);
+	Matrix H; //This is the jacobian of the transformation from (r,b,h) to (deltaX, deltaY, deltaO)
+	float cosO = cos(deg_to_rad(meas->b+90));
+	float sinO = sin(deg_to_rad(meas->b+90));
+	float degToRad = M_PI/180.0;
+	H[0][0] = cosO;
+	H[0][1] = -degToRad*(meas->r)*sinO;
+	H[0][2] = 0;
+	H[1][0] = sinO;
+	H[1][1] = degToRad*(meas->r)*cosO;
+	H[1][2] = 0;
+	H[2][0] = 0;
+	H[2][1] = 0;
+	H[2][2] = 1;
+	matrixInplaceMultiply(R, &H, R);
+	matrixInplaceTranspose(&H);
+	matrixInplaceMultiply(R, R, &H);
 }
 
 void calcRelativePose(Vector* pose, BotMeas* meas){
@@ -340,15 +381,15 @@ void populateGammaMatrix(Matrix* G, Vector* pos){
 
 void populateHMatrix(Matrix* H, Vector* x_me, Vector* x_you){
 	float degToRad = M_PI/180.0;
-	(*H)[0][0] = -1;
+	(*H)[0][0] = 1;
 	(*H)[0][1] = 0;
 	(*H)[0][2] = degToRad*((*x_me)[1] - (*x_you)[1]);
 	(*H)[1][0] = 0;
-	(*H)[1][1] = -1;
+	(*H)[1][1] = 1;
 	(*H)[1][2] = degToRad*((*x_you)[0] - (*x_me)[0]);
 	(*H)[2][0] = 0;
 	(*H)[2][1] = 0;
-	(*H)[2][2] = -1;
+	(*H)[2][2] = 1;
 }
 
 void compressP(Matrix* P, DensePosCovar* covar){
@@ -459,19 +500,23 @@ void useNewRnbMeas(){
 
 void updateColor(){
 	uint8_t newR = 0, newG = 0, newB = 0;
-	if(myPos.x==UNDF||myPos.y==UNDF){
-		newR = newG = newB = 50;
-	}else{
-		int16_t xColVal = (int16_t)(6.0*pow(41.0,(myPos.x-MIN_X)/((float)xRange))+9.0);
-		int16_t yColVal = (int16_t)(3.0*pow(84.0,(myPos.y-MIN_Y)/((float)yRange))+3.0);
-		newR = (uint8_t)(xColVal);
-		newG = (uint8_t)(yColVal);
+	if(frameCount%8==7){ //sync test color
+		hsv_to_rgb((uint16_t)(60*((loopID%36)>>2)), 220, 127, &newR, &newG, &newB);
+	}else{ //pos color
+		if(POS_DEFINED(&myPos)){
+			int16_t xColVal = (int16_t)(6.0*pow(41.0,(myPos.x-MIN_X)/((float)xRange))+9.0);
+			int16_t yColVal = (int16_t)(3.0*pow(84.0,(myPos.y-MIN_Y)/((float)yRange))+3.0);
+			newR = (uint8_t)(xColVal);
+			newG = (uint8_t)(yColVal);
+		}else{
+			newR = newG = newB = 50;
+		}
 	}
+
 	set_rgb(newR, newG, newB);	
 }
 
 void sendBotMeasMsg(uint8_t i){ //i: index in nearBots array.
-	uint8_t dir = dirFromAngle(nearBots[i].myMeas.b);
 	BotMeasMsg msg;
 	msg.flag = BOT_MEAS_MSG_FLAG;
 	copyBotPos(&(nearBots[i].posFromMe), &(msg.pos));
@@ -479,16 +524,49 @@ void sendBotMeasMsg(uint8_t i){ //i: index in nearBots array.
 		msg.covar[j].u = nearBots[i].posCovar[j].u;
 	}
 	msg.seedIdx = nearBots[i].seedIdx;
-	uint8_t dir_mask = 0;
-	dir_mask |= 1<<((dir+5)%6);
-	dir_mask |= 1<<(dir);
-	dir_mask |= 1<<((dir+1)%6);	
-	ir_targeted_send(dir_mask, (char*)(&msg), sizeof(BotMeasMsg), nearBots[i].myMeas.id);
+	uint8_t dir;
+	uint8_t dirMask = 0;
+	for(int8_t j=-45;j<90;j+=45){
+		dir = dirFromAngle(pretty_angle_deg(nearBots[i].myMeas.b + j));
+		dirMask |= 1<<dir;
+	}
+	ir_targeted_send(dirMask, (char*)(&msg), sizeof(BotMeasMsg), nearBots[i].myMeas.id);
+	POS_MSG_DEBUG_PRINT("%04X sent pos msg in dirs %02hX.\r\n", nearBots[i].myMeas.id, dirMask);
 }
 
-void handleBotMeasMsg(BotMeasMsg* msg, id_t senderID){
+//void prepBotMeasMsg(uint8_t i){ //i: index in nearBots array.
+	//preppedMsg.flag = BOT_MEAS_MSG_FLAG;
+	//copyBotPos(&(nearBots[i].posFromMe), &(preppedMsg.pos));
+	//for(uint8_t j=0;j<6;j++){
+		//preppedMsg.covar[j].u = nearBots[i].posCovar[j].u;
+	//}
+	//preppedMsg.seedIdx = nearBots[i].seedIdx;
+	//uint8_t dir;
+	//preppedMsgDirMask = 0;
+	//for(int8_t j=-45;j<90;j+=45){
+		 //dir = dirFromAngle(pretty_angle_deg(nearBots[i].myMeas.b + j));
+		 //preppedMsgDirMask |= 1<<dir;
+	//}
+	////preppedMsgDirMask = 1<<dirFromAngle(nearBots[i].myMeas.b);
+	//preppedMsgTarget = nearBots[i].myMeas.id;
+//}
+
+void handleBotMeasMsg(BotMeasMsg* msg, id_t senderID __attribute__ ((unused))){
 	uint8_t seedIdx = msg->seedIdx;
-	if(perSeedPos[seedIdx].x==UNDF || perSeedPos[seedIdx].y==UNDF || perSeedPos[seedIdx].o==UNDF){
+	if(!POS_DEFINED(&(msg->pos))){
+		MY_POS_DEBUG_PRINT("%04X sent me an undefined position.\r\n", senderID);
+		return;
+	}
+	Matrix covar;
+	decompressP(&covar, &(msg->covar));
+	if(!POS_DEFINED(&(perSeedPos[seedIdx]))){
+		float yourTrace = covar[0][0]+covar[1][1] + covar[2][2];
+		//if(powf(yourDet,1.0/6.0)>80){
+			//MY_POS_DEBUG_PRINT("%04X's 'StdDev' (%f) to high for me to initialize.\r\n", senderID, powf(yourDet,1.0/6.0));
+			//return;
+		//}else{
+			MY_POS_DEBUG_PRINT("%04X initialized seed %hu to {%d, %d, %d}. (Covar Trace: %f)\r\n", senderID, seedIdx, (msg->pos).x, (msg->pos).y, (msg->pos).o, yourTrace);
+		//}
 		perSeedPos[seedIdx].x = (msg->pos).x;
 		perSeedPos[seedIdx].y = (msg->pos).y;
 		perSeedPos[seedIdx].o = (msg->pos).o;
@@ -496,8 +574,8 @@ void handleBotMeasMsg(BotMeasMsg* msg, id_t senderID){
 			perSeedCovars[seedIdx][i].u = msg->covar[i].u;
 		}
 	}else{
-		POS_DEBUG_PRINT("%04X ", senderID);
-		ciUpdatePos(seedIdx, &(msg->pos), &(msg->covar));
+		MY_POS_DEBUG_PRINT("%04X ", senderID);
+		ciUpdatePos(seedIdx, &(msg->pos), &covar);
 	}
 }
 
@@ -509,7 +587,7 @@ void sendBotPosMsg(){
 }
 
 void handleBotPosMsg(BotPosMsg* msg, id_t senderID){
-	printf("%04X @ {%4d, %4d, % 4d}\r\n", senderID, (msg->pos).x, (msg->pos).y, (msg->pos).o);
+	printf("\t%04X @ {%4d, %4d, % 4d}\r\n", senderID, (msg->pos).x, (msg->pos).y, (msg->pos).o);
 }
 
 void handle_msg(ir_msg* msg_struct){
@@ -527,43 +605,33 @@ void handle_msg(ir_msg* msg_struct){
 }
 
 void frameEndPrintout(){
-	printf_P(PSTR("\nID: %04X T: %lu [ "), get_droplet_id(), get_time());
-	switch(myState){
-		case STATE_PIXEL:					printf("Pixel");		break;
-		case (STATE_PIXEL|STATE_NORTH):		printf("North Pixel");	break;
-		case (STATE_PIXEL|STATE_SOUTH):		printf("South Pixel");	break;
-		default:							printf("???");			break;
-	}
-	printf_P(PSTR(" ]"));
-	if((myPos.x != UNDF) && (myPos.y != UNDF) && (myPos.o != UNDF)){
+	printf_P(PSTR("\nID: %04X T: %lu "), get_droplet_id(), get_time());
+	if(POS_DEFINED(&myPos)){
 		printf_P(PSTR("\tMy Pos: {%d, %d, %d}\r\n"), myPos.x, myPos.y, myPos.o);
-		if(perSeedPos[0].x == UNDF || perSeedPos[0].y == UNDF || perSeedPos[0].o == UNDF){
-			printf("\tNW Pos: { -- ,  -- ,  -- }");
-		}else{
+		if(POS_DEFINED(&(perSeedPos[0]))){
 			printf("\tNW Pos: {%4d, % 4d, % 4d}", perSeedPos[0].x, perSeedPos[0].y, perSeedPos[0].o);
-		}
-		if(perSeedPos[1].x == UNDF || perSeedPos[1].y == UNDF || perSeedPos[1].o == UNDF){
-			printf("           NE Pos: { -- ,  -- ,  -- }\r\n");
 		}else{
+			printf("\tNW Pos: { -- ,  -- ,  -- }");
+		}
+		if(POS_DEFINED(&(perSeedPos[1]))){
 			printf("           NE Pos: {%4d, % 4d, % 4d}\r\n",	perSeedPos[1].x, perSeedPos[1].y, perSeedPos[1].o);
+		}else{
+			printf("           NE Pos: { -- ,  -- ,  -- }\r\n");
 		}
 		printTwoPosCovar(&(perSeedCovars[0]), &(perSeedCovars[1]));
-		if(perSeedPos[2].x == UNDF || perSeedPos[2].y == UNDF || perSeedPos[2].o == UNDF){
-			printf("\tSW Pos: { -- ,  -- ,  -- }");
-			}else{
+		if(POS_DEFINED(&(perSeedPos[2]))){
 			printf("\tSW Pos: {%4d, % 4d, % 4d}", perSeedPos[2].x, perSeedPos[2].y, perSeedPos[2].o);
-		}
-		if(perSeedPos[3].x == UNDF || perSeedPos[3].y == UNDF || perSeedPos[3].o == UNDF){
-			printf("           SE Pos: { -- ,  -- ,  -- }\r\n");
 		}else{
+			printf("\tSW Pos: { -- ,  -- ,  -- }");			
+		}
+		if(POS_DEFINED(&(perSeedPos[3]))){
 			printf("           SE Pos: {%4d, % 4d, % 4d}\r\n",	perSeedPos[3].x, perSeedPos[3].y, perSeedPos[3].o);
+		}else{
+			printf("           SE Pos: { -- ,  -- ,  -- }\r\n");
 		}
 		printTwoPosCovar(&(perSeedCovars[2]), &(perSeedCovars[3]));
 	}else{
 		printf("\r\n");
-	}
-	if((theBall.xPos != UNDF) && (theBall.yPos != UNDF)){
-		printf_P(PSTR("\tBall ID: %hu; radius: %hu; Pos: (%d, %d) @ vel (%hd, %hd)\r\n"), theBall.id, theBall.radius, theBall.xPos, theBall.yPos, theBall.xVel, theBall.yVel);
 	}
 }
 

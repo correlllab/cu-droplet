@@ -108,7 +108,7 @@ void handle_cmd_wrapper(){
 	}
 }
 
-static void perform_ir_upkeep(){		
+static void perform_ir_upkeep(){
 	uint16_t seen_crcs[6] = {0,0,0,0,0,0};
 	uint8_t crc_seen;
 	int8_t check_dir;
@@ -236,16 +236,16 @@ uint8_t ir_send(uint8_t dirs, char *data, uint8_t data_length){
 }
 
 static inline uint8_t all_hp_ir_cmds(uint8_t dirs, char* data, uint8_t data_length, id_t target){
-	if(hp_ir_block_bm){
-		return 0;
-	}
-	uint8_t timed;
-	if(data_length>=64){
-		data_length-=64;
-		timed=1;
-	}
-    perform_ir_upkeep();
+    //perform_ir_upkeep();
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+		if(hp_ir_block_bm){
+			return 0;
+		}
+		uint8_t timed;
+		if(data_length>=64){
+			data_length-=64;
+			timed=1;
+		}
 		for(uint8_t dir=0;dir<6;dir++){
 			if(dirs&(1<<dir)){
 				channel[dir]->CTRLB &= ~USART_RXEN_bm;
@@ -328,7 +328,7 @@ static void ir_receive(uint8_t dir){
 		const uint8_t selfSender  = ir_rxtx[dir].sender_ID == get_droplet_id();
 		const uint8_t notTimed	  = !(ir_rxtx[dir].status & IR_STATUS_TIMED_bm);
 		const uint8_t wrongTarget = (notTimed && ir_rxtx[dir].target_ID && ir_rxtx[dir].target_ID!=get_droplet_id());
-		const uint8_t incDirErr	= (notTimed && (ir_rxtx[dir].inc_dir&INC_DIR_KEY)!=INC_DIR_KEY);
+		const uint8_t incDirErr	= 0;//(notTimed && (ir_rxtx[dir].inc_dir&INC_DIR_KEY)!=INC_DIR_KEY);
 		if(!((crcMismatch||nullCrc)||(selfSender||wrongTarget)||incDirErr)){
 			if(notTimed){
 				ir_rxtx[dir].inc_dir = ir_rxtx[dir].inc_dir&(~INC_DIR_KEY); //remove key bits.							
@@ -347,6 +347,7 @@ static void ir_receive(uint8_t dir){
 					ir_rxtx[dir].status |= IR_STATUS_COMPLETE_bm;
 					ir_rxtx[dir].status |= IR_STATUS_BUSY_bm; //mark as busy so we don't overwrite it.
 					channel[dir]->CTRLB &= ~USART_RXEN_bm; //Disable receiving messages on this channel until the message has been processed.
+					if(ir_rxtx[dir].data_length==22) printf("%hu %04X\r\n", dir, ir_rxtx[dir].sender_ID);
 				}
 			}
 			//printf("\r\n");
@@ -436,7 +437,7 @@ static void received_rnb_r(uint8_t delay, id_t senderID, uint32_t last_byte){
 		ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 			hp_ir_block_bm = 0;
 		}
-		schedule_task(10, use_rnb_data, NULL);
+		schedule_task(5, use_rnb_data, NULL);
 	}
 }
 

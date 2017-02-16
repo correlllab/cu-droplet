@@ -2,7 +2,7 @@
 
 #include "droplet_init.h"
 
-//#define POS_DEBUG_MODE
+#define POS_CALC_DEBUG_MODE
 #define GEN_DEBUG_MODE
 #define P_SAMPLE_DEBUG_MODE
 #define P_L_DEBUG_MODE
@@ -23,7 +23,7 @@
 #define OCC_DEBUG_PRINT(format, ...)
 #endif
 
-#ifdef POS_DEBUG_MODE
+#ifdef POS_CALC_DEBUG_MODE
 #define POS_CALC_DEBUG_PRINT(format, ...) printf_P(PSTR(format), ##__VA_ARGS__)
 #else
 #define POS_CALC_DEBUG_PRINT(format, ...)

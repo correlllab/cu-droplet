@@ -66,11 +66,18 @@
 ///*
  //* See the top of page 16 in my notebook for basis for measCovar stuff below.
  //*/
-Matrix measCovarClose  = {{213, 11, 31}, {11, 124, 139}, {31, 139, 290}};
-Matrix measCovarMed = {{384, -9, -119}, {-9, 626, 166}, {-119, 166, 724}};
-Matrix measCovarFar = {{1643, 408, -204}, {408, 9374, 141}, {-204, 141, 3392}};
-//Matrix deltaPoseCovarClose = {{76, 15, 29}, {15, 83, 44}, {29, 44, 220}};
-//Matrix deltaPoseCovarMed   = {{1569, 106, -163}, {106, 633, 35}, {-163, 35, 871}};
+Matrix measCovarClose  = {{246.83, 0.95632, -0.0642657}, {0.95632,
+0.487814, -0.000112018}, {-0.0642657, -0.000112018, 0.08}};
+Matrix measCovarMed = {{1047.37, 2.21832, 3.72}, {2.21832,
+1.44781, -0.0975544}, {3.72, -0.0975544, 0.384}};
+Matrix measCovarFar = {{2404.91, -0.605826, -17.8956}, {-0.605826, 1.82241,
+0.418247}, {-17.8956, 0.418247, 1.100}};
+//Matrix deltaPosCovarClose  = {{388.428, 56.7799, -1.42906}, {56.7799, 198.959, 0.28115}, {-1.42906,
+//0.28115, 0.125886}};
+//Matrix deltaPosCovarMed = {{4819.52, 173.129, -2.82006}, {173.129, 1767.47, 1.98938}, {-2.82006,
+//1.98938, 0.575794}};
+//Matrix deltaPosCovarFar = {{14864.9, -3475.5, -12.4073}, {-3475.5,
+//17978.1, -27.1459}, {-12.4073, -27.1459, 1.65012}};
 
 #define NUM_SEEDS 4
 #define NUM_SHARED_BOTS 6
@@ -108,8 +115,7 @@ typedef union flex_byte_union{
 
 typedef FlexByte DensePosCovar[6];
 
-typedef struct bot_pos_struct
-{
+typedef struct bot_pos_struct{
 	int16_t x;
 	int16_t y;
 	int16_t o;
@@ -127,8 +133,7 @@ typedef struct bot_pos_msg_struct{
 	char flag;
 }BotPosMsg;
 
-typedef struct bot_meas_struct
-{
+typedef struct bot_meas_struct{
 	id_t id;
 	uint16_t r;
 	int16_t b;
@@ -141,6 +146,7 @@ typedef struct other_bot_rnb_struct{
 	DensePosCovar posCovar;
 	uint8_t occluded;
 	uint8_t seedIdx;
+	uint8_t lastSeen;
 	//uint8_t hasNewInfo;
 } OtherBot;
 OtherBot nearBots[NUM_TRACKED_BOTS+1];
@@ -163,11 +169,16 @@ int16_t		xRange;
 int16_t		yRange;
 int16_t		maxRange;
 
-
+uint8_t targetBotIdxs[2] = {0xFF, 0xFF};
+uint8_t slotTasksSwitch;
+#define SLOT_TASK_RNB_bm		0x01
+#define SLOT_TASK_POS_MSG_bm	0x02
+#define SLOT_TASK_MEAS_MSG0_bm  0x04
+#define SLOT_TASK_MEAS_MSG1_bm	0x08
 
 void		init();
 void		loop();
-void		handleMySlot();
+void		handleMySlot(uint32_t frameTime);
 void		handleFrameEnd(); 
 
 
@@ -177,8 +188,9 @@ uint8_t     nearBotUseabilityCheck(uint8_t i);
 float		chooseOmega(Matrix* myPinv, Matrix* yourPinv);
 void		ciUpdatePos(uint8_t idx, BotPos* pos, Matrix* yourP);
 void		updatePositions();
-void		getMeasCovar(Matrix* R, BotMeas* meas);
-void		calcRelativePose(Vector* pose, BotMeas* meas);
+void		processMeasurement(uint8_t botIdx, uint8_t seedIdx, Matrix* myP);
+void		getMeasCovar(Matrix* R, Vector* meas);
+void		calcRelativePose(Vector* pose, Vector* meas);
 void		populateGammaMatrix(Matrix* G, Vector* pos);
 void		populateHMatrix(Matrix* H, Vector* x_me, Vector* x_you);
 void		compressP(Matrix* P, DensePosCovar* covar);
@@ -245,6 +257,7 @@ inline static void initPositions(){
 		perSeedPos[i].x = UNDF;
 		perSeedPos[i].y = UNDF;
 		perSeedPos[i].o = UNDF;
+		
 		for(uint8_t j=0;j<6;j++){
 			perSeedCovars[i][j].u = 0;
 		}
@@ -260,9 +273,9 @@ inline static void initPositions(){
 			perSeedPos[i].x = myPos.x;
 			perSeedPos[i].y = myPos.y;
 			perSeedPos[i].o = myPos.o;
-			perSeedCovars[i][0].u = 1;
-			perSeedCovars[i][3].u = 1;
-			perSeedCovars[i][5].u = 1;
+			perSeedCovars[i][0].u = 1; //the actual value used will be this*4
+			perSeedCovars[i][3].u = 1; //the actual value used will be this*4
+			perSeedCovars[i][5].u = 4; //the actual value used will be this/64
 			break;
 		}
 	}

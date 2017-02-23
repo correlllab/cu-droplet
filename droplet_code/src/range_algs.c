@@ -68,6 +68,7 @@ float calculate_error(float r, float b, float h);
 static int16_t processBrightMeas();
 
 static float magicRangeFunc(float a);
+static float invMagicRangeFunc(float r);
 
 //static void print_brightMeas();
 												
@@ -321,10 +322,20 @@ void ir_range_blast(uint8_t power __attribute__ ((unused))){
 static float magicRangeFunc(float a){
 	if(a<=0){
 		return NAN;
-	}else{
+		}else{
 		float result = -24.3675811184*(0.0259969683 + powf(a, -0.5));
 		result = 1 + exp(result);
 		result = (778.0270114700/result) - 528.0270114700;
+		return result;
+	}
+}
+
+static float invMagicRangeFunc(float r){
+	if(r>250){
+		return 0;
+	}else{
+		float logTerm = log((778.0270114700331/(r + 528.0270114700331)) - 1);
+		float result = 3367.2274479842324/(2.2757149424086466 + logTerm*(7.184767720344338 + logTerm*5.670842845179211));
 		return result;
 	}
 }

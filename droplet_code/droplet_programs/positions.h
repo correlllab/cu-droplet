@@ -146,7 +146,6 @@ typedef struct other_bot_rnb_struct{
 	DensePosCovar posCovar;
 	uint8_t occluded;
 	uint8_t seedIdx;
-	uint8_t lastSeen;
 	//uint8_t hasNewInfo;
 } OtherBot;
 OtherBot nearBots[NUM_TRACKED_BOTS+1];

@@ -454,13 +454,6 @@ void handleFrameEnd(){
 	//Maybe we'll want to remove the N worst nearBots, here.
 	updateNearBotOcclusions();
 	updatePositions();
-
-	for(uint8_t botIdx=0;botIdx<NUM_TRACKED_BOTS;botIdx++){
-		nearBots[botIdx].lastSeen++;
-		if(nearBots[botIdx].lastSeen>5){
-			removeOtherBot(botIdx);
-		}
-	}
 	
 	////Removing the worst half of the nearBots.
 	//for(uint8_t i=NUM_TRACKED_BOTS/2; i<NUM_TRACKED_BOTS;i++){
@@ -488,7 +481,6 @@ void useNewRnbMeas(){
 		meas->r		 = range;
 		meas->b		 = bearing;
 		meas->h		 = heading;
-		measuredBot->lastSeen = 0;
 	}else{
 		printf_P(PSTR("Error: Unexpected botPos->ID in use_new_rnb_meas.\r\n"));
 	}
@@ -528,6 +520,7 @@ void sendBotMeasMsg(uint8_t i){ //i: index in nearBots array.
 	}
 	ir_targeted_send(dirMask, (char*)(&msg), sizeof(BotMeasMsg), nearBots[i].myMeas.id);
 	POS_MSG_DEBUG_PRINT("%04X sent pos msg in dirs %02hX.\r\n", nearBots[i].myMeas.id, dirMask);
+	removeOtherBot(i);
 }
 
 //void prepBotMeasMsg(uint8_t i){ //i: index in nearBots array.
@@ -712,7 +705,6 @@ void cleanOtherBot(OtherBot* other){
 		other->posCovar[i].u = 0;
 	}
 	other->occluded = 0;
-	other->lastSeen = 0;
 	other->seedIdx = 255;
 	//other->hasNewInfo = 0;
 }

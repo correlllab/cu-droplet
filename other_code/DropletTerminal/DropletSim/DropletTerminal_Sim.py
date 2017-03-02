@@ -1,20 +1,28 @@
 from random import randint
 from random import normalvariate as randnormal
 import math, cmd
+import numpy as np
+# import matplotlib.pyplot as plt
+# import matplotlib.animation as anim
+
 
 ################################HELPER FUNCTIONS###############################
+###############################################################################
 """Simple function, ensures an angle is between -180 and 180"""
 def prettyAngleDeg(theta):
     return ((theta+180)%360) - 180
 
+
 def getDist(d1, d2):
     return math.hypot(d2.x-d1.x,d2.y-d1.y)
+
 
 def checkIntersecting(newBot, bots):
     for bot in bots:
         if getDist(bot, newBot)<(bot.radius+newBot.radius):
             return True
     return False
+
 
 def generateBots(quantity, region):
     """
@@ -62,6 +70,7 @@ class RnbMeas:
         return "{{{}, {}, {{{}, {}, {}}}}}".format(self.rxID, self.txID,
                                                    self.r, self.b, self.h)
 
+
 ###############################################################################
 class DropletWorld:
     def __init__(self, xmin = -500, xmax = 500, ymin = -500, ymax = 500):
@@ -80,9 +89,19 @@ class Droplet:
     #15.1 from center to foot
     
     def __init__(self, x, y, o, id=None):
+        #Global coordinates
         self.x = x
         self.y = y
         self.o = o
+
+        #Motor settings
+        self.m0 = 0
+        self.m1 = 0
+        self.m2 = 0
+
+        #Calibrated
+        self.calibrated = False
+
         if id is None:
             self.id = "{:04X}".format(randint(0,65535))
         else:
@@ -118,7 +137,7 @@ class Droplet:
         oDiff = bot.o-self.o
         range = math.hypot(xDiff, yDiff)
         bearing = prettyAngleDeg(math.degrees(math.atan2(yDiff, xDiff))
-                                 -self.o-90)
+                                 - self.o-90)
         heading = prettyAngleDeg(oDiff)
         meas = RnbMeas(int(round(range)), int(round(bearing)),
                        int(round(heading)), self.id, bot.id)
@@ -145,14 +164,27 @@ class DropletSim(cmd.Cmd):
     def do_Genbots(self, s):
         'Generate n number of Droplets in Droplet World.\n\
         Command format: n'
+        if s == '':
+            print 'No arguments given, try num >= 1'
+            return
         bot_count = int(s.split()[0])
         world_dims = ((world.x0, world.x1), (world.y0, world.y1))
-        world.bots.append(generateBots(bot_count, world_dims))
+        newBots = generateBots(bot_count, world_dims)
+        for bot in newBots:
+            world.bots.append(bot)
+
+    def do_Wipebots(self, s):
+        'Reset bots to blank'
+        world.bots = []
 
     def do_Allbots(self, s):
         'Return the status of all Droplets.\n\
         Command format: No Arguments'
-        print(world.bots)
+        i = 0
+        while i < len(world.bots):
+            print world.bots[i]
+            i += 1
+        # print(world.bots)
 
     def do_Newbot(self, s):
         'Generate new Droplet at location x,y with orientation o \
@@ -173,18 +205,33 @@ class DropletSim(cmd.Cmd):
             print world.bots
 
     def do_move(self, s):
-        'Move Droplet bot Direction dir a Distance dist.\
-        \nCommand format: bot dir dist'
-        bot = int(s.split()[0])
+        'Move Droplet d Direction dir a Distance dist.\
+        \nCommand format: d dir dist'
+        d = int(s.split()[0])
         dir = int(s.split()[1])
         dist = float(s.split()[2])
-        world.bots[bot].move(dir, dist)
-        print world.bots[bot]
+        world.bots[d].move(dir, dist)
+        print world.bots[d]
 
     def do_get_rnb_data(self, s):
         'Get rnb data for bot a with respect to bot b.\
-        \nCommand format: a b'
+        \nCommand format: d1 d2'
+        d1 = int(s.split()[0])
+        d2 = int(s.split()[1])
 
+        meas = world.bots[d1].rnbMeas(world.bots[d2])
+        print meas
+
+    def do_exit(self, s):
+        'Exit the Droplet Terminal'
+        return True
+
+    def do_calibrate(self, s):
+        'Call calibration routine for Droplet a \
+        \nCommand format: d'
+        if world.bots[d].calibrated:
+            print("calibrating")
+        return
 
 ##################################MAIN PROGRAM#################################
 if __name__ == '__main__':

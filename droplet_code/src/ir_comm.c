@@ -350,7 +350,6 @@ static void ir_receive(uint8_t dir){
 					channel[dir]->CTRLB &= ~USART_RXEN_bm; //Disable receiving messages on this channel until the message has been processed.
 				}
 			}
-			printf("\r\n");
 		}else{
 			clear_ir_buffer(dir);
 		}

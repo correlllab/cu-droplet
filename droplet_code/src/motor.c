@@ -237,7 +237,6 @@ void write_motor_settings()
 		EEPROM_write_byte(0x40 + 2*direction + 1, (uint8_t)(temp&0xFF));
 	}
 }
-
 void print_motor_values()
 {
 	printf_P(PSTR("Motor Values\r\n"));

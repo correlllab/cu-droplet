@@ -158,7 +158,7 @@ void send_motor_settings(){
 			}
 		}
 	}
-	printf("ULTI COUNT %d\n\r",ulti_count);
+	printf("ULTII COUNT %d\n\r",ulti_count);
 	ulti_count=0;
 	set_rgb(0,0,0);
 }

@@ -76,22 +76,48 @@ void FLASH_EraseApplicationSections(void)
  * 
  *  \param page_number Flash page number. 
  */ 
-void FLASH_EraseWriteApplicationPage(uint16_t page_number) 
-{ 
-    // addresses the page 
-    CPU_RAMPZ = (uint8_t)(page_number >> (16 - FLASH_FWORD_SIZE)); 
-    LoadZ((uint32_t)page_number << FLASH_FWORD_SIZE); 
+// void FLASH_EraseWriteApplicationPage(uint16_t page_number) 
+// { 
+//     // addresses the page 
+//     CPU_RAMPZ = (uint8_t)(page_number >> (16 - FLASH_FWORD_SIZE)); 
+//     LoadZ((uint32_t)page_number << FLASH_FWORD_SIZE); 
+// 
+//     // Write the "safety code" to the CCP register 
+//     // FLASH write has to be executed within 4 cycles 
+//     NVM.CMD = NVM_CMD_ERASE_WRITE_APP_PAGE_gc; 
+//     CPU_CCP = CCP_SPM_gc; 
+//     // Self-program. 
+//     asm("spm"); 
+// 
+//     // Wait until NVM is not busy 
+//     FLASH_WaitForNVM(); 
+// }   // FLASH_EraseWriteApplicationPage 
+// 
 
-    // Write the "safety code" to the CCP register 
-    // FLASH write has to be executed within 4 cycles 
-    NVM.CMD = NVM_CMD_ERASE_WRITE_APP_PAGE_gc; 
-    CPU_CCP = CCP_SPM_gc; 
-    // Self-program. 
-    asm("spm"); 
 
-    // Wait until NVM is not busy 
-    FLASH_WaitForNVM(); 
-}   // FLASH_EraseWriteApplicationPage 
+void FLASH_EraseWriteApplicationPage(uint32_t page_number)
+{
+	
+	uint32_t table_number = (page_number*512UL);
+	
+	SP_EraseWriteApplicationPage(0x00000 + table_number);
+	SP_WaitForSPM();
+	NVM.CMD = NVM_CMD_NO_OPERATION_gc;
+	
+// 	addresses the page
+// 		CPU_RAMPZ = (uint8_t)(page_number >> (16 - FLASH_FWORD_SIZE));
+// 		LoadZ((uint32_t)page_number << FLASH_FWORD_SIZE);
+// 	
+// 		// Write the "safety code" to the CCP register
+// 		// FLASH write has to be executed within 4 cycles
+// 		NVM.CMD = NVM_CMD_ERASE_WRITE_APP_PAGE_gc;
+// 		CPU_CCP = CCP_SPM_gc;
+// 		// Self-program.
+// 		asm("spm");
+// 	
+// 		// Wait until NVM is not busy
+	FLASH_WaitForNVM();
+}
 
 /*! \brief Read a byte from flash. 
  * 
@@ -245,5 +271,87 @@ void FLASH_ReadFlashPage(uint8_t *ram_buffer, uint32_t page_number)
 	SP_ReadFlashPage(ram_buffer,base_address);
 	SP_WaitForSPM();
 	NVM_CMD = NVM_CMD_NO_OPERATION_gc;
+	
+}
+
+
+
+
+// Modifying for test purposes by Bhallaji @ 3/2/2017 @ 12:28 AM
+void EraseAppTablePage(uint32_t pageAddress)
+{
+	/* Calculate actual start address of the page.*/
+	uint32_t tableAddress = (pageAddress * FLASH_PAGE_SIZE);
+	
+	/* Perform page erase. */
+	SP_EraseApplicationPage(0X0000 + tableAddress);
+
+	/* Wait for NVM to finish. */
+	SP_WaitForSPM();
+	NVM.CMD = NVM_CMD_NO_OPERATION_gc;
+}
+
+
+// Modifying for test purposes by Bhallaji @ 3/2/2017 @ 12:20 AM
+void EraseWriteAppTablePage(uint32_t pageAddress)
+{
+	/* Calculate actual start address of the page.*/
+	uint32_t tableAddress = (pageAddress * FLASH_PAGE_SIZE);
+
+	/* Perform page erase. */
+	SP_EraseWriteApplicationPage(APP_SECTION_START + tableAddress);
+
+	/* Wait for NVM to finish. */
+	SP_WaitForSPM();
+	NVM.CMD = NVM_CMD_NO_OPERATION_gc;
+}
+
+
+
+// Modifying for test purposes by Bhallaji @ 3/2/2017 @ 12:29 AM
+void WriteAppTablePage(uint32_t pageAddress)
+{
+	/* Calculate actual start address of the page.*/
+	uint32_t tableAddress = (pageAddress * FLASH_PAGE_SIZE);
+	
+	/* Perform page write. */
+	SP_WriteApplicationPage(APP_SECTION_START + tableAddress);
+
+	/* Wait for NVM to finish. */
+	SP_WaitForSPM();
+	NVM.CMD = NVM_CMD_NO_OPERATION_gc;
+}
+
+
+
+void writeRead(uint8_t* WriteBuffer, uint32_t pageTowrite)
+{
+	uint8_t success = 1;
+	/* Load the flashbuffer with the test buffer. */
+	SP_LoadFlashPage(WriteBuffer);
+	SP_WaitForSPM();
+	NVM.CMD = NVM_CMD_NO_OPERATION_gc;
+	//EraseWriteAppTablePage(pageTowrite);
+	EraseAppTablePage(pageTowrite);
+	WriteAppTablePage(pageTowrite);
+	/* Do a Erase-Write of the page. */
+	//Origianl Code Commented by Bhallaji @ 12:32 AM
+	//EraseWriteAppTablePage(pageTowrite);
+
+	/* Read a flashpage into the read buffer. */
+	//ReadFlashPage(ReadBuffer,pageTowrite);
+
+	/* Verify Flash contents. */
+	//for (uint16_t i = 0; i < FLASH_PAGE_SIZE; i++) {
+	////printf("%d ",ReadBuffer[i] );
+	//if (ReadBuffer[i] != WriteBuffer[i]){
+	//success = 0;
+	//break;
+	//}
+	//}
+	
+	//printf("\n\rsuccess 2nd attempt %hu\n\r", success);
+	//success = 1;
+	
 	
 }

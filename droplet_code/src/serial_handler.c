@@ -22,6 +22,7 @@ static void handle_shout(char* command_args);
 static void handle_msg_test(char* command_args);
 static void handle_target(char* command_args);
 static void handle_reset();
+static void reprog_test();
 static void get_command_word_and_args(char* command, uint16_t command_length, char* command_word, char* command_args);
 
 uint8_t user_handle_command(char* command_word, char* command_args) __attribute__((weak));
@@ -52,6 +53,7 @@ void handle_serial_command(char* command, uint16_t command_length){
 		else if(strcmp_P(command_word,PSTR("tgt"))==0)					handle_target(command_args);
 		else if(strcmp_P(command_word,PSTR("tasks"))==0)				print_task_queue();
 		else if(strcmp_P(command_word,PSTR("reset"))==0)				handle_reset();
+		else if(strcmp_P(command_word,PSTR("reprog_test"))==0)			schedule_task(5, reprog_test, NULL);
 		else if(strcmp_P(command_word,PSTR("write_motor_settings"))==0)	write_motor_settings();
 		else if(strcmp_P(command_word,PSTR("print_motor_settings"))==0){
 																		print_motor_values();
@@ -62,6 +64,20 @@ void handle_serial_command(char* command, uint16_t command_length){
 		else														printf_P(CMD_NOT_RECOGNIZED_STR,command_word);
 	}
 }
+
+
+
+static void reprog_test()
+{
+// 	char writebuff [512];
+// 	for(int i= 0; i<FLASH_PAGE_SIZE; i++)
+// 	writebuff[i] = 0xEE;
+//     writeRead(writebuff, 0);
+for (int i =0; i<256; i++)
+EraseWriteAppTablePage(i);
+//EraseAppTablePage(2);
+}
+
 
 static void handle_check_collisions(){
 	uint8_t dirs = check_collisions();

@@ -14,7 +14,7 @@
 
 /******************************************************New Code for write/read on flash********************************/
 // XMega 128A3 
-#define FLASH_PAGE_SIZE                     256 
+#define FLASH_PAGE_SIZE                     512UL 
 #define FLASH_FWORD_SIZE                    9 
 #define FRAZIONI_DI_PAGINA_FLASH            4 
 #define MAX_PAGE_NUMBER						256
@@ -58,11 +58,31 @@ uint8_t FLASH_ReadByte(uint32_t);
 void FLASH_FlushFlasPageBuffer(void); 
 void FLASH_LoadFlashPageBuffer(const uint8_t *); 
 void FLASH_EraseApplicationSections(void); 
-void FLASH_EraseWriteApplicationPage(uint16_t); 
+/*void FLASH_EraseWriteApplicationPage(uint16_t); */
+void FLASH_EraseWriteApplicationPage(uint32_t)__attribute__((section(".BOOT"))) ; 
 uint32_t FLASH_ApplicationCRC(void); 
 uint32_t FLASH_RangeCRC(uint32_t, uint32_t); 
 void FLASH_WaitForNVM(void); 
 void FLASH_ReadFlashPage(uint8_t *, uint32_t); 
+
+
+
+void writeRead(uint8_t* WriteBuffer, uint32_t pageTowrite) __attribute__ ((section (".bootloader")));
+//Original Function Prototype Commented out by Bhallaji @ 3/2/2017 for testing purposes
+//void EraseAppTablePage(uint8_t pageAddress) __attribute__ ((section (".BOOT")));
+// New Function prototype for testing purposes added by Bhallaji @ 3/2/17 12:31 AM
+void EraseAppTablePage(uint32_t pageAddress) __attribute__ ((section (".BOOT")));
+//Original Function Prototype Commented out by Bhallaji @ 3/2/2017 for testing purposes
+//void EraseWriteAppTablePage(uint8_t pageAddress) __attribute__ ((section (".BOOT")));
+// New Function prototype for testing purposes added by Bhallaji @ 3/2/17 12:23 AM
+void EraseWriteAppTablePage(uint32_t pageAddress) __attribute__ ((section (".BOOT")));
+//Original Function Prototype Commented out by Bhallaji @ 3/2/2017 for testing purposes
+//void WriteAppTablePage(uint8_t pageAddress) __attribute__ ((section (".BOOT")));
+// New Function prototype for testing purposes added by Bhallaji @ 3/2/17 12:31 AM
+void WriteAppTablePage(uint32_t pageAddress) __attribute__ ((section (".BOOT")));
+void LoadAppTableWord(uint16_t tableAddress, uint8_t lowByte, uint8_t highByte) __attribute__ ((section (".BOOT")));
+void ReadFlashPage(const uint8_t * data, uint8_t pageAddress) __attribute__ ((section (".BOOT")));
+
 /******************************************************End of New Code*******************************************************/
 
 // status codes

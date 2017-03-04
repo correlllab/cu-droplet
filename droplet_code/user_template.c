@@ -10,10 +10,7 @@ int16_t motor_signs_count=0;
  * Any code in this function will be run once, when the robot starts.
  */
 void init(){
-	print_motor_values();
-	check_if_motor_calibrated();
-	last_rnb_broadcast = 0;
-	//print_motor_values();
+	set_rgb(0,0,255);
 }
 
 /*
@@ -22,17 +19,17 @@ void init(){
 
 void loop(){
 
-	//if(get_time()-last_rnb_broadcast > 3000){
-		//broadcast_rnb_data();
-		//last_rnb_broadcast=get_time();
-	//}
+	if(get_time()-last_rnb_broadcast > 3000){
+		broadcast_rnb_data();
+		last_rnb_broadcast=get_time();
+	}
 //
-	//if(rnb_updated){
-		//printf("RANGE %d Bearing %d Heading %d\n\r",last_good_rnb.range,last_good_rnb.bearing,last_good_rnb.heading);
-		//edge_following(last_good_rnb.range,last_good_rnb.bearing);
-		//if(last_good_rnb.bearing)
-		//rnb_updated = 0; //Note! This line must be included for things to work properly.
-	//}
+	if(rnb_updated){
+	//	printf("RANGE %d Bearing %d Heading %d\n\r",last_good_rnb.range,last_good_rnb.bearing,last_good_rnb.heading);
+	//	edge_following(last_good_rnb.range,last_good_rnb.bearing);
+		if(last_good_rnb.bearing)
+		rnb_updated = 0; //Note! This line must be included for things to work properly.
+	}
 
 }
 

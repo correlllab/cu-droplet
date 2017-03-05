@@ -25,8 +25,8 @@ void loop(){
 	}
 //
 	if(rnb_updated){
-	//	printf("RANGE %d Bearing %d Heading %d\n\r",last_good_rnb.range,last_good_rnb.bearing,last_good_rnb.heading);
-	//	edge_following(last_good_rnb.range,last_good_rnb.bearing);
+		//printf("RANGE %d Bearing %d Heading %d\n\r",last_good_rnb.range,last_good_rnb.bearing,last_good_rnb.heading);
+		//edge_following(last_good_rnb.range,last_good_rnb.bearing);
 		if(last_good_rnb.bearing)
 		rnb_updated = 0; //Note! This line must be included for things to work properly.
 	}
@@ -52,20 +52,31 @@ void handle_msg(ir_msg* msg_struct){
 		}
 		
 		if(motor_signs_count==24){
-			printf("DONE\n\r");
+
+			int temp_count=motor_settings_received_count;
+			//printf("DONE\n\r");
 			motor_signs_count=0;
 		receiving_motor_settings_from_another_droplet_flag=0;
+		
+		while(motor_settings_received_count>=0){
+			if((motor_values_of_another_droplet[temp_count-motor_settings_received_count]=='+') || (motor_values_of_another_droplet[temp_count-motor_settings_received_count]=='-'))
+			motor_signs_count++;
+			if((motor_signs_count%3==0)&&((motor_values_of_another_droplet[temp_count-motor_settings_received_count+1]=='+') || (motor_values_of_another_droplet[temp_count-motor_settings_received_count+1]=='-')))
+			printf("\n\r");
+			printf("%c ",motor_values_of_another_droplet[temp_count-motor_settings_received_count]);	
+			motor_settings_received_count--;
+		}
+		
 		//custom_atoi(motor_values_of_another_droplet);
 		}
 	}
 
-	
-	
 	set_rgb(255,255,255);
 	//printf("Time :%lu\n\r",msg_struct->arrival_time);
 	//printf("Got message of length %hu from %04X:\r\n\t",msg_struct->length, msg_struct->sender_ID);
 	//printf("RANGE%d",last_good_rnb.range);
-	for(uint8_t i=0;i<msg_struct->length;i++) printf("\n\r%c ",msg_struct->msg[i]);
+	//for(uint8_t i=0;i<msg_struct->length;i++) printf("\n\r%c ",msg_struct->msg[i]);
+	//if(motor_signs_count%3 == 0) printf("\n\r");
 	if(msg_struct->msg[0]=='!')// MOTOR SETTINGS RECEIVED
 	{
 		receiving_motor_settings_from_another_droplet_flag=1;
@@ -73,6 +84,7 @@ void handle_msg(ir_msg* msg_struct){
 	
 	//printf("\r\n");
 }
+
 void edge_following(int16_t range, int16_t bearing)
 {
 	if(range>50){
@@ -111,11 +123,16 @@ char *custom_itoa(int value)
 		value=value*(-1);
 	}
 	int tempp_val=value;
+	if(tempp_val==0)
+	sze=1;
+	else{
 	 while(tempp_val > 0)
   {
      tempp_val = tempp_val / 10;
      sze = sze + 1;  
   }
+	}
+
 	char* temp_val;
 	temp_val=(char*)malloc((sze+1)/sizeof(char)); 
 	int motor_cnt=0;
@@ -151,7 +168,8 @@ void send_motor_settings(){
 				while(!ir_is_available(ALL_DIRS));
 				ir_send(ALL_DIRS,(as+cntt),1);
 				ulti_count++;
-				delay_ms(200);
+				while(!ir_is_available(ALL_DIRS));
+				delay_ms(300);
 			}
 		}
 	}

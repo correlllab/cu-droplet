@@ -2,27 +2,35 @@ from random import randint
 from random import normalvariate as randnormal
 import math, cmd
 import numpy as np
-# import matplotlib.pyplot as plt
-# import matplotlib.animation as anim
-
 
 ################################HELPER FUNCTIONS###############################
-###############################################################################
 """Simple function, ensures an angle is between -180 and 180"""
 def prettyAngleDeg(theta):
     return ((theta+180)%360) - 180
 
-
+def getPivotTransMat(leg, mag):
+    translateMat = np.identity(4)
+    translateMat[0][3] = leg[0]
+    translateMat[1][3] = leg[1]
+    translateBackMat = np.identity(4)
+    translateBackMat[0][3] = -leg[0]
+    translateBackMat[1][3] = -leg[1]
+    rotateMat = np.identity(4)
+    rotateMat[0][0] = math.cos(mag)
+    rotateMat[0][1] = -math.sin(mag)
+    rotateMat[1][0] = math.sin(mag)
+    rotateMat[1][1] = math.cos(mag)
+    rotateMat[2][3] = mag
+    return np.dot(np.dot(translateMat,rotateMat),translateBackMat)
+    
 def getDist(d1, d2):
     return math.hypot(d2.x-d1.x,d2.y-d1.y)
-
 
 def checkIntersecting(newBot, bots):
     for bot in bots:
         if getDist(bot, newBot)<(bot.radius+newBot.radius):
             return True
     return False
-
 
 def generateBots(quantity, region):
     """
@@ -70,7 +78,6 @@ class RnbMeas:
         return "{{{}, {}, {{{}, {}, {}}}}}".format(self.rxID, self.txID,
                                                    self.r, self.b, self.h)
 
-
 ###############################################################################
 class DropletWorld:
     def __init__(self, xmin = -500, xmax = 500, ymin = -500, ymax = 500):
@@ -86,50 +93,78 @@ class DropletWorld:
 class Droplet:
     
     radius = 22
-    #15.1 from center to foot
+    legs = np.array(((13.077, 7.55), (0.0, -15.1), (-13.077, 7.55)))
+    motorSettings = [[0,0],[0,0], [0,0]]
     
-    def __init__(self, x, y, o, id=None):
-        #Global coordinates
+    """
+    motorMags is intended to reflect each motor's variation, and should remain fixed.
+    motorMags[i][0] is the relative strength of motor i in the 'positive' direction
+    motorMags[i][1] is the relative strength of motor i in the 'negative' direction.
+    Each pair of numbers should have the same sign -- if a motor is flipped, both directions are of course flipped.
+    However, in my observations, motors are not equally strong spinning in both directions.
+    """
+    def __init__(self, x, y, o, id=None, mags=((1,1),(1,1),(1,1))):
         self.x = x
         self.y = y
         self.o = o
-
-        #Motor settings
-        self.m0 = 0
-        self.m1 = 0
-        self.m2 = 0
-
-        #Calibrated
-        self.calibrated = False
-
+        self.motorMags = np.array(mags)
         if id is None:
             self.id = "{:04X}".format(randint(0,65535))
         else:
             self.id = id
     
     def move(self, dir, dist):
-        assert(dir in range(0,7))
+        assert(dir in range(8))
 
         dirs = {0 : 0, 1 : 180/3, 2 : 360/3, 3 : 180,
                 4 : -360/3, 5 : -180/3, 6 : 1, 7 : -1}
 
         if dir <= 5:
-            if abs(dist*math.cos(math.radians(self.o + dirs[dir]+90))) < .001:
-                self.x += 0
-
-            if abs(dist*math.cos(math.radians(self.o + dirs[dir]+90))) >= .001:
-                self.x += dist*math.cos(math.radians(self.o + dirs[dir] + 90))
-
-            if abs(dist*math.sin(math.radians(self.o + dirs[dir]+90))) < .001:
-                self.y += 0
-
-            if abs(dist*math.sin(math.radians(self.o + dirs[dir]+90))) >= .001:
-                self.y += dist*math.sin(math.radians(self.o + dirs[dir] + 90))
-
+            self.x += dist*math.cos(math.radians(self.o + dirs[dir] + 90))
+            self.y += dist*math.sin(math.radians(self.o + dirs[dir] + 90))
         else:
             self.o += dist*dirs[dir]
 
+    def getMotorMag(self, mot, dir):
+        baseMag = 0.0174533 #This is one degree in radians. Tweak as appropriate.
+        dirSign = -1 if dir==1 else 1
+        sign = dirSign*np.sign(self.motorMags[mot][dir])*np.sign(self.motorSettings[mot][dir]+0.1) #I don't want this sign to ever be 0.
+        adjustment = abs(self.motorSettings[mot][dir])/1000
+        return sign*(baseMag*self.motorMags[mot][dir] + adjustment)
 
+    """
+    TODO: Might be good to add some process noise to the motion, because each step won't be exactly perfect.
+    """
+    def step(self, dir):
+        assert(dir in range(8))
+        def leg0posPivot(): return getPivotTransMat(self.legs[0], self.getMotorMag(2,0))
+        def leg0negPivot(): return getPivotTransMat(self.legs[0], self.getMotorMag(2,1))
+        def leg1posPivot(): return getPivotTransMat(self.legs[1], self.getMotorMag(0,0))
+        def leg1negPivot(): return getPivotTransMat(self.legs[1], self.getMotorMag(0,1))
+        def leg2posPivot(): return getPivotTransMat(self.legs[2], self.getMotorMag(1,0))
+        def leg2negPivot(): return getPivotTransMat(self.legs[2], self.getMotorMag(1,1))
+        if dir is 0:
+            stepMat = np.dot(leg0negPivot(), leg2posPivot())
+        elif dir is 1:
+            stepMat = np.dot(leg1negPivot(), leg2posPivot())
+        elif dir is 2:
+            stepMat = np.dot(leg0posPivot(), leg1negPivot())
+        elif dir is 3:
+            stepMat = np.dot(leg0posPivot(), leg2negPivot())
+        elif dir is 4:
+            stepMat = np.dot(leg1posPivot(), leg2negPivot())
+        elif dir is 5:
+            stepMat = np.dot(leg0negPivot(), leg1posPivot())
+        elif dir is 6:
+            stepMat = np.dot(np.dot(leg0negPivot(), leg1negPivot()), leg2negPivot())
+        elif dir is 7:
+            stepMat = np.dot(np.dot(leg0posPivot(), leg1posPivot()), leg2posPivot())
+        posArr = np.array([self.x, self.y, math.radians(self.o), 1])
+        newPos = np.dot(stepMat, posArr)
+        self.x = newPos[0]
+        self.y = newPos[1]
+        self.o = prettyAngleDeg(math.degrees(newPos[2]))
+            
     def rnbMeas(self, bot):
         """Generates a simulated measurement of bot by self."""
         xDiff = bot.x-self.x
@@ -137,7 +172,7 @@ class Droplet:
         oDiff = bot.o-self.o
         range = math.hypot(xDiff, yDiff)
         bearing = prettyAngleDeg(math.degrees(math.atan2(yDiff, xDiff))
-                                 - self.o-90)
+                                 -self.o-90)
         heading = prettyAngleDeg(oDiff)
         meas = RnbMeas(int(round(range)), int(round(bearing)),
                        int(round(heading)), self.id, bot.id)
@@ -146,7 +181,7 @@ class Droplet:
         return meas
     
     def __repr__(self):
-        return "{{{}, {{{}, {}, {}}}}}".format(self.id, self.x,
+        return "{{{}, {{{: .2f}, {: .2f}, {: .2f}}}}}".format(self.id, self.x,
                                                self.y, self.o)
 
 
@@ -164,27 +199,14 @@ class DropletSim(cmd.Cmd):
     def do_Genbots(self, s):
         'Generate n number of Droplets in Droplet World.\n\
         Command format: n'
-        if s == '':
-            print 'No arguments given, try num >= 1'
-            return
         bot_count = int(s.split()[0])
         world_dims = ((world.x0, world.x1), (world.y0, world.y1))
-        newBots = generateBots(bot_count, world_dims)
-        for bot in newBots:
-            world.bots.append(bot)
-
-    def do_Wipebots(self, s):
-        'Reset bots to blank'
-        world.bots = []
+        world.bots.append(generateBots(bot_count, world_dims))
 
     def do_Allbots(self, s):
         'Return the status of all Droplets.\n\
         Command format: No Arguments'
-        i = 0
-        while i < len(world.bots):
-            print world.bots[i]
-            i += 1
-        # print(world.bots)
+        print(world.bots)
 
     def do_Newbot(self, s):
         'Generate new Droplet at location x,y with orientation o \
@@ -202,38 +224,27 @@ class DropletSim(cmd.Cmd):
             return
         else:
             world.bots.append(newBot)
-            print world.bots
+            print(world.bots)
 
     def do_move(self, s):
-        'Move Droplet d Direction dir a Distance dist.\
-        \nCommand format: d dir dist'
-        d = int(s.split()[0])
+        'Move Droplet bot Direction dir a Distance dist.\
+        \nCommand format: bot dir dist'
+        bot = int(s.split()[0])
         dir = int(s.split()[1])
         dist = float(s.split()[2])
-        world.bots[d].move(dir, dist)
-        print world.bots[d]
+        world.bots[bot].move(dir, dist)
+        print(world.bots[bot])
 
     def do_get_rnb_data(self, s):
         'Get rnb data for bot a with respect to bot b.\
-        \nCommand format: d1 d2'
-        d1 = int(s.split()[0])
-        d2 = int(s.split()[1])
+        \nCommand format: a b'
 
-        meas = world.bots[d1].rnbMeas(world.bots[d2])
-        print meas
-
-    def do_exit(self, s):
-        'Exit the Droplet Terminal'
-        return True
-
-    def do_calibrate(self, s):
-        'Call calibration routine for Droplet a \
-        \nCommand format: d'
-        if world.bots[d].calibrated:
-            print("calibrating")
-        return
 
 ##################################MAIN PROGRAM#################################
-if __name__ == '__main__':
-    world = DropletWorld()
-    DropletSim().cmdloop()
+#if __name__ == '__main__':
+#    world = DropletWorld()
+#    DropletSim().cmdloop()
+for i in range(8):
+    d = Droplet(0,0,0, "A", ((1.1,1.1),(0.8,0.8),(1.0,1.0)))
+    d.step(i)
+    print("{}: {}".format(i, d))

@@ -179,7 +179,7 @@ void SP_EraseApplicationSection(void);
  *
  *  \param address Byte address for flash page.
  */
-void SP_EraseApplicationPage(uint32_t address);
+void SP_EraseApplicationPage(uint32_t address); 
 
 /*! \brief Erase and write page buffer to application or application table section at byte address.
  *

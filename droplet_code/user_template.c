@@ -23,7 +23,9 @@ void loop(){
 		broadcast_rnb_data();
 		last_rnb_broadcast=get_time();
 	}
-//
+	
+move_to_closest();
+
 	if(rnb_updated){
 		//printf("RANGE %d Bearing %d Heading %d\n\r",last_good_rnb.range,last_good_rnb.bearing,last_good_rnb.heading);
 		//edge_following(last_good_rnb.range,last_good_rnb.bearing);
@@ -177,6 +179,50 @@ void send_motor_settings(){
 	ulti_count=0;
 	set_rgb(0,0,0);
 }
+void move_to_closest(){
+	int16_t measured_vals[6];
+	uint8_t dirs=0;
+	if(!ir_is_available(ALL_DIRS)){
+		printf_P(PSTR("IR Hardware busy, probably sending a message? Can't check collisions.\r\n"));
+		return;
+	}
+	for(uint8_t i=0;i<6;i++) ir_rxtx[i].status = IR_STATUS_BUSY_bm;
+	uint16_t curr_power = get_all_ir_powers();
+	set_all_ir_powers(256);
+	
+	for(uint8_t i=0;i<6;i++) ir_led_on(i);
+	busy_delay_us(250);
+	get_ir_sensors(measured_vals, 5);
+	int16_t max_ir_value=0;
+	uint8_t max_value_dir;
+	for(uint8_t i=0;i<6;i++){
+		 printf("%4d ", measured_vals[i]);
+		 if(measured_vals[i]>max_ir_value){
+		 max_ir_value=measured_vals[i];
+		 max_value_dir=i;
+			printf("MAX %4d  DIR %d\n\r", max_ir_value,max_value_dir);
+		 }
+	}
+	printf("\r\n");
+	for(uint8_t i=0;i<6;i++) ir_led_off(i);
+	set_all_ir_powers(curr_power);
+	for(uint8_t i=0;i<6;i++) ir_rxtx[i].status = 0;		
+	if(max_ir_value>=1000){
+	if((max_value_dir==0)||(max_value_dir==5)){
+	move_steps(0,10);
+	//while(is_moving());
+	}
+	else if((max_value_dir==1)||(max_value_dir==2)){
+		move_steps(6,10);
+		//while(is_moving());
+	}
+	else
+	move_steps(7,10);
+	}
+	
+	
+	
+}
 void check_if_motor_calibrated()
 {
 	int cnt=0;
@@ -202,6 +248,10 @@ void check_if_motor_calibrated()
 uint8_t user_handle_command(char* command_word, char* command_args){
 	if(strcmp_P(command_word,PSTR("read_motor_settings"))==0){
 		schedule_task(5, send_motor_settings, NULL);
+		return 1;
+	}
+	else if(strcmp_P(command_word,PSTR("white"))==0){
+		schedule_task(5, move_to_closest, NULL);
 		return 1;
 	}
 	return 0;

@@ -80,7 +80,7 @@ EraseWriteAppTablePage(i);
 
 
 static void handle_check_collisions(){
-	uint8_t dirs = check_collisions();
+ 	uint8_t dirs = check_collisions();
 	uint8_t found=0;
 	for(uint8_t i=0;i<6;i++){
 		if(dirs&(1<<i)){
@@ -96,8 +96,7 @@ static void handle_ir_coll_baseline_update(){
 	int16_t sums[6];
 	int16_t tmp[6];
 	for(uint8_t i=0; i<6; i++){
-		ir_coll_baseline[i] = 0;
-		sums[i] = 0;
+		ir_coll_baseline[i] = 0; 
 	}
 	for(uint8_t i=0; i<10; i++){
 		check_collision_values(tmp);

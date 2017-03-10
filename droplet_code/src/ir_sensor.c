@@ -80,7 +80,7 @@ void ir_sensor_init(){
 	#endif
 	
 	delay_ms(10);
-	read_ir_coll_baselines();
+	//read_ir_coll_baselines();
 	
 	for(uint8_t dir=0;dir<6;dir++){
 		ir_sense_baseline[dir]=0;
@@ -180,6 +180,7 @@ void write_ir_coll_baselines(){
 
 uint8_t check_collisions(){
 	int16_t meas[6];
+
 	uint8_t dirs = 0;
 	check_collision_values(meas);
 	for(uint8_t i=0;i<6;i++){
@@ -200,19 +201,19 @@ void check_collision_values(int16_t meas[6]){
 	uint16_t curr_power = get_all_ir_powers();
 	set_all_ir_powers(256);
 	get_ir_sensors(baseline_meas, 5);
-	//printf("Coll    base: ");
-	//for(uint8_t i=0;i<6;i++) printf("%4d ", baseline_meas[i]);
-	//printf("\r\n");
+	printf("Coll base: ");
+	for(uint8_t i=0;i<6;i++) printf("%4d ", baseline_meas[i]);
+	printf("\r\n");
 	for(uint8_t i=0;i<6;i++) ir_led_on(i);
 	busy_delay_us(250);	
 	get_ir_sensors(measured_vals, 5);
-	//printf("Coll results: ");
-	//for(uint8_t i=0;i<6;i++) printf("%4d ", measured_vals[i]);
-	//printf("\r\n");
+	printf("Coll results: ");
+	for(uint8_t i=0;i<6;i++) printf("%4d ", measured_vals[i]);
+	printf("\r\n");
 	for(uint8_t i=0;i<6;i++) ir_led_off(i);
 	for(uint8_t i=0;i<6;i++){
 		meas[i] = (measured_vals[i]-baseline_meas[i]);
-		meas[i] = meas[i] - ir_coll_baseline[i];
+		//meas[i] = meas[i] - ir_coll_baseline[i];
 	}
 	set_all_ir_powers(curr_power);
 	for(uint8_t i=0;i<6;i++) ir_rxtx[i].status = 0;		

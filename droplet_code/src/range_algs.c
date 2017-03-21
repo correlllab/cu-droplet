@@ -68,7 +68,7 @@ float calculate_error(float r, float b, float h);
 static int16_t processBrightMeas();
 
 static float magicRangeFunc(float a);
-static float invMagicRangeFunc(float r);
+//static float invMagicRangeFunc(float r);
 
 //static void print_brightMeas();
 												
@@ -330,15 +330,15 @@ static float magicRangeFunc(float a){
 	}
 }
 
-static float invMagicRangeFunc(float r){
-	if(r>250){
-		return 0;
-	}else{
-		float logTerm = log((778.0270114700331/(r + 528.0270114700331)) - 1);
-		float result = 3367.2274479842324/(2.2757149424086466 + logTerm*(7.184767720344338 + logTerm*5.670842845179211));
-		return result;
-	}
-}
+//static float invMagicRangeFunc(float r){
+	//if(r>250){
+		//return 0;
+	//}else{
+		//float logTerm = log((778.0270114700331/(r + 528.0270114700331)) - 1);
+		//float result = 3367.2274479842324/(2.2757149424086466 + logTerm*(7.184767720344338 + logTerm*5.670842845179211));
+		//return result;
+	//}
+//}
 //
 //static void print_brightMeas(){
 	//printf("{\"%04X\", \"%04X\", {", rnbCmdID, get_droplet_id());

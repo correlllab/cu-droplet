@@ -22,8 +22,8 @@ void ir_led_init()
 	/* Initialize carrier waves */
 	PORTF.DIRSET = ALL_EMITTERS_CARWAV_bm;
 	
-	TCF2.CTRLE = TC_BYTEM_SPLITMODE_gc;		// "split mode" puts this timer counter into "Type 2 mode"
-	TCF2.CTRLA |= TC_CLKSEL_DIV4_gc;		// see CTRLA description in TC2 mode
+	TCF2.CTRLE = TC2_BYTEM_SPLITMODE_gc;		// "split mode" puts this timer counter into "Type 2 mode"
+	TCF2.CTRLA |= TC2_CLKSEL_DIV4_gc;		// see CTRLA description in TC2 mode
 	
 	TCF2.HPER = 211; TCF2.LPER = 211; // 32MHz / (4 * 211) = 38kHz
 	TCF2.HCMPA = 105; TCF2.HCMPB = 105; TCF2.HCMPC = 105; // 50% Duty Cycle

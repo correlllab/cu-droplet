@@ -6,9 +6,9 @@ static const char RGB_SENSE_POWERON_FAILURE[] PROGMEM = "RGB sense power-on fail
 static int16_t r_baseline, g_baseline, b_baseline;
 #endif
 
-typedef enum{
-	R, G, B
-} Colors;
+//typedef enum{
+	//R, G, B
+//} Colors;
 
 typedef union{
 	uint32_t i;

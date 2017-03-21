@@ -14,24 +14,21 @@
 
 
 
-#define DROPLET_RADIUS 2.22  //cm
-#define DROPLET_DIAMETER 4.44 //cm
-#define DROPLET_SENSOR_RADIUS 2.5 //cm
+#define DROPLET_RADIUS 22U  //mm
+#define DROPLET_RADIUS_SQ 484U //mm
+#define DROPLET_DIAMETER 44 //mm
 
 //Synchronization Timing Constants:
-#define POST_BROADCAST_DELAY			30
-#define TIME_FOR_SET_IR_POWERS			2
-#define TIME_FOR_GET_IR_VALS			8
-#define DELAY_BETWEEN_RB_TRANSMISSIONS	8
+#define POST_BROADCAST_DELAY			30U
+#define TIME_FOR_SET_IR_POWERS			2U
+#define TIME_FOR_IR_MEAS				12U
+#define TIME_FOR_GET_IR_VALS			16U
+#define DELAY_BETWEEN_RB_TRANSMISSIONS	10U
 
 //Constants for rnb processing:
 #define MIN_MATRIX_SUM_THRESH	115
-#define SQRT3_OVER2				0.8660254f
-#define FD_MAX_STEP				0.5236f
-#define FD_INIT_STEP			0.05f
-#define FD_MIN_STEP				0.0017f
-#define FD_DELTA_B				0.004f
-#define FD_DELTA_H				0.004f
+#define ELEVEN_SQRT3		   19.0525588833f
+#define SQRT3_OVER2				0.8660254038f
 
 typedef struct list_el {
 	float Rx;
@@ -43,10 +40,9 @@ typedef struct list_el {
 } rVectorNode;
 
 typedef struct rnb_data {
-	float range;
-	float bearing;
-	float heading;
-	float conf;
+	uint16_t range;
+	int16_t bearing;
+	int16_t heading;
 	id_t id;
 } rnb;
 
@@ -86,4 +82,3 @@ inline float rad_to_deg(float rad){
 inline float deg_to_rad(float deg){
 	return pretty_angle( (deg / 180) * M_PI );
 }
-

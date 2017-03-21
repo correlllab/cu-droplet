@@ -15,7 +15,7 @@ void set_sync_blink_color(uint8_t r, uint8_t g, uint8_t b){
 
 void set_sync_blink_duration(uint16_t dur){
 	ffsync_blink_dur = dur;
-	if((TCE0.INTCTRLB & TC_CCAINTLVL_HI_gc) == TC_CCAINTLVL_HI_gc){
+	if((TCE0.INTCTRLB & TC_TC0_CCAINTLVL_HI_gc) == TC_TC0_CCAINTLVL_HI_gc){
 		TCE0.CCA = TCE0.CCB - (uint16_t)(ffsync_blink_dur*FFSYNC_MS_CONVERSION_FACTOR);
 	}
 }
@@ -26,15 +26,15 @@ void enable_sync_blink(uint16_t phase_offset){
 	uint16_t turn_on_cc = turn_off_cc - (uint16_t)(ffsync_blink_dur*FFSYNC_MS_CONVERSION_FACTOR);
 	TCE0.CCA = turn_on_cc;
 	TCE0.CCB = turn_off_cc;
-	TCE0.INTCTRLB = TC_CCAINTLVL_HI_gc | TC_CCBINTLVL_HI_gc;
+	TCE0.INTCTRLB = TC_TC0_CCAINTLVL_HI_gc | TC_TC0_CCBINTLVL_HI_gc;
 }
 
 uint8_t sync_blink_enabled(){
-	return (TCE0.INTCTRLB & (TC_CCAINTLVL_HI_gc | TC_CCBINTLVL_HI_gc)) == (TC_CCAINTLVL_HI_gc | TC_CCBINTLVL_HI_gc);
+	return (TCE0.INTCTRLB & (TC_TC0_CCAINTLVL_HI_gc | TC_TC0_CCBINTLVL_HI_gc)) == (TC_TC0_CCAINTLVL_HI_gc | TC_TC0_CCBINTLVL_HI_gc);
 }
 
 void disable_sync_blink(){
-	TCE0.INTCTRLB = TC_CCAINTLVL_OFF_gc | TC_CCBINTLVL_OFF_gc;
+	TCE0.INTCTRLB = TC_TC0_CCAINTLVL_OFF_gc | TC_TC0_CCBINTLVL_OFF_gc;
 	TCE0.CCA = 0;
 	TCE0.CCB = 0;
 }
@@ -62,12 +62,12 @@ void firefly_sync_init()
 
 	EVSYS.CH0MUX = EVSYS_CHMUX_PRESCALER_4096_gc;
 	
-	TCE0.CTRLA = TC_CLKSEL_EVCH0_gc;
-	TCE0.CTRLB = TC_WGMODE_NORMAL_gc;
+	TCE0.CTRLA = TC_TC0_CLKSEL_EVCH0_gc;
+	TCE0.CTRLB = TC_TC0_WGMODE_NORMAL_gc;
 
 	TCE0.PER =  FFSYNC_FULL_PERIOD;
-	TCE0.INTCTRLA = TC_OVFINTLVL_HI_gc;
-	TCE0.INTCTRLB = TC_CCAINTLVL_OFF_gc | TC_CCBINTLVL_OFF_gc;	
+	TCE0.INTCTRLA = TC_TC0_OVFINTLVL_HI_gc;
+	TCE0.INTCTRLB = TC_TC0_CCAINTLVL_OFF_gc | TC_TC0_CCBINTLVL_OFF_gc;	
 	TCE0.CNT = 0;
 		TCE0.CCA = 0;
 		TCE0.CCB = 0;
@@ -149,9 +149,9 @@ static void updateRTC(){
 }
 
 void sendPing(void* val){
-	uint8_t result = hp_ir_targeted_cmd(ALL_DIRS, NULL, 64, (uint16_t)val);
-	if(!result){
-		printf_P(PSTR("Unable to send ff_sync ping due to other hp ir activity.\r\n"));
-	}
+	/*uint8_t result = */hp_ir_targeted_cmd(ALL_DIRS, NULL, 64, (uint16_t)val);
+	//if(!result){
+		//printf_P(PSTR("Unable to send ff_sync ping due to other hp ir activity.\r\n"));
+	//}
 	schedule_task(FFSYNC_W, processObsQueue, NULL);
 }

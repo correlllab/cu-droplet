@@ -2,14 +2,16 @@
 <Affine>
   <maintain_aspect_ratio>FALSE</maintain_aspect_ratio>
   <perspective_compensation>TRUE</perspective_compensation>
-  <point_1_x>728.571</point_1_x>
-  <point_1_y>1057.14</point_1_y>
-  <point_2_x>1656.14</point_2_x>
-  <point_2_y>1058.29</point_2_y>
-  <point_3_x>609.714</point_3_x>
-  <point_3_y>75.8572</point_3_y>
-  <point_4_x>1791.57</point_4_x>
-  <point_4_y>20</point_4_y>
+  <point_1_x>718.5</point_1_x>
+  <point_1_y>1072</point_1_y>
+  <point_2_x>1656</point_2_x>
+  <point_2_y>1042.5</point_2_y>
+  <point_3_x>573.5</point_3_x>
+  <point_3_y>74</point_3_y>
+  <point_4_x>1763</point_4_x>
+  <point_4_y>0.428589</point_4_y>
+  <scroll_x_offset>867</scroll_x_offset>
+  <scroll_y_offset>643</scroll_y_offset>
   <transform_height>1000</transform_height>
   <transform_width>1000</transform_width>
   <zoom>12</zoom>
@@ -21,7 +23,7 @@
 </Marker>
 <Fiducial>
   <adaptive_threshold>30</adaptive_threshold>
-  <base_folder>.\fids4</base_folder>
+  <base_folder>.\Fiducials\fids4</base_folder>
   <color_fiducials>FALSE</color_fiducials>
   <create_shape_array>TRUE</create_shape_array>
   <display_confidence>TRUE</display_confidence>
@@ -108,4 +110,67 @@
 <function>
 <function_name>Tab2</function_name>
 <function_always_run>0</function_always_run>
+<Affine>
+  <maintain_aspect_ratio>FALSE</maintain_aspect_ratio>
+  <perspective_compensation>TRUE</perspective_compensation>
+  <point_1_x>564.5</point_1_x>
+  <point_1_y>1083.5</point_1_y>
+  <point_2_x>1497</point_2_x>
+  <point_2_y>1080.5</point_2_y>
+  <point_3_x>443</point_3_x>
+  <point_3_y>65.5</point_3_y>
+  <point_4_x>1638.5</point_4_x>
+  <point_4_y>73</point_4_y>
+  <scroll_x_offset>510</scroll_x_offset>
+  <transform_height>1000</transform_height>
+  <transform_width>1000</transform_width>
+  <zoom>12</zoom>
+</Affine>
+<Marker>
+  <include_graphics>0</include_graphics>
+  <name>Corrected</name>
+  <revert_to>Current</revert_to>
+</Marker>
+<HSV_Channel>
+  <channel>2</channel>
+</HSV_Channel>
+<Reduce_Colors>
+  <detail_size>40</detail_size>
+  <tolerance>128</tolerance>
+</Reduce_Colors>
+<Blob_Filter>
+  <create_blob_array_variable>TRUE</create_blob_array_variable>
+  <filters>
+    <tab>
+      <filter>
+        <count_threshold>0</count_threshold>
+        <create_array>0</create_array>
+        <filter_id>86</filter_id>
+        <invert_count>0</invert_count>
+        <invert_threshold>0</invert_threshold>
+        <weight_threshold>0.8</weight_threshold>
+      </filter>
+    </tab>
+    <tab:2/>
+    <tab:3/>
+    <tab:4/>
+    <tab:5/>
+    <tab:6/>
+  </filters>
+  <font_size>Normal (10pt)</font_size>
+  <largest_is_background>TRUE</largest_is_background>
+  <show_weights>FALSE</show_weights>
+  <sort_array_on_x>FALSE</sort_array_on_x>
+  <sort_array_on_y>FALSE</sort_array_on_y>
+</Blob_Filter>
+<Blob_Colorize>
+  <comparison_mode>1</comparison_mode>
+  <sensitivity>75</sensitivity>
+  <show_labels>FALSE</show_labels>
+  <source_image>Corrected</source_image>
+  <threshold>0</threshold>
+</Blob_Colorize>
+<Watch_Variables>
+  <on_top>TRUE</on_top>
+</Watch_Variables>
 </function>

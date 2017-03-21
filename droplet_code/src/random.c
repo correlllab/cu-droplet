@@ -106,7 +106,7 @@ uint32_t rand_quad(){
 }
 
 float rand_real(){
-	return (((float)rand_short())/65535.0);
+	return (((float)rand_quad())/4294967295.0);
 }
 
 float rand_norm(float mean, float stdDev){

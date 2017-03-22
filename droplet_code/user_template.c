@@ -1,12 +1,10 @@
 #include "user_template.h"
 
-uint32_t lastBroadcast;
-
 /*
  * Any code in this function will be run once, when the robot starts.
  */
 void init(){
-	lastBroadcast=0;
+	
 }
 
 /*
@@ -14,13 +12,7 @@ void init(){
  */
 void loop(){
 
-	if((get_time()-lastBroadcast)>1000){
-		lastBroadcast=get_time();
-		broadcast_rnb_data();
-	}
-
 	if(rnb_updated){
-		printf("\t[%lu] %04X: %u, %d, %d\r\n", get_time(), last_good_rnb.id, last_good_rnb.range, last_good_rnb.bearing, last_good_rnb.heading);
 		rnb_updated = 0;
 	}
 }

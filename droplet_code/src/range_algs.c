@@ -126,13 +126,14 @@ void use_rnb_data(){
 		if(!isnanf(range)){
 			if(range<2*DROPLET_RADIUS) range=46;
 			error = calculate_error(range, bearing, heading);
+			//printf("ID: %04X, R: %4u, B: % 4d, H: % 4d | %f\r\n", rnbCmdID, (uint16_t)range, (int16_t)rad_to_deg(bearing), (int16_t)rad_to_deg(heading), error);
 			if(error>1.1 && range<140){
 				ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 					rnbProcessingFlag=0;
 				}
 				return;
 			}
-			//printf("ID: %04X, R: %4u, B: % 4d, H: % 4d\r\n", rnbCmdID, (uint16_t)range, (int16_t)rad_to_deg(bearing), (int16_t)rad_to_deg(heading), (uint8_t)error);
+			
 			last_good_rnb.id = rnbCmdID;
 			last_good_rnb.range		= (uint16_t)(range);
 			last_good_rnb.bearing	= (int16_t)rad_to_deg(bearing);
@@ -188,7 +189,6 @@ float calculate_error(float r, float b, float h){
 	float rij[2];
 	float rijMagSq;
 	float alphaDotP, betaDotP;
-	float meas;
 	float measTotal = 0;
 	float cosAcosBTotal = 0;
 	float cosAcosB[36];
@@ -203,16 +203,15 @@ float calculate_error(float r, float b, float h){
 		betaDotP = (-rij[0])*txHats[tx][0] + (-rij[1])*txHats[tx][1];
 		betaDotP = betaDotP < 0 ? 0 : betaDotP;
 		rijMagSq = rij[0]*rij[0] + rij[1]*rij[1];
-
-		measTotal += meas;
+		
+		measTotal += fast_bm[i];
 		cosAcosB[i] = (alphaDotP*betaDotP)/(rijMagSq*DROPLET_RADIUS_SQ);
 		cosAcosBTotal += cosAcosB[i];
 	}
 
 	float conf = 0;
 	for(uint8_t i=0;i<36;i++){
-		meas = fast_bm[i];
-		conf += fabsf( (meas/measTotal) - (cosAcosB[i]/cosAcosBTotal) );
+		conf += fabsf( (fast_bm[i]/measTotal) - (cosAcosB[i]/cosAcosBTotal) );
 	}
 	
 	return conf;

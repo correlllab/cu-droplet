@@ -54,11 +54,18 @@ void motor_init()
     TCD0.CTRLA = TC_TC0_CLKSEL_OFF_gc;
     TCD0.CTRLB = TC_TC0_WGMODE_SS_gc;  
 	
+	#ifndef AUDIO_DROPLET
+	PORTC.PIN0CTRL = PORT_INVEN_bm;
+	PORTC.PIN1CTRL = PORT_INVEN_bm;
+	#endif
 	PORTC.PIN4CTRL = PORT_INVEN_bm;
 	PORTC.PIN5CTRL = PORT_INVEN_bm;
 	PORTD.PIN0CTRL = PORT_INVEN_bm;
 	PORTD.PIN1CTRL = PORT_INVEN_bm;
 	
+	#ifndef AUDIO_DROPLET
+	PORTC.OUTCLR = PIN0_bm | PIN1_bm;
+	#endif
 	PORTC.OUTCLR = PIN4_bm | PIN5_bm;
 	PORTD.OUTCLR = PIN0_bm | PIN1_bm;
 
@@ -131,9 +138,9 @@ uint8_t move_steps(uint8_t direction, uint16_t num_steps)
 	
 	if(current_offset != total_time) printf_P(PSTR("ERROR: current_offset: %u and total_time: %u not equal!\r\n"), current_offset, total_time);
 	//printf("Just about to turn on motors: %lu\r\n",get_time());
-	TCC0.CTRLFSET = TC_TC0_CMD_RESET_gc;
-	TCC1.CTRLFSET = TC_TC0_CMD_RESET_gc;
-	TCD0.CTRLFSET = TC_TC0_CMD_RESET_gc;
+	//TCC0.CTRLFSET = TC_TC0_CMD_RESET_gc;
+	//TCC1.CTRLFSET = TC_TC0_CMD_RESET_gc;
+	//TCD0.CTRLFSET = TC_TC0_CMD_RESET_gc;
 
 
 	for(uint8_t mot=0 ; mot<3 ; mot++) 	//Now we just need to tell the motors to go!
@@ -172,13 +179,13 @@ void stop_move()
 	//printf("Stopping.\r\n");
 	
 	#ifndef AUDIO_DROPLET
+		TCC0.CTRLB &= ~(TC0_CCAEN_bm | TC0_CCBEN_bm);
 		TCC0.CTRLA = TC_TC0_CLKSEL_OFF_gc;
-		TCC0.CTRLB = TC_TC0_WGMODE_SS_gc;
 	#endif
+	TCC1.CTRLB  &= ~(TC1_CCAEN_bm | TC1_CCBEN_bm);
 	TCC1.CTRLA = TC_TC1_CLKSEL_OFF_gc;
-	TCC1.CTRLB = TC_TC1_WGMODE_SS_gc;
+	TCD0.CTRLB  &= ~(TC0_CCAEN_bm | TC0_CCBEN_bm);
 	TCD0.CTRLA = TC_TC0_CLKSEL_OFF_gc;
-	TCD0.CTRLB = TC_TC0_WGMODE_SS_gc;
 	
 	#ifdef AUDIO_DROPLET
 		PORTC.OUTCLR = PIN4_bm | PIN5_bm;

@@ -329,6 +329,7 @@ static float magicRangeFunc(float a){
 		result = (778.0270114700/result) - 528.0270114700;
 		return result;
 	}
+}
 
 //static float invMagicRangeFunc(float r){
 	//if(r>250){

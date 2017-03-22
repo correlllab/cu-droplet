@@ -127,12 +127,12 @@ void use_rnb_data(){
 			if(range<2*DROPLET_RADIUS) range=46;
 			error = calculate_error(range, bearing, heading);
 			//printf("ID: %04X, R: %4u, B: % 4d, H: % 4d | %f\r\n", rnbCmdID, (uint16_t)range, (int16_t)rad_to_deg(bearing), (int16_t)rad_to_deg(heading), error);
-			if(error>1.1 && range<140){
-				ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-					rnbProcessingFlag=0;
-				}
-				return;
-			}
+			//if(error>1.1 && range<140){
+			//	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+			//		rnbProcessingFlag=0;
+			//	}
+			//	return;
+			//}
 			
 			last_good_rnb.id = rnbCmdID;
 			last_good_rnb.range		= (uint16_t)(range);

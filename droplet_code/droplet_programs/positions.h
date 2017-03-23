@@ -124,7 +124,6 @@ typedef struct bot_pos_struct{
 typedef struct bot_meas_msg_struct{
 	BotPos pos; //6 bytes
 	DensePosCovar covar; //12 bytes
-	uint8_t seedIdx;
 	char flag;
 }BotMeasMsg;
 
@@ -145,14 +144,12 @@ typedef struct other_bot_rnb_struct{
 	BotPos posFromMe;
 	DensePosCovar posCovar;
 	uint8_t occluded;
-	uint8_t seedIdx;
 	//uint8_t hasNewInfo;
 } OtherBot;
 OtherBot nearBots[NUM_TRACKED_BOTS+1];
 
 BotPos myPos;
-BotPos perSeedPos[NUM_SEEDS];
-DensePosCovar perSeedCovars[NUM_SEEDS];
+DensePosCovar myPosCovar;
 //BotMeasMsg preppedMsg;
 //id_t preppedMsgTarget;
 //uint8_t preppedMsgDirMask;
@@ -185,9 +182,9 @@ void		getWeightedRandOtherBots(uint8_t* botIdxs, uint8_t n);
 
 uint8_t     nearBotUseabilityCheck(uint8_t i);
 float		chooseOmega(Matrix* myPinv, Matrix* yourPinv);
-void		ciUpdatePos(uint8_t idx, BotPos* pos, Matrix* yourP);
+void		ciUpdatePos(BotPos* pos, Matrix* yourP);
 void		updatePositions();
-void		processMeasurement(uint8_t botIdx, uint8_t seedIdx, Matrix* myP);
+void		processMeasurement(uint8_t botIdx, Matrix* myP);
 void		getMeasCovar(Matrix* R, Vector* meas);
 void		calcRelativePose(Vector* pose, Vector* meas);
 void		populateGammaMatrix(Matrix* G, Vector* pos);
@@ -252,16 +249,9 @@ inline static void initPositions(){
 	myPos.x = UNDF;
 	myPos.y = UNDF;
 	myPos.o = UNDF;
-	for(uint8_t i=0;i<NUM_SEEDS;i++){
-		perSeedPos[i].x = UNDF;
-		perSeedPos[i].y = UNDF;
-		perSeedPos[i].o = UNDF;
-		
-		for(uint8_t j=0;j<6;j++){
-			perSeedCovars[i][j].u = 0;
-		}
+	for(uint8_t i=0;i<6;i++){
+		myPosCovar[i].u = 0;
 	}
-
 	seedFlag = 0;	
 	for(uint8_t i=0;i<NUM_SEEDS;i++){
 		if(get_droplet_id()==SEED_IDS[i]){
@@ -269,12 +259,9 @@ inline static void initPositions(){
 			myPos.x = SEED_X[i];
 			myPos.y = SEED_Y[i];
 			myPos.o = 0;
-			perSeedPos[i].x = myPos.x;
-			perSeedPos[i].y = myPos.y;
-			perSeedPos[i].o = myPos.o;
-			perSeedCovars[i][0].u = 1; //the actual value used will be this*4
-			perSeedCovars[i][3].u = 1; //the actual value used will be this*4
-			perSeedCovars[i][5].u = 4; //the actual value used will be this/64
+			myPosCovar[0].u = 1;
+			myPosCovar[3].u = 1;
+			myPosCovar[5].u = 4;
 			break;
 		}
 	}

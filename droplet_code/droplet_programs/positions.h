@@ -82,7 +82,7 @@ Matrix measCovarFar = {{2404.91, -0.605826, -17.8956}, {-0.605826, 1.82241,
 #define NUM_SEEDS 4
 #define NUM_SHARED_BOTS 6
 #define NUM_TRACKED_BOTS 12
-const id_t	   SEED_IDS[NUM_SEEDS]	   = {0xDC62, 0x9363, 0x6597, 0x6C6F};
+const id_t	   SEED_IDS[NUM_SEEDS]	   = {0xB41B, 0x9363, 0x7EDF, 0x6C6F};
 const int16_t  SEED_X[NUM_SEEDS]   = {100, 600, 100, 600};
 const int16_t  SEED_Y[NUM_SEEDS]   = {600, 600, 100, 100};
 #define MIN_X 0

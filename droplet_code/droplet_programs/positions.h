@@ -1,10 +1,10 @@
 #pragma once
 
 #include "droplet_init.h"
-
+//
 //#define OCC_DEBUG_MODE
 //#define POS_CALC_DEBUG_MODE
-//#define POS_MSG_DEBUG_MODE
+#define POS_MSG_DEBUG_MODE
 #define GEN_DEBUG_MODE
 //#define RNB_DEBUG_MODE
 #define MY_POS_DEBUG_MODE
@@ -55,10 +55,10 @@
  */
 #define RNB_DUR				220
 #define PADDING_DUR			20 //padding.
-#define POS_MSG_DUR			40
-#define MEAS_MSG_DUR		71
+#define POS_MSG_DUR			45
+#define MEAS_MSG_DUR		72
 
-#define SLOT_LENGTH_MS			487
+#define SLOT_LENGTH_MS			499
 #define SLOTS_PER_FRAME			28
 #define FRAME_LENGTH_MS			(((uint32_t)SLOT_LENGTH_MS)*((uint32_t)SLOTS_PER_FRAME))
 #define LOOP_DELAY_MS			17
@@ -70,8 +70,6 @@ Matrix measCovarClose  = {{246.83, 0.95632, -0.0642657}, {0.95632,
 0.487814, -0.000112018}, {-0.0642657, -0.000112018, 0.08}};
 Matrix measCovarMed = {{1047.37, 2.21832, 3.72}, {2.21832,
 1.44781, -0.0975544}, {3.72, -0.0975544, 0.384}};
-Matrix measCovarFar = {{2404.91, -0.605826, -17.8956}, {-0.605826, 1.82241,
-0.418247}, {-17.8956, 0.418247, 1.100}};
 //Matrix deltaPosCovarClose  = {{388.428, 56.7799, -1.42906}, {56.7799, 198.959, 0.28115}, {-1.42906,
 //0.28115, 0.125886}};
 //Matrix deltaPosCovarMed = {{4819.52, 173.129, -2.82006}, {173.129, 1767.47, 1.98938}, {-2.82006,
@@ -82,13 +80,15 @@ Matrix measCovarFar = {{2404.91, -0.605826, -17.8956}, {-0.605826, 1.82241,
 #define NUM_SEEDS 4
 #define NUM_SHARED_BOTS 6
 #define NUM_TRACKED_BOTS 12
-const id_t	   SEED_IDS[NUM_SEEDS]	   = {0xB41B, 0x9363, 0x7EDF, 0x6C6F};
-const int16_t  SEED_X[NUM_SEEDS]   = {100, 600, 100, 600};
-const int16_t  SEED_Y[NUM_SEEDS]   = {600, 600, 100, 100};
+const id_t	   SEED_IDS[NUM_SEEDS]	   = {0x6C66, 0x9669, 0x7EDF, 0x1361};
+//const int16_t  SEED_X[NUM_SEEDS]   = {100, 600, 100, 600};
+//const int16_t  SEED_Y[NUM_SEEDS]   = {600, 600, 100, 100};
+const int16_t  SEED_X[NUM_SEEDS]   = {100, 250, 100, 250};
+const int16_t  SEED_Y[NUM_SEEDS]   = {250, 250, 100, 100};
 #define MIN_X 0
 #define MIN_Y 0
-#define MAX_X 700
-#define MAX_Y 700
+#define MAX_X 350
+#define MAX_Y 350
 
 #define UNDF	((int16_t)0x8000)
 
@@ -124,6 +124,7 @@ typedef struct bot_pos_struct{
 typedef struct bot_meas_msg_struct{
 	BotPos pos; //6 bytes
 	DensePosCovar covar; //12 bytes
+	uint8_t seedIdx;
 	char flag;
 }BotMeasMsg;
 
@@ -144,12 +145,15 @@ typedef struct other_bot_rnb_struct{
 	BotPos posFromMe;
 	DensePosCovar posCovar;
 	uint8_t occluded;
+	uint8_t seedIdx;
 	//uint8_t hasNewInfo;
 } OtherBot;
 OtherBot nearBots[NUM_TRACKED_BOTS+1];
 
 BotPos myPos;
 DensePosCovar myPosCovar;
+BotPos perSeedPos[NUM_SEEDS];
+DensePosCovar perSeedCovars[NUM_SEEDS];
 //BotMeasMsg preppedMsg;
 //id_t preppedMsgTarget;
 //uint8_t preppedMsgDirMask;
@@ -182,9 +186,10 @@ void		getWeightedRandOtherBots(uint8_t* botIdxs, uint8_t n);
 
 uint8_t     nearBotUseabilityCheck(uint8_t i);
 float		chooseOmega(Matrix* myPinv, Matrix* yourPinv);
-void		ciUpdatePos(BotPos* pos, Matrix* yourP);
+void		ciUpdatePos(uint8_t idx, BotPos* pos, Matrix* yourP);
+void		fusePerSeedMeas();
 void		updatePositions();
-void		processMeasurement(uint8_t botIdx, Matrix* myP);
+void		processMeasurement(uint8_t botIdx, uint8_t seedIdx, Matrix* myP);
 void		getMeasCovar(Matrix* R, Vector* meas);
 void		calcRelativePose(Vector* pose, Vector* meas);
 void		populateGammaMatrix(Matrix* G, Vector* pos);
@@ -192,7 +197,7 @@ void		populateHMatrix(Matrix* H, Vector* x_me, Vector* x_you);
 void		compressP(Matrix* P, DensePosCovar* covar);
 void		decompressP(Matrix* P, DensePosCovar* covar);
 
-void		useNewRnbMeas();
+void		useNewRnbMeas(uint16_t id, uint16_t range, int16_t bearing, int16_t heading);
 
 void		sendBotPosMsg();
 void		sendBotMeasMsg(uint8_t i);
@@ -231,18 +236,20 @@ inline static uint8_t dirFromAngle(int16_t angle){
 	return abs((angle - (angle>0 ? 360 : 0))/60);
 }
 
-static int nearBotsCmpFunc(const void* a, const void* b){
-	OtherBot* aN = (OtherBot*)a;
-	OtherBot* bN = (OtherBot*)b;
-	uint16_t aRange = (aN->myMeas).r;
-	uint16_t bRange = (bN->myMeas).r;
+static int nearBotsRangeCmp(uint16_t aRange, uint16_t bRange){
 	if(aRange < bRange){
 		return -1;
-	}else if(bRange < aRange){
+		}else if(bRange < aRange){
 		return 1;
-	}else{
+		}else{
 		return 0;
 	}
+}
+
+static int smallRangeSorter(const void* a, const void* b){
+	OtherBot* aN = (OtherBot*)a;
+	OtherBot* bN = (OtherBot*)b;
+	return nearBotsRangeCmp((aN->myMeas).r, (bN->myMeas).r);
 }
 
 inline static void initPositions(){
@@ -252,6 +259,16 @@ inline static void initPositions(){
 	for(uint8_t i=0;i<6;i++){
 		myPosCovar[i].u = 0;
 	}
+	for(uint8_t i=0;i<NUM_SEEDS;i++){
+		perSeedPos[i].x = UNDF;
+		perSeedPos[i].y = UNDF;
+		perSeedPos[i].o = UNDF;
+
+		for(uint8_t j=0;j<6;j++){
+			perSeedCovars[i][j].u = 0;
+		}
+	}
+
 	seedFlag = 0;	
 	for(uint8_t i=0;i<NUM_SEEDS;i++){
 		if(get_droplet_id()==SEED_IDS[i]){
@@ -259,9 +276,15 @@ inline static void initPositions(){
 			myPos.x = SEED_X[i];
 			myPos.y = SEED_Y[i];
 			myPos.o = 0;
-			myPosCovar[0].u = 1;
-			myPosCovar[3].u = 1;
-			myPosCovar[5].u = 4;
+			perSeedPos[i].x = myPos.x;
+			perSeedPos[i].y = myPos.y;
+			perSeedPos[i].o = myPos.o;
+			myPosCovar[0].u = 1; //the actual value used will be this*4
+			myPosCovar[3].u = 1; //the actual value used will be this*4
+			myPosCovar[5].u = 4; //the actual value used will be this/64
+			perSeedCovars[i][0].u = 1; //the actual value used will be this*4
+			perSeedCovars[i][3].u = 1; //the actual value used will be this*4
+			perSeedCovars[i][5].u = 4; //the actual value used will be this/64
 			break;
 		}
 	}

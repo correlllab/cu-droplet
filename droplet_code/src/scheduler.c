@@ -61,23 +61,28 @@ void delay_ms(uint16_t ms){
 
 //This function checks for errors or inconsistencies in the task list, and attempts to correct them.
 //Is this still needed?
-
 void task_list_cleanup(){
-	printf_P(PSTR("\tAttempting to restore task_list (by dropping all non-periodic tasks.\r\n\tIf you only see this message rarely, don't worry too much.\r\n"));
-
+	printf_P(PSTR("\tAttempting to restore task_list.\r\n\tIf you only see this message rarely, don't worry too much.\r\n"));
 	volatile Task_t* cur_task = task_list;
-	volatile Task_t* prev_task;
+	//volatile Task_t* prev_task;
+	uint32_t nextTime = get_time()+500;
+	uint8_t first = 1;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 		RTC.INTCTRL &= ~RTC_COMP_INT_LEVEL;		
 		while (cur_task != NULL){
-			if(cur_task->period==0){
-				prev_task = cur_task;
-				cur_task = prev_task->next;
-				remove_task(prev_task);
-			}else{
-				cur_task->scheduled_time=get_time()+cur_task->period+50;
-				cur_task = cur_task->next;				
+			cur_task->scheduled_time = nextTime;
+			if(first){
+				if (cur_task->scheduled_time <= ((((uint32_t)rtc_epoch) << 16) | (uint32_t)RTC.PER)){
+					while (RTC.STATUS & RTC_SYNCBUSY_bm);
+					RTC.COMP = ((uint16_t)(cur_task->scheduled_time))|0x8;
+					RTC.INTCTRL |= RTC_COMP_INT_LEVEL;
+				}else{
+					RTC.INTCTRL &= ~RTC_COMP_INT_LEVEL;
+				}
+				first = 0;
 			}
+			nextTime += 500;
+			cur_task = cur_task->next;
 		}
 	}
 }

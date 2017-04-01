@@ -12,6 +12,14 @@ void vectorSubtract(Vector* dst, Vector* a, Vector* b){	//dst = a - b
 	(*dst)[2] = (*a)[2] - (*b)[2];
 }
 
+void vectorSquare(Matrix* DST, Vector* a){
+	for(uint8_t i=0;i<3;i++){
+		for(uint8_t j=0;j<3;j++){
+			(*DST)[i][j] = (*a)[i] * (*a)[j];
+		}
+	}
+}
+
 void matrixScale(Matrix* A, float s){
 	for(uint8_t i=0;i<3;i++){
 		for(uint8_t j=0;j<3;j++){
@@ -135,6 +143,41 @@ uint8_t positiveDefiniteQ(Matrix* A){
 	return 1;
 }
 
+//returns upper triangular.
+void choleskyDecomposition(Matrix* L, Matrix* A){
+	(*L)[0][0] = sqrtf((*A)[0][0]);
+	(*L)[0][1] = (*A)[0][1] / (*L)[0][0];
+	(*L)[0][2] = (*A)[0][2] / (*L)[0][0];
+	(*L)[1][0] = 0;
+	(*L)[1][1] = sqrtf( (*A)[1][1] - powf((*L)[0][1],2));
+	(*L)[1][2] = ( (*A)[1][2] - (*L)[0][2] * (*L)[0][1] ) / (*L)[1][1];
+	(*L)[2][0] = 0;
+	(*L)[2][1] = 0;
+	(*L)[2][2] = sqrtf( (*A)[2][2] - powf((*L)[0][2],2) - powf((*L)[1][2],2) );
+}
+
+//returns upper triangular.
+void ldlDecomposition(Matrix* L, Matrix* D, Matrix* A){
+	(*D)[0][0] = (*A)[0][0];
+	(*L)[0][0] = 1;
+	(*D)[0][1] = 0;
+	(*L)[0][1] = (*A)[0][1]/(*D)[0][0];
+	(*D)[0][2] = 0;
+	(*L)[0][2] = (*A)[0][2]/(*D)[0][0];
+	(*D)[1][0] = 0;
+	(*L)[1][0] = 0;
+	(*D)[1][1] = (*A)[1][1] - ( (*L)[0][1] * (*L)[0][1] * (*D)[0][0] );
+	(*L)[1][1] = 1;
+	(*D)[1][2] = 0;
+	(*L)[1][2] = ( (*A)[1][2] - ( (*L)[0][1] * (*L)[0][2] * (*D)[0][0] ) ) / (*D)[1][1];
+	(*D)[2][0] = 0;
+	(*L)[2][0] = 0;
+	(*D)[2][0] = 0;
+	(*L)[2][1] = 0;
+	(*D)[2][2] = (*A)[2][2] - ( (*L)[0][2] * (*L)[0][2] * (*D)[0][0] ) - ( (*L)[1][2] * (*L)[1][2] * (*D)[1][1] );
+	(*L)[2][2] = 1; 
+}
+
 void matrixInverse(Matrix* DST, Matrix* A){					//DST = A^(-1)
 	(*DST)[0][0] = (*A)[1][1]*(*A)[2][2] - (*A)[1][2]*(*A)[2][1];
 	(*DST)[0][1] = (*A)[0][2]*(*A)[2][1] - (*A)[0][1]*(*A)[2][2];
@@ -205,9 +248,9 @@ void printMatrix(Matrix* A){
 	printf_P(matrix3str, (*A)[2][0], (*A)[2][1], (*A)[2][2]);
 }
 
-const char matrix3mathStartStr[] PROGMEM = "{\r\n  {%7.1f, %7.1f, %7.3f},\r\n";
-const char matrix3mathStr[] PROGMEM = "  {%7.1f, %7.1f, %7.3f},\r\n";
-const char matrix3mathEndStr[] PROGMEM = "  {%7.3f, %7.3f, %7.5f}\r\n};\r\n";
+const char matrix3mathStartStr[] PROGMEM = "{\r\n  {%15.10f, %15.10f, %15.10f},\r\n";
+const char matrix3mathStr[] PROGMEM = "  {%15.10f, %15.10f, %15.10f},\r\n";
+const char matrix3mathEndStr[] PROGMEM = "  {%15.10f, %15.10f, %15.10f}\r\n};\r\n";
 void printMatrixMathematica(Matrix* A){
 	printf_P(matrix3mathStartStr, (*A)[0][0], (*A)[0][1], (*A)[0][2]);
 	printf_P(matrix3mathStr,	  (*A)[1][0], (*A)[1][1], (*A)[1][2]);

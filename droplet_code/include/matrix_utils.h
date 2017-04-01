@@ -8,6 +8,7 @@ typedef float Matrix[3][3];
 
 void vectorAdd(Vector* dst, Vector* a, Vector* b);		//dst = a + b
 void vectorSubtract(Vector* dst, Vector* a, Vector* b);	//dst = a - b
+void vectorSquare(Matrix* dst, Vector* a); // = a x b^{tr}
 
 void matrixScale(Matrix* A, float s);
 void matrixTimesVector(Vector* dst, Matrix* A, Vector* b);	//dst = A x b
@@ -21,6 +22,8 @@ void matrixTranspose(Matrix* DST, Matrix* A);
 void matrixInplaceTranspose(Matrix* A);
 
 uint8_t positiveDefiniteQ(Matrix* A);
+void choleskyDecomposition(Matrix* L, Matrix* A);
+void ldlDecomposition(Matrix* L, Matrix* D, Matrix* A);
 
 void matrixInverse(Matrix* DST, Matrix* A);					//DST = A^(-1)
 void matrixInplaceInverse(Matrix* A);

@@ -13,10 +13,10 @@ static inline void motor_forward(uint8_t num)
 		#ifdef AUDIO_DROPLET
 		case 0: printf_P(PSTR("ERROR! motor_fw called with num=0\r\n")); break;
 		#else
-		case 0: TCC0.CTRLB |= TC0_CCBEN_bm; TCC0.CTRLA = TC_TC0_CLKSEL_DIV1024_gc; break;
+		case 0: TCC0.CTRLB |= TC0_CCBEN_bm; TCC0.CTRLA = TC_CLKSEL_DIV1024_gc; break;
 		#endif
-		case 1: TCC1.CTRLB |= TC1_CCBEN_bm; TCC1.CTRLA = TC_TC1_CLKSEL_DIV1024_gc; break;
-		case 2: TCD0.CTRLB |= TC0_CCBEN_bm; TCD0.CTRLA = TC_TC0_CLKSEL_DIV1024_gc; break;
+		case 1: TCC1.CTRLB |= TC1_CCBEN_bm; TCC1.CTRLA = TC_CLKSEL_DIV1024_gc; break;
+		case 2: TCD0.CTRLB |= TC0_CCBEN_bm; TCD0.CTRLA = TC_CLKSEL_DIV1024_gc; break;
 	}
 }
 
@@ -27,10 +27,10 @@ static inline void motor_backward(uint8_t num)
 		#ifdef AUDIO_DROPLET
 		case 0: printf_P(PSTR("ERROR! motor_bw called with num=0\r\n")); break;
 		#else
-		case 0: TCC0.CTRLB |= TC0_CCAEN_bm; TCC0.CTRLA = TC_TC0_CLKSEL_DIV1024_gc; break;
+		case 0: TCC0.CTRLB |= TC0_CCAEN_bm; TCC0.CTRLA = TC_CLKSEL_DIV1024_gc; break;
 		#endif
-		case 1: TCC1.CTRLB |= TC1_CCAEN_bm; TCC1.CTRLA = TC_TC1_CLKSEL_DIV1024_gc; break;
-		case 2: TCD0.CTRLB |= TC0_CCAEN_bm; TCD0.CTRLA = TC_TC0_CLKSEL_DIV1024_gc; break;
+		case 1: TCC1.CTRLB |= TC1_CCAEN_bm; TCC1.CTRLA = TC_CLKSEL_DIV1024_gc; break;
+		case 2: TCD0.CTRLB |= TC0_CCAEN_bm; TCD0.CTRLA = TC_CLKSEL_DIV1024_gc; break;
 	}
 }
 
@@ -44,15 +44,15 @@ void motor_init()
 	PORTD.DIRSET = PIN0_bm | PIN1_bm; 
 
 	#ifndef AUDIO_DROPLET
-		TCC0.CTRLA = TC_TC0_CLKSEL_OFF_gc;
-		TCC0.CTRLB = TC_TC0_WGMODE_SS_gc;
+		TCC0.CTRLA = TC_CLKSEL_OFF_gc;
+		TCC0.CTRLB = TC_WGMODE_SS_gc;
 	#endif
 	
-    TCC1.CTRLA = TC_TC1_CLKSEL_OFF_gc;
-    TCC1.CTRLB = TC_TC1_WGMODE_SS_gc;
+    TCC1.CTRLA = TC_CLKSEL_OFF_gc;
+    TCC1.CTRLB = TC_WGMODE_SS_gc;
 
-    TCD0.CTRLA = TC_TC0_CLKSEL_OFF_gc;
-    TCD0.CTRLB = TC_TC0_WGMODE_SS_gc;  
+    TCD0.CTRLA = TC_CLKSEL_OFF_gc;
+    TCD0.CTRLB = TC_WGMODE_SS_gc;  
 	
 	#ifndef AUDIO_DROPLET
 	PORTC.PIN0CTRL = PORT_INVEN_bm;
@@ -180,12 +180,12 @@ void stop_move()
 	
 	#ifndef AUDIO_DROPLET
 		TCC0.CTRLB &= ~(TC0_CCAEN_bm | TC0_CCBEN_bm);
-		TCC0.CTRLA = TC_TC0_CLKSEL_OFF_gc;
+		TCC0.CTRLA = TC_CLKSEL_OFF_gc;
 	#endif
 	TCC1.CTRLB  &= ~(TC1_CCAEN_bm | TC1_CCBEN_bm);
-	TCC1.CTRLA = TC_TC1_CLKSEL_OFF_gc;
+	TCC1.CTRLA = TC_CLKSEL_OFF_gc;
 	TCD0.CTRLB  &= ~(TC0_CCAEN_bm | TC0_CCBEN_bm);
-	TCD0.CTRLA = TC_TC0_CLKSEL_OFF_gc;
+	TCD0.CTRLA = TC_CLKSEL_OFF_gc;
 	
 	#ifdef AUDIO_DROPLET
 		PORTC.OUTCLR = PIN4_bm | PIN5_bm;

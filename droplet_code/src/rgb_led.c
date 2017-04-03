@@ -10,15 +10,15 @@ void rgb_led_init()
 	TCE1.PER = 255;							
 	TCE1.CCA = 0;							
 	TCE1.CCB = 0;							
-	TCE1.CTRLA = TC_TC1_CLKSEL_DIV64_gc;		
-	TCE1.CTRLB = TC_TC1_WGMODE_SS_gc | TC1_CCBEN_bm | TC1_CCAEN_bm;
+	TCE1.CTRLA = TC_CLKSEL_DIV64_gc;		
+	TCE1.CTRLB = TC_WGMODE_SS_gc | TC1_CCBEN_bm | TC1_CCAEN_bm;
 	
 	//---------BLUE-----------
 	
 	TCD1.PER = 255;
 	TCD1.CCA = 0;
-	TCD1.CTRLA = TC_TC1_CLKSEL_DIV64_gc;
-	TCD1.CTRLB = TC_TC1_WGMODE_SS_gc | TC1_CCAEN_bm;	
+	TCD1.CTRLA = TC_CLKSEL_DIV64_gc;
+	TCD1.CTRLB = TC_WGMODE_SS_gc | TC1_CCAEN_bm;	
 }
 
 void led_off()

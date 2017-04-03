@@ -118,14 +118,14 @@ void use_rnb_data(){
 	int16_t matrixSum = processBrightMeas();
 	//if(rand_byte()%2) broadcastBrightMeas();
 	float bearing, heading;
-	float error;
+	//float error;
 	calculate_bearing_and_heading(&bearing, &heading);
 	float initialRange = magicRangeFunc(matrixSum/2.0739212652);
 	if(initialRange!=0&&!isnanf(initialRange)){	
 		float range = calculate_range(initialRange, bearing, heading);
 		if(!isnanf(range)){
 			if(range<2*DROPLET_RADIUS) range=46;
-			error = calculate_error(range, bearing, heading);
+			//error = calculate_error(range, bearing, heading);
 			//printf("ID: %04X, R: %4u, B: % 4d, H: % 4d | %f\r\n", rnbCmdID, (uint16_t)range, (int16_t)rad_to_deg(bearing), (int16_t)rad_to_deg(heading), error);
 			//if(error>1.1 && range<140){
 			//	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){

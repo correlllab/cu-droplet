@@ -21,15 +21,12 @@
   <name>Corrected</name>
   <revert_to>Current</revert_to>
 </Marker>
-<HSV_Channel disabled>
-  <channel>1</channel>
-</HSV_Channel>
 <Fiducial>
   <adaptive_threshold>30</adaptive_threshold>
   <base_folder>.\Fiducials\fids4</base_folder>
   <color_fiducials>FALSE</color_fiducials>
   <create_shape_array>TRUE</create_shape_array>
-  <display_confidence>FALSE</display_confidence>
+  <display_confidence>TRUE</display_confidence>
   <display_contrast>FALSE</display_contrast>
   <display_coord>FALSE</display_coord>
   <display_distance>FALSE</display_distance>
@@ -40,8 +37,8 @@
   <display_scale>FALSE</display_scale>
   <display_tx>FALSE</display_tx>
   <display_ty>FALSE</display_ty>
-  <fiducial_height>3.3</fiducial_height>
-  <fiducial_width>3.3</fiducial_width>
+  <fiducial_height>3.5</fiducial_height>
+  <fiducial_width>3.5</fiducial_width>
   <field_of_view>61</field_of_view>
   <focal_length>250</focal_length>
   <font_size_index>2</font_size_index>
@@ -50,16 +47,16 @@
   <max_angle>360</max_angle>
   <max_confidence>100</max_confidence>
   <max_contrast>100</max_contrast>
-  <max_size>1000</max_size>
-  <max_x_angle>0</max_x_angle>
-  <max_y_angle>0</max_y_angle>
+  <max_size>6</max_size>
+  <max_x_angle>20</max_x_angle>
+  <max_y_angle>20</max_y_angle>
   <min_angle>0</min_angle>
-  <min_confidence>70</min_confidence>
+  <min_confidence>50</min_confidence>
   <min_contrast>0</min_contrast>
-  <min_size>0</min_size>
-  <min_x_angle>0</min_x_angle>
-  <min_y_angle>0</min_y_angle>
-  <monitor_folder>TRUE</monitor_folder>
+  <min_size>2</min_size>
+  <min_x_angle>340</min_x_angle>
+  <min_y_angle>340</min_y_angle>
+  <monitor_folder>FALSE</monitor_folder>
   <occurrence_threshold>0</occurrence_threshold>
   <select_top_blobs>20</select_top_blobs>
   <sort_array_on_x>FALSE</sort_array_on_x>

@@ -197,10 +197,6 @@ float calculate_error(float r, float b, float h){
 	float cosAcosBmat[6][6];
 	float* cosAcosB = (float*)cosAcosBmat;
 	int16_t* fast_bm = (int16_t*)brightMeas;
-	float alphaMat[6][6];
-	float* alpha = (float*)alphaMat;
-	float betaMat[6][6];
-	float* beta = (float*)betaMat;
 	for(uint8_t i=0;i<36;i++){
 		uint8_t rx = i%6;
 		uint8_t tx = i/6;
@@ -209,15 +205,9 @@ float calculate_error(float r, float b, float h){
 		rijMagSq = rij[0]*rij[0] + rij[1]*rij[1];
 
 		alphaDotP = rij[0]*hats[rx][0] + rij[1]*hats[rx][1];
-		alpha[i] = alphaDotP/(sqrt(rijMagSq)*DROPLET_RADIUS);
 		alphaDotP = alphaDotP < 0 ? 0 : alphaDotP;
 		betaDotP = (-rij[0])*txHats[tx][0] + (-rij[1])*txHats[tx][1];
-		beta[i] = betaDotP/(sqrt(rijMagSq)*DROPLET_RADIUS);
 		betaDotP = betaDotP < 0 ? 0 : betaDotP;
-
-
-		
-
 
 		measTotal += fast_bm[i];
 		cosAcosB[i] = (alphaDotP*betaDotP)/(rijMagSq*DROPLET_RADIUS_SQ);
@@ -280,7 +270,7 @@ static int16_t processBrightMeas(){
 		for(uint8_t s = 0; s < 6; s++){
 			val = brightMeas[e][s];
 			allColZeroCheck &= ~((!!val)<<s);	
-			val=val*(val>0);
+			//val=val*(val>0);
 			brightMeas[e][s] = val;
 			valSum+=val;	
 		}
@@ -351,6 +341,7 @@ void ir_range_blast(uint8_t power __attribute__ ((unused))){
 		}
 	}
 }
+
 
 static float magicRangeFunc(float a){
 	if(a<=0){

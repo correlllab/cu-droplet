@@ -44,15 +44,15 @@ void motor_init()
 	PORTD.DIRSET = PIN0_bm | PIN1_bm; 
 
 	#ifndef AUDIO_DROPLET
-		TCC0.CTRLA = TC_TC0_CLKSEL_OFF_gc;
-		TCC0.CTRLB = TC_TC0_WGMODE_SS_gc;
+		TCC0.CTRLA = TC_CLKSEL_OFF_gc;
+		TCC0.CTRLB = TC_WGMODE_SS_gc;
 	#endif
 	
-    TCC1.CTRLA = TC_TC1_CLKSEL_OFF_gc;
-    TCC1.CTRLB = TC_TC1_WGMODE_SS_gc;
+    TCC1.CTRLA = TC_CLKSEL_OFF_gc;
+    TCC1.CTRLB = TC_WGMODE_SS_gc;
 
-    TCD0.CTRLA = TC_TC0_CLKSEL_OFF_gc;
-    TCD0.CTRLB = TC_TC0_WGMODE_SS_gc;  
+    TCD0.CTRLA = TC_CLKSEL_OFF_gc;
+    TCD0.CTRLB = TC_WGMODE_SS_gc;  
 	
 	#ifndef AUDIO_DROPLET
 	PORTC.PIN0CTRL = PORT_INVEN_bm;
@@ -180,12 +180,12 @@ void stop_move()
 	
 	#ifndef AUDIO_DROPLET
 		TCC0.CTRLB &= ~(TC0_CCAEN_bm | TC0_CCBEN_bm);
-		TCC0.CTRLA = TC_TC0_CLKSEL_OFF_gc;
+		TCC0.CTRLA = TC_CLKSEL_OFF_gc;
 	#endif
 	TCC1.CTRLB  &= ~(TC1_CCAEN_bm | TC1_CCBEN_bm);
-	TCC1.CTRLA = TC_TC1_CLKSEL_OFF_gc;
+	TCC1.CTRLA = TC_CLKSEL_OFF_gc;
 	TCD0.CTRLB  &= ~(TC0_CCAEN_bm | TC0_CCBEN_bm);
-	TCD0.CTRLA = TC_TC0_CLKSEL_OFF_gc;
+	TCD0.CTRLA = TC_CLKSEL_OFF_gc;
 	
 	#ifdef AUDIO_DROPLET
 		PORTC.OUTCLR = PIN4_bm | PIN5_bm;
@@ -196,6 +196,7 @@ void stop_move()
 	
 	motor_status = 0;
 	remove_task((Task_t*)current_motor_task);
+	current_motor_task = NULL;
 }
 
 int8_t is_moving() // returns -1 if droplet is not moving, movement dir otherwise.

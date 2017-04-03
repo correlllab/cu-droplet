@@ -192,9 +192,11 @@ void covarUnion(Vector* x, Matrix* U, Vector* a, Matrix* A, Vector* b, Matrix* B
 	matrixAdd(&U_b, B, &U_b);
 	Matrix S;
 	choleskyDecomposition(&S, &U_b);
+	Matrix S_tr;
+	matrixTranspose(&S_tr, &S);
 
-	printf("s = ");
-	printMatrixMathematica(&S);
+	//printf("s = ");
+	//printMatrixMathematica(&S);
 
 	Matrix S_inv;
 	matrixInverse(&S_inv, &S);
@@ -203,43 +205,53 @@ void covarUnion(Vector* x, Matrix* U, Vector* a, Matrix* A, Vector* b, Matrix* B
 	matrixMultiply(&TMP, &U_a, &S_inv);
 	matrixInplaceTranspose(&S_inv);
 	matrixInplaceMultiply(&TMP, &S_inv, &TMP);
-	printf("SinvUSinv = ");
-	printMatrixMathematica(&TMP);
+	//printf("SinvUSinv = ");
+	//printMatrixMathematica(&TMP);
 
 	//TMP = ((S^{-1})^{T}) x U_a x (S^{-1})
+	Vector eigVals;
+	Matrix V_tr; //eigenVectors
+	eigensystem(&eigVals, &V_tr, &TMP);
+	Matrix D = {{eigVals[0], 0, 0}, {0, eigVals[1], 0}, {0, 0, eigVals[2]}};
 
 	Matrix V;
-	Matrix V_tr;
-	Matrix S_tr;
-	Matrix D;
-	ldlDecomposition(&V_tr, &D, &TMP);
 	matrixTranspose(&V, &V_tr);
-	matrixTranspose(&S_tr, &S);
-	printf("v = ");
-	printMatrixMathematica(&V);
-	printf("d = ");
-	printMatrixMathematica(&D);
 
+	//printf("v = ");
+	//printMatrixMathematica(&V);
+	//printf("d = ");
+	//printMatrixMathematica(&D);
+
+	//matrixMultiply(&TMP, &V_tr, &S);
+	//matrixInplaceMultiply(&TMP, &D, &TMP);
+	//matrixInplaceMultiply(&TMP, &V, &TMP);
+	//matrixInplaceMultiply(&TMP, &S_tr, &TMP);
+//
+	//printf("(*TEST ONE*)\r\n");
+	//printf("uA = ");
+	//printMatrixMathematica(&U_a);
+	//printf("tstA = ");
+	//printMatrixMathematica(&TMP);
+//
+	//matrixMultiply(&TMP, &V_tr, &S);
+	//matrixInplaceMultiply(&TMP, &V, &TMP);
+	//matrixInplaceMultiply(&TMP, &S_tr, &TMP);
+
+	//printf("(*TEST TWO*)\r\n");
+	//printf("uB = ");
+	//printMatrixMathematica(&U_b);
+	//printf("tstB = ");
+	//printMatrixMathematica(&TMP);
+
+	Matrix C = {{1,0,0},{0,1,0},{0,0,1}}; 
+	float v1, v2;
+	for(uint8_t i=0;i<3;i++){
+		C[i][i] = D[i][i]>1 ? D[i][i] : 1;
+	}
 	matrixMultiply(&TMP, &V_tr, &S);
-	matrixInplaceMultiply(&TMP, &D, &TMP);
-	matrixInplaceMultiply(&TMP, &V, &TMP);
-	matrixInplaceMultiply(&TMP, &S_tr, &TMP);
-
-	printf("TEST ONE\r\n");
-	printf("uA = ");
-	printMatrixMathematica(&U_a);
-	printf("tstA = ");
-	printMatrixMathematica(&TMP);
-
-	matrixMultiply(&TMP, &V_tr, &S);
-	matrixInplaceMultiply(&TMP, &V, &TMP);
-	matrixInplaceMultiply(&TMP, &S_tr, &TMP);
-
-	printf("TEST TWO\r\n");
-	printf("uB = ");
-	printMatrixMathematica(&U_b);
-	printf("tstB = ");
-	printMatrixMathematica(&TMP);
+	matrixMultiply(U, &V, &C);
+	matrixInplaceMultiply(U, U, &TMP);
+	matrixInplaceMultiply(U, &S_tr, U);
 }
 
 //void ciUpdatePos(uint8_t idx, BotPos* pos, Matrix* yourP){
@@ -259,25 +271,37 @@ void updatePos(BotPos* pos, Matrix* yourP){
 	Vector myNewPos;
 
 	float mDist = mahalanobisDistance(&xMe, &myP, &xMeFromYou, yourP);
+
 	covarIntersection(&myNewPos, &myNewP, &xMe, &myP, &xMeFromYou, yourP);
+	if(mDist>4.0){
+		//This mDist corresponds to a likelihood (of consistency..?) of ~0.1%
+		//Based on cumulative chi-squared distribution.
+		MY_POS_DEBUG_PRINT(" but the mahalanobis distance (%5.2f) is too large.\r\n", mDist);
+		return;
+	}else if(mDist>1.0){ 
+		//This mDist corresponds to a likelihood (of consistency..?) of ~80%
+		//Based on cumulative chi-squared distribution.
+		covarUnion(&myNewPos, &myNewP, &xMe, &myP, &xMeFromYou, yourP);
+		if(!positiveDefiniteQ(&myNewP)){
+			MY_POS_DEBUG_PRINT(" but covar union resulted in non-positive-definite P.\r\n");
+		}
+		return;
+	}
 	myPos.x = myNewPos[0]>8191 ? 8191 : (myNewPos[0]<-8192 ? -8192 : myNewPos[0]);
 	myPos.y = myNewPos[1]>8191 ? 8191 : (myNewPos[1]<-8192 ? -8192 : myNewPos[1]);
 	myPos.o = (rad_to_deg(myNewPos[2]) + 0.5);
-	MY_POS_DEBUG_PRINT(" giving pos {%d, %d, %d} (omega: %5.3f).\r\n", myPos.x, myPos.y, myPos.o);
+	MY_POS_DEBUG_PRINT(" giving pos {%d, %d, %d}.\r\n", myPos.x, myPos.y, myPos.o);
 	MY_POS_DEBUG_PRINT("\tMahalanobis Distance: %f\r\n", mDist);
-	if(mDist>=1.0){
-		covarUnion(&myNewPos, &myNewP, &xMe, &myP, &xMeFromYou, yourP);
-	}
 	//perSeedPos[idx].x = myNewPos[0]>8191 ? 8191 : (myNewPos[0]<-8192 ? -8192 : myNewPos[0]);
 	//perSeedPos[idx].y = myNewPos[1]>8191 ? 8191 : (myNewPos[1]<-8192 ? -8192 : myNewPos[1]);
 	//perSeedPos[idx].o = (rad_to_deg(myNewPos[2]) + 0.5);
 	//MY_POS_DEBUG_PRINT(" giving pos {%d, %d, %d} (omega: %5.3f).\r\n", perSeedPos[idx].x, perSeedPos[idx].y, perSeedPos[idx].o, omega);
-	//#ifdef MY_POS_DEBUG_MODE
-		//MY_POS_DEBUG_PRINT("His Est Covar:\r\n");
-		//printMatrixMathematica(yourP);
-		//MY_POS_DEBUG_PRINT("My new covar:\r\n");
-		//printMatrixMathematica(&myNewP);
-	//#endif
+	#ifdef MY_POS_DEBUG_MODE
+		MY_POS_DEBUG_PRINT("Your Update Covar:\r\n");
+		printMatrixMathematica(yourP);
+		MY_POS_DEBUG_PRINT("My new covar=\r\n");
+		printMatrixMathematica(&myNewP);
+	#endif
 	compressP(&myNewP, &myPosCovar);		
 	//compressP(&myNewP, &(perSeedCovars[idx]));		
 }

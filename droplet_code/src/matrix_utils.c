@@ -156,27 +156,103 @@ void choleskyDecomposition(Matrix* L, Matrix* A){
 	(*L)[2][2] = sqrtf( (*A)[2][2] - powf((*L)[0][2],2) - powf((*L)[1][2],2) );
 }
 
-//returns upper triangular.
-void ldlDecomposition(Matrix* L, Matrix* D, Matrix* A){
-	(*D)[0][0] = (*A)[0][0];
-	(*L)[0][0] = 1;
-	(*D)[0][1] = 0;
-	(*L)[0][1] = (*A)[0][1]/(*D)[0][0];
-	(*D)[0][2] = 0;
-	(*L)[0][2] = (*A)[0][2]/(*D)[0][0];
-	(*D)[1][0] = 0;
-	(*L)[1][0] = 0;
-	(*D)[1][1] = (*A)[1][1] - ( (*L)[0][1] * (*L)[0][1] * (*D)[0][0] );
-	(*L)[1][1] = 1;
-	(*D)[1][2] = 0;
-	(*L)[1][2] = ( (*A)[1][2] - ( (*L)[0][1] * (*L)[0][2] * (*D)[0][0] ) ) / (*D)[1][1];
-	(*D)[2][0] = 0;
-	(*L)[2][0] = 0;
-	(*D)[2][0] = 0;
-	(*L)[2][1] = 0;
-	(*D)[2][2] = (*A)[2][2] - ( (*L)[0][2] * (*L)[0][2] * (*D)[0][0] ) - ( (*L)[1][2] * (*L)[1][2] * (*D)[1][1] );
-	(*L)[2][2] = 1; 
+//This function assumes that the input Matrix, A, is symmetric.
+//Algorithm from "Eigenvalues of a Symmetric 3x3 Matrix", by Oliver K. Smith
+void eigenvalues(Vector* eigVals, Matrix* A){
+	float p1 = powf((*A)[0][1], 2) + powf((*A)[0][2], 2) + powf((*A)[1][2], 2);
+	if(p1 == 0){
+		// A is diagonal.
+		(*eigVals)[0] = (*A)[0][0];
+		(*eigVals)[1] = (*A)[1][1];
+		(*eigVals)[2] = (*A)[2][2];
+	}else{
+		float q = matrixTrace(A)/3;
+		float p2 = powf((*A)[0][0] - q, 2) + powf((*A)[1][1] - q, 2) + powf((*A)[2][2] - q, 2) + 2*p1;
+		float p = sqrtf(p2/6.0);
+		Matrix B = {{q, 0, 0}, {0, q, 0}, {0, 0, q}};
+		matrixSubtract(&B, A, &B);
+		matrixScale(&B, 1.0/p);
+		float r = matrixDet(&B)/2;
+		float phi;
+		if(r<=-1){
+			phi = M_PI/3;
+		}else if(r>=1){
+			phi = 0;
+		}else{
+			phi = acosf(r)/3;
+		}
+		(*eigVals)[0] = q + 2*p*cosf(phi);
+		(*eigVals)[2] = q + 2*p*cosf(phi + (2*M_PI/3));
+		(*eigVals)[1] = 3*q - (*eigVals)[0] - (*eigVals)[2];
+	}
 }
+
+
+//Helper function for eigenvectors, below.
+//finds a nontrivial column vector in input matrix, A.
+//Then normalizes it and copies it in to dst.
+void getEigenvector(Vector* dst, Matrix* A){
+	for(uint8_t i=0;i<3;i++){
+		float denom=0;
+		for(uint8_t j=0;j<3;j++){
+			denom += powf((*A)[j][i], 2);
+		}
+		if(denom>0){
+			denom = sqrtf(denom);
+			for(uint8_t j=0;j<3;j++){
+				(*dst)[j] = (*A)[j][i]/denom;
+			}
+			break;
+		}
+	}
+}
+
+/*
+ * Assumes input Matrix, A, is symmetric.
+ * Based on method described here: 
+ * https://en.wikipedia.org/wiki/Eigenvalue_algorithm
+ */
+void eigensystem(Vector* eigVals, Matrix* eigVecs, Matrix* A){
+	eigenvalues(eigVals, A);
+	if( (*eigVals)[0]==(*eigVals)[1] || (*eigVals)[0]==(*eigVals)[2] || (*eigVals)[1]==(*eigVals)[2] ){
+		printf_P("WARNING! Input Matrix A has nondistinct eigenvalues.\r\nI couldn't find a non-trivial example of such a matrix, so couldn't test what my code did with one.\r\nIt will probably break.\r\n");
+	}
+	Matrix charEqn[3] = {{{1,0,0},{0,1,0},{0,0,1}}, {{1,0,0},{0,1,0},{0,0,1}}, {{1,0,0},{0,1,0},{0,0,1}}};
+	for(uint8_t i=0;i<3;i++){
+		matrixScale(&(charEqn[i]), (*eigVals)[i]);
+		matrixSubtract(&(charEqn[i]), A, &(charEqn[i]));
+	}
+	matrixScale(eigVecs, 0);
+	Matrix TMP;
+	matrixMultiply(&TMP, &(charEqn[1]), &(charEqn[2]));
+	getEigenvector(&((*eigVecs)[0]), &TMP);
+	matrixMultiply(&TMP, &(charEqn[0]), &(charEqn[2]));
+	getEigenvector(&((*eigVecs)[1]), &TMP);
+	matrixMultiply(&TMP, &(charEqn[0]), &(charEqn[1]));
+	getEigenvector(&((*eigVecs)[2]), &TMP);
+}
+
+////returns upper triangular.
+//void ldlDecomposition(Matrix* L, Matrix* D, Matrix* A){
+	//(*D)[0][0] = (*A)[0][0];
+	//(*L)[0][0] = 1;
+	//(*D)[0][1] = 0;
+	//(*L)[0][1] = (*A)[0][1]/(*D)[0][0];
+	//(*D)[0][2] = 0;
+	//(*L)[0][2] = (*A)[0][2]/(*D)[0][0];
+	//(*D)[1][0] = 0;
+	//(*L)[1][0] = 0;
+	//(*D)[1][1] = (*A)[1][1] - ( (*L)[0][1] * (*L)[0][1] * (*D)[0][0] );
+	//(*L)[1][1] = 1;
+	//(*D)[1][2] = 0;
+	//(*L)[1][2] = ( (*A)[1][2] - ( (*L)[0][1] * (*L)[0][2] * (*D)[0][0] ) ) / (*D)[1][1];
+	//(*D)[2][0] = 0;
+	//(*L)[2][0] = 0;
+	//(*D)[2][0] = 0;
+	//(*L)[2][1] = 0;
+	//(*D)[2][2] = (*A)[2][2] - ( (*L)[0][2] * (*L)[0][2] * (*D)[0][0] ) - ( (*L)[1][2] * (*L)[1][2] * (*D)[1][1] );
+	//(*L)[2][2] = 1; 
+//}
 
 void matrixInverse(Matrix* DST, Matrix* A){					//DST = A^(-1)
 	(*DST)[0][0] = (*A)[1][1]*(*A)[2][2] - (*A)[1][2]*(*A)[2][1];

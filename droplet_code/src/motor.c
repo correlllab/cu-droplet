@@ -13,10 +13,10 @@ static inline void motor_forward(uint8_t num)
 		#ifdef AUDIO_DROPLET
 		case 0: printf_P(PSTR("ERROR! motor_fw called with num=0\r\n")); break;
 		#else
-		case 0: TCC0.CTRLB |= TC0_CCBEN_bm; TCC0.CTRLA = TC_CLKSEL_DIV1024_gc; break;
+		case 0: TCC0.CTRLB |= TC0_CCBEN_bm; TCC0.CTRLC = 0; TCC0.CTRLA = TC_TC0_CLKSEL_DIV1024_gc; break;
 		#endif
-		case 1: TCC1.CTRLB |= TC1_CCBEN_bm; TCC1.CTRLA = TC_CLKSEL_DIV1024_gc; break;
-		case 2: TCD0.CTRLB |= TC0_CCBEN_bm; TCD0.CTRLA = TC_CLKSEL_DIV1024_gc; break;
+		case 1: TCC1.CTRLB |= TC1_CCBEN_bm; TCC1.CTRLC = 0; TCC1.CTRLA = TC_TC1_CLKSEL_DIV1024_gc; break;
+		case 2: TCD0.CTRLB |= TC0_CCBEN_bm; TCD0.CTRLC = 0; TCD0.CTRLA = TC_TC0_CLKSEL_DIV1024_gc; break;
 	}
 }
 
@@ -27,12 +27,13 @@ static inline void motor_backward(uint8_t num)
 		#ifdef AUDIO_DROPLET
 		case 0: printf_P(PSTR("ERROR! motor_bw called with num=0\r\n")); break;
 		#else
-		case 0: TCC0.CTRLB |= TC0_CCAEN_bm; TCC0.CTRLA = TC_CLKSEL_DIV1024_gc; break;
+		case 0: TCC0.CTRLB |= TC0_CCAEN_bm; TCC0.CTRLC = 0; TCC0.CTRLA = TC_TC0_CLKSEL_DIV1024_gc; break;
 		#endif
-		case 1: TCC1.CTRLB |= TC1_CCAEN_bm; TCC1.CTRLA = TC_CLKSEL_DIV1024_gc; break;
-		case 2: TCD0.CTRLB |= TC0_CCAEN_bm; TCD0.CTRLA = TC_CLKSEL_DIV1024_gc; break;
+		case 1: TCC1.CTRLB |= TC1_CCAEN_bm; TCC1.CTRLC = 0; TCC1.CTRLA = TC_TC1_CLKSEL_DIV1024_gc; break;
+		case 2: TCD0.CTRLB |= TC0_CCAEN_bm; TCD0.CTRLC = 0; TCD0.CTRLA = TC_TC0_CLKSEL_DIV1024_gc; break;
 	}
 }
+
 
 void motor_init()
 {

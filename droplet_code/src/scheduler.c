@@ -93,45 +93,28 @@ void delay_ms(uint16_t ms){
 }
 
 //This function checks for errors or inconsistencies in the task list, and attempts to correct them.
-//Is this still needed?
 void task_list_cleanup(){
-	printf_P(PSTR("\tAttempting to restore task_list (by dropping all non-periodic tasks.\r\n\tIf you only see this message rarely, don't worry too much.\r\n"));
-
+	printf_P(PSTR("\tAttempting to restore task_list.\r\n\tIf you only see this message rarely, don't worry too much.\r\n"));
 	volatile Task_t* cur_task = task_list;
-	volatile Task_t* task_ptr_arr[MAX_NUM_SCHEDULED_TASKS];
-	uint8_t num_periodic_tasks = 0;
+	//volatile Task_t* prev_task;
+	uint32_t nextTime = get_time()+500;
+	uint8_t first = 1;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 		RTC.INTCTRL &= ~RTC_COMP_INT_LEVEL;
 		while (cur_task != NULL){
-			if(cur_task->period==0){
-				cur_task = cur_task->next;
-			}else{
-				cur_task->scheduled_time=get_time()+cur_task->period+50;
-				task_ptr_arr[num_periodic_tasks] = cur_task;
-				cur_task = cur_task->next;
-				task_ptr_arr[num_periodic_tasks]->next=NULL;
-				num_periodic_tasks++;
-			}
-		}
-		uint8_t task_is_periodic = 0;
-		for(uint8_t i=0;i<MAX_NUM_SCHEDULED_TASKS;i++){
-			for(uint8_t j=0;j<num_periodic_tasks;j++){
-				if(&(task_storage_arr[i])==task_ptr_arr[j]){
-					//printf_P(PSTR("\tSaving task %X because it is periodic.\r\n"),&(task_storage_arr[i]));
-					task_is_periodic = 1;
-					break;
+			cur_task->scheduled_time = nextTime;
+			if(first){
+				if (cur_task->scheduled_time <= ((((uint32_t)rtc_epoch) << 16) | (uint32_t)RTC.PER)){
+					while (RTC.STATUS & RTC_SYNCBUSY_bm);
+					RTC.COMP = ((uint16_t)(cur_task->scheduled_time))|0x8;
+					RTC.INTCTRL |= RTC_COMP_INT_LEVEL;
+				}else{
+					RTC.INTCTRL &= ~RTC_COMP_INT_LEVEL;
 				}
+				first = 0;
 			}
-			if(!task_is_periodic){
-				//printf_P(PSTR("\tClearing memory of task %X.\r\n"), &(task_storage_arr[i]));
-				remove_task(&(task_storage_arr[i]));
-			}
-			task_is_periodic = 0;
-		}
-		num_tasks = 0;
-		task_list=NULL; //Now, the task list has been cleared out, but only non-periodic tasks have had their memory purged.
-		for(uint8_t i=0;i<num_periodic_tasks;i++){
-			add_task_to_list(task_ptr_arr[i]);
+			nextTime += 500;
+			cur_task = cur_task->next;
 		}
 	}
 }

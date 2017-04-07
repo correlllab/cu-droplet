@@ -55,7 +55,9 @@ void handleMySlot(uint32_t frameTime){
 		slotTasksSwitch |= SLOT_TASK_RNB_bm;
 	}else if(!(slotTasksSwitch & SLOT_TASK_POS_MSG_bm) && (loopTime>(PADDING_DUR + RNB_DUR + PADDING_DUR))){
 		if(POS_DEFINED(&myPos)){
-			sendBotPosMsg();
+			if(rand_byte()%2==0){
+				sendBotPosMsg();
+			}
 		}
 		slotTasksSwitch |= SLOT_TASK_POS_MSG_bm;
 	}else if(!(slotTasksSwitch & SLOT_TASK_MEAS_MSG0_bm) && (loopTime>(PADDING_DUR + RNB_DUR + PADDING_DUR + POS_MSG_DUR + PADDING_DUR))){
@@ -244,7 +246,6 @@ void covarUnion(Vector* x, Matrix* U, Vector* a, Matrix* A, Vector* b, Matrix* B
 	//printMatrixMathematica(&TMP);
 
 	Matrix C = {{1,0,0},{0,1,0},{0,0,1}}; 
-	float v1, v2;
 	for(uint8_t i=0;i<3;i++){
 		C[i][i] = D[i][i]>1 ? D[i][i] : 1;
 	}
@@ -254,9 +255,7 @@ void covarUnion(Vector* x, Matrix* U, Vector* a, Matrix* A, Vector* b, Matrix* B
 	matrixInplaceMultiply(U, &S_tr, U);
 }
 
-//void ciUpdatePos(uint8_t idx, BotPos* pos, Matrix* yourP){
 void updatePos(BotPos* pos, Matrix* yourP){
-	//Vector xMe = {perSeedPos[idx].x, perSeedPos[idx].y, deg_to_rad(perSeedPos[idx].o)};
 	Vector xMe = {myPos.x, myPos.y, deg_to_rad(myPos.o)};
 	if(!POS_DEFINED(pos)){
 		MY_POS_DEBUG_PRINT(" sent me an undefined position.\r\n");
@@ -265,13 +264,12 @@ void updatePos(BotPos* pos, Matrix* yourP){
 	MY_POS_DEBUG_PRINT("thinks I'm at {%d, %d, %d}", pos->x, pos->y, pos->o);
 	Vector xMeFromYou = {pos->x, pos->y, deg_to_rad(pos->o)};
 	Matrix myP;
-	//decompressP(&myP, &(perSeedCovars[idx]));
 	decompressP(&myP, &myPosCovar);
 	Matrix myNewP;
 	Vector myNewPos;
 
 	float mDist = mahalanobisDistance(&xMe, &myP, &xMeFromYou, yourP);
-
+	mDist = sqrtf(mDist); //The way this value scales, taking the square root seems reasonable.
 	covarIntersection(&myNewPos, &myNewP, &xMe, &myP, &xMeFromYou, yourP);
 	if(mDist>4.0){
 		//This mDist corresponds to a likelihood (of consistency..?) of ~0.1%
@@ -284,165 +282,23 @@ void updatePos(BotPos* pos, Matrix* yourP){
 		covarUnion(&myNewPos, &myNewP, &xMe, &myP, &xMeFromYou, yourP);
 		if(!positiveDefiniteQ(&myNewP)){
 			MY_POS_DEBUG_PRINT(" but covar union resulted in non-positive-definite P.\r\n");
+			return;
 		}
-		return;
 	}
 	myPos.x = myNewPos[0]>8191 ? 8191 : (myNewPos[0]<-8192 ? -8192 : myNewPos[0]);
 	myPos.y = myNewPos[1]>8191 ? 8191 : (myNewPos[1]<-8192 ? -8192 : myNewPos[1]);
 	myPos.o = (rad_to_deg(myNewPos[2]) + 0.5);
 	MY_POS_DEBUG_PRINT(" giving pos {%d, %d, %d}.\r\n", myPos.x, myPos.y, myPos.o);
 	MY_POS_DEBUG_PRINT("\tMahalanobis Distance: %f\r\n", mDist);
-	//perSeedPos[idx].x = myNewPos[0]>8191 ? 8191 : (myNewPos[0]<-8192 ? -8192 : myNewPos[0]);
-	//perSeedPos[idx].y = myNewPos[1]>8191 ? 8191 : (myNewPos[1]<-8192 ? -8192 : myNewPos[1]);
-	//perSeedPos[idx].o = (rad_to_deg(myNewPos[2]) + 0.5);
-	//MY_POS_DEBUG_PRINT(" giving pos {%d, %d, %d} (omega: %5.3f).\r\n", perSeedPos[idx].x, perSeedPos[idx].y, perSeedPos[idx].o, omega);
-	#ifdef MY_POS_DEBUG_MODE
-		MY_POS_DEBUG_PRINT("Your Update Covar:\r\n");
-		printMatrixMathematica(yourP);
-		MY_POS_DEBUG_PRINT("My new covar=\r\n");
-		printMatrixMathematica(&myNewP);
-	#endif
-	compressP(&myNewP, &myPosCovar);		
-	//compressP(&myNewP, &(perSeedCovars[idx]));		
-}
-
-//void fusePerSeedMeas(){
-	//uint8_t numSeeds = 0;
-	////First, a quick loop to count the number of good seeds we have.
-	//for(uint8_t i=0;i<NUM_SEEDS;i++){
-		//if(POS_DEFINED(&perSeedPos[i])){
-			//numSeeds++;
-		//}
-	//}
-	//Matrix infMats[numSeeds];
-	//Vector eachPos[numSeeds];
-	//float infDets[numSeeds];
-	////This loop decompresses and precomputes a variety of values which will be used going forward.
-	//uint8_t thisSeed = 0;
-	//for(uint8_t i=0;i<NUM_SEEDS;i++){
-		//if(POS_DEFINED(&(perSeedPos[i]))){
-			//decompressP(&(infMats[thisSeed]), &(perSeedCovars[i]));
-			//matrixInplaceInverse(&(infMats[thisSeed]));
-			//infDets[thisSeed] = matrixDet(&(infMats[thisSeed]));
-			//eachPos[thisSeed].x = perSeedPos[i].x;
-			//eachPos[thisSeed].y = perSeedPos[i].y;
-			//eachPos[thisSeed].o = deg_to_rad(perSeedPos[i].o+90);
-			//thisSeed++;
-		//}
-	//}
-	////TODO: 
-//
-	////This loop calculates I, the total information matrix.
-	//Matrix totalInf = {{0,0,0}, {0,0,0}, {0,0,0}};
-	//for(uint8_t i=0;i<numSeeds;i++){
-		//matrixAdd(&totalInf, &totalInf, &(infMats[thisSeed]));
-	//}
-	//float totalInfDet = matrixDet(&totalInf);
-	////This next loop calculates the determinants of I, less each of the information matrices: det(I-I_j)
-	////It also calculates the denominator for the omega calculation: n*det(I) + \sum_{j=1}^n det(I_j) - det(I-I_j)
-	//float totalInfSubDets[numSeeds];
-	//float denominator = numSeeds*totalInfDet;
-	//Matrix tmp;
-	//for(uint8_t i=0;i<numSeeds;i++){
-			//matrixSubtract(&tmp, &totalInf, &(infMats[i]));
-			//totalInfSubDets[i] = matrixDet(&tmp);
-			//denominator += infDets[i] - totalInfSubDets[i];
-	//}
-	////This loop calculates each omega value: ( det(I) + det(I_i) - det(I-I_i) )/denominator;
-	//float omegas[numSeeds];
-	//for(uint8_t i=0;i<numSeeds;i++){
-			//omegas[i] = (infDets[i] + totalInfDet - totalInfSubDets[i])/denominator;
-	//}
-	//printf("omegas: { %f, %f, %f, %f}  (denom=%f)\r\n", omegas[0], omegas[1], omegas[2], omegas[3], denominator);
-	////This loop computes our new information matrix; the sum of our four separate matrices, weighted by the omegas.
-	//Matrix newInf = {{0,0,0},{0,0,0},{0,0,0}};
-	//for(uint8_t i=0;i<numSeeds;i++){
-		//matrixScale(&(infMats[i]), omegas[i]);
-		//matrixAdd(&newInf, &newInf, &(infMats[i]));
-	//}
-	////This loop computes our new position; the sum of our four separate position estimates, weighted by omegas.
-	//Vector newPos = {0,0,0};
-	//Vector tempPos;
-	//for(uint8_t i=0;i<numSeeds;i++){
-		//Vector thisPos = {perSeedPos[i].x, perSeedPos[i].y, deg_to_rad(perSeedPos[i].o+90)};
-		//matrixTimesVector(&tempPos, &(infMats[i]), &(eachPos[i]));
-		//vectorAdd(&newPos, &newPos, &tempPos);
-	//}
-	//tempPos[0] = newPos[0]; tempPos[1] = newPos[1]; tempPos[2] = newPos[2]; //make tempPos a copy of newPos;
-	//matrixInplaceInverse(&newInf); //newInf is now our newPosCovar;
-	//matrixTimesVector(&newPos, &newInf, &tempPos);
-	//compressP(&newInf, &myPosCovar);
-	//myPos.x = (int16_t)newPos[0];
-	//myPos.y = (int16_t)newPos[1];
-	//myPos.o = (rad_to_deg(newPos[2]-M_PI_2)+0.5);
-//}
-
-//void updatePositions(){
-	//if(!POS_DEFINED(&myPos)){
-		//printf("Can't adjust others' positions until I know where I am.\r\n");
-		//return;
-	//}
-	//POS_CALC_DEBUG_PRINT("Updating Positions!\r\n");
-	//Matrix myP;
-	//float pDets[NUM_SEEDS];
-	//float pDetsTotal=0;
-	//for(uint8_t i=0;i<NUM_SEEDS;i++){
-		//if(POS_DEFINED(&(perSeedPos[i]))){
-			//decompressP(&myP, &(perSeedCovars[i]));
-			//pDets[i] = matrixDet(&myP);
-			//pDets[i] = powf(pDets[i],1.0/6.0);
-			//pDetsTotal+=1.0/pDets[i];
-		//}else{
-			//pDets[i]=NAN;
-		//}
-	//}
-	//#ifdef POS_CALC_DEBUG_MODE
-	//printf("pDets: %f", pDets[0]);
-	//for(uint8_t i=1;i<NUM_SEEDS;i++){
-		//printf(", %f", pDets[i]);
-	//}
-	//printf("\r\n");
+	//#ifdef MY_POS_DEBUG_MODE
+		//MY_POS_DEBUG_PRINT("Your Update Covar:\r\n");
+		//printMatrixMathematica(yourP);
+		//MY_POS_DEBUG_PRINT("My new covar=\r\n");
+		//printMatrixMathematica(&myNewP);
 	//#endif
-	//uint8_t prev = 255;
-	//uint8_t thresh[NUM_SEEDS];
-	//uint8_t tmp;
-	//for(uint8_t i=0;i<NUM_SEEDS;i++){
-		//if(isnan(pDets[i])){
-			//thresh[i] = prev;
-		//}else{
-			//tmp = (255*((1.0/pDets[i])*(1.0/pDetsTotal))+0.5);
-			//if(tmp > prev){
-				//thresh[i] = 0;
-			//}else{
-				//thresh[i] = prev-tmp;
-			//}
-		//}
-		//prev = thresh[i];
-	//}
-//
-	//if(pDetsTotal==0){
-		//printf("Not suffficiently confident for any seedIdxs.\r\n");
-		//return;
-	//}
-	//POS_CALC_DEBUG_PRINT("\tThresholds: {%hu, %hu, %hu, %hu}\r\n", thresh[0], thresh[1], thresh[2], thresh[3]);
-	//uint8_t thisSeedIdx;
-	//for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
-		//thisSeedIdx=0xFF;
-		//if(nearBotUseabilityCheck(i)){
-			//uint8_t chooser = (uint8_t)(rand_short()%255 + 1);
-			//for(uint8_t j=0;j<NUM_SEEDS;j++){
-				//if(chooser>thresh[j]){
-					//thisSeedIdx = j;
-					//break;
-				//}
-			//}
-			//if(thisSeedIdx==0xFF){
-				//printf("Something has gone very wrong with thisSeedIdx!\r\n");
-			//}
-			//processMeasurement(i, thisSeedIdx, &myP);
-		//}
-	//}
-//}
+	//resetEigValMax(&myNewP);
+	compressP(&myNewP, &myPosCovar);		
+}
 
 void updatePositions(){
 	if(!POS_DEFINED(&myPos)){
@@ -505,7 +361,14 @@ void processMeasurement(uint8_t botIdx, Matrix* myP){
 void getMeasCovar(Matrix* R, Vector* meas){
 	//Matrix* start = ((*meas)[0])<=130 ? &deltaPosCovarClose : ( ((*meas)[0])<=185 ? &deltaPosCovarMed : &deltaPosCovarFar );
 	//matrixCopy(R, start);
-	Matrix* start = ((*meas)[0])<=100 ? &measCovarClose : &measCovarMed;
+	Matrix* start;
+	if((*meas)[0]<=80){
+		start = &measCovarClose;
+	}else if((*meas)[0]<=140){
+		start = &measCovarMed;
+	}else{
+		start = &measCovarFar;
+	}
 	matrixCopy(R, start);
 	Matrix H; //This is the jacobian of the transformation from (r,b,h) to (deltaX, deltaY, deltaO)
 	float cosO = cos((*meas)[1]);
@@ -557,12 +420,12 @@ void populateHMatrix(Matrix* H, Vector* x_me, Vector* x_you){
 }
 
 void compressP(Matrix* P, DensePosCovar* covar){
-	(*P)[0][0] = (1/4.0)*(*P)[0][0];
-	(*P)[0][1] = (1/8.0)*(*P)[0][1];
-	(*P)[0][2] = 64.0*(*P)[0][2];
-	(*P)[1][1] = (1/4.0)*(*P)[1][1];
-	(*P)[1][2] = 64.0*(*P)[1][2];
-	(*P)[2][2] = 64.0*(*P)[2][2];
+	(*P)[0][0] = (1/8.0)*(*P)[0][0];
+	(*P)[0][1] = (1/16.0)*(*P)[0][1];
+	(*P)[0][2] = 16.0*(*P)[0][2];
+	(*P)[1][1] = (1/8.0)*(*P)[1][1];
+	(*P)[1][2] = 16.0*(*P)[1][2];
+	(*P)[2][2] = 256.0*(*P)[2][2];
 
 	for(uint8_t i=0;i<3;i++){
 		(*P)[i][i] = ((*P)[i][i] > 65535) ? 65535 : (*P)[i][i];
@@ -586,15 +449,15 @@ void decompressP(Matrix* P, DensePosCovar* covar){
 	(*P)[1][2] = (*covar)[4].d;
 	(*P)[2][2] = (*covar)[5].u;
 
-	(*P)[0][0] = 4*(*P)[0][0];
-	(*P)[0][1] = 8*(*P)[0][1];
-	(*P)[0][2] = (1/64.0)*(*P)[0][2];
+	(*P)[0][0] = 8*(*P)[0][0];
+	(*P)[0][1] = 16*(*P)[0][1];
+	(*P)[0][2] = (1/16.0)*(*P)[0][2];
 	(*P)[1][0] = (*P)[0][1];
-	(*P)[1][1] = 4*(*P)[1][1];
-	(*P)[1][2] = (1/64.0)*(*P)[1][2];
+	(*P)[1][1] = 8*(*P)[1][1];
+	(*P)[1][2] = (1/16.0)*(*P)[1][2];
 	(*P)[2][0] = (*P)[0][2];
 	(*P)[2][1] = (*P)[1][2];
-	(*P)[2][2] = (1/64.0)*(*P)[2][2];
+	(*P)[2][2] = (1/256.0)*(*P)[2][2];
 }
 
 //Note: This function assumes that nearBots have been sorted by range!
@@ -647,9 +510,9 @@ void handleFrameEnd(){
 }
 
 void useNewRnbMeas(uint16_t id, uint16_t range, int16_t bearing, int16_t heading){
-	//if(range>150){
-		//return;
-	//}
+	if(range>200){
+		return;
+	}
 	RNB_DEBUG_PRINT("            (RNB) ID: %04X | R: %4u B: %4d H: %4d\r\n", id, range, bearing, heading);
 	OtherBot* measuredBot = addOtherBot(id);
 	BotMeas* meas = &(measuredBot->myMeas);
@@ -702,44 +565,32 @@ void sendBotMeasMsg(uint8_t i){ //i: index in nearBots array.
 
 void handleBotMeasMsg(BotMeasMsg* msg, id_t senderID __attribute__ ((unused))){
 	if(seedFlag) return;
-	//uint8_t seedIdx = msg->seedIdx;
 	if(!POS_DEFINED(&(msg->pos))){
 		MY_POS_DEBUG_PRINT("%04X sent me an undefined position.\r\n", senderID);
 		return;
 	}
 	Matrix covar;
 	decompressP(&covar, &(msg->covar));
-
-	//if(!POS_DEFINED(&perSeedPos[seedIdx])){
+	//Vector eigVals;
+	//eigenvalues(&eigVals, &covar);
+	//if(!eigValToleranceQ(&eigVals)){
+		//MY_POS_DEBUG_PRINT("Eigenvalues exceeded tolerance. (%f, %f, %f)\r\n", eigVals[0], eigVals[1], eigVals[2]);
+		//return;
+	//}
 	if(!POS_DEFINED(&myPos)){
-		float yourTrace = covar[0][0]+covar[1][1] + covar[2][2];
-		//if(powf(yourDet,1.0/6.0)>80){
-			//MY_POS_DEBUG_PRINT("%04X's 'StdDev' (%f) to high for me to initialize.\r\n", senderID, powf(yourDet,1.0/6.0));
-			//return;
-		//}else{
-			MY_POS_DEBUG_PRINT("%04X initialized me to {%d, %d, %d}. (Covar Trace: %f)\r\n", senderID, (msg->pos).x, (msg->pos).y, (msg->pos).o, yourTrace);
-		//}
+		MY_POS_DEBUG_PRINT("%04X initialized me to {%d, %d, %d}.\r\n", senderID, (msg->pos).x, (msg->pos).y, (msg->pos).o);
 		myPos.x = (msg->pos).x;
 		myPos.y = (msg->pos).y;
 		myPos.o = (msg->pos).o;
 		for(uint8_t i=0;i<6;i++){
 			myPosCovar[i].u = msg->covar[i].u;
 		}
-		//if(!POS_DEFINED(&myPos)){
-			//myPos.x = (msg->pos).x;
-			//myPos.y = (msg->pos).y;
-			//myPos.o = (msg->pos).o;
-			//for(uint8_t i=0;i<6;i++){
-				//myPosCovar[i].u = msg->covar[i].u;
-			//}
-		//}
 		//#ifdef MY_POS_DEBUG_MODE
 			//MY_POS_DEBUG_PRINT("His Est Covar:\r\n");
 			//printMatrixMathematica(&covar);
 		//#endif
 	}else{
 		MY_POS_DEBUG_PRINT("%04X ", senderID);
-		//ciUpdatePos(seedIdx, &(msg->pos), &covar);
 		updatePos(&(msg->pos), &covar);
 	}
 }

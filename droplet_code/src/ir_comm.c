@@ -556,6 +556,9 @@ uint8_t ir_is_busy(uint8_t dirs_mask){
 	uint32_t now = get_time();
 	uint8_t transmitting = 0;
 	uint8_t receiving = 0;
+	if(hp_ir_block_bm&dirs_mask){
+		return 3;
+	}
 	for(uint8_t dir=0; dir<6; dir++){
     	if(dirs_mask&(1<<dir)){
         	if(ir_rxtx[dir].status & IR_STATUS_TRANSMITTING_bm){

@@ -127,7 +127,7 @@ void use_rnb_data(){
 			if(range<2*DROPLET_RADIUS) range=46;
 			error = calculate_error(range, bearing, heading);
 			//printf("\t[%04X] %4u % 4d % 4d | %6.2f", rnbCmdID, (uint16_t)range, (int16_t)rad_to_deg(bearing), (int16_t)rad_to_deg(heading), error);
-			if((range<110 && error>1.0) || (range<200 && error>1.5)){
+			if((range<110 && error>1.0) || (range<200 && error>1.5) || (range>200)){
 				ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 					rnbProcessingFlag=0;
 				}
@@ -324,6 +324,7 @@ void ir_range_blast(uint8_t power __attribute__ ((unused))){
 	while((get_time() - rnbCmdSentTime) < POST_BROADCAST_DELAY) delay_us(500);
 	//times[1] = get_time();
 	uint32_t pre_sync_op = get_time();
+	uint16_t prevPower = curr_ir_power;
 	set_all_ir_powers(256);	
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){		
 		while((get_time() - pre_sync_op) < TIME_FOR_SET_IR_POWERS) delay_us(500);
@@ -340,6 +341,7 @@ void ir_range_blast(uint8_t power __attribute__ ((unused))){
 			delay_ms(DELAY_BETWEEN_RB_TRANSMISSIONS);
 		}
 	}
+	set_all_ir_powers(prevPower);
 }
 
 

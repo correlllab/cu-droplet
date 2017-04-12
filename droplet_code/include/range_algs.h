@@ -29,6 +29,7 @@
 #define MIN_MATRIX_SUM_THRESH	115
 #define ELEVEN_SQRT3		   19.0525588833f
 #define SQRT3_OVER2				0.8660254038f
+#define RNB_DUR					220
 
 typedef struct list_el {
 	float Rx;

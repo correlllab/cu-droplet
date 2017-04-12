@@ -25,6 +25,7 @@ static void		decompressP(Matrix* P, DensePosCovar* covar);
 static void		prepBotMeasMsg(id_t id, uint16_t r, int16_t b, BotPos* pos, DensePosCovar* covar);
 static void		sendBotMeasMsg(BotMeasMsgNode* mNode);
 static uint32_t getBackoffTime(uint8_t N, uint16_t r);
+static float	discreteTriangularPDF(float x, uint8_t max, uint16_t r);
 
 static const Matrix measCovarClose  = {{100, -0.75, 0.1}, {-0.75, 0.03, 0.025}, {0.1, 0.025, 0.1}};
 static const Matrix measCovarMed = {{450, 0.15, 0.75}, {0.15, 0.05, 0.1}, {0.75, 0.1, 0.25}};
@@ -444,6 +445,28 @@ void handleBotMeasMsg(BotMeasMsg* msg, id_t senderID __attribute__ ((unused))){
 	}
 }
 
+/*
+ * This function computes the exponential-backoff time for CSMA.
+ *
+ * However, while a standard implementation would choose uniformly between 0 and randMax*16,
+ * this implementation weights the random choice so that measurements of a smaller radius
+ * are more likely to choose lower slots.
+ */
+static uint32_t getBackoffTime(uint8_t N, uint16_t r){
+	uint8_t randMax = (1<<N) - 1;
+	float totalValue = 0;
+	float chooser = rand_real();
+	//printf("Discrete Triangular:\r\n");
+	for(uint8_t i=0;i<randMax;i++){
+		totalValue += discreteTriangularPDF(i, randMax, r);
+		//printf("\t%f\r\n", totalValue);
+		if(chooser<=totalValue){
+			return ((uint32_t)i)*16;
+		}
+	}
+	return randMax*16;
+}
+
 static float discreteTriangularPDF(float x, uint8_t max, uint16_t r){
 	float c = ((r-50.0)/150.0)*max;
 	float firstTerm;
@@ -467,28 +490,6 @@ static float discreteTriangularPDF(float x, uint8_t max, uint16_t r){
 		secondTerm = 0;
 	}
 	return firstTerm - secondTerm;
-}
-
-/*
- * This function computes the exponential-backoff time for CSMA.
- *
- * However, while a standard implementation would choose uniformly between 0 and randMax*16,
- * this implementation weights the random choice so that measurements of a smaller radius
- * are more likely to choose lower slots.
- */
-static uint32_t getBackoffTime(uint8_t N, uint16_t r){
-	uint8_t randMax = (1<<N) - 1;
-	float totalValue = 0;
-	float chooser = rand_real();
-	//printf("Discrete Triangular:\r\n");
-	for(uint8_t i=0;i<randMax;i++){
-		totalValue += discreteTriangularPDF(i, randMax, r);
-		//printf("\t%f\r\n", totalValue);
-		if(chooser<=totalValue){
-			return ((uint32_t)i)*16;
-		}
-	}
-	return randMax*16;
 }
 
 void getPosColor(uint8_t* r, uint8_t* g, uint8_t* b){

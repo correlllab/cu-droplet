@@ -36,7 +36,7 @@
 
 #define IR_BUFFER_SIZE			40u //bytes
 #define IR_UPKEEP_FREQUENCY		16 //Hz
-#define IR_MSG_TIMEOUT			20 //ms
+#define IR_MSG_TIMEOUT			16 //ms
 
 #define IR_STATUS_BUSY_bm				0x01	// 0000 0001				
 #define IR_STATUS_COMPLETE_bm			0x02	// 0000 0010
@@ -122,5 +122,6 @@ uint8_t hp_ir_cmd(uint8_t dirs, char *data, uint8_t data_length);
 uint8_t hp_ir_targeted_cmd(uint8_t dirs, char *data, uint8_t data_length, id_t target);
 void waitForTransmission(uint8_t dirs);
 
-uint8_t ir_is_available(uint8_t dirs_mask);
+uint8_t ir_is_busy(uint8_t dirs_mask);
+uint8_t ir_channels_busy(uint8_t dirs_mask);
 //uint8_t wait_for_ir(uint8_t dirs);

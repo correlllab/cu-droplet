@@ -324,9 +324,9 @@ void printMatrix(Matrix* A){
 	printf_P(matrix3str, (*A)[2][0], (*A)[2][1], (*A)[2][2]);
 }
 
-const char matrix3mathStartStr[] PROGMEM = "{\r\n  {%15.10f, %15.10f, %15.10f},\r\n";
-const char matrix3mathStr[] PROGMEM = "  {%15.10f, %15.10f, %15.10f},\r\n";
-const char matrix3mathEndStr[] PROGMEM = "  {%15.10f, %15.10f, %15.10f}\r\n};\r\n";
+const char matrix3mathStartStr[] PROGMEM = "{\r\n  {%9.4f, %9.4f, %9.4f},\r\n";
+const char matrix3mathStr[] PROGMEM = "  {%9.4f, %9.4f, %9.4f},\r\n";
+const char matrix3mathEndStr[] PROGMEM = "  {%9.4f, %9.4f, %9.4f}\r\n};\r\n";
 void printMatrixMathematica(Matrix* A){
 	printf_P(matrix3mathStartStr, (*A)[0][0], (*A)[0][1], (*A)[0][2]);
 	printf_P(matrix3mathStr,	  (*A)[1][0], (*A)[1][1], (*A)[1][2]);

@@ -199,7 +199,7 @@ inline uint8_t all_ir_sends(uint8_t dirs_to_go, char* data, uint8_t data_length,
 		printf_P(PSTR("Normal send blocked by hp.\r\n"));
 		return 0;
 	}
-	if(!ir_is_available(dirs_to_go)){
+	if(ir_is_busy(dirs_to_go)>1){
         printf_P(PSTR("Aborting IR send while trying:\r\n\t"));
 		for(uint8_t i=0;i<data_length;i++){
 			printf("%02hX ",data[i]);
@@ -552,15 +552,21 @@ static void ir_transmit_complete(uint8_t dir){
 	}
 }
 
-uint8_t ir_is_available(uint8_t dirs_mask){
+uint8_t ir_is_busy(uint8_t dirs_mask){
+	uint32_t now = get_time();
+	uint8_t transmitting = 0;
+	uint8_t receiving = 0;
 	for(uint8_t dir=0; dir<6; dir++){
     	if(dirs_mask&(1<<dir)){
         	if(ir_rxtx[dir].status & IR_STATUS_TRANSMITTING_bm){
-            	return 0;
+            	transmitting = 1;
         	}
+			if((now - ir_rxtx[dir].last_byte) < IR_MSG_TIMEOUT){
+				receiving = 1;	
+			}
     	}
 	}
-    return 1;
+	return transmitting ? 2 : (receiving ? 1 : 0);
 }
 
 // ISRs for IR channel 0

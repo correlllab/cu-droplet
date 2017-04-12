@@ -299,11 +299,35 @@ static void decompressP(Matrix* P, DensePosCovar* covar){
 }
 
 /*
+ * dir is movement direction, as used in the 'walk' function.
+ * mag is movement magnitude, as used in the 'walk' function.
+ *         (units of mm for dirs 0-5; degrees for dirs 6-7)
+ * CITE:
+ * "Decentralized Multi-robot Cooperative Localization using Covariance Intersection"
+ * by Luic C. Carillo-Arce et. al.
+ */
+void	updateForMovement(uint8_t dir, uint16_t mag){
+	Vector curX = {myPos.x, myPos.y, deg_to_rad(myPos.o)};
+	Matrix curP;
+	decompressP(&curP, &myPosCovar);
+	Vector newX;
+	//TODO: Implement function 'f', which calculates newX based on curX, movement dir, and movement mag.
+	Matrix Phi;
+	//TODO: Calculate Phi, the gradient of 'f' w.r.t. changes in the robot's current position.
+	Matrix G;
+	//TODO: Calculate G, the gradient of 'f' w.r.t. errors in the robot's motion.
+	Matrix Q;
+	//TODO: Hard-Code Q, our movement's covariance. Probably separately for each direction???
+	Matrix newP;
+	//newP = Phi.curP.(tr(Phi)) + G.Q.(tr(G))
+}
+
+/*
  * This function takes a measurement of another droplet and computes an estimated position for that
  * droplet based on this droplet's position and position covariance, and the measurement.
  * It then prepares a message to be sent to the measured droplet, conveying this information.
  */
-void processMeasurement(id_t id, uint16_t r, int16_t b, int16_t h){
+void useRNBmeas(id_t id, uint16_t r, int16_t b, int16_t h){
 	if(!POS_DEFINED(&myPos)){
 		POS_CALC_DEBUG_PRINT("Can't adjust others' positions until I know where I am.\r\n");
 		return;

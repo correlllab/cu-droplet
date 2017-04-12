@@ -71,16 +71,19 @@ typedef struct bot_meas_struct{
 	int16_t h;
 } BotMeas;
 
-BotPos myPos;
+BotPos        myPos;
 DensePosCovar myPosCovar;
-uint8_t		seedFlag;
+uint8_t		  seedFlag;
 
 void	localization_init();
-void	processMeasurement(id_t id, uint16_t r, int16_t b, int16_t h);
+void	useRNBmeas(id_t id, uint16_t r, int16_t b, int16_t h);
 void	handleBotMeasMsg(BotMeasMsg* msg, id_t senderID __attribute__ ((unused)));
+
+//WARNING! This function hasn't yet been implemented; it's a stub to serve as a reminder/framework for future work.
+void	updateForMovement(uint8_t dir, uint16_t mag);
+
 void	getPosColor(uint8_t* r, uint8_t* g, uint8_t* b);
 void	printPosCovar(DensePosCovar* denseP);
-
 
 inline uint8_t dirFromAngle(int16_t angle){
 	return abs((angle - (angle>0 ? 360 : 0))/60);

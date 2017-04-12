@@ -24,14 +24,14 @@ void loop(){
 		if(loopID==mySlot){
 			broadcast_rnb_data();
 		}else if(loopID==SLOTS_PER_FRAME-1){
-		printf_P(PSTR("\nID: %04X T: %lu "), get_droplet_id(), get_time());
-		if(POS_DEFINED(&myPos)){
-			printf_P(PSTR("\tMy Pos: {%d, %d, %d}\r\n"), myPos.x, myPos.y, myPos.o);
-			printPosCovar(&myPosCovar);
-		}else{
-			printf("\r\n");
-		}
-			printf("\r\n");
+			printf_P(PSTR("\nID: %04X T: %lu "), get_droplet_id(), get_time());
+			if(POS_DEFINED(&myPos)){
+				printf_P(PSTR("\tMy Pos: {%d, %d, %d}\r\n"), myPos.x, myPos.y, myPos.o);
+				printPosCovar(&myPosCovar);
+				printf("\r\n");
+			}else{
+				printf("\r\n\r\n");
+			}
 		}
 		uint8_t newR = 0, newG = 0, newB = 0;
 		getPosColor(&newR, &newG, &newB);
@@ -39,7 +39,7 @@ void loop(){
 	}
 	if(rnb_updated){
 		RNB_DEBUG_PRINT("\t(RNB) ID: %04X | R: %4u B: %4d H: %4d\r\n", id, range, bearing, heading);
-		processMeasurement(last_good_rnb.id, last_good_rnb.range, last_good_rnb.bearing, last_good_rnb.heading);
+		useRNBmeas(last_good_rnb.id, last_good_rnb.range, last_good_rnb.bearing, last_good_rnb.heading);
 		rnb_updated=0;
 	}
 	delay_ms(LOOP_DELAY_MS);
@@ -48,12 +48,6 @@ void loop(){
 void handle_msg(ir_msg* msg_struct){
 	if(((BotMeasMsg*)(msg_struct->msg))->flag==BOT_MEAS_MSG_FLAG && msg_struct->length==sizeof(BotMeasMsg)){
 		handleBotMeasMsg((BotMeasMsg*)(msg_struct->msg), msg_struct->sender_ID);
-	}else{
-		printf_P(PSTR("%hu byte msg from %04X:\r\n\t"), msg_struct->length, msg_struct->sender_ID);
-		for(uint8_t i=0;i<msg_struct->length;i++){
-			printf("%02hX ", msg_struct->msg[i]);
-		}
-		printf("\r\n");
 	}
 }
 

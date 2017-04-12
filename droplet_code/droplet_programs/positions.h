@@ -214,6 +214,13 @@ static float discreteTriangularPDF(float x, uint8_t max, uint16_t r){
 	return firstTerm - secondTerm;
 }
 
+/*
+ * This function computes the exponential-backoff time for CSMA.
+ *
+ * However, while a standard implementation would choose uniformly between 0 and randMax*16,
+ * this implementation weights the random choice so that measurements of a smaller radius
+ * are more likely to choose lower slots.
+ */
 static uint32_t getBackoffTime(uint8_t N, uint16_t r){
 	uint8_t randMax = (1<<N) - 1;
 	float totalValue = 0;

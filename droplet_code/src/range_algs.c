@@ -127,7 +127,7 @@ void use_rnb_data(){
 			if(range<2*DROPLET_RADIUS) range=46;
 			error = calculate_error(range, bearing, heading);
 			//printf("\t[%04X] %4u % 4d % 4d | %6.2f", rnbCmdID, (uint16_t)range, (int16_t)rad_to_deg(bearing), (int16_t)rad_to_deg(heading), error);
-			if((range<110 && error>1.0) || (range<200 && error>1.5)){
+			if((range<110 && error>1.0) || (range<200 && error>1.5) || (range>200)){
 				ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 					rnbProcessingFlag=0;
 				}
@@ -194,29 +194,50 @@ float calculate_error(float r, float b, float h){
 	float alphaDotP, betaDotP;
 	float measTotal = 0;
 	float cosAcosBTotal = 0;
-	float cosAcosB[36];
+	float cosAcosBmat[6][6];
+	float* cosAcosB = (float*)cosAcosBmat;
 	int16_t* fast_bm = (int16_t*)brightMeas;
 	for(uint8_t i=0;i<36;i++){
 		uint8_t rx = i%6;
 		uint8_t tx = i/6;
 		rij[0] = bigR[0] + txHats[tx][0] - hats[rx][0];
 		rij[1] = bigR[1] + txHats[tx][1] - hats[rx][1];
+		rijMagSq = rij[0]*rij[0] + rij[1]*rij[1];
+
 		alphaDotP = rij[0]*hats[rx][0] + rij[1]*hats[rx][1];
 		alphaDotP = alphaDotP < 0 ? 0 : alphaDotP;
 		betaDotP = (-rij[0])*txHats[tx][0] + (-rij[1])*txHats[tx][1];
 		betaDotP = betaDotP < 0 ? 0 : betaDotP;
-		rijMagSq = rij[0]*rij[0] + rij[1]*rij[1];
-		
+
 		measTotal += fast_bm[i];
 		cosAcosB[i] = (alphaDotP*betaDotP)/(rijMagSq*DROPLET_RADIUS_SQ);
 		cosAcosBTotal += cosAcosB[i];
 	}
-
 	float conf = 0;
 	for(uint8_t i=0;i<36;i++){
 		conf += fabsf( (fast_bm[i]/measTotal) - (cosAcosB[i]/cosAcosBTotal) );
 	}
-	
+	//printf("{\"%04X\", %f, {", rnbCmdID, conf);
+	//for(uint8_t e=0 ; e<6 ; e++){
+		//printf("{");
+			//for(uint8_t sensor_num=0 ; sensor_num<6 ; sensor_num++){
+				//printf("%d",brightMeas[e][sensor_num]);
+				//if(sensor_num<5) printf(",");
+			//}
+		//printf("}");
+		//if(e<5) printf(",");
+	//}
+	//printf("}, {");
+	//for(uint8_t e=0 ; e<6 ; e++){
+		//printf("{");
+			//for(uint8_t s=0 ; s<6 ; s++){
+				//printf("{%f, %f, %f}", cosAcosBmat[e][s], alphaMat[e][s], betaMat[e][s]);
+				//if(s<5) printf(", ");
+			//}
+		//printf("}");
+		//if(e<5) printf(",");
+	//}
+	//printf("}},\r\n");
 	return conf;
 }
 
@@ -303,6 +324,7 @@ void ir_range_blast(uint8_t power __attribute__ ((unused))){
 	while((get_time() - rnbCmdSentTime) < POST_BROADCAST_DELAY) delay_us(500);
 	//times[1] = get_time();
 	uint32_t pre_sync_op = get_time();
+	uint16_t prevPower = curr_ir_power;
 	set_all_ir_powers(256);	
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){		
 		while((get_time() - pre_sync_op) < TIME_FOR_SET_IR_POWERS) delay_us(500);
@@ -319,6 +341,7 @@ void ir_range_blast(uint8_t power __attribute__ ((unused))){
 			delay_ms(DELAY_BETWEEN_RB_TRANSMISSIONS);
 		}
 	}
+	set_all_ir_powers(prevPower);
 }
 
 

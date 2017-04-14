@@ -63,6 +63,7 @@ typedef uint16_t id_t;
 #include "firefly_sync.h"
 #include "serial_handler.h"
 #include "matrix_utils.h"
+#include "localization.h"
 
 typedef struct ir_msg_struct
 {

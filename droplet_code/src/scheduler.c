@@ -93,7 +93,6 @@ void delay_ms(uint16_t ms){
 }
 
 //This function checks for errors or inconsistencies in the task list, and attempts to correct them.
-//Is this still needed?
 void task_list_cleanup(){
 	printf_P(PSTR("\tAttempting to restore task_list.\r\n\tIf you only see this message rarely, don't worry too much.\r\n"));
 	volatile Task_t* cur_task = task_list;

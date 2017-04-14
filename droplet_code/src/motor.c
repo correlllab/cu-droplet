@@ -34,6 +34,7 @@ static inline void motor_backward(uint8_t num)
 	}
 }
 
+
 void motor_init()
 {
 	#ifdef AUDIO_DROPLET

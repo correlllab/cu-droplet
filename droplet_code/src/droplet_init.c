@@ -35,10 +35,12 @@ static void init_all_systems(){
 	
 	motor_init();				INIT_DEBUG_PRINT("MOTOR INIT\r\n");
 	random_init();				INIT_DEBUG_PRINT("RAND INIT\r\n"); //This uses adc readings for a random seed, and so requires that the adcs have been initialized.
+	localization_init();		INIT_DEBUG_PRINT("LOCALIZATION INIT\r\n"); 
 	
 	#ifdef SYNCHRONIZED
 		firefly_sync_init();
 	#endif
+
 
 	set_all_ir_powers(256);
 

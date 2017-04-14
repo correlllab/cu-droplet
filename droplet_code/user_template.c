@@ -4,7 +4,7 @@
  * Any code in this function will be run once, when the robot starts.
  */
 void init(){
-
+	set_rgb(255,255,255);
 }
 
 /*
@@ -12,6 +12,10 @@ void init(){
  */
 void loop(){
 
+	if(rnb_updated){
+		set_rgb(255,0,0);
+		rnb_updated = 0;
+	}
 }
 
 /*

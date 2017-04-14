@@ -11,7 +11,7 @@ static void received_ir_cmd(uint8_t dir);
 static void received_rnb_r(uint8_t delay, id_t senderID, uint32_t last_byte);
 static void received_ir_sync(uint8_t delay, id_t senderID);
 static void ir_transmit(uint8_t dir);
-static void ir_remote_send(uint8_t dir, uint16_t data);
+//static void ir_remote_send(uint8_t dir, uint16_t data);
 static void ir_transmit_complete(uint8_t dir);
 
 static volatile uint16_t	cmd_length;
@@ -108,7 +108,7 @@ void handle_cmd_wrapper(){
 	}
 }
 
-static void perform_ir_upkeep(){		
+static void perform_ir_upkeep(){
 	uint16_t seen_crcs[6] = {0,0,0,0,0,0};
 	uint8_t crc_seen;
 	int8_t check_dir;
@@ -140,8 +140,9 @@ static void perform_ir_upkeep(){
 					if(msg_node[num_waiting_msgs].msg_length > IR_BUFFER_SIZE){
 						printf_P(PSTR("ERROR! Message too long?\r\n"));
 					}
+					num_waiting_msgs++;
 				}
-				num_waiting_msgs++;
+
 				clear_ir_buffer(dir);
 			}
 		}
@@ -235,16 +236,16 @@ uint8_t ir_send(uint8_t dirs, char *data, uint8_t data_length){
 }
 
 static inline uint8_t all_hp_ir_cmds(uint8_t dirs, char* data, uint8_t data_length, id_t target){
-	if(hp_ir_block_bm){
-		return 0;
-	}
-	uint8_t timed;
-	if(data_length>=64){
-		data_length-=64;
-		timed=1;
-	}
-    perform_ir_upkeep();
+    //perform_ir_upkeep();
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+		if(hp_ir_block_bm){
+			return 0;
+		}
+		uint8_t timed;
+		if(data_length>=64){
+			data_length-=64;
+			timed=1;
+		}
 		for(uint8_t dir=0;dir<6;dir++){
 			if(dirs&(1<<dir)){
 				channel[dir]->CTRLB &= ~USART_RXEN_bm;
@@ -320,13 +321,14 @@ static void ir_receive(uint8_t dir){
 	}
 	ir_rxtx[dir].curr_pos++;
 	if(ir_rxtx[dir].curr_pos>=(ir_rxtx[dir].data_length+HEADER_LEN)){
+		ir_rxtx[dir].status |= ir_rxtx[dir].target_ID ? IR_STATUS_TARGETED_bm : 0;
 		//pre checks.
 		const uint8_t crcMismatch = ir_rxtx[dir].calc_crc!=ir_rxtx[dir].data_crc;
 		const uint8_t nullCrc	  = ir_rxtx[dir].calc_crc==0;
 		const uint8_t selfSender  = ir_rxtx[dir].sender_ID == get_droplet_id();
 		const uint8_t notTimed	  = !(ir_rxtx[dir].status & IR_STATUS_TIMED_bm);
 		const uint8_t wrongTarget = (notTimed && ir_rxtx[dir].target_ID && ir_rxtx[dir].target_ID!=get_droplet_id());
-		const uint8_t incDirErr	= (notTimed && (ir_rxtx[dir].inc_dir&INC_DIR_KEY)!=INC_DIR_KEY);
+		const uint8_t incDirErr	= 0;//(notTimed && (ir_rxtx[dir].inc_dir&INC_DIR_KEY)!=INC_DIR_KEY);
 		if(!((crcMismatch||nullCrc)||(selfSender||wrongTarget)||incDirErr)){
 			if(notTimed){
 				ir_rxtx[dir].inc_dir = ir_rxtx[dir].inc_dir&(~INC_DIR_KEY); //remove key bits.							
@@ -345,6 +347,7 @@ static void ir_receive(uint8_t dir){
 					ir_rxtx[dir].status |= IR_STATUS_COMPLETE_bm;
 					ir_rxtx[dir].status |= IR_STATUS_BUSY_bm; //mark as busy so we don't overwrite it.
 					channel[dir]->CTRLB &= ~USART_RXEN_bm; //Disable receiving messages on this channel until the message has been processed.
+					if(ir_rxtx[dir].data_length==22) printf("%hu %04X\r\n", dir, ir_rxtx[dir].sender_ID);
 				}
 			}
 			//printf("\r\n");
@@ -434,7 +437,7 @@ static void received_rnb_r(uint8_t delay, id_t senderID, uint32_t last_byte){
 		ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 			hp_ir_block_bm = 0;
 		}
-		schedule_task(10, use_rnb_data, NULL);
+		schedule_task(5, use_rnb_data, NULL);
 	}
 }
 
@@ -482,46 +485,46 @@ static void ir_transmit(uint8_t dir){
 	}
 
 }
-
-static void ir_remote_send(uint8_t dir, uint16_t data){	
-	channel[dir]->CTRLB &= ~USART_RXEN_bm;
-	channel[dir]->CTRLB &= ~USART_TXEN_bm;
-	//printf("Sending:\t");
-	TCF2.CTRLB |= ir_carrier_bm[dir];
-	PORT_t* port = 0;
-	if((dir==0)|(dir==1))		port=&PORTC;
-	else if(dir==2)			port=&PORTD;
-	else if((dir==3)|(dir==4))	port=&PORTE;
-	else if(dir==5)			port=&PORTF;
-	uint8_t pin_mask=0;
-	if((dir==0)|(dir==2)|(dir==3)|(dir==5)) pin_mask=PIN3_bm;
-	else if((dir==1)|(dir==4))				pin_mask=PIN7_bm;
-	
-	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-		port->DIRSET = pin_mask;	
-		//start bit
-		port->OUTCLR = pin_mask;				delay_us(5000);
-		port->OUTSET = pin_mask;				delay_us(5000);
-		//send E0E0:
-		for(uint8_t i=0;i<16;i++){
-			port->OUTCLR = pin_mask;	delay_us(560);		
-			if((0xE0E0<<i)&0x8000){	port->OUTSET = pin_mask;	delay_us(1600);}
-			else{					port->OUTSET = pin_mask;	delay_us(560);	}
-		}
-		//send data:
-		for(uint8_t i=0;i<16;i++){
-			port->OUTCLR = pin_mask;	delay_us(560);		
-			if((data<<i)&0x8000){		port->OUTSET = pin_mask;	delay_us(1600);}
-			else{						port->OUTSET = pin_mask;	delay_us(560);	}
-		}	
-		//stop bit
-		port->OUTCLR = pin_mask;		delay_us(560);
-		port->OUTSET = pin_mask;
-	}
-	channel[dir]->CTRLB |= USART_TXEN_bm;
-	ir_transmit_complete(dir);
-	//printf("End of ir_remote_send.\r\n");	
-}
+//
+//static void ir_remote_send(uint8_t dir, uint16_t data){	
+	//channel[dir]->CTRLB &= ~USART_RXEN_bm;
+	//channel[dir]->CTRLB &= ~USART_TXEN_bm;
+	////printf("Sending:\t");
+	//TCF2.CTRLB |= ir_carrier_bm[dir];
+	//PORT_t* port = 0;
+	//if((dir==0)|(dir==1))		port=&PORTC;
+	//else if(dir==2)			port=&PORTD;
+	//else if((dir==3)|(dir==4))	port=&PORTE;
+	//else if(dir==5)			port=&PORTF;
+	//uint8_t pin_mask=0;
+	//if((dir==0)|(dir==2)|(dir==3)|(dir==5)) pin_mask=PIN3_bm;
+	//else if((dir==1)|(dir==4))				pin_mask=PIN7_bm;
+	//
+	//ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+		//port->DIRSET = pin_mask;	
+		////start bit
+		//port->OUTCLR = pin_mask;				delay_us(5000);
+		//port->OUTSET = pin_mask;				delay_us(5000);
+		////send E0E0:
+		//for(uint8_t i=0;i<16;i++){
+			//port->OUTCLR = pin_mask;	delay_us(560);		
+			//if((0xE0E0<<i)&0x8000){	port->OUTSET = pin_mask;	delay_us(1600);}
+			//else{					port->OUTSET = pin_mask;	delay_us(560);	}
+		//}
+		////send data:
+		//for(uint8_t i=0;i<16;i++){
+			//port->OUTCLR = pin_mask;	delay_us(560);		
+			//if((data<<i)&0x8000){		port->OUTSET = pin_mask;	delay_us(1600);}
+			//else{						port->OUTSET = pin_mask;	delay_us(560);	}
+		//}	
+		////stop bit
+		//port->OUTCLR = pin_mask;		delay_us(560);
+		//port->OUTSET = pin_mask;
+	//}
+	//channel[dir]->CTRLB |= USART_TXEN_bm;
+	//ir_transmit_complete(dir);
+	////printf("End of ir_remote_send.\r\n");	
+//}
 
 // TO BE CALLED FROM INTERRUPT HANDLER ONLY
 // DO NOT CALL

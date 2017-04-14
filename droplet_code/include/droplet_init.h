@@ -62,6 +62,7 @@ typedef uint16_t id_t;
 #include "random.h"
 #include "firefly_sync.h"
 #include "serial_handler.h"
+#include "matrix_utils.h"
 
 typedef struct ir_msg_struct
 {
@@ -78,8 +79,6 @@ extern void loop();
 extern void handle_msg(ir_msg* msg_struct);
 extern uint8_t user_handle_command(char* command_word, char* command_args);
 extern void	user_leg_status_interrupt();
-
-
 
 id_t droplet_ID;
 

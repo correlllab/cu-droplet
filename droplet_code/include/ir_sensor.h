@@ -27,7 +27,7 @@ void write_ir_coll_baselines();
 void check_collision_values(int16_t meas[6]);
 uint8_t check_collisions();
 void initialize_ir_baselines();
-void update_ir_baselines();
+//void update_ir_baselines();
 
 int16_t ir_coll_baseline[6];
 

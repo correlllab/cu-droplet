@@ -1,8 +1,11 @@
 #pragma once
 
 #include <avr/io.h>
-#include <stdlib.h>
-#include <avr/pgmspace.h>
+#include "droplet_init.h"
+#include "scheduler.h"
+#include "flash_api.h"
+//#include <stdlib.h>
+//#include <avr/pgmspace.h>
 
 #define MOTOR_STATUS_DIRECTION		0x07
 #define MOTOR_STATUS_ON				0x80
@@ -20,9 +23,6 @@
 #define MOTOR_ON_TIME			20
 #define MOTOR_OFF_TIME			40
 
-#include "droplet_init.h"
-#include "scheduler.h"
-#include "flash_api.h"
 
 int16_t motor_adjusts[8][3];
 uint16_t mm_per_kilostep[8]; //For the spin directions, this is degrees per kilostep.

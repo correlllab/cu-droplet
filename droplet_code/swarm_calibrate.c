@@ -1,9 +1,6 @@
 #include "swarm_calibrate.h"
 
-uint8_t state;
-
 void init(){
-	state = 0;
 	if((LOCALIZATION_DUR)>=SLOT_LENGTH_MS){
 		printf_P(PSTR("Error! Localization requires SLOT_LENGTH_MS to be greater than LOCALIZATION_DUR!\r\n"));
 	}
@@ -16,7 +13,6 @@ void init(){
 
 void loop(){
 	uint32_t frameTime = get_time()-frameStart;
-	
 	if(frameTime>FRAME_LENGTH_MS){
 		frameTime = frameTime - FRAME_LENGTH_MS;
 		frameStart += FRAME_LENGTH_MS;
@@ -25,11 +21,7 @@ void loop(){
 	if(loopID!=(frameTime/SLOT_LENGTH_MS)){
 		loopID = frameTime/SLOT_LENGTH_MS;
 		if(loopID==mySlot){
-			switch(state){
-				case 0:
-					broadcast_rnb_data();
-					break;
-			}
+			broadcast_rnb_data();
 		}else if(loopID==SLOTS_PER_FRAME-1){
 			printf_P(PSTR("\nID: %04X T: %lu "), get_droplet_id(), get_time());
 			if(POS_DEFINED(&myPos)){
@@ -62,9 +54,15 @@ void handle_msg(ir_msg* msg_struct){
  * after each pass through loop(), the robot checks for all messages it has 
  * received, and calls this function once for each message.
  */
+<<<<<<< HEAD
 //void handle_msg(ir_msg* msg_struct){
 
 //}
+=======
+void handle_msg(ir_msg* msg_struct){
+
+}
+>>>>>>> 4b2c619b6f2771e58764b341bc6f1f060ea808ee
 
 ///*
  //*	the function below is optional - commenting it in can be useful for debugging if you want to query
@@ -75,6 +73,7 @@ void handle_msg(ir_msg* msg_struct){
 	//return 0;
 //}
 
+<<<<<<< HEAD
 //uint8_t chooseDir()
 //{
 	//// this function will be used to decide the next direction to go for calibration
@@ -92,3 +91,5 @@ void handle_msg(ir_msg* msg_struct){
 	//// from the last element in the struct we can get our resting position
 	//// 
 //}
+=======
+>>>>>>> 4b2c619b6f2771e58764b341bc6f1f060ea808ee

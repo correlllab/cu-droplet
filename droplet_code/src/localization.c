@@ -1,15 +1,15 @@
 #include "localization.h"
 
-#define NUM_SEEDS 4
-const BotPos SEED_POS[NUM_SEEDS] = {{100, 250, 0}, {250, 250, 0}, {100, 100, 0}, {250, 100, 0}};
-const id_t   SEED_IDS[NUM_SEEDS] = {0x6C66, 0x9669, 0x7EDF, 0x1361};
+#define NUM_SEEDS 2
+const BotPos SEED_POS[NUM_SEEDS] = {{0, 0, 0}, {UNDF, UNDF, UNDF}};
+const id_t   SEED_IDS[NUM_SEEDS] = {0x9363, 0xFFFF};
 //const BotPos SEEDS[NUM_SEEDS] = {{100, 600, 0}, {600, 600, 0}, {100, 100, 0}, {600, 100, 0}};
 
 //The MIN and MAX values below are only needed for getPosColor.
-#define MIN_X 50
-#define MIN_Y 50
-#define MAX_X 300
-#define MAX_Y 300
+#define MIN_X -100
+#define MIN_Y 100
+#define MAX_X -100
+#define MAX_Y 100
 
 static float	chooseOmega(Matrix* myPinv, Matrix* yourPinv);
 static float	mahalanobisDistance(Vector* a, Matrix* A, Vector* b, Matrix* B);
@@ -307,7 +307,7 @@ static void decompressP(Matrix* P, DensePosCovar* covar){
  * "Decentralized Multi-robot Cooperative Localization using Covariance Intersection"
  * by Luic C. Carillo-Arce et. al.
  */
-void	updateForMovement(uint8_t dir, uint16_t mag){
+void updateForMovement(uint8_t dir, uint16_t mag){
 	Vector curX = {myPos.x, myPos.y, deg_to_rad(myPos.o)};
 	Matrix curP;
 	decompressP(&curP, &myPosCovar);

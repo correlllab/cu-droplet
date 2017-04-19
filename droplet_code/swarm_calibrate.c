@@ -9,6 +9,7 @@ void init(){
 	frameStart=get_time();
 	mySlot = getSlot(get_droplet_id());
 	printf("mySlot: %u, frame_length: %lu\r\n\r\n", mySlot, FRAME_LENGTH_MS);
+	set_all_ir_powers(200);
 }
 
 void loop(){
@@ -50,20 +51,6 @@ void handle_msg(ir_msg* msg_struct){
 	}
 }
 
-/*
- * after each pass through loop(), the robot checks for all messages it has 
- * received, and calls this function once for each message.
- */
-<<<<<<< HEAD
-//void handle_msg(ir_msg* msg_struct){
-
-//}
-=======
-void handle_msg(ir_msg* msg_struct){
-
-}
->>>>>>> 4b2c619b6f2771e58764b341bc6f1f060ea808ee
-
 ///*
  //*	the function below is optional - commenting it in can be useful for debugging if you want to query
  //*	user variables over a serial connection. it should return '1' if command_word was a valid command,
@@ -73,7 +60,6 @@ void handle_msg(ir_msg* msg_struct){
 	//return 0;
 //}
 
-<<<<<<< HEAD
 //uint8_t chooseDir()
 //{
 	//// this function will be used to decide the next direction to go for calibration
@@ -91,5 +77,3 @@ void handle_msg(ir_msg* msg_struct){
 	//// from the last element in the struct we can get our resting position
 	//// 
 //}
-=======
->>>>>>> 4b2c619b6f2771e58764b341bc6f1f060ea808ee

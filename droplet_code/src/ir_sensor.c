@@ -79,14 +79,11 @@ void ir_sensor_init(){
 		ADCB.CTRLA = ADC_ENABLE_bm;
 	#endif
 	
-	delay_ms(10);
-	read_ir_coll_baselines();
-	
 	for(uint8_t dir=0;dir<6;dir++){
 		ir_sense_baseline[dir]=0;
 	}
 	schedule_task(1000,initialize_ir_baselines,NULL);
-	//schedule_periodic_task(63311, update_ir_baselines, NULL);
+	schedule_periodic_task(5407, update_ir_baselines, NULL);
 }
 
 void initialize_ir_baselines(){
@@ -97,28 +94,27 @@ void initialize_ir_baselines(){
 	//}
 	//printf("\r\n");	
 }
-//
-//void update_ir_baselines(){
-	//ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-		//if(hp_ir_block_bm){
-			//return;
-		//}
-		//hp_ir_block_bm=0xFF;
-	//}
-	//int16_t prevBaselines[6];
-	//for(uint8_t dir=0; dir<6; dir++){
-		//prevBaselines[dir] = ir_sense_baseline[dir]; //zeroing the baseline array.
-		//ir_sense_baseline[dir] = 0;
-	//}
-	//get_ir_sensors(ir_sense_baseline, 13);
-	//for(uint8_t dir=0;dir<6;dir++){
-		//ir_sense_baseline[dir] = (ir_sense_baseline[dir]+prevBaselines[dir])/2;
-	//}
-	//ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-		//hp_ir_block_bm = 0;
-	//}
-//
-//}
+
+void update_ir_baselines(){
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+		if(hp_ir_block_bm){
+			return;
+		}
+		hp_ir_block_bm=0xFF;
+	}
+	int16_t prevBaselines[6];
+	for(uint8_t dir=0; dir<6; dir++){
+		prevBaselines[dir] = ir_sense_baseline[dir]; //zeroing the baseline array.
+		ir_sense_baseline[dir] = 0;
+	}
+	get_ir_sensors(ir_sense_baseline, 13);
+	for(uint8_t dir=0;dir<6;dir++){
+		ir_sense_baseline[dir] = (ir_sense_baseline[dir]+prevBaselines[dir])/2;
+	}
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+		hp_ir_block_bm = 0;
+	}
+}
 
 void get_ir_sensors(int16_t* output_arr, uint8_t meas_per_ch){			
 	int16_t meas[6][meas_per_ch];	
@@ -164,20 +160,6 @@ void get_ir_sensors(int16_t* output_arr, uint8_t meas_per_ch){
 	//printf("\r\n");	
 }
 
-void read_ir_coll_baselines(){
-	for(uint8_t i=0; i<6; i++){
-		ir_coll_baseline[i] = (((int16_t)EEPROM_read_byte(0x60+2*i))<<8 | ((int16_t)EEPROM_read_byte(0x60+2*i+1)));
-	}
-}
-
-void write_ir_coll_baselines(){
-	for(uint8_t i=0; i<6; i++){
-		int16_t temp = ir_coll_baseline[i];
-		EEPROM_write_byte(0x60+2*i, (uint8_t)((temp>>8)&0xFF));
-		EEPROM_write_byte(0x60+2*i+1, (uint8_t)(temp&0xFF));
-	}
-}
-
 uint8_t check_collisions(){
 	int16_t meas[6];
 	uint8_t dirs = 0;
@@ -212,7 +194,6 @@ void check_collision_values(int16_t meas[6]){
 	for(uint8_t i=0;i<6;i++) ir_led_off(i);
 	for(uint8_t i=0;i<6;i++){
 		meas[i] = (measured_vals[i]-baseline_meas[i]);
-		meas[i] = meas[i] - ir_coll_baseline[i];
 	}
 	set_all_ir_powers(curr_power);
 	for(uint8_t i=0;i<6;i++) ir_rxtx[i].status = 0;		

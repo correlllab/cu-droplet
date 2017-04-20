@@ -1,4 +1,6 @@
 #include "swarm_calibrate.h"
+#define STEPS_PER_TEN 50
+
 
 void init(){
 	if((LOCALIZATION_DUR)>=SLOT_LENGTH_MS){
@@ -9,7 +11,7 @@ void init(){
 	frameStart=get_time();
 	mySlot = getSlot(get_droplet_id());
 	printf("mySlot: %u, frame_length: %lu\r\n\r\n", mySlot, FRAME_LENGTH_MS);
-	set_all_ir_powers(200);
+	//set_all_ir_powers(200);
 }
 
 void loop(){
@@ -39,17 +41,50 @@ void loop(){
 	}
 	if(rnb_updated){
 		RNB_DEBUG_PRINT("\t(RNB) ID: %04X | R: %4u B: %4d H: %4d\r\n", last_good_rnb.id, last_good_rnb.range, last_good_rnb.bearing, last_good_rnb.heading);
+		Vector estPos; //relPos will have orientation in radians.
+		Vector me = {myPos.x, myPos.y, deg_to_rad(myPos.o)};
+			
+		// use other pos for relative pos, getOtherPos 
+		BotPos* otherPos = getOtherPos(last_good_rnb.id);
+		
+		// store these intermittently
+		relativePosition(last_good_rnb.range, last_good_rnb.bearing, last_good_rnb.heading, otherPos, &estPos);
+		
 		useRNBmeas(last_good_rnb.id, last_good_rnb.range, last_good_rnb.bearing, last_good_rnb.heading);
 		rnb_updated=0;
 	}
 	delay_ms(LOOP_DELAY_MS);
 }
 
+void sendBotPosMsg(){
+	ir_send(ALL_DIRS, &myPos, sizeof(BotPos));
+}
+
 void handle_msg(ir_msg* msg_struct){
 	if(((BotMeasMsg*)(msg_struct->msg))->flag==BOT_MEAS_MSG_FLAG && msg_struct->length==sizeof(BotMeasMsg)){
 		handleBotMeasMsg((BotMeasMsg*)(msg_struct->msg), msg_struct->sender_ID);
+	}else if(msg_struct->length==sizeof(BotPos)){
+		BotPos* pos = (BotPos*)(msg_struct->msg);
+		id_t id = msg_struct->sender_ID;
+		//store this in some array of bot positions.
+		//how many bot positions should I keep around?
+		//if less than total possible, how handle conflicts?
 	}
 }
+
+// https://github.com/correlllab/cu-droplet/blob/9e98d62e3bcffc1b98e1fb7daf6f1c3f27f572d5/droplet_code/droplet_programs/positions.c
+void getOtherPos(){
+	//Need other bot positions for reference when doing  my relative position
+}
+
+
+
+
+
+
+
+
+
 
 ///*
  //*	the function below is optional - commenting it in can be useful for debugging if you want to query

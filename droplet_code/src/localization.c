@@ -254,6 +254,23 @@ static void calcRelativePose(Vector* pose, Vector* meas){
 	(*pose)[2] = (*meas)[2];
 }
 
+void relativePosition(uint16_t r, int16_t b, int16_t h, BotPos* pos, Vector* myPos){
+	Vector x_you = {pos->x, pos->y, deg_to_rad(pos->o)};
+	int16_t otherBotB;
+	int16_t otherBotH;
+	convertMeas(&otherBotB, &otherBotH, b, h);
+	Vector meas = {r, deg_to_rad(otherBotB+90), deg_to_rad(otherBotH+90)};
+	Matrix G;
+	populateGammaMatrix(&G, &x_you);
+	Vector z;
+	calcRelativePose(&z, &meas);
+	Matrix R;
+	getMeasCovar(&R, &meas);
+	
+	matrixTimesVector(myPos, &G, &z);
+	vectorAdd(myPos, &x_you, myPos);		
+}
+
 static void populateGammaMatrix(Matrix* G, Vector* pos){
 	float cosO = cos((*pos)[2]);
 	float sinO = sin((*pos)[2]);

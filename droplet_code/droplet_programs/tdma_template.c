@@ -26,10 +26,11 @@ void loop(){
 	if(loopID!=(frameTime/SLOT_LENGTH_MS)){
 		loopID = frameTime/SLOT_LENGTH_MS;
 		if(loopID==mySlot){
-			//do stuff during my slot.
-		}else{
-			//do stuff during someone else's slot.
+			sendStateMsg();
+		}else if(loopID==(SLOTS_PER_FRAME-1)){
+			//compute new state based on messages.
 		}
+		
 	}
 	if(rnb_updated){
 		//Handle rnb data in last_good_rnb struct.

@@ -6,7 +6,7 @@
 	const uint8_t mux_sensor_selectors[6] = {MUX_IR_SENSOR_0, MUX_IR_SENSOR_1, MUX_IR_SENSOR_2, MUX_IR_SENSOR_3, MUX_IR_SENSOR_4, MUX_IR_SENSOR_5};
 #endif
 
-static int16_t ir_sense_baseline[6];
+static int16_t  ir_sense_baseline[6];
 
 // IR sensors use ADCB channel 0, all the time
 void ir_sensor_init(){
@@ -88,11 +88,11 @@ void ir_sensor_init(){
 
 void initialize_ir_baselines(){
 	get_ir_sensors(ir_sense_baseline, 13);
-	//printf("Baselines:");
-	//for(uint8_t dir=0;dir<6;dir++){
-		//printf(" %4d", ir_sense_baseline[dir]);
-	//}
-	//printf("\r\n");	
+	printf("Baselines:");
+	for(uint8_t dir=0;dir<6;dir++){
+		printf(" %4d", ir_sense_baseline[dir]);
+	}
+	printf("\r\n");	
 }
 
 void update_ir_baselines(){
@@ -165,7 +165,7 @@ uint8_t check_collisions(){
 	uint8_t dirs = 0;
 	check_collision_values(meas);
 	for(uint8_t i=0;i<6;i++){
-		dirs |=  ((meas[i]>1000)<<i);
+		dirs |=  (((meas[i]+ir_sense_baseline[i])>=IR_SENSE_MAX)<<i);
 	}
 	return dirs;
 }

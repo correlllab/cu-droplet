@@ -11,6 +11,8 @@
 #include "ir_led.h"
 #include "flash_api.h"
 
+#define IR_SENSE_MAX 2047
+
 /**
  * \brief Can be used to check if object(s) are within 1cm of this Droplet.
  *

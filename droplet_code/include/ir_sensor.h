@@ -29,8 +29,6 @@ uint8_t check_collisions();
 void initialize_ir_baselines();
 void update_ir_baselines();
 
-int16_t ir_coll_baseline[6];
-
 #ifdef AUDIO_DROPLET
 	inline void ir_sensor_enable(){ ADCA.CTRLA |= ADC_ENABLE_bm; ADCB.CTRLA |= ADC_ENABLE_bm; }
 	inline void ir_sensor_disable(){ ADCA.CTRLA &= ~ADC_ENABLE_bm; ADCB.CTRLA &= ~ADC_ENABLE_bm; }

@@ -1,35 +1,13 @@
 #pragma once
 
-#define F_CPU 32000000UL
-
-#include <avr/io.h>
-#include <avr/interrupt.h>
-#include <util/atomic.h>
-#include <util/delay.h>
-#include <stdio.h>
-#include <avr/pgmspace.h>
+#include "droplet_base.h"
 #include "rgb_led.h"
-
-inline void* myMalloc(size_t size){
-	void* tmp = NULL;
-	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-		tmp = malloc(size);
-	}
-	return tmp;
-}
-
-inline void myFree(void* ptr){
-	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-		free(ptr);
-	}
-}
 
 #define RTC_COMP_INT_LEVEL RTC_COMPINTLVL_LO_gc;
 #define MAX_NUM_SCHEDULED_TASKS 10
 #define MIN_TASK_TIME_IN_FUTURE 20
 
-typedef union flex_function
-{
+typedef union flex_function{
 	void (*arg_function)(void*);
 	void (*noarg_function)();
 } flex_function;
@@ -39,8 +17,7 @@ typedef union flex_function
 // task_function is the function to call. Its prototype must be "void foo(void *arg)"
 // arg is the argument to pass to task_function.  arg must be typecast to a void*
 // next is a pointer to the next task to be executed, after this one
-typedef struct task
-{
+typedef struct task{
 	uint32_t scheduled_time;
 	uint32_t period;
 	flex_function func;
@@ -52,16 +29,9 @@ typedef struct task
 // Linked list of tasks, sorted by time until execution
 volatile Task_t *task_list;
 
-volatile uint16_t rtc_epoch;
 volatile uint8_t num_tasks, task_executing;
 
-// Get the current 32-bit time, as measured in ms from the last reset
- uint32_t get_time();
-
 void scheduler_init();
-void Config32MHzClock(void);
-void delay_ms(uint16_t ms);
-static inline void delay_us(double __us){ _delay_us(__us); }
 void task_list_cleanup();
 
 /* 

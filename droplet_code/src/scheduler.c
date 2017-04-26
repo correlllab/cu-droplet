@@ -3,15 +3,12 @@
 static void add_task_to_list(volatile Task_t* task);
 static int8_t run_tasks();
 
-static volatile Task_t* scheduler_malloc()
-{
+static volatile Task_t* scheduler_malloc(){
 	if(num_tasks>=MAX_NUM_SCHEDULED_TASKS) return NULL;
 
-	for(uint8_t tmp=0 ; tmp<MAX_NUM_SCHEDULED_TASKS ; tmp++)
-	{
+	for(uint8_t tmp=0 ; tmp<MAX_NUM_SCHEDULED_TASKS ; tmp++){
 		//This code assumes that all tasks will have non-null function pointers.
-		if((task_storage_arr[tmp].func.noarg_function) == NULL)
-		{
+		if((task_storage_arr[tmp].func.noarg_function) == NULL){
 			return &(task_storage_arr[tmp]);
 		}
 	}
@@ -20,10 +17,8 @@ static volatile Task_t* scheduler_malloc()
 
 }
 
-static void scheduler_free(volatile Task_t* tgt)
-{
-	if((tgt<task_storage_arr)||(tgt>(&(task_storage_arr[MAX_NUM_SCHEDULED_TASKS]))))
-	{
+static void scheduler_free(volatile Task_t* tgt){
+	if((tgt<task_storage_arr)||(tgt>(&(task_storage_arr[MAX_NUM_SCHEDULED_TASKS])))){
 		printf_P(PSTR("ERROR: In scheduler_free, tgt (%X) was outside valid Task* range.\r\n"),tgt);
 		set_rgb(0,0,255);
 		delay_ms(60000);
@@ -51,44 +46,6 @@ void scheduler_init(){
 		RTC.CTRL = RTC_PRESCALER_DIV1_gc;
 		while (RTC.STATUS & RTC_SYNCBUSY_bm);
 		RTC.CNT = 0;
-	}
-}
-
-void Config32MHzClock(void){
-	// Set system clock to 32 MHz
-	CCP = CCP_IOREG_gc;
-	OSC.CTRL = OSC_RC32MEN_bm;
-	while(!(OSC.STATUS & OSC_RC32MRDY_bm));
-	CCP = CCP_IOREG_gc;
-	CLK.CTRL = 0x01;
-	//OSC.RC32KCAL = PRODSIGNATURES_RCOSC32K;
-	// Set up real-time clock
-	CLK.RTCCTRL = CLK_RTCSRC_RCOSC_gc | CLK_RTCEN_bm;
-	//RTC.INTCTRL = RTC_OVFINTLVL_LO_gc;
-	while (RTC.STATUS & RTC_SYNCBUSY_bm);	// wait for SYNCBUSY to clear
-	
-	RTC.PER = 0xFFFF;		//(2^16)-1 milliseconds is 65.535 seconds
-	RTC.CTRL = RTC_PRESCALER_DIV1_gc;
-
-	// reset RTC to 0, important for after a reboot:
-	while(RTC.STATUS & RTC_SYNCBUSY_bm);	// wait for SYNCBUSY to clear
-	RTC.CNT = 0;
-}
-
-// Delay ms milliseconds
-// (the built-in _delay_ms only takes constant arguments, not variables)
-void delay_ms(uint16_t ms){
-	uint32_t cur_time, end_time;
-	cli(); cur_time = get_time(); sei();
-	end_time = cur_time + ms;
-	while (1){
-		cli();
-		if (get_time() >= end_time){
-			sei();
-			return;
-		}
-		sei();
-		delay_us(10);
 	}
 }
 

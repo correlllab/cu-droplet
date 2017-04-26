@@ -1,14 +1,9 @@
 #pragma once
-
-#include <stdio.h>
-#include <avr/pgmspace.h>
+#include "droplet_base.h"
 
 void speaker_init();
 
 #ifdef AUDIO_DROPLET
-
-#include <avr/interrupt.h>
-#include "scheduler.h"
 
 #define MAX_NOTES_PER_SONG 128
 #define NOTE_SWITCH_DUR_MS 10

@@ -15,7 +15,7 @@ static void ir_transmit(uint8_t dir);
 static void ir_transmit_complete(uint8_t dir);
 
 static volatile uint16_t	cmd_length;
-static volatile char		cmd_buffer[BUFFER_SIZE];
+static volatile char		cmd_buffer[SRL_BUFFER_SIZE];
 /* Hardware addresses for the port pins with the carrier wave */
 static uint8_t ir_carrier_bm[] = { PIN0_bm, PIN1_bm, PIN4_bm, PIN5_bm, PIN6_bm, PIN7_bm };
 

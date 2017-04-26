@@ -290,7 +290,7 @@ static int16_t processBrightMeas(){
 		}		
 	}
 	if(problem){
-		startup_light_sequence();
+		warning_light_sequence();
 	}	
 	return valSum;
 }

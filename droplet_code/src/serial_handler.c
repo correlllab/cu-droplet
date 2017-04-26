@@ -27,8 +27,8 @@ uint8_t user_handle_command(char* command_word, char* command_args) __attribute_
 
 void handle_serial_command(char* command, uint16_t command_length){
 	if(command[0]!='\0'){ //Not much to handle if we get an empty string.
-		char command_word[BUFFER_SIZE];
-		char command_args[BUFFER_SIZE];
+		char command_word[SRL_BUFFER_SIZE];
+		char command_args[SRL_BUFFER_SIZE];
 		get_command_word_and_args(command,command_length,command_word,command_args);
 			 if(strcmp_P(command_word,PSTR("move_steps"))==0)			handle_move_steps(command_args);
 		else if(strcmp_P(command_word,PSTR("walk"))==0)					handle_walk(command_args);

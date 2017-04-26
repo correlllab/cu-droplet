@@ -1,10 +1,6 @@
 #pragma once
-
-#include <avr/pgmspace.h>
-
-#include "avr/io.h" 
+#include "droplet_base.h"
 #include "rgb_led.h"
-#include "scheduler.h"
 #include "i2c.h"
 
 void rgb_sensor_init();

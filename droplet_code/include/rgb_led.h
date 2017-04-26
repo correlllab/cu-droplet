@@ -1,7 +1,5 @@
 #pragma once
-
-#include "avr/io.h" //includes stdlib
-#include <stdlib.h>
+#include "droplet_base.h"
 #include <math.h>
 
 #define LED_R_PIN_bm			PIN5_bm
@@ -27,3 +25,9 @@ void led_off();
 void set_rgb(uint8_t r, uint8_t g, uint8_t b);
 void set_hsv(uint16_t h, uint8_t s, uint8_t v);
 void hsv_to_rgb(uint16_t h, uint8_t s, uint8_t v, uint8_t* r, uint8_t* g, uint8_t* b);
+
+inline void warning_light_sequence(){
+	set_rgb(0,100,100); delay_ms(300); set_rgb(100,0,100); delay_ms(300); set_rgb(100,100,0); delay_ms(300); led_off();
+	set_rgb(0,100,100); delay_ms(300); set_rgb(100,0,100); delay_ms(300); set_rgb(100,100,0); delay_ms(300); led_off();
+	set_rgb(0,100,100); delay_ms(300); set_rgb(100,0,100); delay_ms(300); set_rgb(100,100,0); delay_ms(300); led_off();
+}

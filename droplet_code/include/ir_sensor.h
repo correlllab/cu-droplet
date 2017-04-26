@@ -4,12 +4,10 @@
  *****************************************************************************/
 #pragma once
 
-#include <avr/io.h>
-#include "scheduler.h"
+#include "droplet_base.h"
 #include "delay_x.h"
-#include "droplet_init.h"
+#include "ir_comm.h"
 #include "ir_led.h"
-#include "flash_api.h"
 
 /**
  * \brief Can be used to check if object(s) are within 1cm of this Droplet.

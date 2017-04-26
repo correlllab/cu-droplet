@@ -8,8 +8,8 @@
 #include <util/crc16.h>
 #include <avr/interrupt.h>
 #include <avr/pgmspace.h>
-#include "droplet_init.h"
 #include "scheduler.h"
+#include "pc_comm.h"
 #include "ir_led.h"
 #include "ir_sensor.h"
 #include "firefly_sync.h"

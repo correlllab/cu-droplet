@@ -1,10 +1,7 @@
-/** \file *********************************************************************
- * Low level sensing functions using IR channels.
- * Note that there is no IR communication code in this file.
- *****************************************************************************/
 #pragma once
-
-#include <droplet_init.h>
+#include "droplet_base.h"
+#include "matrix_utils.h"
+#include "range_algs.h"
 
 #define BOT_MEAS_MSG_DUR		72
 #define LOCALIZATION_DUR (RNB_DUR + BOT_MEAS_MSG_DUR*2)

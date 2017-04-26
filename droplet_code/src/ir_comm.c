@@ -406,6 +406,7 @@ static void received_ir_sync(uint8_t delay, id_t senderID){
 			processing_ffsync = 0;
 		}
 	}
+	printf("F\r\n");
 }
 
 static void received_rnb_r(uint8_t delay, id_t senderID, uint32_t last_byte){
@@ -439,6 +440,7 @@ static void received_rnb_r(uint8_t delay, id_t senderID, uint32_t last_byte){
 		}
 		schedule_task(5, use_rnb_data, NULL);
 	}
+	printf("R\r\n");
 }
 
 // TO BE CALLED FROM INTERRUPT HANDLER ONLY

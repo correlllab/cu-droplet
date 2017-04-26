@@ -24,7 +24,7 @@ void loop(){
 	if(loopID!=(frameTime/SLOT_LENGTH_MS)){
 		loopID = frameTime/SLOT_LENGTH_MS;
 		if(loopID==mySlot){
-			broadcast_rnb_data();
+			//broadcast_rnb_data();
 		}else if(loopID==SLOTS_PER_FRAME-1){
 			printf_P(PSTR("\nID: %04X T: %lu "), get_droplet_id(), get_time());
 			if(POS_DEFINED(&myPos)){

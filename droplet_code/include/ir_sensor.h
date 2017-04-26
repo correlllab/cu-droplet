@@ -4,12 +4,10 @@
  *****************************************************************************/
 #pragma once
 
-#include <avr/io.h>
-#include "scheduler.h"
+#include "droplet_base.h"
 #include "delay_x.h"
-#include "droplet_init.h"
+#include "ir_comm.h"
 #include "ir_led.h"
-#include "flash_api.h"
 
 #define IR_SENSE_MAX 2047
 

@@ -1,7 +1,6 @@
 #pragma once
-
-#include <avr/io.h>
-#include "droplet_init.h"
+#include "droplet_base.h"
+#include "ir_comm.h"
 #include "random.h"
 
 #define FFSYNC_FULL_PERIOD_MS		5153

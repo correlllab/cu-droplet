@@ -6,9 +6,7 @@
  *
  ************************************************************************/
 #pragma once
-#include <avr/io.h>
-#include <avr/interrupt.h>
-#include <util/atomic.h>
+#include "droplet_base.h"
 #include "sp_driver.h"
 #include "eeprom_driver.h"
 

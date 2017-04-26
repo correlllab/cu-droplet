@@ -58,8 +58,7 @@
  *****************************************************************************/
 #pragma once
 
-#include <avr/io.h>
-#include <avr/pgmspace.h>
+#include "droplet_base.h"
 #include "scheduler.h"
 
 //#include "avr_compiler.h"

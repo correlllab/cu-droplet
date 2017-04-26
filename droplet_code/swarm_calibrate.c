@@ -72,7 +72,9 @@ void handle_msg(ir_msg* msg_struct){
 	}
 }
 
-// https://github.com/correlllab/cu-droplet/blob/9e98d62e3bcffc1b98e1fb7daf6f1c3f27f572d5/droplet_code/droplet_programs/positions.c
+/* 
+ * https://github.com/correlllab/cu-droplet/blob/9e98d62e3bcffc1b98e1fb7daf6f1c3f27f572d5/droplet_code/droplet_programs/positions.c
+ */
 void getOtherPos(){
 	//Need other bot positions for reference when doing  my relative position
 }

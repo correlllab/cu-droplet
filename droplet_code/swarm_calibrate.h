@@ -1,12 +1,7 @@
 #pragma once
 
 #include "droplet_init.h"
-
-<<<<<<< HEAD
-//#define RNB_DEBUG_MODE
-=======
 #define RNB_DEBUG_MODE
->>>>>>> a85a2b6234c7425b990e5b580a39044b4198d14d
 #ifdef RNB_DEBUG_MODE
 #define RNB_DEBUG_PRINT(format, ...) printf_P(PSTR(format), ##__VA_ARGS__)
 #else

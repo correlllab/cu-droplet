@@ -1,11 +1,7 @@
 #pragma once
-
-#include <avr/io.h>
-#include "droplet_init.h"
+#include "droplet_base.h"
 #include "scheduler.h"
 #include "flash_api.h"
-//#include <stdlib.h>
-//#include <avr/pgmspace.h>
 
 #define MOTOR_STATUS_DIRECTION		0x07
 #define MOTOR_STATUS_ON				0x80

@@ -144,12 +144,6 @@ void startup_light_sequence(){
 	set_rgb(100,0,0); delay_ms(100); set_rgb(0,100,0); delay_ms(100); set_rgb(0,0,100); delay_ms(100); led_off();
 }
 
-
-void droplet_reboot(){
-	CPU_CCP=CCP_IOREG_gc;
-	RST.CTRL = 0x1;
-}
-
 uint8_t get_droplet_ord(id_t id){
 	switch(id){
 		case 0x0000: return 0;

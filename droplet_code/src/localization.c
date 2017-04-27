@@ -1,15 +1,15 @@
 #include "localization.h"
 
-#define NUM_SEEDS 4
-const BotPos SEED_POS[NUM_SEEDS] = {{100, 250, 0}, {250, 250, 0}, {100, 100, 0}, {250, 100, 0}};
-const id_t   SEED_IDS[NUM_SEEDS] = {0x6C66, 0x9669, 0x7EDF, 0x1361};
+#define NUM_SEEDS 2
+const BotPos SEED_POS[NUM_SEEDS] = {{0, 0, 0}, {UNDF, UNDF, UNDF}};
+const id_t   SEED_IDS[NUM_SEEDS] = {0x9363, 0xFFFF};
 //const BotPos SEEDS[NUM_SEEDS] = {{100, 600, 0}, {600, 600, 0}, {100, 100, 0}, {600, 100, 0}};
 
 //The MIN and MAX values below are only needed for getPosColor.
-#define MIN_X 50
-#define MIN_Y 50
-#define MAX_X 300
-#define MAX_Y 300
+#define MIN_X -150
+#define MIN_Y 150
+#define MAX_X -150
+#define MAX_Y 150
 
 static float	chooseOmega(Matrix* myPinv, Matrix* yourPinv);
 static float	mahalanobisDistance(Vector* a, Matrix* A, Vector* b, Matrix* B);
@@ -254,6 +254,23 @@ static void calcRelativePose(Vector* pose, Vector* meas){
 	(*pose)[2] = (*meas)[2];
 }
 
+void relativePosition(uint16_t r, int16_t b, int16_t h, BotPos* pos, Vector* myPos){
+	Vector x_you = {pos->x, pos->y, deg_to_rad(pos->o)};
+	int16_t otherBotB;
+	int16_t otherBotH;
+	convertMeas(&otherBotB, &otherBotH, b, h);
+	Vector meas = {r, deg_to_rad(otherBotB+90), deg_to_rad(otherBotH+90)};
+	Matrix G;
+	populateGammaMatrix(&G, &x_you);
+	Vector z;
+	calcRelativePose(&z, &meas);
+	Matrix R;
+	getMeasCovar(&R, &meas);
+	
+	matrixTimesVector(myPos, &G, &z);
+	vectorAdd(myPos, &x_you, myPos);		
+}
+
 static void populateGammaMatrix(Matrix* G, Vector* pos){
 	float cosO = cos((*pos)[2]);
 	float sinO = sin((*pos)[2]);
@@ -307,19 +324,19 @@ static void decompressP(Matrix* P, DensePosCovar* covar){
  * "Decentralized Multi-robot Cooperative Localization using Covariance Intersection"
  * by Luic C. Carillo-Arce et. al.
  */
-void	updateForMovement(uint8_t dir, uint16_t mag){
-	Vector curX = {myPos.x, myPos.y, deg_to_rad(myPos.o)};
-	Matrix curP;
+void updateForMovement(__attribute__((unused)) uint8_t dir, __attribute__((unused)) uint16_t mag){
+	__attribute__((unused)) Vector curX = {myPos.x, myPos.y, deg_to_rad(myPos.o)};
+	__attribute__((unused)) Matrix curP;
 	decompressP(&curP, &myPosCovar);
-	Vector newX;
+	__attribute__((unused)) Vector newX;
 	//TODO: Implement function 'f', which calculates newX based on curX, movement dir, and movement mag.
-	Matrix Phi;
+	__attribute__((unused)) Matrix Phi;
 	//TODO: Calculate Phi, the gradient of 'f' w.r.t. changes in the robot's current position.
-	Matrix G;
+	__attribute__((unused)) Matrix G;
 	//TODO: Calculate G, the gradient of 'f' w.r.t. errors in the robot's motion.
-	Matrix Q;
+	__attribute__((unused)) Matrix Q;
 	//TODO: Hard-Code Q, our movement's covariance. Probably separately for each direction???
-	Matrix newP;
+	__attribute__((unused)) Matrix newP;
 	//newP = Phi.curP.(tr(Phi)) + G.Q.(tr(G))
 }
 

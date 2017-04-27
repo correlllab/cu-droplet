@@ -1,10 +1,7 @@
-/** \file *********************************************************************
- * Low level sensing functions using IR channels.
- * Note that there is no IR communication code in this file.
- *****************************************************************************/
 #pragma once
-
-#include <droplet_init.h>
+#include "droplet_base.h"
+#include "matrix_utils.h"
+#include "range_algs.h"
 
 #define BOT_MEAS_MSG_DUR		72
 #define LOCALIZATION_DUR (RNB_DUR + BOT_MEAS_MSG_DUR*2)
@@ -82,9 +79,22 @@ void	handleBotMeasMsg(BotMeasMsg* msg, id_t senderID __attribute__ ((unused)));
 //WARNING! This function hasn't yet been implemented; it's a stub to serve as a reminder/framework for future work.
 void	updateForMovement(uint8_t dir, uint16_t mag);
 
+/*
+ * r, b, h  -  Should be a range and bearing measurement this robot took.
+ * pos		-  Should point to the position (in global coordinate system) of the measured robot.
+ * myPos    -  The resulting position will be stored in the Vector this points to.
+ */
+void	relativePosition(uint16_t r, int16_t b, int16_t h, BotPos* pos, Vector* myPos);
+
 void	getPosColor(uint8_t* r, uint8_t* g, uint8_t* b);
 void	printPosCovar(DensePosCovar* denseP);
 
 inline uint8_t dirFromAngle(int16_t angle){
 	return abs((angle - (angle>0 ? 360 : 0))/60);
+}
+
+//This function converts a measurement from the measuring robot's perspective to the measured robot's perspective.
+inline void convertMeas(int16_t* newB, int16_t* newH, int16_t b, int16_t h){
+	*newB = pretty_angle_deg(b-h-180);
+	*newH = -h;
 }

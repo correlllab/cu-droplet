@@ -330,8 +330,10 @@ clean_list :
 	$(REMOVE) $(TARGET).lss
 	$(REMOVE) $(SRC:%.c=$(OBJDIR)/%.o)
 	$(REMOVE) $(SRC:%.c=$(OBJDIR)/%.lst)
+	$(REMOVE) $(SRC:%.c=$(OBJDIR)/%.d)
 	$(REMOVE) $(ASRC:%.S=$(OBJDIR)/%.o)
 	$(REMOVE) $(ASRC:%.S=$(OBJDIR)/%.lst)
+	$(REMOVE) $(ASRC:%.S=$(OBJDIR)/%.d)
 	$(REMOVE) $(SRC:.c=.s)
 	$(REMOVE) $(SRC:.c=.d)
 	$(REMOVE) $(SRC:.c=.i)

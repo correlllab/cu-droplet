@@ -1,3 +1,5 @@
+### OUTDATED DUE TO CUSTOM MAKEFILE SWITCHOVER
+
 NOTE: These instructions are specific to the Windows operating system. All hardware referenced is simply the hardware we use. I believe that it would be possible to use other operating systems and other hardware, but I haven't tried and so can't comment on doing so.
 
 #### Physical Supplies

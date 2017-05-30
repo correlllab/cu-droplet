@@ -1,11 +1,13 @@
 #pragma once
 
-#define F_CPU 32000000UL
+//#define AUDIO_DROPLET
+#define SYNCHRONIZED
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <util/atomic.h>
 #include <util/delay.h>
+#include <util/crc16.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <avr/pgmspace.h>
@@ -33,10 +35,10 @@ id_t droplet_ID;
 volatile uint16_t rtc_epoch;
 
 // Returns the number of ms elapsed since the last reset. (Defined in droplet_base_asm.s)
-uint32_t get_time();
+uint32_t get_time(void);
 
 // Returns this Droplet's unique 16-bit identifier. 0 will never be an identifier.
-inline id_t get_droplet_id(){ 
+inline id_t get_droplet_id(void){ 
 	return droplet_ID;
 }
 
@@ -54,7 +56,7 @@ inline void myFree(void* ptr){
 	}
 }
 
-inline void Config32MHzClock(){
+inline void Config32MHzClock(void){
 	// Set system clock to 32 MHz
 	CCP = CCP_IOREG_gc;
 	OSC.CTRL = OSC_RC32MEN_bm;
@@ -80,7 +82,7 @@ inline static void delay_us(double __us){ _delay_us(__us); }
 /**
  * \brief Resets the Droplet's program counter and clears all low-level system buffers.
  */
-inline void droplet_reboot(){
+inline void droplet_reboot(void){
 	CPU_CCP=CCP_IOREG_gc;
 	RST.CTRL = 0x1;
 }

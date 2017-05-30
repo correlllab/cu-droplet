@@ -50,13 +50,12 @@ typedef struct ir_msg_struct
 	uint8_t wasTargeted;
 } ir_msg;
 
-extern void init();
-extern void loop();
+extern void init(void);
+extern void loop(void);
 extern void handle_msg(ir_msg* msg_struct);
 extern uint8_t user_handle_command(char* command_word, char* command_args);
-extern void	user_leg_status_interrupt();
 
-void startup_light_sequence();
+void startup_light_sequence(void);
 uint8_t get_droplet_ord(id_t id);
 
 extern const id_t OrderedBotIDs[121];

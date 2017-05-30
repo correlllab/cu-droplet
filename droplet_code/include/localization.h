@@ -72,7 +72,7 @@ BotPos        myPos;
 DensePosCovar myPosCovar;
 uint8_t		  seedFlag;
 
-void	localization_init();
+void	localization_init(void);
 void	useRNBmeas(id_t id, uint16_t r, int16_t b, int16_t h);
 void	handleBotMeasMsg(BotMeasMsg* msg, id_t senderID __attribute__ ((unused)));
 
@@ -88,6 +88,7 @@ void	relativePosition(uint16_t r, int16_t b, int16_t h, BotPos* pos, Vector* myP
 
 void	getPosColor(uint8_t* r, uint8_t* g, uint8_t* b);
 void	printPosCovar(DensePosCovar* denseP);
+void	sendBotMeasMsg(BotMeasMsgNode* mNode);
 
 inline uint8_t dirFromAngle(int16_t angle){
 	return abs((angle - (angle>0 ? 360 : 0))/60);

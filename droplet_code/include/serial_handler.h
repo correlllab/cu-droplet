@@ -11,5 +11,5 @@
 #include "ir_comm.h"
 
 void handle_serial_command(char* command, uint16_t command_length);
-void send_id();
+void send_id(void);
 

@@ -5,9 +5,9 @@ static uint8_t escaped;
 static uint8_t escaped_arrow;
 static uint16_t serial_in_index; //Points to where the next character we get will be added to the buffer.
 
-static void handle_serial_input();
+static void handle_serial_input(void);
 static int pc_comm_putchar(char c, FILE *stream);
-static void handle_up_arrow();
+static void handle_up_arrow(void);
 static FILE mystdout = FDEV_SETUP_STREAM (pc_comm_putchar,NULL,_FDEV_SETUP_WRITE);
 
 void pc_comm_init(){
@@ -31,7 +31,7 @@ void pc_comm_init(){
 
 ISR( USARTD1_RXC_vect ) { handle_serial_input(); }
 
-static void handle_serial_input(){
+static void handle_serial_input(void){
 	char data = PC_USART.DATA;
 	if(escaped_arrow==1){
 		if(data == 65){
@@ -64,7 +64,7 @@ static void handle_serial_input(){
 	}
 }
 
-static void handle_up_arrow(){
+static void handle_up_arrow(void){
 	uint8_t temp_index = serial_in_index;
 			
 	while(serial_in_buffer[temp_index] != '\0'){

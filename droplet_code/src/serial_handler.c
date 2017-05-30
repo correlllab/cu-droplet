@@ -2,25 +2,25 @@
 
 static const char CMD_NOT_RECOGNIZED_STR[] PROGMEM = "\tCommand ( %s ) not recognized.\r\n";
 
-static void handle_check_collisions();
+static void handle_check_collisions(void);
 static void handle_move_steps(char* command_args);
 static void handle_walk(char* command_args);
-static void handle_get_rgb();
+static void handle_get_rgb(void);
 static void handle_set_ir(char* command_args);
-static void handle_stop_walk();
+static void handle_stop_walk(void);
 static void handle_set_motors(char* command_args);
 static void handle_adjust_motors(char* command_args);
 static void handle_set_mm_per_kilostep(char* command_args);
-static void handle_rnb_broadcast();
+static void handle_rnb_broadcast(void);
 static void handle_set_led(char* command_args);
-static void handle_broadcast_id();
-static void handle_get_id();
+static void handle_broadcast_id(void);
+static void handle_get_id(void);
 static void handle_cmd(char* command_args);
 static void handle_targeted_cmd(char* command_args);
 static void handle_shout(char* command_args);
 static void handle_msg_test(char* command_args);
 static void handle_target(char* command_args);
-static void handle_reset();
+static void handle_reset(void);
 static void get_command_word_and_args(char* command, uint16_t command_length, char* command_word, char* command_args);
 
 uint8_t user_handle_command(char* command_word, char* command_args) __attribute__((weak));
@@ -61,7 +61,7 @@ void handle_serial_command(char* command, uint16_t command_length){
 	}
 }
 
-static void handle_check_collisions(){
+static void handle_check_collisions(void){
 	uint8_t dirs = check_collisions();
 	uint8_t found=0;
 	for(uint8_t i=0;i<6;i++){
@@ -100,7 +100,7 @@ static void handle_walk(char* command_args){
 	walk(direction, distance_mm);
 }
 
-static void handle_get_rgb(){
+static void handle_get_rgb(void){
 	int16_t r, g, b;
 	get_rgb(&r, &g, &b);
 	printf_P(PSTR("r: %hu, g: %hu, b: %hu\r\n"), r, g, b);
@@ -112,11 +112,11 @@ static void handle_set_ir(char* command_args){
 	char* token = strtok(command_args,delim);
 	uint16_t ir_val = (uint16_t)atoi(token);
 	
-	schedule_task(10, set_all_ir_powers, (void*)ir_val);
+	schedule_task(10, (arg_func_t)set_all_ir_powers, (void*)ir_val);
 }
 
-static void handle_stop_walk(){
-	stop_move(0);
+static void handle_stop_walk(void){
+	stop_move();
 }
 
 static void handle_set_motors(char* command_args){	
@@ -196,7 +196,7 @@ static void handle_set_mm_per_kilostep(char* command_args){
 /* This tells the droplet that it should tell other droplets nearby their rnb to it.
  * In other words, this tells nearby droplets to listen, and then performs an ir_range_blast.
  */
-static void handle_rnb_broadcast(){
+static void handle_rnb_broadcast(void){
 	schedule_task(5,broadcast_rnb_data,NULL);
 }
 
@@ -248,11 +248,11 @@ static void handle_set_led(char* command_args){
 	}
 }
 
-static void handle_broadcast_id(){
+static void handle_broadcast_id(void){
 	schedule_task(5, send_id, NULL);
 }
 
-static void handle_get_id(){
+static void handle_get_id(void){
 	printf_P(PSTR("My ID is: %04X\r\n"),get_droplet_id());
 }
 
@@ -350,6 +350,6 @@ static void get_command_word_and_args(char* command, uint16_t command_length, ch
 	}
 }
 
-static void handle_reset(){
+static void handle_reset(void){
 	droplet_reboot();
 }

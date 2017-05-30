@@ -130,22 +130,22 @@ uint16_t	mySlot;
 uint16_t	loopID;
 
 uint8_t		numNearBots;
-void		init();
-void		loop();
+void		init(void);
+void		loop(void);
 void		handle_msg(ir_msg* msg_struct);
-float		getPaddleCoverage();
-void		checkLightLevel();
-void		sendBotPosMsg();
+float		getPaddleCoverage(void);
+void		checkLightLevel(void);
+void		sendBotPosMsg(void);
 void		handleBotPosMsg(BotPosMsg* msg, id_t senderID);
 
-void		updateBall();
-void		updateColor();
-float		getBallCoverage();
+void		updateBall(void);
+void		updateColor(void);
+float		getBallCoverage(void);
 
-void		updateHardBots();
-void		sendBallMsg();
+void		updateHardBots(void);
+void		sendBallMsg(void);
 void		handleBallMsg(BallMsg* msg, uint32_t arrivalTime);
-void		sendPaddleMsg();
+void		sendPaddleMsg(void);
 void		handlePaddleMsg(char flag, int16_t delta);
 
 OtherBot*	getOtherBot(id_t id);
@@ -153,10 +153,10 @@ void		findAndRemoveOtherBot(id_t id);
 void		removeOtherBot(uint8_t idx);
 OtherBot*	addOtherBot(id_t id);
 void		cleanOtherBot(OtherBot* other);
-void		printNearBots();
+void		printNearBots(void);
 
 void		addHardBot(id_t id);
-void		cleanHardBots();
+void		cleanHardBots(void);
 
 inline static void copyBotPos(BotPos* src, BotPos* dest){
 	dest->x = src->x;
@@ -174,7 +174,7 @@ inline static float getCoverageRatioB(uint8_t rad, uint16_t dist){ //when bot ra
 	return intermediate*(rad+DROPLET_RADIUS-dist);
 }
 
-inline static int8_t checkBallCrossedMe(){
+inline static int8_t checkBallCrossedMe(void){
 	return sgn(((theBall.yVel*(theBall.yPos-myPos.y-theBall.xVel) + theBall.xVel*(theBall.xPos-myPos.x+theBall.yVel))));
 }
 
@@ -237,7 +237,7 @@ static int nearBotsBearingCmp(const void* a, const void* b){
 	}
 }
 
-inline static void killBall(){
+inline static void killBall(void){
 	set_rgb(255,0,0);
 	theBall.id = 0x0F;
 }

@@ -1,15 +1,15 @@
 #include "droplet_init.h"
 
-static void init_all_systems();
-static void calculate_id_number();
-static void enable_interrupts();
-static void check_messages();
+static void init_all_systems(void);
+static void calculate_id_number(void);
+static void enable_interrupts(void);
+static void check_messages(void);
 
 /**
  * \brief Initializes all the subsystems for this Droplet. This function MUST be called
  * by the user before using any other functions in the API.
  */ 
-static void init_all_systems(){
+static void init_all_systems(void){
 	cli();
 	Config32MHzClock();
 	
@@ -49,7 +49,7 @@ static void init_all_systems(){
 	ir_comm_init();				INIT_DEBUG_PRINT("IR COM INIT\r\n");
 }
 
-int main(){
+int main(void){
 	init_all_systems();
 	init();
 	while(1){
@@ -69,7 +69,7 @@ int main(){
  * to check messages.
  * For each message, it populates an ir_msg struct and calls handle_msg with it.
  */
-static void check_messages(){
+static void check_messages(void){
 	ir_msg* msg_struct;	
 	char actual_struct[sizeof(ir_msg)]; //It's like malloc, but on the stack.
 	char actual_msg[IR_BUFFER_SIZE+1];
@@ -107,7 +107,7 @@ static void check_messages(){
 	}
 }
 
-static void calculate_id_number(){
+static void calculate_id_number(void){
 	INIT_DEBUG_PRINT("get id number\r\n");
 
 	uint32_t pgm_bytes = 0;
@@ -130,7 +130,7 @@ static void calculate_id_number(){
 	droplet_ID = crc;
 }
 
-static void enable_interrupts(){
+static void enable_interrupts(void){
 	PMIC.CTRL |= PMIC_LOLVLEN_bm;	// enable low level interrupts
 	PMIC.CTRL |= PMIC_MEDLVLEN_bm;	// enable medium level interrupts	(e.g. TXCIF)
 	PMIC.CTRL |= PMIC_HILVLEN_bm;	// enable high level interrupts		(e.g. RTC_OVF)

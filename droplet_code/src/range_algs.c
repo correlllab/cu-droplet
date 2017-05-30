@@ -65,12 +65,12 @@ void calculate_bearing_and_heading(float* bearing, float* heading);
 float calculate_range(float iRange, float bearing, float heading);
 float calculate_error(float r, float b, float h);
 
-static int16_t processBrightMeas();
+static int16_t processBrightMeas(void);
 
 static float magicRangeFunc(float a);
 //static float invMagicRangeFunc(float r);
 
-//static void print_brightMeas();
+//static void print_brightMeas(void);
 												
 void range_algs_init(){
 	sensorHealthHistory = 0;
@@ -261,7 +261,7 @@ void calculate_bearing_and_heading(float* bearing, float* heading){
 	*heading = atan2f(headingY, headingX);
 }
 
-static int16_t processBrightMeas(){
+static int16_t processBrightMeas(void){
 	int16_t val;
 	int16_t valSum=0;
 	uint8_t allColZeroCheck = 0b00111111;
@@ -366,7 +366,7 @@ static float magicRangeFunc(float a){
 	//}
 //}
 //
-//static void print_brightMeas(){
+//static void print_brightMeas(void){
 	//printf("{\"%04X\", \"%04X\", {", rnbCmdID, get_droplet_id());
 	//for(uint8_t emitter_num=0 ; emitter_num<6 ; emitter_num++){
 		//printf("{");

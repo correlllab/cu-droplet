@@ -1,4 +1,4 @@
-//.section .text
+;.section .tex
 .global LoadR0
 LoadR0:
   movw  r0, r16   ; Load R17:R16 into R1:R0. 

@@ -4,7 +4,7 @@
 ; Gets the time as an atomic operation
 .global get_time
 get_time:
-	in		r0, _SFR_IO_ADDR(SREG)		; Save the state of the status register
+	in		r0,_SFR_IO_ADDR(SREG)		; Save the state of the status register
 	cli									; Disable interrupts
 	lds		r22, RTC_CNT				; Load low byte into return value
 	lds		r23, RTC_CNT+1

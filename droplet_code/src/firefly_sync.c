@@ -5,7 +5,7 @@ static uint8_t ffsync_blink_prev_r, ffsync_blink_prev_g, ffsync_blink_prev_b;
 static uint16_t ffsync_blink_dur;
 static uint16_t ffsync_blink_phase_offset_ms;
 
-static void updateRTC();
+static void updateRTC(void);
 
 void set_sync_blink_color(uint8_t r, uint8_t g, uint8_t b){
 	ffsync_blink_r = r;
@@ -79,7 +79,7 @@ void firefly_sync_init()
 }
 
 ISR(TCE0_OVF_vect){
-	schedule_task(rand_short()%FFSYNC_D, sendPing, (void*)((uint16_t)(get_time()&0xFFFF)));
+	schedule_task(rand_short()%FFSYNC_D, (arg_func_t)sendPing, (void*)((uint16_t)(get_time()&0xFFFF)));
 	//sendPing( (void*)((uint16_t)(get_time()&0xFFFF)));
 	updateRTC();
 	//printf("ovf @ %lu\r\n",get_time());
@@ -112,7 +112,7 @@ void processObsQueue(){
 	}
 }
 
-static void updateRTC(){
+static void updateRTC(void){
 	int16_t change;
 	uint16_t remainder;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
@@ -148,8 +148,8 @@ static void updateRTC(){
 	//printf("\t\t%d\r\n",change);
 }
 
-void sendPing(void* val){
-	/*uint8_t result = */hp_ir_targeted_cmd(ALL_DIRS, NULL, 64, (uint16_t)val);
+void sendPing(uint16_t val){
+	/*uint8_t result = */hp_ir_targeted_cmd(ALL_DIRS, NULL, 64, val);
 	//if(!result){
 		//printf_P(PSTR("Unable to send ff_sync ping due to other hp ir activity.\r\n"));
 	//}

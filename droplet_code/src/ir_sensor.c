@@ -88,11 +88,11 @@ void ir_sensor_init(){
 
 void initialize_ir_baselines(){
 	get_ir_sensors(ir_sense_baseline, 13);
-	printf("Baselines:");
-	for(uint8_t dir=0;dir<6;dir++){
-		printf(" %4d", ir_sense_baseline[dir]);
-	}
-	printf("\r\n");	
+	//printf("Baselines:");
+	//for(uint8_t dir=0;dir<6;dir++){
+		//printf(" %4d", ir_sense_baseline[dir]);
+	//}
+	//printf("\r\n");	
 }
 
 void update_ir_baselines(){

@@ -2,7 +2,7 @@
 
 #ifdef AUDIO_DROPLET
 static const char FORMATTED_PRINT_STRING[] PROGMEM = "%4d, ";
-static int16_t get_mic_reading();
+static int16_t get_mic_reading(void);
 #endif
 
 //The code below assumes that ir_sensor_init() has already been called, which does some of the set up for ADCB.
@@ -21,7 +21,7 @@ void mic_init(){
 }
 
 #ifdef AUDIO_DROPLET
-static int16_t get_mic_reading(){
+static int16_t get_mic_reading(void){
 		int16_t reading;
 		ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 			ADCB.CH3.CTRL |= ADC_CH_START_bm;

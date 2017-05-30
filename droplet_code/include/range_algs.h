@@ -52,14 +52,14 @@ volatile id_t rnbCmdID;
 volatile uint32_t rnbCmdSentTime;
 volatile uint8_t rnbProcessingFlag;
 
-void range_algs_init();
+void range_algs_init(void);
 
-void broadcast_rnb_data(); //takes about 142ms.
-//void receive_rnb_data();
-void use_rnb_data();
+void broadcast_rnb_data(void); //takes about 142ms.
+//void receive_rnb_data(void);
+void use_rnb_data(void);
 
 
-void ir_range_meas();
+void ir_range_meas(void);
 void ir_range_blast(uint8_t power);
 
 inline int8_t sgn(float x){

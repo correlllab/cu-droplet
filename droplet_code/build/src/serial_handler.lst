@@ -1,0 +1,3223 @@
+   1               		.file	"serial_handler.c"
+   2               	__SP_H__ = 0x3e
+   3               	__SP_L__ = 0x3d
+   4               	__SREG__ = 0x3f
+   5               	__RAMPZ__ = 0x3b
+   6               	__CCP__ = 0x34
+   7               	__tmp_reg__ = 0
+   8               	__zero_reg__ = 1
+   9               		.text
+  10               	.Ltext0:
+  11               		.cfi_sections	.debug_frame
+  12               		.section	.rodata.str1.1,"aMS",@progbits,1
+  13               	.LC0:
+  14 0000 2530 3458 		.string	"%04X"
+  14      00
+  15               		.section	.text.send_id,"ax",@progbits
+  16               	.global	send_id
+  18               	send_id:
+  19               	.LFB76:
+  20               		.file 1 "../src/serial_handler.c"
+   1:../src/serial_handler.c **** #include "serial_handler.h"
+   2:../src/serial_handler.c **** 
+   3:../src/serial_handler.c **** static const char CMD_NOT_RECOGNIZED_STR[] PROGMEM = "\tCommand ( %s ) not recognized.\r\n";
+   4:../src/serial_handler.c **** 
+   5:../src/serial_handler.c **** static void handle_check_collisions(void);
+   6:../src/serial_handler.c **** static void handle_move_steps(char* command_args);
+   7:../src/serial_handler.c **** static void handle_walk(char* command_args);
+   8:../src/serial_handler.c **** static void handle_get_rgb(void);
+   9:../src/serial_handler.c **** static void handle_set_ir(char* command_args);
+  10:../src/serial_handler.c **** static void handle_stop_walk(void);
+  11:../src/serial_handler.c **** static void handle_set_motors(char* command_args);
+  12:../src/serial_handler.c **** static void handle_adjust_motors(char* command_args);
+  13:../src/serial_handler.c **** static void handle_set_mm_per_kilostep(char* command_args);
+  14:../src/serial_handler.c **** static void handle_rnb_broadcast(void);
+  15:../src/serial_handler.c **** static void handle_set_led(char* command_args);
+  16:../src/serial_handler.c **** static void handle_broadcast_id(void);
+  17:../src/serial_handler.c **** static void handle_get_id(void);
+  18:../src/serial_handler.c **** static void handle_cmd(char* command_args);
+  19:../src/serial_handler.c **** static void handle_targeted_cmd(char* command_args);
+  20:../src/serial_handler.c **** static void handle_shout(char* command_args);
+  21:../src/serial_handler.c **** static void handle_msg_test(char* command_args);
+  22:../src/serial_handler.c **** static void handle_target(char* command_args);
+  23:../src/serial_handler.c **** static void handle_reset(void);
+  24:../src/serial_handler.c **** static void get_command_word_and_args(char* command, uint16_t command_length, char* command_word, c
+  25:../src/serial_handler.c **** 
+  26:../src/serial_handler.c **** uint8_t user_handle_command(char* command_word, char* command_args) __attribute__((weak));
+  27:../src/serial_handler.c **** 
+  28:../src/serial_handler.c **** void handle_serial_command(char* command, uint16_t command_length){
+  29:../src/serial_handler.c **** 	if(command[0]!='\0'){ //Not much to handle if we get an empty string.
+  30:../src/serial_handler.c **** 		char command_word[SRL_BUFFER_SIZE];
+  31:../src/serial_handler.c **** 		char command_args[SRL_BUFFER_SIZE];
+  32:../src/serial_handler.c **** 		get_command_word_and_args(command,command_length,command_word,command_args);
+  33:../src/serial_handler.c **** 			 if(strcmp_P(command_word,PSTR("move_steps"))==0)			handle_move_steps(command_args);
+  34:../src/serial_handler.c **** 		else if(strcmp_P(command_word,PSTR("walk"))==0)					handle_walk(command_args);
+  35:../src/serial_handler.c **** 		else if(strcmp_P(command_word,PSTR("get_rgb"))==0)				handle_get_rgb();
+  36:../src/serial_handler.c **** 		else if(strcmp_P(command_word,PSTR("set_ir"))==0)				handle_set_ir(command_args);
+  37:../src/serial_handler.c **** 		else if(strcmp_P(command_word,PSTR("coll"))==0)					handle_check_collisions();
+  38:../src/serial_handler.c **** 		else if(strcmp_P(command_word,PSTR("stop_walk"))==0)			handle_stop_walk();
+  39:../src/serial_handler.c **** 		else if(strcmp_P(command_word,PSTR("set_motors"))==0)			handle_set_motors(command_args);
+  40:../src/serial_handler.c **** 		else if(strcmp_P(command_word,PSTR("adj_motors"))==0)			handle_adjust_motors(command_args);
+  41:../src/serial_handler.c **** 		else if(strcmp_P(command_word,PSTR("set_dist_per_step"))==0)	handle_set_mm_per_kilostep(command_a
+  42:../src/serial_handler.c **** 		else if(strcmp_P(command_word,PSTR("rnb_b"))==0)				handle_rnb_broadcast();
+  43:../src/serial_handler.c **** 		else if(strcmp_P(command_word,PSTR("set_led"))==0)				handle_set_led(command_args);
+  44:../src/serial_handler.c **** 		else if(strcmp_P(command_word,PSTR("get_id"))==0)				handle_get_id();
+  45:../src/serial_handler.c **** 		else if(strcmp_P(command_word,PSTR("broadcast_id"))==0)			handle_broadcast_id();
+  46:../src/serial_handler.c **** 		else if(strcmp_P(command_word,PSTR("cmd"))==0)					handle_cmd(command_args);
+  47:../src/serial_handler.c **** 		else if(strcmp_P(command_word,PSTR("tgt_cmd"))==0)				handle_targeted_cmd(command_args);
+  48:../src/serial_handler.c **** 		else if(strcmp_P(command_word,PSTR("msg"))==0)					handle_shout(command_args);
+  49:../src/serial_handler.c **** 		else if(strcmp_P(command_word,PSTR("msg_tst"))==0)				handle_msg_test(command_args);
+  50:../src/serial_handler.c **** 		else if(strcmp_P(command_word,PSTR("tgt"))==0)					handle_target(command_args);
+  51:../src/serial_handler.c **** 		else if(strcmp_P(command_word,PSTR("tasks"))==0)				print_task_queue();
+  52:../src/serial_handler.c **** 		else if(strcmp_P(command_word,PSTR("reset"))==0)				handle_reset();
+  53:../src/serial_handler.c **** 		else if(strcmp_P(command_word,PSTR("write_motor_settings"))==0)	write_motor_settings();
+  54:../src/serial_handler.c **** 		else if(strcmp_P(command_word,PSTR("print_motor_settings"))==0){
+  55:../src/serial_handler.c **** 																		print_motor_values();
+  56:../src/serial_handler.c **** 																		print_dist_per_step();																	
+  57:../src/serial_handler.c **** 		}else if(user_handle_command){ //First, make sure the function is defined
+  58:../src/serial_handler.c **** 			if(!user_handle_command(command_word, command_args))	printf_P(CMD_NOT_RECOGNIZED_STR,command_wor
+  59:../src/serial_handler.c **** 		}
+  60:../src/serial_handler.c **** 		else														printf_P(CMD_NOT_RECOGNIZED_STR,command_word);
+  61:../src/serial_handler.c **** 	}
+  62:../src/serial_handler.c **** }
+  63:../src/serial_handler.c **** 
+  64:../src/serial_handler.c **** static void handle_check_collisions(void){
+  65:../src/serial_handler.c **** 	uint8_t dirs = check_collisions();
+  66:../src/serial_handler.c **** 	uint8_t found=0;
+  67:../src/serial_handler.c **** 	for(uint8_t i=0;i<6;i++){
+  68:../src/serial_handler.c **** 		if(dirs&(1<<i)){
+  69:../src/serial_handler.c **** 			found=1;
+  70:../src/serial_handler.c **** 			printf("%hu",i);
+  71:../src/serial_handler.c **** 		}
+  72:../src/serial_handler.c **** 	}
+  73:../src/serial_handler.c **** 	if(!found) printf("None");
+  74:../src/serial_handler.c **** 	printf("\r\n");
+  75:../src/serial_handler.c **** }
+  76:../src/serial_handler.c **** 
+  77:../src/serial_handler.c **** static void handle_move_steps(char* command_args){
+  78:../src/serial_handler.c **** 	const char delim[2] = " ";
+  79:../src/serial_handler.c **** 	
+  80:../src/serial_handler.c **** 	char* token = strtok(command_args,delim);
+  81:../src/serial_handler.c **** 	uint8_t direction = token[0]-'0';
+  82:../src/serial_handler.c **** 
+  83:../src/serial_handler.c **** 	token = strtok(NULL,delim);
+  84:../src/serial_handler.c **** 	uint16_t num_steps = (uint16_t)atoi(token);
+  85:../src/serial_handler.c **** 	if (num_steps > 0){	
+  86:../src/serial_handler.c **** 		printf_P(PSTR("walk direction %hu, num_steps %u\r\n"), direction, num_steps);	
+  87:../src/serial_handler.c **** 		move_steps(direction, num_steps);
+  88:../src/serial_handler.c **** 	}	
+  89:../src/serial_handler.c **** }	
+  90:../src/serial_handler.c **** 
+  91:../src/serial_handler.c **** static void handle_walk(char* command_args){	
+  92:../src/serial_handler.c **** 	const char delim[2] = " ";
+  93:../src/serial_handler.c **** 	
+  94:../src/serial_handler.c **** 	char* token = strtok(command_args,delim);
+  95:../src/serial_handler.c **** 	uint8_t direction = token[0]-'0';
+  96:../src/serial_handler.c **** 	
+  97:../src/serial_handler.c **** 	token = strtok(NULL,delim);
+  98:../src/serial_handler.c **** 	uint16_t distance_mm = (uint16_t)atoi(token);
+  99:../src/serial_handler.c **** 	
+ 100:../src/serial_handler.c **** 	walk(direction, distance_mm);
+ 101:../src/serial_handler.c **** }
+ 102:../src/serial_handler.c **** 
+ 103:../src/serial_handler.c **** static void handle_get_rgb(void){
+ 104:../src/serial_handler.c **** 	int16_t r, g, b;
+ 105:../src/serial_handler.c **** 	get_rgb(&r, &g, &b);
+ 106:../src/serial_handler.c **** 	printf_P(PSTR("r: %hu, g: %hu, b: %hu\r\n"), r, g, b);
+ 107:../src/serial_handler.c **** }
+ 108:../src/serial_handler.c **** 
+ 109:../src/serial_handler.c **** static void handle_set_ir(char* command_args){
+ 110:../src/serial_handler.c **** 	const char delim[2] = " ";
+ 111:../src/serial_handler.c **** 	
+ 112:../src/serial_handler.c **** 	char* token = strtok(command_args,delim);
+ 113:../src/serial_handler.c **** 	uint16_t ir_val = (uint16_t)atoi(token);
+ 114:../src/serial_handler.c **** 	
+ 115:../src/serial_handler.c **** 	schedule_task(10, (arg_func_t)set_all_ir_powers, (void*)ir_val);
+ 116:../src/serial_handler.c **** }
+ 117:../src/serial_handler.c **** 
+ 118:../src/serial_handler.c **** static void handle_stop_walk(void){
+ 119:../src/serial_handler.c **** 	stop_move();
+ 120:../src/serial_handler.c **** }
+ 121:../src/serial_handler.c **** 
+ 122:../src/serial_handler.c **** static void handle_set_motors(char* command_args){	
+ 123:../src/serial_handler.c **** 	uint8_t r = get_red_led(), g = get_green_led(), b = get_blue_led();
+ 124:../src/serial_handler.c **** 	set_rgb(0,0,255);
+ 125:../src/serial_handler.c **** 	const char delim[2] = " ";
+ 126:../src/serial_handler.c **** 	
+ 127:../src/serial_handler.c **** 	char* token = strtok(command_args,delim);
+ 128:../src/serial_handler.c **** 	if(token==NULL){ printf_P(PSTR("strtok returned NULL on direction.\r\n")); return;}
+ 129:../src/serial_handler.c **** 	uint8_t direction = atoi(token);
+ 130:../src/serial_handler.c **** 	if(direction> 7){ printf_P(PSTR("Bad direction. Got: %hu.\r\n"), direction); return;}
+ 131:../src/serial_handler.c **** 
+ 132:../src/serial_handler.c **** 	token = strtok(NULL,delim);
+ 133:../src/serial_handler.c **** 	if(token==NULL){ printf_P(PSTR("strtok returned NULL on first val.\r\n")); return;}	
+ 134:../src/serial_handler.c **** 	motor_adjusts[direction][0] = atoi(token);
+ 135:../src/serial_handler.c **** 	
+ 136:../src/serial_handler.c **** 	token = strtok(NULL,delim);
+ 137:../src/serial_handler.c **** 	if(token==NULL){ printf_P(PSTR("strtok returned NULL on second val.\r\n")); return;}
+ 138:../src/serial_handler.c **** 	motor_adjusts[direction][1] = atoi(token);
+ 139:../src/serial_handler.c **** 	
+ 140:../src/serial_handler.c **** 	token = strtok(NULL,delim);
+ 141:../src/serial_handler.c **** 	if(token==NULL){ printf_P(PSTR("strtok returned NULL on third val.\r\n")); return;}
+ 142:../src/serial_handler.c **** 	motor_adjusts[direction][2] = atoi(token);	
+ 143:../src/serial_handler.c **** 
+ 144:../src/serial_handler.c **** 	printf_P(PSTR("Got set_motors command. direction: %hu, vals: (%d, %d, %d)\r\n"), direction, motor_
+ 145:../src/serial_handler.c **** 	set_rgb(r,g,b);
+ 146:../src/serial_handler.c **** }
+ 147:../src/serial_handler.c **** 
+ 148:../src/serial_handler.c **** static void handle_adjust_motors(char* command_args){
+ 149:../src/serial_handler.c **** 	uint8_t r = get_red_led(), g = get_green_led(), b = get_blue_led();
+ 150:../src/serial_handler.c **** 	set_rgb(0,0,255);
+ 151:../src/serial_handler.c **** 	const char delim[2] = " ";
+ 152:../src/serial_handler.c **** 	
+ 153:../src/serial_handler.c **** 	char* token = strtok(command_args,delim);
+ 154:../src/serial_handler.c **** 	if(token==NULL){ printf_P(PSTR("strtok returned NULL on direction.\r\n")); return;}
+ 155:../src/serial_handler.c **** 	uint8_t direction = atoi(token);
+ 156:../src/serial_handler.c **** 	if(direction> 7){ printf_P(PSTR("Bad direction. Got: %hu.\r\n"), direction); return;}
+ 157:../src/serial_handler.c **** 
+ 158:../src/serial_handler.c **** 	token = strtok(NULL,delim);
+ 159:../src/serial_handler.c **** 	if(token==NULL){ printf_P(PSTR("strtok returned NULL on first val.\r\n")); return;}
+ 160:../src/serial_handler.c **** 	if(motor_adjusts[direction][0]>=0)
+ 161:../src/serial_handler.c **** 		motor_adjusts[direction][0]+= atoi(token);
+ 162:../src/serial_handler.c **** 	else
+ 163:../src/serial_handler.c **** 		motor_adjusts[direction][0]-= atoi(token);
+ 164:../src/serial_handler.c **** 	
+ 165:../src/serial_handler.c **** 	token = strtok(NULL,delim);
+ 166:../src/serial_handler.c **** 	if(token==NULL){ printf_P(PSTR("strtok returned NULL on second val.\r\n")); return;}
+ 167:../src/serial_handler.c **** 	if(motor_adjusts[direction][1]>=0)
+ 168:../src/serial_handler.c **** 	motor_adjusts[direction][1]+= atoi(token);
+ 169:../src/serial_handler.c **** 	else
+ 170:../src/serial_handler.c **** 	motor_adjusts[direction][1]-= atoi(token);
+ 171:../src/serial_handler.c **** 	
+ 172:../src/serial_handler.c **** 	token = strtok(NULL,delim);
+ 173:../src/serial_handler.c **** 	if(token==NULL){ printf_P(PSTR("strtok returned NULL on third val.\r\n")); return;}
+ 174:../src/serial_handler.c **** 	if(motor_adjusts[direction][2]>=0)
+ 175:../src/serial_handler.c **** 	motor_adjusts[direction][2]+= atoi(token);
+ 176:../src/serial_handler.c **** 	else
+ 177:../src/serial_handler.c **** 	motor_adjusts[direction][2]-= atoi(token);
+ 178:../src/serial_handler.c **** 
+ 179:../src/serial_handler.c **** 	printf_P(PSTR("Got adjust_motors command. direction: %hu, New Settings: (%d, %d, %d)\r\n"), direct
+ 180:../src/serial_handler.c **** 	set_rgb(r,g,b);
+ 181:../src/serial_handler.c **** }
+ 182:../src/serial_handler.c **** 
+ 183:../src/serial_handler.c **** static void handle_set_mm_per_kilostep(char* command_args){
+ 184:../src/serial_handler.c **** 	const char delim[2] = " ";
+ 185:../src/serial_handler.c **** 	
+ 186:../src/serial_handler.c **** 	char* token = strtok(command_args,delim);
+ 187:../src/serial_handler.c **** 	uint8_t direction = token[0]-'0';
+ 188:../src/serial_handler.c **** 	
+ 189:../src/serial_handler.c **** 	token = strtok(NULL,delim);
+ 190:../src/serial_handler.c **** 	uint16_t mm_per_kilostep = atoi(token);
+ 191:../src/serial_handler.c **** 
+ 192:../src/serial_handler.c **** 	set_mm_per_kilostep(direction, mm_per_kilostep);
+ 193:../src/serial_handler.c **** 	
+ 194:../src/serial_handler.c **** }
+ 195:../src/serial_handler.c **** 
+ 196:../src/serial_handler.c **** /* This tells the droplet that it should tell other droplets nearby their rnb to it.
+ 197:../src/serial_handler.c ****  * In other words, this tells nearby droplets to listen, and then performs an ir_range_blast.
+ 198:../src/serial_handler.c ****  */
+ 199:../src/serial_handler.c **** static void handle_rnb_broadcast(void){
+ 200:../src/serial_handler.c **** 	schedule_task(5,broadcast_rnb_data,NULL);
+ 201:../src/serial_handler.c **** }
+ 202:../src/serial_handler.c **** 
+ 203:../src/serial_handler.c **** static void handle_set_led(char* command_args){
+ 204:../src/serial_handler.c **** 	const char delim[2] = " ";
+ 205:../src/serial_handler.c **** 	char* token;
+ 206:../src/serial_handler.c **** 
+ 207:../src/serial_handler.c **** 	uint8_t successful_read = 0;
+ 208:../src/serial_handler.c **** 	
+ 209:../src/serial_handler.c **** 	char* colors = strtok(command_args,delim);
+ 210:../src/serial_handler.c **** 	
+ 211:../src/serial_handler.c **** 	int length = strlen(colors);
+ 212:../src/serial_handler.c **** 
+ 213:../src/serial_handler.c **** 	if(strcmp(colors,"hsv")==0){
+ 214:../src/serial_handler.c **** 		uint16_t hVal;
+ 215:../src/serial_handler.c **** 		uint8_t sVal, vVal;
+ 216:../src/serial_handler.c **** 		token = strtok(NULL,delim);
+ 217:../src/serial_handler.c **** 		hVal = atoi(token);
+ 218:../src/serial_handler.c **** 		token = strtok(NULL,delim);
+ 219:../src/serial_handler.c **** 		sVal = atoi(token);
+ 220:../src/serial_handler.c **** 		token = strtok(NULL,delim);	
+ 221:../src/serial_handler.c **** 		vVal = atoi(token);
+ 222:../src/serial_handler.c **** 		set_hsv(hVal,sVal,vVal);
+ 223:../src/serial_handler.c **** 		successful_read=1;
+ 224:../src/serial_handler.c **** 	}else{
+ 225:../src/serial_handler.c **** 		for(int i=0 ; i < length ; i++){
+ 226:../src/serial_handler.c **** 			token = strtok(NULL,delim);
+ 227:../src/serial_handler.c **** 			if(colors[i]=='r'){
+ 228:../src/serial_handler.c **** 				set_red_led(atoi(token));
+ 229:../src/serial_handler.c **** 				successful_read=1;
+ 230:../src/serial_handler.c **** 			}else if(colors[i]=='g'){
+ 231:../src/serial_handler.c **** 				set_green_led(atoi(token));
+ 232:../src/serial_handler.c **** 				successful_read=1;
+ 233:../src/serial_handler.c **** 			}else if(colors[i]=='b'){
+ 234:../src/serial_handler.c **** 				set_blue_led(atoi(token));
+ 235:../src/serial_handler.c **** 				successful_read=1;
+ 236:../src/serial_handler.c **** 			}else{
+ 237:../src/serial_handler.c **** 				successful_read=0;
+ 238:../src/serial_handler.c **** 				break;
+ 239:../src/serial_handler.c **** 			}
+ 240:../src/serial_handler.c **** 		}
+ 241:../src/serial_handler.c **** 	}
+ 242:../src/serial_handler.c **** 
+ 243:../src/serial_handler.c **** 	if(successful_read!=1){
+ 244:../src/serial_handler.c **** 		printf_P(PSTR("\tGot command set_led, but arguments (%s) were invalid. Format should be:\r\n"),co
+ 245:../src/serial_handler.c **** 		printf_P(PSTR("\t Letters r,g,b, in any order, followed by values 0-255, in same \r\n"));
+ 246:../src/serial_handler.c **** 		printf_P(PSTR("\t order, indicating the brightness of the associated LEDs. Example: \r\n"));
+ 247:../src/serial_handler.c **** 		printf_P(PSTR("\t \"set_led bgr 5 30 0\" gives a bluish green.\r\n"));
+ 248:../src/serial_handler.c **** 	}
+ 249:../src/serial_handler.c **** }
+ 250:../src/serial_handler.c **** 
+ 251:../src/serial_handler.c **** static void handle_broadcast_id(void){
+ 252:../src/serial_handler.c **** 	schedule_task(5, send_id, NULL);
+ 253:../src/serial_handler.c **** }
+ 254:../src/serial_handler.c **** 
+ 255:../src/serial_handler.c **** static void handle_get_id(void){
+ 256:../src/serial_handler.c **** 	printf_P(PSTR("My ID is: %04X\r\n"),get_droplet_id());
+ 257:../src/serial_handler.c **** }
+ 258:../src/serial_handler.c **** 
+ 259:../src/serial_handler.c **** void send_id(){
+  21               		.loc 1 259 0
+  22               		.cfi_startproc
+  23 0000 0F93      		push r16
+  24               	.LCFI0:
+  25               		.cfi_def_cfa_offset 4
+  26               		.cfi_offset 16, -3
+  27 0002 1F93      		push r17
+  28               	.LCFI1:
+  29               		.cfi_def_cfa_offset 5
+  30               		.cfi_offset 17, -4
+  31 0004 CF93      		push r28
+  32               	.LCFI2:
+  33               		.cfi_def_cfa_offset 6
+  34               		.cfi_offset 28, -5
+  35 0006 DF93      		push r29
+  36               	.LCFI3:
+  37               		.cfi_def_cfa_offset 7
+  38               		.cfi_offset 29, -6
+  39 0008 CDB7      		in r28,__SP_L__
+  40 000a DEB7      		in r29,__SP_H__
+  41               	.LCFI4:
+  42               		.cfi_def_cfa_register 28
+  43 000c 2597      		sbiw r28,5
+  44               	.LCFI5:
+  45               		.cfi_def_cfa_offset 12
+  46 000e CDBF      		out __SP_L__,r28
+  47 0010 DEBF      		out __SP_H__,r29
+  48               	/* prologue: function */
+  49               	/* frame size = 5 */
+  50               	/* stack size = 9 */
+  51               	.L__stack_usage = 9
+ 260:../src/serial_handler.c **** 	char msg[5];
+ 261:../src/serial_handler.c **** 	sprintf(msg, "%04X", get_droplet_id());
+  52               		.loc 1 261 0
+  53 0012 8091 0000 		lds r24,droplet_ID+1
+  54 0016 8F93      		push r24
+  55 0018 8091 0000 		lds r24,droplet_ID
+  56 001c 8F93      		push r24
+  57 001e 80E0      		ldi r24,lo8(.LC0)
+  58 0020 90E0      		ldi r25,hi8(.LC0)
+  59 0022 9F93      		push r25
+  60 0024 8F93      		push r24
+  61 0026 8E01      		movw r16,r28
+  62 0028 0F5F      		subi r16,-1
+  63 002a 1F4F      		sbci r17,-1
+  64 002c 1F93      		push r17
+  65 002e 0F93      		push r16
+  66 0030 0E94 0000 		call sprintf
+  67               	.LVL0:
+ 262:../src/serial_handler.c **** 	ir_send(ALL_DIRS, msg, 4);
+  68               		.loc 1 262 0
+  69 0034 44E0      		ldi r20,lo8(4)
+  70 0036 B801      		movw r22,r16
+  71 0038 8FE3      		ldi r24,lo8(63)
+  72 003a 0E94 0000 		call ir_send
+  73               	.LVL1:
+ 263:../src/serial_handler.c **** }
+  74               		.loc 1 263 0
+  75 003e 0F90      		pop __tmp_reg__
+  76 0040 0F90      		pop __tmp_reg__
+  77 0042 0F90      		pop __tmp_reg__
+  78 0044 0F90      		pop __tmp_reg__
+  79 0046 0F90      		pop __tmp_reg__
+  80 0048 0F90      		pop __tmp_reg__
+  81               	/* epilogue start */
+  82 004a 2596      		adiw r28,5
+  83 004c CDBF      		out __SP_L__,r28
+  84 004e DEBF      		out __SP_H__,r29
+  85 0050 DF91      		pop r29
+  86 0052 CF91      		pop r28
+  87 0054 1F91      		pop r17
+  88 0056 0F91      		pop r16
+  89 0058 0895      		ret
+  90               		.cfi_endproc
+  91               	.LFE76:
+  93               		.section	.rodata.str1.1
+  94               	.LC1:
+  95 0005 556E 6971 		.string	"Unique New York."
+  95      7565 204E 
+  95      6577 2059 
+  95      6F72 6B2E 
+  95      00
+  96               	.LC2:
+  97 0016 2568 7500 		.string	"%hu"
+  98               	.LC3:
+  99 001a 4E6F 6E65 		.string	"None"
+  99      00
+ 100               	.LC4:
+ 101 001f 0D00      		.string	"\r"
+ 102               	.LC5:
+ 103 0021 6873 7600 		.string	"hsv"
+ 104               	.LC6:
+ 105 0025 2000      		.string	" "
+ 106               		.section	.text.handle_serial_command,"ax",@progbits
+ 107               	.global	handle_serial_command
+ 109               	handle_serial_command:
+ 110               	.LFB62:
+  28:../src/serial_handler.c **** 	if(command[0]!='\0'){ //Not much to handle if we get an empty string.
+ 111               		.loc 1 28 0
+ 112               		.cfi_startproc
+ 113               	.LVL2:
+ 114 0000 2F92      		push r2
+ 115               	.LCFI6:
+ 116               		.cfi_def_cfa_offset 4
+ 117               		.cfi_offset 2, -3
+ 118 0002 3F92      		push r3
+ 119               	.LCFI7:
+ 120               		.cfi_def_cfa_offset 5
+ 121               		.cfi_offset 3, -4
+ 122 0004 4F92      		push r4
+ 123               	.LCFI8:
+ 124               		.cfi_def_cfa_offset 6
+ 125               		.cfi_offset 4, -5
+ 126 0006 5F92      		push r5
+ 127               	.LCFI9:
+ 128               		.cfi_def_cfa_offset 7
+ 129               		.cfi_offset 5, -6
+ 130 0008 6F92      		push r6
+ 131               	.LCFI10:
+ 132               		.cfi_def_cfa_offset 8
+ 133               		.cfi_offset 6, -7
+ 134 000a 7F92      		push r7
+ 135               	.LCFI11:
+ 136               		.cfi_def_cfa_offset 9
+ 137               		.cfi_offset 7, -8
+ 138 000c 8F92      		push r8
+ 139               	.LCFI12:
+ 140               		.cfi_def_cfa_offset 10
+ 141               		.cfi_offset 8, -9
+ 142 000e 9F92      		push r9
+ 143               	.LCFI13:
+ 144               		.cfi_def_cfa_offset 11
+ 145               		.cfi_offset 9, -10
+ 146 0010 AF92      		push r10
+ 147               	.LCFI14:
+ 148               		.cfi_def_cfa_offset 12
+ 149               		.cfi_offset 10, -11
+ 150 0012 BF92      		push r11
+ 151               	.LCFI15:
+ 152               		.cfi_def_cfa_offset 13
+ 153               		.cfi_offset 11, -12
+ 154 0014 CF92      		push r12
+ 155               	.LCFI16:
+ 156               		.cfi_def_cfa_offset 14
+ 157               		.cfi_offset 12, -13
+ 158 0016 DF92      		push r13
+ 159               	.LCFI17:
+ 160               		.cfi_def_cfa_offset 15
+ 161               		.cfi_offset 13, -14
+ 162 0018 EF92      		push r14
+ 163               	.LCFI18:
+ 164               		.cfi_def_cfa_offset 16
+ 165               		.cfi_offset 14, -15
+ 166 001a FF92      		push r15
+ 167               	.LCFI19:
+ 168               		.cfi_def_cfa_offset 17
+ 169               		.cfi_offset 15, -16
+ 170 001c 0F93      		push r16
+ 171               	.LCFI20:
+ 172               		.cfi_def_cfa_offset 18
+ 173               		.cfi_offset 16, -17
+ 174 001e 1F93      		push r17
+ 175               	.LCFI21:
+ 176               		.cfi_def_cfa_offset 19
+ 177               		.cfi_offset 17, -18
+ 178 0020 CF93      		push r28
+ 179               	.LCFI22:
+ 180               		.cfi_def_cfa_offset 20
+ 181               		.cfi_offset 28, -19
+ 182 0022 DF93      		push r29
+ 183               	.LCFI23:
+ 184               		.cfi_def_cfa_offset 21
+ 185               		.cfi_offset 29, -20
+ 186 0024 CDB7      		in r28,__SP_L__
+ 187 0026 DEB7      		in r29,__SP_H__
+ 188               	.LCFI24:
+ 189               		.cfi_def_cfa_register 28
+ 190 0028 C75A      		subi r28,-89
+ 191 002a D109      		sbc r29,__zero_reg__
+ 192               	.LCFI25:
+ 193               		.cfi_def_cfa_offset 188
+ 194 002c CDBF      		out __SP_L__,r28
+ 195 002e DEBF      		out __SP_H__,r29
+ 196               	/* prologue: function */
+ 197               	/* frame size = 167 */
+ 198               	/* stack size = 185 */
+ 199               	.L__stack_usage = 185
+ 200 0030 DC01      		movw r26,r24
+  29:../src/serial_handler.c **** 		char command_word[SRL_BUFFER_SIZE];
+ 201               		.loc 1 29 0
+ 202 0032 9C91      		ld r25,X
+ 203 0034 9111      		cpse r25,__zero_reg__
+ 204 0036 00C0      		rjmp .L90
+ 205               	.LVL3:
+ 206               	.L2:
+ 207               	/* epilogue start */
+  62:../src/serial_handler.c **** 
+ 208               		.loc 1 62 0
+ 209 0038 C955      		subi r28,89
+ 210 003a DF4F      		sbci r29,-1
+ 211 003c CDBF      		out __SP_L__,r28
+ 212 003e DEBF      		out __SP_H__,r29
+ 213 0040 DF91      		pop r29
+ 214 0042 CF91      		pop r28
+ 215 0044 1F91      		pop r17
+ 216 0046 0F91      		pop r16
+ 217 0048 FF90      		pop r15
+ 218 004a EF90      		pop r14
+ 219 004c DF90      		pop r13
+ 220 004e CF90      		pop r12
+ 221 0050 BF90      		pop r11
+ 222 0052 AF90      		pop r10
+ 223 0054 9F90      		pop r9
+ 224 0056 8F90      		pop r8
+ 225 0058 7F90      		pop r7
+ 226 005a 6F90      		pop r6
+ 227 005c 5F90      		pop r5
+ 228 005e 4F90      		pop r4
+ 229 0060 3F90      		pop r3
+ 230 0062 2F90      		pop r2
+ 231 0064 0895      		ret
+ 232               	.LVL4:
+ 233               	.L90:
+ 234               	.LBB192:
+ 235               	.LBB193:
+ 236               	.LBB194:
+ 237               	.LBB195:
+ 264:../src/serial_handler.c **** 
+ 265:../src/serial_handler.c **** static void handle_cmd(char* command_args){
+ 266:../src/serial_handler.c **** 	printf_P(PSTR("Broadcasting command: \"%s\", of length %i.\r\n"),(uint8_t*)command_args, strlen(co
+ 267:../src/serial_handler.c **** 	ir_cmd(ALL_DIRS, command_args,strlen(command_args));
+ 268:../src/serial_handler.c **** 	//if(0==ir_send_command(0,(uint8_t*)command_args,strlen(command_args)))
+ 269:../src/serial_handler.c **** 	//printf("\tSent command \"%s\", of length %i\r\n",command_args,strlen(command_args));
+ 270:../src/serial_handler.c **** 	//else
+ 271:../src/serial_handler.c **** 	//printf("\tFailed to send \"%s\", of length %i\r\n",command_args,strlen(command_args));
+ 272:../src/serial_handler.c **** 	//
+ 273:../src/serial_handler.c **** 	//else
+ 274:../src/serial_handler.c **** 	//{
+ 275:../src/serial_handler.c **** 		//printf("\tIt wasn't OK to send command\r\n");
+ 276:../src/serial_handler.c **** 	//}
+ 277:../src/serial_handler.c **** }
+ 278:../src/serial_handler.c **** 
+ 279:../src/serial_handler.c **** static void handle_targeted_cmd(char* command_args){
+ 280:../src/serial_handler.c **** 	uint8_t loc = strcspn(command_args, " ");
+ 281:../src/serial_handler.c **** 	char targetString[5];
+ 282:../src/serial_handler.c **** 	char cmdString[32];
+ 283:../src/serial_handler.c **** 	
+ 284:../src/serial_handler.c **** 	strncpy(targetString, command_args, loc);
+ 285:../src/serial_handler.c **** 	strcpy(cmdString, command_args+loc+1);
+ 286:../src/serial_handler.c **** 	
+ 287:../src/serial_handler.c **** 	uint16_t target = strtoul(targetString, NULL, 16);
+ 288:../src/serial_handler.c **** 	printf_P(PSTR("command string: %s, length: %z\r\n"),cmdString, strlen(cmdString));
+ 289:../src/serial_handler.c **** 	ir_targeted_cmd(ALL_DIRS, cmdString,strlen(cmdString), target);
+ 290:../src/serial_handler.c **** }
+ 291:../src/serial_handler.c **** 
+ 292:../src/serial_handler.c **** static void handle_shout(char* command_args){
+ 293:../src/serial_handler.c **** 	if(strlen(command_args)==0){
+ 294:../src/serial_handler.c **** 		command_args = "Unique New York.";
+ 295:../src/serial_handler.c **** 	}else if(strlen(command_args)>IR_BUFFER_SIZE){ 
+ 296:../src/serial_handler.c **** 		printf_P(PSTR("Message length was %z chars, which exceeds the maximum of %u"), strlen(command_arg
+ 297:../src/serial_handler.c **** 		return;
+ 298:../src/serial_handler.c **** 	}
+ 299:../src/serial_handler.c **** 	ir_send(ALL_DIRS, command_args,strlen(command_args));
+ 300:../src/serial_handler.c **** }
+ 301:../src/serial_handler.c **** 
+ 302:../src/serial_handler.c **** static void handle_msg_test(char* command_args){
+ 303:../src/serial_handler.c **** 	uint8_t dir_mask = atoi(command_args);
+ 304:../src/serial_handler.c **** 	char msg[16] = "Unique New York.";
+ 305:../src/serial_handler.c **** 	
+ 306:../src/serial_handler.c **** 	ir_send(dir_mask, msg,16);
+ 307:../src/serial_handler.c **** }
+ 308:../src/serial_handler.c **** 
+ 309:../src/serial_handler.c **** static void handle_target(char* command_args){
+ 310:../src/serial_handler.c **** 	uint8_t loc = strcspn(command_args, " ");
+ 311:../src/serial_handler.c **** 	char targetString[5];
+ 312:../src/serial_handler.c **** 	char msgString[32];
+ 313:../src/serial_handler.c **** 	
+ 314:../src/serial_handler.c **** 	strncpy(targetString, command_args, loc);
+ 315:../src/serial_handler.c **** 	strcpy(msgString, command_args+loc);
+ 316:../src/serial_handler.c **** 	
+ 317:../src/serial_handler.c **** 	
+ 318:../src/serial_handler.c **** 	uint16_t target = strtoul(targetString, NULL, 16);
+ 319:../src/serial_handler.c **** 	
+ 320:../src/serial_handler.c **** 	//printf("Target: %04X\r\n",target);
+ 321:../src/serial_handler.c **** 	ir_targeted_send(ALL_DIRS, msgString,strlen(msgString), target);
+ 322:../src/serial_handler.c **** } 
+ 323:../src/serial_handler.c **** 
+ 324:../src/serial_handler.c **** 
+ 325:../src/serial_handler.c **** static void get_command_word_and_args(char* command, uint16_t command_length, char* command_word, c
+ 326:../src/serial_handler.c **** 	//printf("\tIn gcwaa.\r\n");
+ 327:../src/serial_handler.c **** 	uint16_t write_index = 0;
+ 328:../src/serial_handler.c **** 	uint8_t writing_word_boole = 1;
+ 329:../src/serial_handler.c **** 	for(uint16_t i=0 ; i<command_length ; i++){
+ 238               		.loc 1 329 0
+ 239 0066 6115      		cp r22,__zero_reg__
+ 240 0068 7105      		cpc r23,__zero_reg__
+ 241 006a 01F4      		brne .+2
+ 242 006c 00C0      		rjmp .L91
+ 243 006e FD01      		movw r30,r26
+ 244 0070 3196      		adiw r30,1
+ 245 0072 6A0F      		add r22,r26
+ 246 0074 7B1F      		adc r23,r27
+ 247               	.LVL5:
+ 248 0076 20E0      		ldi r18,0
+ 249 0078 30E0      		ldi r19,0
+ 250 007a 81E0      		ldi r24,lo8(1)
+ 251               	.LVL6:
+ 252 007c 8E01      		movw r16,r28
+ 253 007e 0F5B      		subi r16,-65
+ 254 0080 1F4F      		sbci r17,-1
+ 255 0082 00C0      		rjmp .L7
+ 256               	.LVL7:
+ 257               	.L8:
+ 330:../src/serial_handler.c **** 		if(command[i]=='\0'){
+ 331:../src/serial_handler.c **** 			break;
+ 332:../src/serial_handler.c **** 		}else if(command[i]==' ' && writing_word_boole == 1){
+ 333:../src/serial_handler.c **** 			command_word[write_index]='\0';
+ 334:../src/serial_handler.c **** 			write_index = 0;
+ 335:../src/serial_handler.c **** 			writing_word_boole = 0;
+ 336:../src/serial_handler.c **** 		}else{
+ 337:../src/serial_handler.c **** 			if(writing_word_boole==1){
+ 258               		.loc 1 337 0
+ 259 0084 8130      		cpi r24,lo8(1)
+ 260 0086 01F4      		brne .+2
+ 261 0088 00C0      		rjmp .L92
+ 262               	.L9:
+ 338:../src/serial_handler.c **** 				command_word[write_index] = command[i];
+ 339:../src/serial_handler.c **** 			}else{
+ 340:../src/serial_handler.c **** 				command_args[write_index] = command[i];
+ 263               		.loc 1 340 0
+ 264 008a A1E0      		ldi r26,lo8(1)
+ 265 008c B0E0      		ldi r27,0
+ 266 008e AC0F      		add r26,r28
+ 267 0090 BD1F      		adc r27,r29
+ 268 0092 A20F      		add r26,r18
+ 269 0094 B31F      		adc r27,r19
+ 270 0096 9C93      		st X,r25
+ 271               	.L11:
+ 341:../src/serial_handler.c **** 			}
+ 342:../src/serial_handler.c **** 			write_index++;
+ 272               		.loc 1 342 0
+ 273 0098 2F5F      		subi r18,-1
+ 274 009a 3F4F      		sbci r19,-1
+ 275               	.LVL8:
+ 329:../src/serial_handler.c **** 		if(command[i]=='\0'){
+ 276               		.loc 1 329 0
+ 277 009c 6E17      		cp r22,r30
+ 278 009e 7F07      		cpc r23,r31
+ 279 00a0 01F0      		breq .L6
+ 280               	.LVL9:
+ 281               	.L12:
+ 330:../src/serial_handler.c **** 			break;
+ 282               		.loc 1 330 0
+ 283 00a2 9191      		ld r25,Z+
+ 284 00a4 9923      		tst r25
+ 285 00a6 01F0      		breq .L6
+ 286               	.LVL10:
+ 287               	.L7:
+ 332:../src/serial_handler.c **** 			command_word[write_index]='\0';
+ 288               		.loc 1 332 0
+ 289 00a8 9032      		cpi r25,lo8(32)
+ 290 00aa 01F4      		brne .L8
+ 291 00ac 8130      		cpi r24,lo8(1)
+ 292 00ae 01F4      		brne .L9
+ 333:../src/serial_handler.c **** 			write_index = 0;
+ 293               		.loc 1 333 0
+ 294 00b0 D801      		movw r26,r16
+ 295 00b2 A20F      		add r26,r18
+ 296 00b4 B31F      		adc r27,r19
+ 297 00b6 1C92      		st X,__zero_reg__
+ 298               	.LVL11:
+ 335:../src/serial_handler.c **** 		}else{
+ 299               		.loc 1 335 0
+ 300 00b8 80E0      		ldi r24,0
+ 334:../src/serial_handler.c **** 			writing_word_boole = 0;
+ 301               		.loc 1 334 0
+ 302 00ba 20E0      		ldi r18,0
+ 303 00bc 30E0      		ldi r19,0
+ 304               	.LVL12:
+ 329:../src/serial_handler.c **** 		if(command[i]=='\0'){
+ 305               		.loc 1 329 0
+ 306 00be 6E17      		cp r22,r30
+ 307 00c0 7F07      		cpc r23,r31
+ 308 00c2 01F4      		brne .L12
+ 309               	.LVL13:
+ 310               	.L6:
+ 311               	.LBE195:
+ 343:../src/serial_handler.c **** 		}
+ 344:../src/serial_handler.c **** 	}
+ 345:../src/serial_handler.c **** 	if(writing_word_boole==1){
+ 312               		.loc 1 345 0
+ 313 00c4 8130      		cpi r24,lo8(1)
+ 314 00c6 01F4      		brne .+2
+ 315 00c8 00C0      		rjmp .L93
+ 346:../src/serial_handler.c **** 		command_word[write_index] = '\0';
+ 347:../src/serial_handler.c **** 		command_args[0] = '\0';
+ 348:../src/serial_handler.c **** 	}else{
+ 349:../src/serial_handler.c **** 		command_args[write_index] = '\0';
+ 316               		.loc 1 349 0
+ 317 00ca FE01      		movw r30,r28
+ 318 00cc E20F      		add r30,r18
+ 319 00ce F31F      		adc r31,r19
+ 320 00d0 1182      		std Z+1,__zero_reg__
+ 321               	.LVL14:
+ 322               	.L14:
+ 323               	.LBE194:
+ 324               	.LBE193:
+  33:../src/serial_handler.c **** 		else if(strcmp_P(command_word,PSTR("walk"))==0)					handle_walk(command_args);
+ 325               		.loc 1 33 0
+ 326 00d2 60E0      		ldi r22,lo8(__c.5291)
+ 327 00d4 70E0      		ldi r23,hi8(__c.5291)
+ 328 00d6 C801      		movw r24,r16
+ 329 00d8 0E94 0000 		call strcmp_P
+ 330               	.LVL15:
+ 331 00dc 892B      		or r24,r25
+ 332 00de 01F4      		brne .+2
+ 333 00e0 00C0      		rjmp .L94
+  34:../src/serial_handler.c **** 		else if(strcmp_P(command_word,PSTR("get_rgb"))==0)				handle_get_rgb();
+ 334               		.loc 1 34 0
+ 335 00e2 60E0      		ldi r22,lo8(__c.5293)
+ 336 00e4 70E0      		ldi r23,hi8(__c.5293)
+ 337 00e6 C801      		movw r24,r16
+ 338 00e8 0E94 0000 		call strcmp_P
+ 339               	.LVL16:
+ 340 00ec 892B      		or r24,r25
+ 341 00ee 01F4      		brne .+2
+ 342 00f0 00C0      		rjmp .L95
+  35:../src/serial_handler.c **** 		else if(strcmp_P(command_word,PSTR("set_ir"))==0)				handle_set_ir(command_args);
+ 343               		.loc 1 35 0
+ 344 00f2 60E0      		ldi r22,lo8(__c.5295)
+ 345 00f4 70E0      		ldi r23,hi8(__c.5295)
+ 346 00f6 C801      		movw r24,r16
+ 347 00f8 0E94 0000 		call strcmp_P
+ 348               	.LVL17:
+ 349 00fc 892B      		or r24,r25
+ 350 00fe 01F4      		brne .+2
+ 351 0100 00C0      		rjmp .L96
+  36:../src/serial_handler.c **** 		else if(strcmp_P(command_word,PSTR("coll"))==0)					handle_check_collisions();
+ 352               		.loc 1 36 0
+ 353 0102 60E0      		ldi r22,lo8(__c.5297)
+ 354 0104 70E0      		ldi r23,hi8(__c.5297)
+ 355 0106 C801      		movw r24,r16
+ 356 0108 0E94 0000 		call strcmp_P
+ 357               	.LVL18:
+ 358 010c 892B      		or r24,r25
+ 359 010e 01F4      		brne .+2
+ 360 0110 00C0      		rjmp .L97
+  37:../src/serial_handler.c **** 		else if(strcmp_P(command_word,PSTR("stop_walk"))==0)			handle_stop_walk();
+ 361               		.loc 1 37 0
+ 362 0112 60E0      		ldi r22,lo8(__c.5299)
+ 363 0114 70E0      		ldi r23,hi8(__c.5299)
+ 364 0116 C801      		movw r24,r16
+ 365 0118 0E94 0000 		call strcmp_P
+ 366               	.LVL19:
+ 367 011c 892B      		or r24,r25
+ 368 011e 01F4      		brne .+2
+ 369 0120 00C0      		rjmp .L98
+  38:../src/serial_handler.c **** 		else if(strcmp_P(command_word,PSTR("set_motors"))==0)			handle_set_motors(command_args);
+ 370               		.loc 1 38 0
+ 371 0122 60E0      		ldi r22,lo8(__c.5301)
+ 372 0124 70E0      		ldi r23,hi8(__c.5301)
+ 373 0126 C801      		movw r24,r16
+ 374 0128 0E94 0000 		call strcmp_P
+ 375               	.LVL20:
+ 376 012c 892B      		or r24,r25
+ 377 012e 01F4      		brne .+2
+ 378 0130 00C0      		rjmp .L99
+  39:../src/serial_handler.c **** 		else if(strcmp_P(command_word,PSTR("adj_motors"))==0)			handle_adjust_motors(command_args);
+ 379               		.loc 1 39 0
+ 380 0132 60E0      		ldi r22,lo8(__c.5303)
+ 381 0134 70E0      		ldi r23,hi8(__c.5303)
+ 382 0136 C801      		movw r24,r16
+ 383 0138 0E94 0000 		call strcmp_P
+ 384               	.LVL21:
+ 385 013c 892B      		or r24,r25
+ 386 013e 01F4      		brne .+2
+ 387 0140 00C0      		rjmp .L100
+  40:../src/serial_handler.c **** 		else if(strcmp_P(command_word,PSTR("set_dist_per_step"))==0)	handle_set_mm_per_kilostep(command_a
+ 388               		.loc 1 40 0
+ 389 0142 60E0      		ldi r22,lo8(__c.5305)
+ 390 0144 70E0      		ldi r23,hi8(__c.5305)
+ 391 0146 C801      		movw r24,r16
+ 392 0148 0E94 0000 		call strcmp_P
+ 393               	.LVL22:
+ 394 014c 892B      		or r24,r25
+ 395 014e 01F4      		brne .+2
+ 396 0150 00C0      		rjmp .L101
+  41:../src/serial_handler.c **** 		else if(strcmp_P(command_word,PSTR("rnb_b"))==0)				handle_rnb_broadcast();
+ 397               		.loc 1 41 0
+ 398 0152 60E0      		ldi r22,lo8(__c.5307)
+ 399 0154 70E0      		ldi r23,hi8(__c.5307)
+ 400 0156 C801      		movw r24,r16
+ 401 0158 0E94 0000 		call strcmp_P
+ 402               	.LVL23:
+ 403 015c 892B      		or r24,r25
+ 404 015e 01F4      		brne .+2
+ 405 0160 00C0      		rjmp .L102
+  42:../src/serial_handler.c **** 		else if(strcmp_P(command_word,PSTR("set_led"))==0)				handle_set_led(command_args);
+ 406               		.loc 1 42 0
+ 407 0162 60E0      		ldi r22,lo8(__c.5309)
+ 408 0164 70E0      		ldi r23,hi8(__c.5309)
+ 409 0166 C801      		movw r24,r16
+ 410 0168 0E94 0000 		call strcmp_P
+ 411               	.LVL24:
+ 412 016c 892B      		or r24,r25
+ 413 016e 01F4      		brne .+2
+ 414 0170 00C0      		rjmp .L103
+  43:../src/serial_handler.c **** 		else if(strcmp_P(command_word,PSTR("get_id"))==0)				handle_get_id();
+ 415               		.loc 1 43 0
+ 416 0172 60E0      		ldi r22,lo8(__c.5311)
+ 417 0174 70E0      		ldi r23,hi8(__c.5311)
+ 418 0176 C801      		movw r24,r16
+ 419 0178 0E94 0000 		call strcmp_P
+ 420               	.LVL25:
+ 421 017c 892B      		or r24,r25
+ 422 017e 01F4      		brne .+2
+ 423 0180 00C0      		rjmp .L104
+  44:../src/serial_handler.c **** 		else if(strcmp_P(command_word,PSTR("broadcast_id"))==0)			handle_broadcast_id();
+ 424               		.loc 1 44 0
+ 425 0182 60E0      		ldi r22,lo8(__c.5313)
+ 426 0184 70E0      		ldi r23,hi8(__c.5313)
+ 427 0186 C801      		movw r24,r16
+ 428 0188 0E94 0000 		call strcmp_P
+ 429               	.LVL26:
+ 430 018c 892B      		or r24,r25
+ 431 018e 01F4      		brne .+2
+ 432 0190 00C0      		rjmp .L105
+  45:../src/serial_handler.c **** 		else if(strcmp_P(command_word,PSTR("cmd"))==0)					handle_cmd(command_args);
+ 433               		.loc 1 45 0
+ 434 0192 60E0      		ldi r22,lo8(__c.5315)
+ 435 0194 70E0      		ldi r23,hi8(__c.5315)
+ 436 0196 C801      		movw r24,r16
+ 437 0198 0E94 0000 		call strcmp_P
+ 438               	.LVL27:
+ 439 019c 892B      		or r24,r25
+ 440 019e 01F4      		brne .+2
+ 441 01a0 00C0      		rjmp .L106
+  46:../src/serial_handler.c **** 		else if(strcmp_P(command_word,PSTR("tgt_cmd"))==0)				handle_targeted_cmd(command_args);
+ 442               		.loc 1 46 0
+ 443 01a2 60E0      		ldi r22,lo8(__c.5317)
+ 444 01a4 70E0      		ldi r23,hi8(__c.5317)
+ 445 01a6 C801      		movw r24,r16
+ 446 01a8 0E94 0000 		call strcmp_P
+ 447               	.LVL28:
+ 448 01ac 892B      		or r24,r25
+ 449 01ae 01F4      		brne .+2
+ 450 01b0 00C0      		rjmp .L107
+  47:../src/serial_handler.c **** 		else if(strcmp_P(command_word,PSTR("msg"))==0)					handle_shout(command_args);
+ 451               		.loc 1 47 0
+ 452 01b2 60E0      		ldi r22,lo8(__c.5319)
+ 453 01b4 70E0      		ldi r23,hi8(__c.5319)
+ 454 01b6 C801      		movw r24,r16
+ 455 01b8 0E94 0000 		call strcmp_P
+ 456               	.LVL29:
+ 457 01bc 892B      		or r24,r25
+ 458 01be 01F4      		brne .+2
+ 459 01c0 00C0      		rjmp .L108
+  48:../src/serial_handler.c **** 		else if(strcmp_P(command_word,PSTR("msg_tst"))==0)				handle_msg_test(command_args);
+ 460               		.loc 1 48 0
+ 461 01c2 60E0      		ldi r22,lo8(__c.5321)
+ 462 01c4 70E0      		ldi r23,hi8(__c.5321)
+ 463 01c6 C801      		movw r24,r16
+ 464 01c8 0E94 0000 		call strcmp_P
+ 465               	.LVL30:
+ 466 01cc 892B      		or r24,r25
+ 467 01ce 01F4      		brne .+2
+ 468 01d0 00C0      		rjmp .L109
+  49:../src/serial_handler.c **** 		else if(strcmp_P(command_word,PSTR("tgt"))==0)					handle_target(command_args);
+ 469               		.loc 1 49 0
+ 470 01d2 60E0      		ldi r22,lo8(__c.5323)
+ 471 01d4 70E0      		ldi r23,hi8(__c.5323)
+ 472 01d6 C801      		movw r24,r16
+ 473 01d8 0E94 0000 		call strcmp_P
+ 474               	.LVL31:
+ 475 01dc 892B      		or r24,r25
+ 476 01de 01F4      		brne .+2
+ 477 01e0 00C0      		rjmp .L110
+  50:../src/serial_handler.c **** 		else if(strcmp_P(command_word,PSTR("tasks"))==0)				print_task_queue();
+ 478               		.loc 1 50 0
+ 479 01e2 60E0      		ldi r22,lo8(__c.5325)
+ 480 01e4 70E0      		ldi r23,hi8(__c.5325)
+ 481 01e6 C801      		movw r24,r16
+ 482 01e8 0E94 0000 		call strcmp_P
+ 483               	.LVL32:
+ 484 01ec 892B      		or r24,r25
+ 485 01ee 01F4      		brne .+2
+ 486 01f0 00C0      		rjmp .L111
+  51:../src/serial_handler.c **** 		else if(strcmp_P(command_word,PSTR("reset"))==0)				handle_reset();
+ 487               		.loc 1 51 0
+ 488 01f2 60E0      		ldi r22,lo8(__c.5327)
+ 489 01f4 70E0      		ldi r23,hi8(__c.5327)
+ 490 01f6 C801      		movw r24,r16
+ 491 01f8 0E94 0000 		call strcmp_P
+ 492               	.LVL33:
+ 493 01fc 892B      		or r24,r25
+ 494 01fe 01F4      		brne .+2
+ 495 0200 00C0      		rjmp .L112
+  52:../src/serial_handler.c **** 		else if(strcmp_P(command_word,PSTR("write_motor_settings"))==0)	write_motor_settings();
+ 496               		.loc 1 52 0
+ 497 0202 60E0      		ldi r22,lo8(__c.5329)
+ 498 0204 70E0      		ldi r23,hi8(__c.5329)
+ 499 0206 C801      		movw r24,r16
+ 500 0208 0E94 0000 		call strcmp_P
+ 501               	.LVL34:
+ 502 020c 892B      		or r24,r25
+ 503 020e 01F0      		breq .+2
+ 504 0210 00C0      		rjmp .L66
+ 505               	.LBB201:
+ 506               	.LBB202:
+ 507               	.LBB203:
+ 508               		.file 2 "../include/droplet_base.h"
+   1:../include/droplet_base.h **** #pragma once
+   2:../include/droplet_base.h **** 
+   3:../include/droplet_base.h **** //#define AUDIO_DROPLET
+   4:../include/droplet_base.h **** #define SYNCHRONIZED
+   5:../include/droplet_base.h **** 
+   6:../include/droplet_base.h **** #include <avr/io.h>
+   7:../include/droplet_base.h **** #include <avr/interrupt.h>
+   8:../include/droplet_base.h **** #include <util/atomic.h>
+   9:../include/droplet_base.h **** #include <util/delay.h>
+  10:../include/droplet_base.h **** #include <util/crc16.h>
+  11:../include/droplet_base.h **** #include <stdlib.h>
+  12:../include/droplet_base.h **** #include <stdio.h>
+  13:../include/droplet_base.h **** #include <avr/pgmspace.h>
+  14:../include/droplet_base.h **** #include <string.h>
+  15:../include/droplet_base.h **** 
+  16:../include/droplet_base.h **** typedef uint16_t id_t;
+  17:../include/droplet_base.h **** 
+  18:../include/droplet_base.h **** //Any #defines needed by other Droplet files
+  19:../include/droplet_base.h **** #define DIR0		((uint8_t)0x01)
+  20:../include/droplet_base.h **** #define DIR1		((uint8_t)0x02)
+  21:../include/droplet_base.h **** #define DIR2		((uint8_t)0x04)
+  22:../include/droplet_base.h **** #define DIR3		((uint8_t)0x08)
+  23:../include/droplet_base.h **** #define DIR4		((uint8_t)0x10)
+  24:../include/droplet_base.h **** #define DIR5		((uint8_t)0x20)
+  25:../include/droplet_base.h **** #define ALL_DIRS	((uint8_t)0x3F)
+  26:../include/droplet_base.h **** 
+  27:../include/droplet_base.h **** #define DIR_NE		DIR0
+  28:../include/droplet_base.h **** #define DIR_E		DIR1
+  29:../include/droplet_base.h **** #define DIR_SE		DIR2
+  30:../include/droplet_base.h **** #define DIR_SW		DIR3
+  31:../include/droplet_base.h **** #define DIR_W		DIR4
+  32:../include/droplet_base.h **** #define DIR_NW		DIR5
+  33:../include/droplet_base.h **** 
+  34:../include/droplet_base.h **** id_t droplet_ID;
+  35:../include/droplet_base.h **** volatile uint16_t rtc_epoch;
+  36:../include/droplet_base.h **** 
+  37:../include/droplet_base.h **** // Returns the number of ms elapsed since the last reset. (Defined in droplet_base_asm.s)
+  38:../include/droplet_base.h **** uint32_t get_time(void);
+  39:../include/droplet_base.h **** 
+  40:../include/droplet_base.h **** // Returns this Droplet's unique 16-bit identifier. 0 will never be an identifier.
+  41:../include/droplet_base.h **** inline id_t get_droplet_id(void){ 
+  42:../include/droplet_base.h **** 	return droplet_ID;
+  43:../include/droplet_base.h **** }
+  44:../include/droplet_base.h **** 
+  45:../include/droplet_base.h **** inline void* myMalloc(size_t size){
+  46:../include/droplet_base.h **** 	void* tmp = NULL;
+  47:../include/droplet_base.h **** 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+  48:../include/droplet_base.h **** 		tmp = malloc(size);
+  49:../include/droplet_base.h **** 	}
+  50:../include/droplet_base.h **** 	return tmp;
+  51:../include/droplet_base.h **** }
+  52:../include/droplet_base.h **** 
+  53:../include/droplet_base.h **** inline void myFree(void* ptr){
+  54:../include/droplet_base.h **** 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+  55:../include/droplet_base.h **** 		free(ptr);
+  56:../include/droplet_base.h **** 	}
+  57:../include/droplet_base.h **** }
+  58:../include/droplet_base.h **** 
+  59:../include/droplet_base.h **** inline void Config32MHzClock(void){
+  60:../include/droplet_base.h **** 	// Set system clock to 32 MHz
+  61:../include/droplet_base.h **** 	CCP = CCP_IOREG_gc;
+  62:../include/droplet_base.h **** 	OSC.CTRL = OSC_RC32MEN_bm;
+  63:../include/droplet_base.h **** 	while(!(OSC.STATUS & OSC_RC32MRDY_bm));
+  64:../include/droplet_base.h **** 	CCP = CCP_IOREG_gc;
+  65:../include/droplet_base.h **** 	CLK.CTRL = 0x01;
+  66:../include/droplet_base.h **** 	//OSC.RC32KCAL = PRODSIGNATURES_RCOSC32K;
+  67:../include/droplet_base.h **** 	// Set up real-time clock
+  68:../include/droplet_base.h **** 	CLK.RTCCTRL = CLK_RTCSRC_RCOSC_gc | CLK_RTCEN_bm;
+  69:../include/droplet_base.h **** 	//RTC.INTCTRL = RTC_OVFINTLVL_LO_gc;
+  70:../include/droplet_base.h **** 	while (RTC.STATUS & RTC_SYNCBUSY_bm);	// wait for SYNCBUSY to clear
+  71:../include/droplet_base.h **** 	
+  72:../include/droplet_base.h **** 	RTC.PER = 0xFFFF;		//(2^16)-1 milliseconds is 65.535 seconds
+  73:../include/droplet_base.h **** 	RTC.CTRL = RTC_PRESCALER_DIV1_gc;
+  74:../include/droplet_base.h **** 
+  75:../include/droplet_base.h **** 	// reset RTC to 0, important for after a reboot:
+  76:../include/droplet_base.h **** 	while(RTC.STATUS & RTC_SYNCBUSY_bm);	// wait for SYNCBUSY to clear
+  77:../include/droplet_base.h **** 	RTC.CNT = 0;
+  78:../include/droplet_base.h **** }
+  79:../include/droplet_base.h **** 
+  80:../include/droplet_base.h **** inline static void delay_us(double __us){ _delay_us(__us); }
+  81:../include/droplet_base.h **** 
+  82:../include/droplet_base.h **** /**
+  83:../include/droplet_base.h ****  * \brief Resets the Droplet's program counter and clears all low-level system buffers.
+  84:../include/droplet_base.h ****  */
+  85:../include/droplet_base.h **** inline void droplet_reboot(void){
+  86:../include/droplet_base.h **** 	CPU_CCP=CCP_IOREG_gc;
+ 509               		.loc 2 86 0
+ 510 0212 88ED      		ldi r24,lo8(-40)
+ 511 0214 84BF      		out __CCP__,r24
+  87:../include/droplet_base.h **** 	RST.CTRL = 0x1;
+ 512               		.loc 2 87 0
+ 513 0216 81E0      		ldi r24,lo8(1)
+ 514 0218 8093 7900 		sts 121,r24
+ 515 021c 00C0      		rjmp .L2
+ 516               	.LVL35:
+ 517               	.L92:
+ 518               	.LBE203:
+ 519               	.LBE202:
+ 520               	.LBE201:
+ 521               	.LBB204:
+ 522               	.LBB198:
+ 523               	.LBB196:
+ 338:../src/serial_handler.c **** 			}else{
+ 524               		.loc 1 338 0
+ 525 021e D801      		movw r26,r16
+ 526 0220 A20F      		add r26,r18
+ 527 0222 B31F      		adc r27,r19
+ 528 0224 9C93      		st X,r25
+ 529 0226 00C0      		rjmp .L11
+ 530               	.LVL36:
+ 531               	.L95:
+ 532               	.LBE196:
+ 533               	.LBE198:
+ 534               	.LBE204:
+ 535               	.LBB205:
+ 536               	.LBB206:
+  92:../src/serial_handler.c **** 	
+ 537               		.loc 1 92 0
+ 538 0228 80E2      		ldi r24,lo8(32)
+ 539 022a 90E0      		ldi r25,0
+ 540 022c CF57      		subi r28,lo8(-129)
+ 541 022e DF4F      		sbci r29,hi8(-129)
+ 542 0230 8883      		st Y,r24
+ 543 0232 9983      		std Y+1,r25
+ 544 0234 C158      		subi r28,lo8(129)
+ 545 0236 D040      		sbci r29,hi8(129)
+  94:../src/serial_handler.c **** 	uint8_t direction = token[0]-'0';
+ 546               		.loc 1 94 0
+ 547 0238 BE01      		movw r22,r28
+ 548 023a 6F57      		subi r22,127
+ 549 023c 7F4F      		sbci r23,-1
+ 550 023e CE01      		movw r24,r28
+ 551 0240 0196      		adiw r24,1
+ 552 0242 0E94 0000 		call strtok
+ 553               	.LVL37:
+  95:../src/serial_handler.c **** 	
+ 554               		.loc 1 95 0
+ 555 0246 FC01      		movw r30,r24
+ 556 0248 1081      		ld r17,Z
+ 557 024a 1053      		subi r17,lo8(-(-48))
+ 558               	.LVL38:
+  97:../src/serial_handler.c **** 	uint16_t distance_mm = (uint16_t)atoi(token);
+ 559               		.loc 1 97 0
+ 560 024c BE01      		movw r22,r28
+ 561 024e 6F57      		subi r22,127
+ 562 0250 7F4F      		sbci r23,-1
+ 563 0252 80E0      		ldi r24,0
+ 564 0254 90E0      		ldi r25,0
+ 565               	.LVL39:
+ 566 0256 0E94 0000 		call strtok
+ 567               	.LVL40:
+  98:../src/serial_handler.c **** 	
+ 568               		.loc 1 98 0
+ 569 025a 0E94 0000 		call atoi
+ 570               	.LVL41:
+ 100:../src/serial_handler.c **** }
+ 571               		.loc 1 100 0
+ 572 025e BC01      		movw r22,r24
+ 573 0260 812F      		mov r24,r17
+ 574               	.LVL42:
+ 575 0262 0E94 0000 		call walk
+ 576               	.LVL43:
+ 577 0266 00C0      		rjmp .L2
+ 578               	.LVL44:
+ 579               	.L94:
+ 580               	.LBE206:
+ 581               	.LBE205:
+ 582               	.LBB207:
+ 583               	.LBB208:
+  78:../src/serial_handler.c **** 	
+ 584               		.loc 1 78 0
+ 585 0268 80E2      		ldi r24,lo8(32)
+ 586 026a 90E0      		ldi r25,0
+ 587 026c CF57      		subi r28,lo8(-129)
+ 588 026e DF4F      		sbci r29,hi8(-129)
+ 589 0270 8883      		st Y,r24
+ 590 0272 9983      		std Y+1,r25
+ 591 0274 C158      		subi r28,lo8(129)
+ 592 0276 D040      		sbci r29,hi8(129)
+  80:../src/serial_handler.c **** 	uint8_t direction = token[0]-'0';
+ 593               		.loc 1 80 0
+ 594 0278 BE01      		movw r22,r28
+ 595 027a 6F57      		subi r22,127
+ 596 027c 7F4F      		sbci r23,-1
+ 597 027e CE01      		movw r24,r28
+ 598 0280 0196      		adiw r24,1
+ 599 0282 0E94 0000 		call strtok
+ 600               	.LVL45:
+  81:../src/serial_handler.c **** 
+ 601               		.loc 1 81 0
+ 602 0286 FC01      		movw r30,r24
+ 603 0288 F080      		ld r15,Z
+ 604               	.LVL46:
+  83:../src/serial_handler.c **** 	uint16_t num_steps = (uint16_t)atoi(token);
+ 605               		.loc 1 83 0
+ 606 028a BE01      		movw r22,r28
+ 607 028c 6F57      		subi r22,127
+ 608 028e 7F4F      		sbci r23,-1
+ 609 0290 80E0      		ldi r24,0
+ 610 0292 90E0      		ldi r25,0
+ 611               	.LVL47:
+ 612 0294 0E94 0000 		call strtok
+ 613               	.LVL48:
+  84:../src/serial_handler.c **** 	if (num_steps > 0){	
+ 614               		.loc 1 84 0
+ 615 0298 0E94 0000 		call atoi
+ 616               	.LVL49:
+ 617 029c 8C01      		movw r16,r24
+ 618               	.LVL50:
+  85:../src/serial_handler.c **** 		printf_P(PSTR("walk direction %hu, num_steps %u\r\n"), direction, num_steps);	
+ 619               		.loc 1 85 0
+ 620 029e 0097      		sbiw r24,0
+ 621 02a0 01F4      		brne .+2
+ 622 02a2 00C0      		rjmp .L2
+  81:../src/serial_handler.c **** 
+ 623               		.loc 1 81 0
+ 624 02a4 F0ED      		ldi r31,lo8(-48)
+ 625 02a6 FF0E      		add r15,r31
+ 626               	.LVL51:
+  86:../src/serial_handler.c **** 		move_steps(direction, num_steps);
+ 627               		.loc 1 86 0
+ 628 02a8 1F93      		push r17
+ 629 02aa 8F93      		push r24
+ 630 02ac 1F92      		push __zero_reg__
+ 631 02ae FF92      		push r15
+ 632 02b0 80E0      		ldi r24,lo8(__c.5351)
+ 633 02b2 90E0      		ldi r25,hi8(__c.5351)
+ 634 02b4 9F93      		push r25
+ 635 02b6 8F93      		push r24
+ 636 02b8 0E94 0000 		call printf_P
+ 637               	.LVL52:
+  87:../src/serial_handler.c **** 	}	
+ 638               		.loc 1 87 0
+ 639 02bc B801      		movw r22,r16
+ 640 02be 8F2D      		mov r24,r15
+ 641 02c0 0E94 0000 		call move_steps
+ 642               	.LVL53:
+ 643 02c4 0F90      		pop __tmp_reg__
+ 644 02c6 0F90      		pop __tmp_reg__
+ 645 02c8 0F90      		pop __tmp_reg__
+ 646 02ca 0F90      		pop __tmp_reg__
+ 647 02cc 0F90      		pop __tmp_reg__
+ 648 02ce 0F90      		pop __tmp_reg__
+ 649 02d0 00C0      		rjmp .L2
+ 650               	.LVL54:
+ 651               	.L96:
+ 652               	.LBE208:
+ 653               	.LBE207:
+ 654               	.LBB209:
+ 655               	.LBB210:
+ 105:../src/serial_handler.c **** 	printf_P(PSTR("r: %hu, g: %hu, b: %hu\r\n"), r, g, b);
+ 656               		.loc 1 105 0
+ 657 02d2 AE01      		movw r20,r28
+ 658 02d4 4F57      		subi r20,127
+ 659 02d6 5F4F      		sbci r21,-1
+ 660 02d8 BE01      		movw r22,r28
+ 661 02da 6F55      		subi r22,95
+ 662 02dc 7F4F      		sbci r23,-1
+ 663 02de CE01      		movw r24,r28
+ 664 02e0 8A55      		subi r24,90
+ 665 02e2 9F4F      		sbci r25,-1
+ 666 02e4 0E94 0000 		call get_rgb
+ 667               	.LVL55:
+ 106:../src/serial_handler.c **** }
+ 668               		.loc 1 106 0
+ 669 02e8 CE57      		subi r28,lo8(-130)
+ 670 02ea DF4F      		sbci r29,hi8(-130)
+ 671 02ec 8881      		ld r24,Y
+ 672 02ee C258      		subi r28,lo8(130)
+ 673 02f0 D040      		sbci r29,hi8(130)
+ 674 02f2 8F93      		push r24
+ 675 02f4 CF57      		subi r28,lo8(-129)
+ 676 02f6 DF4F      		sbci r29,hi8(-129)
+ 677 02f8 8881      		ld r24,Y
+ 678 02fa C158      		subi r28,lo8(129)
+ 679 02fc D040      		sbci r29,hi8(129)
+ 680 02fe 8F93      		push r24
+ 681 0300 CE55      		subi r28,lo8(-162)
+ 682 0302 DF4F      		sbci r29,hi8(-162)
+ 683 0304 8881      		ld r24,Y
+ 684 0306 C25A      		subi r28,lo8(162)
+ 685 0308 D040      		sbci r29,hi8(162)
+ 686 030a 8F93      		push r24
+ 687 030c CF55      		subi r28,lo8(-161)
+ 688 030e DF4F      		sbci r29,hi8(-161)
+ 689 0310 8881      		ld r24,Y
+ 690 0312 C15A      		subi r28,lo8(161)
+ 691 0314 D040      		sbci r29,hi8(161)
+ 692 0316 8F93      		push r24
+ 693 0318 C955      		subi r28,lo8(-167)
+ 694 031a DF4F      		sbci r29,hi8(-167)
+ 695 031c 8881      		ld r24,Y
+ 696 031e C75A      		subi r28,lo8(167)
+ 697 0320 D040      		sbci r29,hi8(167)
+ 698 0322 8F93      		push r24
+ 699 0324 CA55      		subi r28,lo8(-166)
+ 700 0326 DF4F      		sbci r29,hi8(-166)
+ 701 0328 8881      		ld r24,Y
+ 702 032a C65A      		subi r28,lo8(166)
+ 703 032c D040      		sbci r29,hi8(166)
+ 704 032e 8F93      		push r24
+ 705 0330 80E0      		ldi r24,lo8(__c.5366)
+ 706 0332 90E0      		ldi r25,hi8(__c.5366)
+ 707 0334 9F93      		push r25
+ 708 0336 8F93      		push r24
+ 709 0338 0E94 0000 		call printf_P
+ 710               	.LVL56:
+ 711 033c CDBF      		out __SP_L__,r28
+ 712 033e DEBF      		out __SP_H__,r29
+ 713 0340 00C0      		rjmp .L2
+ 714               	.L100:
+ 715               	.LVL57:
+ 716               	.LBE210:
+ 717               	.LBE209:
+ 718               	.LBB211:
+ 719               	.LBB212:
+ 720               	.LBB213:
+ 721               	.LBB214:
+ 722               		.file 3 "../include/rgb_led.h"
+   1:../include/rgb_led.h **** #pragma once
+   2:../include/rgb_led.h **** #include "droplet_base.h"
+   3:../include/rgb_led.h **** #include <math.h>
+   4:../include/rgb_led.h **** 
+   5:../include/rgb_led.h **** #define LED_R_PIN_bm			PIN5_bm
+   6:../include/rgb_led.h **** #define LED_G_PIN_bm			PIN4_bm
+   7:../include/rgb_led.h **** #define LED_B_PIN_bm			PIN4_bm
+   8:../include/rgb_led.h **** 
+   9:../include/rgb_led.h **** void rgb_led_init(void); // Set RGB LED pins as output & initialize timers for PWM
+  10:../include/rgb_led.h **** 
+  11:../include/rgb_led.h **** // Get and set intensity for red LED
+  12:../include/rgb_led.h **** inline uint8_t get_red_led(void){ return TCE1.CCBBUF; }
+ 723               		.loc 3 12 0
+ 724 0342 6090 7A0A 		lds r6,2682
+ 725 0346 7090 7B0A 		lds r7,2682+1
+ 726               	.LBE214:
+ 727               	.LBE213:
+ 728               	.LBB215:
+ 729               	.LBB216:
+  13:../include/rgb_led.h **** inline void set_red_led(uint8_t saturation) { TCE1.CCBBUF = saturation; }
+  14:../include/rgb_led.h **** 
+  15:../include/rgb_led.h **** // Get and set intensity for green LED
+  16:../include/rgb_led.h **** inline uint8_t get_green_led(void){ return TCE1.CCABUF; }
+ 730               		.loc 3 16 0
+ 731 034a A090 780A 		lds r10,2680
+ 732 034e B090 790A 		lds r11,2680+1
+ 733               	.LBE216:
+ 734               	.LBE215:
+ 735               	.LBB217:
+ 736               	.LBB218:
+  17:../include/rgb_led.h **** inline void set_green_led(uint8_t saturation) { TCE1.CCABUF = saturation; }
+  18:../include/rgb_led.h **** 	
+  19:../include/rgb_led.h **** // Get and set intensity for blue LED
+  20:../include/rgb_led.h **** inline uint8_t get_blue_led(void){ return TCD1.CCABUF; }
+ 737               		.loc 3 20 0
+ 738 0352 8090 7809 		lds r8,2424
+ 739 0356 9090 7909 		lds r9,2424+1
+ 740               	.LBE218:
+ 741               	.LBE217:
+ 124:../src/serial_handler.c **** 	const char delim[2] = " ";
+ 742               		.loc 1 124 0
+ 743 035a 4FEF      		ldi r20,lo8(-1)
+ 744 035c 60E0      		ldi r22,0
+ 745 035e 80E0      		ldi r24,0
+ 746 0360 0E94 0000 		call set_rgb
+ 747               	.LVL58:
+ 125:../src/serial_handler.c **** 	
+ 748               		.loc 1 125 0
+ 749 0364 8E01      		movw r16,r28
+ 750 0366 0F57      		subi r16,127
+ 751 0368 1F4F      		sbci r17,-1
+ 752 036a 80E2      		ldi r24,lo8(32)
+ 753 036c 90E0      		ldi r25,0
+ 754 036e F801      		movw r30,r16
+ 755 0370 8083      		st Z,r24
+ 756 0372 9183      		std Z+1,r25
+ 127:../src/serial_handler.c **** 	if(token==NULL){ printf_P(PSTR("strtok returned NULL on direction.\r\n")); return;}
+ 757               		.loc 1 127 0
+ 758 0374 B801      		movw r22,r16
+ 759 0376 CE01      		movw r24,r28
+ 760 0378 0196      		adiw r24,1
+ 761 037a 0E94 0000 		call strtok
+ 762               	.LVL59:
+ 128:../src/serial_handler.c **** 	uint8_t direction = atoi(token);
+ 763               		.loc 1 128 0
+ 764 037e 0097      		sbiw r24,0
+ 765 0380 01F4      		brne .+2
+ 766 0382 00C0      		rjmp .L113
+ 129:../src/serial_handler.c **** 	if(direction> 7){ printf_P(PSTR("Bad direction. Got: %hu.\r\n"), direction); return;}
+ 767               		.loc 1 129 0
+ 768 0384 0E94 0000 		call atoi
+ 769               	.LVL60:
+ 770 0388 7C01      		movw r14,r24
+ 771               	.LVL61:
+ 130:../src/serial_handler.c **** 
+ 772               		.loc 1 130 0
+ 773 038a F7E0      		ldi r31,lo8(7)
+ 774 038c F817      		cp r31,r24
+ 775 038e 00F0      		brlo .+2
+ 776 0390 00C0      		rjmp .L29
+ 777 0392 FF24      		clr r15
+ 778               	.LVL62:
+ 779 0394 FF92      		push r15
+ 780 0396 EF92      		push r14
+ 781 0398 80E0      		ldi r24,lo8(__c.5388)
+ 782 039a 90E0      		ldi r25,hi8(__c.5388)
+ 783               	.LVL63:
+ 784 039c 9F93      		push r25
+ 785 039e 8F93      		push r24
+ 786 03a0 0E94 0000 		call printf_P
+ 787               	.LVL64:
+ 788 03a4 0F90      		pop __tmp_reg__
+ 789 03a6 0F90      		pop __tmp_reg__
+ 790 03a8 0F90      		pop __tmp_reg__
+ 791 03aa 0F90      		pop __tmp_reg__
+ 792 03ac 00C0      		rjmp .L2
+ 793               	.LVL65:
+ 794               	.L93:
+ 795 03ae F801      		movw r30,r16
+ 796 03b0 E20F      		add r30,r18
+ 797 03b2 F31F      		adc r31,r19
+ 798               	.LVL66:
+ 799               	.L5:
+ 800               	.LBE212:
+ 801               	.LBE211:
+ 802               	.LBB223:
+ 803               	.LBB199:
+ 346:../src/serial_handler.c **** 		command_args[0] = '\0';
+ 804               		.loc 1 346 0
+ 805 03b4 1082      		st Z,__zero_reg__
+ 347:../src/serial_handler.c **** 	}else{
+ 806               		.loc 1 347 0
+ 807 03b6 1982      		std Y+1,__zero_reg__
+ 808 03b8 00C0      		rjmp .L14
+ 809               	.L97:
+ 810               	.LVL67:
+ 811               	.LBE199:
+ 812               	.LBE223:
+ 813               	.LBB224:
+ 814               	.LBB225:
+ 110:../src/serial_handler.c **** 	
+ 815               		.loc 1 110 0
+ 816 03ba 80E2      		ldi r24,lo8(32)
+ 817 03bc 90E0      		ldi r25,0
+ 818 03be CF57      		subi r28,lo8(-129)
+ 819 03c0 DF4F      		sbci r29,hi8(-129)
+ 820 03c2 8883      		st Y,r24
+ 821 03c4 9983      		std Y+1,r25
+ 822 03c6 C158      		subi r28,lo8(129)
+ 823 03c8 D040      		sbci r29,hi8(129)
+ 112:../src/serial_handler.c **** 	uint16_t ir_val = (uint16_t)atoi(token);
+ 824               		.loc 1 112 0
+ 825 03ca BE01      		movw r22,r28
+ 826 03cc 6F57      		subi r22,127
+ 827 03ce 7F4F      		sbci r23,-1
+ 828 03d0 CE01      		movw r24,r28
+ 829 03d2 0196      		adiw r24,1
+ 830 03d4 0E94 0000 		call strtok
+ 831               	.LVL68:
+ 113:../src/serial_handler.c **** 	
+ 832               		.loc 1 113 0
+ 833 03d8 0E94 0000 		call atoi
+ 834               	.LVL69:
+ 115:../src/serial_handler.c **** }
+ 835               		.loc 1 115 0
+ 836 03dc 9C01      		movw r18,r24
+ 837 03de 40E0      		ldi r20,lo8(gs(set_all_ir_powers))
+ 838 03e0 50E0      		ldi r21,hi8(gs(set_all_ir_powers))
+ 839 03e2 6AE0      		ldi r22,lo8(10)
+ 840 03e4 70E0      		ldi r23,0
+ 841 03e6 80E0      		ldi r24,0
+ 842 03e8 90E0      		ldi r25,0
+ 843 03ea 0E94 0000 		call schedule_task
+ 844               	.LVL70:
+ 845 03ee 00C0      		rjmp .L2
+ 846               	.LVL71:
+ 847               	.L98:
+ 848               	.LBE225:
+ 849               	.LBE224:
+ 850               	.LBB226:
+ 851               	.LBB227:
+  65:../src/serial_handler.c **** 	uint8_t found=0;
+ 852               		.loc 1 65 0
+ 853 03f0 0E94 0000 		call check_collisions
+ 854               	.LVL72:
+ 855 03f4 E82E      		mov r14,r24
+ 856 03f6 F12C      		mov r15,__zero_reg__
+ 857 03f8 00E0      		ldi r16,0
+ 858 03fa 10E0      		ldi r17,0
+  66:../src/serial_handler.c **** 	for(uint8_t i=0;i<6;i++){
+ 859               		.loc 1 66 0
+ 860 03fc 20E0      		ldi r18,0
+ 861               	.LBB228:
+  70:../src/serial_handler.c **** 		}
+ 862               		.loc 1 70 0
+ 863 03fe A0E0      		ldi r26,lo8(.LC2)
+ 864 0400 CA2E      		mov r12,r26
+ 865 0402 A0E0      		ldi r26,hi8(.LC2)
+ 866 0404 DA2E      		mov r13,r26
+ 867 0406 00C0      		rjmp .L23
+ 868               	.LVL73:
+ 869               	.L22:
+ 870 0408 0F5F      		subi r16,-1
+ 871 040a 1F4F      		sbci r17,-1
+ 872               	.LVL74:
+  67:../src/serial_handler.c **** 		if(dirs&(1<<i)){
+ 873               		.loc 1 67 0
+ 874 040c 0630      		cpi r16,6
+ 875 040e 1105      		cpc r17,__zero_reg__
+ 876 0410 01F0      		breq .L114
+ 877               	.LVL75:
+ 878               	.L23:
+  68:../src/serial_handler.c **** 			found=1;
+ 879               		.loc 1 68 0
+ 880 0412 C701      		movw r24,r14
+ 881 0414 002E      		mov r0,r16
+ 882 0416 00C0      		rjmp 2f
+ 883               		1:
+ 884 0418 9595      		asr r25
+ 885 041a 8795      		ror r24
+ 886               		2:
+ 887 041c 0A94      		dec r0
+ 888 041e 02F4      		brpl 1b
+ 889 0420 80FF      		sbrs r24,0
+ 890 0422 00C0      		rjmp .L22
+ 891               	.LVL76:
+  70:../src/serial_handler.c **** 		}
+ 892               		.loc 1 70 0
+ 893 0424 1F93      		push r17
+ 894 0426 0F93      		push r16
+ 895 0428 DF92      		push r13
+ 896 042a CF92      		push r12
+ 897 042c 0E94 0000 		call printf
+ 898               	.LVL77:
+ 899 0430 0F90      		pop __tmp_reg__
+ 900 0432 0F90      		pop __tmp_reg__
+ 901 0434 0F90      		pop __tmp_reg__
+ 902 0436 0F90      		pop __tmp_reg__
+  69:../src/serial_handler.c **** 			printf("%hu",i);
+ 903               		.loc 1 69 0
+ 904 0438 21E0      		ldi r18,lo8(1)
+ 905 043a 00C0      		rjmp .L22
+ 906               	.LVL78:
+ 907               	.L114:
+ 908               	.LBE228:
+  73:../src/serial_handler.c **** 	printf("\r\n");
+ 909               		.loc 1 73 0
+ 910 043c 2111      		cpse r18,__zero_reg__
+ 911 043e 00C0      		rjmp .L24
+ 912 0440 80E0      		ldi r24,lo8(.LC3)
+ 913 0442 90E0      		ldi r25,hi8(.LC3)
+ 914 0444 9F93      		push r25
+ 915 0446 8F93      		push r24
+ 916 0448 0E94 0000 		call printf
+ 917               	.LVL79:
+ 918 044c 0F90      		pop __tmp_reg__
+ 919 044e 0F90      		pop __tmp_reg__
+ 920               	.L24:
+  74:../src/serial_handler.c **** }
+ 921               		.loc 1 74 0
+ 922 0450 80E0      		ldi r24,lo8(.LC4)
+ 923 0452 90E0      		ldi r25,hi8(.LC4)
+ 924 0454 0E94 0000 		call puts
+ 925               	.LVL80:
+ 926 0458 00C0      		rjmp .L2
+ 927               	.LVL81:
+ 928               	.L99:
+ 929               	.LBE227:
+ 930               	.LBE226:
+ 931               	.LBB229:
+ 932               	.LBB230:
+ 119:../src/serial_handler.c **** }
+ 933               		.loc 1 119 0
+ 934 045a 0E94 0000 		call stop_move
+ 935               	.LVL82:
+ 936 045e 00C0      		rjmp .L2
+ 937               	.LVL83:
+ 938               	.L91:
+ 939               	.LBE230:
+ 940               	.LBE229:
+ 941               	.LBB231:
+ 942               	.LBB200:
+ 943               	.LBB197:
+ 329:../src/serial_handler.c **** 		if(command[i]=='\0'){
+ 944               		.loc 1 329 0
+ 945 0460 8E01      		movw r16,r28
+ 946 0462 0F5B      		subi r16,-65
+ 947 0464 1F4F      		sbci r17,-1
+ 948 0466 F801      		movw r30,r16
+ 949 0468 00C0      		rjmp .L5
+ 950               	.LVL84:
+ 951               	.L101:
+ 952               	.LBE197:
+ 953               	.LBE200:
+ 954               	.LBE231:
+ 955               	.LBB232:
+ 956               	.LBB233:
+ 957               	.LBB234:
+ 958               	.LBB235:
+  12:../include/rgb_led.h **** inline void set_red_led(uint8_t saturation) { TCE1.CCBBUF = saturation; }
+ 959               		.loc 3 12 0
+ 960 046a 4090 7A0A 		lds r4,2682
+ 961 046e 5090 7B0A 		lds r5,2682+1
+ 962               	.LBE235:
+ 963               	.LBE234:
+ 964               	.LBB236:
+ 965               	.LBB237:
+  16:../include/rgb_led.h **** inline void set_green_led(uint8_t saturation) { TCE1.CCABUF = saturation; }
+ 966               		.loc 3 16 0
+ 967 0472 6090 780A 		lds r6,2680
+ 968 0476 7090 790A 		lds r7,2680+1
+ 969               	.LBE237:
+ 970               	.LBE236:
+ 971               	.LBB238:
+ 972               	.LBB239:
+ 973               		.loc 3 20 0
+ 974 047a 8090 7809 		lds r8,2424
+ 975 047e 9090 7909 		lds r9,2424+1
+ 976               	.LBE239:
+ 977               	.LBE238:
+ 150:../src/serial_handler.c **** 	const char delim[2] = " ";
+ 978               		.loc 1 150 0
+ 979 0482 4FEF      		ldi r20,lo8(-1)
+ 980 0484 60E0      		ldi r22,0
+ 981 0486 80E0      		ldi r24,0
+ 982 0488 0E94 0000 		call set_rgb
+ 983               	.LVL85:
+ 151:../src/serial_handler.c **** 	
+ 984               		.loc 1 151 0
+ 985 048c 8E01      		movw r16,r28
+ 986 048e 0F57      		subi r16,127
+ 987 0490 1F4F      		sbci r17,-1
+ 988 0492 80E2      		ldi r24,lo8(32)
+ 989 0494 90E0      		ldi r25,0
+ 990 0496 F801      		movw r30,r16
+ 991 0498 8083      		st Z,r24
+ 992 049a 9183      		std Z+1,r25
+ 153:../src/serial_handler.c **** 	if(token==NULL){ printf_P(PSTR("strtok returned NULL on direction.\r\n")); return;}
+ 993               		.loc 1 153 0
+ 994 049c B801      		movw r22,r16
+ 995 049e CE01      		movw r24,r28
+ 996 04a0 0196      		adiw r24,1
+ 997 04a2 0E94 0000 		call strtok
+ 998               	.LVL86:
+ 154:../src/serial_handler.c **** 	uint8_t direction = atoi(token);
+ 999               		.loc 1 154 0
+ 1000 04a6 0097      		sbiw r24,0
+ 1001 04a8 01F4      		brne .+2
+ 1002 04aa 00C0      		rjmp .L115
+ 155:../src/serial_handler.c **** 	if(direction> 7){ printf_P(PSTR("Bad direction. Got: %hu.\r\n"), direction); return;}
+ 1003               		.loc 1 155 0
+ 1004 04ac 0E94 0000 		call atoi
+ 1005               	.LVL87:
+ 1006 04b0 7C01      		movw r14,r24
+ 1007               	.LVL88:
+ 156:../src/serial_handler.c **** 
+ 1008               		.loc 1 156 0
+ 1009 04b2 F7E0      		ldi r31,lo8(7)
+ 1010 04b4 F817      		cp r31,r24
+ 1011 04b6 00F0      		brlo .+2
+ 1012 04b8 00C0      		rjmp .L36
+ 1013 04ba FF24      		clr r15
+ 1014               	.LVL89:
+ 1015 04bc FF92      		push r15
+ 1016 04be EF92      		push r14
+ 1017 04c0 80E0      		ldi r24,lo8(__c.5409)
+ 1018 04c2 90E0      		ldi r25,hi8(__c.5409)
+ 1019               	.LVL90:
+ 1020 04c4 9F93      		push r25
+ 1021 04c6 8F93      		push r24
+ 1022 04c8 0E94 0000 		call printf_P
+ 1023               	.LVL91:
+ 1024 04cc 0F90      		pop __tmp_reg__
+ 1025 04ce 0F90      		pop __tmp_reg__
+ 1026 04d0 0F90      		pop __tmp_reg__
+ 1027 04d2 0F90      		pop __tmp_reg__
+ 1028 04d4 00C0      		rjmp .L2
+ 1029               	.LVL92:
+ 1030               	.L102:
+ 1031               	.LBE233:
+ 1032               	.LBE232:
+ 1033               	.LBB245:
+ 1034               	.LBB246:
+ 184:../src/serial_handler.c **** 	
+ 1035               		.loc 1 184 0
+ 1036 04d6 80E2      		ldi r24,lo8(32)
+ 1037 04d8 90E0      		ldi r25,0
+ 1038 04da CF57      		subi r28,lo8(-129)
+ 1039 04dc DF4F      		sbci r29,hi8(-129)
+ 1040 04de 8883      		st Y,r24
+ 1041 04e0 9983      		std Y+1,r25
+ 1042 04e2 C158      		subi r28,lo8(129)
+ 1043 04e4 D040      		sbci r29,hi8(129)
+ 186:../src/serial_handler.c **** 	uint8_t direction = token[0]-'0';
+ 1044               		.loc 1 186 0
+ 1045 04e6 BE01      		movw r22,r28
+ 1046 04e8 6F57      		subi r22,127
+ 1047 04ea 7F4F      		sbci r23,-1
+ 1048 04ec CE01      		movw r24,r28
+ 1049 04ee 0196      		adiw r24,1
+ 1050 04f0 0E94 0000 		call strtok
+ 1051               	.LVL93:
+ 187:../src/serial_handler.c **** 	
+ 1052               		.loc 1 187 0
+ 1053 04f4 FC01      		movw r30,r24
+ 1054 04f6 1081      		ld r17,Z
+ 1055 04f8 1053      		subi r17,lo8(-(-48))
+ 1056               	.LVL94:
+ 189:../src/serial_handler.c **** 	uint16_t mm_per_kilostep = atoi(token);
+ 1057               		.loc 1 189 0
+ 1058 04fa BE01      		movw r22,r28
+ 1059 04fc 6F57      		subi r22,127
+ 1060 04fe 7F4F      		sbci r23,-1
+ 1061 0500 80E0      		ldi r24,0
+ 1062 0502 90E0      		ldi r25,0
+ 1063               	.LVL95:
+ 1064 0504 0E94 0000 		call strtok
+ 1065               	.LVL96:
+ 190:../src/serial_handler.c **** 
+ 1066               		.loc 1 190 0
+ 1067 0508 0E94 0000 		call atoi
+ 1068               	.LVL97:
+ 192:../src/serial_handler.c **** 	
+ 1069               		.loc 1 192 0
+ 1070 050c BC01      		movw r22,r24
+ 1071 050e 812F      		mov r24,r17
+ 1072               	.LVL98:
+ 1073 0510 0E94 0000 		call set_mm_per_kilostep
+ 1074               	.LVL99:
+ 1075 0514 00C0      		rjmp .L2
+ 1076               	.LVL100:
+ 1077               	.L29:
+ 1078               	.LBE246:
+ 1079               	.LBE245:
+ 1080               	.LBB247:
+ 1081               	.LBB219:
+ 132:../src/serial_handler.c **** 	if(token==NULL){ printf_P(PSTR("strtok returned NULL on first val.\r\n")); return;}	
+ 1082               		.loc 1 132 0
+ 1083 0516 B801      		movw r22,r16
+ 1084 0518 80E0      		ldi r24,0
+ 1085 051a 90E0      		ldi r25,0
+ 1086 051c 0E94 0000 		call strtok
+ 1087               	.LVL101:
+ 133:../src/serial_handler.c **** 	motor_adjusts[direction][0] = atoi(token);
+ 1088               		.loc 1 133 0
+ 1089 0520 0097      		sbiw r24,0
+ 1090 0522 01F4      		brne .+2
+ 1091 0524 00C0      		rjmp .L116
+ 1092 0526 FF24      		clr r15
+ 1093               	.LVL102:
+ 134:../src/serial_handler.c **** 	
+ 1094               		.loc 1 134 0
+ 1095 0528 0E94 0000 		call atoi
+ 1096               	.LVL103:
+ 1097 052c 9701      		movw r18,r14
+ 1098 052e 220F      		lsl r18
+ 1099 0530 331F      		rol r19
+ 1100 0532 2E0D      		add r18,r14
+ 1101 0534 3F1D      		adc r19,r15
+ 1102 0536 220F      		lsl r18
+ 1103 0538 331F      		rol r19
+ 1104 053a A901      		movw r20,r18
+ 1105 053c 4050      		subi r20,lo8(-(motor_adjusts))
+ 1106 053e 5040      		sbci r21,hi8(-(motor_adjusts))
+ 1107 0540 6A01      		movw r12,r20
+ 1108 0542 FA01      		movw r30,r20
+ 1109 0544 8083      		st Z,r24
+ 1110 0546 9183      		std Z+1,r25
+ 136:../src/serial_handler.c **** 	if(token==NULL){ printf_P(PSTR("strtok returned NULL on second val.\r\n")); return;}
+ 1111               		.loc 1 136 0
+ 1112 0548 B801      		movw r22,r16
+ 1113 054a 80E0      		ldi r24,0
+ 1114 054c 90E0      		ldi r25,0
+ 1115 054e 0E94 0000 		call strtok
+ 1116               	.LVL104:
+ 137:../src/serial_handler.c **** 	motor_adjusts[direction][1] = atoi(token);
+ 1117               		.loc 1 137 0
+ 1118 0552 0097      		sbiw r24,0
+ 1119 0554 01F4      		brne .+2
+ 1120 0556 00C0      		rjmp .L117
+ 138:../src/serial_handler.c **** 	
+ 1121               		.loc 1 138 0
+ 1122 0558 0E94 0000 		call atoi
+ 1123               	.LVL105:
+ 1124 055c 2601      		movw r4,r12
+ 1125 055e F2E0      		ldi r31,2
+ 1126 0560 4F0E      		add r4,r31
+ 1127 0562 511C      		adc r5,__zero_reg__
+ 1128 0564 F601      		movw r30,r12
+ 1129 0566 8283      		std Z+2,r24
+ 1130 0568 9383      		std Z+3,r25
+ 140:../src/serial_handler.c **** 	if(token==NULL){ printf_P(PSTR("strtok returned NULL on third val.\r\n")); return;}
+ 1131               		.loc 1 140 0
+ 1132 056a B801      		movw r22,r16
+ 1133 056c 80E0      		ldi r24,0
+ 1134 056e 90E0      		ldi r25,0
+ 1135 0570 0E94 0000 		call strtok
+ 1136               	.LVL106:
+ 141:../src/serial_handler.c **** 	motor_adjusts[direction][2] = atoi(token);	
+ 1137               		.loc 1 141 0
+ 1138 0574 0097      		sbiw r24,0
+ 1139 0576 01F4      		brne .+2
+ 1140 0578 00C0      		rjmp .L118
+ 142:../src/serial_handler.c **** 
+ 1141               		.loc 1 142 0
+ 1142 057a 0E94 0000 		call atoi
+ 1143               	.LVL107:
+ 1144 057e F601      		movw r30,r12
+ 1145 0580 8483      		std Z+4,r24
+ 1146 0582 9583      		std Z+5,r25
+ 144:../src/serial_handler.c **** 	set_rgb(r,g,b);
+ 1147               		.loc 1 144 0
+ 1148 0584 9F93      		push r25
+ 1149 0586 8F93      		push r24
+ 1150 0588 F201      		movw r30,r4
+ 1151 058a 8181      		ldd r24,Z+1
+ 1152 058c 8F93      		push r24
+ 1153 058e F601      		movw r30,r12
+ 1154 0590 8281      		ldd r24,Z+2
+ 1155 0592 8F93      		push r24
+ 1156 0594 8181      		ldd r24,Z+1
+ 1157 0596 8F93      		push r24
+ 1158 0598 8081      		ld r24,Z
+ 1159 059a 8F93      		push r24
+ 1160 059c FF92      		push r15
+ 1161 059e EF92      		push r14
+ 1162 05a0 80E0      		ldi r24,lo8(__c.5396)
+ 1163 05a2 90E0      		ldi r25,hi8(__c.5396)
+ 1164 05a4 9F93      		push r25
+ 1165 05a6 8F93      		push r24
+ 1166 05a8 0E94 0000 		call printf_P
+ 1167               	.LVL108:
+ 145:../src/serial_handler.c **** }
+ 1168               		.loc 1 145 0
+ 1169 05ac 482D      		mov r20,r8
+ 1170 05ae 6A2D      		mov r22,r10
+ 1171 05b0 862D      		mov r24,r6
+ 1172 05b2 0E94 0000 		call set_rgb
+ 1173               	.LVL109:
+ 1174 05b6 CDBF      		out __SP_L__,r28
+ 1175 05b8 DEBF      		out __SP_H__,r29
+ 1176 05ba 00C0      		rjmp .L2
+ 1177               	.LVL110:
+ 1178               	.L103:
+ 1179               	.LBE219:
+ 1180               	.LBE247:
+ 1181               	.LBB248:
+ 1182               	.LBB249:
+ 200:../src/serial_handler.c **** }
+ 1183               		.loc 1 200 0
+ 1184 05bc 20E0      		ldi r18,0
+ 1185 05be 30E0      		ldi r19,0
+ 1186 05c0 40E0      		ldi r20,lo8(gs(broadcast_rnb_data))
+ 1187 05c2 50E0      		ldi r21,hi8(gs(broadcast_rnb_data))
+ 1188 05c4 65E0      		ldi r22,lo8(5)
+ 1189 05c6 70E0      		ldi r23,0
+ 1190 05c8 80E0      		ldi r24,0
+ 1191 05ca 90E0      		ldi r25,0
+ 1192 05cc 0E94 0000 		call schedule_task
+ 1193               	.LVL111:
+ 1194 05d0 00C0      		rjmp .L2
+ 1195               	.LVL112:
+ 1196               	.L36:
+ 1197               	.LBE249:
+ 1198               	.LBE248:
+ 1199               	.LBB250:
+ 1200               	.LBB240:
+ 158:../src/serial_handler.c **** 	if(token==NULL){ printf_P(PSTR("strtok returned NULL on first val.\r\n")); return;}
+ 1201               		.loc 1 158 0
+ 1202 05d2 B801      		movw r22,r16
+ 1203 05d4 80E0      		ldi r24,0
+ 1204 05d6 90E0      		ldi r25,0
+ 1205 05d8 0E94 0000 		call strtok
+ 1206               	.LVL113:
+ 159:../src/serial_handler.c **** 	if(motor_adjusts[direction][0]>=0)
+ 1207               		.loc 1 159 0
+ 1208 05dc 0097      		sbiw r24,0
+ 1209 05de 01F4      		brne .+2
+ 1210 05e0 00C0      		rjmp .L119
+ 1211 05e2 FF24      		clr r15
+ 1212               	.LVL114:
+ 160:../src/serial_handler.c **** 		motor_adjusts[direction][0]+= atoi(token);
+ 1213               		.loc 1 160 0
+ 1214 05e4 6701      		movw r12,r14
+ 1215 05e6 CC0C      		lsl r12
+ 1216 05e8 DD1C      		rol r13
+ 1217 05ea 9601      		movw r18,r12
+ 1218 05ec 2E0D      		add r18,r14
+ 1219 05ee 3F1D      		adc r19,r15
+ 1220 05f0 220F      		lsl r18
+ 1221 05f2 331F      		rol r19
+ 1222 05f4 A901      		movw r20,r18
+ 1223 05f6 4050      		subi r20,lo8(-(motor_adjusts))
+ 1224 05f8 5040      		sbci r21,hi8(-(motor_adjusts))
+ 1225 05fa 1A01      		movw r2,r20
+ 1226 05fc FA01      		movw r30,r20
+ 1227 05fe A080      		ld r10,Z
+ 1228 0600 B180      		ldd r11,Z+1
+ 1229 0602 B7FC      		sbrc r11,7
+ 1230 0604 00C0      		rjmp .L38
+ 161:../src/serial_handler.c **** 	else
+ 1231               		.loc 1 161 0
+ 1232 0606 0E94 0000 		call atoi
+ 1233               	.LVL115:
+ 1234 060a 8A0D      		add r24,r10
+ 1235 060c 9B1D      		adc r25,r11
+ 1236 060e F101      		movw r30,r2
+ 1237 0610 8083      		st Z,r24
+ 1238 0612 9183      		std Z+1,r25
+ 1239               	.L39:
+ 165:../src/serial_handler.c **** 	if(token==NULL){ printf_P(PSTR("strtok returned NULL on second val.\r\n")); return;}
+ 1240               		.loc 1 165 0
+ 1241 0614 B801      		movw r22,r16
+ 1242 0616 80E0      		ldi r24,0
+ 1243 0618 90E0      		ldi r25,0
+ 1244 061a 0E94 0000 		call strtok
+ 1245               	.LVL116:
+ 166:../src/serial_handler.c **** 	if(motor_adjusts[direction][1]>=0)
+ 1246               		.loc 1 166 0
+ 1247 061e 0097      		sbiw r24,0
+ 1248 0620 01F4      		brne .+2
+ 1249 0622 00C0      		rjmp .L120
+ 167:../src/serial_handler.c **** 	motor_adjusts[direction][1]+= atoi(token);
+ 1250               		.loc 1 167 0
+ 1251 0624 9601      		movw r18,r12
+ 1252 0626 2E0D      		add r18,r14
+ 1253 0628 3F1D      		adc r19,r15
+ 1254 062a 220F      		lsl r18
+ 1255 062c 331F      		rol r19
+ 1256 062e A901      		movw r20,r18
+ 1257 0630 4050      		subi r20,lo8(-(motor_adjusts))
+ 1258 0632 5040      		sbci r21,hi8(-(motor_adjusts))
+ 1259 0634 1A01      		movw r2,r20
+ 1260 0636 FA01      		movw r30,r20
+ 1261 0638 A280      		ldd r10,Z+2
+ 1262 063a B380      		ldd r11,Z+3
+ 1263 063c B7FC      		sbrc r11,7
+ 1264 063e 00C0      		rjmp .L41
+ 168:../src/serial_handler.c **** 	else
+ 1265               		.loc 1 168 0
+ 1266 0640 0E94 0000 		call atoi
+ 1267               	.LVL117:
+ 1268 0644 8A0D      		add r24,r10
+ 1269 0646 9B1D      		adc r25,r11
+ 1270 0648 F101      		movw r30,r2
+ 1271 064a 8283      		std Z+2,r24
+ 1272 064c 9383      		std Z+3,r25
+ 1273               	.L42:
+ 172:../src/serial_handler.c **** 	if(token==NULL){ printf_P(PSTR("strtok returned NULL on third val.\r\n")); return;}
+ 1274               		.loc 1 172 0
+ 1275 064e B801      		movw r22,r16
+ 1276 0650 80E0      		ldi r24,0
+ 1277 0652 90E0      		ldi r25,0
+ 1278 0654 0E94 0000 		call strtok
+ 1279               	.LVL118:
+ 173:../src/serial_handler.c **** 	if(motor_adjusts[direction][2]>=0)
+ 1280               		.loc 1 173 0
+ 1281 0658 0097      		sbiw r24,0
+ 1282 065a 01F4      		brne .+2
+ 1283 065c 00C0      		rjmp .L121
+ 174:../src/serial_handler.c **** 	motor_adjusts[direction][2]+= atoi(token);
+ 1284               		.loc 1 174 0
+ 1285 065e 9601      		movw r18,r12
+ 1286 0660 2E0D      		add r18,r14
+ 1287 0662 3F1D      		adc r19,r15
+ 1288 0664 220F      		lsl r18
+ 1289 0666 331F      		rol r19
+ 1290 0668 A901      		movw r20,r18
+ 1291 066a 4050      		subi r20,lo8(-(motor_adjusts))
+ 1292 066c 5040      		sbci r21,hi8(-(motor_adjusts))
+ 1293 066e 5A01      		movw r10,r20
+ 1294 0670 FA01      		movw r30,r20
+ 1295 0672 0481      		ldd r16,Z+4
+ 1296 0674 1581      		ldd r17,Z+5
+ 1297 0676 17FD      		sbrc r17,7
+ 1298 0678 00C0      		rjmp .L44
+ 175:../src/serial_handler.c **** 	else
+ 1299               		.loc 1 175 0
+ 1300 067a 0E94 0000 		call atoi
+ 1301               	.LVL119:
+ 1302 067e 800F      		add r24,r16
+ 1303 0680 911F      		adc r25,r17
+ 1304 0682 F501      		movw r30,r10
+ 1305 0684 8483      		std Z+4,r24
+ 1306 0686 9583      		std Z+5,r25
+ 1307               	.L45:
+ 179:../src/serial_handler.c **** 	set_rgb(r,g,b);
+ 1308               		.loc 1 179 0
+ 1309 0688 9F93      		push r25
+ 1310 068a 8F93      		push r24
+ 1311 068c F601      		movw r30,r12
+ 1312 068e EE0D      		add r30,r14
+ 1313 0690 FF1D      		adc r31,r15
+ 1314 0692 EE0F      		lsl r30
+ 1315 0694 FF1F      		rol r31
+ 1316 0696 E050      		subi r30,lo8(-(motor_adjusts))
+ 1317 0698 F040      		sbci r31,hi8(-(motor_adjusts))
+ 1318 069a 8381      		ldd r24,Z+3
+ 1319 069c 8F93      		push r24
+ 1320 069e 8281      		ldd r24,Z+2
+ 1321 06a0 8F93      		push r24
+ 1322 06a2 8181      		ldd r24,Z+1
+ 1323 06a4 8F93      		push r24
+ 1324 06a6 8081      		ld r24,Z
+ 1325 06a8 8F93      		push r24
+ 1326 06aa FF92      		push r15
+ 1327 06ac EF92      		push r14
+ 1328 06ae 80E0      		ldi r24,lo8(__c.5417)
+ 1329 06b0 90E0      		ldi r25,hi8(__c.5417)
+ 1330 06b2 9F93      		push r25
+ 1331 06b4 8F93      		push r24
+ 1332 06b6 0E94 0000 		call printf_P
+ 1333               	.LVL120:
+ 180:../src/serial_handler.c **** }
+ 1334               		.loc 1 180 0
+ 1335 06ba 482D      		mov r20,r8
+ 1336 06bc 662D      		mov r22,r6
+ 1337 06be 842D      		mov r24,r4
+ 1338 06c0 0E94 0000 		call set_rgb
+ 1339               	.LVL121:
+ 1340 06c4 CDBF      		out __SP_L__,r28
+ 1341 06c6 DEBF      		out __SP_H__,r29
+ 1342 06c8 00C0      		rjmp .L2
+ 1343               	.LVL122:
+ 1344               	.L104:
+ 1345               	.LBE240:
+ 1346               	.LBE250:
+ 1347               	.LBB251:
+ 1348               	.LBB252:
+ 204:../src/serial_handler.c **** 	char* token;
+ 1349               		.loc 1 204 0
+ 1350 06ca 8E01      		movw r16,r28
+ 1351 06cc 0F57      		subi r16,127
+ 1352 06ce 1F4F      		sbci r17,-1
+ 1353 06d0 80E2      		ldi r24,lo8(32)
+ 1354 06d2 90E0      		ldi r25,0
+ 1355 06d4 F801      		movw r30,r16
+ 1356 06d6 8083      		st Z,r24
+ 1357 06d8 9183      		std Z+1,r25
+ 1358               	.LVL123:
+ 209:../src/serial_handler.c **** 	
+ 1359               		.loc 1 209 0
+ 1360 06da B801      		movw r22,r16
+ 1361 06dc 9E01      		movw r18,r28
+ 1362 06de 2F5F      		subi r18,-1
+ 1363 06e0 3F4F      		sbci r19,-1
+ 1364 06e2 5901      		movw r10,r18
+ 1365 06e4 C901      		movw r24,r18
+ 1366 06e6 0E94 0000 		call strtok
+ 1367               	.LVL124:
+ 1368 06ea 7C01      		movw r14,r24
+ 1369               	.LVL125:
+ 211:../src/serial_handler.c **** 
+ 1370               		.loc 1 211 0
+ 1371 06ec FC01      		movw r30,r24
+ 1372               		0:
+ 1373 06ee 0190      		ld __tmp_reg__,Z+
+ 1374 06f0 0020      		tst __tmp_reg__
+ 1375 06f2 01F4      		brne 0b
+ 1376 06f4 3197      		sbiw r30,1
+ 1377 06f6 6F01      		movw r12,r30
+ 1378 06f8 C81A      		sub r12,r24
+ 1379 06fa D90A      		sbc r13,r25
+ 1380               	.LVL126:
+ 213:../src/serial_handler.c **** 		uint16_t hVal;
+ 1381               		.loc 1 213 0
+ 1382 06fc 60E0      		ldi r22,lo8(.LC5)
+ 1383 06fe 70E0      		ldi r23,hi8(.LC5)
+ 1384 0700 0E94 0000 		call strcmp
+ 1385               	.LVL127:
+ 1386 0704 892B      		or r24,r25
+ 1387 0706 01F4      		brne .+2
+ 1388 0708 00C0      		rjmp .L49
+ 1389               	.LVL128:
+ 1390               	.LBB253:
+ 225:../src/serial_handler.c **** 			token = strtok(NULL,delim);
+ 1391               		.loc 1 225 0
+ 1392 070a 1C14      		cp __zero_reg__,r12
+ 1393 070c 1D04      		cpc __zero_reg__,r13
+ 1394 070e 04F4      		brge .L51
+ 1395 0710 CE0C      		add r12,r14
+ 1396 0712 DF1C      		adc r13,r15
+ 1397               	.LVL129:
+ 1398 0714 00C0      		rjmp .L56
+ 1399               	.LVL130:
+ 1400               	.L53:
+ 230:../src/serial_handler.c **** 				set_green_led(atoi(token));
+ 1401               		.loc 1 230 0
+ 1402 0716 2736      		cpi r18,lo8(103)
+ 1403 0718 01F0      		breq .L122
+ 233:../src/serial_handler.c **** 				set_blue_led(atoi(token));
+ 1404               		.loc 1 233 0
+ 1405 071a 2236      		cpi r18,lo8(98)
+ 1406 071c 01F4      		brne .L51
+ 234:../src/serial_handler.c **** 				successful_read=1;
+ 1407               		.loc 1 234 0
+ 1408 071e 0E94 0000 		call atoi
+ 1409               	.LVL131:
+ 1410               	.LBB254:
+ 1411               	.LBB255:
+  21:../include/rgb_led.h **** inline void set_blue_led(uint8_t saturation) { TCD1.CCABUF = saturation;	}
+ 1412               		.loc 3 21 0
+ 1413 0722 9927      		clr r25
+ 1414               	.LVL132:
+ 1415 0724 8093 7809 		sts 2424,r24
+ 1416 0728 9093 7909 		sts 2424+1,r25
+ 1417               	.LVL133:
+ 1418               	.L54:
+ 1419               	.LBE255:
+ 1420               	.LBE254:
+ 225:../src/serial_handler.c **** 			token = strtok(NULL,delim);
+ 1421               		.loc 1 225 0
+ 1422 072c EC14      		cp r14,r12
+ 1423 072e FD04      		cpc r15,r13
+ 1424 0730 01F4      		brne .+2
+ 1425 0732 00C0      		rjmp .L2
+ 1426               	.LVL134:
+ 1427               	.L56:
+ 226:../src/serial_handler.c **** 			if(colors[i]=='r'){
+ 1428               		.loc 1 226 0
+ 1429 0734 B801      		movw r22,r16
+ 1430 0736 80E0      		ldi r24,0
+ 1431 0738 90E0      		ldi r25,0
+ 1432 073a 0E94 0000 		call strtok
+ 1433               	.LVL135:
+ 227:../src/serial_handler.c **** 				set_red_led(atoi(token));
+ 1434               		.loc 1 227 0
+ 1435 073e F701      		movw r30,r14
+ 1436 0740 2191      		ld r18,Z+
+ 1437 0742 7F01      		movw r14,r30
+ 1438 0744 2237      		cpi r18,lo8(114)
+ 1439 0746 01F4      		brne .L53
+ 228:../src/serial_handler.c **** 				successful_read=1;
+ 1440               		.loc 1 228 0
+ 1441 0748 0E94 0000 		call atoi
+ 1442               	.LVL136:
+ 1443               	.LBB256:
+ 1444               	.LBB257:
+  13:../include/rgb_led.h **** 
+ 1445               		.loc 3 13 0
+ 1446 074c 9927      		clr r25
+ 1447               	.LVL137:
+ 1448 074e 8093 7A0A 		sts 2682,r24
+ 1449 0752 9093 7B0A 		sts 2682+1,r25
+ 1450               	.LVL138:
+ 1451 0756 00C0      		rjmp .L54
+ 1452               	.LVL139:
+ 1453               	.L122:
+ 1454               	.LBE257:
+ 1455               	.LBE256:
+ 231:../src/serial_handler.c **** 				successful_read=1;
+ 1456               		.loc 1 231 0
+ 1457 0758 0E94 0000 		call atoi
+ 1458               	.LVL140:
+ 1459               	.LBB258:
+ 1460               	.LBB259:
+  17:../include/rgb_led.h **** 	
+ 1461               		.loc 3 17 0
+ 1462 075c 9927      		clr r25
+ 1463               	.LVL141:
+ 1464 075e 8093 780A 		sts 2680,r24
+ 1465 0762 9093 790A 		sts 2680+1,r25
+ 1466               	.LVL142:
+ 1467 0766 00C0      		rjmp .L54
+ 1468               	.LVL143:
+ 1469               	.L105:
+ 1470               	.LBE259:
+ 1471               	.LBE258:
+ 1472               	.LBE253:
+ 1473               	.LBE252:
+ 1474               	.LBE251:
+ 1475               	.LBB263:
+ 1476               	.LBB264:
+ 256:../src/serial_handler.c **** }
+ 1477               		.loc 1 256 0
+ 1478 0768 8091 0000 		lds r24,droplet_ID+1
+ 1479 076c 8F93      		push r24
+ 1480 076e 8091 0000 		lds r24,droplet_ID
+ 1481 0772 8F93      		push r24
+ 1482 0774 80E0      		ldi r24,lo8(__c.5458)
+ 1483 0776 90E0      		ldi r25,hi8(__c.5458)
+ 1484 0778 9F93      		push r25
+ 1485 077a 8F93      		push r24
+ 1486 077c 0E94 0000 		call printf_P
+ 1487               	.LVL144:
+ 1488 0780 0F90      		pop __tmp_reg__
+ 1489 0782 0F90      		pop __tmp_reg__
+ 1490 0784 0F90      		pop __tmp_reg__
+ 1491 0786 0F90      		pop __tmp_reg__
+ 1492 0788 00C0      		rjmp .L2
+ 1493               	.LVL145:
+ 1494               	.L51:
+ 1495               	.LBE264:
+ 1496               	.LBE263:
+ 1497               	.LBB265:
+ 1498               	.LBB261:
+ 244:../src/serial_handler.c **** 		printf_P(PSTR("\t Letters r,g,b, in any order, followed by values 0-255, in same \r\n"));
+ 1499               		.loc 1 244 0
+ 1500 078a BF92      		push r11
+ 1501 078c AF92      		push r10
+ 1502 078e 80E0      		ldi r24,lo8(__c.5444)
+ 1503 0790 90E0      		ldi r25,hi8(__c.5444)
+ 1504 0792 9F93      		push r25
+ 1505 0794 8F93      		push r24
+ 1506 0796 0E94 0000 		call printf_P
+ 1507               	.LVL146:
+ 245:../src/serial_handler.c **** 		printf_P(PSTR("\t order, indicating the brightness of the associated LEDs. Example: \r\n"));
+ 1508               		.loc 1 245 0
+ 1509 079a 80E0      		ldi r24,lo8(__c.5446)
+ 1510 079c 90E0      		ldi r25,hi8(__c.5446)
+ 1511 079e 9F93      		push r25
+ 1512 07a0 8F93      		push r24
+ 1513 07a2 0E94 0000 		call printf_P
+ 1514               	.LVL147:
+ 246:../src/serial_handler.c **** 		printf_P(PSTR("\t \"set_led bgr 5 30 0\" gives a bluish green.\r\n"));
+ 1515               		.loc 1 246 0
+ 1516 07a6 80E0      		ldi r24,lo8(__c.5448)
+ 1517 07a8 90E0      		ldi r25,hi8(__c.5448)
+ 1518 07aa 9F93      		push r25
+ 1519 07ac 8F93      		push r24
+ 1520 07ae 0E94 0000 		call printf_P
+ 1521               	.LVL148:
+ 247:../src/serial_handler.c **** 	}
+ 1522               		.loc 1 247 0
+ 1523 07b2 80E0      		ldi r24,lo8(__c.5450)
+ 1524 07b4 90E0      		ldi r25,hi8(__c.5450)
+ 1525 07b6 9F93      		push r25
+ 1526 07b8 8F93      		push r24
+ 1527 07ba 0E94 0000 		call printf_P
+ 1528               	.LVL149:
+ 1529 07be CDBF      		out __SP_L__,r28
+ 1530 07c0 DEBF      		out __SP_H__,r29
+ 1531 07c2 00C0      		rjmp .L2
+ 1532               	.LVL150:
+ 1533               	.L106:
+ 1534               	.LBE261:
+ 1535               	.LBE265:
+ 1536               	.LBB266:
+ 1537               	.LBB267:
+ 252:../src/serial_handler.c **** }
+ 1538               		.loc 1 252 0
+ 1539 07c4 20E0      		ldi r18,0
+ 1540 07c6 30E0      		ldi r19,0
+ 1541 07c8 40E0      		ldi r20,lo8(gs(send_id))
+ 1542 07ca 50E0      		ldi r21,hi8(gs(send_id))
+ 1543 07cc 65E0      		ldi r22,lo8(5)
+ 1544 07ce 70E0      		ldi r23,0
+ 1545 07d0 80E0      		ldi r24,0
+ 1546 07d2 90E0      		ldi r25,0
+ 1547 07d4 0E94 0000 		call schedule_task
+ 1548               	.LVL151:
+ 1549 07d8 00C0      		rjmp .L2
+ 1550               	.L107:
+ 1551               	.LVL152:
+ 1552               	.LBE267:
+ 1553               	.LBE266:
+ 1554               	.LBB268:
+ 1555               	.LBB269:
+ 266:../src/serial_handler.c **** 	ir_cmd(ALL_DIRS, command_args,strlen(command_args));
+ 1556               		.loc 1 266 0
+ 1557 07da 8E01      		movw r16,r28
+ 1558 07dc 0F5F      		subi r16,-1
+ 1559 07de 1F4F      		sbci r17,-1
+ 1560 07e0 F801      		movw r30,r16
+ 1561               		0:
+ 1562 07e2 0190      		ld __tmp_reg__,Z+
+ 1563 07e4 0020      		tst __tmp_reg__
+ 1564 07e6 01F4      		brne 0b
+ 1565 07e8 3197      		sbiw r30,1
+ 1566 07ea E01B      		sub r30,r16
+ 1567 07ec F10B      		sbc r31,r17
+ 1568 07ee FF93      		push r31
+ 1569 07f0 EF93      		push r30
+ 1570 07f2 1F93      		push r17
+ 1571 07f4 0F93      		push r16
+ 1572 07f6 80E0      		ldi r24,lo8(__c.5466)
+ 1573 07f8 90E0      		ldi r25,hi8(__c.5466)
+ 1574 07fa 9F93      		push r25
+ 1575 07fc 8F93      		push r24
+ 1576 07fe 0E94 0000 		call printf_P
+ 1577               	.LVL153:
+ 267:../src/serial_handler.c **** 	//if(0==ir_send_command(0,(uint8_t*)command_args,strlen(command_args)))
+ 1578               		.loc 1 267 0
+ 1579 0802 F801      		movw r30,r16
+ 1580               		0:
+ 1581 0804 0190      		ld __tmp_reg__,Z+
+ 1582 0806 0020      		tst __tmp_reg__
+ 1583 0808 01F4      		brne 0b
+ 1584 080a 3197      		sbiw r30,1
+ 1585 080c AF01      		movw r20,r30
+ 1586 080e 401B      		sub r20,r16
+ 1587 0810 510B      		sbc r21,r17
+ 1588 0812 B801      		movw r22,r16
+ 1589 0814 8FE3      		ldi r24,lo8(63)
+ 1590 0816 0E94 0000 		call ir_cmd
+ 1591               	.LVL154:
+ 1592 081a 0F90      		pop __tmp_reg__
+ 1593 081c 0F90      		pop __tmp_reg__
+ 1594 081e 0F90      		pop __tmp_reg__
+ 1595 0820 0F90      		pop __tmp_reg__
+ 1596 0822 0F90      		pop __tmp_reg__
+ 1597 0824 0F90      		pop __tmp_reg__
+ 1598 0826 00C0      		rjmp .L2
+ 1599               	.LVL155:
+ 1600               	.L41:
+ 1601               	.LBE269:
+ 1602               	.LBE268:
+ 1603               	.LBB270:
+ 1604               	.LBB241:
+ 170:../src/serial_handler.c **** 	
+ 1605               		.loc 1 170 0
+ 1606 0828 0E94 0000 		call atoi
+ 1607               	.LVL156:
+ 1608 082c A81A      		sub r10,r24
+ 1609 082e B90A      		sbc r11,r25
+ 1610 0830 F101      		movw r30,r2
+ 1611 0832 A282      		std Z+2,r10
+ 1612 0834 B382      		std Z+3,r11
+ 1613 0836 00C0      		rjmp .L42
+ 1614               	.LVL157:
+ 1615               	.L38:
+ 163:../src/serial_handler.c **** 	
+ 1616               		.loc 1 163 0
+ 1617 0838 0E94 0000 		call atoi
+ 1618               	.LVL158:
+ 1619 083c A81A      		sub r10,r24
+ 1620 083e B90A      		sbc r11,r25
+ 1621 0840 F101      		movw r30,r2
+ 1622 0842 A082      		st Z,r10
+ 1623 0844 B182      		std Z+1,r11
+ 1624 0846 00C0      		rjmp .L39
+ 1625               	.LVL159:
+ 1626               	.L49:
+ 1627               	.LBE241:
+ 1628               	.LBE270:
+ 1629               	.LBB271:
+ 1630               	.LBB262:
+ 1631               	.LBB260:
+ 216:../src/serial_handler.c **** 		hVal = atoi(token);
+ 1632               		.loc 1 216 0
+ 1633 0848 B801      		movw r22,r16
+ 1634 084a 80E0      		ldi r24,0
+ 1635 084c 90E0      		ldi r25,0
+ 1636 084e 0E94 0000 		call strtok
+ 1637               	.LVL160:
+ 217:../src/serial_handler.c **** 		token = strtok(NULL,delim);
+ 1638               		.loc 1 217 0
+ 1639 0852 0E94 0000 		call atoi
+ 1640               	.LVL161:
+ 1641 0856 7C01      		movw r14,r24
+ 1642               	.LVL162:
+ 218:../src/serial_handler.c **** 		sVal = atoi(token);
+ 1643               		.loc 1 218 0
+ 1644 0858 B801      		movw r22,r16
+ 1645 085a 80E0      		ldi r24,0
+ 1646 085c 90E0      		ldi r25,0
+ 1647 085e 0E94 0000 		call strtok
+ 1648               	.LVL163:
+ 219:../src/serial_handler.c **** 		token = strtok(NULL,delim);	
+ 1649               		.loc 1 219 0
+ 1650 0862 0E94 0000 		call atoi
+ 1651               	.LVL164:
+ 1652 0866 D82E      		mov r13,r24
+ 1653               	.LVL165:
+ 220:../src/serial_handler.c **** 		vVal = atoi(token);
+ 1654               		.loc 1 220 0
+ 1655 0868 B801      		movw r22,r16
+ 1656 086a 80E0      		ldi r24,0
+ 1657 086c 90E0      		ldi r25,0
+ 1658 086e 0E94 0000 		call strtok
+ 1659               	.LVL166:
+ 221:../src/serial_handler.c **** 		set_hsv(hVal,sVal,vVal);
+ 1660               		.loc 1 221 0
+ 1661 0872 0E94 0000 		call atoi
+ 1662               	.LVL167:
+ 222:../src/serial_handler.c **** 		successful_read=1;
+ 1663               		.loc 1 222 0
+ 1664 0876 482F      		mov r20,r24
+ 1665 0878 6D2D      		mov r22,r13
+ 1666 087a C701      		movw r24,r14
+ 1667               	.LVL168:
+ 1668 087c 0E94 0000 		call set_hsv
+ 1669               	.LVL169:
+ 1670 0880 00C0      		rjmp .L2
+ 1671               	.LVL170:
+ 1672               	.L108:
+ 1673               	.LBE260:
+ 1674               	.LBE262:
+ 1675               	.LBE271:
+ 1676               	.LBB272:
+ 1677               	.LBB273:
+ 280:../src/serial_handler.c **** 	char targetString[5];
+ 1678               		.loc 1 280 0
+ 1679 0882 60E0      		ldi r22,lo8(.LC6)
+ 1680 0884 70E0      		ldi r23,hi8(.LC6)
+ 1681 0886 CE01      		movw r24,r28
+ 1682 0888 0196      		adiw r24,1
+ 1683 088a 0E94 0000 		call strcspn
+ 1684               	.LVL171:
+ 1685 088e 8C01      		movw r16,r24
+ 1686 0890 1127      		clr r17
+ 284:../src/serial_handler.c **** 	strcpy(cmdString, command_args+loc+1);
+ 1687               		.loc 1 284 0
+ 1688 0892 A801      		movw r20,r16
+ 1689 0894 BE01      		movw r22,r28
+ 1690 0896 6F5F      		subi r22,-1
+ 1691 0898 7F4F      		sbci r23,-1
+ 1692 089a CE01      		movw r24,r28
+ 1693               	.LVL172:
+ 1694 089c 8F55      		subi r24,95
+ 1695 089e 9F4F      		sbci r25,-1
+ 1696 08a0 0E94 0000 		call strncpy
+ 1697               	.LVL173:
+ 285:../src/serial_handler.c **** 	
+ 1698               		.loc 1 285 0
+ 1699 08a4 B801      		movw r22,r16
+ 1700 08a6 6F5F      		subi r22,-1
+ 1701 08a8 7F4F      		sbci r23,-1
+ 1702 08aa 41E0      		ldi r20,lo8(1)
+ 1703 08ac 50E0      		ldi r21,0
+ 1704 08ae 4C0F      		add r20,r28
+ 1705 08b0 5D1F      		adc r21,r29
+ 1706 08b2 640F      		add r22,r20
+ 1707 08b4 751F      		adc r23,r21
+ 1708 08b6 8E01      		movw r16,r28
+ 1709 08b8 0F57      		subi r16,127
+ 1710 08ba 1F4F      		sbci r17,-1
+ 1711 08bc C801      		movw r24,r16
+ 1712 08be 0E94 0000 		call strcpy
+ 1713               	.LVL174:
+ 287:../src/serial_handler.c **** 	printf_P(PSTR("command string: %s, length: %z\r\n"),cmdString, strlen(cmdString));
+ 1714               		.loc 1 287 0
+ 1715 08c2 40E1      		ldi r20,lo8(16)
+ 1716 08c4 50E0      		ldi r21,0
+ 1717 08c6 60E0      		ldi r22,0
+ 1718 08c8 70E0      		ldi r23,0
+ 1719 08ca CE01      		movw r24,r28
+ 1720 08cc 8F55      		subi r24,95
+ 1721 08ce 9F4F      		sbci r25,-1
+ 1722 08d0 0E94 0000 		call strtoul
+ 1723               	.LVL175:
+ 1724 08d4 6B01      		movw r12,r22
+ 1725 08d6 7C01      		movw r14,r24
+ 1726               	.LVL176:
+ 288:../src/serial_handler.c **** 	ir_targeted_cmd(ALL_DIRS, cmdString,strlen(cmdString), target);
+ 1727               		.loc 1 288 0
+ 1728 08d8 F801      		movw r30,r16
+ 1729               		0:
+ 1730 08da 0190      		ld __tmp_reg__,Z+
+ 1731 08dc 0020      		tst __tmp_reg__
+ 1732 08de 01F4      		brne 0b
+ 1733 08e0 3197      		sbiw r30,1
+ 1734 08e2 E01B      		sub r30,r16
+ 1735 08e4 F10B      		sbc r31,r17
+ 1736 08e6 FF93      		push r31
+ 1737 08e8 EF93      		push r30
+ 1738 08ea 1F93      		push r17
+ 1739 08ec 0F93      		push r16
+ 1740 08ee 80E0      		ldi r24,lo8(__c.5475)
+ 1741 08f0 90E0      		ldi r25,hi8(__c.5475)
+ 1742 08f2 9F93      		push r25
+ 1743 08f4 8F93      		push r24
+ 1744 08f6 0E94 0000 		call printf_P
+ 1745               	.LVL177:
+ 289:../src/serial_handler.c **** }
+ 1746               		.loc 1 289 0
+ 1747 08fa F801      		movw r30,r16
+ 1748               		0:
+ 1749 08fc 0190      		ld __tmp_reg__,Z+
+ 1750 08fe 0020      		tst __tmp_reg__
+ 1751 0900 01F4      		brne 0b
+ 1752 0902 3197      		sbiw r30,1
+ 1753 0904 AF01      		movw r20,r30
+ 1754 0906 401B      		sub r20,r16
+ 1755 0908 510B      		sbc r21,r17
+ 1756 090a 9601      		movw r18,r12
+ 1757 090c B801      		movw r22,r16
+ 1758 090e 8FE3      		ldi r24,lo8(63)
+ 1759 0910 0E94 0000 		call ir_targeted_cmd
+ 1760               	.LVL178:
+ 1761 0914 0F90      		pop __tmp_reg__
+ 1762 0916 0F90      		pop __tmp_reg__
+ 1763 0918 0F90      		pop __tmp_reg__
+ 1764 091a 0F90      		pop __tmp_reg__
+ 1765 091c 0F90      		pop __tmp_reg__
+ 1766 091e 0F90      		pop __tmp_reg__
+ 1767 0920 00C0      		rjmp .L2
+ 1768               	.LVL179:
+ 1769               	.L117:
+ 1770               	.LBE273:
+ 1771               	.LBE272:
+ 1772               	.LBB274:
+ 1773               	.LBB220:
+ 137:../src/serial_handler.c **** 	motor_adjusts[direction][1] = atoi(token);
+ 1774               		.loc 1 137 0
+ 1775 0922 80E0      		ldi r24,lo8(__c.5392)
+ 1776 0924 90E0      		ldi r25,hi8(__c.5392)
+ 1777               	.LVL180:
+ 1778 0926 9F93      		push r25
+ 1779 0928 8F93      		push r24
+ 1780 092a 0E94 0000 		call printf_P
+ 1781               	.LVL181:
+ 1782 092e 0F90      		pop __tmp_reg__
+ 1783 0930 0F90      		pop __tmp_reg__
+ 1784 0932 00C0      		rjmp .L2
+ 1785               	.LVL182:
+ 1786               	.L116:
+ 133:../src/serial_handler.c **** 	motor_adjusts[direction][0] = atoi(token);
+ 1787               		.loc 1 133 0
+ 1788 0934 80E0      		ldi r24,lo8(__c.5390)
+ 1789 0936 90E0      		ldi r25,hi8(__c.5390)
+ 1790               	.LVL183:
+ 1791 0938 9F93      		push r25
+ 1792 093a 8F93      		push r24
+ 1793 093c 0E94 0000 		call printf_P
+ 1794               	.LVL184:
+ 1795 0940 0F90      		pop __tmp_reg__
+ 1796 0942 0F90      		pop __tmp_reg__
+ 1797 0944 00C0      		rjmp .L2
+ 1798               	.LVL185:
+ 1799               	.L44:
+ 1800               	.LBE220:
+ 1801               	.LBE274:
+ 1802               	.LBB275:
+ 1803               	.LBB242:
+ 177:../src/serial_handler.c **** 
+ 1804               		.loc 1 177 0
+ 1805 0946 0E94 0000 		call atoi
+ 1806               	.LVL186:
+ 1807 094a 9801      		movw r18,r16
+ 1808 094c 281B      		sub r18,r24
+ 1809 094e 390B      		sbc r19,r25
+ 1810 0950 C901      		movw r24,r18
+ 1811 0952 F501      		movw r30,r10
+ 1812 0954 2483      		std Z+4,r18
+ 1813 0956 3583      		std Z+5,r19
+ 1814 0958 00C0      		rjmp .L45
+ 1815               	.LVL187:
+ 1816               	.L113:
+ 1817               	.LBE242:
+ 1818               	.LBE275:
+ 1819               	.LBB276:
+ 1820               	.LBB221:
+ 128:../src/serial_handler.c **** 	uint8_t direction = atoi(token);
+ 1821               		.loc 1 128 0
+ 1822 095a 80E0      		ldi r24,lo8(__c.5385)
+ 1823 095c 90E0      		ldi r25,hi8(__c.5385)
+ 1824               	.LVL188:
+ 1825 095e 9F93      		push r25
+ 1826 0960 8F93      		push r24
+ 1827 0962 0E94 0000 		call printf_P
+ 1828               	.LVL189:
+ 1829 0966 0F90      		pop __tmp_reg__
+ 1830 0968 0F90      		pop __tmp_reg__
+ 1831 096a 00C0      		rjmp .L2
+ 1832               	.LVL190:
+ 1833               	.L115:
+ 1834               	.LBE221:
+ 1835               	.LBE276:
+ 1836               	.LBB277:
+ 1837               	.LBB243:
+ 154:../src/serial_handler.c **** 	uint8_t direction = atoi(token);
+ 1838               		.loc 1 154 0
+ 1839 096c 80E0      		ldi r24,lo8(__c.5406)
+ 1840 096e 90E0      		ldi r25,hi8(__c.5406)
+ 1841               	.LVL191:
+ 1842 0970 9F93      		push r25
+ 1843 0972 8F93      		push r24
+ 1844 0974 0E94 0000 		call printf_P
+ 1845               	.LVL192:
+ 1846 0978 0F90      		pop __tmp_reg__
+ 1847 097a 0F90      		pop __tmp_reg__
+ 1848 097c 00C0      		rjmp .L2
+ 1849               	.LVL193:
+ 1850               	.L118:
+ 1851               	.LBE243:
+ 1852               	.LBE277:
+ 1853               	.LBB278:
+ 1854               	.LBB222:
+ 141:../src/serial_handler.c **** 	motor_adjusts[direction][2] = atoi(token);	
+ 1855               		.loc 1 141 0
+ 1856 097e 80E0      		ldi r24,lo8(__c.5394)
+ 1857 0980 90E0      		ldi r25,hi8(__c.5394)
+ 1858               	.LVL194:
+ 1859 0982 9F93      		push r25
+ 1860 0984 8F93      		push r24
+ 1861 0986 0E94 0000 		call printf_P
+ 1862               	.LVL195:
+ 1863 098a 0F90      		pop __tmp_reg__
+ 1864 098c 0F90      		pop __tmp_reg__
+ 1865 098e 00C0      		rjmp .L2
+ 1866               	.LVL196:
+ 1867               	.L120:
+ 1868               	.LBE222:
+ 1869               	.LBE278:
+ 1870               	.LBB279:
+ 1871               	.LBB244:
+ 166:../src/serial_handler.c **** 	if(motor_adjusts[direction][1]>=0)
+ 1872               		.loc 1 166 0
+ 1873 0990 80E0      		ldi r24,lo8(__c.5413)
+ 1874 0992 90E0      		ldi r25,hi8(__c.5413)
+ 1875               	.LVL197:
+ 1876 0994 9F93      		push r25
+ 1877 0996 8F93      		push r24
+ 1878 0998 0E94 0000 		call printf_P
+ 1879               	.LVL198:
+ 1880 099c 0F90      		pop __tmp_reg__
+ 1881 099e 0F90      		pop __tmp_reg__
+ 1882 09a0 00C0      		rjmp .L2
+ 1883               	.LVL199:
+ 1884               	.L119:
+ 159:../src/serial_handler.c **** 	if(motor_adjusts[direction][0]>=0)
+ 1885               		.loc 1 159 0
+ 1886 09a2 80E0      		ldi r24,lo8(__c.5411)
+ 1887 09a4 90E0      		ldi r25,hi8(__c.5411)
+ 1888               	.LVL200:
+ 1889 09a6 9F93      		push r25
+ 1890 09a8 8F93      		push r24
+ 1891 09aa 0E94 0000 		call printf_P
+ 1892               	.LVL201:
+ 1893 09ae 0F90      		pop __tmp_reg__
+ 1894 09b0 0F90      		pop __tmp_reg__
+ 1895 09b2 00C0      		rjmp .L2
+ 1896               	.LVL202:
+ 1897               	.L121:
+ 173:../src/serial_handler.c **** 	if(motor_adjusts[direction][2]>=0)
+ 1898               		.loc 1 173 0
+ 1899 09b4 80E0      		ldi r24,lo8(__c.5415)
+ 1900 09b6 90E0      		ldi r25,hi8(__c.5415)
+ 1901               	.LVL203:
+ 1902 09b8 9F93      		push r25
+ 1903 09ba 8F93      		push r24
+ 1904 09bc 0E94 0000 		call printf_P
+ 1905               	.LVL204:
+ 1906 09c0 0F90      		pop __tmp_reg__
+ 1907 09c2 0F90      		pop __tmp_reg__
+ 1908 09c4 00C0      		rjmp .L2
+ 1909               	.LVL205:
+ 1910               	.L66:
+ 1911               	.LBE244:
+ 1912               	.LBE279:
+  53:../src/serial_handler.c **** 		else if(strcmp_P(command_word,PSTR("print_motor_settings"))==0){
+ 1913               		.loc 1 53 0
+ 1914 09c6 60E0      		ldi r22,lo8(__c.5331)
+ 1915 09c8 70E0      		ldi r23,hi8(__c.5331)
+ 1916 09ca C801      		movw r24,r16
+ 1917 09cc 0E94 0000 		call strcmp_P
+ 1918               	.LVL206:
+ 1919 09d0 892B      		or r24,r25
+ 1920 09d2 01F4      		brne .+2
+ 1921 09d4 00C0      		rjmp .L123
+  54:../src/serial_handler.c **** 																		print_motor_values();
+ 1922               		.loc 1 54 0
+ 1923 09d6 60E0      		ldi r22,lo8(__c.5333)
+ 1924 09d8 70E0      		ldi r23,hi8(__c.5333)
+ 1925 09da C801      		movw r24,r16
+ 1926 09dc 0E94 0000 		call strcmp_P
+ 1927               	.LVL207:
+ 1928 09e0 892B      		or r24,r25
+ 1929 09e2 01F4      		brne .+2
+ 1930 09e4 00C0      		rjmp .L124
+  57:../src/serial_handler.c **** 			if(!user_handle_command(command_word, command_args))	printf_P(CMD_NOT_RECOGNIZED_STR,command_wor
+ 1931               		.loc 1 57 0
+ 1932 09e6 80E0      		ldi r24,lo8(gs(user_handle_command))
+ 1933 09e8 90E0      		ldi r25,hi8(gs(user_handle_command))
+ 1934 09ea 892B      		or r24,r25
+ 1935 09ec 01F0      		breq .L69
+  58:../src/serial_handler.c **** 		}
+ 1936               		.loc 1 58 0
+ 1937 09ee BE01      		movw r22,r28
+ 1938 09f0 6F5F      		subi r22,-1
+ 1939 09f2 7F4F      		sbci r23,-1
+ 1940 09f4 C801      		movw r24,r16
+ 1941 09f6 0E94 0000 		call user_handle_command
+ 1942               	.LVL208:
+ 1943 09fa 8111      		cpse r24,__zero_reg__
+ 1944 09fc 00C0      		rjmp .L2
+ 1945               	.L69:
+  58:../src/serial_handler.c **** 		}
+ 1946               		.loc 1 58 0 is_stmt 0 discriminator 1
+ 1947 09fe 1F93      		push r17
+ 1948 0a00 0F93      		push r16
+ 1949 0a02 80E0      		ldi r24,lo8(CMD_NOT_RECOGNIZED_STR)
+ 1950 0a04 90E0      		ldi r25,hi8(CMD_NOT_RECOGNIZED_STR)
+ 1951 0a06 9F93      		push r25
+ 1952 0a08 8F93      		push r24
+ 1953 0a0a 0E94 0000 		call printf_P
+ 1954               	.LVL209:
+ 1955 0a0e 0F90      		pop __tmp_reg__
+ 1956 0a10 0F90      		pop __tmp_reg__
+ 1957 0a12 0F90      		pop __tmp_reg__
+ 1958 0a14 0F90      		pop __tmp_reg__
+ 1959               	.LBE192:
+  62:../src/serial_handler.c **** 
+ 1960               		.loc 1 62 0 is_stmt 1 discriminator 1
+ 1961 0a16 00C0      		rjmp .L2
+ 1962               	.L112:
+ 1963               	.LBB288:
+  51:../src/serial_handler.c **** 		else if(strcmp_P(command_word,PSTR("reset"))==0)				handle_reset();
+ 1964               		.loc 1 51 0 discriminator 1
+ 1965 0a18 0E94 0000 		call print_task_queue
+ 1966               	.LVL210:
+ 1967 0a1c 00C0      		rjmp .L2
+ 1968               	.L111:
+ 1969               	.LVL211:
+ 1970               	.LBB280:
+ 1971               	.LBB281:
+ 310:../src/serial_handler.c **** 	char targetString[5];
+ 1972               		.loc 1 310 0
+ 1973 0a1e 60E0      		ldi r22,lo8(.LC6)
+ 1974 0a20 70E0      		ldi r23,hi8(.LC6)
+ 1975 0a22 CE01      		movw r24,r28
+ 1976 0a24 0196      		adiw r24,1
+ 1977 0a26 0E94 0000 		call strcspn
+ 1978               	.LVL212:
+ 1979 0a2a 8C01      		movw r16,r24
+ 1980 0a2c 1127      		clr r17
+ 314:../src/serial_handler.c **** 	strcpy(msgString, command_args+loc);
+ 1981               		.loc 1 314 0
+ 1982 0a2e A801      		movw r20,r16
+ 1983 0a30 BE01      		movw r22,r28
+ 1984 0a32 6F5F      		subi r22,-1
+ 1985 0a34 7F4F      		sbci r23,-1
+ 1986 0a36 CE01      		movw r24,r28
+ 1987               	.LVL213:
+ 1988 0a38 8F55      		subi r24,95
+ 1989 0a3a 9F4F      		sbci r25,-1
+ 1990 0a3c 0E94 0000 		call strncpy
+ 1991               	.LVL214:
+ 315:../src/serial_handler.c **** 	
+ 1992               		.loc 1 315 0
+ 1993 0a40 61E0      		ldi r22,lo8(1)
+ 1994 0a42 70E0      		ldi r23,0
+ 1995 0a44 6C0F      		add r22,r28
+ 1996 0a46 7D1F      		adc r23,r29
+ 1997 0a48 600F      		add r22,r16
+ 1998 0a4a 711F      		adc r23,r17
+ 1999 0a4c 8E01      		movw r16,r28
+ 2000 0a4e 0F57      		subi r16,127
+ 2001 0a50 1F4F      		sbci r17,-1
+ 2002 0a52 C801      		movw r24,r16
+ 2003 0a54 0E94 0000 		call strcpy
+ 2004               	.LVL215:
+ 318:../src/serial_handler.c **** 	
+ 2005               		.loc 1 318 0
+ 2006 0a58 40E1      		ldi r20,lo8(16)
+ 2007 0a5a 50E0      		ldi r21,0
+ 2008 0a5c 60E0      		ldi r22,0
+ 2009 0a5e 70E0      		ldi r23,0
+ 2010 0a60 CE01      		movw r24,r28
+ 2011 0a62 8F55      		subi r24,95
+ 2012 0a64 9F4F      		sbci r25,-1
+ 2013 0a66 0E94 0000 		call strtoul
+ 2014               	.LVL216:
+ 321:../src/serial_handler.c **** } 
+ 2015               		.loc 1 321 0
+ 2016 0a6a F801      		movw r30,r16
+ 2017               		0:
+ 2018 0a6c 0190      		ld __tmp_reg__,Z+
+ 2019 0a6e 0020      		tst __tmp_reg__
+ 2020 0a70 01F4      		brne 0b
+ 2021 0a72 3197      		sbiw r30,1
+ 2022 0a74 AF01      		movw r20,r30
+ 2023 0a76 401B      		sub r20,r16
+ 2024 0a78 510B      		sbc r21,r17
+ 2025 0a7a 9B01      		movw r18,r22
+ 2026 0a7c B801      		movw r22,r16
+ 2027               	.LVL217:
+ 2028 0a7e 8FE3      		ldi r24,lo8(63)
+ 2029 0a80 0E94 0000 		call ir_targeted_send
+ 2030               	.LVL218:
+ 2031 0a84 00C0      		rjmp .L2
+ 2032               	.LVL219:
+ 2033               	.L110:
+ 2034               	.LBE281:
+ 2035               	.LBE280:
+ 2036               	.LBB282:
+ 2037               	.LBB283:
+ 303:../src/serial_handler.c **** 	char msg[16] = "Unique New York.";
+ 2038               		.loc 1 303 0
+ 2039 0a86 CE01      		movw r24,r28
+ 2040 0a88 0196      		adiw r24,1
+ 2041 0a8a 0E94 0000 		call atoi
+ 2042               	.LVL220:
+ 304:../src/serial_handler.c **** 	
+ 2043               		.loc 1 304 0
+ 2044 0a8e 90E1      		ldi r25,lo8(16)
+ 2045 0a90 E0E0      		ldi r30,lo8(.LC1)
+ 2046 0a92 F0E0      		ldi r31,hi8(.LC1)
+ 2047 0a94 DE01      		movw r26,r28
+ 2048 0a96 AF57      		subi r26,127
+ 2049 0a98 BF4F      		sbci r27,-1
+ 2050               		0:
+ 2051 0a9a 0190      		ld r0,Z+
+ 2052 0a9c 0D92      		st X+,r0
+ 2053 0a9e 9A95      		dec r25
+ 2054 0aa0 01F4      		brne 0b
+ 306:../src/serial_handler.c **** }
+ 2055               		.loc 1 306 0
+ 2056 0aa2 40E1      		ldi r20,lo8(16)
+ 2057 0aa4 BE01      		movw r22,r28
+ 2058 0aa6 6F57      		subi r22,127
+ 2059 0aa8 7F4F      		sbci r23,-1
+ 2060 0aaa 0E94 0000 		call ir_send
+ 2061               	.LVL221:
+ 2062 0aae 00C0      		rjmp .L2
+ 2063               	.LVL222:
+ 2064               	.L109:
+ 2065               	.LBE283:
+ 2066               	.LBE282:
+ 2067               	.LBB284:
+ 2068               	.LBB285:
+ 293:../src/serial_handler.c **** 		command_args = "Unique New York.";
+ 2069               		.loc 1 293 0
+ 2070 0ab0 8981      		ldd r24,Y+1
+ 2071 0ab2 8823      		tst r24
+ 2072 0ab4 01F0      		breq .L70
+ 295:../src/serial_handler.c **** 		printf_P(PSTR("Message length was %z chars, which exceeds the maximum of %u"), strlen(command_arg
+ 2073               		.loc 1 295 0
+ 2074 0ab6 FE01      		movw r30,r28
+ 2075 0ab8 3196      		adiw r30,1
+ 2076 0aba DF01      		movw r26,r30
+ 2077               		0:
+ 2078 0abc 0D90      		ld __tmp_reg__,X+
+ 2079 0abe 0020      		tst __tmp_reg__
+ 2080 0ac0 01F4      		brne 0b
+ 2081 0ac2 1197      		sbiw r26,1
+ 2082 0ac4 CD01      		movw r24,r26
+ 2083 0ac6 8E1B      		sub r24,r30
+ 2084 0ac8 9F0B      		sbc r25,r31
+ 2085 0aca 8932      		cpi r24,41
+ 2086 0acc 9105      		cpc r25,__zero_reg__
+ 2087 0ace 00F4      		brsh .L125
+ 2088 0ad0 BF01      		movw r22,r30
+ 2089               	.L62:
+ 2090               	.LVL223:
+ 299:../src/serial_handler.c **** }
+ 2091               		.loc 1 299 0
+ 2092 0ad2 FB01      		movw r30,r22
+ 2093               		0:
+ 2094 0ad4 0190      		ld __tmp_reg__,Z+
+ 2095 0ad6 0020      		tst __tmp_reg__
+ 2096 0ad8 01F4      		brne 0b
+ 2097 0ada 3197      		sbiw r30,1
+ 2098 0adc AF01      		movw r20,r30
+ 2099 0ade 461B      		sub r20,r22
+ 2100 0ae0 570B      		sbc r21,r23
+ 2101 0ae2 8FE3      		ldi r24,lo8(63)
+ 2102 0ae4 0E94 0000 		call ir_send
+ 2103               	.LVL224:
+ 2104 0ae8 00C0      		rjmp .L2
+ 2105               	.L124:
+ 2106               	.LBE285:
+ 2107               	.LBE284:
+  55:../src/serial_handler.c **** 																		print_dist_per_step();																	
+ 2108               		.loc 1 55 0
+ 2109 0aea 0E94 0000 		call print_motor_values
+ 2110               	.LVL225:
+  56:../src/serial_handler.c **** 		}else if(user_handle_command){ //First, make sure the function is defined
+ 2111               		.loc 1 56 0
+ 2112 0aee 0E94 0000 		call print_dist_per_step
+ 2113               	.LVL226:
+ 2114 0af2 00C0      		rjmp .L2
+ 2115               	.L123:
+  53:../src/serial_handler.c **** 		else if(strcmp_P(command_word,PSTR("print_motor_settings"))==0){
+ 2116               		.loc 1 53 0 discriminator 1
+ 2117 0af4 0E94 0000 		call write_motor_settings
+ 2118               	.LVL227:
+ 2119 0af8 00C0      		rjmp .L2
+ 2120               	.LVL228:
+ 2121               	.L125:
+ 2122               	.LBB287:
+ 2123               	.LBB286:
+ 296:../src/serial_handler.c **** 		return;
+ 2124               		.loc 1 296 0
+ 2125 0afa 1F92      		push __zero_reg__
+ 2126 0afc 28E2      		ldi r18,lo8(40)
+ 2127 0afe 2F93      		push r18
+ 2128 0b00 9F93      		push r25
+ 2129 0b02 8F93      		push r24
+ 2130 0b04 80E0      		ldi r24,lo8(__c.5480)
+ 2131 0b06 90E0      		ldi r25,hi8(__c.5480)
+ 2132 0b08 9F93      		push r25
+ 2133 0b0a 8F93      		push r24
+ 2134 0b0c 0E94 0000 		call printf_P
+ 2135               	.LVL229:
+ 2136 0b10 0F90      		pop __tmp_reg__
+ 2137 0b12 0F90      		pop __tmp_reg__
+ 2138 0b14 0F90      		pop __tmp_reg__
+ 2139 0b16 0F90      		pop __tmp_reg__
+ 2140 0b18 0F90      		pop __tmp_reg__
+ 2141 0b1a 0F90      		pop __tmp_reg__
+ 2142 0b1c 00C0      		rjmp .L2
+ 2143               	.L70:
+ 294:../src/serial_handler.c **** 	}else if(strlen(command_args)>IR_BUFFER_SIZE){ 
+ 2144               		.loc 1 294 0
+ 2145 0b1e 60E0      		ldi r22,lo8(.LC1)
+ 2146 0b20 70E0      		ldi r23,hi8(.LC1)
+ 2147 0b22 00C0      		rjmp .L62
+ 2148               	.LBE286:
+ 2149               	.LBE287:
+ 2150               	.LBE288:
+ 2151               		.cfi_endproc
+ 2152               	.LFE62:
+ 2154               		.section	.progmem.data.__c.5480,"a",@progbits
+ 2157               	__c.5480:
+ 2158 0000 4D65 7373 		.string	"Message length was %z chars, which exceeds the maximum of %u"
+ 2158      6167 6520 
+ 2158      6C65 6E67 
+ 2158      7468 2077 
+ 2158      6173 2025 
+ 2159               		.section	.progmem.data.__c.5475,"a",@progbits
+ 2162               	__c.5475:
+ 2163 0000 636F 6D6D 		.string	"command string: %s, length: %z\r\n"
+ 2163      616E 6420 
+ 2163      7374 7269 
+ 2163      6E67 3A20 
+ 2163      2573 2C20 
+ 2164               		.section	.progmem.data.__c.5466,"a",@progbits
+ 2167               	__c.5466:
+ 2168 0000 4272 6F61 		.string	"Broadcasting command: \"%s\", of length %i.\r\n"
+ 2168      6463 6173 
+ 2168      7469 6E67 
+ 2168      2063 6F6D 
+ 2168      6D61 6E64 
+ 2169               		.section	.progmem.data.__c.5458,"a",@progbits
+ 2172               	__c.5458:
+ 2173 0000 4D79 2049 		.string	"My ID is: %04X\r\n"
+ 2173      4420 6973 
+ 2173      3A20 2530 
+ 2173      3458 0D0A 
+ 2173      00
+ 2174               		.section	.progmem.data.__c.5450,"a",@progbits
+ 2177               	__c.5450:
+ 2178 0000 0920 2273 		.string	"\t \"set_led bgr 5 30 0\" gives a bluish green.\r\n"
+ 2178      6574 5F6C 
+ 2178      6564 2062 
+ 2178      6772 2035 
+ 2178      2033 3020 
+ 2179               		.section	.progmem.data.__c.5448,"a",@progbits
+ 2182               	__c.5448:
+ 2183 0000 0920 6F72 		.string	"\t order, indicating the brightness of the associated LEDs. Example: \r\n"
+ 2183      6465 722C 
+ 2183      2069 6E64 
+ 2183      6963 6174 
+ 2183      696E 6720 
+ 2184               		.section	.progmem.data.__c.5446,"a",@progbits
+ 2187               	__c.5446:
+ 2188 0000 0920 4C65 		.string	"\t Letters r,g,b, in any order, followed by values 0-255, in same \r\n"
+ 2188      7474 6572 
+ 2188      7320 722C 
+ 2188      672C 622C 
+ 2188      2069 6E20 
+ 2189               		.section	.progmem.data.__c.5444,"a",@progbits
+ 2192               	__c.5444:
+ 2193 0000 0947 6F74 		.string	"\tGot command set_led, but arguments (%s) were invalid. Format should be:\r\n"
+ 2193      2063 6F6D 
+ 2193      6D61 6E64 
+ 2193      2073 6574 
+ 2193      5F6C 6564 
+ 2194               		.section	.progmem.data.__c.5417,"a",@progbits
+ 2197               	__c.5417:
+ 2198 0000 476F 7420 		.string	"Got adjust_motors command. direction: %hu, New Settings: (%d, %d, %d)\r\n"
+ 2198      6164 6A75 
+ 2198      7374 5F6D 
+ 2198      6F74 6F72 
+ 2198      7320 636F 
+ 2199               		.section	.progmem.data.__c.5415,"a",@progbits
+ 2202               	__c.5415:
+ 2203 0000 7374 7274 		.string	"strtok returned NULL on third val.\r\n"
+ 2203      6F6B 2072 
+ 2203      6574 7572 
+ 2203      6E65 6420 
+ 2203      4E55 4C4C 
+ 2204               		.section	.progmem.data.__c.5413,"a",@progbits
+ 2207               	__c.5413:
+ 2208 0000 7374 7274 		.string	"strtok returned NULL on second val.\r\n"
+ 2208      6F6B 2072 
+ 2208      6574 7572 
+ 2208      6E65 6420 
+ 2208      4E55 4C4C 
+ 2209               		.section	.progmem.data.__c.5411,"a",@progbits
+ 2212               	__c.5411:
+ 2213 0000 7374 7274 		.string	"strtok returned NULL on first val.\r\n"
+ 2213      6F6B 2072 
+ 2213      6574 7572 
+ 2213      6E65 6420 
+ 2213      4E55 4C4C 
+ 2214               		.section	.progmem.data.__c.5409,"a",@progbits
+ 2217               	__c.5409:
+ 2218 0000 4261 6420 		.string	"Bad direction. Got: %hu.\r\n"
+ 2218      6469 7265 
+ 2218      6374 696F 
+ 2218      6E2E 2047 
+ 2218      6F74 3A20 
+ 2219               		.section	.progmem.data.__c.5406,"a",@progbits
+ 2222               	__c.5406:
+ 2223 0000 7374 7274 		.string	"strtok returned NULL on direction.\r\n"
+ 2223      6F6B 2072 
+ 2223      6574 7572 
+ 2223      6E65 6420 
+ 2223      4E55 4C4C 
+ 2224               		.section	.progmem.data.__c.5396,"a",@progbits
+ 2227               	__c.5396:
+ 2228 0000 476F 7420 		.string	"Got set_motors command. direction: %hu, vals: (%d, %d, %d)\r\n"
+ 2228      7365 745F 
+ 2228      6D6F 746F 
+ 2228      7273 2063 
+ 2228      6F6D 6D61 
+ 2229               		.section	.progmem.data.__c.5394,"a",@progbits
+ 2232               	__c.5394:
+ 2233 0000 7374 7274 		.string	"strtok returned NULL on third val.\r\n"
+ 2233      6F6B 2072 
+ 2233      6574 7572 
+ 2233      6E65 6420 
+ 2233      4E55 4C4C 
+ 2234               		.section	.progmem.data.__c.5392,"a",@progbits
+ 2237               	__c.5392:
+ 2238 0000 7374 7274 		.string	"strtok returned NULL on second val.\r\n"
+ 2238      6F6B 2072 
+ 2238      6574 7572 
+ 2238      6E65 6420 
+ 2238      4E55 4C4C 
+ 2239               		.section	.progmem.data.__c.5390,"a",@progbits
+ 2242               	__c.5390:
+ 2243 0000 7374 7274 		.string	"strtok returned NULL on first val.\r\n"
+ 2243      6F6B 2072 
+ 2243      6574 7572 
+ 2243      6E65 6420 
+ 2243      4E55 4C4C 
+ 2244               		.section	.progmem.data.__c.5388,"a",@progbits
+ 2247               	__c.5388:
+ 2248 0000 4261 6420 		.string	"Bad direction. Got: %hu.\r\n"
+ 2248      6469 7265 
+ 2248      6374 696F 
+ 2248      6E2E 2047 
+ 2248      6F74 3A20 
+ 2249               		.section	.progmem.data.__c.5385,"a",@progbits
+ 2252               	__c.5385:
+ 2253 0000 7374 7274 		.string	"strtok returned NULL on direction.\r\n"
+ 2253      6F6B 2072 
+ 2253      6574 7572 
+ 2253      6E65 6420 
+ 2253      4E55 4C4C 
+ 2254               		.section	.progmem.data.__c.5366,"a",@progbits
+ 2257               	__c.5366:
+ 2258 0000 723A 2025 		.string	"r: %hu, g: %hu, b: %hu\r\n"
+ 2258      6875 2C20 
+ 2258      673A 2025 
+ 2258      6875 2C20 
+ 2258      623A 2025 
+ 2259               		.section	.progmem.data.__c.5351,"a",@progbits
+ 2262               	__c.5351:
+ 2263 0000 7761 6C6B 		.string	"walk direction %hu, num_steps %u\r\n"
+ 2263      2064 6972 
+ 2263      6563 7469 
+ 2263      6F6E 2025 
+ 2263      6875 2C20 
+ 2264               		.section	.progmem.data.__c.5333,"a",@progbits
+ 2267               	__c.5333:
+ 2268 0000 7072 696E 		.string	"print_motor_settings"
+ 2268      745F 6D6F 
+ 2268      746F 725F 
+ 2268      7365 7474 
+ 2268      696E 6773 
+ 2269               		.section	.progmem.data.__c.5331,"a",@progbits
+ 2272               	__c.5331:
+ 2273 0000 7772 6974 		.string	"write_motor_settings"
+ 2273      655F 6D6F 
+ 2273      746F 725F 
+ 2273      7365 7474 
+ 2273      696E 6773 
+ 2274               		.section	.progmem.data.__c.5329,"a",@progbits
+ 2277               	__c.5329:
+ 2278 0000 7265 7365 		.string	"reset"
+ 2278      7400 
+ 2279               		.section	.progmem.data.__c.5327,"a",@progbits
+ 2282               	__c.5327:
+ 2283 0000 7461 736B 		.string	"tasks"
+ 2283      7300 
+ 2284               		.section	.progmem.data.__c.5325,"a",@progbits
+ 2287               	__c.5325:
+ 2288 0000 7467 7400 		.string	"tgt"
+ 2289               		.section	.progmem.data.__c.5323,"a",@progbits
+ 2292               	__c.5323:
+ 2293 0000 6D73 675F 		.string	"msg_tst"
+ 2293      7473 7400 
+ 2294               		.section	.progmem.data.__c.5321,"a",@progbits
+ 2297               	__c.5321:
+ 2298 0000 6D73 6700 		.string	"msg"
+ 2299               		.section	.progmem.data.__c.5319,"a",@progbits
+ 2302               	__c.5319:
+ 2303 0000 7467 745F 		.string	"tgt_cmd"
+ 2303      636D 6400 
+ 2304               		.section	.progmem.data.__c.5317,"a",@progbits
+ 2307               	__c.5317:
+ 2308 0000 636D 6400 		.string	"cmd"
+ 2309               		.section	.progmem.data.__c.5315,"a",@progbits
+ 2312               	__c.5315:
+ 2313 0000 6272 6F61 		.string	"broadcast_id"
+ 2313      6463 6173 
+ 2313      745F 6964 
+ 2313      00
+ 2314               		.section	.progmem.data.__c.5313,"a",@progbits
+ 2317               	__c.5313:
+ 2318 0000 6765 745F 		.string	"get_id"
+ 2318      6964 00
+ 2319               		.section	.progmem.data.__c.5311,"a",@progbits
+ 2322               	__c.5311:
+ 2323 0000 7365 745F 		.string	"set_led"
+ 2323      6C65 6400 
+ 2324               		.section	.progmem.data.__c.5309,"a",@progbits
+ 2327               	__c.5309:
+ 2328 0000 726E 625F 		.string	"rnb_b"
+ 2328      6200 
+ 2329               		.section	.progmem.data.__c.5307,"a",@progbits
+ 2332               	__c.5307:
+ 2333 0000 7365 745F 		.string	"set_dist_per_step"
+ 2333      6469 7374 
+ 2333      5F70 6572 
+ 2333      5F73 7465 
+ 2333      7000 
+ 2334               		.section	.progmem.data.__c.5305,"a",@progbits
+ 2337               	__c.5305:
+ 2338 0000 6164 6A5F 		.string	"adj_motors"
+ 2338      6D6F 746F 
+ 2338      7273 00
+ 2339               		.section	.progmem.data.__c.5303,"a",@progbits
+ 2342               	__c.5303:
+ 2343 0000 7365 745F 		.string	"set_motors"
+ 2343      6D6F 746F 
+ 2343      7273 00
+ 2344               		.section	.progmem.data.__c.5301,"a",@progbits
+ 2347               	__c.5301:
+ 2348 0000 7374 6F70 		.string	"stop_walk"
+ 2348      5F77 616C 
+ 2348      6B00 
+ 2349               		.section	.progmem.data.__c.5299,"a",@progbits
+ 2352               	__c.5299:
+ 2353 0000 636F 6C6C 		.string	"coll"
+ 2353      00
+ 2354               		.section	.progmem.data.__c.5297,"a",@progbits
+ 2357               	__c.5297:
+ 2358 0000 7365 745F 		.string	"set_ir"
+ 2358      6972 00
+ 2359               		.section	.progmem.data.__c.5295,"a",@progbits
+ 2362               	__c.5295:
+ 2363 0000 6765 745F 		.string	"get_rgb"
+ 2363      7267 6200 
+ 2364               		.section	.progmem.data.__c.5293,"a",@progbits
+ 2367               	__c.5293:
+ 2368 0000 7761 6C6B 		.string	"walk"
+ 2368      00
+ 2369               		.section	.progmem.data.__c.5291,"a",@progbits
+ 2372               	__c.5291:
+ 2373 0000 6D6F 7665 		.string	"move_steps"
+ 2373      5F73 7465 
+ 2373      7073 00
+ 2374               		.section	.progmem.data.CMD_NOT_RECOGNIZED_STR,"a",@progbits
+ 2377               	CMD_NOT_RECOGNIZED_STR:
+ 2378 0000 0943 6F6D 		.string	"\tCommand ( %s ) not recognized.\r\n"
+ 2378      6D61 6E64 
+ 2378      2028 2025 
+ 2378      7320 2920 
+ 2378      6E6F 7420 
+ 2379               		.comm	mm_per_kilostep,16,1
+ 2380               		.comm	motor_adjusts,48,1
+ 2381               		.comm	rnbProcessingFlag,1,1
+ 2382               		.comm	rnbCmdSentTime,4,1
+ 2383               		.comm	rnbCmdID,2,1
+ 2384               		.comm	rnb_updated,1,1
+ 2385               		.comm	last_good_rnb,8,1
+ 2386               		.comm	cmd_sender_dir,1,1
+ 2387               		.comm	cmd_arrival_dir,1,1
+ 2388               		.comm	cmd_sender_id,2,1
+ 2389               		.comm	cmd_arrival_time,4,1
+ 2390               		.comm	user_facing_messages_ovf,1,1
+ 2391               		.comm	num_waiting_msgs,1,1
+ 2392               		.comm	hp_ir_block_bm,1,1
+ 2393               		.comm	msg_node,294,1
+ 2394               		.comm	ir_rxtx,342,1
+ 2395               		.comm	obsStart,2,1
+ 2396               		.comm	curr_ir_power,2,1
+ 2397               		.comm	twi,2,1
+ 2398               		.comm	twiMaster,25,1
+ 2399               		.section	.bss.task_storage_arr,"aw",@nobits
+ 2402               	task_storage_arr:
+ 2403 0000 0000 0000 		.zero	140
+ 2403      0000 0000 
+ 2403      0000 0000 
+ 2403      0000 0000 
+ 2403      0000 0000 
+ 2404               		.comm	task_executing,1,1
+ 2405               		.comm	num_tasks,1,1
+ 2406               		.comm	task_list,2,1
+ 2407               		.comm	rtc_epoch,2,1
+ 2408               		.comm	droplet_ID,2,1
+ 2409               		.weak	user_handle_command
+ 2410               		.text
+ 2411               	.Letext0:
+ 2412               		.file 4 "c:\\program files (x86)\\atmel\\studio\\7.0\\toolchain\\avr8\\avr8-gnu-toolchain\\avr\\in
+ 2413               		.file 5 "C:/Program Files (x86)/Atmel/Studio/7.0/Packs/atmel/XMEGAA_DFP/1.1.68/include/avr/iox128a
+ 2414               		.file 6 "../include/scheduler.h"
+ 2415               		.file 7 "../include/i2c.h"
+ 2416               		.file 8 "../include/firefly_sync.h"
+ 2417               		.file 9 "../include/ir_comm.h"
+ 2418               		.file 10 "../include/range_algs.h"
+ 2419               		.file 11 "../include/ir_led.h"
+ 2420               		.file 12 "../include/motor.h"
+ 2421               		.file 13 "c:\\program files (x86)\\atmel\\studio\\7.0\\toolchain\\avr8\\avr8-gnu-toolchain\\avr\\i
+ 2422               		.file 14 "c:\\program files (x86)\\atmel\\studio\\7.0\\toolchain\\avr8\\avr8-gnu-toolchain\\avr\\i
+ 2423               		.file 15 "c:\\program files (x86)\\atmel\\studio\\7.0\\toolchain\\avr8\\avr8-gnu-toolchain\\avr\\i
+ 2424               		.file 16 "../include/rgb_sensor.h"
+ 2425               		.file 17 "../include/ir_sensor.h"
+ 2426               		.file 18 "c:\\program files (x86)\\atmel\\studio\\7.0\\toolchain\\avr8\\avr8-gnu-toolchain\\avr\\i
+ 2427               		.file 19 "<built-in>"
+DEFINED SYMBOLS
+                            *ABS*:00000000 serial_handler.c
+C:\Users\JOHNK~1\AppData\Local\Temp\ccyaFPFf.s:2      *ABS*:0000003e __SP_H__
+C:\Users\JOHNK~1\AppData\Local\Temp\ccyaFPFf.s:3      *ABS*:0000003d __SP_L__
+C:\Users\JOHNK~1\AppData\Local\Temp\ccyaFPFf.s:4      *ABS*:0000003f __SREG__
+C:\Users\JOHNK~1\AppData\Local\Temp\ccyaFPFf.s:5      *ABS*:0000003b __RAMPZ__
+C:\Users\JOHNK~1\AppData\Local\Temp\ccyaFPFf.s:6      *ABS*:00000034 __CCP__
+C:\Users\JOHNK~1\AppData\Local\Temp\ccyaFPFf.s:7      *ABS*:00000000 __tmp_reg__
+C:\Users\JOHNK~1\AppData\Local\Temp\ccyaFPFf.s:8      *ABS*:00000001 __zero_reg__
+C:\Users\JOHNK~1\AppData\Local\Temp\ccyaFPFf.s:18     .text.send_id:00000000 send_id
+                            *COM*:00000002 droplet_ID
+C:\Users\JOHNK~1\AppData\Local\Temp\ccyaFPFf.s:109    .text.handle_serial_command:00000000 handle_serial_command
+C:\Users\JOHNK~1\AppData\Local\Temp\ccyaFPFf.s:2372   .progmem.data.__c.5291:00000000 __c.5291
+C:\Users\JOHNK~1\AppData\Local\Temp\ccyaFPFf.s:2367   .progmem.data.__c.5293:00000000 __c.5293
+C:\Users\JOHNK~1\AppData\Local\Temp\ccyaFPFf.s:2362   .progmem.data.__c.5295:00000000 __c.5295
+C:\Users\JOHNK~1\AppData\Local\Temp\ccyaFPFf.s:2357   .progmem.data.__c.5297:00000000 __c.5297
+C:\Users\JOHNK~1\AppData\Local\Temp\ccyaFPFf.s:2352   .progmem.data.__c.5299:00000000 __c.5299
+C:\Users\JOHNK~1\AppData\Local\Temp\ccyaFPFf.s:2347   .progmem.data.__c.5301:00000000 __c.5301
+C:\Users\JOHNK~1\AppData\Local\Temp\ccyaFPFf.s:2342   .progmem.data.__c.5303:00000000 __c.5303
+C:\Users\JOHNK~1\AppData\Local\Temp\ccyaFPFf.s:2337   .progmem.data.__c.5305:00000000 __c.5305
+C:\Users\JOHNK~1\AppData\Local\Temp\ccyaFPFf.s:2332   .progmem.data.__c.5307:00000000 __c.5307
+C:\Users\JOHNK~1\AppData\Local\Temp\ccyaFPFf.s:2327   .progmem.data.__c.5309:00000000 __c.5309
+C:\Users\JOHNK~1\AppData\Local\Temp\ccyaFPFf.s:2322   .progmem.data.__c.5311:00000000 __c.5311
+C:\Users\JOHNK~1\AppData\Local\Temp\ccyaFPFf.s:2317   .progmem.data.__c.5313:00000000 __c.5313
+C:\Users\JOHNK~1\AppData\Local\Temp\ccyaFPFf.s:2312   .progmem.data.__c.5315:00000000 __c.5315
+C:\Users\JOHNK~1\AppData\Local\Temp\ccyaFPFf.s:2307   .progmem.data.__c.5317:00000000 __c.5317
+C:\Users\JOHNK~1\AppData\Local\Temp\ccyaFPFf.s:2302   .progmem.data.__c.5319:00000000 __c.5319
+C:\Users\JOHNK~1\AppData\Local\Temp\ccyaFPFf.s:2297   .progmem.data.__c.5321:00000000 __c.5321
+C:\Users\JOHNK~1\AppData\Local\Temp\ccyaFPFf.s:2292   .progmem.data.__c.5323:00000000 __c.5323
+C:\Users\JOHNK~1\AppData\Local\Temp\ccyaFPFf.s:2287   .progmem.data.__c.5325:00000000 __c.5325
+C:\Users\JOHNK~1\AppData\Local\Temp\ccyaFPFf.s:2282   .progmem.data.__c.5327:00000000 __c.5327
+C:\Users\JOHNK~1\AppData\Local\Temp\ccyaFPFf.s:2277   .progmem.data.__c.5329:00000000 __c.5329
+C:\Users\JOHNK~1\AppData\Local\Temp\ccyaFPFf.s:2262   .progmem.data.__c.5351:00000000 __c.5351
+C:\Users\JOHNK~1\AppData\Local\Temp\ccyaFPFf.s:2257   .progmem.data.__c.5366:00000000 __c.5366
+C:\Users\JOHNK~1\AppData\Local\Temp\ccyaFPFf.s:2247   .progmem.data.__c.5388:00000000 __c.5388
+C:\Users\JOHNK~1\AppData\Local\Temp\ccyaFPFf.s:2217   .progmem.data.__c.5409:00000000 __c.5409
+                            *COM*:00000030 motor_adjusts
+C:\Users\JOHNK~1\AppData\Local\Temp\ccyaFPFf.s:2227   .progmem.data.__c.5396:00000000 __c.5396
+C:\Users\JOHNK~1\AppData\Local\Temp\ccyaFPFf.s:2197   .progmem.data.__c.5417:00000000 __c.5417
+C:\Users\JOHNK~1\AppData\Local\Temp\ccyaFPFf.s:2172   .progmem.data.__c.5458:00000000 __c.5458
+C:\Users\JOHNK~1\AppData\Local\Temp\ccyaFPFf.s:2192   .progmem.data.__c.5444:00000000 __c.5444
+C:\Users\JOHNK~1\AppData\Local\Temp\ccyaFPFf.s:2187   .progmem.data.__c.5446:00000000 __c.5446
+C:\Users\JOHNK~1\AppData\Local\Temp\ccyaFPFf.s:2182   .progmem.data.__c.5448:00000000 __c.5448
+C:\Users\JOHNK~1\AppData\Local\Temp\ccyaFPFf.s:2177   .progmem.data.__c.5450:00000000 __c.5450
+C:\Users\JOHNK~1\AppData\Local\Temp\ccyaFPFf.s:2167   .progmem.data.__c.5466:00000000 __c.5466
+C:\Users\JOHNK~1\AppData\Local\Temp\ccyaFPFf.s:2162   .progmem.data.__c.5475:00000000 __c.5475
+C:\Users\JOHNK~1\AppData\Local\Temp\ccyaFPFf.s:2237   .progmem.data.__c.5392:00000000 __c.5392
+C:\Users\JOHNK~1\AppData\Local\Temp\ccyaFPFf.s:2242   .progmem.data.__c.5390:00000000 __c.5390
+C:\Users\JOHNK~1\AppData\Local\Temp\ccyaFPFf.s:2252   .progmem.data.__c.5385:00000000 __c.5385
+C:\Users\JOHNK~1\AppData\Local\Temp\ccyaFPFf.s:2222   .progmem.data.__c.5406:00000000 __c.5406
+C:\Users\JOHNK~1\AppData\Local\Temp\ccyaFPFf.s:2232   .progmem.data.__c.5394:00000000 __c.5394
+C:\Users\JOHNK~1\AppData\Local\Temp\ccyaFPFf.s:2207   .progmem.data.__c.5413:00000000 __c.5413
+C:\Users\JOHNK~1\AppData\Local\Temp\ccyaFPFf.s:2212   .progmem.data.__c.5411:00000000 __c.5411
+C:\Users\JOHNK~1\AppData\Local\Temp\ccyaFPFf.s:2202   .progmem.data.__c.5415:00000000 __c.5415
+C:\Users\JOHNK~1\AppData\Local\Temp\ccyaFPFf.s:2272   .progmem.data.__c.5331:00000000 __c.5331
+C:\Users\JOHNK~1\AppData\Local\Temp\ccyaFPFf.s:2267   .progmem.data.__c.5333:00000000 __c.5333
+C:\Users\JOHNK~1\AppData\Local\Temp\ccyaFPFf.s:2377   .progmem.data.CMD_NOT_RECOGNIZED_STR:00000000 CMD_NOT_RECOGNIZED_STR
+C:\Users\JOHNK~1\AppData\Local\Temp\ccyaFPFf.s:2157   .progmem.data.__c.5480:00000000 __c.5480
+                            *COM*:00000010 mm_per_kilostep
+                            *COM*:00000001 rnbProcessingFlag
+                            *COM*:00000004 rnbCmdSentTime
+                            *COM*:00000002 rnbCmdID
+                            *COM*:00000001 rnb_updated
+                            *COM*:00000008 last_good_rnb
+                            *COM*:00000001 cmd_sender_dir
+                            *COM*:00000001 cmd_arrival_dir
+                            *COM*:00000002 cmd_sender_id
+                            *COM*:00000004 cmd_arrival_time
+                            *COM*:00000001 user_facing_messages_ovf
+                            *COM*:00000001 num_waiting_msgs
+                            *COM*:00000001 hp_ir_block_bm
+                            *COM*:00000126 msg_node
+                            *COM*:00000156 ir_rxtx
+                            *COM*:00000002 obsStart
+                            *COM*:00000002 curr_ir_power
+                            *COM*:00000002 twi
+                            *COM*:00000019 twiMaster
+C:\Users\JOHNK~1\AppData\Local\Temp\ccyaFPFf.s:2402   .bss.task_storage_arr:00000000 task_storage_arr
+                            *COM*:00000001 task_executing
+                            *COM*:00000001 num_tasks
+                            *COM*:00000002 task_list
+                            *COM*:00000002 rtc_epoch
+
+UNDEFINED SYMBOLS
+sprintf
+ir_send
+strcmp_P
+strtok
+atoi
+walk
+printf_P
+move_steps
+get_rgb
+set_rgb
+set_all_ir_powers
+schedule_task
+check_collisions
+printf
+puts
+stop_move
+set_mm_per_kilostep
+broadcast_rnb_data
+strcmp
+ir_cmd
+set_hsv
+strcspn
+strncpy
+strcpy
+strtoul
+ir_targeted_cmd
+user_handle_command
+print_task_queue
+ir_targeted_send
+print_motor_values
+print_dist_per_step
+write_motor_settings
+__do_copy_data
+__do_clear_bss

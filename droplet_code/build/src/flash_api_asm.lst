@@ -1,0 +1,26 @@
+   1               	# 1 "../src/flash_api_asm.S"
+   1               	;.section .tex
+   0               	
+   0               	
+   2               	.global LoadR0
+   3               	LoadR0:
+   4 0000 0801      	  movw  r0, r16   ; Load R17:R16 into R1:R0. 
+   5 0002 0895      	  ret 
+   6               	
+   7               	
+   8               	.section .text
+   9               	.global LoadZ
+  10               	LoadZ:
+  11 0004 F801      	  movw  r30, r16    ; Load R17:R16 into Z. 
+  12 0006 0895      	  ret 
+  13               	
+  14               	  .global ReadELPM
+  15               	  ReadELPM:
+  16 0008 0691      	  elpm r16, Z
+  17 000a 0895      	  ret 
+DEFINED SYMBOLS
+../src/flash_api_asm.S:3      .text:00000000 LoadR0
+../src/flash_api_asm.S:10     .text:00000004 LoadZ
+../src/flash_api_asm.S:15     .text:00000008 ReadELPM
+
+NO UNDEFINED SYMBOLS

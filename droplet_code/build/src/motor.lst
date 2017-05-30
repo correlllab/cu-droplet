@@ -1,0 +1,2094 @@
+   1               		.file	"motor.c"
+   2               	__SP_H__ = 0x3e
+   3               	__SP_L__ = 0x3d
+   4               	__SREG__ = 0x3f
+   5               	__RAMPZ__ = 0x3b
+   6               	__CCP__ = 0x34
+   7               	__tmp_reg__ = 0
+   8               	__zero_reg__ = 1
+   9               		.text
+  10               	.Ltext0:
+  11               		.cfi_sections	.debug_frame
+  12               		.section	.text.stop_move,"ax",@progbits
+  13               	.global	stop_move
+  15               	stop_move:
+  16               	.LFB41:
+  17               		.file 1 "../src/motor.c"
+   1:../src/motor.c **** #include "motor.h"
+   2:../src/motor.c **** 
+   3:../src/motor.c **** static volatile uint8_t motor_status;
+   4:../src/motor.c **** static volatile Task_t* current_motor_task;
+   5:../src/motor.c **** 
+   6:../src/motor.c **** static int16_t motor_on_time;
+   7:../src/motor.c **** static int16_t motor_off_time;
+   8:../src/motor.c **** 
+   9:../src/motor.c **** static inline void motor_forward(uint8_t num)
+  10:../src/motor.c **** {
+  11:../src/motor.c **** 	switch(num)
+  12:../src/motor.c **** 	{
+  13:../src/motor.c **** 		#ifdef AUDIO_DROPLET
+  14:../src/motor.c **** 		case 0: printf_P(PSTR("ERROR! motor_fw called with num=0\r\n")); break;
+  15:../src/motor.c **** 		#else
+  16:../src/motor.c **** 		case 0: TCC0.CTRLB |= TC0_CCBEN_bm; TCC0.CTRLC = 0; TCC0.CTRLA = TC_CLKSEL_DIV1024_gc; break;
+  17:../src/motor.c **** 		#endif
+  18:../src/motor.c **** 		case 1: TCC1.CTRLB |= TC1_CCBEN_bm; TCC1.CTRLC = 0; TCC1.CTRLA = TC_CLKSEL_DIV1024_gc; break;
+  19:../src/motor.c **** 		case 2: TCD0.CTRLB |= TC0_CCBEN_bm; TCD0.CTRLC = 0; TCD0.CTRLA = TC_CLKSEL_DIV1024_gc; break;
+  20:../src/motor.c **** 	}
+  21:../src/motor.c **** }
+  22:../src/motor.c **** 
+  23:../src/motor.c **** static inline void motor_backward(uint8_t num)
+  24:../src/motor.c **** {
+  25:../src/motor.c **** 	switch(num)
+  26:../src/motor.c **** 	{
+  27:../src/motor.c **** 		#ifdef AUDIO_DROPLET
+  28:../src/motor.c **** 		case 0: printf_P(PSTR("ERROR! motor_bw called with num=0\r\n")); break;
+  29:../src/motor.c **** 		#else
+  30:../src/motor.c **** 		case 0: TCC0.CTRLB |= TC0_CCAEN_bm; TCC0.CTRLC = 0; TCC0.CTRLA = TC_CLKSEL_DIV1024_gc; break;
+  31:../src/motor.c **** 		#endif
+  32:../src/motor.c **** 		case 1: TCC1.CTRLB |= TC1_CCAEN_bm; TCC1.CTRLC = 0; TCC1.CTRLA = TC_CLKSEL_DIV1024_gc; break;
+  33:../src/motor.c **** 		case 2: TCD0.CTRLB |= TC0_CCAEN_bm; TCD0.CTRLC = 0; TCD0.CTRLA = TC_CLKSEL_DIV1024_gc; break;
+  34:../src/motor.c **** 	}
+  35:../src/motor.c **** }
+  36:../src/motor.c **** 
+  37:../src/motor.c **** 
+  38:../src/motor.c **** void motor_init()
+  39:../src/motor.c **** {
+  40:../src/motor.c **** 	#ifdef AUDIO_DROPLET
+  41:../src/motor.c **** 		PORTC.DIRSET = PIN4_bm | PIN5_bm;
+  42:../src/motor.c **** 	#else
+  43:../src/motor.c **** 		PORTC.DIRSET = PIN0_bm | PIN1_bm | PIN4_bm | PIN5_bm;
+  44:../src/motor.c **** 	#endif
+  45:../src/motor.c **** 	PORTD.DIRSET = PIN0_bm | PIN1_bm; 
+  46:../src/motor.c **** 
+  47:../src/motor.c **** 	#ifndef AUDIO_DROPLET
+  48:../src/motor.c **** 		TCC0.CTRLA = TC_CLKSEL_OFF_gc;
+  49:../src/motor.c **** 		TCC0.CTRLB = TC_WGMODE_SS_gc;
+  50:../src/motor.c **** 	#endif
+  51:../src/motor.c **** 	
+  52:../src/motor.c ****     TCC1.CTRLA = TC_CLKSEL_OFF_gc;
+  53:../src/motor.c ****     TCC1.CTRLB = TC_WGMODE_SS_gc;
+  54:../src/motor.c **** 
+  55:../src/motor.c ****     TCD0.CTRLA = TC_CLKSEL_OFF_gc;
+  56:../src/motor.c ****     TCD0.CTRLB = TC_WGMODE_SS_gc;  
+  57:../src/motor.c **** 	
+  58:../src/motor.c **** 	#ifndef AUDIO_DROPLET
+  59:../src/motor.c **** 	PORTC.PIN0CTRL = PORT_INVEN_bm;
+  60:../src/motor.c **** 	PORTC.PIN1CTRL = PORT_INVEN_bm;
+  61:../src/motor.c **** 	#endif
+  62:../src/motor.c **** 	PORTC.PIN4CTRL = PORT_INVEN_bm;
+  63:../src/motor.c **** 	PORTC.PIN5CTRL = PORT_INVEN_bm;
+  64:../src/motor.c **** 	PORTD.PIN0CTRL = PORT_INVEN_bm;
+  65:../src/motor.c **** 	PORTD.PIN1CTRL = PORT_INVEN_bm;
+  66:../src/motor.c **** 	
+  67:../src/motor.c **** 	#ifndef AUDIO_DROPLET
+  68:../src/motor.c **** 	PORTC.OUTCLR = PIN0_bm | PIN1_bm;
+  69:../src/motor.c **** 	#endif
+  70:../src/motor.c **** 	PORTC.OUTCLR = PIN4_bm | PIN5_bm;
+  71:../src/motor.c **** 	PORTD.OUTCLR = PIN0_bm | PIN1_bm;
+  72:../src/motor.c **** 
+  73:../src/motor.c **** 	motor_status = 0;
+  74:../src/motor.c **** 
+  75:../src/motor.c **** 	motor_on_time = MOTOR_ON_TIME;
+  76:../src/motor.c **** 	motor_off_time = MOTOR_OFF_TIME;
+  77:../src/motor.c **** 	
+  78:../src/motor.c **** 	read_motor_settings();
+  79:../src/motor.c **** }
+  80:../src/motor.c **** 
+  81:../src/motor.c **** uint8_t move_steps(uint8_t direction, uint16_t num_steps)
+  82:../src/motor.c **** {
+  83:../src/motor.c **** 	#ifdef AUDIO_DROPLET
+  84:../src/motor.c **** 		motor_adjusts[direction][0]=0;
+  85:../src/motor.c **** 	#endif
+  86:../src/motor.c **** 	if(is_moving()>=0) return 0;
+  87:../src/motor.c **** 	motor_status = MOTOR_STATUS_ON | (direction & MOTOR_STATUS_DIRECTION);
+  88:../src/motor.c **** 	
+  89:../src/motor.c **** 	uint16_t mot_durs[3]; //This is how long we want each motor to be on for.
+  90:../src/motor.c **** 	int8_t mot_dirs[3]; //This is what direction we want each motor to spin in. 1: CCW, -1: CW, 0: No 
+  91:../src/motor.c **** 	uint16_t total_time = 0; //This is the total length of a step, and will be the period of the PWM g
+  92:../src/motor.c **** 	
+  93:../src/motor.c **** 	for(uint8_t mot=0 ; mot<3 ; mot++)
+  94:../src/motor.c **** 	{	
+  95:../src/motor.c **** 		if(motor_adjusts[direction][mot]==0)
+  96:../src/motor.c **** 		{
+  97:../src/motor.c **** 			mot_durs[mot] = 0;
+  98:../src/motor.c **** 			mot_dirs[mot] = 0;
+  99:../src/motor.c **** 			continue;
+ 100:../src/motor.c **** 		}
+ 101:../src/motor.c **** 		else
+ 102:../src/motor.c **** 		{
+ 103:../src/motor.c **** 			mot_durs[mot] = 32*motor_on_time + abs(motor_adjusts[direction][mot]);			
+ 104:../src/motor.c **** 			mot_dirs[mot] = ((((motor_adjusts[direction][mot]>>15)&0x1)*-2)+1)/**motor_signs[direction][mot]
+ 105:../src/motor.c **** 			total_time += mot_durs[mot] + 32*motor_off_time;
+ 106:../src/motor.c **** 		}
+ 107:../src/motor.c **** 	}
+ 108:../src/motor.c **** 	//printf("Moving in dir: %hu for %u steps. Mot_durs: {%u, %u, %u}. Total_time: %u.\r\n",direction,
+ 109:../src/motor.c **** 	//printf("Mot_dirs: {%hd, %hd, %hd}.\r\n", mot_dirs[0], mot_dirs[1], mot_dirs[2]);
+ 110:../src/motor.c **** 
+ 111:../src/motor.c **** 	#ifdef AUDIO_DROPLET
+ 112:../src/motor.c **** 		TCC1.PER = TCD0.PER = total_time; 
+ 113:../src/motor.c **** 		TCC1.CCA = TCC1.CCB = mot_durs[1]; //motor 1
+ 114:../src/motor.c **** 		TCD0.CCA = TCD0.CCB = mot_durs[2]; //motor 2
+ 115:../src/motor.c **** 	#else
+ 116:../src/motor.c **** 		TCC0.PER = TCC1.PER = TCD0.PER = total_time;
+ 117:../src/motor.c **** 		TCC0.CCA = TCC0.CCB = mot_durs[0]; //motor 0
+ 118:../src/motor.c **** 		TCC1.CCA = TCC1.CCB = mot_durs[1]; //motor 1
+ 119:../src/motor.c **** 		TCD0.CCA = TCD0.CCB = mot_durs[2]; //motor 2
+ 120:../src/motor.c **** 	#endif
+ 121:../src/motor.c **** 	
+ 122:../src/motor.c **** 	uint16_t current_offset = 0;
+ 123:../src/motor.c **** 	
+ 124:../src/motor.c **** 	for(uint8_t mot=0 ; mot<3 ; mot++) //This loops sets up the offsets correctly, so that (for exampl
+ 125:../src/motor.c **** 	{
+ 126:../src/motor.c **** 		if(mot_durs[mot]==0) continue;
+ 127:../src/motor.c **** 		switch(mot)
+ 128:../src/motor.c **** 		{
+ 129:../src/motor.c **** 			#ifdef AUDIO_DROPLET
+ 130:../src/motor.c **** 				case 0: printf_P(PSTR("ERROR! In move_steps, mot_durs[0]!=0\r\n")); break;
+ 131:../src/motor.c **** 			#else
+ 132:../src/motor.c **** 				case 0: TCC0.CNT = ((total_time - current_offset)%total_time); break;
+ 133:../src/motor.c **** 			#endif
+ 134:../src/motor.c **** 			case 1: TCC1.CNT = ((total_time - current_offset)%total_time); break;
+ 135:../src/motor.c **** 			case 2: TCD0.CNT = ((total_time - current_offset)%total_time); break;
+ 136:../src/motor.c **** 		}
+ 137:../src/motor.c **** 		current_offset += mot_durs[mot] + 32*motor_off_time;//If we left the motor on for longer to compe
+ 138:../src/motor.c **** 	}
+ 139:../src/motor.c **** 	
+ 140:../src/motor.c **** 	if(current_offset != total_time) printf_P(PSTR("ERROR: current_offset: %u and total_time: %u not e
+ 141:../src/motor.c **** 	//printf("Just about to turn on motors: %lu\r\n",get_time());
+ 142:../src/motor.c **** 	//TCC0.CTRLFSET = TC_TC0_CMD_RESET_gc;
+ 143:../src/motor.c **** 	//TCC1.CTRLFSET = TC_TC0_CMD_RESET_gc;
+ 144:../src/motor.c **** 	//TCD0.CTRLFSET = TC_TC0_CMD_RESET_gc;
+ 145:../src/motor.c **** 
+ 146:../src/motor.c **** 
+ 147:../src/motor.c **** 	for(uint8_t mot=0 ; mot<3 ; mot++) 	//Now we just need to tell the motors to go!
+ 148:../src/motor.c **** 	{
+ 149:../src/motor.c **** 		if(mot_dirs[mot]<0) motor_backward(mot); 
+ 150:../src/motor.c **** 		else if(mot_dirs[mot]>0)	motor_forward(mot);
+ 151:../src/motor.c **** 	}
+ 152:../src/motor.c **** 	uint32_t total_movement_duration = (((uint32_t)total_time)*((uint32_t)num_steps))/32;
+ 153:../src/motor.c **** 	//printf("Total duration: %lu ms.\r\n\n",total_movement_duration);
+ 154:../src/motor.c **** 	current_motor_task = schedule_task(total_movement_duration, stop_move, NULL);
+ 155:../src/motor.c **** 	if(current_motor_task==NULL) printf_P(PSTR("Error! Failed to schedule stop_move task."));
+ 156:../src/motor.c **** 	return 1;
+ 157:../src/motor.c **** }
+ 158:../src/motor.c **** 
+ 159:../src/motor.c **** void walk(uint8_t direction, uint16_t mm)
+ 160:../src/motor.c **** {
+ 161:../src/motor.c **** 	uint16_t mm_per_kilostep = get_mm_per_kilostep(direction);
+ 162:../src/motor.c **** 	if(abs((0xFFFF-((uint32_t)mm_per_kilostep)))<1000){
+ 163:../src/motor.c **** 		printf_P(PSTR("Error: Don't have calibrated values for this direction.\r\n"));
+ 164:../src/motor.c **** 		if(direction>5){
+ 165:../src/motor.c **** 			mm_per_kilostep = 2000;
+ 166:../src/motor.c **** 		}else{
+ 167:../src/motor.c **** 			mm_per_kilostep = 600;
+ 168:../src/motor.c **** 		}
+ 169:../src/motor.c **** 	}
+ 170:../src/motor.c **** 	float mm_per_step = (1.0*mm_per_kilostep)/1000.0;
+ 171:../src/motor.c **** 	float steps = (1.0*mm)/mm_per_step;
+ 172:../src/motor.c **** 	delay_ms(10);
+ 173:../src/motor.c **** 	printf_P(PSTR("In order to go in direction %hu for %u mm, taking %u steps.\r\n"),direction, mm, (u
+ 174:../src/motor.c **** 	delay_ms(10);
+ 175:../src/motor.c **** 	move_steps(direction, (uint16_t)steps);
+ 176:../src/motor.c **** }
+ 177:../src/motor.c **** 
+ 178:../src/motor.c **** void stop_move()
+ 179:../src/motor.c **** {
+  18               		.loc 1 179 0
+  19               		.cfi_startproc
+  20               	/* prologue: function */
+  21               	/* frame size = 0 */
+  22               	/* stack size = 0 */
+  23               	.L__stack_usage = 0
+ 180:../src/motor.c **** 	//printf("Stopping.\r\n");
+ 181:../src/motor.c **** 	
+ 182:../src/motor.c **** 	#ifndef AUDIO_DROPLET
+ 183:../src/motor.c **** 		TCC0.CTRLB &= ~(TC0_CCAEN_bm | TC0_CCBEN_bm);
+  24               		.loc 1 183 0
+  25 0000 E0E0      		ldi r30,0
+  26 0002 F8E0      		ldi r31,lo8(8)
+  27 0004 8181      		ldd r24,Z+1
+  28 0006 8F7C      		andi r24,lo8(-49)
+  29 0008 8183      		std Z+1,r24
+ 184:../src/motor.c **** 		TCC0.CTRLA = TC_CLKSEL_OFF_gc;
+  30               		.loc 1 184 0
+  31 000a 1082      		st Z,__zero_reg__
+ 185:../src/motor.c **** 	#endif
+ 186:../src/motor.c **** 	TCC1.CTRLB  &= ~(TC1_CCAEN_bm | TC1_CCBEN_bm);
+  32               		.loc 1 186 0
+  33 000c E0E4      		ldi r30,lo8(64)
+  34 000e F8E0      		ldi r31,lo8(8)
+  35 0010 8181      		ldd r24,Z+1
+  36 0012 8F7C      		andi r24,lo8(-49)
+  37 0014 8183      		std Z+1,r24
+ 187:../src/motor.c **** 	TCC1.CTRLA = TC_CLKSEL_OFF_gc;
+  38               		.loc 1 187 0
+  39 0016 1082      		st Z,__zero_reg__
+ 188:../src/motor.c **** 	TCD0.CTRLB  &= ~(TC0_CCAEN_bm | TC0_CCBEN_bm);
+  40               		.loc 1 188 0
+  41 0018 E0E0      		ldi r30,0
+  42 001a F9E0      		ldi r31,lo8(9)
+  43 001c 8181      		ldd r24,Z+1
+  44 001e 8F7C      		andi r24,lo8(-49)
+  45 0020 8183      		std Z+1,r24
+ 189:../src/motor.c **** 	TCD0.CTRLA = TC_CLKSEL_OFF_gc;
+  46               		.loc 1 189 0
+  47 0022 1082      		st Z,__zero_reg__
+ 190:../src/motor.c **** 	
+ 191:../src/motor.c **** 	#ifdef AUDIO_DROPLET
+ 192:../src/motor.c **** 		PORTC.OUTCLR = PIN4_bm | PIN5_bm;
+ 193:../src/motor.c **** 	#else
+ 194:../src/motor.c **** 		PORTC.OUTCLR = PIN0_bm | PIN1_bm | PIN4_bm | PIN5_bm;	
+  48               		.loc 1 194 0
+  49 0024 83E3      		ldi r24,lo8(51)
+  50 0026 8093 4606 		sts 1606,r24
+ 195:../src/motor.c **** 	#endif	
+ 196:../src/motor.c **** 	PORTD.OUTCLR = PIN0_bm | PIN1_bm; 
+  51               		.loc 1 196 0
+  52 002a 83E0      		ldi r24,lo8(3)
+  53 002c 8093 6606 		sts 1638,r24
+ 197:../src/motor.c **** 	
+ 198:../src/motor.c **** 	motor_status = 0;
+  54               		.loc 1 198 0
+  55 0030 1092 0000 		sts motor_status,__zero_reg__
+ 199:../src/motor.c **** 	remove_task((Task_t*)current_motor_task);
+  56               		.loc 1 199 0
+  57 0034 8091 0000 		lds r24,current_motor_task
+  58 0038 9091 0000 		lds r25,current_motor_task+1
+  59 003c 0E94 0000 		call remove_task
+  60               	.LVL0:
+ 200:../src/motor.c **** 	current_motor_task = NULL;
+  61               		.loc 1 200 0
+  62 0040 1092 0000 		sts current_motor_task,__zero_reg__
+  63 0044 1092 0000 		sts current_motor_task+1,__zero_reg__
+  64 0048 0895      		ret
+  65               		.cfi_endproc
+  66               	.LFE41:
+  68               		.section	.text.move_steps,"ax",@progbits
+  69               	.global	move_steps
+  71               	move_steps:
+  72               	.LFB39:
+  82:../src/motor.c **** 	#ifdef AUDIO_DROPLET
+  73               		.loc 1 82 0
+  74               		.cfi_startproc
+  75               	.LVL1:
+  76 0000 8F92      		push r8
+  77               	.LCFI0:
+  78               		.cfi_def_cfa_offset 4
+  79               		.cfi_offset 8, -3
+  80 0002 9F92      		push r9
+  81               	.LCFI1:
+  82               		.cfi_def_cfa_offset 5
+  83               		.cfi_offset 9, -4
+  84 0004 AF92      		push r10
+  85               	.LCFI2:
+  86               		.cfi_def_cfa_offset 6
+  87               		.cfi_offset 10, -5
+  88 0006 BF92      		push r11
+  89               	.LCFI3:
+  90               		.cfi_def_cfa_offset 7
+  91               		.cfi_offset 11, -6
+  92 0008 CF92      		push r12
+  93               	.LCFI4:
+  94               		.cfi_def_cfa_offset 8
+  95               		.cfi_offset 12, -7
+  96 000a DF92      		push r13
+  97               	.LCFI5:
+  98               		.cfi_def_cfa_offset 9
+  99               		.cfi_offset 13, -8
+ 100 000c EF92      		push r14
+ 101               	.LCFI6:
+ 102               		.cfi_def_cfa_offset 10
+ 103               		.cfi_offset 14, -9
+ 104 000e FF92      		push r15
+ 105               	.LCFI7:
+ 106               		.cfi_def_cfa_offset 11
+ 107               		.cfi_offset 15, -10
+ 108 0010 0F93      		push r16
+ 109               	.LCFI8:
+ 110               		.cfi_def_cfa_offset 12
+ 111               		.cfi_offset 16, -11
+ 112 0012 1F93      		push r17
+ 113               	.LCFI9:
+ 114               		.cfi_def_cfa_offset 13
+ 115               		.cfi_offset 17, -12
+ 116 0014 CF93      		push r28
+ 117               	.LCFI10:
+ 118               		.cfi_def_cfa_offset 14
+ 119               		.cfi_offset 28, -13
+ 120 0016 DF93      		push r29
+ 121               	.LCFI11:
+ 122               		.cfi_def_cfa_offset 15
+ 123               		.cfi_offset 29, -14
+ 124 0018 CDB7      		in r28,__SP_L__
+ 125 001a DEB7      		in r29,__SP_H__
+ 126               	.LCFI12:
+ 127               		.cfi_def_cfa_register 28
+ 128 001c 2997      		sbiw r28,9
+ 129               	.LCFI13:
+ 130               		.cfi_def_cfa_offset 24
+ 131 001e CDBF      		out __SP_L__,r28
+ 132 0020 DEBF      		out __SP_H__,r29
+ 133               	/* prologue: function */
+ 134               	/* frame size = 9 */
+ 135               	/* stack size = 21 */
+ 136               	.L__stack_usage = 21
+ 137 0022 6B01      		movw r12,r22
+ 138               	.LBB35:
+ 139               	.LBB36:
+ 201:../src/motor.c **** }
+ 202:../src/motor.c **** 
+ 203:../src/motor.c **** int8_t is_moving() // returns -1 if droplet is not moving, movement dir otherwise.
+ 204:../src/motor.c **** {
+ 205:../src/motor.c **** 	if (motor_status & MOTOR_STATUS_ON){
+ 140               		.loc 1 205 0
+ 141 0024 9091 0000 		lds r25,motor_status
+ 142 0028 97FD      		sbrc r25,7
+ 143 002a 00C0      		rjmp .L41
+ 144               	.LVL2:
+ 145               	.LBE36:
+ 146               	.LBE35:
+ 147               	.LBB38:
+ 148               	.LBB39:
+  87:../src/motor.c **** 	
+ 149               		.loc 1 87 0
+ 150 002c 982F      		mov r25,r24
+ 151 002e 9770      		andi r25,lo8(7)
+ 152 0030 9068      		ori r25,lo8(-128)
+ 153 0032 9093 0000 		sts motor_status,r25
+ 154               	.LVL3:
+ 155 0036 6091 0000 		lds r22,motor_on_time
+ 156 003a 7091 0000 		lds r23,motor_on_time+1
+ 157               	.LVL4:
+ 158 003e 660F      		lsl r22
+ 159 0040 771F      		rol r23
+ 160 0042 6295      		swap r22
+ 161 0044 7295      		swap r23
+ 162 0046 707F      		andi r23,0xf0
+ 163 0048 7627      		eor r23,r22
+ 164 004a 607F      		andi r22,0xf0
+ 165 004c 7627      		eor r23,r22
+ 166               	.LBB40:
+ 105:../src/motor.c **** 		}
+ 167               		.loc 1 105 0
+ 168 004e A090 0000 		lds r10,motor_off_time
+ 169 0052 B090 0000 		lds r11,motor_off_time+1
+ 170 0056 AA0C      		lsl r10
+ 171 0058 BB1C      		rol r11
+ 172 005a A294      		swap r10
+ 173 005c B294      		swap r11
+ 174 005e 40EF      		ldi r20,0xf0
+ 175 0060 B422      		and r11,r20
+ 176 0062 BA24      		eor r11,r10
+ 177 0064 A422      		and r10,r20
+ 178 0066 BA24      		eor r11,r10
+ 179 0068 96E0      		ldi r25,lo8(6)
+ 180 006a 899F      		mul r24,r25
+ 181 006c F001      		movw r30,r0
+ 182 006e 1124      		clr __zero_reg__
+ 183 0070 DF01      		movw r26,r30
+ 184 0072 A050      		subi r26,lo8(-(motor_adjusts))
+ 185 0074 B040      		sbci r27,hi8(-(motor_adjusts))
+ 186 0076 4D01      		movw r8,r26
+ 187 0078 DE01      		movw r26,r28
+ 188 007a 1196      		adiw r26,1
+ 189 007c 7E01      		movw r14,r28
+ 190 007e E7E0      		ldi r30,7
+ 191 0080 EE0E      		add r14,r30
+ 192 0082 F11C      		adc r15,__zero_reg__
+ 193 0084 C701      		movw r24,r14
+ 194               	.LVL5:
+ 195               	.LBE40:
+  91:../src/motor.c **** 	
+ 196               		.loc 1 91 0
+ 197 0086 00E0      		ldi r16,0
+ 198 0088 10E0      		ldi r17,0
+ 199               	.LVL6:
+ 200               	.L8:
+ 201               	.LBB41:
+  95:../src/motor.c **** 		{
+ 202               		.loc 1 95 0
+ 203 008a F401      		movw r30,r8
+ 204 008c 2191      		ld r18,Z+
+ 205 008e 3191      		ld r19,Z+
+ 206 0090 4F01      		movw r8,r30
+ 207 0092 2115      		cp r18,__zero_reg__
+ 208 0094 3105      		cpc r19,__zero_reg__
+ 209 0096 01F0      		breq .+2
+ 210 0098 00C0      		rjmp .L5
+  97:../src/motor.c **** 			mot_dirs[mot] = 0;
+ 211               		.loc 1 97 0
+ 212 009a 1D92      		st X+,__zero_reg__
+ 213 009c 1C92      		st X,__zero_reg__
+ 214 009e 1197      		sbiw r26,1
+  98:../src/motor.c **** 			continue;
+ 215               		.loc 1 98 0
+ 216 00a0 FC01      		movw r30,r24
+ 217 00a2 1082      		st Z,__zero_reg__
+ 218               	.L6:
+ 219 00a4 1296      		adiw r26,2
+ 220 00a6 0196      		adiw r24,1
+  93:../src/motor.c **** 	{	
+ 221               		.loc 1 93 0
+ 222 00a8 AE15      		cp r26,r14
+ 223 00aa BF05      		cpc r27,r15
+ 224 00ac 01F4      		brne .L8
+ 225               	.LBE41:
+ 116:../src/motor.c **** 		TCC0.CCA = TCC0.CCB = mot_durs[0]; //motor 0
+ 226               		.loc 1 116 0
+ 227 00ae 0093 2609 		sts 2342,r16
+ 228 00b2 1093 2709 		sts 2342+1,r17
+ 229 00b6 0093 6608 		sts 2150,r16
+ 230 00ba 1093 6708 		sts 2150+1,r17
+ 231 00be 0093 2608 		sts 2086,r16
+ 232 00c2 1093 2708 		sts 2086+1,r17
+ 117:../src/motor.c **** 		TCC1.CCA = TCC1.CCB = mot_durs[1]; //motor 1
+ 233               		.loc 1 117 0
+ 234 00c6 E981      		ldd r30,Y+1
+ 235 00c8 FA81      		ldd r31,Y+2
+ 236 00ca E093 2A08 		sts 2090,r30
+ 237 00ce F093 2B08 		sts 2090+1,r31
+ 238 00d2 E093 2808 		sts 2088,r30
+ 239 00d6 F093 2908 		sts 2088+1,r31
+ 118:../src/motor.c **** 		TCD0.CCA = TCD0.CCB = mot_durs[2]; //motor 2
+ 240               		.loc 1 118 0
+ 241 00da 8B81      		ldd r24,Y+3
+ 242 00dc 9C81      		ldd r25,Y+4
+ 243 00de 8093 6A08 		sts 2154,r24
+ 244 00e2 9093 6B08 		sts 2154+1,r25
+ 245 00e6 8093 6808 		sts 2152,r24
+ 246 00ea 9093 6908 		sts 2152+1,r25
+ 119:../src/motor.c **** 	#endif
+ 247               		.loc 1 119 0
+ 248 00ee 8D81      		ldd r24,Y+5
+ 249 00f0 9E81      		ldd r25,Y+6
+ 250 00f2 8093 2A09 		sts 2346,r24
+ 251 00f6 9093 2B09 		sts 2346+1,r25
+ 252 00fa 8093 2809 		sts 2344,r24
+ 253 00fe 9093 2909 		sts 2344+1,r25
+ 254               	.LVL7:
+ 255               	.LBB42:
+ 137:../src/motor.c **** 	}
+ 256               		.loc 1 137 0
+ 257 0102 8090 0000 		lds r8,motor_off_time
+ 258 0106 9090 0000 		lds r9,motor_off_time+1
+ 259 010a 880C      		lsl r8
+ 260 010c 991C      		rol r9
+ 261 010e 8294      		swap r8
+ 262 0110 9294      		swap r9
+ 263 0112 50EF      		ldi r21,0xf0
+ 264 0114 9522      		and r9,r21
+ 265 0116 9824      		eor r9,r8
+ 266 0118 8522      		and r8,r21
+ 267 011a 9824      		eor r9,r8
+ 268 011c 5E01      		movw r10,r28
+ 269 011e 83E0      		ldi r24,3
+ 270 0120 A80E      		add r10,r24
+ 271 0122 B11C      		adc r11,__zero_reg__
+ 272               	.LBE42:
+ 122:../src/motor.c **** 	
+ 273               		.loc 1 122 0
+ 274 0124 20E0      		ldi r18,0
+ 275 0126 30E0      		ldi r19,0
+ 276               	.LBB43:
+ 124:../src/motor.c **** 	{
+ 277               		.loc 1 124 0
+ 278 0128 40E0      		ldi r20,0
+ 279               	.LVL8:
+ 280               	.L15:
+ 126:../src/motor.c **** 		switch(mot)
+ 281               		.loc 1 126 0
+ 282 012a 3097      		sbiw r30,0
+ 283 012c 01F0      		breq .L9
+ 134:../src/motor.c **** 			case 2: TCD0.CNT = ((total_time - current_offset)%total_time); break;
+ 284               		.loc 1 134 0
+ 285 012e C801      		movw r24,r16
+ 286 0130 821B      		sub r24,r18
+ 287 0132 930B      		sbc r25,r19
+ 288 0134 B801      		movw r22,r16
+ 289 0136 0E94 0000 		call __udivmodhi4
+ 127:../src/motor.c **** 		{
+ 290               		.loc 1 127 0
+ 291 013a 4130      		cpi r20,lo8(1)
+ 292 013c 01F4      		brne .+2
+ 293 013e 00C0      		rjmp .L11
+ 294 0140 4230      		cpi r20,lo8(2)
+ 295 0142 01F4      		brne .+2
+ 296 0144 00C0      		rjmp .L12
+ 132:../src/motor.c **** 			#endif
+ 297               		.loc 1 132 0
+ 298 0146 8093 2008 		sts 2080,r24
+ 299 014a 9093 2108 		sts 2080+1,r25
+ 300               	.L13:
+ 301 014e 2E0F      		add r18,r30
+ 302 0150 3F1F      		adc r19,r31
+ 303               	.LVL9:
+ 137:../src/motor.c **** 	}
+ 304               		.loc 1 137 0
+ 305 0152 280D      		add r18,r8
+ 306 0154 391D      		adc r19,r9
+ 307               	.LVL10:
+ 308               	.L9:
+ 124:../src/motor.c **** 	{
+ 309               		.loc 1 124 0
+ 310 0156 4F5F      		subi r20,lo8(-(1))
+ 311               	.LVL11:
+ 312 0158 4330      		cpi r20,lo8(3)
+ 313 015a 01F0      		breq .L14
+ 314 015c D501      		movw r26,r10
+ 315 015e ED91      		ld r30,X+
+ 316 0160 FD91      		ld r31,X+
+ 317 0162 5D01      		movw r10,r26
+ 318 0164 00C0      		rjmp .L15
+ 319               	.LVL12:
+ 320               	.L5:
+ 321               	.LBE43:
+ 322               	.LBB44:
+ 103:../src/motor.c **** 			mot_dirs[mot] = ((((motor_adjusts[direction][mot]>>15)&0x1)*-2)+1)/**motor_signs[direction][mot]
+ 323               		.loc 1 103 0
+ 324 0166 A901      		movw r20,r18
+ 325 0168 37FD      		sbrc r19,7
+ 326 016a 00C0      		rjmp .L42
+ 327               	.L7:
+ 328 016c 460F      		add r20,r22
+ 329 016e 571F      		adc r21,r23
+ 330 0170 4D93      		st X+,r20
+ 331 0172 5C93      		st X,r21
+ 332 0174 1197      		sbiw r26,1
+ 104:../src/motor.c **** 			total_time += mot_durs[mot] + 32*motor_off_time;
+ 333               		.loc 1 104 0
+ 334 0176 232F      		mov r18,r19
+ 335 0178 220F      		lsl r18
+ 336 017a 220B      		sbc r18,r18
+ 337 017c 220F      		lsl r18
+ 338 017e 2F5F      		subi r18,lo8(-(1))
+ 339 0180 FC01      		movw r30,r24
+ 340 0182 2083      		st Z,r18
+ 341 0184 0A0D      		add r16,r10
+ 342 0186 1B1D      		adc r17,r11
+ 343               	.LVL13:
+ 105:../src/motor.c **** 		}
+ 344               		.loc 1 105 0
+ 345 0188 040F      		add r16,r20
+ 346 018a 151F      		adc r17,r21
+ 347               	.LVL14:
+ 348 018c 00C0      		rjmp .L6
+ 349               	.LVL15:
+ 350               	.L14:
+ 351               	.LBE44:
+ 140:../src/motor.c **** 	//printf("Just about to turn on motors: %lu\r\n",get_time());
+ 352               		.loc 1 140 0
+ 353 018e 0217      		cp r16,r18
+ 354 0190 1307      		cpc r17,r19
+ 355 0192 01F0      		breq .L16
+ 356 0194 1F93      		push r17
+ 357 0196 0F93      		push r16
+ 358 0198 3F93      		push r19
+ 359 019a 2F93      		push r18
+ 360 019c 80E0      		ldi r24,lo8(__c.4927)
+ 361 019e 90E0      		ldi r25,hi8(__c.4927)
+ 362 01a0 9F93      		push r25
+ 363 01a2 8F93      		push r24
+ 364 01a4 0E94 0000 		call printf_P
+ 365               	.LVL16:
+ 366 01a8 0F90      		pop __tmp_reg__
+ 367 01aa 0F90      		pop __tmp_reg__
+ 368 01ac 0F90      		pop __tmp_reg__
+ 369 01ae 0F90      		pop __tmp_reg__
+ 370 01b0 0F90      		pop __tmp_reg__
+ 371 01b2 0F90      		pop __tmp_reg__
+ 372               	.L16:
+ 373               	.LVL17:
+ 374               	.LBB45:
+ 124:../src/motor.c **** 	{
+ 375               		.loc 1 124 0
+ 376 01b4 80E0      		ldi r24,0
+ 377 01b6 90E0      		ldi r25,0
+ 378               	.LBE45:
+ 379               	.LBB46:
+ 380               	.LBB47:
+ 381               	.LBB48:
+  18:../src/motor.c **** 		case 2: TCD0.CTRLB |= TC0_CCBEN_bm; TCD0.CTRLC = 0; TCD0.CTRLA = TC_CLKSEL_DIV1024_gc; break;
+ 382               		.loc 1 18 0
+ 383 01b8 47E0      		ldi r20,lo8(7)
+ 384               	.LVL18:
+ 385               	.L17:
+ 386 01ba 382F      		mov r19,r24
+ 387               	.LVL19:
+ 388               	.LBE48:
+ 389               	.LBE47:
+ 149:../src/motor.c **** 		else if(mot_dirs[mot]>0)	motor_forward(mot);
+ 390               		.loc 1 149 0
+ 391 01bc F701      		movw r30,r14
+ 392 01be 2191      		ld r18,Z+
+ 393 01c0 7F01      		movw r14,r30
+ 394 01c2 0196      		adiw r24,1
+ 395               	.LVL20:
+ 396 01c4 27FD      		sbrc r18,7
+ 397 01c6 00C0      		rjmp .L43
+ 150:../src/motor.c **** 	}
+ 398               		.loc 1 150 0
+ 399 01c8 2223      		tst r18
+ 400 01ca 01F0      		breq .L22
+ 401               	.LVL21:
+ 402               	.LBB52:
+ 403               	.LBB49:
+  11:../src/motor.c **** 	{
+ 404               		.loc 1 11 0
+ 405 01cc 3130      		cpi r19,lo8(1)
+ 406 01ce 01F4      		brne .+2
+ 407 01d0 00C0      		rjmp .L26
+ 408 01d2 3230      		cpi r19,lo8(2)
+ 409 01d4 01F0      		breq .+2
+ 410 01d6 00C0      		rjmp .L44
+  19:../src/motor.c **** 	}
+ 411               		.loc 1 19 0
+ 412 01d8 8091 0109 		lds r24,2305
+ 413               	.LVL22:
+ 414 01dc 8062      		ori r24,lo8(32)
+ 415 01de 8093 0109 		sts 2305,r24
+ 416 01e2 1092 0209 		sts 2306,__zero_reg__
+ 417 01e6 87E0      		ldi r24,lo8(7)
+ 418 01e8 8093 0009 		sts 2304,r24
+ 419 01ec 00C0      		rjmp .L24
+ 420               	.LVL23:
+ 421               	.L43:
+ 422               	.LBE49:
+ 423               	.LBE52:
+ 424               	.LBB53:
+ 425               	.LBB54:
+  25:../src/motor.c **** 	{
+ 426               		.loc 1 25 0
+ 427 01ee 3130      		cpi r19,lo8(1)
+ 428 01f0 01F4      		brne .+2
+ 429 01f2 00C0      		rjmp .L20
+ 430 01f4 3230      		cpi r19,lo8(2)
+ 431 01f6 01F4      		brne .+2
+ 432 01f8 00C0      		rjmp .L21
+  30:../src/motor.c **** 		#endif
+ 433               		.loc 1 30 0
+ 434 01fa 2091 0108 		lds r18,2049
+ 435 01fe 2061      		ori r18,lo8(16)
+ 436 0200 2093 0108 		sts 2049,r18
+ 437 0204 1092 0208 		sts 2050,__zero_reg__
+ 438 0208 4093 0008 		sts 2048,r20
+ 439               	.LVL24:
+ 440               	.L22:
+ 441               	.LBE54:
+ 442               	.LBE53:
+ 147:../src/motor.c **** 	{
+ 443               		.loc 1 147 0
+ 444 020c 8330      		cpi r24,lo8(3)
+ 445 020e 01F4      		brne .L17
+ 446               	.LVL25:
+ 447               	.L24:
+ 448               	.LBE46:
+ 154:../src/motor.c **** 	if(current_motor_task==NULL) printf_P(PSTR("Error! Failed to schedule stop_move task."));
+ 449               		.loc 1 154 0
+ 450 0210 9801      		movw r18,r16
+ 451 0212 D601      		movw r26,r12
+ 452 0214 0E94 0000 		call __umulhisi3
+ 453 0218 25E0      		ldi r18,5
+ 454               		1:
+ 455 021a 9695      		lsr r25
+ 456 021c 8795      		ror r24
+ 457 021e 7795      		ror r23
+ 458 0220 6795      		ror r22
+ 459 0222 2A95      		dec r18
+ 460 0224 01F4      		brne 1b
+ 461               	.LVL26:
+ 462 0226 20E0      		ldi r18,0
+ 463 0228 30E0      		ldi r19,0
+ 464 022a 40E0      		ldi r20,lo8(gs(stop_move))
+ 465 022c 50E0      		ldi r21,hi8(gs(stop_move))
+ 466 022e 0E94 0000 		call schedule_task
+ 467               	.LVL27:
+ 468 0232 8093 0000 		sts current_motor_task,r24
+ 469 0236 9093 0000 		sts current_motor_task+1,r25
+ 155:../src/motor.c **** 	return 1;
+ 470               		.loc 1 155 0
+ 471 023a 892B      		or r24,r25
+ 472 023c 01F4      		brne .+2
+ 473 023e 00C0      		rjmp .L45
+ 474               	.L30:
+ 475               	.LVL28:
+ 476 0240 81E0      		ldi r24,lo8(1)
+ 477               	.L38:
+ 478               	/* epilogue start */
+ 479               	.LBE39:
+ 480               	.LBE38:
+ 157:../src/motor.c **** 
+ 481               		.loc 1 157 0
+ 482 0242 2996      		adiw r28,9
+ 483 0244 CDBF      		out __SP_L__,r28
+ 484 0246 DEBF      		out __SP_H__,r29
+ 485 0248 DF91      		pop r29
+ 486 024a CF91      		pop r28
+ 487 024c 1F91      		pop r17
+ 488 024e 0F91      		pop r16
+ 489 0250 FF90      		pop r15
+ 490 0252 EF90      		pop r14
+ 491 0254 DF90      		pop r13
+ 492 0256 CF90      		pop r12
+ 493               	.LVL29:
+ 494 0258 BF90      		pop r11
+ 495 025a AF90      		pop r10
+ 496 025c 9F90      		pop r9
+ 497 025e 8F90      		pop r8
+ 498 0260 0895      		ret
+ 499               	.LVL30:
+ 500               	.L41:
+ 501               	.LBB68:
+ 502               	.LBB37:
+ 206:../src/motor.c **** 		return (motor_status & MOTOR_STATUS_DIRECTION);
+ 503               		.loc 1 206 0
+ 504 0262 8091 0000 		lds r24,motor_status
+ 505               	.LVL31:
+ 506               	.LBE37:
+ 507               	.LBE68:
+  86:../src/motor.c **** 	motor_status = MOTOR_STATUS_ON | (direction & MOTOR_STATUS_DIRECTION);
+ 508               		.loc 1 86 0
+ 509 0266 80E0      		ldi r24,0
+ 510 0268 00C0      		rjmp .L38
+ 511               	.LVL32:
+ 512               	.L12:
+ 513               	.LBB69:
+ 514               	.LBB67:
+ 515               	.LBB61:
+ 135:../src/motor.c **** 		}
+ 516               		.loc 1 135 0
+ 517 026a 8093 2009 		sts 2336,r24
+ 518 026e 9093 2109 		sts 2336+1,r25
+ 519 0272 00C0      		rjmp .L13
+ 520               	.LVL33:
+ 521               	.L44:
+ 522               	.LBE61:
+ 523               	.LBB62:
+ 524               	.LBB57:
+ 525               	.LBB50:
+  16:../src/motor.c **** 		#endif
+ 526               		.loc 1 16 0
+ 527 0274 2091 0108 		lds r18,2049
+ 528 0278 2062      		ori r18,lo8(32)
+ 529 027a 2093 0108 		sts 2049,r18
+ 530 027e 1092 0208 		sts 2050,__zero_reg__
+ 531 0282 4093 0008 		sts 2048,r20
+ 532 0286 00C0      		rjmp .L22
+ 533               	.LVL34:
+ 534               	.L42:
+ 535               	.LBE50:
+ 536               	.LBE57:
+ 537               	.LBE62:
+ 538               	.LBB63:
+ 103:../src/motor.c **** 			mot_dirs[mot] = ((((motor_adjusts[direction][mot]>>15)&0x1)*-2)+1)/**motor_signs[direction][mot]
+ 539               		.loc 1 103 0
+ 540 0288 4427      		clr r20
+ 541 028a 5527      		clr r21
+ 542 028c 421B      		sub r20,r18
+ 543 028e 530B      		sbc r21,r19
+ 544 0290 00C0      		rjmp .L7
+ 545               	.LVL35:
+ 546               	.L11:
+ 547               	.LBE63:
+ 548               	.LBB64:
+ 134:../src/motor.c **** 			case 2: TCD0.CNT = ((total_time - current_offset)%total_time); break;
+ 549               		.loc 1 134 0
+ 550 0292 8093 6008 		sts 2144,r24
+ 551 0296 9093 6108 		sts 2144+1,r25
+ 552 029a 00C0      		rjmp .L13
+ 553               	.LVL36:
+ 554               	.L26:
+ 555               	.LBE64:
+ 556               	.LBB65:
+ 557               	.LBB58:
+ 558               	.LBB51:
+  18:../src/motor.c **** 		case 2: TCD0.CTRLB |= TC0_CCBEN_bm; TCD0.CTRLC = 0; TCD0.CTRLA = TC_CLKSEL_DIV1024_gc; break;
+ 559               		.loc 1 18 0
+ 560 029c 2091 4108 		lds r18,2113
+ 561 02a0 2062      		ori r18,lo8(32)
+ 562 02a2 2093 4108 		sts 2113,r18
+ 563 02a6 1092 4208 		sts 2114,__zero_reg__
+ 564 02aa 4093 4008 		sts 2112,r20
+ 565 02ae 00C0      		rjmp .L17
+ 566               	.LVL37:
+ 567               	.L21:
+ 568               	.LBE51:
+ 569               	.LBE58:
+ 570               	.LBB59:
+ 571               	.LBB55:
+  33:../src/motor.c **** 	}
+ 572               		.loc 1 33 0
+ 573 02b0 8091 0109 		lds r24,2305
+ 574               	.LVL38:
+ 575 02b4 8061      		ori r24,lo8(16)
+ 576 02b6 8093 0109 		sts 2305,r24
+ 577 02ba 1092 0209 		sts 2306,__zero_reg__
+ 578 02be 87E0      		ldi r24,lo8(7)
+ 579 02c0 8093 0009 		sts 2304,r24
+ 580 02c4 00C0      		rjmp .L24
+ 581               	.LVL39:
+ 582               	.L45:
+ 583               	.LBE55:
+ 584               	.LBE59:
+ 585               	.LBE65:
+ 155:../src/motor.c **** 	return 1;
+ 586               		.loc 1 155 0
+ 587 02c6 80E0      		ldi r24,lo8(__c.4934)
+ 588 02c8 90E0      		ldi r25,hi8(__c.4934)
+ 589 02ca 9F93      		push r25
+ 590 02cc 8F93      		push r24
+ 591 02ce 0E94 0000 		call printf_P
+ 592               	.LVL40:
+ 593 02d2 0F90      		pop __tmp_reg__
+ 594 02d4 0F90      		pop __tmp_reg__
+ 595 02d6 00C0      		rjmp .L30
+ 596               	.LVL41:
+ 597               	.L20:
+ 598               	.LBB66:
+ 599               	.LBB60:
+ 600               	.LBB56:
+  32:../src/motor.c **** 		case 2: TCD0.CTRLB |= TC0_CCAEN_bm; TCD0.CTRLC = 0; TCD0.CTRLA = TC_CLKSEL_DIV1024_gc; break;
+ 601               		.loc 1 32 0
+ 602 02d8 2091 4108 		lds r18,2113
+ 603 02dc 2061      		ori r18,lo8(16)
+ 604 02de 2093 4108 		sts 2113,r18
+ 605 02e2 1092 4208 		sts 2114,__zero_reg__
+ 606 02e6 4093 4008 		sts 2112,r20
+ 607 02ea 00C0      		rjmp .L17
+ 608               	.LBE56:
+ 609               	.LBE60:
+ 610               	.LBE66:
+ 611               	.LBE67:
+ 612               	.LBE69:
+ 613               		.cfi_endproc
+ 614               	.LFE39:
+ 616               	.global	__floatunsisf
+ 617               	.global	__divsf3
+ 618               	.global	__fixunssfsi
+ 619               		.section	.text.walk,"ax",@progbits
+ 620               	.global	walk
+ 622               	walk:
+ 623               	.LFB40:
+ 160:../src/motor.c **** 	uint16_t mm_per_kilostep = get_mm_per_kilostep(direction);
+ 624               		.loc 1 160 0
+ 625               		.cfi_startproc
+ 626               	.LVL42:
+ 627 0000 CF92      		push r12
+ 628               	.LCFI14:
+ 629               		.cfi_def_cfa_offset 4
+ 630               		.cfi_offset 12, -3
+ 631 0002 DF92      		push r13
+ 632               	.LCFI15:
+ 633               		.cfi_def_cfa_offset 5
+ 634               		.cfi_offset 13, -4
+ 635 0004 EF92      		push r14
+ 636               	.LCFI16:
+ 637               		.cfi_def_cfa_offset 6
+ 638               		.cfi_offset 14, -5
+ 639 0006 FF92      		push r15
+ 640               	.LCFI17:
+ 641               		.cfi_def_cfa_offset 7
+ 642               		.cfi_offset 15, -6
+ 643 0008 0F93      		push r16
+ 644               	.LCFI18:
+ 645               		.cfi_def_cfa_offset 8
+ 646               		.cfi_offset 16, -7
+ 647 000a 1F93      		push r17
+ 648               	.LCFI19:
+ 649               		.cfi_def_cfa_offset 9
+ 650               		.cfi_offset 17, -8
+ 651 000c CF93      		push r28
+ 652               	.LCFI20:
+ 653               		.cfi_def_cfa_offset 10
+ 654               		.cfi_offset 28, -9
+ 655 000e DF93      		push r29
+ 656               	.LCFI21:
+ 657               		.cfi_def_cfa_offset 11
+ 658               		.cfi_offset 29, -10
+ 659               	/* prologue: function */
+ 660               	/* frame size = 0 */
+ 661               	/* stack size = 8 */
+ 662               	.L__stack_usage = 8
+ 663 0010 182F      		mov r17,r24
+ 664 0012 EB01      		movw r28,r22
+ 665               	.LVL43:
+ 666               	.LBB70:
+ 667               	.LBB71:
+ 207:../src/motor.c **** 	}	
+ 208:../src/motor.c **** 	return -1;
+ 209:../src/motor.c **** }
+ 210:../src/motor.c **** 
+ 211:../src/motor.c **** uint16_t get_mm_per_kilostep(uint8_t direction)
+ 212:../src/motor.c **** {
+ 213:../src/motor.c **** 	return mm_per_kilostep[direction];
+ 668               		.loc 1 213 0
+ 669 0014 E82F      		mov r30,r24
+ 670 0016 F0E0      		ldi r31,0
+ 671 0018 EE0F      		lsl r30
+ 672 001a FF1F      		rol r31
+ 673 001c E050      		subi r30,lo8(-(mm_per_kilostep))
+ 674 001e F040      		sbci r31,hi8(-(mm_per_kilostep))
+ 675 0020 6081      		ld r22,Z
+ 676 0022 7181      		ldd r23,Z+1
+ 677               	.LVL44:
+ 678               	.LBE71:
+ 679               	.LBE70:
+ 162:../src/motor.c **** 		printf_P(PSTR("Error: Don't have calibrated values for this direction.\r\n"));
+ 680               		.loc 1 162 0
+ 681 0024 673E      		cpi r22,-25
+ 682 0026 83E0      		ldi r24,3
+ 683 0028 7807      		cpc r23,r24
+ 684               	.LVL45:
+ 685 002a 04F4      		brge .L51
+ 162:../src/motor.c **** 		printf_P(PSTR("Error: Don't have calibrated values for this direction.\r\n"));
+ 686               		.loc 1 162 0 is_stmt 0 discriminator 1
+ 687 002c 6831      		cpi r22,24
+ 688 002e 9CEF      		ldi r25,-4
+ 689 0030 7907      		cpc r23,r25
+ 690 0032 04F0      		brlt .+2
+ 691 0034 00C0      		rjmp .L49
+ 692               	.L51:
+ 693 0036 80E0      		ldi r24,0
+ 694 0038 90E0      		ldi r25,0
+ 695 003a 0E94 0000 		call __floatunsisf
+ 696               	.LVL46:
+ 697 003e 20E0      		ldi r18,0
+ 698 0040 30E0      		ldi r19,0
+ 699 0042 4AE7      		ldi r20,lo8(122)
+ 700 0044 54E4      		ldi r21,lo8(68)
+ 701 0046 0E94 0000 		call __divsf3
+ 702               	.LVL47:
+ 703 004a 6B01      		movw r12,r22
+ 704 004c 7C01      		movw r14,r24
+ 705               	.L48:
+ 706               	.LVL48:
+ 171:../src/motor.c **** 	delay_ms(10);
+ 707               		.loc 1 171 0 is_stmt 1
+ 708 004e BE01      		movw r22,r28
+ 709 0050 80E0      		ldi r24,0
+ 710 0052 90E0      		ldi r25,0
+ 711 0054 0E94 0000 		call __floatunsisf
+ 712               	.LVL49:
+ 713 0058 A701      		movw r20,r14
+ 714 005a 9601      		movw r18,r12
+ 715 005c 0E94 0000 		call __divsf3
+ 716               	.LVL50:
+ 717 0060 6B01      		movw r12,r22
+ 718 0062 7C01      		movw r14,r24
+ 719               	.LVL51:
+ 172:../src/motor.c **** 	printf_P(PSTR("In order to go in direction %hu for %u mm, taking %u steps.\r\n"),direction, mm, (u
+ 720               		.loc 1 172 0
+ 721 0064 8AE0      		ldi r24,lo8(10)
+ 722 0066 90E0      		ldi r25,0
+ 723 0068 0E94 0000 		call delay_ms
+ 724               	.LVL52:
+ 173:../src/motor.c **** 	delay_ms(10);
+ 725               		.loc 1 173 0
+ 726 006c C701      		movw r24,r14
+ 727 006e B601      		movw r22,r12
+ 728 0070 0E94 0000 		call __fixunssfsi
+ 729               	.LVL53:
+ 730 0074 F62E      		mov r15,r22
+ 731 0076 072F      		mov r16,r23
+ 732 0078 7F93      		push r23
+ 733               	.LCFI22:
+ 734               		.cfi_def_cfa_offset 12
+ 735 007a 6F93      		push r22
+ 736               	.LCFI23:
+ 737               		.cfi_def_cfa_offset 13
+ 738 007c DF93      		push r29
+ 739               	.LCFI24:
+ 740               		.cfi_def_cfa_offset 14
+ 741 007e CF93      		push r28
+ 742               	.LCFI25:
+ 743               		.cfi_def_cfa_offset 15
+ 744 0080 1F92      		push __zero_reg__
+ 745               	.LCFI26:
+ 746               		.cfi_def_cfa_offset 16
+ 747 0082 1F93      		push r17
+ 748               	.LCFI27:
+ 749               		.cfi_def_cfa_offset 17
+ 750 0084 80E0      		ldi r24,lo8(__c.4945)
+ 751 0086 90E0      		ldi r25,hi8(__c.4945)
+ 752 0088 9F93      		push r25
+ 753               	.LCFI28:
+ 754               		.cfi_def_cfa_offset 18
+ 755 008a 8F93      		push r24
+ 756               	.LCFI29:
+ 757               		.cfi_def_cfa_offset 19
+ 758 008c 0E94 0000 		call printf_P
+ 759               	.LVL54:
+ 174:../src/motor.c **** 	move_steps(direction, (uint16_t)steps);
+ 760               		.loc 1 174 0
+ 761 0090 8AE0      		ldi r24,lo8(10)
+ 762 0092 90E0      		ldi r25,0
+ 763 0094 0E94 0000 		call delay_ms
+ 764               	.LVL55:
+ 175:../src/motor.c **** }
+ 765               		.loc 1 175 0
+ 766 0098 8DB7      		in r24,__SP_L__
+ 767 009a 9EB7      		in r25,__SP_H__
+ 768 009c 0896      		adiw r24,8
+ 769 009e 8DBF      		out __SP_L__,r24
+ 770 00a0 9EBF      		out __SP_H__,r25
+ 771               	.LCFI30:
+ 772               		.cfi_def_cfa_offset 11
+ 773 00a2 6F2D      		mov r22,r15
+ 774 00a4 702F      		mov r23,r16
+ 775 00a6 812F      		mov r24,r17
+ 776               	/* epilogue start */
+ 176:../src/motor.c **** 
+ 777               		.loc 1 176 0
+ 778 00a8 DF91      		pop r29
+ 779 00aa CF91      		pop r28
+ 780               	.LVL56:
+ 781 00ac 1F91      		pop r17
+ 782               	.LVL57:
+ 783 00ae 0F91      		pop r16
+ 784 00b0 FF90      		pop r15
+ 785 00b2 EF90      		pop r14
+ 786 00b4 DF90      		pop r13
+ 787 00b6 CF90      		pop r12
+ 788               	.LVL58:
+ 175:../src/motor.c **** }
+ 789               		.loc 1 175 0
+ 790 00b8 0C94 0000 		jmp move_steps
+ 791               	.LVL59:
+ 792               	.L49:
+ 163:../src/motor.c **** 		if(direction>5){
+ 793               		.loc 1 163 0
+ 794 00bc 80E0      		ldi r24,lo8(__c.4941)
+ 795 00be 90E0      		ldi r25,hi8(__c.4941)
+ 796 00c0 9F93      		push r25
+ 797               	.LCFI31:
+ 798               		.cfi_def_cfa_offset 12
+ 799 00c2 8F93      		push r24
+ 800               	.LCFI32:
+ 801               		.cfi_def_cfa_offset 13
+ 802 00c4 0E94 0000 		call printf_P
+ 803               	.LVL60:
+ 164:../src/motor.c **** 			mm_per_kilostep = 2000;
+ 804               		.loc 1 164 0
+ 805 00c8 0F90      		pop __tmp_reg__
+ 806 00ca 0F90      		pop __tmp_reg__
+ 807               	.LCFI33:
+ 808               		.cfi_def_cfa_offset 11
+ 809 00cc 1630      		cpi r17,lo8(6)
+ 810 00ce 00F4      		brsh .L52
+ 811 00d0 8AE9      		ldi r24,lo8(-102)
+ 812 00d2 C82E      		mov r12,r24
+ 813 00d4 89E9      		ldi r24,lo8(-103)
+ 814 00d6 D82E      		mov r13,r24
+ 815 00d8 89E1      		ldi r24,lo8(25)
+ 816 00da E82E      		mov r14,r24
+ 817 00dc 8FE3      		ldi r24,lo8(63)
+ 818 00de F82E      		mov r15,r24
+ 819 00e0 00C0      		rjmp .L48
+ 820               	.L52:
+ 821 00e2 C12C      		mov r12,__zero_reg__
+ 822 00e4 D12C      		mov r13,__zero_reg__
+ 823 00e6 E12C      		mov r14,__zero_reg__
+ 824 00e8 90E4      		ldi r25,lo8(64)
+ 825 00ea F92E      		mov r15,r25
+ 826 00ec 00C0      		rjmp .L48
+ 827               		.cfi_endproc
+ 828               	.LFE40:
+ 830               		.section	.text.is_moving,"ax",@progbits
+ 831               	.global	is_moving
+ 833               	is_moving:
+ 834               	.LFB42:
+ 204:../src/motor.c **** 	if (motor_status & MOTOR_STATUS_ON){
+ 835               		.loc 1 204 0
+ 836               		.cfi_startproc
+ 837               	/* prologue: function */
+ 838               	/* frame size = 0 */
+ 839               	/* stack size = 0 */
+ 840               	.L__stack_usage = 0
+ 205:../src/motor.c **** 		return (motor_status & MOTOR_STATUS_DIRECTION);
+ 841               		.loc 1 205 0
+ 842 0000 8091 0000 		lds r24,motor_status
+ 843 0004 87FF      		sbrs r24,7
+ 844 0006 00C0      		rjmp .L55
+ 206:../src/motor.c **** 	}	
+ 845               		.loc 1 206 0
+ 846 0008 8091 0000 		lds r24,motor_status
+ 847 000c 8770      		andi r24,lo8(7)
+ 848 000e 0895      		ret
+ 849               	.L55:
+ 208:../src/motor.c **** }
+ 850               		.loc 1 208 0
+ 851 0010 8FEF      		ldi r24,lo8(-1)
+ 209:../src/motor.c **** 
+ 852               		.loc 1 209 0
+ 853 0012 0895      		ret
+ 854               		.cfi_endproc
+ 855               	.LFE42:
+ 857               		.section	.text.get_mm_per_kilostep,"ax",@progbits
+ 858               	.global	get_mm_per_kilostep
+ 860               	get_mm_per_kilostep:
+ 861               	.LFB43:
+ 212:../src/motor.c **** 	return mm_per_kilostep[direction];
+ 862               		.loc 1 212 0
+ 863               		.cfi_startproc
+ 864               	.LVL61:
+ 865               	/* prologue: function */
+ 866               	/* frame size = 0 */
+ 867               	/* stack size = 0 */
+ 868               	.L__stack_usage = 0
+ 869               		.loc 1 213 0
+ 870 0000 E82F      		mov r30,r24
+ 871 0002 F0E0      		ldi r31,0
+ 872 0004 EE0F      		lsl r30
+ 873 0006 FF1F      		rol r31
+ 874               	.LVL62:
+ 875 0008 E050      		subi r30,lo8(-(mm_per_kilostep))
+ 876 000a F040      		sbci r31,hi8(-(mm_per_kilostep))
+ 214:../src/motor.c **** }
+ 877               		.loc 1 214 0
+ 878 000c 8081      		ld r24,Z
+ 879 000e 9181      		ldd r25,Z+1
+ 880 0010 0895      		ret
+ 881               		.cfi_endproc
+ 882               	.LFE43:
+ 884               		.section	.text.set_mm_per_kilostep,"ax",@progbits
+ 885               	.global	set_mm_per_kilostep
+ 887               	set_mm_per_kilostep:
+ 888               	.LFB44:
+ 215:../src/motor.c **** 
+ 216:../src/motor.c **** void set_mm_per_kilostep(uint8_t direction, uint16_t dist)
+ 217:../src/motor.c **** {
+ 889               		.loc 1 217 0
+ 890               		.cfi_startproc
+ 891               	.LVL63:
+ 892               	/* prologue: function */
+ 893               	/* frame size = 0 */
+ 894               	/* stack size = 0 */
+ 895               	.L__stack_usage = 0
+ 218:../src/motor.c **** 	mm_per_kilostep[direction] = dist;	
+ 896               		.loc 1 218 0
+ 897 0000 E82F      		mov r30,r24
+ 898 0002 F0E0      		ldi r31,0
+ 899 0004 EE0F      		lsl r30
+ 900 0006 FF1F      		rol r31
+ 901               	.LVL64:
+ 902 0008 E050      		subi r30,lo8(-(mm_per_kilostep))
+ 903 000a F040      		sbci r31,hi8(-(mm_per_kilostep))
+ 904 000c 6083      		st Z,r22
+ 905 000e 7183      		std Z+1,r23
+ 906 0010 0895      		ret
+ 907               		.cfi_endproc
+ 908               	.LFE44:
+ 910               		.section	.text.read_motor_settings,"ax",@progbits
+ 911               	.global	read_motor_settings
+ 913               	read_motor_settings:
+ 914               	.LFB45:
+ 219:../src/motor.c **** }
+ 220:../src/motor.c **** 
+ 221:../src/motor.c **** void read_motor_settings()
+ 222:../src/motor.c **** {
+ 915               		.loc 1 222 0
+ 916               		.cfi_startproc
+ 917 0000 DF92      		push r13
+ 918               	.LCFI34:
+ 919               		.cfi_def_cfa_offset 4
+ 920               		.cfi_offset 13, -3
+ 921 0002 EF92      		push r14
+ 922               	.LCFI35:
+ 923               		.cfi_def_cfa_offset 5
+ 924               		.cfi_offset 14, -4
+ 925 0004 FF92      		push r15
+ 926               	.LCFI36:
+ 927               		.cfi_def_cfa_offset 6
+ 928               		.cfi_offset 15, -5
+ 929 0006 0F93      		push r16
+ 930               	.LCFI37:
+ 931               		.cfi_def_cfa_offset 7
+ 932               		.cfi_offset 16, -6
+ 933 0008 1F93      		push r17
+ 934               	.LCFI38:
+ 935               		.cfi_def_cfa_offset 8
+ 936               		.cfi_offset 17, -7
+ 937 000a CF93      		push r28
+ 938               	.LCFI39:
+ 939               		.cfi_def_cfa_offset 9
+ 940               		.cfi_offset 28, -8
+ 941 000c DF93      		push r29
+ 942               	.LCFI40:
+ 943               		.cfi_def_cfa_offset 10
+ 944               		.cfi_offset 29, -9
+ 945               	/* prologue: function */
+ 946               	/* frame size = 0 */
+ 947               	/* stack size = 7 */
+ 948               	.L__stack_usage = 7
+ 949               	.LVL65:
+ 950               		.loc 1 222 0
+ 951 000e 50E1      		ldi r21,lo8(16)
+ 952 0010 E52E      		mov r14,r21
+ 953 0012 F12C      		mov r15,__zero_reg__
+ 954               	.LVL66:
+ 955               	.L59:
+ 956 0014 8701      		movw r16,r14
+ 957 0016 0050      		subi r16,lo8(-(motor_adjusts-16))
+ 958 0018 1040      		sbci r17,hi8(-(motor_adjusts-16))
+ 959 001a E701      		movw r28,r14
+ 960 001c 2696      		adiw r28,6
+ 961               	.LVL67:
+ 962               	.L60:
+ 963               	.LBB72:
+ 964               	.LBB73:
+ 223:../src/motor.c **** 	for (uint8_t direction = 0; direction < 8; direction++)
+ 224:../src/motor.c **** 	{
+ 225:../src/motor.c **** 		for (uint8_t motor_num = 0; motor_num < 3 ; motor_num++)
+ 226:../src/motor.c **** 		{
+ 227:../src/motor.c **** 			motor_adjusts[direction][motor_num] = ((((int16_t)EEPROM_read_byte(0x10 + 6*direction + 2*motor_
+ 965               		.loc 1 227 0 discriminator 3
+ 966 001e C701      		movw r24,r14
+ 967 0020 0E94 0000 		call EEPROM_read_byte
+ 968               	.LVL68:
+ 969 0024 D82E      		mov r13,r24
+ 970 0026 C701      		movw r24,r14
+ 971 0028 0196      		adiw r24,1
+ 972 002a 0E94 0000 		call EEPROM_read_byte
+ 973               	.LVL69:
+ 974 002e 2D2D      		mov r18,r13
+ 975 0030 30E0      		ldi r19,0
+ 976 0032 322F      		mov r19,r18
+ 977 0034 2227      		clr r18
+ 978 0036 282B      		or r18,r24
+ 979 0038 F801      		movw r30,r16
+ 980 003a 2193      		st Z+,r18
+ 981 003c 3193      		st Z+,r19
+ 982 003e 8F01      		movw r16,r30
+ 983 0040 F2E0      		ldi r31,2
+ 984 0042 EF0E      		add r14,r31
+ 985 0044 F11C      		adc r15,__zero_reg__
+ 225:../src/motor.c **** 		{
+ 986               		.loc 1 225 0 discriminator 3
+ 987 0046 EC16      		cp r14,r28
+ 988 0048 FD06      		cpc r15,r29
+ 989 004a 01F4      		brne .L60
+ 990 004c 7E01      		movw r14,r28
+ 991               	.LBE73:
+ 223:../src/motor.c **** 	for (uint8_t direction = 0; direction < 8; direction++)
+ 992               		.loc 1 223 0 discriminator 2
+ 993 004e C034      		cpi r28,64
+ 994 0050 D105      		cpc r29,__zero_reg__
+ 995 0052 01F4      		brne .L59
+ 996 0054 20E0      		ldi r18,lo8(mm_per_kilostep)
+ 997 0056 E22E      		mov r14,r18
+ 998 0058 20E0      		ldi r18,hi8(mm_per_kilostep)
+ 999 005a F22E      		mov r15,r18
+ 1000               	.L62:
+ 1001               	.LBE72:
+ 1002               	.LBB74:
+ 228:../src/motor.c **** 		}
+ 229:../src/motor.c **** 
+ 230:../src/motor.c **** 	}
+ 231:../src/motor.c **** 	for (uint8_t direction = 0; direction < 8 ; direction++)
+ 232:../src/motor.c **** 	{
+ 233:../src/motor.c **** 		mm_per_kilostep[direction] =(uint16_t)EEPROM_read_byte(0x40 + 2*direction + 0)<<8 | (uint16_t)EEP
+ 1003               		.loc 1 233 0 discriminator 3
+ 1004 005c CE01      		movw r24,r28
+ 1005 005e 0E94 0000 		call EEPROM_read_byte
+ 1006               	.LVL70:
+ 1007 0062 182F      		mov r17,r24
+ 1008 0064 CE01      		movw r24,r28
+ 1009 0066 0196      		adiw r24,1
+ 1010 0068 0E94 0000 		call EEPROM_read_byte
+ 1011               	.LVL71:
+ 1012 006c 212F      		mov r18,r17
+ 1013 006e 30E0      		ldi r19,0
+ 1014 0070 322F      		mov r19,r18
+ 1015 0072 2227      		clr r18
+ 1016 0074 282B      		or r18,r24
+ 1017 0076 F701      		movw r30,r14
+ 1018 0078 2193      		st Z+,r18
+ 1019 007a 3193      		st Z+,r19
+ 1020 007c 7F01      		movw r14,r30
+ 1021               	.LVL72:
+ 1022 007e 2296      		adiw r28,2
+ 231:../src/motor.c **** 	{
+ 1023               		.loc 1 231 0 discriminator 3
+ 1024 0080 C035      		cpi r28,80
+ 1025 0082 D105      		cpc r29,__zero_reg__
+ 1026 0084 01F4      		brne .L62
+ 1027               	/* epilogue start */
+ 1028               	.LBE74:
+ 234:../src/motor.c **** 	}
+ 235:../src/motor.c **** }
+ 1029               		.loc 1 235 0
+ 1030 0086 DF91      		pop r29
+ 1031 0088 CF91      		pop r28
+ 1032 008a 1F91      		pop r17
+ 1033 008c 0F91      		pop r16
+ 1034 008e FF90      		pop r15
+ 1035 0090 EF90      		pop r14
+ 1036 0092 DF90      		pop r13
+ 1037 0094 0895      		ret
+ 1038               		.cfi_endproc
+ 1039               	.LFE45:
+ 1041               		.section	.text.motor_init,"ax",@progbits
+ 1042               	.global	motor_init
+ 1044               	motor_init:
+ 1045               	.LFB38:
+  39:../src/motor.c **** 	#ifdef AUDIO_DROPLET
+ 1046               		.loc 1 39 0
+ 1047               		.cfi_startproc
+ 1048 0000 CF93      		push r28
+ 1049               	.LCFI41:
+ 1050               		.cfi_def_cfa_offset 4
+ 1051               		.cfi_offset 28, -3
+ 1052 0002 DF93      		push r29
+ 1053               	.LCFI42:
+ 1054               		.cfi_def_cfa_offset 5
+ 1055               		.cfi_offset 29, -4
+ 1056               	/* prologue: function */
+ 1057               	/* frame size = 0 */
+ 1058               	/* stack size = 2 */
+ 1059               	.L__stack_usage = 2
+  43:../src/motor.c **** 	#endif
+ 1060               		.loc 1 43 0
+ 1061 0004 E0E4      		ldi r30,lo8(64)
+ 1062 0006 F6E0      		ldi r31,lo8(6)
+ 1063 0008 83E3      		ldi r24,lo8(51)
+ 1064 000a 8183      		std Z+1,r24
+  45:../src/motor.c **** 
+ 1065               		.loc 1 45 0
+ 1066 000c A0E6      		ldi r26,lo8(96)
+ 1067 000e B6E0      		ldi r27,lo8(6)
+ 1068 0010 83E0      		ldi r24,lo8(3)
+ 1069 0012 1196      		adiw r26,1
+ 1070 0014 8C93      		st X,r24
+ 1071 0016 1197      		sbiw r26,1
+  48:../src/motor.c **** 		TCC0.CTRLB = TC_WGMODE_SS_gc;
+ 1072               		.loc 1 48 0
+ 1073 0018 C0E0      		ldi r28,0
+ 1074 001a D8E0      		ldi r29,lo8(8)
+ 1075 001c 1882      		st Y,__zero_reg__
+  49:../src/motor.c **** 	#endif
+ 1076               		.loc 1 49 0
+ 1077 001e 8983      		std Y+1,r24
+  52:../src/motor.c ****     TCC1.CTRLB = TC_WGMODE_SS_gc;
+ 1078               		.loc 1 52 0
+ 1079 0020 C0E4      		ldi r28,lo8(64)
+ 1080 0022 D8E0      		ldi r29,lo8(8)
+ 1081 0024 1882      		st Y,__zero_reg__
+  53:../src/motor.c **** 
+ 1082               		.loc 1 53 0
+ 1083 0026 8983      		std Y+1,r24
+  55:../src/motor.c ****     TCD0.CTRLB = TC_WGMODE_SS_gc;  
+ 1084               		.loc 1 55 0
+ 1085 0028 C0E0      		ldi r28,0
+ 1086 002a D9E0      		ldi r29,lo8(9)
+ 1087 002c 1882      		st Y,__zero_reg__
+  56:../src/motor.c **** 	
+ 1088               		.loc 1 56 0
+ 1089 002e 8983      		std Y+1,r24
+  59:../src/motor.c **** 	PORTC.PIN1CTRL = PORT_INVEN_bm;
+ 1090               		.loc 1 59 0
+ 1091 0030 90E4      		ldi r25,lo8(64)
+ 1092 0032 908B      		std Z+16,r25
+  60:../src/motor.c **** 	#endif
+ 1093               		.loc 1 60 0
+ 1094 0034 918B      		std Z+17,r25
+  62:../src/motor.c **** 	PORTC.PIN5CTRL = PORT_INVEN_bm;
+ 1095               		.loc 1 62 0
+ 1096 0036 948B      		std Z+20,r25
+  63:../src/motor.c **** 	PORTD.PIN0CTRL = PORT_INVEN_bm;
+ 1097               		.loc 1 63 0
+ 1098 0038 958B      		std Z+21,r25
+  64:../src/motor.c **** 	PORTD.PIN1CTRL = PORT_INVEN_bm;
+ 1099               		.loc 1 64 0
+ 1100 003a 5096      		adiw r26,16
+ 1101 003c 9C93      		st X,r25
+ 1102 003e 5097      		sbiw r26,16
+  65:../src/motor.c **** 	
+ 1103               		.loc 1 65 0
+ 1104 0040 5196      		adiw r26,17
+ 1105 0042 9C93      		st X,r25
+ 1106 0044 5197      		sbiw r26,17
+  68:../src/motor.c **** 	#endif
+ 1107               		.loc 1 68 0
+ 1108 0046 8683      		std Z+6,r24
+  70:../src/motor.c **** 	PORTD.OUTCLR = PIN0_bm | PIN1_bm;
+ 1109               		.loc 1 70 0
+ 1110 0048 90E3      		ldi r25,lo8(48)
+ 1111 004a 9683      		std Z+6,r25
+  71:../src/motor.c **** 
+ 1112               		.loc 1 71 0
+ 1113 004c 1696      		adiw r26,6
+ 1114 004e 8C93      		st X,r24
+  73:../src/motor.c **** 
+ 1115               		.loc 1 73 0
+ 1116 0050 1092 0000 		sts motor_status,__zero_reg__
+  75:../src/motor.c **** 	motor_off_time = MOTOR_OFF_TIME;
+ 1117               		.loc 1 75 0
+ 1118 0054 84E1      		ldi r24,lo8(20)
+ 1119 0056 90E0      		ldi r25,0
+ 1120 0058 8093 0000 		sts motor_on_time,r24
+ 1121 005c 9093 0000 		sts motor_on_time+1,r25
+  76:../src/motor.c **** 	
+ 1122               		.loc 1 76 0
+ 1123 0060 88E2      		ldi r24,lo8(40)
+ 1124 0062 90E0      		ldi r25,0
+ 1125 0064 8093 0000 		sts motor_off_time,r24
+ 1126 0068 9093 0000 		sts motor_off_time+1,r25
+ 1127               	/* epilogue start */
+  79:../src/motor.c **** 
+ 1128               		.loc 1 79 0
+ 1129 006c DF91      		pop r29
+ 1130 006e CF91      		pop r28
+  78:../src/motor.c **** }
+ 1131               		.loc 1 78 0
+ 1132 0070 0C94 0000 		jmp read_motor_settings
+ 1133               	.LVL73:
+ 1134               		.cfi_endproc
+ 1135               	.LFE38:
+ 1137               		.section	.text.write_motor_settings,"ax",@progbits
+ 1138               	.global	write_motor_settings
+ 1140               	write_motor_settings:
+ 1141               	.LFB46:
+ 236:../src/motor.c **** 
+ 237:../src/motor.c **** void write_motor_settings()
+ 238:../src/motor.c **** {
+ 1142               		.loc 1 238 0
+ 1143               		.cfi_startproc
+ 1144 0000 DF92      		push r13
+ 1145               	.LCFI43:
+ 1146               		.cfi_def_cfa_offset 4
+ 1147               		.cfi_offset 13, -3
+ 1148 0002 EF92      		push r14
+ 1149               	.LCFI44:
+ 1150               		.cfi_def_cfa_offset 5
+ 1151               		.cfi_offset 14, -4
+ 1152 0004 FF92      		push r15
+ 1153               	.LCFI45:
+ 1154               		.cfi_def_cfa_offset 6
+ 1155               		.cfi_offset 15, -5
+ 1156 0006 0F93      		push r16
+ 1157               	.LCFI46:
+ 1158               		.cfi_def_cfa_offset 7
+ 1159               		.cfi_offset 16, -6
+ 1160 0008 1F93      		push r17
+ 1161               	.LCFI47:
+ 1162               		.cfi_def_cfa_offset 8
+ 1163               		.cfi_offset 17, -7
+ 1164 000a CF93      		push r28
+ 1165               	.LCFI48:
+ 1166               		.cfi_def_cfa_offset 9
+ 1167               		.cfi_offset 28, -8
+ 1168 000c DF93      		push r29
+ 1169               	.LCFI49:
+ 1170               		.cfi_def_cfa_offset 10
+ 1171               		.cfi_offset 29, -9
+ 1172               	/* prologue: function */
+ 1173               	/* frame size = 0 */
+ 1174               	/* stack size = 7 */
+ 1175               	.L__stack_usage = 7
+ 1176               	.LVL74:
+ 1177               		.loc 1 238 0
+ 1178 000e C0E1      		ldi r28,lo8(16)
+ 1179 0010 D0E0      		ldi r29,0
+ 1180               	.LVL75:
+ 1181               	.L67:
+ 1182 0012 8E01      		movw r16,r28
+ 1183 0014 0050      		subi r16,lo8(-(motor_adjusts-16))
+ 1184 0016 1040      		sbci r17,hi8(-(motor_adjusts-16))
+ 1185 0018 7E01      		movw r14,r28
+ 1186 001a 86E0      		ldi r24,6
+ 1187 001c E80E      		add r14,r24
+ 1188 001e F11C      		adc r15,__zero_reg__
+ 1189               	.LVL76:
+ 1190               	.L68:
+ 1191               	.LBB75:
+ 1192               	.LBB76:
+ 1193               	.LBB77:
+ 239:../src/motor.c **** 	for (uint8_t direction = 0; direction < 8; direction++)
+ 240:../src/motor.c **** 	{
+ 241:../src/motor.c **** 		for (uint8_t motor_num = 0; motor_num < 3 ; motor_num++)
+ 242:../src/motor.c **** 		{
+ 243:../src/motor.c **** 			int16_t temp = motor_adjusts[direction][motor_num];
+ 1194               		.loc 1 243 0 discriminator 3
+ 1195 0020 F801      		movw r30,r16
+ 1196 0022 D080      		ld r13,Z
+ 1197 0024 6181      		ldd r22,Z+1
+ 1198 0026 0E5F      		subi r16,-2
+ 1199 0028 1F4F      		sbci r17,-1
+ 1200               	.LVL77:
+ 244:../src/motor.c **** 			EEPROM_write_byte(0x10 + 6*direction + 2*motor_num + 0, (uint8_t)((temp>>8)&0xFF));
+ 1201               		.loc 1 244 0 discriminator 3
+ 1202 002a CE01      		movw r24,r28
+ 1203 002c 0E94 0000 		call EEPROM_write_byte
+ 1204               	.LVL78:
+ 245:../src/motor.c **** 			EEPROM_write_byte(0x10 + 6*direction + 2*motor_num + 1, (uint8_t)(temp&0xFF));
+ 1205               		.loc 1 245 0 discriminator 3
+ 1206 0030 6D2D      		mov r22,r13
+ 1207 0032 CE01      		movw r24,r28
+ 1208 0034 0196      		adiw r24,1
+ 1209 0036 0E94 0000 		call EEPROM_write_byte
+ 1210               	.LVL79:
+ 1211 003a 2296      		adiw r28,2
+ 1212               	.LBE77:
+ 241:../src/motor.c **** 		{
+ 1213               		.loc 1 241 0 discriminator 3
+ 1214 003c CE15      		cp r28,r14
+ 1215 003e DF05      		cpc r29,r15
+ 1216 0040 01F4      		brne .L68
+ 1217 0042 E701      		movw r28,r14
+ 1218               	.LBE76:
+ 239:../src/motor.c **** 	{
+ 1219               		.loc 1 239 0 discriminator 2
+ 1220 0044 F0E4      		ldi r31,64
+ 1221 0046 EF16      		cp r14,r31
+ 1222 0048 F104      		cpc r15,__zero_reg__
+ 1223 004a 01F4      		brne .L67
+ 1224 004c C0E0      		ldi r28,lo8(mm_per_kilostep)
+ 1225 004e D0E0      		ldi r29,hi8(mm_per_kilostep)
+ 1226               	.L70:
+ 1227               	.LBE75:
+ 1228               	.LBB78:
+ 1229               	.LBB79:
+ 246:../src/motor.c **** 		}
+ 247:../src/motor.c **** 	}
+ 248:../src/motor.c **** 	
+ 249:../src/motor.c **** 	for (uint8_t direction = 0; direction < 8; direction++)
+ 250:../src/motor.c **** 	{
+ 251:../src/motor.c **** 		uint16_t temp = mm_per_kilostep[direction];
+ 1230               		.loc 1 251 0 discriminator 3
+ 1231 0050 1881      		ld r17,Y
+ 1232 0052 6981      		ldd r22,Y+1
+ 1233 0054 2296      		adiw r28,2
+ 1234               	.LVL80:
+ 252:../src/motor.c **** 		EEPROM_write_byte(0x40 + 2*direction + 0, (uint8_t)((temp>>8)&0xFF));
+ 1235               		.loc 1 252 0 discriminator 3
+ 1236 0056 C701      		movw r24,r14
+ 1237 0058 0E94 0000 		call EEPROM_write_byte
+ 1238               	.LVL81:
+ 253:../src/motor.c **** 		EEPROM_write_byte(0x40 + 2*direction + 1, (uint8_t)(temp&0xFF));
+ 1239               		.loc 1 253 0 discriminator 3
+ 1240 005c 612F      		mov r22,r17
+ 1241 005e C701      		movw r24,r14
+ 1242 0060 0196      		adiw r24,1
+ 1243 0062 0E94 0000 		call EEPROM_write_byte
+ 1244               	.LVL82:
+ 1245 0066 E2E0      		ldi r30,2
+ 1246 0068 EE0E      		add r14,r30
+ 1247 006a F11C      		adc r15,__zero_reg__
+ 1248               	.LBE79:
+ 249:../src/motor.c **** 	{
+ 1249               		.loc 1 249 0 discriminator 3
+ 1250 006c F0E5      		ldi r31,80
+ 1251 006e EF16      		cp r14,r31
+ 1252 0070 F104      		cpc r15,__zero_reg__
+ 1253 0072 01F4      		brne .L70
+ 1254               	/* epilogue start */
+ 1255               	.LBE78:
+ 254:../src/motor.c **** 	}
+ 255:../src/motor.c **** }
+ 1256               		.loc 1 255 0
+ 1257 0074 DF91      		pop r29
+ 1258 0076 CF91      		pop r28
+ 1259 0078 1F91      		pop r17
+ 1260 007a 0F91      		pop r16
+ 1261 007c FF90      		pop r15
+ 1262 007e EF90      		pop r14
+ 1263 0080 DF90      		pop r13
+ 1264 0082 0895      		ret
+ 1265               		.cfi_endproc
+ 1266               	.LFE46:
+ 1268               		.section	.rodata.str1.1,"aMS",@progbits,1
+ 1269               	.LC0:
+ 1270 0000 2564 0900 		.string	"%d\t"
+ 1271               	.LC1:
+ 1272 0004 0D00      		.string	"\r"
+ 1273               		.section	.text.print_motor_values,"ax",@progbits
+ 1274               	.global	print_motor_values
+ 1276               	print_motor_values:
+ 1277               	.LFB47:
+ 256:../src/motor.c **** 
+ 257:../src/motor.c **** void print_motor_values()
+ 258:../src/motor.c **** {
+ 1278               		.loc 1 258 0
+ 1279               		.cfi_startproc
+ 1280 0000 8F92      		push r8
+ 1281               	.LCFI50:
+ 1282               		.cfi_def_cfa_offset 4
+ 1283               		.cfi_offset 8, -3
+ 1284 0002 9F92      		push r9
+ 1285               	.LCFI51:
+ 1286               		.cfi_def_cfa_offset 5
+ 1287               		.cfi_offset 9, -4
+ 1288 0004 AF92      		push r10
+ 1289               	.LCFI52:
+ 1290               		.cfi_def_cfa_offset 6
+ 1291               		.cfi_offset 10, -5
+ 1292 0006 BF92      		push r11
+ 1293               	.LCFI53:
+ 1294               		.cfi_def_cfa_offset 7
+ 1295               		.cfi_offset 11, -6
+ 1296 0008 CF92      		push r12
+ 1297               	.LCFI54:
+ 1298               		.cfi_def_cfa_offset 8
+ 1299               		.cfi_offset 12, -7
+ 1300 000a DF92      		push r13
+ 1301               	.LCFI55:
+ 1302               		.cfi_def_cfa_offset 9
+ 1303               		.cfi_offset 13, -8
+ 1304 000c EF92      		push r14
+ 1305               	.LCFI56:
+ 1306               		.cfi_def_cfa_offset 10
+ 1307               		.cfi_offset 14, -9
+ 1308 000e FF92      		push r15
+ 1309               	.LCFI57:
+ 1310               		.cfi_def_cfa_offset 11
+ 1311               		.cfi_offset 15, -10
+ 1312 0010 1F93      		push r17
+ 1313               	.LCFI58:
+ 1314               		.cfi_def_cfa_offset 12
+ 1315               		.cfi_offset 17, -11
+ 1316 0012 CF93      		push r28
+ 1317               	.LCFI59:
+ 1318               		.cfi_def_cfa_offset 13
+ 1319               		.cfi_offset 28, -12
+ 1320 0014 DF93      		push r29
+ 1321               	.LCFI60:
+ 1322               		.cfi_def_cfa_offset 14
+ 1323               		.cfi_offset 29, -13
+ 1324               	/* prologue: function */
+ 1325               	/* frame size = 0 */
+ 1326               	/* stack size = 11 */
+ 1327               	.L__stack_usage = 11
+ 259:../src/motor.c **** 	printf_P(PSTR("Motor Values\r\n"));
+ 1328               		.loc 1 259 0
+ 1329 0016 80E0      		ldi r24,lo8(__c.4990)
+ 1330 0018 90E0      		ldi r25,hi8(__c.4990)
+ 1331 001a 9F93      		push r25
+ 1332               	.LCFI61:
+ 1333               		.cfi_def_cfa_offset 15
+ 1334 001c 8F93      		push r24
+ 1335               	.LCFI62:
+ 1336               		.cfi_def_cfa_offset 16
+ 1337 001e 0E94 0000 		call printf_P
+ 1338               	.LVL83:
+ 1339 0022 80E0      		ldi r24,lo8(motor_adjusts)
+ 1340 0024 A82E      		mov r10,r24
+ 1341 0026 80E0      		ldi r24,hi8(motor_adjusts)
+ 1342 0028 B82E      		mov r11,r24
+ 1343 002a 0F90      		pop __tmp_reg__
+ 1344 002c 0F90      		pop __tmp_reg__
+ 1345               	.LCFI63:
+ 1346               		.cfi_def_cfa_offset 14
+ 1347 002e C12C      		mov r12,__zero_reg__
+ 1348 0030 D12C      		mov r13,__zero_reg__
+ 1349               	.LBB80:
+ 260:../src/motor.c **** 	for(uint8_t direction=0;direction<8;direction++)
+ 261:../src/motor.c **** 	{
+ 262:../src/motor.c **** 		printf_P(PSTR("\tdir: %hu\t"),direction);
+ 1350               		.loc 1 262 0
+ 1351 0032 90E0      		ldi r25,lo8(__c.4993)
+ 1352 0034 892E      		mov r8,r25
+ 1353 0036 90E0      		ldi r25,hi8(__c.4993)
+ 1354 0038 992E      		mov r9,r25
+ 1355               	.LBB81:
+ 263:../src/motor.c **** 		for(uint8_t motor=0;motor<3;motor++)
+ 264:../src/motor.c **** 		{
+ 265:../src/motor.c **** 			printf("%d\t", motor_adjusts[direction][motor]);
+ 1356               		.loc 1 265 0
+ 1357 003a 20E0      		ldi r18,lo8(.LC0)
+ 1358 003c E22E      		mov r14,r18
+ 1359 003e 20E0      		ldi r18,hi8(.LC0)
+ 1360 0040 F22E      		mov r15,r18
+ 1361               	.LVL84:
+ 1362               	.L75:
+ 1363               	.LBE81:
+ 262:../src/motor.c **** 		for(uint8_t motor=0;motor<3;motor++)
+ 1364               		.loc 1 262 0
+ 1365 0042 DF92      		push r13
+ 1366               	.LCFI64:
+ 1367               		.cfi_def_cfa_offset 15
+ 1368 0044 CF92      		push r12
+ 1369               	.LCFI65:
+ 1370               		.cfi_def_cfa_offset 16
+ 1371 0046 9F92      		push r9
+ 1372               	.LCFI66:
+ 1373               		.cfi_def_cfa_offset 17
+ 1374 0048 8F92      		push r8
+ 1375               	.LCFI67:
+ 1376               		.cfi_def_cfa_offset 18
+ 1377 004a 0E94 0000 		call printf_P
+ 1378               	.LVL85:
+ 1379 004e 0F90      		pop __tmp_reg__
+ 1380 0050 0F90      		pop __tmp_reg__
+ 1381 0052 0F90      		pop __tmp_reg__
+ 1382 0054 0F90      		pop __tmp_reg__
+ 1383               	.LCFI68:
+ 1384               		.cfi_def_cfa_offset 14
+ 1385 0056 E501      		movw r28,r10
+ 1386 0058 13E0      		ldi r17,lo8(3)
+ 1387               	.LVL86:
+ 1388               	.L74:
+ 1389               	.LBB82:
+ 1390               		.loc 1 265 0 discriminator 3
+ 1391 005a 8881      		ld r24,Y
+ 1392 005c 9981      		ldd r25,Y+1
+ 1393 005e 2296      		adiw r28,2
+ 1394 0060 9F93      		push r25
+ 1395               	.LCFI69:
+ 1396               		.cfi_def_cfa_offset 15
+ 1397 0062 8F93      		push r24
+ 1398               	.LCFI70:
+ 1399               		.cfi_def_cfa_offset 16
+ 1400 0064 FF92      		push r15
+ 1401               	.LCFI71:
+ 1402               		.cfi_def_cfa_offset 17
+ 1403 0066 EF92      		push r14
+ 1404               	.LCFI72:
+ 1405               		.cfi_def_cfa_offset 18
+ 1406 0068 0E94 0000 		call printf
+ 1407               	.LVL87:
+ 1408 006c 1150      		subi r17,lo8(-(-1))
+ 1409               	.LVL88:
+ 263:../src/motor.c **** 		for(uint8_t motor=0;motor<3;motor++)
+ 1410               		.loc 1 263 0 discriminator 3
+ 1411 006e 0F90      		pop __tmp_reg__
+ 1412 0070 0F90      		pop __tmp_reg__
+ 1413 0072 0F90      		pop __tmp_reg__
+ 1414 0074 0F90      		pop __tmp_reg__
+ 1415               	.LCFI73:
+ 1416               		.cfi_def_cfa_offset 14
+ 1417 0076 01F4      		brne .L74
+ 1418               	.LBE82:
+ 266:../src/motor.c **** 		}
+ 267:../src/motor.c **** 		printf("\r\n");
+ 1419               		.loc 1 267 0 discriminator 2
+ 1420 0078 80E0      		ldi r24,lo8(.LC1)
+ 1421 007a 90E0      		ldi r25,hi8(.LC1)
+ 1422 007c 0E94 0000 		call puts
+ 1423               	.LVL89:
+ 1424 0080 8FEF      		ldi r24,-1
+ 1425 0082 C81A      		sub r12,r24
+ 1426 0084 D80A      		sbc r13,r24
+ 1427               	.LVL90:
+ 1428 0086 86E0      		ldi r24,6
+ 1429 0088 A80E      		add r10,r24
+ 1430 008a B11C      		adc r11,__zero_reg__
+ 260:../src/motor.c **** 	{
+ 1431               		.loc 1 260 0 discriminator 2
+ 1432 008c 88E0      		ldi r24,8
+ 1433 008e C816      		cp r12,r24
+ 1434 0090 D104      		cpc r13,__zero_reg__
+ 1435 0092 01F4      		brne .L75
+ 1436               	.LBE80:
+ 268:../src/motor.c **** 	}
+ 269:../src/motor.c **** 	printf("\r\n");
+ 1437               		.loc 1 269 0
+ 1438 0094 80E0      		ldi r24,lo8(.LC1)
+ 1439 0096 90E0      		ldi r25,hi8(.LC1)
+ 1440               	/* epilogue start */
+ 270:../src/motor.c **** }
+ 1441               		.loc 1 270 0
+ 1442 0098 DF91      		pop r29
+ 1443 009a CF91      		pop r28
+ 1444 009c 1F91      		pop r17
+ 1445               	.LVL91:
+ 1446 009e FF90      		pop r15
+ 1447 00a0 EF90      		pop r14
+ 1448 00a2 DF90      		pop r13
+ 1449 00a4 CF90      		pop r12
+ 1450               	.LVL92:
+ 1451 00a6 BF90      		pop r11
+ 1452 00a8 AF90      		pop r10
+ 1453 00aa 9F90      		pop r9
+ 1454 00ac 8F90      		pop r8
+ 269:../src/motor.c **** }
+ 1455               		.loc 1 269 0
+ 1456 00ae 0C94 0000 		jmp puts
+ 1457               	.LVL93:
+ 1458               		.cfi_endproc
+ 1459               	.LFE47:
+ 1461               		.section	.text.broadcast_motor_adjusts,"ax",@progbits
+ 1462               	.global	broadcast_motor_adjusts
+ 1464               	broadcast_motor_adjusts:
+ 1465               	.LFB48:
+ 271:../src/motor.c **** void broadcast_motor_adjusts()
+ 272:../src/motor.c **** {
+ 1466               		.loc 1 272 0
+ 1467               		.cfi_startproc
+ 1468               	/* prologue: function */
+ 1469               	/* frame size = 0 */
+ 1470               	/* stack size = 0 */
+ 1471               	.L__stack_usage = 0
+ 1472 0000 0895      		ret
+ 1473               		.cfi_endproc
+ 1474               	.LFE48:
+ 1476               		.section	.text.print_dist_per_step,"ax",@progbits
+ 1477               	.global	print_dist_per_step
+ 1479               	print_dist_per_step:
+ 1480               	.LFB49:
+ 273:../src/motor.c **** 	// TODO: Deprecated?
+ 274:../src/motor.c **** }
+ 275:../src/motor.c **** 
+ 276:../src/motor.c **** void print_dist_per_step()
+ 277:../src/motor.c **** {
+ 1481               		.loc 1 277 0
+ 1482               		.cfi_startproc
+ 1483               		.loc 1 277 0
+ 1484 0000 EF92      		push r14
+ 1485               	.LCFI74:
+ 1486               		.cfi_def_cfa_offset 4
+ 1487               		.cfi_offset 14, -3
+ 1488 0002 FF92      		push r15
+ 1489               	.LCFI75:
+ 1490               		.cfi_def_cfa_offset 5
+ 1491               		.cfi_offset 15, -4
+ 1492 0004 0F93      		push r16
+ 1493               	.LCFI76:
+ 1494               		.cfi_def_cfa_offset 6
+ 1495               		.cfi_offset 16, -5
+ 1496 0006 1F93      		push r17
+ 1497               	.LCFI77:
+ 1498               		.cfi_def_cfa_offset 7
+ 1499               		.cfi_offset 17, -6
+ 1500 0008 CF93      		push r28
+ 1501               	.LCFI78:
+ 1502               		.cfi_def_cfa_offset 8
+ 1503               		.cfi_offset 28, -7
+ 1504 000a DF93      		push r29
+ 1505               	.LCFI79:
+ 1506               		.cfi_def_cfa_offset 9
+ 1507               		.cfi_offset 29, -8
+ 1508               	/* prologue: function */
+ 1509               	/* frame size = 0 */
+ 1510               	/* stack size = 6 */
+ 1511               	.L__stack_usage = 6
+ 278:../src/motor.c **** 	printf_P(PSTR("Dist (mm) per kilostep\r\n"));
+ 1512               		.loc 1 278 0
+ 1513 000c 80E0      		ldi r24,lo8(__c.5006)
+ 1514 000e 90E0      		ldi r25,hi8(__c.5006)
+ 1515 0010 9F93      		push r25
+ 1516               	.LCFI80:
+ 1517               		.cfi_def_cfa_offset 10
+ 1518 0012 8F93      		push r24
+ 1519               	.LCFI81:
+ 1520               		.cfi_def_cfa_offset 11
+ 1521 0014 0E94 0000 		call printf_P
+ 1522               	.LVL94:
+ 1523 0018 00E0      		ldi r16,lo8(mm_per_kilostep)
+ 1524 001a 10E0      		ldi r17,hi8(mm_per_kilostep)
+ 1525 001c 0F90      		pop __tmp_reg__
+ 1526 001e 0F90      		pop __tmp_reg__
+ 1527               	.LCFI82:
+ 1528               		.cfi_def_cfa_offset 9
+ 1529 0020 C0E0      		ldi r28,0
+ 1530 0022 D0E0      		ldi r29,0
+ 1531               	.LBB83:
+ 279:../src/motor.c **** 	for(uint8_t direction = 0 ; direction<8; direction++)
+ 280:../src/motor.c **** 	{
+ 281:../src/motor.c **** 		printf_P(PSTR("\t%hu\t%u\r\n"), direction, mm_per_kilostep[direction]);	
+ 1532               		.loc 1 281 0
+ 1533 0024 80E0      		ldi r24,lo8(__c.5009)
+ 1534 0026 E82E      		mov r14,r24
+ 1535 0028 80E0      		ldi r24,hi8(__c.5009)
+ 1536 002a F82E      		mov r15,r24
+ 1537               	.LVL95:
+ 1538               	.L80:
+ 1539               		.loc 1 281 0 is_stmt 0 discriminator 3
+ 1540 002c F801      		movw r30,r16
+ 1541 002e 8081      		ld r24,Z
+ 1542 0030 9181      		ldd r25,Z+1
+ 1543 0032 0E5F      		subi r16,-2
+ 1544 0034 1F4F      		sbci r17,-1
+ 1545 0036 9F93      		push r25
+ 1546               	.LCFI83:
+ 1547               		.cfi_def_cfa_offset 10
+ 1548 0038 8F93      		push r24
+ 1549               	.LCFI84:
+ 1550               		.cfi_def_cfa_offset 11
+ 1551 003a DF93      		push r29
+ 1552               	.LCFI85:
+ 1553               		.cfi_def_cfa_offset 12
+ 1554 003c CF93      		push r28
+ 1555               	.LCFI86:
+ 1556               		.cfi_def_cfa_offset 13
+ 1557 003e FF92      		push r15
+ 1558               	.LCFI87:
+ 1559               		.cfi_def_cfa_offset 14
+ 1560 0040 EF92      		push r14
+ 1561               	.LCFI88:
+ 1562               		.cfi_def_cfa_offset 15
+ 1563 0042 0E94 0000 		call printf_P
+ 1564               	.LVL96:
+ 1565 0046 2196      		adiw r28,1
+ 1566               	.LVL97:
+ 279:../src/motor.c **** 	for(uint8_t direction = 0 ; direction<8; direction++)
+ 1567               		.loc 1 279 0 is_stmt 1 discriminator 3
+ 1568 0048 0F90      		pop __tmp_reg__
+ 1569 004a 0F90      		pop __tmp_reg__
+ 1570 004c 0F90      		pop __tmp_reg__
+ 1571 004e 0F90      		pop __tmp_reg__
+ 1572 0050 0F90      		pop __tmp_reg__
+ 1573 0052 0F90      		pop __tmp_reg__
+ 1574               	.LCFI89:
+ 1575               		.cfi_def_cfa_offset 9
+ 1576 0054 C830      		cpi r28,8
+ 1577 0056 D105      		cpc r29,__zero_reg__
+ 1578 0058 01F4      		brne .L80
+ 1579               	/* epilogue start */
+ 1580               	.LBE83:
+ 282:../src/motor.c **** 	}
+ 283:../src/motor.c **** }
+ 1581               		.loc 1 283 0
+ 1582 005a DF91      		pop r29
+ 1583 005c CF91      		pop r28
+ 1584               	.LVL98:
+ 1585 005e 1F91      		pop r17
+ 1586 0060 0F91      		pop r16
+ 1587 0062 FF90      		pop r15
+ 1588 0064 EF90      		pop r14
+ 1589 0066 0895      		ret
+ 1590               		.cfi_endproc
+ 1591               	.LFE49:
+ 1593               		.section	.progmem.data.__c.5009,"a",@progbits
+ 1596               	__c.5009:
+ 1597 0000 0925 6875 		.string	"\t%hu\t%u\r\n"
+ 1597      0925 750D 
+ 1597      0A00 
+ 1598               		.section	.progmem.data.__c.5006,"a",@progbits
+ 1601               	__c.5006:
+ 1602 0000 4469 7374 		.string	"Dist (mm) per kilostep\r\n"
+ 1602      2028 6D6D 
+ 1602      2920 7065 
+ 1602      7220 6B69 
+ 1602      6C6F 7374 
+ 1603               		.section	.progmem.data.__c.4993,"a",@progbits
+ 1606               	__c.4993:
+ 1607 0000 0964 6972 		.string	"\tdir: %hu\t"
+ 1607      3A20 2568 
+ 1607      7509 00
+ 1608               		.section	.progmem.data.__c.4990,"a",@progbits
+ 1611               	__c.4990:
+ 1612 0000 4D6F 746F 		.string	"Motor Values\r\n"
+ 1612      7220 5661 
+ 1612      6C75 6573 
+ 1612      0D0A 00
+ 1613               		.section	.progmem.data.__c.4945,"a",@progbits
+ 1616               	__c.4945:
+ 1617 0000 496E 206F 		.string	"In order to go in direction %hu for %u mm, taking %u steps.\r\n"
+ 1617      7264 6572 
+ 1617      2074 6F20 
+ 1617      676F 2069 
+ 1617      6E20 6469 
+ 1618               		.section	.progmem.data.__c.4941,"a",@progbits
+ 1621               	__c.4941:
+ 1622 0000 4572 726F 		.string	"Error: Don't have calibrated values for this direction.\r\n"
+ 1622      723A 2044 
+ 1622      6F6E 2774 
+ 1622      2068 6176 
+ 1622      6520 6361 
+ 1623               		.section	.progmem.data.__c.4934,"a",@progbits
+ 1626               	__c.4934:
+ 1627 0000 4572 726F 		.string	"Error! Failed to schedule stop_move task."
+ 1627      7221 2046 
+ 1627      6169 6C65 
+ 1627      6420 746F 
+ 1627      2073 6368 
+ 1628               		.section	.progmem.data.__c.4927,"a",@progbits
+ 1631               	__c.4927:
+ 1632 0000 4552 524F 		.string	"ERROR: current_offset: %u and total_time: %u not equal!\r\n"
+ 1632      523A 2063 
+ 1632      7572 7265 
+ 1632      6E74 5F6F 
+ 1632      6666 7365 
+ 1633               		.section	.bss.motor_off_time,"aw",@nobits
+ 1636               	motor_off_time:
+ 1637 0000 0000      		.zero	2
+ 1638               		.section	.bss.motor_on_time,"aw",@nobits
+ 1641               	motor_on_time:
+ 1642 0000 0000      		.zero	2
+ 1643               		.section	.bss.current_motor_task,"aw",@nobits
+ 1646               	current_motor_task:
+ 1647 0000 0000      		.zero	2
+ 1648               		.section	.bss.motor_status,"aw",@nobits
+ 1651               	motor_status:
+ 1652 0000 00        		.zero	1
+ 1653               		.comm	mm_per_kilostep,16,1
+ 1654               		.comm	motor_adjusts,48,1
+ 1655               		.section	.bss.task_storage_arr,"aw",@nobits
+ 1658               	task_storage_arr:
+ 1659 0000 0000 0000 		.zero	140
+ 1659      0000 0000 
+ 1659      0000 0000 
+ 1659      0000 0000 
+ 1659      0000 0000 
+ 1660               		.comm	task_executing,1,1
+ 1661               		.comm	num_tasks,1,1
+ 1662               		.comm	task_list,2,1
+ 1663               		.comm	rtc_epoch,2,1
+ 1664               		.comm	droplet_ID,2,1
+ 1665               		.text
+ 1666               	.Letext0:
+ 1667               		.file 2 "c:\\program files (x86)\\atmel\\studio\\7.0\\toolchain\\avr8\\avr8-gnu-toolchain\\avr\\in
+ 1668               		.file 3 "C:/Program Files (x86)/Atmel/Studio/7.0/Packs/atmel/XMEGAA_DFP/1.1.68/include/avr/iox128a
+ 1669               		.file 4 "../include/droplet_base.h"
+ 1670               		.file 5 "../include/scheduler.h"
+ 1671               		.file 6 "../include/motor.h"
+ 1672               		.file 7 "c:\\program files (x86)\\atmel\\studio\\7.0\\toolchain\\avr8\\avr8-gnu-toolchain\\avr\\in
+ 1673               		.file 8 "../include/eeprom_driver.h"
+ 1674               		.file 9 "<built-in>"
+DEFINED SYMBOLS
+                            *ABS*:00000000 motor.c
+C:\Users\JOHNK~1\AppData\Local\Temp\ccEMMn0N.s:2      *ABS*:0000003e __SP_H__
+C:\Users\JOHNK~1\AppData\Local\Temp\ccEMMn0N.s:3      *ABS*:0000003d __SP_L__
+C:\Users\JOHNK~1\AppData\Local\Temp\ccEMMn0N.s:4      *ABS*:0000003f __SREG__
+C:\Users\JOHNK~1\AppData\Local\Temp\ccEMMn0N.s:5      *ABS*:0000003b __RAMPZ__
+C:\Users\JOHNK~1\AppData\Local\Temp\ccEMMn0N.s:6      *ABS*:00000034 __CCP__
+C:\Users\JOHNK~1\AppData\Local\Temp\ccEMMn0N.s:7      *ABS*:00000000 __tmp_reg__
+C:\Users\JOHNK~1\AppData\Local\Temp\ccEMMn0N.s:8      *ABS*:00000001 __zero_reg__
+C:\Users\JOHNK~1\AppData\Local\Temp\ccEMMn0N.s:15     .text.stop_move:00000000 stop_move
+C:\Users\JOHNK~1\AppData\Local\Temp\ccEMMn0N.s:1651   .bss.motor_status:00000000 motor_status
+C:\Users\JOHNK~1\AppData\Local\Temp\ccEMMn0N.s:1646   .bss.current_motor_task:00000000 current_motor_task
+C:\Users\JOHNK~1\AppData\Local\Temp\ccEMMn0N.s:71     .text.move_steps:00000000 move_steps
+C:\Users\JOHNK~1\AppData\Local\Temp\ccEMMn0N.s:1641   .bss.motor_on_time:00000000 motor_on_time
+C:\Users\JOHNK~1\AppData\Local\Temp\ccEMMn0N.s:1636   .bss.motor_off_time:00000000 motor_off_time
+                            *COM*:00000030 motor_adjusts
+C:\Users\JOHNK~1\AppData\Local\Temp\ccEMMn0N.s:1631   .progmem.data.__c.4927:00000000 __c.4927
+C:\Users\JOHNK~1\AppData\Local\Temp\ccEMMn0N.s:1626   .progmem.data.__c.4934:00000000 __c.4934
+C:\Users\JOHNK~1\AppData\Local\Temp\ccEMMn0N.s:622    .text.walk:00000000 walk
+                            *COM*:00000010 mm_per_kilostep
+C:\Users\JOHNK~1\AppData\Local\Temp\ccEMMn0N.s:1616   .progmem.data.__c.4945:00000000 __c.4945
+C:\Users\JOHNK~1\AppData\Local\Temp\ccEMMn0N.s:1621   .progmem.data.__c.4941:00000000 __c.4941
+C:\Users\JOHNK~1\AppData\Local\Temp\ccEMMn0N.s:833    .text.is_moving:00000000 is_moving
+C:\Users\JOHNK~1\AppData\Local\Temp\ccEMMn0N.s:860    .text.get_mm_per_kilostep:00000000 get_mm_per_kilostep
+C:\Users\JOHNK~1\AppData\Local\Temp\ccEMMn0N.s:887    .text.set_mm_per_kilostep:00000000 set_mm_per_kilostep
+C:\Users\JOHNK~1\AppData\Local\Temp\ccEMMn0N.s:913    .text.read_motor_settings:00000000 read_motor_settings
+C:\Users\JOHNK~1\AppData\Local\Temp\ccEMMn0N.s:1044   .text.motor_init:00000000 motor_init
+C:\Users\JOHNK~1\AppData\Local\Temp\ccEMMn0N.s:1140   .text.write_motor_settings:00000000 write_motor_settings
+C:\Users\JOHNK~1\AppData\Local\Temp\ccEMMn0N.s:1276   .text.print_motor_values:00000000 print_motor_values
+C:\Users\JOHNK~1\AppData\Local\Temp\ccEMMn0N.s:1611   .progmem.data.__c.4990:00000000 __c.4990
+C:\Users\JOHNK~1\AppData\Local\Temp\ccEMMn0N.s:1606   .progmem.data.__c.4993:00000000 __c.4993
+C:\Users\JOHNK~1\AppData\Local\Temp\ccEMMn0N.s:1464   .text.broadcast_motor_adjusts:00000000 broadcast_motor_adjusts
+C:\Users\JOHNK~1\AppData\Local\Temp\ccEMMn0N.s:1479   .text.print_dist_per_step:00000000 print_dist_per_step
+C:\Users\JOHNK~1\AppData\Local\Temp\ccEMMn0N.s:1601   .progmem.data.__c.5006:00000000 __c.5006
+C:\Users\JOHNK~1\AppData\Local\Temp\ccEMMn0N.s:1596   .progmem.data.__c.5009:00000000 __c.5009
+C:\Users\JOHNK~1\AppData\Local\Temp\ccEMMn0N.s:1658   .bss.task_storage_arr:00000000 task_storage_arr
+                            *COM*:00000001 task_executing
+                            *COM*:00000001 num_tasks
+                            *COM*:00000002 task_list
+                            *COM*:00000002 rtc_epoch
+                            *COM*:00000002 droplet_ID
+
+UNDEFINED SYMBOLS
+remove_task
+__udivmodhi4
+printf_P
+__umulhisi3
+schedule_task
+__floatunsisf
+__divsf3
+__fixunssfsi
+delay_ms
+EEPROM_read_byte
+EEPROM_write_byte
+printf
+puts
+__do_copy_data
+__do_clear_bss

@@ -1,0 +1,3210 @@
+   1               		.file	"scheduler.c"
+   2               	__SP_H__ = 0x3e
+   3               	__SP_L__ = 0x3d
+   4               	__SREG__ = 0x3f
+   5               	__RAMPZ__ = 0x3b
+   6               	__CCP__ = 0x34
+   7               	__tmp_reg__ = 0
+   8               	__zero_reg__ = 1
+   9               		.text
+  10               	.Ltext0:
+  11               		.cfi_sections	.debug_frame
+  12               		.section	.text.scheduler_free,"ax",@progbits
+  14               	scheduler_free:
+  15               	.LFB37:
+  16               		.file 1 "../src/scheduler.c"
+   1:../src/scheduler.c **** #include "scheduler.h"
+   2:../src/scheduler.c **** 
+   3:../src/scheduler.c **** static void add_task_to_list(volatile Task_t* task);
+   4:../src/scheduler.c **** static int8_t run_tasks(void);
+   5:../src/scheduler.c **** 
+   6:../src/scheduler.c **** static volatile Task_t* scheduler_malloc(void){
+   7:../src/scheduler.c **** 	if(num_tasks>=MAX_NUM_SCHEDULED_TASKS) return NULL;
+   8:../src/scheduler.c **** 
+   9:../src/scheduler.c **** 	for(uint8_t tmp=0 ; tmp<MAX_NUM_SCHEDULED_TASKS ; tmp++){
+  10:../src/scheduler.c **** 		//This code assumes that all tasks will have non-null function pointers.
+  11:../src/scheduler.c **** 		if((task_storage_arr[tmp].func.noarg_func) == NULL){
+  12:../src/scheduler.c **** 			return &(task_storage_arr[tmp]);
+  13:../src/scheduler.c **** 		}
+  14:../src/scheduler.c **** 	}
+  15:../src/scheduler.c **** 	
+  16:../src/scheduler.c **** 	return (volatile Task_t*)0xFFFF;
+  17:../src/scheduler.c **** 
+  18:../src/scheduler.c **** }
+  19:../src/scheduler.c **** 
+  20:../src/scheduler.c **** static void scheduler_free(volatile Task_t* tgt){
+  17               		.loc 1 20 0
+  18               		.cfi_startproc
+  19               	.LVL0:
+  20 0000 CF93      		push r28
+  21               	.LCFI0:
+  22               		.cfi_def_cfa_offset 4
+  23               		.cfi_offset 28, -3
+  24 0002 DF93      		push r29
+  25               	.LCFI1:
+  26               		.cfi_def_cfa_offset 5
+  27               		.cfi_offset 29, -4
+  28               	/* prologue: function */
+  29               	/* frame size = 0 */
+  30               	/* stack size = 2 */
+  31               	.L__stack_usage = 2
+  32 0004 EC01      		movw r28,r24
+  21:../src/scheduler.c **** 	if((tgt<task_storage_arr)||(tgt>(&(task_storage_arr[MAX_NUM_SCHEDULED_TASKS])))){
+  33               		.loc 1 21 0
+  34 0006 80E0      		ldi r24,hi8(task_storage_arr)
+  35 0008 C030      		cpi r28,lo8(task_storage_arr)
+  36 000a D807      		cpc r29,r24
+  37               	.LVL1:
+  38 000c 00F0      		brlo .L2
+  39               		.loc 1 21 0 is_stmt 0 discriminator 1
+  40 000e 80E0      		ldi r24,hi8(task_storage_arr+140)
+  41 0010 C030      		cpi r28,lo8(task_storage_arr+140)
+  42 0012 D807      		cpc r29,r24
+  43 0014 01F0      		breq .L3
+  44 0016 00F0      		brlo .L3
+  45               	.L2:
+  22:../src/scheduler.c **** 		printf_P(PSTR("ERROR: In scheduler_free, tgt (%X) was outside valid Task* range.\r\n"),tgt);
+  46               		.loc 1 22 0 is_stmt 1
+  47 0018 DF93      		push r29
+  48               	.LCFI2:
+  49               		.cfi_def_cfa_offset 6
+  50 001a CF93      		push r28
+  51               	.LCFI3:
+  52               		.cfi_def_cfa_offset 7
+  53 001c 80E0      		ldi r24,lo8(__c.4762)
+  54 001e 90E0      		ldi r25,hi8(__c.4762)
+  55 0020 9F93      		push r25
+  56               	.LCFI4:
+  57               		.cfi_def_cfa_offset 8
+  58 0022 8F93      		push r24
+  59               	.LCFI5:
+  60               		.cfi_def_cfa_offset 9
+  61 0024 0E94 0000 		call printf_P
+  62               	.LVL2:
+  23:../src/scheduler.c **** 		set_rgb(0,0,255);
+  63               		.loc 1 23 0
+  64 0028 4FEF      		ldi r20,lo8(-1)
+  65 002a 60E0      		ldi r22,0
+  66 002c 80E0      		ldi r24,0
+  67 002e 0E94 0000 		call set_rgb
+  68               	.LVL3:
+  24:../src/scheduler.c **** 		delay_ms(60000);
+  69               		.loc 1 24 0
+  70 0032 80E6      		ldi r24,lo8(96)
+  71 0034 9AEE      		ldi r25,lo8(-22)
+  72 0036 0E94 0000 		call delay_ms
+  73               	.LVL4:
+  74 003a 0F90      		pop __tmp_reg__
+  75 003c 0F90      		pop __tmp_reg__
+  76 003e 0F90      		pop __tmp_reg__
+  77 0040 0F90      		pop __tmp_reg__
+  78               	.LCFI6:
+  79               		.cfi_def_cfa_offset 5
+  80               	.L3:
+  25:../src/scheduler.c **** 	}
+  26:../src/scheduler.c **** 	tgt->arg = 0;
+  81               		.loc 1 26 0
+  82 0042 1A86      		std Y+10,__zero_reg__
+  83 0044 1B86      		std Y+11,__zero_reg__
+  27:../src/scheduler.c **** 	tgt->period = 0;
+  84               		.loc 1 27 0
+  85 0046 1C82      		std Y+4,__zero_reg__
+  86 0048 1D82      		std Y+5,__zero_reg__
+  87 004a 1E82      		std Y+6,__zero_reg__
+  88 004c 1F82      		std Y+7,__zero_reg__
+  28:../src/scheduler.c **** 	(tgt->func).noarg_func = ((void (*)(void))NULL);
+  89               		.loc 1 28 0
+  90 004e 1886      		std Y+8,__zero_reg__
+  91 0050 1986      		std Y+9,__zero_reg__
+  29:../src/scheduler.c **** 	tgt->scheduled_time = 0;
+  92               		.loc 1 29 0
+  93 0052 1882      		st Y,__zero_reg__
+  94 0054 1982      		std Y+1,__zero_reg__
+  95 0056 1A82      		std Y+2,__zero_reg__
+  96 0058 1B82      		std Y+3,__zero_reg__
+  30:../src/scheduler.c **** 	tgt->next = NULL;
+  97               		.loc 1 30 0
+  98 005a 1C86      		std Y+12,__zero_reg__
+  99 005c 1D86      		std Y+13,__zero_reg__
+ 100               	/* epilogue start */
+  31:../src/scheduler.c **** }
+ 101               		.loc 1 31 0
+ 102 005e DF91      		pop r29
+ 103 0060 CF91      		pop r28
+ 104               	.LVL5:
+ 105 0062 0895      		ret
+ 106               		.cfi_endproc
+ 107               	.LFE37:
+ 109               		.section	.text.scheduler_init,"ax",@progbits
+ 110               	.global	scheduler_init
+ 112               	scheduler_init:
+ 113               	.LFB38:
+  32:../src/scheduler.c **** 
+  33:../src/scheduler.c **** void scheduler_init(){
+ 114               		.loc 1 33 0
+ 115               		.cfi_startproc
+ 116 0000 0F93      		push r16
+ 117               	.LCFI7:
+ 118               		.cfi_def_cfa_offset 4
+ 119               		.cfi_offset 16, -3
+ 120 0002 1F93      		push r17
+ 121               	.LCFI8:
+ 122               		.cfi_def_cfa_offset 5
+ 123               		.cfi_offset 17, -4
+ 124 0004 CF93      		push r28
+ 125               	.LCFI9:
+ 126               		.cfi_def_cfa_offset 6
+ 127               		.cfi_offset 28, -5
+ 128 0006 DF93      		push r29
+ 129               	.LCFI10:
+ 130               		.cfi_def_cfa_offset 7
+ 131               		.cfi_offset 29, -6
+ 132               	/* prologue: function */
+ 133               	/* frame size = 0 */
+ 134               	/* stack size = 4 */
+ 135               	.L__stack_usage = 4
+  34:../src/scheduler.c **** 	task_list = NULL;
+ 136               		.loc 1 34 0
+ 137 0008 1092 0000 		sts task_list,__zero_reg__
+ 138 000c 1092 0000 		sts task_list+1,__zero_reg__
+  35:../src/scheduler.c **** 	num_tasks = 0;
+ 139               		.loc 1 35 0
+ 140 0010 1092 0000 		sts num_tasks,__zero_reg__
+  36:../src/scheduler.c **** 	task_executing = 0;
+ 141               		.loc 1 36 0
+ 142 0014 1092 0000 		sts task_executing,__zero_reg__
+ 143               	.LVL6:
+ 144 0018 C0E0      		ldi r28,lo8(task_storage_arr)
+ 145 001a D0E0      		ldi r29,hi8(task_storage_arr)
+ 146 001c 00E0      		ldi r16,lo8(task_storage_arr+140)
+ 147 001e 10E0      		ldi r17,hi8(task_storage_arr+140)
+ 148               	.LVL7:
+ 149               	.L6:
+ 150               	.LBB81:
+  37:../src/scheduler.c **** 	for(uint8_t i=0; i<MAX_NUM_SCHEDULED_TASKS; i++) scheduler_free(&task_storage_arr[i]);
+ 151               		.loc 1 37 0 discriminator 3
+ 152 0020 CE01      		movw r24,r28
+ 153 0022 0E94 0000 		call scheduler_free
+ 154               	.LVL8:
+ 155 0026 2E96      		adiw r28,14
+ 156 0028 0C17      		cp r16,r28
+ 157 002a 1D07      		cpc r17,r29
+ 158 002c 01F4      		brne .L6
+ 159               	.LBE81:
+ 160               	.LBB82:
+  38:../src/scheduler.c **** 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){  // Disable interrupts during initialization
+ 161               		.loc 1 38 0
+ 162 002e 9FB7      		in r25,__SREG__
+ 163               	.LVL9:
+ 164               	.LBB83:
+ 165               	.LBB84:
+ 166               		.file 2 "c:\\program files (x86)\\atmel\\studio\\7.0\\toolchain\\avr8\\avr8-gnu-toolchain\\avr\\in
+   1:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** /* Copyright (c) 2007 Dean Camera
+   2:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****    All rights reserved.
+   3:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** 
+   4:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****    Redistribution and use in source and binary forms, with or without
+   5:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****    modification, are permitted provided that the following conditions are met:
+   6:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** 
+   7:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****    * Redistributions of source code must retain the above copyright
+   8:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****      notice, this list of conditions and the following disclaimer.
+   9:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** 
+  10:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****    * Redistributions in binary form must reproduce the above copyright
+  11:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****      notice, this list of conditions and the following disclaimer in
+  12:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****      the documentation and/or other materials provided with the
+  13:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****      distribution.
+  14:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** 
+  15:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****    * Neither the name of the copyright holders nor the names of
+  16:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****      contributors may be used to endorse or promote products derived
+  17:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****      from this software without specific prior written permission.
+  18:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** 
+  19:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+  20:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****   AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+  21:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****   IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+  22:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****   ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+  23:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****   LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+  24:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****   CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+  25:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****   SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+  26:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****   INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+  27:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****   CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+  28:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+  29:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****   POSSIBILITY OF SUCH DAMAGE.
+  30:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** */
+  31:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** 
+  32:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** /* $Id$ */
+  33:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** 
+  34:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** #ifndef _UTIL_ATOMIC_H_
+  35:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** #define _UTIL_ATOMIC_H_ 1
+  36:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** 
+  37:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** #include <avr/io.h>
+  38:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** #include <avr/interrupt.h>
+  39:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** 
+  40:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** #if !defined(__DOXYGEN__)
+  41:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** /* Internal helper functions. */
+  42:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** static __inline__ uint8_t __iSeiRetVal(void)
+  43:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** {
+  44:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     sei();
+  45:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     return 1;
+  46:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** }
+  47:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** 
+  48:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** static __inline__ uint8_t __iCliRetVal(void)
+  49:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** {
+  50:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     cli();
+ 167               		.loc 2 50 0
+ 168               	/* #APP */
+ 169               	 ;  50 "c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\
+ 170 0030 F894      		cli
+ 171               	 ;  0 "" 2
+ 172               	.LVL10:
+ 173               	/* #NOAPP */
+ 174               	.LBE84:
+ 175               	.LBE83:
+  39:../src/scheduler.c **** 		// Set up real-time clock
+  40:../src/scheduler.c **** 		rtc_epoch = 0;
+ 176               		.loc 1 40 0
+ 177 0032 1092 0000 		sts rtc_epoch,__zero_reg__
+ 178 0036 1092 0000 		sts rtc_epoch+1,__zero_reg__
+  41:../src/scheduler.c **** 		CLK.RTCCTRL = CLK_RTCSRC_RCOSC_gc | CLK_RTCEN_bm;
+ 179               		.loc 1 41 0
+ 180 003a 85E0      		ldi r24,lo8(5)
+ 181 003c 8093 4300 		sts 67,r24
+  42:../src/scheduler.c **** 		RTC.INTCTRL = RTC_OVFINTLVL_HI_gc;		// High level overflow interrupt to increment the epoch count
+ 182               		.loc 1 42 0
+ 183 0040 83E0      		ldi r24,lo8(3)
+ 184 0042 8093 0204 		sts 1026,r24
+ 185               	.L7:
+  43:../src/scheduler.c **** 		while (RTC.STATUS & RTC_SYNCBUSY_bm);
+ 186               		.loc 1 43 0 discriminator 1
+ 187 0046 8091 0104 		lds r24,1025
+ 188 004a 80FD      		sbrc r24,0
+ 189 004c 00C0      		rjmp .L7
+  44:../src/scheduler.c **** 		RTC.PER = 0xFFFF;
+ 190               		.loc 1 44 0
+ 191 004e 2FEF      		ldi r18,lo8(-1)
+ 192 0050 3FEF      		ldi r19,lo8(-1)
+ 193 0052 2093 0A04 		sts 1034,r18
+ 194 0056 3093 0B04 		sts 1034+1,r19
+ 195               	.L8:
+  45:../src/scheduler.c **** 		while (RTC.STATUS & RTC_SYNCBUSY_bm);
+ 196               		.loc 1 45 0 discriminator 1
+ 197 005a 8091 0104 		lds r24,1025
+ 198 005e 80FD      		sbrc r24,0
+ 199 0060 00C0      		rjmp .L8
+  46:../src/scheduler.c **** 		RTC.CTRL = RTC_PRESCALER_DIV1_gc;
+ 200               		.loc 1 46 0
+ 201 0062 81E0      		ldi r24,lo8(1)
+ 202 0064 8093 0004 		sts 1024,r24
+ 203               	.L9:
+  47:../src/scheduler.c **** 		while (RTC.STATUS & RTC_SYNCBUSY_bm);
+ 204               		.loc 1 47 0 discriminator 1
+ 205 0068 8091 0104 		lds r24,1025
+ 206 006c 80FD      		sbrc r24,0
+ 207 006e 00C0      		rjmp .L9
+  48:../src/scheduler.c **** 		RTC.CNT = 0;
+ 208               		.loc 1 48 0 discriminator 2
+ 209 0070 1092 0804 		sts 1032,__zero_reg__
+ 210 0074 1092 0904 		sts 1032+1,__zero_reg__
+ 211               	.LVL11:
+ 212               	.LBB85:
+ 213               	.LBB86:
+  51:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     return 1;
+  52:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** }
+  53:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** 
+  54:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** static __inline__ void __iSeiParam(const uint8_t *__s)
+  55:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** {
+  56:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     sei();
+  57:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     __asm__ volatile ("" ::: "memory");
+  58:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     (void)__s;
+  59:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** }
+  60:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** 
+  61:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** static __inline__ void __iCliParam(const uint8_t *__s)
+  62:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** {
+  63:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     cli();
+  64:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     __asm__ volatile ("" ::: "memory");
+  65:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     (void)__s;
+  66:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** }
+  67:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** 
+  68:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** static __inline__ void __iRestore(const  uint8_t *__s)
+  69:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** {
+  70:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     SREG = *__s;
+ 214               		.loc 2 70 0 discriminator 2
+ 215 0078 9FBF      		out __SREG__,r25
+  71:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     __asm__ volatile ("" ::: "memory");
+ 216               		.loc 2 71 0 discriminator 2
+ 217               	.LVL12:
+ 218               	/* epilogue start */
+ 219               	.LBE86:
+ 220               	.LBE85:
+ 221               	.LBE82:
+  49:../src/scheduler.c **** 	}
+  50:../src/scheduler.c **** }
+ 222               		.loc 1 50 0 discriminator 2
+ 223 007a DF91      		pop r29
+ 224 007c CF91      		pop r28
+ 225 007e 1F91      		pop r17
+ 226 0080 0F91      		pop r16
+ 227 0082 0895      		ret
+ 228               		.cfi_endproc
+ 229               	.LFE38:
+ 231               		.section	.text.task_list_cleanup,"ax",@progbits
+ 232               	.global	task_list_cleanup
+ 234               	task_list_cleanup:
+ 235               	.LFB39:
+  51:../src/scheduler.c **** 
+  52:../src/scheduler.c **** //This function checks for errors or inconsistencies in the task list, and attempts to correct them
+  53:../src/scheduler.c **** void task_list_cleanup(){
+ 236               		.loc 1 53 0
+ 237               		.cfi_startproc
+ 238 0000 CF92      		push r12
+ 239               	.LCFI11:
+ 240               		.cfi_def_cfa_offset 4
+ 241               		.cfi_offset 12, -3
+ 242 0002 DF92      		push r13
+ 243               	.LCFI12:
+ 244               		.cfi_def_cfa_offset 5
+ 245               		.cfi_offset 13, -4
+ 246 0004 EF92      		push r14
+ 247               	.LCFI13:
+ 248               		.cfi_def_cfa_offset 6
+ 249               		.cfi_offset 14, -5
+ 250 0006 FF92      		push r15
+ 251               	.LCFI14:
+ 252               		.cfi_def_cfa_offset 7
+ 253               		.cfi_offset 15, -6
+ 254 0008 0F93      		push r16
+ 255               	.LCFI15:
+ 256               		.cfi_def_cfa_offset 8
+ 257               		.cfi_offset 16, -7
+ 258 000a 1F93      		push r17
+ 259               	.LCFI16:
+ 260               		.cfi_def_cfa_offset 9
+ 261               		.cfi_offset 17, -8
+ 262 000c CF93      		push r28
+ 263               	.LCFI17:
+ 264               		.cfi_def_cfa_offset 10
+ 265               		.cfi_offset 28, -9
+ 266 000e DF93      		push r29
+ 267               	.LCFI18:
+ 268               		.cfi_def_cfa_offset 11
+ 269               		.cfi_offset 29, -10
+ 270               	/* prologue: function */
+ 271               	/* frame size = 0 */
+ 272               	/* stack size = 8 */
+ 273               	.L__stack_usage = 8
+  54:../src/scheduler.c **** 	printf_P(PSTR("\tAttempting to restore task_list.\r\n\tIf you only see this message rarely, don't 
+ 274               		.loc 1 54 0
+ 275 0010 80E0      		ldi r24,lo8(__c.4787)
+ 276 0012 90E0      		ldi r25,hi8(__c.4787)
+ 277 0014 9F93      		push r25
+ 278               	.LCFI19:
+ 279               		.cfi_def_cfa_offset 12
+ 280 0016 8F93      		push r24
+ 281               	.LCFI20:
+ 282               		.cfi_def_cfa_offset 13
+ 283 0018 0E94 0000 		call printf_P
+ 284               	.LVL13:
+  55:../src/scheduler.c **** 	volatile Task_t* cur_task = task_list;
+ 285               		.loc 1 55 0
+ 286 001c C091 0000 		lds r28,task_list
+ 287 0020 D091 0000 		lds r29,task_list+1
+ 288               	.LVL14:
+  56:../src/scheduler.c **** 	//volatile Task_t* prev_task;
+  57:../src/scheduler.c **** 	uint32_t nextTime = get_time()+500;
+ 289               		.loc 1 57 0
+ 290 0024 0E94 0000 		call get_time
+ 291               	.LVL15:
+ 292 0028 AB01      		movw r20,r22
+ 293 002a BC01      		movw r22,r24
+ 294 002c 4C50      		subi r20,12
+ 295 002e 5E4F      		sbci r21,-2
+ 296 0030 6F4F      		sbci r22,-1
+ 297 0032 7F4F      		sbci r23,-1
+ 298               	.LVL16:
+ 299               	.LBB87:
+  58:../src/scheduler.c **** 	uint8_t first = 1;
+  59:../src/scheduler.c **** 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+ 300               		.loc 1 59 0
+ 301 0034 EFB7      		in r30,__SREG__
+ 302               	.LVL17:
+ 303               	.LBB88:
+ 304               	.LBB89:
+  50:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     return 1;
+ 305               		.loc 2 50 0
+ 306               	/* #APP */
+ 307               	 ;  50 "c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\
+ 308 0036 F894      		cli
+ 309               	 ;  0 "" 2
+ 310               	.LVL18:
+ 311               	/* #NOAPP */
+ 312               	.LBE89:
+ 313               	.LBE88:
+  60:../src/scheduler.c **** 		RTC.INTCTRL &= ~RTC_COMP_INT_LEVEL;
+ 314               		.loc 1 60 0
+ 315 0038 8091 0204 		lds r24,1026
+ 316 003c 8B7F      		andi r24,lo8(-5)
+ 317 003e 8093 0204 		sts 1026,r24
+  61:../src/scheduler.c **** 		while (cur_task != NULL){
+ 318               		.loc 1 61 0
+ 319 0042 0F90      		pop __tmp_reg__
+ 320 0044 0F90      		pop __tmp_reg__
+ 321               	.LCFI21:
+ 322               		.cfi_def_cfa_offset 11
+ 323 0046 2097      		sbiw r28,0
+ 324 0048 01F0      		breq .L19
+  62:../src/scheduler.c **** 			cur_task->scheduled_time = nextTime;
+ 325               		.loc 1 62 0
+ 326 004a 4883      		st Y,r20
+ 327 004c 5983      		std Y+1,r21
+ 328 004e 6A83      		std Y+2,r22
+ 329 0050 7B83      		std Y+3,r23
+  63:../src/scheduler.c **** 			if(first){
+  64:../src/scheduler.c **** 				if (cur_task->scheduled_time <= ((((uint32_t)rtc_epoch) << 16) | (uint32_t)RTC.PER)){
+ 330               		.loc 1 64 0
+ 331 0052 C880      		ld r12,Y
+ 332 0054 D980      		ldd r13,Y+1
+ 333 0056 EA80      		ldd r14,Y+2
+ 334 0058 FB80      		ldd r15,Y+3
+ 335 005a 8091 0000 		lds r24,rtc_epoch
+ 336 005e 9091 0000 		lds r25,rtc_epoch+1
+ 337 0062 0091 0A04 		lds r16,1034
+ 338 0066 1091 0B04 		lds r17,1034+1
+ 339 006a A0E0      		ldi r26,0
+ 340 006c B0E0      		ldi r27,0
+ 341 006e DC01      		movw r26,r24
+ 342 0070 9927      		clr r25
+ 343 0072 8827      		clr r24
+ 344 0074 20E0      		ldi r18,0
+ 345 0076 30E0      		ldi r19,0
+ 346 0078 802B      		or r24,r16
+ 347 007a 912B      		or r25,r17
+ 348 007c A22B      		or r26,r18
+ 349 007e B32B      		or r27,r19
+ 350 0080 8C15      		cp r24,r12
+ 351 0082 9D05      		cpc r25,r13
+ 352 0084 AE05      		cpc r26,r14
+ 353 0086 BF05      		cpc r27,r15
+ 354 0088 00F4      		brsh .L23
+  65:../src/scheduler.c **** 					while (RTC.STATUS & RTC_SYNCBUSY_bm);
+  66:../src/scheduler.c **** 					RTC.COMP = ((uint16_t)(cur_task->scheduled_time))|0x8;
+  67:../src/scheduler.c **** 					RTC.INTCTRL |= RTC_COMP_INT_LEVEL;
+  68:../src/scheduler.c **** 				}else{
+  69:../src/scheduler.c **** 					RTC.INTCTRL &= ~RTC_COMP_INT_LEVEL;
+ 355               		.loc 1 69 0
+ 356 008a 8091 0204 		lds r24,1026
+ 357 008e 8B7F      		andi r24,lo8(-5)
+ 358 0090 8093 0204 		sts 1026,r24
+ 359 0094 00C0      		rjmp .L17
+ 360               	.LVL19:
+ 361               	.L29:
+  62:../src/scheduler.c **** 			if(first){
+ 362               		.loc 1 62 0
+ 363 0096 4883      		st Y,r20
+ 364 0098 5983      		std Y+1,r21
+ 365 009a 6A83      		std Y+2,r22
+ 366 009c 7B83      		std Y+3,r23
+ 367               	.LVL20:
+ 368               	.L17:
+  70:../src/scheduler.c **** 				}
+  71:../src/scheduler.c **** 				first = 0;
+  72:../src/scheduler.c **** 			}
+  73:../src/scheduler.c **** 			nextTime += 500;
+ 369               		.loc 1 73 0
+ 370 009e 4C50      		subi r20,12
+ 371 00a0 5E4F      		sbci r21,-2
+ 372 00a2 6F4F      		sbci r22,-1
+ 373 00a4 7F4F      		sbci r23,-1
+ 374               	.LVL21:
+  74:../src/scheduler.c **** 			cur_task = cur_task->next;
+ 375               		.loc 1 74 0
+ 376 00a6 0C84      		ldd __tmp_reg__,Y+12
+ 377 00a8 DD85      		ldd r29,Y+13
+ 378 00aa C02D      		mov r28,__tmp_reg__
+ 379               	.LVL22:
+  61:../src/scheduler.c **** 			cur_task->scheduled_time = nextTime;
+ 380               		.loc 1 61 0
+ 381 00ac 2097      		sbiw r28,0
+ 382 00ae 01F4      		brne .L29
+ 383               	.LVL23:
+ 384               	.L19:
+ 385               	.LBB90:
+ 386               	.LBB91:
+  70:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     __asm__ volatile ("" ::: "memory");
+ 387               		.loc 2 70 0
+ 388 00b0 EFBF      		out __SREG__,r30
+ 389               		.loc 2 71 0
+ 390               	.LVL24:
+ 391               	/* epilogue start */
+ 392               	.LBE91:
+ 393               	.LBE90:
+ 394               	.LBE87:
+  75:../src/scheduler.c **** 		}
+  76:../src/scheduler.c **** 	}
+  77:../src/scheduler.c **** }
+ 395               		.loc 1 77 0
+ 396 00b2 DF91      		pop r29
+ 397 00b4 CF91      		pop r28
+ 398 00b6 1F91      		pop r17
+ 399 00b8 0F91      		pop r16
+ 400 00ba FF90      		pop r15
+ 401 00bc EF90      		pop r14
+ 402 00be DF90      		pop r13
+ 403 00c0 CF90      		pop r12
+ 404 00c2 0895      		ret
+ 405               	.LVL25:
+ 406               	.L23:
+ 407               	.LBB92:
+  65:../src/scheduler.c **** 					RTC.COMP = ((uint16_t)(cur_task->scheduled_time))|0x8;
+ 408               		.loc 1 65 0 discriminator 1
+ 409 00c4 8091 0104 		lds r24,1025
+ 410 00c8 80FD      		sbrc r24,0
+ 411 00ca 00C0      		rjmp .L23
+  66:../src/scheduler.c **** 					RTC.INTCTRL |= RTC_COMP_INT_LEVEL;
+ 412               		.loc 1 66 0
+ 413 00cc 8881      		ld r24,Y
+ 414 00ce 9981      		ldd r25,Y+1
+ 415 00d0 AA81      		ldd r26,Y+2
+ 416 00d2 BB81      		ldd r27,Y+3
+ 417 00d4 8860      		ori r24,8
+ 418 00d6 8093 0C04 		sts 1036,r24
+ 419 00da 9093 0D04 		sts 1036+1,r25
+  67:../src/scheduler.c **** 				}else{
+ 420               		.loc 1 67 0
+ 421 00de 8091 0204 		lds r24,1026
+ 422 00e2 8460      		ori r24,lo8(4)
+ 423 00e4 8093 0204 		sts 1026,r24
+ 424 00e8 00C0      		rjmp .L17
+ 425               	.LBE92:
+ 426               		.cfi_endproc
+ 427               	.LFE39:
+ 429               		.section	.rodata.str1.1,"aMS",@progbits,1
+ 430               	.LC0:
+ 431 0000 4552 524F 		.string	"ERROR: Asked to remove_task for task pointer outside the bounds of task_storage_arr.\r"
+ 431      523A 2041 
+ 431      736B 6564 
+ 431      2074 6F20 
+ 431      7265 6D6F 
+ 432               		.section	.text.remove_task,"ax",@progbits
+ 433               	.global	remove_task
+ 435               	remove_task:
+ 436               	.LFB43:
+  78:../src/scheduler.c **** 
+  79:../src/scheduler.c **** 
+  80:../src/scheduler.c **** // Adds a new task to the task queue
+  81:../src/scheduler.c **** // time is number of milliseconds until function is executed
+  82:../src/scheduler.c **** // function is a function pointer to execute
+  83:../src/scheduler.c **** // arg is the argument to supply to function
+  84:../src/scheduler.c **** volatile Task_t* schedule_task(uint32_t time, flex_function function, void* arg){
+  85:../src/scheduler.c **** 	volatile Task_t* new_task;
+  86:../src/scheduler.c **** 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+  87:../src/scheduler.c **** 		new_task = scheduler_malloc();
+  88:../src/scheduler.c **** 		if (new_task == NULL) return NULL;
+  89:../src/scheduler.c **** 		else if(new_task == ((volatile Task_t*)0xFFFF)){
+  90:../src/scheduler.c **** 			printf_P(PSTR("ERROR: No empty spot found in scheduler_malloc, but num_tasks wasn't greater than
+  91:../src/scheduler.c **** 			task_list_cleanup();
+  92:../src/scheduler.c **** 		}else if((new_task<task_storage_arr)||(new_task>(&(task_storage_arr[MAX_NUM_SCHEDULED_TASKS-1])))
+  93:../src/scheduler.c **** 			printf_P(PSTR("ERROR: scheduler_malloc returned a new_task pointer outside of the task storage a
+  94:../src/scheduler.c **** 		}
+  95:../src/scheduler.c **** 
+  96:../src/scheduler.c **** 		time+=MIN_TASK_TIME_IN_FUTURE*(time<MIN_TASK_TIME_IN_FUTURE);
+  97:../src/scheduler.c **** 		new_task->scheduled_time = time + get_time();
+  98:../src/scheduler.c **** 		new_task->arg = arg;
+  99:../src/scheduler.c **** 		new_task->func = function;
+ 100:../src/scheduler.c **** 		new_task->period = 0;
+ 101:../src/scheduler.c **** 		new_task->next = NULL;
+ 102:../src/scheduler.c **** 	}
+ 103:../src/scheduler.c **** 	add_task_to_list(new_task);
+ 104:../src/scheduler.c **** 	//printf("Task (%X->%X) scheduled for %lu\t[%hhu]\r\n", new_task, (new_task->func).noarg_function,
+ 105:../src/scheduler.c **** 
+ 106:../src/scheduler.c **** 	return new_task;
+ 107:../src/scheduler.c **** }
+ 108:../src/scheduler.c **** 
+ 109:../src/scheduler.c **** volatile Task_t* schedule_periodic_task(uint32_t period, flex_function function, void* arg){
+ 110:../src/scheduler.c **** 	period+=MIN_TASK_TIME_IN_FUTURE*(period<MIN_TASK_TIME_IN_FUTURE);	
+ 111:../src/scheduler.c **** 	volatile Task_t* new_task = schedule_task(period, function, arg);
+ 112:../src/scheduler.c **** 	new_task->period=period;
+ 113:../src/scheduler.c **** 	return new_task;
+ 114:../src/scheduler.c **** }
+ 115:../src/scheduler.c **** 
+ 116:../src/scheduler.c **** static void add_task_to_list(volatile Task_t* task){
+ 117:../src/scheduler.c **** 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+ 118:../src/scheduler.c **** 		// Find the new task's proper spot in the list of tasks
+ 119:../src/scheduler.c **** 		// task_list is a linked list sorted by scheduled_time, smallest first
+ 120:../src/scheduler.c **** 		task->next = task_list;
+ 121:../src/scheduler.c **** 		
+ 122:../src/scheduler.c **** 		// If the new task is the next to be executed, put it at the front of the list
+ 123:../src/scheduler.c **** 		if (task_list == NULL || task->scheduled_time <= task_list->scheduled_time){
+ 124:../src/scheduler.c **** 			task_list = task;
+ 125:../src/scheduler.c **** 			// If scheduled_time is in the current epoch, set the RTC compare interrupt
+ 126:../src/scheduler.c **** 			if(task_executing==0){			
+ 127:../src/scheduler.c **** 				if (task->scheduled_time <= ((((uint32_t)rtc_epoch) << 16) | (uint32_t)RTC.PER)){
+ 128:../src/scheduler.c **** 					while (RTC.STATUS & RTC_SYNCBUSY_bm);
+ 129:../src/scheduler.c **** 					RTC.COMP = ((uint16_t)(task_list->scheduled_time))|0x8;
+ 130:../src/scheduler.c **** 					RTC.INTCTRL |= RTC_COMP_INT_LEVEL;
+ 131:../src/scheduler.c **** 				}else{
+ 132:../src/scheduler.c **** 					RTC.INTCTRL &= ~RTC_COMP_INT_LEVEL;					
+ 133:../src/scheduler.c **** 				}
+ 134:../src/scheduler.c **** 			}
+ 135:../src/scheduler.c **** 		}else{
+ 136:../src/scheduler.c **** 			// If the new task is not the next to be executed, iterate through the task_list,
+ 137:../src/scheduler.c **** 			// find its position in the linked list, and insert it there.
+ 138:../src/scheduler.c **** 			volatile Task_t* tmp_task_ptr = task_list;
+ 139:../src/scheduler.c **** 			while (tmp_task_ptr->next != NULL && task->scheduled_time > (tmp_task_ptr->next)->scheduled_time
+ 140:../src/scheduler.c **** 				if(tmp_task_ptr->next==tmp_task_ptr){
+ 141:../src/scheduler.c **** 					//set_rgb(255, 50, 0);
+ 142:../src/scheduler.c **** 					printf_P(PSTR("ERROR! Task list has self-reference.\r\n"));
+ 143:../src/scheduler.c **** 					printf_P(PSTR("New Task %p (%p) scheduled at %lu with period %lu, %lu current\r\n"), task, (ta
+ 144:../src/scheduler.c **** 					print_task_queue();
+ 145:../src/scheduler.c **** 					return;				
+ 146:../src/scheduler.c **** 				}
+ 147:../src/scheduler.c **** 				tmp_task_ptr = tmp_task_ptr->next;
+ 148:../src/scheduler.c **** 			}
+ 149:../src/scheduler.c **** 			//set_rgb(r, g, b);
+ 150:../src/scheduler.c **** 			task->next = tmp_task_ptr->next;
+ 151:../src/scheduler.c **** 			tmp_task_ptr->next = task;
+ 152:../src/scheduler.c **** 		}
+ 153:../src/scheduler.c **** //
+ 154:../src/scheduler.c **** 		////Check if the front of the task_lsit should have already been run, and set the RTC.COMP for th
+ 155:../src/scheduler.c **** 		//if (task_list != NULL && task_list->scheduled_time < get_time()) //
+ 156:../src/scheduler.c **** 		//{
+ 157:../src/scheduler.c **** 			//while (RTC.STATUS & RTC_SYNCBUSY_bm);
+ 158:../src/scheduler.c **** 			//RTC.COMP = RTC.CNT+5;
+ 159:../src/scheduler.c **** 			//RTC.INTCTRL |= RTC_COMP_INT_LEVEL;
+ 160:../src/scheduler.c **** 		//}
+ 161:../src/scheduler.c **** 
+ 162:../src/scheduler.c **** 		num_tasks++;
+ 163:../src/scheduler.c **** 		
+ 164:../src/scheduler.c **** 		//task_list_checkup();
+ 165:../src/scheduler.c **** 	}
+ 166:../src/scheduler.c **** }
+ 167:../src/scheduler.c **** 
+ 168:../src/scheduler.c **** // Remove a task from the task queue
+ 169:../src/scheduler.c **** void remove_task(volatile Task_t* task){
+ 437               		.loc 1 169 0
+ 438               		.cfi_startproc
+ 439               	.LVL26:
+ 440 0000 CF93      		push r28
+ 441               	.LCFI22:
+ 442               		.cfi_def_cfa_offset 4
+ 443               		.cfi_offset 28, -3
+ 444               	/* prologue: function */
+ 445               	/* frame size = 0 */
+ 446               	/* stack size = 1 */
+ 447               	.L__stack_usage = 1
+ 448 0002 DC01      		movw r26,r24
+ 170:../src/scheduler.c **** 	if((task<task_storage_arr)||(task>(&(task_storage_arr[MAX_NUM_SCHEDULED_TASKS-1])))){
+ 449               		.loc 1 170 0
+ 450 0004 80E0      		ldi r24,hi8(task_storage_arr)
+ 451 0006 A030      		cpi r26,lo8(task_storage_arr)
+ 452 0008 B807      		cpc r27,r24
+ 453               	.LVL27:
+ 454 000a 00F0      		brlo .L31
+ 455               		.loc 1 170 0 is_stmt 0 discriminator 1
+ 456 000c 80E0      		ldi r24,hi8(task_storage_arr+126)
+ 457 000e A030      		cpi r26,lo8(task_storage_arr+126)
+ 458 0010 B807      		cpc r27,r24
+ 459 0012 01F0      		breq .+2
+ 460 0014 00F4      		brsh .L31
+ 461               	.LBB93:
+ 171:../src/scheduler.c **** 		printf("ERROR: Asked to remove_task for task pointer outside the bounds of task_storage_arr.\r\n"
+ 172:../src/scheduler.c **** 		return;
+ 173:../src/scheduler.c **** 	}
+ 174:../src/scheduler.c **** 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+ 462               		.loc 1 174 0 is_stmt 1
+ 463 0016 CFB7      		in r28,__SREG__
+ 464               	.LVL28:
+ 465               	.LBB94:
+ 466               	.LBB95:
+  50:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     return 1;
+ 467               		.loc 2 50 0
+ 468               	/* #APP */
+ 469               	 ;  50 "c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\
+ 470 0018 F894      		cli
+ 471               	 ;  0 "" 2
+ 472               	.LVL29:
+ 473               	/* #NOAPP */
+ 474               	.LBE95:
+ 475               	.LBE94:
+ 175:../src/scheduler.c **** 		if(task==NULL){
+ 476               		.loc 1 175 0
+ 477 001a 1097      		sbiw r26,0
+ 478 001c 01F0      		breq .L33
+ 176:../src/scheduler.c **** 			continue;
+ 177:../src/scheduler.c **** 		}
+ 178:../src/scheduler.c **** 		if(task_list==task)	{
+ 479               		.loc 1 178 0
+ 480 001e E091 0000 		lds r30,task_list
+ 481 0022 F091 0000 		lds r31,task_list+1
+ 482 0026 AE17      		cp r26,r30
+ 483 0028 BF07      		cpc r27,r31
+ 484 002a 01F4      		brne .L55
+ 485 002c 00C0      		rjmp .L56
+ 486               	.LVL30:
+ 487               	.L57:
+ 488               	.LBB96:
+ 179:../src/scheduler.c **** 			task_list=task->next;
+ 180:../src/scheduler.c **** 			num_tasks--;
+ 181:../src/scheduler.c **** 		}else{
+ 182:../src/scheduler.c **** 			volatile Task_t* tmp_task = task_list;
+ 183:../src/scheduler.c **** 			while (tmp_task->next != NULL && tmp_task->next != task) tmp_task = tmp_task->next;
+ 489               		.loc 1 183 0 discriminator 2
+ 490 002e 2485      		ldd r18,Z+12
+ 491 0030 3585      		ldd r19,Z+13
+ 492 0032 A217      		cp r26,r18
+ 493 0034 B307      		cpc r27,r19
+ 494 0036 01F0      		breq .L35
+ 495               		.loc 1 183 0 is_stmt 0 discriminator 3
+ 496 0038 0484      		ldd __tmp_reg__,Z+12
+ 497 003a F585      		ldd r31,Z+13
+ 498 003c E02D      		mov r30,__tmp_reg__
+ 499               	.LVL31:
+ 500               	.L55:
+ 501 003e 2485      		ldd r18,Z+12
+ 502 0040 3585      		ldd r19,Z+13
+ 503 0042 232B      		or r18,r19
+ 504 0044 01F4      		brne .L57
+ 505               	.L35:
+ 184:../src/scheduler.c **** 			if (tmp_task->next != NULL){
+ 506               		.loc 1 184 0 is_stmt 1
+ 507 0046 2485      		ldd r18,Z+12
+ 508 0048 3585      		ldd r19,Z+13
+ 509 004a 232B      		or r18,r19
+ 510 004c 01F0      		breq .L37
+ 185:../src/scheduler.c **** 				tmp_task->next = task->next;
+ 511               		.loc 1 185 0
+ 512 004e 1C96      		adiw r26,12
+ 513 0050 2D91      		ld r18,X+
+ 514 0052 3C91      		ld r19,X
+ 515 0054 1D97      		sbiw r26,12+1
+ 516 0056 2487      		std Z+12,r18
+ 517 0058 3587      		std Z+13,r19
+ 186:../src/scheduler.c **** 				num_tasks--;
+ 518               		.loc 1 186 0
+ 519 005a 2091 0000 		lds r18,num_tasks
+ 520 005e 2150      		subi r18,lo8(-(-1))
+ 521 0060 2093 0000 		sts num_tasks,r18
+ 522               	.LVL32:
+ 523               	.L37:
+ 524 0064 CD01      		movw r24,r26
+ 525               	.LBE96:
+ 187:../src/scheduler.c **** 			}
+ 188:../src/scheduler.c **** 		}
+ 189:../src/scheduler.c **** 		scheduler_free(task);		
+ 526               		.loc 1 189 0
+ 527 0066 0E94 0000 		call scheduler_free
+ 528               	.LVL33:
+ 529               	.L33:
+ 530               	.LBB97:
+ 531               	.LBB98:
+  70:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     __asm__ volatile ("" ::: "memory");
+ 532               		.loc 2 70 0 discriminator 3
+ 533 006a CFBF      		out __SREG__,r28
+ 534               		.loc 2 71 0 discriminator 3
+ 535               	.LVL34:
+ 536               	/* epilogue start */
+ 537               	.LBE98:
+ 538               	.LBE97:
+ 539               	.LBE93:
+ 190:../src/scheduler.c **** 	}
+ 191:../src/scheduler.c **** }
+ 540               		.loc 1 191 0 discriminator 3
+ 541 006c CF91      		pop r28
+ 542 006e 0895      		ret
+ 543               	.LVL35:
+ 544               	.L31:
+ 171:../src/scheduler.c **** 		return;
+ 545               		.loc 1 171 0
+ 546 0070 80E0      		ldi r24,lo8(.LC0)
+ 547 0072 90E0      		ldi r25,hi8(.LC0)
+ 548               	/* epilogue start */
+ 549               		.loc 1 191 0
+ 550 0074 CF91      		pop r28
+ 171:../src/scheduler.c **** 		return;
+ 551               		.loc 1 171 0
+ 552 0076 0C94 0000 		jmp puts
+ 553               	.LVL36:
+ 554               	.L56:
+ 555               	.LBB99:
+ 179:../src/scheduler.c **** 			num_tasks--;
+ 556               		.loc 1 179 0
+ 557 007a 1C96      		adiw r26,12
+ 558 007c 2D91      		ld r18,X+
+ 559 007e 3C91      		ld r19,X
+ 560 0080 1D97      		sbiw r26,12+1
+ 561 0082 2093 0000 		sts task_list,r18
+ 562 0086 3093 0000 		sts task_list+1,r19
+ 180:../src/scheduler.c **** 		}else{
+ 563               		.loc 1 180 0
+ 564 008a 2091 0000 		lds r18,num_tasks
+ 565 008e 2150      		subi r18,lo8(-(-1))
+ 566 0090 2093 0000 		sts num_tasks,r18
+ 567 0094 00C0      		rjmp .L37
+ 568               	.LBE99:
+ 569               		.cfi_endproc
+ 570               	.LFE43:
+ 572               		.section	.text.print_task_queue,"ax",@progbits
+ 573               	.global	print_task_queue
+ 575               	print_task_queue:
+ 576               	.LFB44:
+ 192:../src/scheduler.c **** 
+ 193:../src/scheduler.c **** void print_task_queue(){
+ 577               		.loc 1 193 0
+ 578               		.cfi_startproc
+ 579 0000 BF92      		push r11
+ 580               	.LCFI23:
+ 581               		.cfi_def_cfa_offset 4
+ 582               		.cfi_offset 11, -3
+ 583 0002 CF92      		push r12
+ 584               	.LCFI24:
+ 585               		.cfi_def_cfa_offset 5
+ 586               		.cfi_offset 12, -4
+ 587 0004 DF92      		push r13
+ 588               	.LCFI25:
+ 589               		.cfi_def_cfa_offset 6
+ 590               		.cfi_offset 13, -5
+ 591 0006 EF92      		push r14
+ 592               	.LCFI26:
+ 593               		.cfi_def_cfa_offset 7
+ 594               		.cfi_offset 14, -6
+ 595 0008 FF92      		push r15
+ 596               	.LCFI27:
+ 597               		.cfi_def_cfa_offset 8
+ 598               		.cfi_offset 15, -7
+ 599 000a 0F93      		push r16
+ 600               	.LCFI28:
+ 601               		.cfi_def_cfa_offset 9
+ 602               		.cfi_offset 16, -8
+ 603 000c 1F93      		push r17
+ 604               	.LCFI29:
+ 605               		.cfi_def_cfa_offset 10
+ 606               		.cfi_offset 17, -9
+ 607 000e CF93      		push r28
+ 608               	.LCFI30:
+ 609               		.cfi_def_cfa_offset 11
+ 610               		.cfi_offset 28, -10
+ 611 0010 DF93      		push r29
+ 612               	.LCFI31:
+ 613               		.cfi_def_cfa_offset 12
+ 614               		.cfi_offset 29, -11
+ 615               	/* prologue: function */
+ 616               	/* frame size = 0 */
+ 617               	/* stack size = 9 */
+ 618               	.L__stack_usage = 9
+ 619               	.LBB100:
+ 194:../src/scheduler.c **** 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){  // Disable interrupts during printing
+ 620               		.loc 1 194 0
+ 621 0012 BFB6      		in r11,__SREG__
+ 622               	.LBB101:
+ 623               	.LBB102:
+  50:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     return 1;
+ 624               		.loc 2 50 0
+ 625               	/* #APP */
+ 626               	 ;  50 "c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\
+ 627 0014 F894      		cli
+ 628               	 ;  0 "" 2
+ 629               	/* #NOAPP */
+ 630               	.LBE102:
+ 631               	.LBE101:
+ 632               	.LBB103:
+ 195:../src/scheduler.c **** 		volatile Task_t* cur_task = task_list;
+ 633               		.loc 1 195 0
+ 634 0016 C091 0000 		lds r28,task_list
+ 635 001a D091 0000 		lds r29,task_list+1
+ 196:../src/scheduler.c **** 		
+ 197:../src/scheduler.c **** 		printf_P(PSTR("Task Queue (%hu tasks, %hu executing):\r\n"), num_tasks, task_executing);
+ 636               		.loc 1 197 0
+ 637 001e 9091 0000 		lds r25,task_executing
+ 638 0022 8091 0000 		lds r24,num_tasks
+ 639 0026 1F92      		push __zero_reg__
+ 640               	.LCFI32:
+ 641               		.cfi_def_cfa_offset 13
+ 642 0028 9F93      		push r25
+ 643               	.LCFI33:
+ 644               		.cfi_def_cfa_offset 14
+ 645 002a 1F92      		push __zero_reg__
+ 646               	.LCFI34:
+ 647               		.cfi_def_cfa_offset 15
+ 648 002c 8F93      		push r24
+ 649               	.LCFI35:
+ 650               		.cfi_def_cfa_offset 16
+ 651 002e 80E0      		ldi r24,lo8(__c.4861)
+ 652 0030 90E0      		ldi r25,hi8(__c.4861)
+ 653 0032 9F93      		push r25
+ 654               	.LCFI36:
+ 655               		.cfi_def_cfa_offset 17
+ 656 0034 8F93      		push r24
+ 657               	.LCFI37:
+ 658               		.cfi_def_cfa_offset 18
+ 659 0036 0E94 0000 		call printf_P
+ 198:../src/scheduler.c **** 		
+ 199:../src/scheduler.c **** 		// Iterate through the list of tasks, printing name, function, and scheduled time of each
+ 200:../src/scheduler.c **** 		while (cur_task != NULL){
+ 660               		.loc 1 200 0
+ 661 003a 0F90      		pop __tmp_reg__
+ 662 003c 0F90      		pop __tmp_reg__
+ 663 003e 0F90      		pop __tmp_reg__
+ 664 0040 0F90      		pop __tmp_reg__
+ 665 0042 0F90      		pop __tmp_reg__
+ 666 0044 0F90      		pop __tmp_reg__
+ 667               	.LCFI38:
+ 668               		.cfi_def_cfa_offset 12
+ 669 0046 2097      		sbiw r28,0
+ 670 0048 01F0      		breq .L60
+ 201:../src/scheduler.c **** 			printf_P(PSTR("\tTask %p (%p) scheduled at %lu with period %lu, %lu current\r\n"), cur_task, (cu
+ 671               		.loc 1 201 0
+ 672 004a 00E0      		ldi r16,lo8(__c.4863)
+ 673 004c 10E0      		ldi r17,hi8(__c.4863)
+ 674 004e 00C0      		rjmp .L63
+ 675               	.L65:
+ 202:../src/scheduler.c **** 			if(cur_task==cur_task->next) break;
+ 203:../src/scheduler.c **** 			cur_task = cur_task->next;
+ 676               		.loc 1 203 0
+ 677 0050 0C84      		ldd __tmp_reg__,Y+12
+ 678 0052 DD85      		ldd r29,Y+13
+ 679 0054 C02D      		mov r28,__tmp_reg__
+ 200:../src/scheduler.c **** 			printf_P(PSTR("\tTask %p (%p) scheduled at %lu with period %lu, %lu current\r\n"), cur_task, (cu
+ 680               		.loc 1 200 0
+ 681 0056 2097      		sbiw r28,0
+ 682 0058 01F0      		breq .L60
+ 683               	.L63:
+ 201:../src/scheduler.c **** 			printf_P(PSTR("\tTask %p (%p) scheduled at %lu with period %lu, %lu current\r\n"), cur_task, (cu
+ 684               		.loc 1 201 0
+ 685 005a 0E94 0000 		call get_time
+ 686 005e FB01      		movw r30,r22
+ 687 0060 CC80      		ldd r12,Y+4
+ 688 0062 DD80      		ldd r13,Y+5
+ 689 0064 EE80      		ldd r14,Y+6
+ 690 0066 FF80      		ldd r15,Y+7
+ 691 0068 4881      		ld r20,Y
+ 692 006a 5981      		ldd r21,Y+1
+ 693 006c 6A81      		ldd r22,Y+2
+ 694 006e 7B81      		ldd r23,Y+3
+ 695 0070 2885      		ldd r18,Y+8
+ 696 0072 3985      		ldd r19,Y+9
+ 697 0074 9F93      		push r25
+ 698               	.LCFI39:
+ 699               		.cfi_def_cfa_offset 13
+ 700 0076 8F93      		push r24
+ 701               	.LCFI40:
+ 702               		.cfi_def_cfa_offset 14
+ 703 0078 FF93      		push r31
+ 704               	.LCFI41:
+ 705               		.cfi_def_cfa_offset 15
+ 706 007a EF93      		push r30
+ 707               	.LCFI42:
+ 708               		.cfi_def_cfa_offset 16
+ 709 007c FF92      		push r15
+ 710               	.LCFI43:
+ 711               		.cfi_def_cfa_offset 17
+ 712 007e EF92      		push r14
+ 713               	.LCFI44:
+ 714               		.cfi_def_cfa_offset 18
+ 715 0080 DF92      		push r13
+ 716               	.LCFI45:
+ 717               		.cfi_def_cfa_offset 19
+ 718 0082 CF92      		push r12
+ 719               	.LCFI46:
+ 720               		.cfi_def_cfa_offset 20
+ 721 0084 7F93      		push r23
+ 722               	.LCFI47:
+ 723               		.cfi_def_cfa_offset 21
+ 724 0086 6F93      		push r22
+ 725               	.LCFI48:
+ 726               		.cfi_def_cfa_offset 22
+ 727 0088 5F93      		push r21
+ 728               	.LCFI49:
+ 729               		.cfi_def_cfa_offset 23
+ 730 008a 4F93      		push r20
+ 731               	.LCFI50:
+ 732               		.cfi_def_cfa_offset 24
+ 733 008c 3F93      		push r19
+ 734               	.LCFI51:
+ 735               		.cfi_def_cfa_offset 25
+ 736 008e 2F93      		push r18
+ 737               	.LCFI52:
+ 738               		.cfi_def_cfa_offset 26
+ 739 0090 DF93      		push r29
+ 740               	.LCFI53:
+ 741               		.cfi_def_cfa_offset 27
+ 742 0092 CF93      		push r28
+ 743               	.LCFI54:
+ 744               		.cfi_def_cfa_offset 28
+ 745 0094 1F93      		push r17
+ 746               	.LCFI55:
+ 747               		.cfi_def_cfa_offset 29
+ 748 0096 0F93      		push r16
+ 749               	.LCFI56:
+ 750               		.cfi_def_cfa_offset 30
+ 751 0098 0E94 0000 		call printf_P
+ 202:../src/scheduler.c **** 			if(cur_task==cur_task->next) break;
+ 752               		.loc 1 202 0
+ 753 009c 8C85      		ldd r24,Y+12
+ 754 009e 9D85      		ldd r25,Y+13
+ 755 00a0 2DB7      		in r18,__SP_L__
+ 756 00a2 3EB7      		in r19,__SP_H__
+ 757 00a4 2E5E      		subi r18,-18
+ 758 00a6 3F4F      		sbci r19,-1
+ 759 00a8 2DBF      		out __SP_L__,r18
+ 760 00aa 3EBF      		out __SP_H__,r19
+ 761               	.LCFI57:
+ 762               		.cfi_def_cfa_offset 12
+ 763 00ac 8C17      		cp r24,r28
+ 764 00ae 9D07      		cpc r25,r29
+ 765 00b0 01F4      		brne .L65
+ 766               	.L60:
+ 767               	.LBE103:
+ 768               	.LBB104:
+ 769               	.LBB105:
+  70:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     __asm__ volatile ("" ::: "memory");
+ 770               		.loc 2 70 0
+ 771 00b2 BFBE      		out __SREG__,r11
+ 772               		.loc 2 71 0
+ 773               	/* epilogue start */
+ 774               	.LBE105:
+ 775               	.LBE104:
+ 776               	.LBE100:
+ 204:../src/scheduler.c **** 		}
+ 205:../src/scheduler.c **** 	}
+ 206:../src/scheduler.c **** }
+ 777               		.loc 1 206 0
+ 778 00b4 DF91      		pop r29
+ 779 00b6 CF91      		pop r28
+ 780 00b8 1F91      		pop r17
+ 781 00ba 0F91      		pop r16
+ 782 00bc FF90      		pop r15
+ 783 00be EF90      		pop r14
+ 784 00c0 DF90      		pop r13
+ 785 00c2 CF90      		pop r12
+ 786 00c4 BF90      		pop r11
+ 787 00c6 0895      		ret
+ 788               		.cfi_endproc
+ 789               	.LFE44:
+ 791               		.section	.text.add_task_to_list,"ax",@progbits
+ 793               	add_task_to_list:
+ 794               	.LFB42:
+ 116:../src/scheduler.c **** 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+ 795               		.loc 1 116 0
+ 796               		.cfi_startproc
+ 797 0000 8F92      		push r8
+ 798               	.LCFI58:
+ 799               		.cfi_def_cfa_offset 4
+ 800               		.cfi_offset 8, -3
+ 801 0002 9F92      		push r9
+ 802               	.LCFI59:
+ 803               		.cfi_def_cfa_offset 5
+ 804               		.cfi_offset 9, -4
+ 805 0004 AF92      		push r10
+ 806               	.LCFI60:
+ 807               		.cfi_def_cfa_offset 6
+ 808               		.cfi_offset 10, -5
+ 809 0006 BF92      		push r11
+ 810               	.LCFI61:
+ 811               		.cfi_def_cfa_offset 7
+ 812               		.cfi_offset 11, -6
+ 813 0008 FF92      		push r15
+ 814               	.LCFI62:
+ 815               		.cfi_def_cfa_offset 8
+ 816               		.cfi_offset 15, -7
+ 817 000a 0F93      		push r16
+ 818               	.LCFI63:
+ 819               		.cfi_def_cfa_offset 9
+ 820               		.cfi_offset 16, -8
+ 821 000c 1F93      		push r17
+ 822               	.LCFI64:
+ 823               		.cfi_def_cfa_offset 10
+ 824               		.cfi_offset 17, -9
+ 825 000e CF93      		push r28
+ 826               	.LCFI65:
+ 827               		.cfi_def_cfa_offset 11
+ 828               		.cfi_offset 28, -10
+ 829 0010 DF93      		push r29
+ 830               	.LCFI66:
+ 831               		.cfi_def_cfa_offset 12
+ 832               		.cfi_offset 29, -11
+ 833               	/* prologue: function */
+ 834               	/* frame size = 0 */
+ 835               	/* stack size = 9 */
+ 836               	.L__stack_usage = 9
+ 837 0012 DC01      		movw r26,r24
+ 838               	.LBB106:
+ 117:../src/scheduler.c **** 		// Find the new task's proper spot in the list of tasks
+ 839               		.loc 1 117 0
+ 840 0014 FFB6      		in r15,__SREG__
+ 841               	.LBB107:
+ 842               	.LBB108:
+  50:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     return 1;
+ 843               		.loc 2 50 0
+ 844               	/* #APP */
+ 845               	 ;  50 "c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\
+ 846 0016 F894      		cli
+ 847               	 ;  0 "" 2
+ 848               	/* #NOAPP */
+ 849               	.LBE108:
+ 850               	.LBE107:
+ 120:../src/scheduler.c **** 		
+ 851               		.loc 1 120 0
+ 852 0018 E091 0000 		lds r30,task_list
+ 853 001c F091 0000 		lds r31,task_list+1
+ 854 0020 1C96      		adiw r26,12
+ 855 0022 ED93      		st X+,r30
+ 856 0024 FC93      		st X,r31
+ 857 0026 1D97      		sbiw r26,12+1
+ 123:../src/scheduler.c **** 			task_list = task;
+ 858               		.loc 1 123 0
+ 859 0028 3097      		sbiw r30,0
+ 860 002a 01F4      		brne .+2
+ 861 002c 00C0      		rjmp .L67
+ 123:../src/scheduler.c **** 			task_list = task;
+ 862               		.loc 1 123 0 is_stmt 0 discriminator 1
+ 863 002e 0D91      		ld r16,X+
+ 864 0030 1D91      		ld r17,X+
+ 865 0032 2D91      		ld r18,X+
+ 866 0034 3C91      		ld r19,X
+ 867 0036 1397      		sbiw r26,3
+ 868 0038 4081      		ld r20,Z
+ 869 003a 5181      		ldd r21,Z+1
+ 870 003c 6281      		ldd r22,Z+2
+ 871 003e 7381      		ldd r23,Z+3
+ 872 0040 4017      		cp r20,r16
+ 873 0042 5107      		cpc r21,r17
+ 874 0044 6207      		cpc r22,r18
+ 875 0046 7307      		cpc r23,r19
+ 876 0048 00F4      		brsh .L67
+ 877               	.LBB109:
+ 139:../src/scheduler.c **** 				if(tmp_task_ptr->next==tmp_task_ptr){
+ 878               		.loc 1 139 0 is_stmt 1
+ 879 004a 8485      		ldd r24,Z+12
+ 880 004c 9585      		ldd r25,Z+13
+ 881 004e 892B      		or r24,r25
+ 882 0050 01F4      		brne .L90
+ 883 0052 00C0      		rjmp .L68
+ 884               	.L76:
+ 140:../src/scheduler.c **** 					//set_rgb(255, 50, 0);
+ 885               		.loc 1 140 0
+ 886 0054 8485      		ldd r24,Z+12
+ 887 0056 9585      		ldd r25,Z+13
+ 888 0058 8E17      		cp r24,r30
+ 889 005a 9F07      		cpc r25,r31
+ 890 005c 01F4      		brne .+2
+ 891 005e 00C0      		rjmp .L91
+ 147:../src/scheduler.c **** 			}
+ 892               		.loc 1 147 0
+ 893 0060 0484      		ldd __tmp_reg__,Z+12
+ 894 0062 F585      		ldd r31,Z+13
+ 895 0064 E02D      		mov r30,__tmp_reg__
+ 139:../src/scheduler.c **** 				if(tmp_task_ptr->next==tmp_task_ptr){
+ 896               		.loc 1 139 0
+ 897 0066 2485      		ldd r18,Z+12
+ 898 0068 3585      		ldd r19,Z+13
+ 899 006a 232B      		or r18,r19
+ 900 006c 01F0      		breq .L68
+ 901               	.L90:
+ 139:../src/scheduler.c **** 				if(tmp_task_ptr->next==tmp_task_ptr){
+ 902               		.loc 1 139 0 is_stmt 0 discriminator 1
+ 903 006e 0D91      		ld r16,X+
+ 904 0070 1D91      		ld r17,X+
+ 905 0072 2D91      		ld r18,X+
+ 906 0074 3C91      		ld r19,X
+ 907 0076 1397      		sbiw r26,3
+ 908 0078 C485      		ldd r28,Z+12
+ 909 007a D585      		ldd r29,Z+13
+ 910 007c 4881      		ld r20,Y
+ 911 007e 5981      		ldd r21,Y+1
+ 912 0080 6A81      		ldd r22,Y+2
+ 913 0082 7B81      		ldd r23,Y+3
+ 914 0084 4017      		cp r20,r16
+ 915 0086 5107      		cpc r21,r17
+ 916 0088 6207      		cpc r22,r18
+ 917 008a 7307      		cpc r23,r19
+ 918 008c 00F0      		brlo .L76
+ 919               	.L68:
+ 150:../src/scheduler.c **** 			tmp_task_ptr->next = task;
+ 920               		.loc 1 150 0 is_stmt 1
+ 921 008e 8485      		ldd r24,Z+12
+ 922 0090 9585      		ldd r25,Z+13
+ 923 0092 1C96      		adiw r26,12
+ 924 0094 8D93      		st X+,r24
+ 925 0096 9C93      		st X,r25
+ 926 0098 1D97      		sbiw r26,12+1
+ 151:../src/scheduler.c **** 		}
+ 927               		.loc 1 151 0
+ 928 009a A487      		std Z+12,r26
+ 929 009c B587      		std Z+13,r27
+ 930               	.L71:
+ 931               	.LBE109:
+ 162:../src/scheduler.c **** 		
+ 932               		.loc 1 162 0 discriminator 2
+ 933 009e 8091 0000 		lds r24,num_tasks
+ 934 00a2 8F5F      		subi r24,lo8(-(1))
+ 935 00a4 8093 0000 		sts num_tasks,r24
+ 936               	.LBB110:
+ 937               	.LBB111:
+  70:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     __asm__ volatile ("" ::: "memory");
+ 938               		.loc 2 70 0 discriminator 2
+ 939 00a8 FFBE      		out __SREG__,r15
+ 940               		.loc 2 71 0 discriminator 2
+ 941               	.L66:
+ 942               	/* epilogue start */
+ 943               	.LBE111:
+ 944               	.LBE110:
+ 945               	.LBE106:
+ 166:../src/scheduler.c **** 
+ 946               		.loc 1 166 0
+ 947 00aa DF91      		pop r29
+ 948 00ac CF91      		pop r28
+ 949 00ae 1F91      		pop r17
+ 950 00b0 0F91      		pop r16
+ 951 00b2 FF90      		pop r15
+ 952 00b4 BF90      		pop r11
+ 953 00b6 AF90      		pop r10
+ 954 00b8 9F90      		pop r9
+ 955 00ba 8F90      		pop r8
+ 956 00bc 0895      		ret
+ 957               	.L67:
+ 958               	.LBB115:
+ 124:../src/scheduler.c **** 			// If scheduled_time is in the current epoch, set the RTC compare interrupt
+ 959               		.loc 1 124 0
+ 960 00be A093 0000 		sts task_list,r26
+ 961 00c2 B093 0000 		sts task_list+1,r27
+ 126:../src/scheduler.c **** 				if (task->scheduled_time <= ((((uint32_t)rtc_epoch) << 16) | (uint32_t)RTC.PER)){
+ 962               		.loc 1 126 0
+ 963 00c6 8091 0000 		lds r24,task_executing
+ 964 00ca 8111      		cpse r24,__zero_reg__
+ 965 00cc 00C0      		rjmp .L71
+ 127:../src/scheduler.c **** 					while (RTC.STATUS & RTC_SYNCBUSY_bm);
+ 966               		.loc 1 127 0
+ 967 00ce 8D90      		ld r8,X+
+ 968 00d0 9D90      		ld r9,X+
+ 969 00d2 AD90      		ld r10,X+
+ 970 00d4 BC90      		ld r11,X
+ 971 00d6 1397      		sbiw r26,3
+ 972 00d8 4091 0000 		lds r20,rtc_epoch
+ 973 00dc 5091 0000 		lds r21,rtc_epoch+1
+ 974 00e0 0091 0A04 		lds r16,1034
+ 975 00e4 1091 0B04 		lds r17,1034+1
+ 976 00e8 60E0      		ldi r22,0
+ 977 00ea 70E0      		ldi r23,0
+ 978 00ec BA01      		movw r22,r20
+ 979 00ee 5527      		clr r21
+ 980 00f0 4427      		clr r20
+ 981 00f2 20E0      		ldi r18,0
+ 982 00f4 30E0      		ldi r19,0
+ 983 00f6 402B      		or r20,r16
+ 984 00f8 512B      		or r21,r17
+ 985 00fa 622B      		or r22,r18
+ 986 00fc 732B      		or r23,r19
+ 987 00fe 4815      		cp r20,r8
+ 988 0100 5905      		cpc r21,r9
+ 989 0102 6A05      		cpc r22,r10
+ 990 0104 7B05      		cpc r23,r11
+ 991 0106 00F4      		brsh .L83
+ 132:../src/scheduler.c **** 				}
+ 992               		.loc 1 132 0
+ 993 0108 8091 0204 		lds r24,1026
+ 994 010c 8B7F      		andi r24,lo8(-5)
+ 995 010e 8093 0204 		sts 1026,r24
+ 996 0112 00C0      		rjmp .L71
+ 997               	.L83:
+ 128:../src/scheduler.c **** 					RTC.COMP = ((uint16_t)(task_list->scheduled_time))|0x8;
+ 998               		.loc 1 128 0 discriminator 1
+ 999 0114 8091 0104 		lds r24,1025
+ 1000 0118 80FD      		sbrc r24,0
+ 1001 011a 00C0      		rjmp .L83
+ 129:../src/scheduler.c **** 					RTC.INTCTRL |= RTC_COMP_INT_LEVEL;
+ 1002               		.loc 1 129 0
+ 1003 011c 8D91      		ld r24,X+
+ 1004 011e 9D91      		ld r25,X+
+ 1005 0120 0D90      		ld __tmp_reg__,X+
+ 1006 0122 BC91      		ld r27,X
+ 1007 0124 A02D      		mov r26,__tmp_reg__
+ 1008 0126 8860      		ori r24,8
+ 1009 0128 8093 0C04 		sts 1036,r24
+ 1010 012c 9093 0D04 		sts 1036+1,r25
+ 130:../src/scheduler.c **** 				}else{
+ 1011               		.loc 1 130 0
+ 1012 0130 8091 0204 		lds r24,1026
+ 1013 0134 8460      		ori r24,lo8(4)
+ 1014 0136 8093 0204 		sts 1026,r24
+ 1015 013a 00C0      		rjmp .L71
+ 1016               	.L91:
+ 1017 013c ED01      		movw r28,r26
+ 1018               	.LBB112:
+ 142:../src/scheduler.c **** 					printf_P(PSTR("New Task %p (%p) scheduled at %lu with period %lu, %lu current\r\n"), task, (ta
+ 1019               		.loc 1 142 0
+ 1020 013e 80E0      		ldi r24,lo8(__c.4833)
+ 1021 0140 90E0      		ldi r25,hi8(__c.4833)
+ 1022 0142 9F93      		push r25
+ 1023               	.LCFI67:
+ 1024               		.cfi_def_cfa_offset 13
+ 1025 0144 8F93      		push r24
+ 1026               	.LCFI68:
+ 1027               		.cfi_def_cfa_offset 14
+ 1028 0146 0E94 0000 		call printf_P
+ 143:../src/scheduler.c **** 					print_task_queue();
+ 1029               		.loc 1 143 0
+ 1030 014a 0E94 0000 		call get_time
+ 1031 014e DB01      		movw r26,r22
+ 1032 0150 0C81      		ldd r16,Y+4
+ 1033 0152 1D81      		ldd r17,Y+5
+ 1034 0154 2E81      		ldd r18,Y+6
+ 1035 0156 3F81      		ldd r19,Y+7
+ 1036 0158 4881      		ld r20,Y
+ 1037 015a 5981      		ldd r21,Y+1
+ 1038 015c 6A81      		ldd r22,Y+2
+ 1039 015e 7B81      		ldd r23,Y+3
+ 1040 0160 E885      		ldd r30,Y+8
+ 1041 0162 F985      		ldd r31,Y+9
+ 1042 0164 9F93      		push r25
+ 1043               	.LCFI69:
+ 1044               		.cfi_def_cfa_offset 15
+ 1045 0166 8F93      		push r24
+ 1046               	.LCFI70:
+ 1047               		.cfi_def_cfa_offset 16
+ 1048 0168 BF93      		push r27
+ 1049               	.LCFI71:
+ 1050               		.cfi_def_cfa_offset 17
+ 1051 016a AF93      		push r26
+ 1052               	.LCFI72:
+ 1053               		.cfi_def_cfa_offset 18
+ 1054 016c 3F93      		push r19
+ 1055               	.LCFI73:
+ 1056               		.cfi_def_cfa_offset 19
+ 1057 016e 2F93      		push r18
+ 1058               	.LCFI74:
+ 1059               		.cfi_def_cfa_offset 20
+ 1060 0170 1F93      		push r17
+ 1061               	.LCFI75:
+ 1062               		.cfi_def_cfa_offset 21
+ 1063 0172 0F93      		push r16
+ 1064               	.LCFI76:
+ 1065               		.cfi_def_cfa_offset 22
+ 1066 0174 7F93      		push r23
+ 1067               	.LCFI77:
+ 1068               		.cfi_def_cfa_offset 23
+ 1069 0176 6F93      		push r22
+ 1070               	.LCFI78:
+ 1071               		.cfi_def_cfa_offset 24
+ 1072 0178 5F93      		push r21
+ 1073               	.LCFI79:
+ 1074               		.cfi_def_cfa_offset 25
+ 1075 017a 4F93      		push r20
+ 1076               	.LCFI80:
+ 1077               		.cfi_def_cfa_offset 26
+ 1078 017c FF93      		push r31
+ 1079               	.LCFI81:
+ 1080               		.cfi_def_cfa_offset 27
+ 1081 017e EF93      		push r30
+ 1082               	.LCFI82:
+ 1083               		.cfi_def_cfa_offset 28
+ 1084 0180 DF93      		push r29
+ 1085               	.LCFI83:
+ 1086               		.cfi_def_cfa_offset 29
+ 1087 0182 CF93      		push r28
+ 1088               	.LCFI84:
+ 1089               		.cfi_def_cfa_offset 30
+ 1090 0184 80E0      		ldi r24,lo8(__c.4835)
+ 1091 0186 90E0      		ldi r25,hi8(__c.4835)
+ 1092 0188 9F93      		push r25
+ 1093               	.LCFI85:
+ 1094               		.cfi_def_cfa_offset 31
+ 1095 018a 8F93      		push r24
+ 1096               	.LCFI86:
+ 1097               		.cfi_def_cfa_offset 32
+ 1098 018c 0E94 0000 		call printf_P
+ 144:../src/scheduler.c **** 					return;				
+ 1099               		.loc 1 144 0
+ 1100 0190 0E94 0000 		call print_task_queue
+ 1101               	.LBE112:
+ 1102               	.LBB113:
+ 1103               	.LBB114:
+  70:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     __asm__ volatile ("" ::: "memory");
+ 1104               		.loc 2 70 0
+ 1105 0194 FFBE      		out __SREG__,r15
+ 1106               		.loc 2 71 0
+ 1107 0196 8DB7      		in r24,__SP_L__
+ 1108 0198 9EB7      		in r25,__SP_H__
+ 1109 019a 4496      		adiw r24,20
+ 1110 019c 8DBF      		out __SP_L__,r24
+ 1111 019e 9EBF      		out __SP_H__,r25
+ 1112               	.LCFI87:
+ 1113               		.cfi_def_cfa_offset 12
+ 1114 01a0 00C0      		rjmp .L66
+ 1115               	.LBE114:
+ 1116               	.LBE113:
+ 1117               	.LBE115:
+ 1118               		.cfi_endproc
+ 1119               	.LFE42:
+ 1121               		.section	.text.schedule_task,"ax",@progbits
+ 1122               	.global	schedule_task
+ 1124               	schedule_task:
+ 1125               	.LFB40:
+  84:../src/scheduler.c **** 	volatile Task_t* new_task;
+ 1126               		.loc 1 84 0
+ 1127               		.cfi_startproc
+ 1128               	.LVL37:
+ 1129 0000 5F92      		push r5
+ 1130               	.LCFI88:
+ 1131               		.cfi_def_cfa_offset 4
+ 1132               		.cfi_offset 5, -3
+ 1133 0002 6F92      		push r6
+ 1134               	.LCFI89:
+ 1135               		.cfi_def_cfa_offset 5
+ 1136               		.cfi_offset 6, -4
+ 1137 0004 7F92      		push r7
+ 1138               	.LCFI90:
+ 1139               		.cfi_def_cfa_offset 6
+ 1140               		.cfi_offset 7, -5
+ 1141 0006 8F92      		push r8
+ 1142               	.LCFI91:
+ 1143               		.cfi_def_cfa_offset 7
+ 1144               		.cfi_offset 8, -6
+ 1145 0008 9F92      		push r9
+ 1146               	.LCFI92:
+ 1147               		.cfi_def_cfa_offset 8
+ 1148               		.cfi_offset 9, -7
+ 1149 000a AF92      		push r10
+ 1150               	.LCFI93:
+ 1151               		.cfi_def_cfa_offset 9
+ 1152               		.cfi_offset 10, -8
+ 1153 000c BF92      		push r11
+ 1154               	.LCFI94:
+ 1155               		.cfi_def_cfa_offset 10
+ 1156               		.cfi_offset 11, -9
+ 1157 000e CF92      		push r12
+ 1158               	.LCFI95:
+ 1159               		.cfi_def_cfa_offset 11
+ 1160               		.cfi_offset 12, -10
+ 1161 0010 DF92      		push r13
+ 1162               	.LCFI96:
+ 1163               		.cfi_def_cfa_offset 12
+ 1164               		.cfi_offset 13, -11
+ 1165 0012 EF92      		push r14
+ 1166               	.LCFI97:
+ 1167               		.cfi_def_cfa_offset 13
+ 1168               		.cfi_offset 14, -12
+ 1169 0014 FF92      		push r15
+ 1170               	.LCFI98:
+ 1171               		.cfi_def_cfa_offset 14
+ 1172               		.cfi_offset 15, -13
+ 1173 0016 0F93      		push r16
+ 1174               	.LCFI99:
+ 1175               		.cfi_def_cfa_offset 15
+ 1176               		.cfi_offset 16, -14
+ 1177 0018 1F93      		push r17
+ 1178               	.LCFI100:
+ 1179               		.cfi_def_cfa_offset 16
+ 1180               		.cfi_offset 17, -15
+ 1181 001a CF93      		push r28
+ 1182               	.LCFI101:
+ 1183               		.cfi_def_cfa_offset 17
+ 1184               		.cfi_offset 28, -16
+ 1185 001c DF93      		push r29
+ 1186               	.LCFI102:
+ 1187               		.cfi_def_cfa_offset 18
+ 1188               		.cfi_offset 29, -17
+ 1189               	/* prologue: function */
+ 1190               	/* frame size = 0 */
+ 1191               	/* stack size = 15 */
+ 1192               	.L__stack_usage = 15
+ 1193               	.LBB116:
+  86:../src/scheduler.c **** 		new_task = scheduler_malloc();
+ 1194               		.loc 1 86 0
+ 1195 001e 5FB6      		in r5,__SREG__
+ 1196               	.LVL38:
+ 1197               	.LBB117:
+ 1198               	.LBB118:
+  50:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     return 1;
+ 1199               		.loc 2 50 0
+ 1200               	/* #APP */
+ 1201               	 ;  50 "c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\
+ 1202 0020 F894      		cli
+ 1203               	 ;  0 "" 2
+ 1204               	.LVL39:
+ 1205               	/* #NOAPP */
+ 1206               	.LBE118:
+ 1207               	.LBE117:
+ 1208               	.LBB119:
+ 1209               	.LBB120:
+   7:../src/scheduler.c **** 
+ 1210               		.loc 1 7 0
+ 1211 0022 E091 0000 		lds r30,num_tasks
+ 1212 0026 EA30      		cpi r30,lo8(10)
+ 1213 0028 00F0      		brlo .+2
+ 1214 002a 00C0      		rjmp .L93
+ 1215 002c 8901      		movw r16,r18
+ 1216 002e 3A01      		movw r6,r20
+ 1217 0030 6B01      		movw r12,r22
+ 1218 0032 7C01      		movw r14,r24
+ 1219 0034 80E0      		ldi r24,0
+ 1220 0036 90E0      		ldi r25,0
+ 1221               	.LVL40:
+ 1222               	.L97:
+ 1223               	.LBB121:
+  11:../src/scheduler.c **** 			return &(task_storage_arr[tmp]);
+ 1224               		.loc 1 11 0
+ 1225 0038 9C01      		movw r18,r24
+ 1226 003a 220F      		lsl r18
+ 1227 003c 331F      		rol r19
+ 1228               	.LVL41:
+ 1229 003e E901      		movw r28,r18
+ 1230 0040 CC0F      		lsl r28
+ 1231 0042 DD1F      		rol r29
+ 1232 0044 CC0F      		lsl r28
+ 1233 0046 DD1F      		rol r29
+ 1234 0048 CC0F      		lsl r28
+ 1235 004a DD1F      		rol r29
+ 1236 004c C21B      		sub r28,r18
+ 1237 004e D30B      		sbc r29,r19
+ 1238 0050 C050      		subi r28,lo8(-(task_storage_arr))
+ 1239 0052 D040      		sbci r29,hi8(-(task_storage_arr))
+ 1240 0054 2885      		ldd r18,Y+8
+ 1241 0056 3985      		ldd r19,Y+9
+ 1242 0058 232B      		or r18,r19
+ 1243 005a 01F4      		brne .+2
+ 1244 005c 00C0      		rjmp .L109
+ 1245               	.LVL42:
+ 1246 005e 0196      		adiw r24,1
+ 1247               	.LVL43:
+   9:../src/scheduler.c **** 		//This code assumes that all tasks will have non-null function pointers.
+ 1248               		.loc 1 9 0
+ 1249 0060 8A30      		cpi r24,10
+ 1250 0062 9105      		cpc r25,__zero_reg__
+ 1251 0064 01F4      		brne .L97
+ 1252               	.LVL44:
+ 1253               	.L95:
+ 1254               	.LBE121:
+ 1255               	.LBE120:
+ 1256               	.LBE119:
+  90:../src/scheduler.c **** 			task_list_cleanup();
+ 1257               		.loc 1 90 0
+ 1258 0066 80E0      		ldi r24,lo8(__c.4811)
+ 1259 0068 90E0      		ldi r25,hi8(__c.4811)
+ 1260 006a 9F93      		push r25
+ 1261               	.LCFI103:
+ 1262               		.cfi_def_cfa_offset 19
+ 1263 006c 8F93      		push r24
+ 1264               	.LCFI104:
+ 1265               		.cfi_def_cfa_offset 20
+ 1266 006e 0E94 0000 		call printf_P
+ 1267               	.LVL45:
+  91:../src/scheduler.c **** 		}else if((new_task<task_storage_arr)||(new_task>(&(task_storage_arr[MAX_NUM_SCHEDULED_TASKS-1])))
+ 1268               		.loc 1 91 0
+ 1269 0072 0E94 0000 		call task_list_cleanup
+ 1270               	.LVL46:
+ 1271 0076 0F90      		pop __tmp_reg__
+ 1272 0078 0F90      		pop __tmp_reg__
+ 1273               	.LCFI105:
+ 1274               		.cfi_def_cfa_offset 18
+ 1275 007a CFEF      		ldi r28,lo8(-1)
+ 1276 007c DFEF      		ldi r29,lo8(-1)
+ 1277               	.L98:
+  96:../src/scheduler.c **** 		new_task->scheduled_time = time + get_time();
+ 1278               		.loc 1 96 0
+ 1279 007e 84E1      		ldi r24,20
+ 1280 0080 C816      		cp r12,r24
+ 1281 0082 D104      		cpc r13,__zero_reg__
+ 1282 0084 E104      		cpc r14,__zero_reg__
+ 1283 0086 F104      		cpc r15,__zero_reg__
+ 1284 0088 00F0      		brlo .L102
+ 1285 008a 812C      		mov r8,__zero_reg__
+ 1286 008c 912C      		mov r9,__zero_reg__
+ 1287 008e 5401      		movw r10,r8
+ 1288               	.L100:
+ 1289               	.LVL47:
+  97:../src/scheduler.c **** 		new_task->arg = arg;
+ 1290               		.loc 1 97 0 discriminator 4
+ 1291 0090 0E94 0000 		call get_time
+ 1292               	.LVL48:
+ 1293 0094 860E      		add r8,r22
+ 1294 0096 971E      		adc r9,r23
+ 1295 0098 A81E      		adc r10,r24
+ 1296 009a B91E      		adc r11,r25
+ 1297               	.LVL49:
+ 1298 009c C80C      		add r12,r8
+ 1299 009e D91C      		adc r13,r9
+ 1300 00a0 EA1C      		adc r14,r10
+ 1301 00a2 FB1C      		adc r15,r11
+ 1302 00a4 C882      		st Y,r12
+ 1303 00a6 D982      		std Y+1,r13
+ 1304 00a8 EA82      		std Y+2,r14
+ 1305 00aa FB82      		std Y+3,r15
+  98:../src/scheduler.c **** 		new_task->func = function;
+ 1306               		.loc 1 98 0 discriminator 4
+ 1307 00ac 0A87      		std Y+10,r16
+ 1308 00ae 1B87      		std Y+11,r17
+ 1309               	.LVL50:
+  99:../src/scheduler.c **** 		new_task->period = 0;
+ 1310               		.loc 1 99 0 discriminator 4
+ 1311 00b0 6886      		std Y+8,r6
+ 1312 00b2 7986      		std Y+9,r7
+ 100:../src/scheduler.c **** 		new_task->next = NULL;
+ 1313               		.loc 1 100 0 discriminator 4
+ 1314 00b4 1C82      		std Y+4,__zero_reg__
+ 1315 00b6 1D82      		std Y+5,__zero_reg__
+ 1316 00b8 1E82      		std Y+6,__zero_reg__
+ 1317 00ba 1F82      		std Y+7,__zero_reg__
+ 101:../src/scheduler.c **** 	}
+ 1318               		.loc 1 101 0 discriminator 4
+ 1319 00bc 1C86      		std Y+12,__zero_reg__
+ 1320 00be 1D86      		std Y+13,__zero_reg__
+ 1321               	.LVL51:
+ 1322               	.LBB122:
+ 1323               	.LBB123:
+  70:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     __asm__ volatile ("" ::: "memory");
+ 1324               		.loc 2 70 0 discriminator 4
+ 1325 00c0 5FBE      		out __SREG__,r5
+ 1326               		.loc 2 71 0 discriminator 4
+ 1327               	.LVL52:
+ 1328               	.LBE123:
+ 1329               	.LBE122:
+ 1330               	.LBE116:
+ 103:../src/scheduler.c **** 	//printf("Task (%X->%X) scheduled for %lu\t[%hhu]\r\n", new_task, (new_task->func).noarg_function,
+ 1331               		.loc 1 103 0 discriminator 4
+ 1332 00c2 CE01      		movw r24,r28
+ 1333 00c4 0E94 0000 		call add_task_to_list
+ 1334               	.LVL53:
+ 106:../src/scheduler.c **** }
+ 1335               		.loc 1 106 0 discriminator 4
+ 1336 00c8 CE01      		movw r24,r28
+ 1337               	.LVL54:
+ 1338               	.L108:
+ 1339               	/* epilogue start */
+ 107:../src/scheduler.c **** 
+ 1340               		.loc 1 107 0
+ 1341 00ca DF91      		pop r29
+ 1342 00cc CF91      		pop r28
+ 1343 00ce 1F91      		pop r17
+ 1344 00d0 0F91      		pop r16
+ 1345 00d2 FF90      		pop r15
+ 1346 00d4 EF90      		pop r14
+ 1347 00d6 DF90      		pop r13
+ 1348 00d8 CF90      		pop r12
+ 1349 00da BF90      		pop r11
+ 1350 00dc AF90      		pop r10
+ 1351 00de 9F90      		pop r9
+ 1352 00e0 8F90      		pop r8
+ 1353 00e2 7F90      		pop r7
+ 1354 00e4 6F90      		pop r6
+ 1355 00e6 5F90      		pop r5
+ 1356 00e8 0895      		ret
+ 1357               	.LVL55:
+ 1358               	.L102:
+ 1359               	.LBB126:
+  96:../src/scheduler.c **** 		new_task->scheduled_time = time + get_time();
+ 1360               		.loc 1 96 0
+ 1361 00ea 84E1      		ldi r24,lo8(20)
+ 1362 00ec 882E      		mov r8,r24
+ 1363 00ee 912C      		mov r9,__zero_reg__
+ 1364 00f0 A12C      		mov r10,__zero_reg__
+ 1365 00f2 B12C      		mov r11,__zero_reg__
+ 1366 00f4 00C0      		rjmp .L100
+ 1367               	.LVL56:
+ 1368               	.L109:
+  89:../src/scheduler.c **** 			printf_P(PSTR("ERROR: No empty spot found in scheduler_malloc, but num_tasks wasn't greater than
+ 1369               		.loc 1 89 0
+ 1370 00f6 CF3F      		cpi r28,-1
+ 1371 00f8 8FEF      		ldi r24,-1
+ 1372 00fa D807      		cpc r29,r24
+ 1373 00fc 01F4      		brne .+2
+ 1374 00fe 00C0      		rjmp .L95
+  92:../src/scheduler.c **** 			printf_P(PSTR("ERROR: scheduler_malloc returned a new_task pointer outside of the task storage a
+ 1375               		.loc 1 92 0
+ 1376 0100 80E0      		ldi r24,hi8(task_storage_arr)
+ 1377 0102 C030      		cpi r28,lo8(task_storage_arr)
+ 1378 0104 D807      		cpc r29,r24
+ 1379 0106 00F0      		brlo .L99
+  92:../src/scheduler.c **** 			printf_P(PSTR("ERROR: scheduler_malloc returned a new_task pointer outside of the task storage a
+ 1380               		.loc 1 92 0 is_stmt 0 discriminator 1
+ 1381 0108 80E0      		ldi r24,hi8(task_storage_arr+126)
+ 1382 010a C030      		cpi r28,lo8(task_storage_arr+126)
+ 1383 010c D807      		cpc r29,r24
+ 1384 010e 01F0      		breq .+2
+ 1385 0110 00F4      		brsh .+2
+ 1386 0112 00C0      		rjmp .L98
+ 1387               	.L99:
+  93:../src/scheduler.c **** 		}
+ 1388               		.loc 1 93 0 is_stmt 1
+ 1389 0114 80E0      		ldi r24,lo8(__c.4813)
+ 1390 0116 90E0      		ldi r25,hi8(__c.4813)
+ 1391 0118 9F93      		push r25
+ 1392               	.LCFI106:
+ 1393               		.cfi_def_cfa_offset 19
+ 1394 011a 8F93      		push r24
+ 1395               	.LCFI107:
+ 1396               		.cfi_def_cfa_offset 20
+ 1397 011c 0E94 0000 		call printf_P
+ 1398               	.LVL57:
+ 1399 0120 0F90      		pop __tmp_reg__
+ 1400 0122 0F90      		pop __tmp_reg__
+ 1401               	.LCFI108:
+ 1402               		.cfi_def_cfa_offset 18
+ 1403 0124 00C0      		rjmp .L98
+ 1404               	.LVL58:
+ 1405               	.L93:
+ 1406               	.LBB124:
+ 1407               	.LBB125:
+  70:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     __asm__ volatile ("" ::: "memory");
+ 1408               		.loc 2 70 0
+ 1409 0126 5FBE      		out __SREG__,r5
+ 1410               		.loc 2 71 0
+ 1411               	.LVL59:
+ 1412               	.LBE125:
+ 1413               	.LBE124:
+  88:../src/scheduler.c **** 		else if(new_task == ((volatile Task_t*)0xFFFF)){
+ 1414               		.loc 1 88 0
+ 1415 0128 80E0      		ldi r24,0
+ 1416 012a 90E0      		ldi r25,0
+ 1417 012c 00C0      		rjmp .L108
+ 1418               	.LBE126:
+ 1419               		.cfi_endproc
+ 1420               	.LFE40:
+ 1422               		.section	.text.schedule_periodic_task,"ax",@progbits
+ 1423               	.global	schedule_periodic_task
+ 1425               	schedule_periodic_task:
+ 1426               	.LFB41:
+ 109:../src/scheduler.c **** 	period+=MIN_TASK_TIME_IN_FUTURE*(period<MIN_TASK_TIME_IN_FUTURE);	
+ 1427               		.loc 1 109 0
+ 1428               		.cfi_startproc
+ 1429               	.LVL60:
+ 1430 0000 CF92      		push r12
+ 1431               	.LCFI109:
+ 1432               		.cfi_def_cfa_offset 4
+ 1433               		.cfi_offset 12, -3
+ 1434 0002 DF92      		push r13
+ 1435               	.LCFI110:
+ 1436               		.cfi_def_cfa_offset 5
+ 1437               		.cfi_offset 13, -4
+ 1438 0004 EF92      		push r14
+ 1439               	.LCFI111:
+ 1440               		.cfi_def_cfa_offset 6
+ 1441               		.cfi_offset 14, -5
+ 1442 0006 FF92      		push r15
+ 1443               	.LCFI112:
+ 1444               		.cfi_def_cfa_offset 7
+ 1445               		.cfi_offset 15, -6
+ 1446               	/* prologue: function */
+ 1447               	/* frame size = 0 */
+ 1448               	/* stack size = 4 */
+ 1449               	.L__stack_usage = 4
+ 110:../src/scheduler.c **** 	volatile Task_t* new_task = schedule_task(period, function, arg);
+ 1450               		.loc 1 110 0
+ 1451 0008 6431      		cpi r22,20
+ 1452 000a 7105      		cpc r23,__zero_reg__
+ 1453 000c 8105      		cpc r24,__zero_reg__
+ 1454 000e 9105      		cpc r25,__zero_reg__
+ 1455 0010 00F0      		brlo .L112
+ 1456 0012 C12C      		mov r12,__zero_reg__
+ 1457 0014 D12C      		mov r13,__zero_reg__
+ 1458 0016 7601      		movw r14,r12
+ 1459               	.L111:
+ 110:../src/scheduler.c **** 	volatile Task_t* new_task = schedule_task(period, function, arg);
+ 1460               		.loc 1 110 0 is_stmt 0 discriminator 4
+ 1461 0018 C60E      		add r12,r22
+ 1462 001a D71E      		adc r13,r23
+ 1463 001c E81E      		adc r14,r24
+ 1464 001e F91E      		adc r15,r25
+ 1465               	.LVL61:
+ 111:../src/scheduler.c **** 	new_task->period=period;
+ 1466               		.loc 1 111 0 is_stmt 1 discriminator 4
+ 1467 0020 C701      		movw r24,r14
+ 1468 0022 B601      		movw r22,r12
+ 1469 0024 0E94 0000 		call schedule_task
+ 1470               	.LVL62:
+ 112:../src/scheduler.c **** 	return new_task;
+ 1471               		.loc 1 112 0 discriminator 4
+ 1472 0028 FC01      		movw r30,r24
+ 1473 002a C482      		std Z+4,r12
+ 1474 002c D582      		std Z+5,r13
+ 1475 002e E682      		std Z+6,r14
+ 1476 0030 F782      		std Z+7,r15
+ 1477               	/* epilogue start */
+ 114:../src/scheduler.c **** 
+ 1478               		.loc 1 114 0 discriminator 4
+ 1479 0032 FF90      		pop r15
+ 1480 0034 EF90      		pop r14
+ 1481 0036 DF90      		pop r13
+ 1482 0038 CF90      		pop r12
+ 1483               	.LVL63:
+ 1484 003a 0895      		ret
+ 1485               	.LVL64:
+ 1486               	.L112:
+ 110:../src/scheduler.c **** 	volatile Task_t* new_task = schedule_task(period, function, arg);
+ 1487               		.loc 1 110 0
+ 1488 003c E4E1      		ldi r30,lo8(20)
+ 1489 003e CE2E      		mov r12,r30
+ 1490 0040 D12C      		mov r13,__zero_reg__
+ 1491 0042 E12C      		mov r14,__zero_reg__
+ 1492 0044 F12C      		mov r15,__zero_reg__
+ 1493 0046 00C0      		rjmp .L111
+ 1494               		.cfi_endproc
+ 1495               	.LFE41:
+ 1497               		.section	.rodata.str1.1
+ 1498               	.LC1:
+ 1499 0056 0925 580D 		.string	"\t%X\r\n"
+ 1499      0A00 
+ 1500               		.section	.text.__vector_11,"ax",@progbits
+ 1501               	.global	__vector_11
+ 1503               	__vector_11:
+ 1504               	.LFB46:
+ 207:../src/scheduler.c **** 
+ 208:../src/scheduler.c **** // TO BE CALLED FROM INTERRUPT HANDLER ONLY
+ 209:../src/scheduler.c **** // DO NOT CALL
+ 210:../src/scheduler.c **** int8_t run_tasks(){
+ 211:../src/scheduler.c **** 	volatile Task_t* cur_task;
+ 212:../src/scheduler.c **** 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){ // Disable interrupts
+ 213:../src/scheduler.c **** 		// Run all tasks that are scheduled to execute in the next 2ms
+ 214:../src/scheduler.c **** 		// (The RTC compare register takes 2 RTC clock cycles to update)
+ 215:../src/scheduler.c **** 		while (task_list != NULL && task_list->scheduled_time <= get_time() + 2){
+ 216:../src/scheduler.c **** 			uint8_t num_slots_used = 0;
+ 217:../src/scheduler.c **** 			for(uint8_t i=0;i<MAX_NUM_SCHEDULED_TASKS;i++){
+ 218:../src/scheduler.c **** 				if(((uint16_t)(task_storage_arr[i].func.noarg_func))!=0){
+ 219:../src/scheduler.c **** 					num_slots_used++;
+ 220:../src/scheduler.c **** 					volatile Task_t* next_ptr = task_storage_arr[i].next;
+ 221:../src/scheduler.c **** 					if((next_ptr!=0)&&((next_ptr<task_storage_arr)||(next_ptr>(&(task_storage_arr[MAX_NUM_SCHEDULE
+ 222:../src/scheduler.c **** 						printf_P(PSTR("Pre-call, task has next_ptr pointing outside of array.\r\n"));
+ 223:../src/scheduler.c **** 						printf("\t%X\r\n",((uint16_t)(&(task_storage_arr[i]))));
+ 224:../src/scheduler.c **** 						delay_ms(10);
+ 225:../src/scheduler.c **** 					}
+ 226:../src/scheduler.c **** 				}
+ 227:../src/scheduler.c **** 			}
+ 228:../src/scheduler.c **** 			//printf_P(PSTR("\tCalling %X. Tasks: %2hu. Slots Used: %2hu.\r\n"),cur_task->func.noarg_functio
+ 229:../src/scheduler.c **** 			if(num_slots_used!=num_tasks){
+ 230:../src/scheduler.c **** 				printf_P(PSTR("ERROR: Pre-call, task storage consistency check failure.\r\n"));
+ 231:../src/scheduler.c **** 				return -1;
+ 232:../src/scheduler.c **** 			}
+ 233:../src/scheduler.c **** 			cur_task = task_list;
+ 234:../src/scheduler.c **** 			task_list = cur_task->next;
+ 235:../src/scheduler.c **** 
+ 236:../src/scheduler.c **** 			if(cur_task->arg==NULL){
+ 237:../src/scheduler.c **** 				NONATOMIC_BLOCK(NONATOMIC_RESTORESTATE){ // Enable interrupts during tasks
+ 238:../src/scheduler.c **** 					(cur_task->func).noarg_func(); // run the task
+ 239:../src/scheduler.c **** 				}
+ 240:../src/scheduler.c **** 			}else{
+ 241:../src/scheduler.c **** 				NONATOMIC_BLOCK(NONATOMIC_RESTORESTATE){ // Enable interrupts during tasks
+ 242:../src/scheduler.c **** 					(cur_task->func).arg_function(cur_task->arg); // run the task
+ 243:../src/scheduler.c **** 				}
+ 244:../src/scheduler.c **** 			}
+ 245:../src/scheduler.c **** 			
+ 246:../src/scheduler.c **** 			if(cur_task->period>0){
+ 247:../src/scheduler.c **** 				cur_task->scheduled_time+=cur_task->period;
+ 248:../src/scheduler.c **** 				cur_task->next=NULL;
+ 249:../src/scheduler.c **** 				num_tasks--;
+ 250:../src/scheduler.c **** 				add_task_to_list(cur_task);
+ 251:../src/scheduler.c **** 			}else{
+ 252:../src/scheduler.c **** 				scheduler_free(cur_task);
+ 253:../src/scheduler.c **** 				cur_task = NULL;
+ 254:../src/scheduler.c **** 				num_tasks--;
+ 255:../src/scheduler.c **** 			}
+ 256:../src/scheduler.c **** 			
+ 257:../src/scheduler.c **** 			num_slots_used = 0;
+ 258:../src/scheduler.c **** 			for(uint8_t i=0;i<MAX_NUM_SCHEDULED_TASKS;i++){
+ 259:../src/scheduler.c **** 				if(((uint16_t)(task_storage_arr[i].func.noarg_func))!=0){
+ 260:../src/scheduler.c **** 					num_slots_used++;
+ 261:../src/scheduler.c **** 					volatile Task_t* next_ptr = task_storage_arr[i].next;
+ 262:../src/scheduler.c **** 					if((next_ptr!=0)&&((next_ptr<task_storage_arr)||(next_ptr>(&(task_storage_arr[MAX_NUM_SCHEDULE
+ 263:../src/scheduler.c **** 						printf_P(PSTR("Post-call, task %X has next_ptr pointing outside of array.\r\n"),task_storage_
+ 264:../src/scheduler.c **** 						delay_ms(10);
+ 265:../src/scheduler.c **** 					}
+ 266:../src/scheduler.c **** 				}
+ 267:../src/scheduler.c **** 			}
+ 268:../src/scheduler.c **** 			//printf_P(PSTR("\tReturned %X. Tasks: %2hu. Slots Used: %2hu.\r\n"),cur_task->func.noarg_functi
+ 269:../src/scheduler.c **** 			if(num_slots_used!=num_tasks){
+ 270:../src/scheduler.c **** 				printf_P(PSTR("ERROR: Post-return, task storage consistency check failure.\r\n"));
+ 271:../src/scheduler.c **** 				return -1;
+ 272:../src/scheduler.c **** 			}
+ 273:../src/scheduler.c **** 		}
+ 274:../src/scheduler.c **** 		// If the next task to be executed is in the current epoch, set the RTC compare register and inte
+ 275:../src/scheduler.c **** 		if (task_list != NULL && task_list->scheduled_time <= ((((uint32_t)rtc_epoch) << 16) | (uint32_t)
+ 276:../src/scheduler.c **** 			while (RTC.STATUS & RTC_SYNCBUSY_bm);
+ 277:../src/scheduler.c **** 			RTC.COMP = ((uint16_t)(task_list->scheduled_time))|0x8;
+ 278:../src/scheduler.c **** 			RTC.INTCTRL |= RTC_COMP_INT_LEVEL;
+ 279:../src/scheduler.c **** 		}else{
+ 280:../src/scheduler.c **** 			RTC.INTCTRL &= ~RTC_COMP_INT_LEVEL;
+ 281:../src/scheduler.c **** 		}
+ 282:../src/scheduler.c **** 	}
+ 283:../src/scheduler.c **** 	return 0;
+ 284:../src/scheduler.c **** }
+ 285:../src/scheduler.c **** 
+ 286:../src/scheduler.c **** ISR(RTC_COMP_vect){
+ 1505               		.loc 1 286 0
+ 1506               		.cfi_startproc
+ 1507 0000 1F92      		push r1
+ 1508               	.LCFI113:
+ 1509               		.cfi_def_cfa_offset 4
+ 1510               		.cfi_offset 1, -3
+ 1511 0002 0F92      		push r0
+ 1512               	.LCFI114:
+ 1513               		.cfi_def_cfa_offset 5
+ 1514               		.cfi_offset 0, -4
+ 1515 0004 0FB6      		in r0,__SREG__
+ 1516 0006 0F92      		push r0
+ 1517 0008 1124      		clr __zero_reg__
+ 1518 000a 0BB6      		in r0,__RAMPZ__
+ 1519 000c 0F92      		push r0
+ 1520 000e 4F92      		push r4
+ 1521               	.LCFI115:
+ 1522               		.cfi_def_cfa_offset 6
+ 1523               		.cfi_offset 4, -5
+ 1524 0010 5F92      		push r5
+ 1525               	.LCFI116:
+ 1526               		.cfi_def_cfa_offset 7
+ 1527               		.cfi_offset 5, -6
+ 1528 0012 6F92      		push r6
+ 1529               	.LCFI117:
+ 1530               		.cfi_def_cfa_offset 8
+ 1531               		.cfi_offset 6, -7
+ 1532 0014 7F92      		push r7
+ 1533               	.LCFI118:
+ 1534               		.cfi_def_cfa_offset 9
+ 1535               		.cfi_offset 7, -8
+ 1536 0016 8F92      		push r8
+ 1537               	.LCFI119:
+ 1538               		.cfi_def_cfa_offset 10
+ 1539               		.cfi_offset 8, -9
+ 1540 0018 9F92      		push r9
+ 1541               	.LCFI120:
+ 1542               		.cfi_def_cfa_offset 11
+ 1543               		.cfi_offset 9, -10
+ 1544 001a AF92      		push r10
+ 1545               	.LCFI121:
+ 1546               		.cfi_def_cfa_offset 12
+ 1547               		.cfi_offset 10, -11
+ 1548 001c BF92      		push r11
+ 1549               	.LCFI122:
+ 1550               		.cfi_def_cfa_offset 13
+ 1551               		.cfi_offset 11, -12
+ 1552 001e CF92      		push r12
+ 1553               	.LCFI123:
+ 1554               		.cfi_def_cfa_offset 14
+ 1555               		.cfi_offset 12, -13
+ 1556 0020 DF92      		push r13
+ 1557               	.LCFI124:
+ 1558               		.cfi_def_cfa_offset 15
+ 1559               		.cfi_offset 13, -14
+ 1560 0022 EF92      		push r14
+ 1561               	.LCFI125:
+ 1562               		.cfi_def_cfa_offset 16
+ 1563               		.cfi_offset 14, -15
+ 1564 0024 FF92      		push r15
+ 1565               	.LCFI126:
+ 1566               		.cfi_def_cfa_offset 17
+ 1567               		.cfi_offset 15, -16
+ 1568 0026 0F93      		push r16
+ 1569               	.LCFI127:
+ 1570               		.cfi_def_cfa_offset 18
+ 1571               		.cfi_offset 16, -17
+ 1572 0028 1F93      		push r17
+ 1573               	.LCFI128:
+ 1574               		.cfi_def_cfa_offset 19
+ 1575               		.cfi_offset 17, -18
+ 1576 002a 2F93      		push r18
+ 1577               	.LCFI129:
+ 1578               		.cfi_def_cfa_offset 20
+ 1579               		.cfi_offset 18, -19
+ 1580 002c 3F93      		push r19
+ 1581               	.LCFI130:
+ 1582               		.cfi_def_cfa_offset 21
+ 1583               		.cfi_offset 19, -20
+ 1584 002e 4F93      		push r20
+ 1585               	.LCFI131:
+ 1586               		.cfi_def_cfa_offset 22
+ 1587               		.cfi_offset 20, -21
+ 1588 0030 5F93      		push r21
+ 1589               	.LCFI132:
+ 1590               		.cfi_def_cfa_offset 23
+ 1591               		.cfi_offset 21, -22
+ 1592 0032 6F93      		push r22
+ 1593               	.LCFI133:
+ 1594               		.cfi_def_cfa_offset 24
+ 1595               		.cfi_offset 22, -23
+ 1596 0034 7F93      		push r23
+ 1597               	.LCFI134:
+ 1598               		.cfi_def_cfa_offset 25
+ 1599               		.cfi_offset 23, -24
+ 1600 0036 8F93      		push r24
+ 1601               	.LCFI135:
+ 1602               		.cfi_def_cfa_offset 26
+ 1603               		.cfi_offset 24, -25
+ 1604 0038 9F93      		push r25
+ 1605               	.LCFI136:
+ 1606               		.cfi_def_cfa_offset 27
+ 1607               		.cfi_offset 25, -26
+ 1608 003a AF93      		push r26
+ 1609               	.LCFI137:
+ 1610               		.cfi_def_cfa_offset 28
+ 1611               		.cfi_offset 26, -27
+ 1612 003c BF93      		push r27
+ 1613               	.LCFI138:
+ 1614               		.cfi_def_cfa_offset 29
+ 1615               		.cfi_offset 27, -28
+ 1616 003e CF93      		push r28
+ 1617               	.LCFI139:
+ 1618               		.cfi_def_cfa_offset 30
+ 1619               		.cfi_offset 28, -29
+ 1620 0040 DF93      		push r29
+ 1621               	.LCFI140:
+ 1622               		.cfi_def_cfa_offset 31
+ 1623               		.cfi_offset 29, -30
+ 1624 0042 EF93      		push r30
+ 1625               	.LCFI141:
+ 1626               		.cfi_def_cfa_offset 32
+ 1627               		.cfi_offset 30, -31
+ 1628 0044 FF93      		push r31
+ 1629               	.LCFI142:
+ 1630               		.cfi_def_cfa_offset 33
+ 1631               		.cfi_offset 31, -32
+ 1632               	/* prologue: Signal */
+ 1633               	/* frame size = 0 */
+ 1634               	/* stack size = 32 */
+ 1635               	.L__stack_usage = 32
+ 287:../src/scheduler.c **** 	SAVE_CONTEXT();	
+ 1636               		.loc 1 287 0
+ 1637               	/* #APP */
+ 1638               	 ;  287 "../src/scheduler.c" 1
+ 1639 0046 0F92      		push   r0                      
+ 1640 0048 0FB6      		in     r0, 0x003F				
+ 1641 004a F894      		cli                            
+ 1642 004c 0F92      		push   r0                      
+ 1643 004e 1F92      		push   r1                      
+ 1644 0050 1124      		clr    r1                      
+ 1645 0052 2F92      		push   r2                      
+ 1646 0054 3F92      		push   r3                      
+ 1647 0056 4F92      		push   r4                      
+ 1648 0058 5F92      		push   r5                      
+ 1649 005a 6F92      		push   r6                      
+ 1650 005c 7F92      		push   r7                      
+ 1651 005e 8F92      		push   r8                      
+ 1652 0060 9F92      		push   r9                      
+ 1653 0062 AF92      		push   r10                     
+ 1654 0064 BF92      		push   r11                     
+ 1655 0066 CF92      		push   r12                     
+ 1656 0068 DF92      		push   r13                     
+ 1657 006a EF92      		push   r14                     
+ 1658 006c FF92      		push   r15                     
+ 1659 006e 0F93      		push   r16                     
+ 1660 0070 1F93      		push   r17                     
+ 1661 0072 2F93      		push   r18                     
+ 1662 0074 3F93      		push   r19                     
+ 1663 0076 4F93      		push   r20                     
+ 1664 0078 5F93      		push   r21                     
+ 1665 007a 6F93      		push   r22                     
+ 1666 007c 7F93      		push   r23                     
+ 1667 007e 8F93      		push   r24                     
+ 1668 0080 9F93      		push   r25                     
+ 1669 0082 AF93      		push   r26                     
+ 1670 0084 BF93      		push   r27                     
+ 1671 0086 CF93      		push   r28                     
+ 1672 0088 DF93      		push   r29                     
+ 1673 008a EF93      		push   r30                     
+ 1674 008c FF93      		push   r31                     
+ 1675               		
+ 1676               	 ;  0 "" 2
+ 288:../src/scheduler.c **** 	task_executing=1;
+ 1677               		.loc 1 288 0
+ 1678               	/* #NOAPP */
+ 1679 008e 81E0      		ldi r24,lo8(1)
+ 1680 0090 8093 0000 		sts task_executing,r24
+ 1681               	.LBB155:
+ 1682               	.LBB156:
+ 1683               	.LBB157:
+ 212:../src/scheduler.c **** 		// Run all tasks that are scheduled to execute in the next 2ms
+ 1684               		.loc 1 212 0
+ 1685 0094 9FB6      		in r9,__SREG__
+ 1686               	.LBB158:
+ 1687               	.LBB159:
+  50:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     return 1;
+ 1688               		.loc 2 50 0
+ 1689               	/* #APP */
+ 1690               	 ;  50 "c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\
+ 1691 0096 F894      		cli
+ 1692               	 ;  0 "" 2
+ 1693               	/* #NOAPP */
+ 1694               	.LBE159:
+ 1695               	.LBE158:
+ 1696               	.LBB160:
+ 1697               	.LBB161:
+ 1698               	.LBB162:
+ 222:../src/scheduler.c **** 						printf("\t%X\r\n",((uint16_t)(&(task_storage_arr[i]))));
+ 1699               		.loc 1 222 0
+ 1700 0098 30E0      		ldi r19,lo8(__c.4879)
+ 1701 009a C32E      		mov r12,r19
+ 1702 009c 30E0      		ldi r19,hi8(__c.4879)
+ 1703 009e D32E      		mov r13,r19
+ 223:../src/scheduler.c **** 						delay_ms(10);
+ 1704               		.loc 1 223 0
+ 1705 00a0 40E0      		ldi r20,lo8(.LC1)
+ 1706 00a2 E42E      		mov r14,r20
+ 1707 00a4 40E0      		ldi r20,hi8(.LC1)
+ 1708 00a6 F42E      		mov r15,r20
+ 1709               	.LBE162:
+ 1710               	.LBE161:
+ 1711               	.LBB164:
+ 1712               	.LBB165:
+ 263:../src/scheduler.c **** 						delay_ms(10);
+ 1713               		.loc 1 263 0
+ 1714 00a8 50E0      		ldi r21,lo8(__c.4898)
+ 1715 00aa A52E      		mov r10,r21
+ 1716 00ac 50E0      		ldi r21,hi8(__c.4898)
+ 1717 00ae B52E      		mov r11,r21
+ 1718               	.L114:
+ 1719               	.LBE165:
+ 1720               	.LBE164:
+ 1721               	.LBE160:
+ 215:../src/scheduler.c **** 			uint8_t num_slots_used = 0;
+ 1722               		.loc 1 215 0
+ 1723 00b0 E091 0000 		lds r30,task_list
+ 1724 00b4 F091 0000 		lds r31,task_list+1
+ 1725 00b8 3097      		sbiw r30,0
+ 1726 00ba 01F4      		brne .+2
+ 1727 00bc 00C0      		rjmp .L127
+ 1728 00be 4080      		ld r4,Z
+ 1729 00c0 5180      		ldd r5,Z+1
+ 1730 00c2 6280      		ldd r6,Z+2
+ 1731 00c4 7380      		ldd r7,Z+3
+ 1732 00c6 0E94 0000 		call get_time
+ 1733 00ca DC01      		movw r26,r24
+ 1734 00cc CB01      		movw r24,r22
+ 1735 00ce 0296      		adiw r24,2
+ 1736 00d0 A11D      		adc r26,__zero_reg__
+ 1737 00d2 B11D      		adc r27,__zero_reg__
+ 1738 00d4 8415      		cp r24,r4
+ 1739 00d6 9505      		cpc r25,r5
+ 1740 00d8 A605      		cpc r26,r6
+ 1741 00da B705      		cpc r27,r7
+ 1742 00dc 00F4      		brsh .+2
+ 1743 00de 00C0      		rjmp .L128
+ 1744 00e0 00E0      		ldi r16,lo8(task_storage_arr)
+ 1745 00e2 10E0      		ldi r17,hi8(task_storage_arr)
+ 1746 00e4 C0E0      		ldi r28,0
+ 1747 00e6 D0E0      		ldi r29,0
+ 1748 00e8 812C      		mov r8,__zero_reg__
+ 1749               	.L117:
+ 1750               	.LBB180:
+ 1751               	.LBB167:
+ 218:../src/scheduler.c **** 					num_slots_used++;
+ 1752               		.loc 1 218 0
+ 1753 00ea CE01      		movw r24,r28
+ 1754 00ec 880F      		lsl r24
+ 1755 00ee 991F      		rol r25
+ 1756 00f0 FC01      		movw r30,r24
+ 1757 00f2 EE0F      		lsl r30
+ 1758 00f4 FF1F      		rol r31
+ 1759 00f6 EE0F      		lsl r30
+ 1760 00f8 FF1F      		rol r31
+ 1761 00fa EE0F      		lsl r30
+ 1762 00fc FF1F      		rol r31
+ 1763 00fe E81B      		sub r30,r24
+ 1764 0100 F90B      		sbc r31,r25
+ 1765 0102 E050      		subi r30,lo8(-(task_storage_arr))
+ 1766 0104 F040      		sbci r31,hi8(-(task_storage_arr))
+ 1767 0106 8085      		ldd r24,Z+8
+ 1768 0108 9185      		ldd r25,Z+9
+ 1769 010a 892B      		or r24,r25
+ 1770 010c 01F0      		breq .L115
+ 1771               	.LBB163:
+ 219:../src/scheduler.c **** 					volatile Task_t* next_ptr = task_storage_arr[i].next;
+ 1772               		.loc 1 219 0
+ 1773 010e 8394      		inc r8
+ 220:../src/scheduler.c **** 					if((next_ptr!=0)&&((next_ptr<task_storage_arr)||(next_ptr>(&(task_storage_arr[MAX_NUM_SCHEDULE
+ 1774               		.loc 1 220 0
+ 1775 0110 8485      		ldd r24,Z+12
+ 1776 0112 9585      		ldd r25,Z+13
+ 221:../src/scheduler.c **** 						printf_P(PSTR("Pre-call, task has next_ptr pointing outside of array.\r\n"));
+ 1777               		.loc 1 221 0
+ 1778 0114 0097      		sbiw r24,0
+ 1779 0116 01F0      		breq .L115
+ 1780 0118 20E0      		ldi r18,hi8(task_storage_arr)
+ 1781 011a 8030      		cpi r24,lo8(task_storage_arr)
+ 1782 011c 9207      		cpc r25,r18
+ 1783 011e 00F0      		brlo .L116
+ 1784 0120 8050      		subi r24,lo8(task_storage_arr+126)
+ 1785 0122 9040      		sbci r25,hi8(task_storage_arr+126)
+ 1786 0124 01F0      		breq .L115
+ 1787 0126 00F0      		brlo .L115
+ 1788               	.L116:
+ 222:../src/scheduler.c **** 						printf("\t%X\r\n",((uint16_t)(&(task_storage_arr[i]))));
+ 1789               		.loc 1 222 0
+ 1790 0128 DF92      		push r13
+ 1791               	.LCFI143:
+ 1792               		.cfi_def_cfa_offset 34
+ 1793 012a CF92      		push r12
+ 1794               	.LCFI144:
+ 1795               		.cfi_def_cfa_offset 35
+ 1796 012c 0E94 0000 		call printf_P
+ 223:../src/scheduler.c **** 						delay_ms(10);
+ 1797               		.loc 1 223 0
+ 1798 0130 1F93      		push r17
+ 1799               	.LCFI145:
+ 1800               		.cfi_def_cfa_offset 36
+ 1801 0132 0F93      		push r16
+ 1802               	.LCFI146:
+ 1803               		.cfi_def_cfa_offset 37
+ 1804 0134 FF92      		push r15
+ 1805               	.LCFI147:
+ 1806               		.cfi_def_cfa_offset 38
+ 1807 0136 EF92      		push r14
+ 1808               	.LCFI148:
+ 1809               		.cfi_def_cfa_offset 39
+ 1810 0138 0E94 0000 		call printf
+ 224:../src/scheduler.c **** 					}
+ 1811               		.loc 1 224 0
+ 1812 013c 8AE0      		ldi r24,lo8(10)
+ 1813 013e 90E0      		ldi r25,0
+ 1814 0140 0E94 0000 		call delay_ms
+ 1815 0144 0F90      		pop __tmp_reg__
+ 1816 0146 0F90      		pop __tmp_reg__
+ 1817 0148 0F90      		pop __tmp_reg__
+ 1818 014a 0F90      		pop __tmp_reg__
+ 1819 014c 0F90      		pop __tmp_reg__
+ 1820 014e 0F90      		pop __tmp_reg__
+ 1821               	.LCFI149:
+ 1822               		.cfi_def_cfa_offset 33
+ 1823               	.L115:
+ 1824 0150 2196      		adiw r28,1
+ 1825 0152 025F      		subi r16,-14
+ 1826 0154 1F4F      		sbci r17,-1
+ 1827               	.LBE163:
+ 217:../src/scheduler.c **** 				if(((uint16_t)(task_storage_arr[i].func.noarg_func))!=0){
+ 1828               		.loc 1 217 0
+ 1829 0156 CA30      		cpi r28,10
+ 1830 0158 D105      		cpc r29,__zero_reg__
+ 1831 015a 01F4      		brne .L117
+ 1832               	.LBE167:
+ 229:../src/scheduler.c **** 				printf_P(PSTR("ERROR: Pre-call, task storage consistency check failure.\r\n"));
+ 1833               		.loc 1 229 0
+ 1834 015c 8091 0000 		lds r24,num_tasks
+ 1835 0160 8811      		cpse r24,r8
+ 1836 0162 00C0      		rjmp .L155
+ 233:../src/scheduler.c **** 			task_list = cur_task->next;
+ 1837               		.loc 1 233 0
+ 1838 0164 C091 0000 		lds r28,task_list
+ 1839 0168 D091 0000 		lds r29,task_list+1
+ 234:../src/scheduler.c **** 
+ 1840               		.loc 1 234 0
+ 1841 016c 8C85      		ldd r24,Y+12
+ 1842 016e 9D85      		ldd r25,Y+13
+ 1843 0170 8093 0000 		sts task_list,r24
+ 1844 0174 9093 0000 		sts task_list+1,r25
+ 236:../src/scheduler.c **** 				NONATOMIC_BLOCK(NONATOMIC_RESTORESTATE){ // Enable interrupts during tasks
+ 1845               		.loc 1 236 0
+ 1846 0178 8A85      		ldd r24,Y+10
+ 1847 017a 9B85      		ldd r25,Y+11
+ 1848               	.LBB168:
+ 237:../src/scheduler.c **** 					(cur_task->func).noarg_func(); // run the task
+ 1849               		.loc 1 237 0
+ 1850 017c 1FB7      		in r17,__SREG__
+ 1851               	.LBE168:
+ 236:../src/scheduler.c **** 				NONATOMIC_BLOCK(NONATOMIC_RESTORESTATE){ // Enable interrupts during tasks
+ 1852               		.loc 1 236 0
+ 1853 017e 892B      		or r24,r25
+ 1854 0180 01F4      		brne .+2
+ 1855 0182 00C0      		rjmp .L156
+ 1856               	.LBB173:
+ 1857               	.LBB174:
+ 1858               	.LBB175:
+  44:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     return 1;
+ 1859               		.loc 2 44 0
+ 1860               	/* #APP */
+ 1861               	 ;  44 "c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\
+ 1862 0184 7894      		sei
+ 1863               	 ;  0 "" 2
+ 1864               	/* #NOAPP */
+ 1865               	.LBE175:
+ 1866               	.LBE174:
+ 242:../src/scheduler.c **** 				}
+ 1867               		.loc 1 242 0
+ 1868 0186 E885      		ldd r30,Y+8
+ 1869 0188 F985      		ldd r31,Y+9
+ 1870 018a 8A85      		ldd r24,Y+10
+ 1871 018c 9B85      		ldd r25,Y+11
+ 1872 018e 1995      		eicall
+ 1873               	.LBB176:
+ 1874               	.LBB177:
+  70:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     __asm__ volatile ("" ::: "memory");
+ 1875               		.loc 2 70 0
+ 1876 0190 1FBF      		out __SREG__,r17
+ 1877               		.loc 2 71 0
+ 1878               	.LBE177:
+ 1879               	.LBE176:
+ 1880               	.LBE173:
+ 246:../src/scheduler.c **** 				cur_task->scheduled_time+=cur_task->period;
+ 1881               		.loc 1 246 0
+ 1882 0192 8C81      		ldd r24,Y+4
+ 1883 0194 9D81      		ldd r25,Y+5
+ 1884 0196 AE81      		ldd r26,Y+6
+ 1885 0198 BF81      		ldd r27,Y+7
+ 1886 019a 892B      		or r24,r25
+ 1887 019c 8A2B      		or r24,r26
+ 1888 019e 8B2B      		or r24,r27
+ 1889 01a0 01F4      		brne .+2
+ 1890 01a2 00C0      		rjmp .L122
+ 1891               	.L157:
+ 247:../src/scheduler.c **** 				cur_task->next=NULL;
+ 1892               		.loc 1 247 0
+ 1893 01a4 4C81      		ldd r20,Y+4
+ 1894 01a6 5D81      		ldd r21,Y+5
+ 1895 01a8 6E81      		ldd r22,Y+6
+ 1896 01aa 7F81      		ldd r23,Y+7
+ 1897 01ac 8881      		ld r24,Y
+ 1898 01ae 9981      		ldd r25,Y+1
+ 1899 01b0 AA81      		ldd r26,Y+2
+ 1900 01b2 BB81      		ldd r27,Y+3
+ 1901 01b4 840F      		add r24,r20
+ 1902 01b6 951F      		adc r25,r21
+ 1903 01b8 A61F      		adc r26,r22
+ 1904 01ba B71F      		adc r27,r23
+ 1905 01bc 8883      		st Y,r24
+ 1906 01be 9983      		std Y+1,r25
+ 1907 01c0 AA83      		std Y+2,r26
+ 1908 01c2 BB83      		std Y+3,r27
+ 248:../src/scheduler.c **** 				num_tasks--;
+ 1909               		.loc 1 248 0
+ 1910 01c4 1C86      		std Y+12,__zero_reg__
+ 1911 01c6 1D86      		std Y+13,__zero_reg__
+ 249:../src/scheduler.c **** 				add_task_to_list(cur_task);
+ 1912               		.loc 1 249 0
+ 1913 01c8 8091 0000 		lds r24,num_tasks
+ 1914 01cc 8150      		subi r24,lo8(-(-1))
+ 1915 01ce 8093 0000 		sts num_tasks,r24
+ 250:../src/scheduler.c **** 			}else{
+ 1916               		.loc 1 250 0
+ 1917 01d2 CE01      		movw r24,r28
+ 1918 01d4 0E94 0000 		call add_task_to_list
+ 1919               	.L124:
+ 1920               	.LBE180:
+ 215:../src/scheduler.c **** 			uint8_t num_slots_used = 0;
+ 1921               		.loc 1 215 0
+ 1922 01d8 C0E0      		ldi r28,0
+ 1923 01da D0E0      		ldi r29,0
+ 1924 01dc 10E0      		ldi r17,0
+ 1925               	.L123:
+ 1926               	.LBB181:
+ 1927               	.LBB178:
+ 259:../src/scheduler.c **** 					num_slots_used++;
+ 1928               		.loc 1 259 0
+ 1929 01de CE01      		movw r24,r28
+ 1930 01e0 880F      		lsl r24
+ 1931 01e2 991F      		rol r25
+ 1932 01e4 FC01      		movw r30,r24
+ 1933 01e6 EE0F      		lsl r30
+ 1934 01e8 FF1F      		rol r31
+ 1935 01ea EE0F      		lsl r30
+ 1936 01ec FF1F      		rol r31
+ 1937 01ee EE0F      		lsl r30
+ 1938 01f0 FF1F      		rol r31
+ 1939 01f2 E81B      		sub r30,r24
+ 1940 01f4 F90B      		sbc r31,r25
+ 1941 01f6 E050      		subi r30,lo8(-(task_storage_arr))
+ 1942 01f8 F040      		sbci r31,hi8(-(task_storage_arr))
+ 1943 01fa 2085      		ldd r18,Z+8
+ 1944 01fc 3185      		ldd r19,Z+9
+ 1945 01fe 232B      		or r18,r19
+ 1946 0200 01F0      		breq .L125
+ 1947               	.LBB166:
+ 260:../src/scheduler.c **** 					volatile Task_t* next_ptr = task_storage_arr[i].next;
+ 1948               		.loc 1 260 0
+ 1949 0202 1F5F      		subi r17,lo8(-(1))
+ 261:../src/scheduler.c **** 					if((next_ptr!=0)&&((next_ptr<task_storage_arr)||(next_ptr>(&(task_storage_arr[MAX_NUM_SCHEDULE
+ 1950               		.loc 1 261 0
+ 1951 0204 2485      		ldd r18,Z+12
+ 1952 0206 3585      		ldd r19,Z+13
+ 262:../src/scheduler.c **** 						printf_P(PSTR("Post-call, task %X has next_ptr pointing outside of array.\r\n"),task_storage_
+ 1953               		.loc 1 262 0
+ 1954 0208 2115      		cp r18,__zero_reg__
+ 1955 020a 3105      		cpc r19,__zero_reg__
+ 1956 020c 01F0      		breq .L125
+ 1957 020e 40E0      		ldi r20,hi8(task_storage_arr)
+ 1958 0210 2030      		cpi r18,lo8(task_storage_arr)
+ 1959 0212 3407      		cpc r19,r20
+ 1960 0214 00F0      		brlo .L126
+ 1961 0216 2050      		subi r18,lo8(task_storage_arr+126)
+ 1962 0218 3040      		sbci r19,hi8(task_storage_arr+126)
+ 1963 021a 01F0      		breq .L125
+ 1964 021c 00F0      		brlo .L125
+ 1965               	.L126:
+ 263:../src/scheduler.c **** 						delay_ms(10);
+ 1966               		.loc 1 263 0
+ 1967 021e FC01      		movw r30,r24
+ 1968 0220 EE0F      		lsl r30
+ 1969 0222 FF1F      		rol r31
+ 1970 0224 EE0F      		lsl r30
+ 1971 0226 FF1F      		rol r31
+ 1972 0228 EE0F      		lsl r30
+ 1973 022a FF1F      		rol r31
+ 1974 022c E81B      		sub r30,r24
+ 1975 022e F90B      		sbc r31,r25
+ 1976 0230 E050      		subi r30,lo8(-(task_storage_arr))
+ 1977 0232 F040      		sbci r31,hi8(-(task_storage_arr))
+ 1978 0234 8DB7      		in r24,__SP_L__
+ 1979 0236 9EB7      		in r25,__SP_H__
+ 1980 0238 0E97      		sbiw r24,14
+ 1981 023a 8DBF      		out __SP_L__,r24
+ 1982 023c 9EBF      		out __SP_H__,r25
+ 1983               	.LCFI150:
+ 1984               		.cfi_def_cfa_offset 47
+ 1985 023e ADB7      		in r26,__SP_L__
+ 1986 0240 BEB7      		in r27,__SP_H__
+ 1987 0242 1196      		adiw r26,1
+ 1988 0244 8EE0      		ldi r24,lo8(14)
+ 1989               		0:
+ 1990 0246 0190      		ld r0,Z+
+ 1991 0248 0D92      		st X+,r0
+ 1992 024a 8A95      		dec r24
+ 1993 024c 01F4      		brne 0b
+ 1994 024e BF92      		push r11
+ 1995               	.LCFI151:
+ 1996               		.cfi_def_cfa_offset 48
+ 1997 0250 AF92      		push r10
+ 1998               	.LCFI152:
+ 1999               		.cfi_def_cfa_offset 49
+ 2000 0252 0E94 0000 		call printf_P
+ 264:../src/scheduler.c **** 					}
+ 2001               		.loc 1 264 0
+ 2002 0256 8AE0      		ldi r24,lo8(10)
+ 2003 0258 90E0      		ldi r25,0
+ 2004 025a 0E94 0000 		call delay_ms
+ 2005 025e 8DB7      		in r24,__SP_L__
+ 2006 0260 9EB7      		in r25,__SP_H__
+ 2007 0262 4096      		adiw r24,16
+ 2008 0264 8DBF      		out __SP_L__,r24
+ 2009 0266 9EBF      		out __SP_H__,r25
+ 2010               	.LCFI153:
+ 2011               		.cfi_def_cfa_offset 33
+ 2012               	.L125:
+ 2013 0268 2196      		adiw r28,1
+ 2014               	.LBE166:
+ 258:../src/scheduler.c **** 				if(((uint16_t)(task_storage_arr[i].func.noarg_func))!=0){
+ 2015               		.loc 1 258 0
+ 2016 026a CA30      		cpi r28,10
+ 2017 026c D105      		cpc r29,__zero_reg__
+ 2018 026e 01F0      		breq .+2
+ 2019 0270 00C0      		rjmp .L123
+ 2020               	.LBE178:
+ 269:../src/scheduler.c **** 				printf_P(PSTR("ERROR: Post-return, task storage consistency check failure.\r\n"));
+ 2021               		.loc 1 269 0
+ 2022 0272 8091 0000 		lds r24,num_tasks
+ 2023 0276 8117      		cp r24,r17
+ 2024 0278 01F4      		brne .+2
+ 2025 027a 00C0      		rjmp .L114
+ 270:../src/scheduler.c **** 				return -1;
+ 2026               		.loc 1 270 0
+ 2027 027c 80E0      		ldi r24,lo8(__c.4903)
+ 2028 027e 90E0      		ldi r25,hi8(__c.4903)
+ 2029 0280 9F93      		push r25
+ 2030               	.LCFI154:
+ 2031               		.cfi_def_cfa_offset 34
+ 2032 0282 8F93      		push r24
+ 2033               	.LCFI155:
+ 2034               		.cfi_def_cfa_offset 35
+ 2035 0284 0E94 0000 		call printf_P
+ 2036 0288 0F90      		pop __tmp_reg__
+ 2037 028a 0F90      		pop __tmp_reg__
+ 2038               	.LCFI156:
+ 2039               		.cfi_def_cfa_offset 33
+ 2040 028c 00C0      		rjmp .L119
+ 2041               	.L156:
+ 2042               	.LBB179:
+ 2043               	.LBB169:
+ 2044               	.LBB170:
+  44:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     return 1;
+ 2045               		.loc 2 44 0
+ 2046               	/* #APP */
+ 2047               	 ;  44 "c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\
+ 2048 028e 7894      		sei
+ 2049               	 ;  0 "" 2
+ 2050               	/* #NOAPP */
+ 2051               	.LBE170:
+ 2052               	.LBE169:
+ 238:../src/scheduler.c **** 				}
+ 2053               		.loc 1 238 0
+ 2054 0290 E885      		ldd r30,Y+8
+ 2055 0292 F985      		ldd r31,Y+9
+ 2056 0294 1995      		eicall
+ 2057               	.LBB171:
+ 2058               	.LBB172:
+  70:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     __asm__ volatile ("" ::: "memory");
+ 2059               		.loc 2 70 0
+ 2060 0296 1FBF      		out __SREG__,r17
+ 2061               		.loc 2 71 0
+ 2062               	.LBE172:
+ 2063               	.LBE171:
+ 2064               	.LBE179:
+ 246:../src/scheduler.c **** 				cur_task->scheduled_time+=cur_task->period;
+ 2065               		.loc 1 246 0
+ 2066 0298 8C81      		ldd r24,Y+4
+ 2067 029a 9D81      		ldd r25,Y+5
+ 2068 029c AE81      		ldd r26,Y+6
+ 2069 029e BF81      		ldd r27,Y+7
+ 2070 02a0 892B      		or r24,r25
+ 2071 02a2 8A2B      		or r24,r26
+ 2072 02a4 8B2B      		or r24,r27
+ 2073 02a6 01F0      		breq .+2
+ 2074 02a8 00C0      		rjmp .L157
+ 2075               	.L122:
+ 252:../src/scheduler.c **** 				cur_task = NULL;
+ 2076               		.loc 1 252 0
+ 2077 02aa CE01      		movw r24,r28
+ 2078 02ac 0E94 0000 		call scheduler_free
+ 254:../src/scheduler.c **** 			}
+ 2079               		.loc 1 254 0
+ 2080 02b0 8091 0000 		lds r24,num_tasks
+ 2081 02b4 8150      		subi r24,lo8(-(-1))
+ 2082 02b6 8093 0000 		sts num_tasks,r24
+ 2083 02ba 00C0      		rjmp .L124
+ 2084               	.L128:
+ 2085               	.LBE181:
+ 275:../src/scheduler.c **** 			while (RTC.STATUS & RTC_SYNCBUSY_bm);
+ 2086               		.loc 1 275 0
+ 2087 02bc E091 0000 		lds r30,task_list
+ 2088 02c0 F091 0000 		lds r31,task_list+1
+ 2089 02c4 3097      		sbiw r30,0
+ 2090 02c6 01F0      		breq .L127
+ 2091 02c8 0081      		ld r16,Z
+ 2092 02ca 1181      		ldd r17,Z+1
+ 2093 02cc 2281      		ldd r18,Z+2
+ 2094 02ce 3381      		ldd r19,Z+3
+ 2095 02d0 8091 0000 		lds r24,rtc_epoch
+ 2096 02d4 9091 0000 		lds r25,rtc_epoch+1
+ 2097 02d8 4091 0A04 		lds r20,1034
+ 2098 02dc 5091 0B04 		lds r21,1034+1
+ 2099 02e0 A0E0      		ldi r26,0
+ 2100 02e2 B0E0      		ldi r27,0
+ 2101 02e4 DC01      		movw r26,r24
+ 2102 02e6 9927      		clr r25
+ 2103 02e8 8827      		clr r24
+ 2104 02ea 60E0      		ldi r22,0
+ 2105 02ec 70E0      		ldi r23,0
+ 2106 02ee 842B      		or r24,r20
+ 2107 02f0 952B      		or r25,r21
+ 2108 02f2 A62B      		or r26,r22
+ 2109 02f4 B72B      		or r27,r23
+ 2110 02f6 8017      		cp r24,r16
+ 2111 02f8 9107      		cpc r25,r17
+ 2112 02fa A207      		cpc r26,r18
+ 2113 02fc B307      		cpc r27,r19
+ 2114 02fe 00F0      		brlo .+2
+ 2115 0300 00C0      		rjmp .L144
+ 2116               	.L127:
+ 280:../src/scheduler.c **** 		}
+ 2117               		.loc 1 280 0
+ 2118 0302 8091 0204 		lds r24,1026
+ 2119 0306 8B7F      		andi r24,lo8(-5)
+ 2120 0308 8093 0204 		sts 1026,r24
+ 2121               	.L119:
+ 2122               	.LBB182:
+ 2123               	.LBB183:
+  70:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     __asm__ volatile ("" ::: "memory");
+ 2124               		.loc 2 70 0
+ 2125 030c 9FBE      		out __SREG__,r9
+ 2126               		.loc 2 71 0
+ 2127               	.LBE183:
+ 2128               	.LBE182:
+ 2129               	.LBE157:
+ 2130               	.LBE156:
+ 2131               	.LBE155:
+ 289:../src/scheduler.c **** 	/*int8_t result =*/ run_tasks();
+ 290:../src/scheduler.c **** 	task_executing=0;
+ 2132               		.loc 1 290 0
+ 2133 030e 1092 0000 		sts task_executing,__zero_reg__
+ 291:../src/scheduler.c **** 	//if(result<0)
+ 292:../src/scheduler.c **** 		//task_list_cleanup();		
+ 293:../src/scheduler.c **** 	RESTORE_CONTEXT();	
+ 2134               		.loc 1 293 0
+ 2135               	/* #APP */
+ 2136               	 ;  293 "../src/scheduler.c" 1
+ 2137 0312 FF91      		pop    r31                     
+ 2138 0314 EF91      		pop    r30                     
+ 2139 0316 DF91      		pop    r29                     
+ 2140 0318 CF91      		pop    r28                     
+ 2141 031a BF91      		pop    r27                     
+ 2142 031c AF91      		pop    r26                     
+ 2143 031e 9F91      		pop    r25                     
+ 2144 0320 8F91      		pop    r24                     
+ 2145 0322 7F91      		pop    r23                     
+ 2146 0324 6F91      		pop    r22                     
+ 2147 0326 5F91      		pop    r21                     
+ 2148 0328 4F91      		pop    r20                     
+ 2149 032a 3F91      		pop    r19                     
+ 2150 032c 2F91      		pop    r18                     
+ 2151 032e 1F91      		pop    r17                     
+ 2152 0330 0F91      		pop    r16                     
+ 2153 0332 FF90      		pop    r15                     
+ 2154 0334 EF90      		pop    r14                     
+ 2155 0336 DF90      		pop    r13                     
+ 2156 0338 CF90      		pop    r12                     
+ 2157 033a BF90      		pop    r11                     
+ 2158 033c AF90      		pop    r10                     
+ 2159 033e 9F90      		pop    r9                      
+ 2160 0340 8F90      		pop    r8                      
+ 2161 0342 7F90      		pop    r7                      
+ 2162 0344 6F90      		pop    r6                      
+ 2163 0346 5F90      		pop    r5                      
+ 2164 0348 4F90      		pop    r4                      
+ 2165 034a 3F90      		pop    r3                      
+ 2166 034c 2F90      		pop    r2                      
+ 2167 034e 1F90      		pop    r1                      
+ 2168 0350 0F90      		pop    r0                      
+ 2169 0352 0FBE      		out    0x003F, r0            
+ 2170 0354 0F90      		pop    r0                      
+ 2171               		
+ 2172               	 ;  0 "" 2
+ 2173               	/* epilogue start */
+ 294:../src/scheduler.c **** }
+ 2174               		.loc 1 294 0
+ 2175               	/* #NOAPP */
+ 2176 0356 FF91      		pop r31
+ 2177 0358 EF91      		pop r30
+ 2178 035a DF91      		pop r29
+ 2179 035c CF91      		pop r28
+ 2180 035e BF91      		pop r27
+ 2181 0360 AF91      		pop r26
+ 2182 0362 9F91      		pop r25
+ 2183 0364 8F91      		pop r24
+ 2184 0366 7F91      		pop r23
+ 2185 0368 6F91      		pop r22
+ 2186 036a 5F91      		pop r21
+ 2187 036c 4F91      		pop r20
+ 2188 036e 3F91      		pop r19
+ 2189 0370 2F91      		pop r18
+ 2190 0372 1F91      		pop r17
+ 2191 0374 0F91      		pop r16
+ 2192 0376 FF90      		pop r15
+ 2193 0378 EF90      		pop r14
+ 2194 037a DF90      		pop r13
+ 2195 037c CF90      		pop r12
+ 2196 037e BF90      		pop r11
+ 2197 0380 AF90      		pop r10
+ 2198 0382 9F90      		pop r9
+ 2199 0384 8F90      		pop r8
+ 2200 0386 7F90      		pop r7
+ 2201 0388 6F90      		pop r6
+ 2202 038a 5F90      		pop r5
+ 2203 038c 4F90      		pop r4
+ 2204 038e 0F90      		pop r0
+ 2205 0390 0BBE      		out __RAMPZ__,r0
+ 2206 0392 0F90      		pop r0
+ 2207 0394 0FBE      		out __SREG__,r0
+ 2208 0396 0F90      		pop r0
+ 2209 0398 1F90      		pop r1
+ 2210 039a 1895      		reti
+ 2211               	.L144:
+ 2212               	.LBB187:
+ 2213               	.LBB186:
+ 2214               	.LBB185:
+ 276:../src/scheduler.c **** 			RTC.COMP = ((uint16_t)(task_list->scheduled_time))|0x8;
+ 2215               		.loc 1 276 0
+ 2216 039c 8091 0104 		lds r24,1025
+ 2217 03a0 80FD      		sbrc r24,0
+ 2218 03a2 00C0      		rjmp .L144
+ 277:../src/scheduler.c **** 			RTC.INTCTRL |= RTC_COMP_INT_LEVEL;
+ 2219               		.loc 1 277 0
+ 2220 03a4 8081      		ld r24,Z
+ 2221 03a6 9181      		ldd r25,Z+1
+ 2222 03a8 A281      		ldd r26,Z+2
+ 2223 03aa B381      		ldd r27,Z+3
+ 2224 03ac 8860      		ori r24,8
+ 2225 03ae 8093 0C04 		sts 1036,r24
+ 2226 03b2 9093 0D04 		sts 1036+1,r25
+ 278:../src/scheduler.c **** 		}else{
+ 2227               		.loc 1 278 0
+ 2228 03b6 8091 0204 		lds r24,1026
+ 2229 03ba 8460      		ori r24,lo8(4)
+ 2230 03bc 8093 0204 		sts 1026,r24
+ 2231 03c0 00C0      		rjmp .L119
+ 2232               	.L155:
+ 2233               	.LBB184:
+ 230:../src/scheduler.c **** 				return -1;
+ 2234               		.loc 1 230 0
+ 2235 03c2 80E0      		ldi r24,lo8(__c.4884)
+ 2236 03c4 90E0      		ldi r25,hi8(__c.4884)
+ 2237 03c6 9F93      		push r25
+ 2238               	.LCFI157:
+ 2239               		.cfi_def_cfa_offset 34
+ 2240 03c8 8F93      		push r24
+ 2241               	.LCFI158:
+ 2242               		.cfi_def_cfa_offset 35
+ 2243 03ca 0E94 0000 		call printf_P
+ 2244 03ce 0F90      		pop __tmp_reg__
+ 2245 03d0 0F90      		pop __tmp_reg__
+ 2246               	.LCFI159:
+ 2247               		.cfi_def_cfa_offset 33
+ 2248 03d2 00C0      		rjmp .L119
+ 2249               	.LBE184:
+ 2250               	.LBE185:
+ 2251               	.LBE186:
+ 2252               	.LBE187:
+ 2253               		.cfi_endproc
+ 2254               	.LFE46:
+ 2256               		.section	.rodata.str1.1
+ 2257               	.LC2:
+ 2258 005c 4E65 7874 		.string	"Next task not in current epoch. Task executing: %hu. Next task scheduled time: %lu. Time:
+ 2258      2074 6173 
+ 2258      6B20 6E6F 
+ 2258      7420 696E 
+ 2258      2063 7572 
+ 2259               		.section	.text.__vector_10,"ax",@progbits
+ 2260               	.global	__vector_10
+ 2262               	__vector_10:
+ 2263               	.LFB47:
+ 295:../src/scheduler.c **** 
+ 296:../src/scheduler.c **** // Increment rtc_epoch on RTC overflow
+ 297:../src/scheduler.c **** // Must be atomic so no reads of get_time() occur between RTC overflow and updating of epoch
+ 298:../src/scheduler.c **** ISR( RTC_OVF_vect ){
+ 2264               		.loc 1 298 0
+ 2265               		.cfi_startproc
+ 2266 0000 1F92      		push r1
+ 2267               	.LCFI160:
+ 2268               		.cfi_def_cfa_offset 4
+ 2269               		.cfi_offset 1, -3
+ 2270 0002 0F92      		push r0
+ 2271               	.LCFI161:
+ 2272               		.cfi_def_cfa_offset 5
+ 2273               		.cfi_offset 0, -4
+ 2274 0004 0FB6      		in r0,__SREG__
+ 2275 0006 0F92      		push r0
+ 2276 0008 1124      		clr __zero_reg__
+ 2277 000a 0BB6      		in r0,__RAMPZ__
+ 2278 000c 0F92      		push r0
+ 2279 000e CF92      		push r12
+ 2280               	.LCFI162:
+ 2281               		.cfi_def_cfa_offset 6
+ 2282               		.cfi_offset 12, -5
+ 2283 0010 DF92      		push r13
+ 2284               	.LCFI163:
+ 2285               		.cfi_def_cfa_offset 7
+ 2286               		.cfi_offset 13, -6
+ 2287 0012 EF92      		push r14
+ 2288               	.LCFI164:
+ 2289               		.cfi_def_cfa_offset 8
+ 2290               		.cfi_offset 14, -7
+ 2291 0014 FF92      		push r15
+ 2292               	.LCFI165:
+ 2293               		.cfi_def_cfa_offset 9
+ 2294               		.cfi_offset 15, -8
+ 2295 0016 0F93      		push r16
+ 2296               	.LCFI166:
+ 2297               		.cfi_def_cfa_offset 10
+ 2298               		.cfi_offset 16, -9
+ 2299 0018 1F93      		push r17
+ 2300               	.LCFI167:
+ 2301               		.cfi_def_cfa_offset 11
+ 2302               		.cfi_offset 17, -10
+ 2303 001a 2F93      		push r18
+ 2304               	.LCFI168:
+ 2305               		.cfi_def_cfa_offset 12
+ 2306               		.cfi_offset 18, -11
+ 2307 001c 3F93      		push r19
+ 2308               	.LCFI169:
+ 2309               		.cfi_def_cfa_offset 13
+ 2310               		.cfi_offset 19, -12
+ 2311 001e 4F93      		push r20
+ 2312               	.LCFI170:
+ 2313               		.cfi_def_cfa_offset 14
+ 2314               		.cfi_offset 20, -13
+ 2315 0020 5F93      		push r21
+ 2316               	.LCFI171:
+ 2317               		.cfi_def_cfa_offset 15
+ 2318               		.cfi_offset 21, -14
+ 2319 0022 6F93      		push r22
+ 2320               	.LCFI172:
+ 2321               		.cfi_def_cfa_offset 16
+ 2322               		.cfi_offset 22, -15
+ 2323 0024 7F93      		push r23
+ 2324               	.LCFI173:
+ 2325               		.cfi_def_cfa_offset 17
+ 2326               		.cfi_offset 23, -16
+ 2327 0026 8F93      		push r24
+ 2328               	.LCFI174:
+ 2329               		.cfi_def_cfa_offset 18
+ 2330               		.cfi_offset 24, -17
+ 2331 0028 9F93      		push r25
+ 2332               	.LCFI175:
+ 2333               		.cfi_def_cfa_offset 19
+ 2334               		.cfi_offset 25, -18
+ 2335 002a AF93      		push r26
+ 2336               	.LCFI176:
+ 2337               		.cfi_def_cfa_offset 20
+ 2338               		.cfi_offset 26, -19
+ 2339 002c BF93      		push r27
+ 2340               	.LCFI177:
+ 2341               		.cfi_def_cfa_offset 21
+ 2342               		.cfi_offset 27, -20
+ 2343 002e CF93      		push r28
+ 2344               	.LCFI178:
+ 2345               		.cfi_def_cfa_offset 22
+ 2346               		.cfi_offset 28, -21
+ 2347 0030 EF93      		push r30
+ 2348               	.LCFI179:
+ 2349               		.cfi_def_cfa_offset 23
+ 2350               		.cfi_offset 30, -22
+ 2351 0032 FF93      		push r31
+ 2352               	.LCFI180:
+ 2353               		.cfi_def_cfa_offset 24
+ 2354               		.cfi_offset 31, -23
+ 2355               	/* prologue: Signal */
+ 2356               	/* frame size = 0 */
+ 2357               	/* stack size = 23 */
+ 2358               	.L__stack_usage = 23
+ 2359               	.LBB188:
+ 299:../src/scheduler.c **** 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){ // Disable interrupts
+ 2360               		.loc 1 299 0
+ 2361 0034 CFB7      		in r28,__SREG__
+ 2362               	.LBB189:
+ 2363               	.LBB190:
+  50:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     return 1;
+ 2364               		.loc 2 50 0
+ 2365               	/* #APP */
+ 2366               	 ;  50 "c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\
+ 2367 0036 F894      		cli
+ 2368               	 ;  0 "" 2
+ 2369               	/* #NOAPP */
+ 2370               	.LBE190:
+ 2371               	.LBE189:
+ 300:../src/scheduler.c **** 		rtc_epoch++;
+ 2372               		.loc 1 300 0
+ 2373 0038 8091 0000 		lds r24,rtc_epoch
+ 2374 003c 9091 0000 		lds r25,rtc_epoch+1
+ 2375 0040 0196      		adiw r24,1
+ 2376 0042 8093 0000 		sts rtc_epoch,r24
+ 2377 0046 9093 0000 		sts rtc_epoch+1,r25
+ 301:../src/scheduler.c **** 		// If the next task to run is in the current epoch, update the RTC compare value and interrupt
+ 302:../src/scheduler.c **** 		if (task_list != NULL && task_list->scheduled_time < ((((uint32_t)rtc_epoch) << 16) | (uint32_t)R
+ 2378               		.loc 1 302 0
+ 2379 004a E091 0000 		lds r30,task_list
+ 2380 004e F091 0000 		lds r31,task_list+1
+ 2381 0052 3097      		sbiw r30,0
+ 2382 0054 01F0      		breq .L159
+ 2383               		.loc 1 302 0 is_stmt 0 discriminator 1
+ 2384 0056 0081      		ld r16,Z
+ 2385 0058 1181      		ldd r17,Z+1
+ 2386 005a 2281      		ldd r18,Z+2
+ 2387 005c 3381      		ldd r19,Z+3
+ 2388 005e 8091 0000 		lds r24,rtc_epoch
+ 2389 0062 9091 0000 		lds r25,rtc_epoch+1
+ 2390 0066 4091 0A04 		lds r20,1034
+ 2391 006a 5091 0B04 		lds r21,1034+1
+ 2392 006e A0E0      		ldi r26,0
+ 2393 0070 B0E0      		ldi r27,0
+ 2394 0072 DC01      		movw r26,r24
+ 2395 0074 9927      		clr r25
+ 2396 0076 8827      		clr r24
+ 2397 0078 60E0      		ldi r22,0
+ 2398 007a 70E0      		ldi r23,0
+ 2399 007c 842B      		or r24,r20
+ 2400 007e 952B      		or r25,r21
+ 2401 0080 A62B      		or r26,r22
+ 2402 0082 B72B      		or r27,r23
+ 2403 0084 0817      		cp r16,r24
+ 2404 0086 1907      		cpc r17,r25
+ 2405 0088 2A07      		cpc r18,r26
+ 2406 008a 3B07      		cpc r19,r27
+ 2407 008c 00F4      		brsh .L159
+ 303:../src/scheduler.c **** 			if(!task_executing){
+ 2408               		.loc 1 303 0 is_stmt 1
+ 2409 008e 8091 0000 		lds r24,task_executing
+ 2410 0092 8823      		tst r24
+ 2411 0094 01F4      		brne .+2
+ 2412 0096 00C0      		rjmp .L169
+ 2413               	.L161:
+ 2414               	.LBB191:
+ 2415               	.LBB192:
+  70:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     __asm__ volatile ("" ::: "memory");
+ 2416               		.loc 2 70 0 discriminator 1
+ 2417 0098 CFBF      		out __SREG__,r28
+ 2418               		.loc 2 71 0 discriminator 1
+ 2419               	/* epilogue start */
+ 2420               	.LBE192:
+ 2421               	.LBE191:
+ 2422               	.LBE188:
+ 304:../src/scheduler.c **** 				if(task_list->scheduled_time < get_time()){
+ 305:../src/scheduler.c **** 					//printf("In overflow, tasks need to have been executed!\r\n");
+ 306:../src/scheduler.c **** 					//print_task_queue();
+ 307:../src/scheduler.c **** 				}else{		
+ 308:../src/scheduler.c **** 					while (RTC.STATUS & RTC_SYNCBUSY_bm);
+ 309:../src/scheduler.c **** 					RTC.COMP = ((uint16_t)(task_list->scheduled_time))|0x8;
+ 310:../src/scheduler.c **** 					RTC.INTCTRL |= RTC_COMP_INT_LEVEL;
+ 311:../src/scheduler.c **** 				}
+ 312:../src/scheduler.c **** 			}
+ 313:../src/scheduler.c **** 		}else{
+ 314:../src/scheduler.c **** 			printf("Next task not in current epoch. Task executing: %hu. Next task scheduled time: %lu. Time
+ 315:../src/scheduler.c **** 		}
+ 316:../src/scheduler.c **** 	}
+ 317:../src/scheduler.c **** }...
+ 2423               		.loc 1 317 0 discriminator 1
+ 2424 009a FF91      		pop r31
+ 2425 009c EF91      		pop r30
+ 2426 009e CF91      		pop r28
+ 2427 00a0 BF91      		pop r27
+ 2428 00a2 AF91      		pop r26
+ 2429 00a4 9F91      		pop r25
+ 2430 00a6 8F91      		pop r24
+ 2431 00a8 7F91      		pop r23
+ 2432 00aa 6F91      		pop r22
+ 2433 00ac 5F91      		pop r21
+ 2434 00ae 4F91      		pop r20
+ 2435 00b0 3F91      		pop r19
+ 2436 00b2 2F91      		pop r18
+ 2437 00b4 1F91      		pop r17
+ 2438 00b6 0F91      		pop r16
+ 2439 00b8 FF90      		pop r15
+ 2440 00ba EF90      		pop r14
+ 2441 00bc DF90      		pop r13
+ 2442 00be CF90      		pop r12
+ 2443 00c0 0F90      		pop r0
+ 2444 00c2 0BBE      		out __RAMPZ__,r0
+ 2445 00c4 0F90      		pop r0
+ 2446 00c6 0FBE      		out __SREG__,r0
+ 2447 00c8 0F90      		pop r0
+ 2448 00ca 1F90      		pop r1
+ 2449 00cc 1895      		reti
+ 2450               	.L159:
+ 2451               	.LBB193:
+ 314:../src/scheduler.c **** 			printf("Next task not in current epoch. Task executing: %hu. Next task scheduled time: %lu. Time
+ 2452               		.loc 1 314 0
+ 2453 00ce 0E94 0000 		call get_time
+ 2454 00d2 362F      		mov r19,r22
+ 2455 00d4 E72F      		mov r30,r23
+ 2456 00d6 A091 0000 		lds r26,task_list
+ 2457 00da B091 0000 		lds r27,task_list+1
+ 2458 00de 4D91      		ld r20,X+
+ 2459 00e0 5D91      		ld r21,X+
+ 2460 00e2 6D91      		ld r22,X+
+ 2461 00e4 7C91      		ld r23,X
+ 2462 00e6 2091 0000 		lds r18,task_executing
+ 2463 00ea 9F93      		push r25
+ 2464               	.LCFI181:
+ 2465               		.cfi_def_cfa_offset 25
+ 2466 00ec 8F93      		push r24
+ 2467               	.LCFI182:
+ 2468               		.cfi_def_cfa_offset 26
+ 2469 00ee EF93      		push r30
+ 2470               	.LCFI183:
+ 2471               		.cfi_def_cfa_offset 27
+ 2472 00f0 3F93      		push r19
+ 2473               	.LCFI184:
+ 2474               		.cfi_def_cfa_offset 28
+ 2475 00f2 7F93      		push r23
+ 2476               	.LCFI185:
+ 2477               		.cfi_def_cfa_offset 29
+ 2478 00f4 6F93      		push r22
+ 2479               	.LCFI186:
+ 2480               		.cfi_def_cfa_offset 30
+ 2481 00f6 5F93      		push r21
+ 2482               	.LCFI187:
+ 2483               		.cfi_def_cfa_offset 31
+ 2484 00f8 4F93      		push r20
+ 2485               	.LCFI188:
+ 2486               		.cfi_def_cfa_offset 32
+ 2487 00fa 1F92      		push __zero_reg__
+ 2488               	.LCFI189:
+ 2489               		.cfi_def_cfa_offset 33
+ 2490 00fc 2F93      		push r18
+ 2491               	.LCFI190:
+ 2492               		.cfi_def_cfa_offset 34
+ 2493 00fe 80E0      		ldi r24,lo8(.LC2)
+ 2494 0100 90E0      		ldi r25,hi8(.LC2)
+ 2495 0102 9F93      		push r25
+ 2496               	.LCFI191:
+ 2497               		.cfi_def_cfa_offset 35
+ 2498 0104 8F93      		push r24
+ 2499               	.LCFI192:
+ 2500               		.cfi_def_cfa_offset 36
+ 2501 0106 0E94 0000 		call printf
+ 2502 010a 8DB7      		in r24,__SP_L__
+ 2503 010c 9EB7      		in r25,__SP_H__
+ 2504 010e 0C96      		adiw r24,12
+ 2505 0110 8DBF      		out __SP_L__,r24
+ 2506 0112 9EBF      		out __SP_H__,r25
+ 2507               	.LCFI193:
+ 2508               		.cfi_def_cfa_offset 24
+ 2509 0114 00C0      		rjmp .L161
+ 2510               	.L169:
+ 304:../src/scheduler.c **** 				if(task_list->scheduled_time < get_time()){
+ 2511               		.loc 1 304 0
+ 2512 0116 C080      		ld r12,Z
+ 2513 0118 D180      		ldd r13,Z+1
+ 2514 011a E280      		ldd r14,Z+2
+ 2515 011c F380      		ldd r15,Z+3
+ 2516 011e 0E94 0000 		call get_time
+ 2517 0122 C616      		cp r12,r22
+ 2518 0124 D706      		cpc r13,r23
+ 2519 0126 E806      		cpc r14,r24
+ 2520 0128 F906      		cpc r15,r25
+ 2521 012a 00F4      		brsh .+2
+ 2522 012c 00C0      		rjmp .L161
+ 2523               	.L166:
+ 308:../src/scheduler.c **** 					while (RTC.STATUS & RTC_SYNCBUSY_bm);
+ 2524               		.loc 1 308 0 discriminator 1
+ 2525 012e 8091 0104 		lds r24,1025
+ 2526 0132 80FD      		sbrc r24,0
+ 2527 0134 00C0      		rjmp .L166
+ 309:../src/scheduler.c **** 					RTC.COMP = ((uint16_t)(task_list->scheduled_time))|0x8;
+ 2528               		.loc 1 309 0
+ 2529 0136 E091 0000 		lds r30,task_list
+ 2530 013a F091 0000 		lds r31,task_list+1
+ 2531 013e 8081      		ld r24,Z
+ 2532 0140 9181      		ldd r25,Z+1
+ 2533 0142 A281      		ldd r26,Z+2
+ 2534 0144 B381      		ldd r27,Z+3
+ 2535 0146 8860      		ori r24,8
+ 2536 0148 8093 0C04 		sts 1036,r24
+ 2537 014c 9093 0D04 		sts 1036+1,r25
+ 310:../src/scheduler.c **** 					RTC.INTCTRL |= RTC_COMP_INT_LEVEL;
+ 2538               		.loc 1 310 0
+ 2539 0150 8091 0204 		lds r24,1026
+ 2540 0154 8460      		ori r24,lo8(4)
+ 2541 0156 8093 0204 		sts 1026,r24
+ 2542 015a 00C0      		rjmp .L161
+ 2543               	.LBE193:
+ 2544               		.cfi_endproc
+ 2545               	.LFE47:
+ 2547               		.section	.progmem.data.__c.4903,"a",@progbits
+ 2550               	__c.4903:
+ 2551 0000 4552 524F 		.string	"ERROR: Post-return, task storage consistency check failure.\r\n"
+ 2551      523A 2050 
+ 2551      6F73 742D 
+ 2551      7265 7475 
+ 2551      726E 2C20 
+ 2552               		.section	.progmem.data.__c.4898,"a",@progbits
+ 2555               	__c.4898:
+ 2556 0000 506F 7374 		.string	"Post-call, task %X has next_ptr pointing outside of array.\r\n"
+ 2556      2D63 616C 
+ 2556      6C2C 2074 
+ 2556      6173 6B20 
+ 2556      2558 2068 
+ 2557               		.section	.progmem.data.__c.4884,"a",@progbits
+ 2560               	__c.4884:
+ 2561 0000 4552 524F 		.string	"ERROR: Pre-call, task storage consistency check failure.\r\n"
+ 2561      523A 2050 
+ 2561      7265 2D63 
+ 2561      616C 6C2C 
+ 2561      2074 6173 
+ 2562               		.section	.progmem.data.__c.4879,"a",@progbits
+ 2565               	__c.4879:
+ 2566 0000 5072 652D 		.string	"Pre-call, task has next_ptr pointing outside of array.\r\n"
+ 2566      6361 6C6C 
+ 2566      2C20 7461 
+ 2566      736B 2068 
+ 2566      6173 206E 
+ 2567               		.section	.progmem.data.__c.4863,"a",@progbits
+ 2570               	__c.4863:
+ 2571 0000 0954 6173 		.string	"\tTask %p (%p) scheduled at %lu with period %lu, %lu current\r\n"
+ 2571      6B20 2570 
+ 2571      2028 2570 
+ 2571      2920 7363 
+ 2571      6865 6475 
+ 2572               		.section	.progmem.data.__c.4861,"a",@progbits
+ 2575               	__c.4861:
+ 2576 0000 5461 736B 		.string	"Task Queue (%hu tasks, %hu executing):\r\n"
+ 2576      2051 7565 
+ 2576      7565 2028 
+ 2576      2568 7520 
+ 2576      7461 736B 
+ 2577               		.section	.progmem.data.__c.4835,"a",@progbits
+ 2580               	__c.4835:
+ 2581 0000 4E65 7720 		.string	"New Task %p (%p) scheduled at %lu with period %lu, %lu current\r\n"
+ 2581      5461 736B 
+ 2581      2025 7020 
+ 2581      2825 7029 
+ 2581      2073 6368 
+ 2582               		.section	.progmem.data.__c.4833,"a",@progbits
+ 2585               	__c.4833:
+ 2586 0000 4552 524F 		.string	"ERROR! Task list has self-reference.\r\n"
+ 2586      5221 2054 
+ 2586      6173 6B20 
+ 2586      6C69 7374 
+ 2586      2068 6173 
+ 2587               		.section	.progmem.data.__c.4813,"a",@progbits
+ 2590               	__c.4813:
+ 2591 0000 4552 524F 		.string	"ERROR: scheduler_malloc returned a new_task pointer outside of the task storage array.\r\
+ 2591      523A 2073 
+ 2591      6368 6564 
+ 2591      756C 6572 
+ 2591      5F6D 616C 
+ 2592               		.section	.progmem.data.__c.4811,"a",@progbits
+ 2595               	__c.4811:
+ 2596 0000 4552 524F 		.string	"ERROR: No empty spot found in scheduler_malloc, but num_tasks wasn't greater than or equa
+ 2596      523A 204E 
+ 2596      6F20 656D 
+ 2596      7074 7920 
+ 2596      7370 6F74 
+ 2597               		.section	.progmem.data.__c.4787,"a",@progbits
+ 2600               	__c.4787:
+ 2601 0000 0941 7474 		.string	"\tAttempting to restore task_list.\r\n\tIf you only see this message rarely, don't worry 
+ 2601      656D 7074 
+ 2601      696E 6720 
+ 2601      746F 2072 
+ 2601      6573 746F 
+ 2602               		.section	.progmem.data.__c.4762,"a",@progbits
+ 2605               	__c.4762:
+ 2606 0000 4552 524F 		.string	"ERROR: In scheduler_free, tgt (%X) was outside valid Task* range.\r\n"
+ 2606      523A 2049 
+ 2606      6E20 7363 
+ 2606      6865 6475 
+ 2606      6C65 725F 
+ 2607               		.section	.bss.task_storage_arr,"aw",@nobits
+ 2610               	task_storage_arr:
+ 2611 0000 0000 0000 		.zero	140
+ 2611      0000 0000 
+ 2611      0000 0000 
+ 2611      0000 0000 
+ 2611      0000 0000 
+ 2612               		.comm	task_executing,1,1
+ 2613               		.comm	num_tasks,1,1
+ 2614               		.comm	task_list,2,1
+ 2615               		.comm	rtc_epoch,2,1
+ 2616               		.comm	droplet_ID,2,1
+ 2617               		.text
+ 2618               	.Letext0:
+ 2619               		.file 3 "c:\\program files (x86)\\atmel\\studio\\7.0\\toolchain\\avr8\\avr8-gnu-toolchain\\avr\\in
+ 2620               		.file 4 "C:/Program Files (x86)/Atmel/Studio/7.0/Packs/atmel/XMEGAA_DFP/1.1.68/include/avr/iox128a
+ 2621               		.file 5 "../include/droplet_base.h"
+ 2622               		.file 6 "../include/scheduler.h"
+ 2623               		.file 7 "c:\\program files (x86)\\atmel\\studio\\7.0\\toolchain\\avr8\\avr8-gnu-toolchain\\avr\\in
+ 2624               		.file 8 "../include/rgb_led.h"
+ 2625               		.file 9 "<built-in>"
+DEFINED SYMBOLS
+                            *ABS*:00000000 scheduler.c
+C:\Users\JOHNK~1\AppData\Local\Temp\ccL9Pup7.s:2      *ABS*:0000003e __SP_H__
+C:\Users\JOHNK~1\AppData\Local\Temp\ccL9Pup7.s:3      *ABS*:0000003d __SP_L__
+C:\Users\JOHNK~1\AppData\Local\Temp\ccL9Pup7.s:4      *ABS*:0000003f __SREG__
+C:\Users\JOHNK~1\AppData\Local\Temp\ccL9Pup7.s:5      *ABS*:0000003b __RAMPZ__
+C:\Users\JOHNK~1\AppData\Local\Temp\ccL9Pup7.s:6      *ABS*:00000034 __CCP__
+C:\Users\JOHNK~1\AppData\Local\Temp\ccL9Pup7.s:7      *ABS*:00000000 __tmp_reg__
+C:\Users\JOHNK~1\AppData\Local\Temp\ccL9Pup7.s:8      *ABS*:00000001 __zero_reg__
+C:\Users\JOHNK~1\AppData\Local\Temp\ccL9Pup7.s:14     .text.scheduler_free:00000000 scheduler_free
+C:\Users\JOHNK~1\AppData\Local\Temp\ccL9Pup7.s:2610   .bss.task_storage_arr:00000000 task_storage_arr
+C:\Users\JOHNK~1\AppData\Local\Temp\ccL9Pup7.s:2605   .progmem.data.__c.4762:00000000 __c.4762
+C:\Users\JOHNK~1\AppData\Local\Temp\ccL9Pup7.s:112    .text.scheduler_init:00000000 scheduler_init
+                            *COM*:00000002 task_list
+                            *COM*:00000001 num_tasks
+                            *COM*:00000001 task_executing
+                            *COM*:00000002 rtc_epoch
+C:\Users\JOHNK~1\AppData\Local\Temp\ccL9Pup7.s:234    .text.task_list_cleanup:00000000 task_list_cleanup
+C:\Users\JOHNK~1\AppData\Local\Temp\ccL9Pup7.s:2600   .progmem.data.__c.4787:00000000 __c.4787
+C:\Users\JOHNK~1\AppData\Local\Temp\ccL9Pup7.s:435    .text.remove_task:00000000 remove_task
+C:\Users\JOHNK~1\AppData\Local\Temp\ccL9Pup7.s:575    .text.print_task_queue:00000000 print_task_queue
+C:\Users\JOHNK~1\AppData\Local\Temp\ccL9Pup7.s:2575   .progmem.data.__c.4861:00000000 __c.4861
+C:\Users\JOHNK~1\AppData\Local\Temp\ccL9Pup7.s:2570   .progmem.data.__c.4863:00000000 __c.4863
+C:\Users\JOHNK~1\AppData\Local\Temp\ccL9Pup7.s:793    .text.add_task_to_list:00000000 add_task_to_list
+C:\Users\JOHNK~1\AppData\Local\Temp\ccL9Pup7.s:2585   .progmem.data.__c.4833:00000000 __c.4833
+C:\Users\JOHNK~1\AppData\Local\Temp\ccL9Pup7.s:2580   .progmem.data.__c.4835:00000000 __c.4835
+C:\Users\JOHNK~1\AppData\Local\Temp\ccL9Pup7.s:1124   .text.schedule_task:00000000 schedule_task
+C:\Users\JOHNK~1\AppData\Local\Temp\ccL9Pup7.s:2595   .progmem.data.__c.4811:00000000 __c.4811
+C:\Users\JOHNK~1\AppData\Local\Temp\ccL9Pup7.s:2590   .progmem.data.__c.4813:00000000 __c.4813
+C:\Users\JOHNK~1\AppData\Local\Temp\ccL9Pup7.s:1425   .text.schedule_periodic_task:00000000 schedule_periodic_task
+C:\Users\JOHNK~1\AppData\Local\Temp\ccL9Pup7.s:1503   .text.__vector_11:00000000 __vector_11
+C:\Users\JOHNK~1\AppData\Local\Temp\ccL9Pup7.s:2565   .progmem.data.__c.4879:00000000 __c.4879
+C:\Users\JOHNK~1\AppData\Local\Temp\ccL9Pup7.s:2555   .progmem.data.__c.4898:00000000 __c.4898
+C:\Users\JOHNK~1\AppData\Local\Temp\ccL9Pup7.s:2550   .progmem.data.__c.4903:00000000 __c.4903
+C:\Users\JOHNK~1\AppData\Local\Temp\ccL9Pup7.s:2560   .progmem.data.__c.4884:00000000 __c.4884
+C:\Users\JOHNK~1\AppData\Local\Temp\ccL9Pup7.s:2262   .text.__vector_10:00000000 __vector_10
+                            *COM*:00000002 droplet_ID
+
+UNDEFINED SYMBOLS
+printf_P
+set_rgb
+delay_ms
+get_time
+puts
+printf
+__do_copy_data
+__do_clear_bss

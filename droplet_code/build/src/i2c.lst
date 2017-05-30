@@ -1,0 +1,1433 @@
+   1               		.file	"i2c.c"
+   2               	__SP_H__ = 0x3e
+   3               	__SP_L__ = 0x3d
+   4               	__SREG__ = 0x3f
+   5               	__RAMPZ__ = 0x3b
+   6               	__CCP__ = 0x34
+   7               	__tmp_reg__ = 0
+   8               	__zero_reg__ = 1
+   9               		.text
+  10               	.Ltext0:
+  11               		.cfi_sections	.debug_frame
+  12               		.section	.text.TWI_MasterWriteRead.part.0,"ax",@progbits
+  14               	TWI_MasterWriteRead.part.0:
+  15               	.LFB49:
+  16               		.file 1 "../src/i2c.c"
+   1:../src/i2c.c  **** /* This file has been prepared for Doxygen automatic documentation generation.*/
+   2:../src/i2c.c  **** /*! \file *********************************************************************
+   3:../src/i2c.c  ****  *
+   4:../src/i2c.c  ****  * \brief
+   5:../src/i2c.c  ****  *      XMEGA TWI master driver source file.
+   6:../src/i2c.c  ****  *
+   7:../src/i2c.c  ****  *      This file contains the function implementations the XMEGA master TWI
+   8:../src/i2c.c  ****  *      driver.
+   9:../src/i2c.c  ****  *
+  10:../src/i2c.c  ****  *      The driver is not intended for size and/or speed critical code, since
+  11:../src/i2c.c  ****  *      most functions are just a few lines of code, and the function call
+  12:../src/i2c.c  ****  *      overhead would decrease code performance. The driver is intended for
+  13:../src/i2c.c  ****  *      rapid prototyping and documentation purposes for getting started with
+  14:../src/i2c.c  ****  *      the XMEGA TWI master module.
+  15:../src/i2c.c  ****  *
+  16:../src/i2c.c  ****  *      For size and/or speed critical code, it is recommended to copy the
+  17:../src/i2c.c  ****  *      function contents directly into your application instead of making
+  18:../src/i2c.c  ****  *      a function call.
+  19:../src/i2c.c  ****  *
+  20:../src/i2c.c  ****  *      Several functions use the following construct:
+  21:../src/i2c.c  ****  *          "some_register = ... | (some_parameter ? SOME_BIT_bm : 0) | ..."
+  22:../src/i2c.c  ****  *      Although the use of the ternary operator ( if ? then : else ) is
+  23:../src/i2c.c  ****  *      discouraged, in some occasions the operator makes it possible to write
+  24:../src/i2c.c  ****  *      pretty clean and neat code. In this driver, the construct is used to
+  25:../src/i2c.c  ****  *      set or not set a configuration bit based on a uint8_tean input parameter,
+  26:../src/i2c.c  ****  *      such as the "some_parameter" in the example above.
+  27:../src/i2c.c  ****  *
+  28:../src/i2c.c  ****  * \par Application note:
+  29:../src/i2c.c  ****  *      AVR1308: Using the XMEGA TWI
+  30:../src/i2c.c  ****  *
+  31:../src/i2c.c  ****  * \par Documentation
+  32:../src/i2c.c  ****  *      For comprehensive code documentation, supported compilers, compiler
+  33:../src/i2c.c  ****  *      settings and supported devices see readme.html
+  34:../src/i2c.c  ****  *
+  35:../src/i2c.c  ****  * \author
+  36:../src/i2c.c  ****  *      Atmel Corporation: http://www.atmel.com \n
+  37:../src/i2c.c  ****  *      Support email: avr@atmel.com
+  38:../src/i2c.c  ****  *
+  39:../src/i2c.c  ****  * $Revision: 1569 $
+  40:../src/i2c.c  ****  * $Date: 2008-04-22 13:03:43 +0200 (ti, 22 apr 2008) $  \n
+  41:../src/i2c.c  ****  *
+  42:../src/i2c.c  ****  * Copyright (c) 2008, Atmel Corporation All rights reserved.
+  43:../src/i2c.c  ****  *
+  44:../src/i2c.c  ****  * Redistribution and use in source and binary forms, with or without
+  45:../src/i2c.c  ****  * modification, are permitted provided that the following conditions are met:
+  46:../src/i2c.c  ****  *
+  47:../src/i2c.c  ****  * 1. Redistributions of source code must retain the above copyright notice,
+  48:../src/i2c.c  ****  * this list of conditions and the following disclaimer.
+  49:../src/i2c.c  ****  *
+  50:../src/i2c.c  ****  * 2. Redistributions in binary form must reproduce the above copyright notice,
+  51:../src/i2c.c  ****  * this list of conditions and the following disclaimer in the documentation
+  52:../src/i2c.c  ****  * and/or other materials provided with the distribution.
+  53:../src/i2c.c  ****  *
+  54:../src/i2c.c  ****  * 3. The name of ATMEL may not be used to endorse or promote products derived
+  55:../src/i2c.c  ****  * from this software without specific prior written permission.
+  56:../src/i2c.c  ****  *
+  57:../src/i2c.c  ****  * THIS SOFTWARE IS PROVIDED BY ATMEL "AS IS" AND ANY EXPRESS OR IMPLIED
+  58:../src/i2c.c  ****  * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+  59:../src/i2c.c  ****  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE EXPRESSLY AND
+  60:../src/i2c.c  ****  * SPECIFICALLY DISCLAIMED. IN NO EVENT SHALL ATMEL BE LIABLE FOR ANY DIRECT,
+  61:../src/i2c.c  ****  * INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+  62:../src/i2c.c  ****  * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+  63:../src/i2c.c  ****  * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+  64:../src/i2c.c  ****  * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+  65:../src/i2c.c  ****  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+  66:../src/i2c.c  ****  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+  67:../src/i2c.c  ****  *****************************************************************************/
+  68:../src/i2c.c  **** 
+  69:../src/i2c.c  **** #include "i2c.h"
+  70:../src/i2c.c  **** 
+  71:../src/i2c.c  **** void i2c_init(){
+  72:../src/i2c.c  **** 	PORTB.DIRCLR = PIN5_bm; 
+  73:../src/i2c.c  **** 	PORTB.PIN5CTRL = PORT_OPC_WIREDOR_gc;
+  74:../src/i2c.c  **** 	
+  75:../src/i2c.c  **** 	PORTE.DIRSET = PIN0_bm | PIN1_bm;
+  76:../src/i2c.c  **** 	twi = &twiMaster;
+  77:../src/i2c.c  **** 	TWI_MasterInit(&TWIE, TWI_MASTER_INTLVL_HI_gc, TWI_BAUD(F_CPU, 100000));
+  78:../src/i2c.c  **** }
+  79:../src/i2c.c  **** 
+  80:../src/i2c.c  **** /*! \brief Initialize the TWI module.
+  81:../src/i2c.c  ****  *
+  82:../src/i2c.c  ****  *  TWI module initialization function.
+  83:../src/i2c.c  ****  *  Enables master read and write interrupts.
+  84:../src/i2c.c  ****  *  Remember to enable interrupts globally from the main application.
+  85:../src/i2c.c  ****  *
+  86:../src/i2c.c  ****  *  \param twi                      The TWI_Master_t struct instance.
+  87:../src/i2c.c  ****  *  \param module                   The TWI module to use.
+  88:../src/i2c.c  ****  *  \param intLevel                 Master interrupt level.
+  89:../src/i2c.c  ****  *  \param baudRateRegisterSetting  The baud rate register value.
+  90:../src/i2c.c  ****  */
+  91:../src/i2c.c  **** void TWI_MasterInit(TWI_t *module,
+  92:../src/i2c.c  ****                     TWI_MASTER_INTLVL_t intLevel,
+  93:../src/i2c.c  ****                     uint8_t baudRateRegisterSetting)
+  94:../src/i2c.c  **** {
+  95:../src/i2c.c  **** 	twi->interface = module;
+  96:../src/i2c.c  **** 	twi->interface->MASTER.CTRLA = intLevel |
+  97:../src/i2c.c  **** 	                               TWI_MASTER_RIEN_bm |
+  98:../src/i2c.c  **** 	                               TWI_MASTER_WIEN_bm |
+  99:../src/i2c.c  **** 	                               TWI_MASTER_ENABLE_bm;
+ 100:../src/i2c.c  **** 	twi->interface->MASTER.BAUD = baudRateRegisterSetting;
+ 101:../src/i2c.c  **** 	twi->interface->MASTER.STATUS = TWI_MASTER_BUSSTATE_IDLE_gc;
+ 102:../src/i2c.c  **** }
+ 103:../src/i2c.c  **** 
+ 104:../src/i2c.c  **** 
+ 105:../src/i2c.c  **** /*! \brief Returns the TWI bus state.
+ 106:../src/i2c.c  ****  *
+ 107:../src/i2c.c  ****  *  Returns the TWI bus state (type defined in device headerfile),
+ 108:../src/i2c.c  ****  *  unknown, idle, owner or busy.
+ 109:../src/i2c.c  ****  *
+ 110:../src/i2c.c  ****  *  \param twi The TWI_Master_t struct instance.
+ 111:../src/i2c.c  ****  *
+ 112:../src/i2c.c  ****  *  \retval TWI_MASTER_BUSSTATE_UNKNOWN_gc Bus state is unknown.
+ 113:../src/i2c.c  ****  *  \retval TWI_MASTER_BUSSTATE_IDLE_gc    Bus state is idle.
+ 114:../src/i2c.c  ****  *  \retval TWI_MASTER_BUSSTATE_OWNER_gc   Bus state is owned by the master.
+ 115:../src/i2c.c  ****  *  \retval TWI_MASTER_BUSSTATE_BUSY_gc    Bus state is busy.
+ 116:../src/i2c.c  ****  */
+ 117:../src/i2c.c  **** TWI_MASTER_BUSSTATE_t TWI_MasterState()
+ 118:../src/i2c.c  **** {
+ 119:../src/i2c.c  **** 	TWI_MASTER_BUSSTATE_t twi_status;
+ 120:../src/i2c.c  **** 	twi_status = (TWI_MASTER_BUSSTATE_t) (twi->interface->MASTER.STATUS &
+ 121:../src/i2c.c  **** 	                                      TWI_MASTER_BUSSTATE_gm);
+ 122:../src/i2c.c  **** 	return twi_status;
+ 123:../src/i2c.c  **** }
+ 124:../src/i2c.c  **** 
+ 125:../src/i2c.c  **** 
+ 126:../src/i2c.c  **** /*! \brief Returns 1 if transaction is ready.
+ 127:../src/i2c.c  ****  *
+ 128:../src/i2c.c  ****  *  This function returns a uint8_tean whether the TWI Master is ready
+ 129:../src/i2c.c  ****  *  for a new transaction.
+ 130:../src/i2c.c  ****  *
+ 131:../src/i2c.c  ****  *  \param twi The TWI_Master_t struct instance.
+ 132:../src/i2c.c  ****  *
+ 133:../src/i2c.c  ****  *  \retval 1  If transaction could be started.
+ 134:../src/i2c.c  ****  *  \retval 0 If transaction could not be started.
+ 135:../src/i2c.c  ****  */
+ 136:../src/i2c.c  **** uint8_t TWI_MasterReady()
+ 137:../src/i2c.c  **** {
+ 138:../src/i2c.c  **** 	uint8_t twi_status = (twi->status & TWIM_STATUS_READY);
+ 139:../src/i2c.c  **** 	return twi_status;
+ 140:../src/i2c.c  **** }
+ 141:../src/i2c.c  **** 
+ 142:../src/i2c.c  **** 
+ 143:../src/i2c.c  **** /*! \brief TWI write transaction.
+ 144:../src/i2c.c  ****  *
+ 145:../src/i2c.c  ****  *  This function is TWI Master wrapper for a write-only transaction.
+ 146:../src/i2c.c  ****  *
+ 147:../src/i2c.c  ****  *  \param twi          The TWI_Master_t struct instance.
+ 148:../src/i2c.c  ****  *  \param address      Slave address.
+ 149:../src/i2c.c  ****  *  \param writeData    Pointer to data to write.
+ 150:../src/i2c.c  ****  *  \param bytesToWrite Number of data bytes to write.
+ 151:../src/i2c.c  ****  *
+ 152:../src/i2c.c  ****  *  \retval 1  If transaction could be started.
+ 153:../src/i2c.c  ****  *  \retval 0 If transaction could not be started.
+ 154:../src/i2c.c  ****  */
+ 155:../src/i2c.c  **** uint8_t TWI_MasterWrite(uint8_t address,
+ 156:../src/i2c.c  ****                      uint8_t *writeData,
+ 157:../src/i2c.c  ****                      uint8_t bytesToWrite)
+ 158:../src/i2c.c  **** {
+ 159:../src/i2c.c  **** 	uint8_t twi_status = TWI_MasterWriteRead(address, writeData, bytesToWrite, 0);
+ 160:../src/i2c.c  **** 	return twi_status;
+ 161:../src/i2c.c  **** }
+ 162:../src/i2c.c  **** 
+ 163:../src/i2c.c  **** 
+ 164:../src/i2c.c  **** /*! \brief TWI read transaction.
+ 165:../src/i2c.c  ****  *
+ 166:../src/i2c.c  ****  *  This function is a TWI Maste wrapper for read-only transaction.
+ 167:../src/i2c.c  ****  *
+ 168:../src/i2c.c  ****  *  \param twi            The TWI_Master_t struct instance.
+ 169:../src/i2c.c  ****  *  \param address        The slave address.
+ 170:../src/i2c.c  ****  *  \param bytesToRead    The number of bytes to read.
+ 171:../src/i2c.c  ****  *
+ 172:../src/i2c.c  ****  *  \retval 1  If transaction could be started.
+ 173:../src/i2c.c  ****  *  \retval 0 If transaction could not be started.
+ 174:../src/i2c.c  ****  */
+ 175:../src/i2c.c  **** uint8_t TWI_MasterRead(uint8_t address,
+ 176:../src/i2c.c  ****                     uint8_t bytesToRead)
+ 177:../src/i2c.c  **** {
+ 178:../src/i2c.c  **** 	uint8_t twi_status = TWI_MasterWriteRead(address, 0, 0, bytesToRead);
+ 179:../src/i2c.c  **** 	return twi_status;
+ 180:../src/i2c.c  **** }
+ 181:../src/i2c.c  **** 
+ 182:../src/i2c.c  **** 
+ 183:../src/i2c.c  **** /*! \brief TWI write and/or read transaction.
+ 184:../src/i2c.c  ****  *
+ 185:../src/i2c.c  ****  *  This function is a TWI Master write and/or read transaction. The function
+ 186:../src/i2c.c  ****  *  can be used to both write and/or read bytes to/from the TWI Slave in one
+ 187:../src/i2c.c  ****  *  transaction.
+ 188:../src/i2c.c  ****  *
+ 189:../src/i2c.c  ****  *  \param twi            The TWI_Master_t struct instance.
+ 190:../src/i2c.c  ****  *  \param address        The slave address.
+ 191:../src/i2c.c  ****  *  \param writeData      Pointer to data to write.
+ 192:../src/i2c.c  ****  *  \param bytesToWrite   Number of bytes to write.
+ 193:../src/i2c.c  ****  *  \param bytesToRead    Number of bytes to read.
+ 194:../src/i2c.c  ****  *
+ 195:../src/i2c.c  ****  *  \retval 1  If transaction could be started.
+ 196:../src/i2c.c  ****  *  \retval 0 If transaction could not be started.
+ 197:../src/i2c.c  ****  */
+ 198:../src/i2c.c  **** uint8_t TWI_MasterWriteRead(uint8_t address,
+  17               		.loc 1 198 0
+  18               		.cfi_startproc
+  19               	.LVL0:
+  20 0000 CF93      		push r28
+  21               	.LCFI0:
+  22               		.cfi_def_cfa_offset 4
+  23               		.cfi_offset 28, -3
+  24 0002 DF93      		push r29
+  25               	.LCFI1:
+  26               		.cfi_def_cfa_offset 5
+  27               		.cfi_offset 29, -4
+  28               	/* prologue: function */
+  29               	/* frame size = 0 */
+  30               	/* stack size = 2 */
+  31               	.L__stack_usage = 2
+ 199:../src/i2c.c  ****                          uint8_t *writeData,
+ 200:../src/i2c.c  ****                          uint8_t bytesToWrite,
+ 201:../src/i2c.c  ****                          uint8_t bytesToRead)
+ 202:../src/i2c.c  **** {
+ 203:../src/i2c.c  **** 	/*Parameter sanity check. */
+ 204:../src/i2c.c  **** 	if (bytesToWrite > TWIM_WRITE_BUFFER_SIZE) {
+ 205:../src/i2c.c  **** 		return 0;
+ 206:../src/i2c.c  **** 	}
+ 207:../src/i2c.c  **** 	if (bytesToRead > TWIM_READ_BUFFER_SIZE) {
+ 208:../src/i2c.c  **** 		return 0;
+ 209:../src/i2c.c  **** 	}
+ 210:../src/i2c.c  **** 	/*Initiate transaction if bus is ready. */
+ 211:../src/i2c.c  **** 	if (twi->status == TWIM_STATUS_READY) {
+  32               		.loc 1 211 0
+  33 0004 E091 0000 		lds r30,twi
+  34 0008 F091 0000 		lds r31,twi+1
+  35 000c 9789      		ldd r25,Z+23
+  36 000e 9111      		cpse r25,__zero_reg__
+  37 0010 00C0      		rjmp .L2
+ 212:../src/i2c.c  **** 
+ 213:../src/i2c.c  **** 		twi->status = TWIM_STATUS_BUSY;
+  38               		.loc 1 213 0
+  39 0012 91E0      		ldi r25,lo8(1)
+  40 0014 978B      		std Z+23,r25
+ 214:../src/i2c.c  **** 		twi->result = TWIM_RESULT_UNKNOWN;
+  41               		.loc 1 214 0
+  42 0016 108E      		std Z+24,__zero_reg__
+ 215:../src/i2c.c  **** 
+ 216:../src/i2c.c  **** 		twi->address = address<<1;
+  43               		.loc 1 216 0
+  44 0018 880F      		lsl r24
+  45               	.LVL1:
+  46 001a 8283      		std Z+2,r24
+  47               	.LVL2:
+  48               	.LBB25:
+ 217:../src/i2c.c  **** 
+ 218:../src/i2c.c  **** 		/* Fill write data buffer. */
+ 219:../src/i2c.c  **** 		for (uint8_t bufferIndex=0; bufferIndex < bytesToWrite; bufferIndex++) {
+  49               		.loc 1 219 0
+  50 001c 4423      		tst r20
+  51 001e 01F0      		breq .L7
+  52 0020 DB01      		movw r26,r22
+  53 0022 80E0      		ldi r24,0
+  54 0024 90E0      		ldi r25,0
+  55               	.LVL3:
+  56               	.L6:
+ 220:../src/i2c.c  **** 			twi->writeData[bufferIndex] = writeData[bufferIndex];
+  57               		.loc 1 220 0
+  58 0026 3D91      		ld r19,X+
+  59 0028 EF01      		movw r28,r30
+  60 002a C80F      		add r28,r24
+  61 002c D91F      		adc r29,r25
+  62 002e 3B83      		std Y+3,r19
+  63               	.LVL4:
+  64 0030 0196      		adiw r24,1
+  65               	.LVL5:
+ 219:../src/i2c.c  **** 			twi->writeData[bufferIndex] = writeData[bufferIndex];
+  66               		.loc 1 219 0
+  67 0032 8417      		cp r24,r20
+  68 0034 00F0      		brlo .L6
+  69               	.LVL6:
+  70               	.L7:
+  71               	.LBE25:
+ 221:../src/i2c.c  **** 		}
+ 222:../src/i2c.c  **** 
+ 223:../src/i2c.c  **** 		twi->bytesToWrite = bytesToWrite;
+  72               		.loc 1 223 0
+  73 0036 438B      		std Z+19,r20
+ 224:../src/i2c.c  **** 		twi->bytesToRead = bytesToRead;
+  74               		.loc 1 224 0
+  75 0038 248B      		std Z+20,r18
+ 225:../src/i2c.c  **** 		twi->bytesWritten = 0;
+  76               		.loc 1 225 0
+  77 003a 158A      		std Z+21,__zero_reg__
+ 226:../src/i2c.c  **** 		twi->bytesRead = 0;
+  78               		.loc 1 226 0
+  79 003c 168A      		std Z+22,__zero_reg__
+ 227:../src/i2c.c  **** 
+ 228:../src/i2c.c  **** 		/* If write command, send the START condition + Address +
+ 229:../src/i2c.c  **** 		 * 'R/_W = 0'
+ 230:../src/i2c.c  **** 		 */
+ 231:../src/i2c.c  **** 		if (twi->bytesToWrite > 0) {
+  80               		.loc 1 231 0
+  81 003e 8389      		ldd r24,Z+19
+  82 0040 8111      		cpse r24,__zero_reg__
+  83 0042 00C0      		rjmp .L14
+ 232:../src/i2c.c  **** 			uint8_t writeAddress = twi->address & ~0x01;
+ 233:../src/i2c.c  **** 			twi->interface->MASTER.ADDR = writeAddress;
+ 234:../src/i2c.c  **** 		}
+ 235:../src/i2c.c  **** 
+ 236:../src/i2c.c  **** 		/* If read command, send the START condition + Address +
+ 237:../src/i2c.c  **** 		 * 'R/_W = 1'
+ 238:../src/i2c.c  **** 		 */
+ 239:../src/i2c.c  **** 		else if (twi->bytesToRead > 0) {
+  84               		.loc 1 239 0
+  85 0044 8489      		ldd r24,Z+20
+  86 0046 8823      		tst r24
+  87 0048 01F0      		breq .L9
+  88               	.LBB26:
+ 240:../src/i2c.c  **** 			uint8_t readAddress = twi->address | 0x01;
+  89               		.loc 1 240 0
+  90 004a 8281      		ldd r24,Z+2
+  91 004c 8160      		ori r24,lo8(1)
+  92               	.LVL7:
+ 241:../src/i2c.c  **** 			twi->interface->MASTER.ADDR = readAddress;
+  93               		.loc 1 241 0
+  94 004e 0190      		ld __tmp_reg__,Z+
+  95 0050 F081      		ld r31,Z
+  96 0052 E02D      		mov r30,__tmp_reg__
+  97 0054 8683      		std Z+6,r24
+  98               	.LBE26:
+ 242:../src/i2c.c  **** 		}
+ 243:../src/i2c.c  **** 		return 1;
+  99               		.loc 1 243 0
+ 100 0056 81E0      		ldi r24,lo8(1)
+ 101               	.LVL8:
+ 102               	/* epilogue start */
+ 244:../src/i2c.c  **** 	} else {
+ 245:../src/i2c.c  **** 		printf_P(PSTR("\tTWI wasn't ready.\r\n"));
+ 246:../src/i2c.c  **** 		return 0;
+ 247:../src/i2c.c  **** 	}
+ 248:../src/i2c.c  **** }
+ 103               		.loc 1 248 0
+ 104 0058 DF91      		pop r29
+ 105 005a CF91      		pop r28
+ 106 005c 0895      		ret
+ 107               	.LVL9:
+ 108               	.L14:
+ 109               	.LBB27:
+ 232:../src/i2c.c  **** 			twi->interface->MASTER.ADDR = writeAddress;
+ 110               		.loc 1 232 0
+ 111 005e 8281      		ldd r24,Z+2
+ 112 0060 8E7F      		andi r24,lo8(-2)
+ 113               	.LVL10:
+ 233:../src/i2c.c  **** 		}
+ 114               		.loc 1 233 0
+ 115 0062 0190      		ld __tmp_reg__,Z+
+ 116 0064 F081      		ld r31,Z
+ 117 0066 E02D      		mov r30,__tmp_reg__
+ 118 0068 8683      		std Z+6,r24
+ 119               	.LBE27:
+ 243:../src/i2c.c  **** 	} else {
+ 120               		.loc 1 243 0
+ 121 006a 81E0      		ldi r24,lo8(1)
+ 122               	.LVL11:
+ 123               	/* epilogue start */
+ 124               		.loc 1 248 0
+ 125 006c DF91      		pop r29
+ 126 006e CF91      		pop r28
+ 127 0070 0895      		ret
+ 128               	.LVL12:
+ 129               	.L2:
+ 245:../src/i2c.c  **** 		return 0;
+ 130               		.loc 1 245 0
+ 131 0072 80E0      		ldi r24,lo8(__c.4839)
+ 132 0074 90E0      		ldi r25,hi8(__c.4839)
+ 133               	.LVL13:
+ 134 0076 9F93      		push r25
+ 135               	.LCFI2:
+ 136               		.cfi_def_cfa_offset 6
+ 137 0078 8F93      		push r24
+ 138               	.LCFI3:
+ 139               		.cfi_def_cfa_offset 7
+ 140 007a 0E94 0000 		call printf_P
+ 141               	.LVL14:
+ 142 007e 0F90      		pop __tmp_reg__
+ 143 0080 0F90      		pop __tmp_reg__
+ 144               	.LCFI4:
+ 145               		.cfi_def_cfa_offset 5
+ 246:../src/i2c.c  **** 	}
+ 146               		.loc 1 246 0
+ 147 0082 80E0      		ldi r24,0
+ 148               	/* epilogue start */
+ 149               		.loc 1 248 0
+ 150 0084 DF91      		pop r29
+ 151 0086 CF91      		pop r28
+ 152 0088 0895      		ret
+ 153               	.LVL15:
+ 154               	.L9:
+ 243:../src/i2c.c  **** 	} else {
+ 155               		.loc 1 243 0
+ 156 008a 81E0      		ldi r24,lo8(1)
+ 157               	/* epilogue start */
+ 158               		.loc 1 248 0
+ 159 008c DF91      		pop r29
+ 160 008e CF91      		pop r28
+ 161 0090 0895      		ret
+ 162               		.cfi_endproc
+ 163               	.LFE49:
+ 165               		.section	.text.i2c_init,"ax",@progbits
+ 166               	.global	i2c_init
+ 168               	i2c_init:
+ 169               	.LFB36:
+  71:../src/i2c.c  **** 	PORTB.DIRCLR = PIN5_bm; 
+ 170               		.loc 1 71 0
+ 171               		.cfi_startproc
+ 172               	/* prologue: function */
+ 173               	/* frame size = 0 */
+ 174               	/* stack size = 0 */
+ 175               	.L__stack_usage = 0
+  72:../src/i2c.c  **** 	PORTB.PIN5CTRL = PORT_OPC_WIREDOR_gc;
+ 176               		.loc 1 72 0
+ 177 0000 E0E2      		ldi r30,lo8(32)
+ 178 0002 F6E0      		ldi r31,lo8(6)
+ 179 0004 80E2      		ldi r24,lo8(32)
+ 180 0006 8283      		std Z+2,r24
+  73:../src/i2c.c  **** 	
+ 181               		.loc 1 73 0
+ 182 0008 858B      		std Z+21,r24
+  75:../src/i2c.c  **** 	twi = &twiMaster;
+ 183               		.loc 1 75 0
+ 184 000a 83E0      		ldi r24,lo8(3)
+ 185 000c 8093 8106 		sts 1665,r24
+  76:../src/i2c.c  **** 	TWI_MasterInit(&TWIE, TWI_MASTER_INTLVL_HI_gc, TWI_BAUD(F_CPU, 100000));
+ 186               		.loc 1 76 0
+ 187 0010 A0E0      		ldi r26,lo8(twiMaster)
+ 188 0012 B0E0      		ldi r27,hi8(twiMaster)
+ 189 0014 A093 0000 		sts twi,r26
+ 190 0018 B093 0000 		sts twi+1,r27
+ 191               	.LVL16:
+ 192               	.LBB28:
+ 193               	.LBB29:
+  95:../src/i2c.c  **** 	twi->interface->MASTER.CTRLA = intLevel |
+ 194               		.loc 1 95 0
+ 195 001c E0EA      		ldi r30,lo8(-96)
+ 196 001e F4E0      		ldi r31,lo8(4)
+ 197 0020 ED93      		st X+,r30
+ 198 0022 FC93      		st X,r31
+  96:../src/i2c.c  **** 	                               TWI_MASTER_RIEN_bm |
+ 199               		.loc 1 96 0
+ 200 0024 88EF      		ldi r24,lo8(-8)
+ 201 0026 8183      		std Z+1,r24
+ 100:../src/i2c.c  **** 	twi->interface->MASTER.STATUS = TWI_MASTER_BUSSTATE_IDLE_gc;
+ 202               		.loc 1 100 0
+ 203 0028 8BE9      		ldi r24,lo8(-101)
+ 204 002a 8583      		std Z+5,r24
+ 101:../src/i2c.c  **** }
+ 205               		.loc 1 101 0
+ 206 002c 81E0      		ldi r24,lo8(1)
+ 207 002e 8483      		std Z+4,r24
+ 208               	.LVL17:
+ 209 0030 0895      		ret
+ 210               	.LBE29:
+ 211               	.LBE28:
+ 212               		.cfi_endproc
+ 213               	.LFE36:
+ 215               		.section	.text.TWI_MasterInit,"ax",@progbits
+ 216               	.global	TWI_MasterInit
+ 218               	TWI_MasterInit:
+ 219               	.LFB37:
+  94:../src/i2c.c  **** 	twi->interface = module;
+ 220               		.loc 1 94 0
+ 221               		.cfi_startproc
+ 222               	.LVL18:
+ 223               	/* prologue: function */
+ 224               	/* frame size = 0 */
+ 225               	/* stack size = 0 */
+ 226               	.L__stack_usage = 0
+  95:../src/i2c.c  **** 	twi->interface->MASTER.CTRLA = intLevel |
+ 227               		.loc 1 95 0
+ 228 0000 E091 0000 		lds r30,twi
+ 229 0004 F091 0000 		lds r31,twi+1
+ 230 0008 8083      		st Z,r24
+ 231 000a 9183      		std Z+1,r25
+  96:../src/i2c.c  **** 	                               TWI_MASTER_RIEN_bm |
+ 232               		.loc 1 96 0
+ 233 000c 6863      		ori r22,lo8(56)
+ 234               	.LVL19:
+ 235 000e DC01      		movw r26,r24
+ 236 0010 1196      		adiw r26,1
+ 237 0012 6C93      		st X,r22
+ 100:../src/i2c.c  **** 	twi->interface->MASTER.STATUS = TWI_MASTER_BUSSTATE_IDLE_gc;
+ 238               		.loc 1 100 0
+ 239 0014 A081      		ld r26,Z
+ 240 0016 B181      		ldd r27,Z+1
+ 241 0018 1596      		adiw r26,5
+ 242 001a 4C93      		st X,r20
+ 101:../src/i2c.c  **** }
+ 243               		.loc 1 101 0
+ 244 001c 0190      		ld __tmp_reg__,Z+
+ 245 001e F081      		ld r31,Z
+ 246 0020 E02D      		mov r30,__tmp_reg__
+ 247 0022 81E0      		ldi r24,lo8(1)
+ 248               	.LVL20:
+ 249 0024 8483      		std Z+4,r24
+ 250 0026 0895      		ret
+ 251               		.cfi_endproc
+ 252               	.LFE37:
+ 254               		.section	.text.TWI_MasterState,"ax",@progbits
+ 255               	.global	TWI_MasterState
+ 257               	TWI_MasterState:
+ 258               	.LFB38:
+ 118:../src/i2c.c  **** 	TWI_MASTER_BUSSTATE_t twi_status;
+ 259               		.loc 1 118 0
+ 260               		.cfi_startproc
+ 261               	/* prologue: function */
+ 262               	/* frame size = 0 */
+ 263               	/* stack size = 0 */
+ 264               	.L__stack_usage = 0
+ 120:../src/i2c.c  **** 	                                      TWI_MASTER_BUSSTATE_gm);
+ 265               		.loc 1 120 0
+ 266 0000 E091 0000 		lds r30,twi
+ 267 0004 F091 0000 		lds r31,twi+1
+ 268 0008 0190      		ld __tmp_reg__,Z+
+ 269 000a F081      		ld r31,Z
+ 270 000c E02D      		mov r30,__tmp_reg__
+ 271 000e 8481      		ldd r24,Z+4
+ 272               	.LVL21:
+ 123:../src/i2c.c  **** 
+ 273               		.loc 1 123 0
+ 274 0010 8370      		andi r24,lo8(3)
+ 275               	.LVL22:
+ 276 0012 0895      		ret
+ 277               		.cfi_endproc
+ 278               	.LFE38:
+ 280               		.section	.text.TWI_MasterReady,"ax",@progbits
+ 281               	.global	TWI_MasterReady
+ 283               	TWI_MasterReady:
+ 284               	.LFB39:
+ 137:../src/i2c.c  **** 	uint8_t twi_status = (twi->status & TWIM_STATUS_READY);
+ 285               		.loc 1 137 0
+ 286               		.cfi_startproc
+ 287               	/* prologue: function */
+ 288               	/* frame size = 0 */
+ 289               	/* stack size = 0 */
+ 290               	.L__stack_usage = 0
+ 138:../src/i2c.c  **** 	return twi_status;
+ 291               		.loc 1 138 0
+ 292 0000 E091 0000 		lds r30,twi
+ 293 0004 F091 0000 		lds r31,twi+1
+ 294 0008 8789      		ldd r24,Z+23
+ 295               	.LVL23:
+ 140:../src/i2c.c  **** 
+ 296               		.loc 1 140 0
+ 297 000a 80E0      		ldi r24,0
+ 298 000c 0895      		ret
+ 299               		.cfi_endproc
+ 300               	.LFE39:
+ 302               		.section	.text.TWI_MasterWrite,"ax",@progbits
+ 303               	.global	TWI_MasterWrite
+ 305               	TWI_MasterWrite:
+ 306               	.LFB40:
+ 158:../src/i2c.c  **** 	uint8_t twi_status = TWI_MasterWriteRead(address, writeData, bytesToWrite, 0);
+ 307               		.loc 1 158 0
+ 308               		.cfi_startproc
+ 309               	.LVL24:
+ 310               	/* prologue: function */
+ 311               	/* frame size = 0 */
+ 312               	/* stack size = 0 */
+ 313               	.L__stack_usage = 0
+ 314               	.LBB30:
+ 315               	.LBB31:
+ 204:../src/i2c.c  **** 		return 0;
+ 316               		.loc 1 204 0
+ 317 0000 4930      		cpi r20,lo8(9)
+ 318 0002 00F0      		brlo .L21
+ 319               	.LVL25:
+ 320               	.LBE31:
+ 321               	.LBE30:
+ 161:../src/i2c.c  **** 
+ 322               		.loc 1 161 0
+ 323 0004 80E0      		ldi r24,0
+ 324               	.LVL26:
+ 325 0006 0895      		ret
+ 326               	.LVL27:
+ 327               	.L21:
+ 328               	.LBB33:
+ 329               	.LBB32:
+ 330 0008 20E0      		ldi r18,0
+ 331 000a 0C94 0000 		jmp TWI_MasterWriteRead.part.0
+ 332               	.LVL28:
+ 333               	.LBE32:
+ 334               	.LBE33:
+ 335               		.cfi_endproc
+ 336               	.LFE40:
+ 338               		.section	.text.TWI_MasterRead,"ax",@progbits
+ 339               	.global	TWI_MasterRead
+ 341               	TWI_MasterRead:
+ 342               	.LFB41:
+ 177:../src/i2c.c  **** 	uint8_t twi_status = TWI_MasterWriteRead(address, 0, 0, bytesToRead);
+ 343               		.loc 1 177 0
+ 344               		.cfi_startproc
+ 345               	.LVL29:
+ 346               	/* prologue: function */
+ 347               	/* frame size = 0 */
+ 348               	/* stack size = 0 */
+ 349               	.L__stack_usage = 0
+ 350               	.LBB34:
+ 351               	.LBB35:
+ 207:../src/i2c.c  **** 		return 0;
+ 352               		.loc 1 207 0
+ 353 0000 6930      		cpi r22,lo8(9)
+ 354 0002 00F0      		brlo .L24
+ 355               	.LVL30:
+ 356               	.LBE35:
+ 357               	.LBE34:
+ 180:../src/i2c.c  **** 
+ 358               		.loc 1 180 0
+ 359 0004 80E0      		ldi r24,0
+ 360               	.LVL31:
+ 361 0006 0895      		ret
+ 362               	.LVL32:
+ 363               	.L24:
+ 364               	.LBB37:
+ 365               	.LBB36:
+ 366 0008 262F      		mov r18,r22
+ 367 000a 40E0      		ldi r20,0
+ 368 000c 60E0      		ldi r22,0
+ 369 000e 70E0      		ldi r23,0
+ 370               	.LVL33:
+ 371 0010 0C94 0000 		jmp TWI_MasterWriteRead.part.0
+ 372               	.LVL34:
+ 373               	.LBE36:
+ 374               	.LBE37:
+ 375               		.cfi_endproc
+ 376               	.LFE41:
+ 378               		.section	.text.TWI_MasterWriteRead,"ax",@progbits
+ 379               	.global	TWI_MasterWriteRead
+ 381               	TWI_MasterWriteRead:
+ 382               	.LFB42:
+ 202:../src/i2c.c  **** 	/*Parameter sanity check. */
+ 383               		.loc 1 202 0
+ 384               		.cfi_startproc
+ 385               	.LVL35:
+ 386               	/* prologue: function */
+ 387               	/* frame size = 0 */
+ 388               	/* stack size = 0 */
+ 389               	.L__stack_usage = 0
+ 204:../src/i2c.c  **** 		return 0;
+ 390               		.loc 1 204 0
+ 391 0000 4930      		cpi r20,lo8(9)
+ 392 0002 00F4      		brsh .L26
+ 207:../src/i2c.c  **** 		return 0;
+ 393               		.loc 1 207 0
+ 394 0004 2930      		cpi r18,lo8(9)
+ 395 0006 00F4      		brsh .L26
+ 396 0008 0C94 0000 		jmp TWI_MasterWriteRead.part.0
+ 397               	.LVL36:
+ 398               	.L26:
+ 399               		.loc 1 248 0
+ 400 000c 80E0      		ldi r24,0
+ 401               	.LVL37:
+ 402 000e 0895      		ret
+ 403               		.cfi_endproc
+ 404               	.LFE42:
+ 406               		.section	.text.TWI_MasterArbitrationLostBusErrorHandler,"ax",@progbits
+ 407               	.global	TWI_MasterArbitrationLostBusErrorHandler
+ 409               	TWI_MasterArbitrationLostBusErrorHandler:
+ 410               	.LFB44:
+ 249:../src/i2c.c  **** 
+ 250:../src/i2c.c  **** 
+ 251:../src/i2c.c  **** /*! \brief Common TWI master interrupt service routine.
+ 252:../src/i2c.c  ****  *
+ 253:../src/i2c.c  ****  *  Check current status and calls the appropriate handler.
+ 254:../src/i2c.c  ****  *
+ 255:../src/i2c.c  ****  *  \param twi  The TWI_Master_t struct instance.
+ 256:../src/i2c.c  ****  */
+ 257:../src/i2c.c  **** void TWI_MasterInterruptHandler()
+ 258:../src/i2c.c  **** {
+ 259:../src/i2c.c  **** 	uint8_t currentStatus = twi->interface->MASTER.STATUS;
+ 260:../src/i2c.c  **** 	/* If arbitration lost or bus error. */
+ 261:../src/i2c.c  **** 	if ((currentStatus & TWI_MASTER_ARBLOST_bm) ||
+ 262:../src/i2c.c  **** 	    (currentStatus & TWI_MASTER_BUSERR_bm)) {
+ 263:../src/i2c.c  **** 
+ 264:../src/i2c.c  **** 		TWI_MasterArbitrationLostBusErrorHandler();
+ 265:../src/i2c.c  **** 	}
+ 266:../src/i2c.c  **** 
+ 267:../src/i2c.c  **** 	/* If master write interrupt. */
+ 268:../src/i2c.c  **** 	else if (currentStatus & TWI_MASTER_WIF_bm) {
+ 269:../src/i2c.c  **** 		TWI_MasterWriteHandler();
+ 270:../src/i2c.c  **** 	}
+ 271:../src/i2c.c  **** 
+ 272:../src/i2c.c  **** 	/* If master read interrupt. */
+ 273:../src/i2c.c  **** 	else if (currentStatus & TWI_MASTER_RIF_bm) {
+ 274:../src/i2c.c  **** 		TWI_MasterReadHandler();
+ 275:../src/i2c.c  **** 	}
+ 276:../src/i2c.c  **** 
+ 277:../src/i2c.c  **** 	/* If unexpected state. */
+ 278:../src/i2c.c  **** 	else {
+ 279:../src/i2c.c  **** 		TWI_MasterTransactionFinished(TWIM_RESULT_FAIL);
+ 280:../src/i2c.c  **** 	}
+ 281:../src/i2c.c  **** }
+ 282:../src/i2c.c  **** 
+ 283:../src/i2c.c  **** 
+ 284:../src/i2c.c  **** /*! \brief TWI master arbitration lost and bus error interrupt handler.
+ 285:../src/i2c.c  ****  *
+ 286:../src/i2c.c  ****  *  Handles TWI responses to lost arbitration and bus error.
+ 287:../src/i2c.c  ****  *
+ 288:../src/i2c.c  ****  *  \param twi  The TWI_Master_t struct instance.
+ 289:../src/i2c.c  ****  */
+ 290:../src/i2c.c  **** void TWI_MasterArbitrationLostBusErrorHandler()
+ 291:../src/i2c.c  **** {
+ 411               		.loc 1 291 0
+ 412               		.cfi_startproc
+ 413               	/* prologue: function */
+ 414               	/* frame size = 0 */
+ 415               	/* stack size = 0 */
+ 416               	.L__stack_usage = 0
+ 292:../src/i2c.c  **** 	uint8_t currentStatus = twi->interface->MASTER.STATUS;
+ 417               		.loc 1 292 0
+ 418 0000 E091 0000 		lds r30,twi
+ 419 0004 F091 0000 		lds r31,twi+1
+ 420 0008 A081      		ld r26,Z
+ 421 000a B181      		ldd r27,Z+1
+ 422 000c 1496      		adiw r26,4
+ 423 000e 8C91      		ld r24,X
+ 424 0010 1497      		sbiw r26,4
+ 425               	.LVL38:
+ 293:../src/i2c.c  **** 
+ 294:../src/i2c.c  **** 	/* If bus error. */
+ 295:../src/i2c.c  **** 	if (currentStatus & TWI_MASTER_BUSERR_bm) {
+ 426               		.loc 1 295 0
+ 427 0012 82FD      		sbrc r24,2
+ 428 0014 00C0      		rjmp .L32
+ 296:../src/i2c.c  **** 		twi->result = TWIM_RESULT_BUS_ERROR;
+ 297:../src/i2c.c  **** 	}
+ 298:../src/i2c.c  **** 	/* If arbitration lost. */
+ 299:../src/i2c.c  **** 	else {
+ 300:../src/i2c.c  **** 		twi->result = TWIM_RESULT_ARBITRATION_LOST;
+ 429               		.loc 1 300 0
+ 430 0016 93E0      		ldi r25,lo8(3)
+ 431 0018 908F      		std Z+24,r25
+ 301:../src/i2c.c  **** 	}
+ 302:../src/i2c.c  **** 
+ 303:../src/i2c.c  **** 	/* Clear interrupt flag. */
+ 304:../src/i2c.c  **** 	twi->interface->MASTER.STATUS = currentStatus | TWI_MASTER_ARBLOST_bm;
+ 432               		.loc 1 304 0
+ 433 001a 8860      		ori r24,lo8(8)
+ 434               	.LVL39:
+ 435 001c 1496      		adiw r26,4
+ 436 001e 8C93      		st X,r24
+ 305:../src/i2c.c  **** 
+ 306:../src/i2c.c  **** 	twi->status = TWIM_STATUS_READY;
+ 437               		.loc 1 306 0
+ 438 0020 178A      		std Z+23,__zero_reg__
+ 439 0022 0895      		ret
+ 440               	.LVL40:
+ 441               	.L32:
+ 296:../src/i2c.c  **** 	}
+ 442               		.loc 1 296 0
+ 443 0024 94E0      		ldi r25,lo8(4)
+ 444 0026 908F      		std Z+24,r25
+ 304:../src/i2c.c  **** 
+ 445               		.loc 1 304 0
+ 446 0028 8860      		ori r24,lo8(8)
+ 447               	.LVL41:
+ 448 002a 1496      		adiw r26,4
+ 449 002c 8C93      		st X,r24
+ 450               		.loc 1 306 0
+ 451 002e 178A      		std Z+23,__zero_reg__
+ 452 0030 0895      		ret
+ 453               		.cfi_endproc
+ 454               	.LFE44:
+ 456               		.section	.text.TWI_MasterWriteHandler,"ax",@progbits
+ 457               	.global	TWI_MasterWriteHandler
+ 459               	TWI_MasterWriteHandler:
+ 460               	.LFB45:
+ 307:../src/i2c.c  **** }
+ 308:../src/i2c.c  **** 
+ 309:../src/i2c.c  **** 
+ 310:../src/i2c.c  **** /*! \brief TWI master write interrupt handler.
+ 311:../src/i2c.c  ****  *
+ 312:../src/i2c.c  ****  *  Handles TWI transactions (master write) and responses to (N)ACK.
+ 313:../src/i2c.c  ****  *
+ 314:../src/i2c.c  ****  *  \param twi The TWI_Master_t struct instance.
+ 315:../src/i2c.c  ****  */
+ 316:../src/i2c.c  **** void TWI_MasterWriteHandler()
+ 317:../src/i2c.c  **** {
+ 461               		.loc 1 317 0
+ 462               		.cfi_startproc
+ 463 0000 CF93      		push r28
+ 464               	.LCFI5:
+ 465               		.cfi_def_cfa_offset 4
+ 466               		.cfi_offset 28, -3
+ 467 0002 DF93      		push r29
+ 468               	.LCFI6:
+ 469               		.cfi_def_cfa_offset 5
+ 470               		.cfi_offset 29, -4
+ 471               	/* prologue: function */
+ 472               	/* frame size = 0 */
+ 473               	/* stack size = 2 */
+ 474               	.L__stack_usage = 2
+ 318:../src/i2c.c  **** 	/* Local variables used in if tests to avoid compiler warning. */
+ 319:../src/i2c.c  **** 	uint8_t bytesToWrite  = twi->bytesToWrite;
+ 475               		.loc 1 319 0
+ 476 0004 E091 0000 		lds r30,twi
+ 477 0008 F091 0000 		lds r31,twi+1
+ 478 000c 9389      		ldd r25,Z+19
+ 479               	.LVL42:
+ 320:../src/i2c.c  **** 	uint8_t bytesToRead   = twi->bytesToRead;
+ 480               		.loc 1 320 0
+ 481 000e 2489      		ldd r18,Z+20
+ 482               	.LVL43:
+ 321:../src/i2c.c  **** 
+ 322:../src/i2c.c  **** 	/* If NOT acknowledged (NACK) by slave cancel the transaction. */
+ 323:../src/i2c.c  **** 	if (twi->interface->MASTER.STATUS & TWI_MASTER_RXACK_bm) {
+ 483               		.loc 1 323 0
+ 484 0010 A081      		ld r26,Z
+ 485 0012 B181      		ldd r27,Z+1
+ 486 0014 1496      		adiw r26,4
+ 487 0016 8C91      		ld r24,X
+ 488 0018 1497      		sbiw r26,4
+ 489 001a 84FD      		sbrc r24,4
+ 490 001c 00C0      		rjmp .L38
+ 324:../src/i2c.c  **** 		twi->interface->MASTER.CTRLC = TWI_MASTER_CMD_STOP_gc;
+ 325:../src/i2c.c  **** 		twi->result = TWIM_RESULT_NACK_RECEIVED;
+ 326:../src/i2c.c  **** 		twi->status = TWIM_STATUS_READY;
+ 327:../src/i2c.c  **** 	}
+ 328:../src/i2c.c  **** 	/* If more bytes to write, send data. */
+ 329:../src/i2c.c  **** 	else if (twi->bytesWritten < bytesToWrite) {
+ 491               		.loc 1 329 0
+ 492 001e 8589      		ldd r24,Z+21
+ 493 0020 8917      		cp r24,r25
+ 494 0022 00F0      		brlo .L39
+ 330:../src/i2c.c  **** 		uint8_t data = twi->writeData[twi->bytesWritten];
+ 331:../src/i2c.c  **** 		twi->interface->MASTER.DATA = data;
+ 332:../src/i2c.c  **** 		++twi->bytesWritten;
+ 333:../src/i2c.c  **** 	}
+ 334:../src/i2c.c  **** 
+ 335:../src/i2c.c  **** 	/* If bytes to read, send repeated START condition + Address +
+ 336:../src/i2c.c  **** 	 * 'R/_W = 1'
+ 337:../src/i2c.c  **** 	 */
+ 338:../src/i2c.c  **** 	else if (twi->bytesRead < bytesToRead) {
+ 495               		.loc 1 338 0
+ 496 0024 8689      		ldd r24,Z+22
+ 497 0026 8217      		cp r24,r18
+ 498 0028 00F0      		brlo .L40
+ 339:../src/i2c.c  **** 		uint8_t readAddress = twi->address | 0x01;
+ 340:../src/i2c.c  **** 		twi->interface->MASTER.ADDR = readAddress;
+ 341:../src/i2c.c  **** 	}
+ 342:../src/i2c.c  **** 
+ 343:../src/i2c.c  **** 	/* If transaction finished, send STOP condition and set RESULT OK. */
+ 344:../src/i2c.c  **** 	else {
+ 345:../src/i2c.c  **** 		twi->interface->MASTER.CTRLC = TWI_MASTER_CMD_STOP_gc;
+ 499               		.loc 1 345 0
+ 500 002a 83E0      		ldi r24,lo8(3)
+ 501 002c 1396      		adiw r26,3
+ 502 002e 8C93      		st X,r24
+ 503               	.LVL44:
+ 504               	.LBB38:
+ 505               	.LBB39:
+ 346:../src/i2c.c  **** 		TWI_MasterTransactionFinished(TWIM_RESULT_OK);
+ 347:../src/i2c.c  **** 	}
+ 348:../src/i2c.c  **** }
+ 349:../src/i2c.c  **** 
+ 350:../src/i2c.c  **** 
+ 351:../src/i2c.c  **** /*! \brief TWI master read interrupt handler.
+ 352:../src/i2c.c  ****  *
+ 353:../src/i2c.c  ****  *  This is the master read interrupt handler that takes care of
+ 354:../src/i2c.c  ****  *  reading bytes from the TWI slave.
+ 355:../src/i2c.c  ****  *
+ 356:../src/i2c.c  ****  *  \param twi The TWI_Master_t struct instance.
+ 357:../src/i2c.c  ****  */
+ 358:../src/i2c.c  **** void TWI_MasterReadHandler()
+ 359:../src/i2c.c  **** {
+ 360:../src/i2c.c  **** 	/* Fetch data if bytes to be read. */
+ 361:../src/i2c.c  **** 	if (twi->bytesRead < TWIM_READ_BUFFER_SIZE) {
+ 362:../src/i2c.c  **** 		uint8_t data = twi->interface->MASTER.DATA;
+ 363:../src/i2c.c  **** 		twi->readData[twi->bytesRead] = data;
+ 364:../src/i2c.c  **** 		twi->bytesRead++;
+ 365:../src/i2c.c  **** 	}
+ 366:../src/i2c.c  **** 
+ 367:../src/i2c.c  **** 	/* If buffer overflow, issue STOP and BUFFER_OVERFLOW condition. */
+ 368:../src/i2c.c  **** 	else {
+ 369:../src/i2c.c  **** 		twi->interface->MASTER.CTRLC = TWI_MASTER_CMD_STOP_gc;
+ 370:../src/i2c.c  **** 		TWI_MasterTransactionFinished(TWIM_RESULT_BUFFER_OVERFLOW);
+ 371:../src/i2c.c  **** 	}
+ 372:../src/i2c.c  **** 
+ 373:../src/i2c.c  **** 	/* Local variable used in if test to avoid compiler warning. */
+ 374:../src/i2c.c  **** 	uint8_t bytesToRead = twi->bytesToRead;
+ 375:../src/i2c.c  **** 
+ 376:../src/i2c.c  **** 	/* If more bytes to read, issue ACK and start a byte read. */
+ 377:../src/i2c.c  **** 	if (twi->bytesRead < bytesToRead) {
+ 378:../src/i2c.c  **** 		twi->interface->MASTER.CTRLC = TWI_MASTER_CMD_RECVTRANS_gc;
+ 379:../src/i2c.c  **** 	}
+ 380:../src/i2c.c  **** 
+ 381:../src/i2c.c  **** 	/* If transaction finished, issue NACK and STOP condition. */
+ 382:../src/i2c.c  **** 	else {
+ 383:../src/i2c.c  **** 		twi->interface->MASTER.CTRLC = TWI_MASTER_ACKACT_bm |
+ 384:../src/i2c.c  **** 		                               TWI_MASTER_CMD_STOP_gc;
+ 385:../src/i2c.c  **** 		TWI_MasterTransactionFinished(TWIM_RESULT_OK);
+ 386:../src/i2c.c  **** 	}
+ 387:../src/i2c.c  **** }
+ 388:../src/i2c.c  **** 
+ 389:../src/i2c.c  **** 
+ 390:../src/i2c.c  **** /*! \brief TWI transaction finished handler.
+ 391:../src/i2c.c  ****  *
+ 392:../src/i2c.c  ****  *  Prepares module for new transaction.
+ 393:../src/i2c.c  ****  *
+ 394:../src/i2c.c  ****  *  \param twi     The TWI_Master_t struct instance.
+ 395:../src/i2c.c  ****  *  \param result  The result of the operation.
+ 396:../src/i2c.c  ****  */
+ 397:../src/i2c.c  **** void TWI_MasterTransactionFinished(uint8_t result)
+ 398:../src/i2c.c  **** {
+ 399:../src/i2c.c  **** 	twi->result = result;
+ 506               		.loc 1 399 0
+ 507 0030 81E0      		ldi r24,lo8(1)
+ 508 0032 808F      		std Z+24,r24
+ 400:../src/i2c.c  **** 	twi->status = TWIM_STATUS_READY;
+ 509               		.loc 1 400 0
+ 510 0034 178A      		std Z+23,__zero_reg__
+ 511               	/* epilogue start */
+ 512               	.LBE39:
+ 513               	.LBE38:
+ 348:../src/i2c.c  **** 
+ 514               		.loc 1 348 0
+ 515 0036 DF91      		pop r29
+ 516 0038 CF91      		pop r28
+ 517 003a 0895      		ret
+ 518               	.LVL45:
+ 519               	.L39:
+ 520               	.LBB40:
+ 330:../src/i2c.c  **** 		twi->interface->MASTER.DATA = data;
+ 521               		.loc 1 330 0
+ 522 003c 8589      		ldd r24,Z+21
+ 523 003e EF01      		movw r28,r30
+ 524 0040 C80F      		add r28,r24
+ 525 0042 D11D      		adc r29,__zero_reg__
+ 526 0044 8B81      		ldd r24,Y+3
+ 527               	.LVL46:
+ 331:../src/i2c.c  **** 		++twi->bytesWritten;
+ 528               		.loc 1 331 0
+ 529 0046 1796      		adiw r26,7
+ 530 0048 8C93      		st X,r24
+ 332:../src/i2c.c  **** 	}
+ 531               		.loc 1 332 0
+ 532 004a 8589      		ldd r24,Z+21
+ 533               	.LVL47:
+ 534 004c 8F5F      		subi r24,lo8(-(1))
+ 535 004e 858B      		std Z+21,r24
+ 536               	.LVL48:
+ 537               	/* epilogue start */
+ 538               	.LBE40:
+ 348:../src/i2c.c  **** 
+ 539               		.loc 1 348 0
+ 540 0050 DF91      		pop r29
+ 541 0052 CF91      		pop r28
+ 542 0054 0895      		ret
+ 543               	.L38:
+ 324:../src/i2c.c  **** 		twi->result = TWIM_RESULT_NACK_RECEIVED;
+ 544               		.loc 1 324 0
+ 545 0056 83E0      		ldi r24,lo8(3)
+ 546 0058 1396      		adiw r26,3
+ 547 005a 8C93      		st X,r24
+ 325:../src/i2c.c  **** 		twi->status = TWIM_STATUS_READY;
+ 548               		.loc 1 325 0
+ 549 005c 85E0      		ldi r24,lo8(5)
+ 550 005e 808F      		std Z+24,r24
+ 326:../src/i2c.c  **** 	}
+ 551               		.loc 1 326 0
+ 552 0060 178A      		std Z+23,__zero_reg__
+ 553               	/* epilogue start */
+ 348:../src/i2c.c  **** 
+ 554               		.loc 1 348 0
+ 555 0062 DF91      		pop r29
+ 556 0064 CF91      		pop r28
+ 557 0066 0895      		ret
+ 558               	.L40:
+ 559               	.LBB41:
+ 339:../src/i2c.c  **** 		twi->interface->MASTER.ADDR = readAddress;
+ 560               		.loc 1 339 0
+ 561 0068 8281      		ldd r24,Z+2
+ 562 006a 8160      		ori r24,lo8(1)
+ 563               	.LVL49:
+ 340:../src/i2c.c  **** 	}
+ 564               		.loc 1 340 0
+ 565 006c 1696      		adiw r26,6
+ 566 006e 8C93      		st X,r24
+ 567               	/* epilogue start */
+ 568               	.LBE41:
+ 348:../src/i2c.c  **** 
+ 569               		.loc 1 348 0
+ 570 0070 DF91      		pop r29
+ 571 0072 CF91      		pop r28
+ 572 0074 0895      		ret
+ 573               		.cfi_endproc
+ 574               	.LFE45:
+ 576               		.section	.text.TWI_MasterReadHandler,"ax",@progbits
+ 577               	.global	TWI_MasterReadHandler
+ 579               	TWI_MasterReadHandler:
+ 580               	.LFB46:
+ 359:../src/i2c.c  **** 	/* Fetch data if bytes to be read. */
+ 581               		.loc 1 359 0
+ 582               		.cfi_startproc
+ 583 0000 CF93      		push r28
+ 584               	.LCFI7:
+ 585               		.cfi_def_cfa_offset 4
+ 586               		.cfi_offset 28, -3
+ 587 0002 DF93      		push r29
+ 588               	.LCFI8:
+ 589               		.cfi_def_cfa_offset 5
+ 590               		.cfi_offset 29, -4
+ 591               	/* prologue: function */
+ 592               	/* frame size = 0 */
+ 593               	/* stack size = 2 */
+ 594               	.L__stack_usage = 2
+ 361:../src/i2c.c  **** 		uint8_t data = twi->interface->MASTER.DATA;
+ 595               		.loc 1 361 0
+ 596 0004 E091 0000 		lds r30,twi
+ 597 0008 F091 0000 		lds r31,twi+1
+ 598 000c 8689      		ldd r24,Z+22
+ 599               	.LBB42:
+ 362:../src/i2c.c  **** 		twi->readData[twi->bytesRead] = data;
+ 600               		.loc 1 362 0
+ 601 000e A081      		ld r26,Z
+ 602 0010 B181      		ldd r27,Z+1
+ 603               	.LBE42:
+ 361:../src/i2c.c  **** 		uint8_t data = twi->interface->MASTER.DATA;
+ 604               		.loc 1 361 0
+ 605 0012 8830      		cpi r24,lo8(8)
+ 606 0014 00F4      		brsh .L42
+ 607               	.LBB43:
+ 362:../src/i2c.c  **** 		twi->readData[twi->bytesRead] = data;
+ 608               		.loc 1 362 0
+ 609 0016 1796      		adiw r26,7
+ 610 0018 8C91      		ld r24,X
+ 611 001a 1797      		sbiw r26,7
+ 612               	.LVL50:
+ 363:../src/i2c.c  **** 		twi->bytesRead++;
+ 613               		.loc 1 363 0
+ 614 001c 9689      		ldd r25,Z+22
+ 615 001e EF01      		movw r28,r30
+ 616 0020 C90F      		add r28,r25
+ 617 0022 D11D      		adc r29,__zero_reg__
+ 618 0024 8B87      		std Y+11,r24
+ 364:../src/i2c.c  **** 	}
+ 619               		.loc 1 364 0
+ 620 0026 8689      		ldd r24,Z+22
+ 621               	.LVL51:
+ 622 0028 8F5F      		subi r24,lo8(-(1))
+ 623 002a 868B      		std Z+22,r24
+ 624               	.LVL52:
+ 625               	.LBE43:
+ 374:../src/i2c.c  **** 
+ 626               		.loc 1 374 0
+ 627 002c 9489      		ldd r25,Z+20
+ 628               	.LVL53:
+ 377:../src/i2c.c  **** 		twi->interface->MASTER.CTRLC = TWI_MASTER_CMD_RECVTRANS_gc;
+ 629               		.loc 1 377 0
+ 630 002e 8689      		ldd r24,Z+22
+ 631 0030 8917      		cp r24,r25
+ 632 0032 00F0      		brlo .L46
+ 633               	.L44:
+ 383:../src/i2c.c  **** 		                               TWI_MASTER_CMD_STOP_gc;
+ 634               		.loc 1 383 0
+ 635 0034 87E0      		ldi r24,lo8(7)
+ 636 0036 1396      		adiw r26,3
+ 637 0038 8C93      		st X,r24
+ 638               	.LVL54:
+ 639               	.LBB44:
+ 640               	.LBB45:
+ 399:../src/i2c.c  **** 	twi->status = TWIM_STATUS_READY;
+ 641               		.loc 1 399 0
+ 642 003a 81E0      		ldi r24,lo8(1)
+ 643 003c 808F      		std Z+24,r24
+ 644               		.loc 1 400 0
+ 645 003e 178A      		std Z+23,__zero_reg__
+ 646               	/* epilogue start */
+ 647               	.LBE45:
+ 648               	.LBE44:
+ 387:../src/i2c.c  **** 
+ 649               		.loc 1 387 0
+ 650 0040 DF91      		pop r29
+ 651 0042 CF91      		pop r28
+ 652 0044 0895      		ret
+ 653               	.LVL55:
+ 654               	.L42:
+ 369:../src/i2c.c  **** 		TWI_MasterTransactionFinished(TWIM_RESULT_BUFFER_OVERFLOW);
+ 655               		.loc 1 369 0
+ 656 0046 83E0      		ldi r24,lo8(3)
+ 657 0048 1396      		adiw r26,3
+ 658 004a 8C93      		st X,r24
+ 659               	.LVL56:
+ 660               	.LBB46:
+ 661               	.LBB47:
+ 399:../src/i2c.c  **** 	twi->status = TWIM_STATUS_READY;
+ 662               		.loc 1 399 0
+ 663 004c 82E0      		ldi r24,lo8(2)
+ 664 004e 808F      		std Z+24,r24
+ 665               		.loc 1 400 0
+ 666 0050 178A      		std Z+23,__zero_reg__
+ 667 0052 A081      		ld r26,Z
+ 668 0054 B181      		ldd r27,Z+1
+ 669               	.LBE47:
+ 670               	.LBE46:
+ 374:../src/i2c.c  **** 
+ 671               		.loc 1 374 0
+ 672 0056 9489      		ldd r25,Z+20
+ 673               	.LVL57:
+ 377:../src/i2c.c  **** 		twi->interface->MASTER.CTRLC = TWI_MASTER_CMD_RECVTRANS_gc;
+ 674               		.loc 1 377 0
+ 675 0058 8689      		ldd r24,Z+22
+ 676 005a 8917      		cp r24,r25
+ 677 005c 00F4      		brsh .L44
+ 678               	.LVL58:
+ 679               	.L46:
+ 378:../src/i2c.c  **** 	}
+ 680               		.loc 1 378 0
+ 681 005e 82E0      		ldi r24,lo8(2)
+ 682 0060 1396      		adiw r26,3
+ 683 0062 8C93      		st X,r24
+ 684               	/* epilogue start */
+ 387:../src/i2c.c  **** 
+ 685               		.loc 1 387 0
+ 686 0064 DF91      		pop r29
+ 687 0066 CF91      		pop r28
+ 688 0068 0895      		ret
+ 689               		.cfi_endproc
+ 690               	.LFE46:
+ 692               		.section	.text.TWI_MasterInterruptHandler,"ax",@progbits
+ 693               	.global	TWI_MasterInterruptHandler
+ 695               	TWI_MasterInterruptHandler:
+ 696               	.LFB43:
+ 258:../src/i2c.c  **** 	uint8_t currentStatus = twi->interface->MASTER.STATUS;
+ 697               		.loc 1 258 0
+ 698               		.cfi_startproc
+ 699               	/* prologue: function */
+ 700               	/* frame size = 0 */
+ 701               	/* stack size = 0 */
+ 702               	.L__stack_usage = 0
+ 259:../src/i2c.c  **** 	/* If arbitration lost or bus error. */
+ 703               		.loc 1 259 0
+ 704 0000 E091 0000 		lds r30,twi
+ 705 0004 F091 0000 		lds r31,twi+1
+ 706 0008 A081      		ld r26,Z
+ 707 000a B181      		ldd r27,Z+1
+ 708 000c 1496      		adiw r26,4
+ 709 000e 8C91      		ld r24,X
+ 710 0010 1497      		sbiw r26,4
+ 711               	.LVL59:
+ 261:../src/i2c.c  **** 	    (currentStatus & TWI_MASTER_BUSERR_bm)) {
+ 712               		.loc 1 261 0
+ 713 0012 982F      		mov r25,r24
+ 714 0014 9C70      		andi r25,lo8(12)
+ 715 0016 01F4      		brne .L54
+ 268:../src/i2c.c  **** 		TWI_MasterWriteHandler();
+ 716               		.loc 1 268 0
+ 717 0018 86FD      		sbrc r24,6
+ 718 001a 00C0      		rjmp .L55
+ 273:../src/i2c.c  **** 		TWI_MasterReadHandler();
+ 719               		.loc 1 273 0
+ 720 001c 87FD      		sbrc r24,7
+ 721 001e 00C0      		rjmp .L56
+ 722               	.LVL60:
+ 723               	.LBB48:
+ 724               	.LBB49:
+ 399:../src/i2c.c  **** 	twi->status = TWIM_STATUS_READY;
+ 725               		.loc 1 399 0
+ 726 0020 86E0      		ldi r24,lo8(6)
+ 727               	.LVL61:
+ 728 0022 808F      		std Z+24,r24
+ 729               		.loc 1 400 0
+ 730 0024 178A      		std Z+23,__zero_reg__
+ 731 0026 0895      		ret
+ 732               	.LVL62:
+ 733               	.L54:
+ 734               	.LBE49:
+ 735               	.LBE48:
+ 736               	.LBB50:
+ 737               	.LBB51:
+ 292:../src/i2c.c  **** 
+ 738               		.loc 1 292 0
+ 739 0028 1496      		adiw r26,4
+ 740 002a 8C91      		ld r24,X
+ 741 002c 1497      		sbiw r26,4
+ 742               	.LVL63:
+ 295:../src/i2c.c  **** 		twi->result = TWIM_RESULT_BUS_ERROR;
+ 743               		.loc 1 295 0
+ 744 002e 82FD      		sbrc r24,2
+ 745 0030 00C0      		rjmp .L57
+ 300:../src/i2c.c  **** 	}
+ 746               		.loc 1 300 0
+ 747 0032 93E0      		ldi r25,lo8(3)
+ 748 0034 908F      		std Z+24,r25
+ 304:../src/i2c.c  **** 
+ 749               		.loc 1 304 0
+ 750 0036 8860      		ori r24,lo8(8)
+ 751               	.LVL64:
+ 752 0038 1496      		adiw r26,4
+ 753 003a 8C93      		st X,r24
+ 306:../src/i2c.c  **** }
+ 754               		.loc 1 306 0
+ 755 003c 178A      		std Z+23,__zero_reg__
+ 756 003e 0895      		ret
+ 757               	.LVL65:
+ 758               	.L57:
+ 296:../src/i2c.c  **** 	}
+ 759               		.loc 1 296 0
+ 760 0040 94E0      		ldi r25,lo8(4)
+ 761 0042 908F      		std Z+24,r25
+ 304:../src/i2c.c  **** 
+ 762               		.loc 1 304 0
+ 763 0044 8860      		ori r24,lo8(8)
+ 764               	.LVL66:
+ 765 0046 1496      		adiw r26,4
+ 766 0048 8C93      		st X,r24
+ 306:../src/i2c.c  **** }
+ 767               		.loc 1 306 0
+ 768 004a 178A      		std Z+23,__zero_reg__
+ 769 004c 0895      		ret
+ 770               	.LVL67:
+ 771               	.L55:
+ 772               	.LBE51:
+ 773               	.LBE50:
+ 269:../src/i2c.c  **** 	}
+ 774               		.loc 1 269 0
+ 775 004e 0C94 0000 		jmp TWI_MasterWriteHandler
+ 776               	.LVL68:
+ 777               	.L56:
+ 274:../src/i2c.c  **** 	}
+ 778               		.loc 1 274 0
+ 779 0052 0C94 0000 		jmp TWI_MasterReadHandler
+ 780               	.LVL69:
+ 781               		.cfi_endproc
+ 782               	.LFE43:
+ 784               		.section	.text.TWI_MasterTransactionFinished,"ax",@progbits
+ 785               	.global	TWI_MasterTransactionFinished
+ 787               	TWI_MasterTransactionFinished:
+ 788               	.LFB47:
+ 398:../src/i2c.c  **** 	twi->result = result;
+ 789               		.loc 1 398 0
+ 790               		.cfi_startproc
+ 791               	.LVL70:
+ 792               	/* prologue: function */
+ 793               	/* frame size = 0 */
+ 794               	/* stack size = 0 */
+ 795               	.L__stack_usage = 0
+ 399:../src/i2c.c  **** 	twi->status = TWIM_STATUS_READY;
+ 796               		.loc 1 399 0
+ 797 0000 E091 0000 		lds r30,twi
+ 798 0004 F091 0000 		lds r31,twi+1
+ 799 0008 808F      		std Z+24,r24
+ 800               		.loc 1 400 0
+ 801 000a 178A      		std Z+23,__zero_reg__
+ 802 000c 0895      		ret
+ 803               		.cfi_endproc
+ 804               	.LFE47:
+ 806               		.section	.text.__vector_46,"ax",@progbits
+ 807               	.global	__vector_46
+ 809               	__vector_46:
+ 810               	.LFB48:
+ 401:../src/i2c.c  **** }
+ 402:../src/i2c.c  **** 
+ 403:../src/i2c.c  **** ISR(TWIE_TWIM_vect)
+ 404:../src/i2c.c  **** {
+ 811               		.loc 1 404 0
+ 812               		.cfi_startproc
+ 813 0000 1F92      		push r1
+ 814               	.LCFI9:
+ 815               		.cfi_def_cfa_offset 4
+ 816               		.cfi_offset 1, -3
+ 817 0002 0F92      		push r0
+ 818               	.LCFI10:
+ 819               		.cfi_def_cfa_offset 5
+ 820               		.cfi_offset 0, -4
+ 821 0004 0FB6      		in r0,__SREG__
+ 822 0006 0F92      		push r0
+ 823 0008 1124      		clr __zero_reg__
+ 824 000a 0BB6      		in r0,__RAMPZ__
+ 825 000c 0F92      		push r0
+ 826 000e 2F93      		push r18
+ 827               	.LCFI11:
+ 828               		.cfi_def_cfa_offset 6
+ 829               		.cfi_offset 18, -5
+ 830 0010 3F93      		push r19
+ 831               	.LCFI12:
+ 832               		.cfi_def_cfa_offset 7
+ 833               		.cfi_offset 19, -6
+ 834 0012 4F93      		push r20
+ 835               	.LCFI13:
+ 836               		.cfi_def_cfa_offset 8
+ 837               		.cfi_offset 20, -7
+ 838 0014 5F93      		push r21
+ 839               	.LCFI14:
+ 840               		.cfi_def_cfa_offset 9
+ 841               		.cfi_offset 21, -8
+ 842 0016 6F93      		push r22
+ 843               	.LCFI15:
+ 844               		.cfi_def_cfa_offset 10
+ 845               		.cfi_offset 22, -9
+ 846 0018 7F93      		push r23
+ 847               	.LCFI16:
+ 848               		.cfi_def_cfa_offset 11
+ 849               		.cfi_offset 23, -10
+ 850 001a 8F93      		push r24
+ 851               	.LCFI17:
+ 852               		.cfi_def_cfa_offset 12
+ 853               		.cfi_offset 24, -11
+ 854 001c 9F93      		push r25
+ 855               	.LCFI18:
+ 856               		.cfi_def_cfa_offset 13
+ 857               		.cfi_offset 25, -12
+ 858 001e AF93      		push r26
+ 859               	.LCFI19:
+ 860               		.cfi_def_cfa_offset 14
+ 861               		.cfi_offset 26, -13
+ 862 0020 BF93      		push r27
+ 863               	.LCFI20:
+ 864               		.cfi_def_cfa_offset 15
+ 865               		.cfi_offset 27, -14
+ 866 0022 EF93      		push r30
+ 867               	.LCFI21:
+ 868               		.cfi_def_cfa_offset 16
+ 869               		.cfi_offset 30, -15
+ 870 0024 FF93      		push r31
+ 871               	.LCFI22:
+ 872               		.cfi_def_cfa_offset 17
+ 873               		.cfi_offset 31, -16
+ 874               	/* prologue: Signal */
+ 875               	/* frame size = 0 */
+ 876               	/* stack size = 16 */
+ 877               	.L__stack_usage = 16
+ 405:../src/i2c.c  **** 	TWI_MasterInterruptHandler();
+ 878               		.loc 1 405 0
+ 879 0026 0E94 0000 		call TWI_MasterInterruptHandler
+ 880               	.LVL71:
+ 881               	/* epilogue start */
+ 406:../src/i2c.c  **** }...
+ 882               		.loc 1 406 0
+ 883 002a FF91      		pop r31
+ 884 002c EF91      		pop r30
+ 885 002e BF91      		pop r27
+ 886 0030 AF91      		pop r26
+ 887 0032 9F91      		pop r25
+ 888 0034 8F91      		pop r24
+ 889 0036 7F91      		pop r23
+ 890 0038 6F91      		pop r22
+ 891 003a 5F91      		pop r21
+ 892 003c 4F91      		pop r20
+ 893 003e 3F91      		pop r19
+ 894 0040 2F91      		pop r18
+ 895 0042 0F90      		pop r0
+ 896 0044 0BBE      		out __RAMPZ__,r0
+ 897 0046 0F90      		pop r0
+ 898 0048 0FBE      		out __SREG__,r0
+ 899 004a 0F90      		pop r0
+ 900 004c 1F90      		pop r1
+ 901 004e 1895      		reti
+ 902               		.cfi_endproc
+ 903               	.LFE48:
+ 905               		.section	.progmem.data.__c.4839,"a",@progbits
+ 908               	__c.4839:
+ 909 0000 0954 5749 		.string	"\tTWI wasn't ready.\r\n"
+ 909      2077 6173 
+ 909      6E27 7420 
+ 909      7265 6164 
+ 909      792E 0D0A 
+ 910               		.comm	twi,2,1
+ 911               		.comm	twiMaster,25,1
+ 912               		.section	.bss.task_storage_arr,"aw",@nobits
+ 915               	task_storage_arr:
+ 916 0000 0000 0000 		.zero	140
+ 916      0000 0000 
+ 916      0000 0000 
+ 916      0000 0000 
+ 916      0000 0000 
+ 917               		.comm	task_executing,1,1
+ 918               		.comm	num_tasks,1,1
+ 919               		.comm	task_list,2,1
+ 920               		.comm	rtc_epoch,2,1
+ 921               		.comm	droplet_ID,2,1
+ 922               		.text
+ 923               	.Letext0:
+ 924               		.file 2 "c:\\program files (x86)\\atmel\\studio\\7.0\\toolchain\\avr8\\avr8-gnu-toolchain\\avr\\in
+ 925               		.file 3 "C:/Program Files (x86)/Atmel/Studio/7.0/Packs/atmel/XMEGAA_DFP/1.1.68/include/avr/iox128a
+ 926               		.file 4 "../include/droplet_base.h"
+ 927               		.file 5 "../include/scheduler.h"
+ 928               		.file 6 "../include/i2c.h"
+ 929               		.file 7 "c:\\program files (x86)\\atmel\\studio\\7.0\\toolchain\\avr8\\avr8-gnu-toolchain\\avr\\in
+DEFINED SYMBOLS
+                            *ABS*:00000000 i2c.c
+C:\Users\JOHNK~1\AppData\Local\Temp\ccOkZ7Dx.s:2      *ABS*:0000003e __SP_H__
+C:\Users\JOHNK~1\AppData\Local\Temp\ccOkZ7Dx.s:3      *ABS*:0000003d __SP_L__
+C:\Users\JOHNK~1\AppData\Local\Temp\ccOkZ7Dx.s:4      *ABS*:0000003f __SREG__
+C:\Users\JOHNK~1\AppData\Local\Temp\ccOkZ7Dx.s:5      *ABS*:0000003b __RAMPZ__
+C:\Users\JOHNK~1\AppData\Local\Temp\ccOkZ7Dx.s:6      *ABS*:00000034 __CCP__
+C:\Users\JOHNK~1\AppData\Local\Temp\ccOkZ7Dx.s:7      *ABS*:00000000 __tmp_reg__
+C:\Users\JOHNK~1\AppData\Local\Temp\ccOkZ7Dx.s:8      *ABS*:00000001 __zero_reg__
+C:\Users\JOHNK~1\AppData\Local\Temp\ccOkZ7Dx.s:14     .text.TWI_MasterWriteRead.part.0:00000000 TWI_MasterWriteRead.part.0
+                            *COM*:00000002 twi
+C:\Users\JOHNK~1\AppData\Local\Temp\ccOkZ7Dx.s:908    .progmem.data.__c.4839:00000000 __c.4839
+C:\Users\JOHNK~1\AppData\Local\Temp\ccOkZ7Dx.s:168    .text.i2c_init:00000000 i2c_init
+                            *COM*:00000019 twiMaster
+C:\Users\JOHNK~1\AppData\Local\Temp\ccOkZ7Dx.s:218    .text.TWI_MasterInit:00000000 TWI_MasterInit
+C:\Users\JOHNK~1\AppData\Local\Temp\ccOkZ7Dx.s:257    .text.TWI_MasterState:00000000 TWI_MasterState
+C:\Users\JOHNK~1\AppData\Local\Temp\ccOkZ7Dx.s:283    .text.TWI_MasterReady:00000000 TWI_MasterReady
+C:\Users\JOHNK~1\AppData\Local\Temp\ccOkZ7Dx.s:305    .text.TWI_MasterWrite:00000000 TWI_MasterWrite
+C:\Users\JOHNK~1\AppData\Local\Temp\ccOkZ7Dx.s:341    .text.TWI_MasterRead:00000000 TWI_MasterRead
+C:\Users\JOHNK~1\AppData\Local\Temp\ccOkZ7Dx.s:381    .text.TWI_MasterWriteRead:00000000 TWI_MasterWriteRead
+C:\Users\JOHNK~1\AppData\Local\Temp\ccOkZ7Dx.s:409    .text.TWI_MasterArbitrationLostBusErrorHandler:00000000 TWI_MasterArbitrationLostBusErrorHandler
+C:\Users\JOHNK~1\AppData\Local\Temp\ccOkZ7Dx.s:459    .text.TWI_MasterWriteHandler:00000000 TWI_MasterWriteHandler
+C:\Users\JOHNK~1\AppData\Local\Temp\ccOkZ7Dx.s:579    .text.TWI_MasterReadHandler:00000000 TWI_MasterReadHandler
+C:\Users\JOHNK~1\AppData\Local\Temp\ccOkZ7Dx.s:695    .text.TWI_MasterInterruptHandler:00000000 TWI_MasterInterruptHandler
+C:\Users\JOHNK~1\AppData\Local\Temp\ccOkZ7Dx.s:787    .text.TWI_MasterTransactionFinished:00000000 TWI_MasterTransactionFinished
+C:\Users\JOHNK~1\AppData\Local\Temp\ccOkZ7Dx.s:809    .text.__vector_46:00000000 __vector_46
+C:\Users\JOHNK~1\AppData\Local\Temp\ccOkZ7Dx.s:915    .bss.task_storage_arr:00000000 task_storage_arr
+                            *COM*:00000001 task_executing
+                            *COM*:00000001 num_tasks
+                            *COM*:00000002 task_list
+                            *COM*:00000002 rtc_epoch
+                            *COM*:00000002 droplet_ID
+
+UNDEFINED SYMBOLS
+printf_P
+__do_clear_bss

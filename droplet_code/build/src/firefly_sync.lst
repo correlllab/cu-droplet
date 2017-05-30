@@ -1,0 +1,1635 @@
+   1               		.file	"firefly_sync.c"
+   2               	__SP_H__ = 0x3e
+   3               	__SP_L__ = 0x3d
+   4               	__SREG__ = 0x3f
+   5               	__RAMPZ__ = 0x3b
+   6               	__CCP__ = 0x34
+   7               	__tmp_reg__ = 0
+   8               	__zero_reg__ = 1
+   9               		.text
+  10               	.Ltext0:
+  11               		.cfi_sections	.debug_frame
+  12               	.global	__floatunsisf
+  13               	.global	__subsf3
+  14               	.global	__divsf3
+  15               	.global	__addsf3
+  16               	.global	__fixunssfsi
+  17               		.section	.text.processObsQueue,"ax",@progbits
+  18               	.global	processObsQueue
+  20               	processObsQueue:
+  21               	.LFB71:
+  22               		.file 1 "../src/firefly_sync.c"
+   1:../src/firefly_sync.c **** #include "firefly_sync.h"
+   2:../src/firefly_sync.c **** 
+   3:../src/firefly_sync.c **** static uint8_t ffsync_blink_r, ffsync_blink_g, ffsync_blink_b;
+   4:../src/firefly_sync.c **** static uint8_t ffsync_blink_prev_r, ffsync_blink_prev_g, ffsync_blink_prev_b;
+   5:../src/firefly_sync.c **** static uint16_t ffsync_blink_dur;
+   6:../src/firefly_sync.c **** static uint16_t ffsync_blink_phase_offset_ms;
+   7:../src/firefly_sync.c **** 
+   8:../src/firefly_sync.c **** static void updateRTC(void);
+   9:../src/firefly_sync.c **** 
+  10:../src/firefly_sync.c **** void set_sync_blink_color(uint8_t r, uint8_t g, uint8_t b){
+  11:../src/firefly_sync.c **** 	ffsync_blink_r = r;
+  12:../src/firefly_sync.c **** 	ffsync_blink_g = g;
+  13:../src/firefly_sync.c **** 	ffsync_blink_b = b;
+  14:../src/firefly_sync.c **** }
+  15:../src/firefly_sync.c **** 
+  16:../src/firefly_sync.c **** void set_sync_blink_duration(uint16_t dur){
+  17:../src/firefly_sync.c **** 	ffsync_blink_dur = dur;
+  18:../src/firefly_sync.c **** 	if((TCE0.INTCTRLB & TC_CCAINTLVL_HI_gc) == TC_CCAINTLVL_HI_gc){
+  19:../src/firefly_sync.c **** 		TCE0.CCA = TCE0.CCB - (uint16_t)(ffsync_blink_dur*FFSYNC_MS_CONVERSION_FACTOR);
+  20:../src/firefly_sync.c **** 	}
+  21:../src/firefly_sync.c **** }
+  22:../src/firefly_sync.c **** 
+  23:../src/firefly_sync.c **** void enable_sync_blink(uint16_t phase_offset){
+  24:../src/firefly_sync.c **** 	phase_offset = phase_offset%(((uint32_t)FFSYNC_FULL_PERIOD)/2);
+  25:../src/firefly_sync.c **** 	uint16_t turn_off_cc = FFSYNC_FULL_PERIOD - phase_offset;
+  26:../src/firefly_sync.c **** 	uint16_t turn_on_cc = turn_off_cc - (uint16_t)(ffsync_blink_dur*FFSYNC_MS_CONVERSION_FACTOR);
+  27:../src/firefly_sync.c **** 	TCE0.CCA = turn_on_cc;
+  28:../src/firefly_sync.c **** 	TCE0.CCB = turn_off_cc;
+  29:../src/firefly_sync.c **** 	TCE0.INTCTRLB = TC_CCAINTLVL_HI_gc | TC_CCBINTLVL_HI_gc;
+  30:../src/firefly_sync.c **** }
+  31:../src/firefly_sync.c **** 
+  32:../src/firefly_sync.c **** uint8_t sync_blink_enabled(){
+  33:../src/firefly_sync.c **** 	return (TCE0.INTCTRLB & (TC_CCAINTLVL_HI_gc | TC_CCBINTLVL_HI_gc)) == (TC_CCAINTLVL_HI_gc | TC_CCB
+  34:../src/firefly_sync.c **** }
+  35:../src/firefly_sync.c **** 
+  36:../src/firefly_sync.c **** void disable_sync_blink(){
+  37:../src/firefly_sync.c **** 	TCE0.INTCTRLB = TC_CCAINTLVL_OFF_gc | TC_CCBINTLVL_OFF_gc;
+  38:../src/firefly_sync.c **** 	TCE0.CCA = 0;
+  39:../src/firefly_sync.c **** 	TCE0.CCB = 0;
+  40:../src/firefly_sync.c **** }
+  41:../src/firefly_sync.c **** 
+  42:../src/firefly_sync.c **** 
+  43:../src/firefly_sync.c **** ISR(TCE0_CCA_vect){
+  44:../src/firefly_sync.c **** 	ffsync_blink_prev_r = get_red_led();
+  45:../src/firefly_sync.c **** 	ffsync_blink_prev_g = get_green_led();
+  46:../src/firefly_sync.c **** 	ffsync_blink_prev_b = get_blue_led();
+  47:../src/firefly_sync.c **** 	set_rgb(ffsync_blink_r,ffsync_blink_g,ffsync_blink_b);
+  48:../src/firefly_sync.c **** }
+  49:../src/firefly_sync.c **** 
+  50:../src/firefly_sync.c **** ISR(TCE0_CCB_vect){
+  51:../src/firefly_sync.c **** 	set_rgb(ffsync_blink_prev_r, ffsync_blink_prev_g, ffsync_blink_prev_b);	
+  52:../src/firefly_sync.c **** }
+  53:../src/firefly_sync.c **** 
+  54:../src/firefly_sync.c **** void firefly_sync_init()
+  55:../src/firefly_sync.c **** {
+  56:../src/firefly_sync.c **** 	ffsync_blink_r = 255;
+  57:../src/firefly_sync.c **** 	ffsync_blink_g = 255;
+  58:../src/firefly_sync.c **** 	ffsync_blink_b = 255;
+  59:../src/firefly_sync.c **** 	ffsync_blink_dur = 200;
+  60:../src/firefly_sync.c **** 	
+  61:../src/firefly_sync.c **** 	ffsync_blink_phase_offset_ms = 0;
+  62:../src/firefly_sync.c **** 
+  63:../src/firefly_sync.c **** 	EVSYS.CH0MUX = EVSYS_CHMUX_PRESCALER_4096_gc;
+  64:../src/firefly_sync.c **** 	
+  65:../src/firefly_sync.c **** 	TCE0.CTRLA = TC_CLKSEL_EVCH0_gc;
+  66:../src/firefly_sync.c **** 	TCE0.CTRLB = TC_WGMODE_NORMAL_gc;
+  67:../src/firefly_sync.c **** 
+  68:../src/firefly_sync.c **** 	TCE0.PER =  FFSYNC_FULL_PERIOD;
+  69:../src/firefly_sync.c **** 	TCE0.INTCTRLA = TC_OVFINTLVL_HI_gc;
+  70:../src/firefly_sync.c **** 	TCE0.INTCTRLB = TC_CCAINTLVL_OFF_gc | TC_CCBINTLVL_OFF_gc;	
+  71:../src/firefly_sync.c **** 	TCE0.CNT = 0;
+  72:../src/firefly_sync.c **** 		TCE0.CCA = 0;
+  73:../src/firefly_sync.c **** 		TCE0.CCB = 0;
+  74:../src/firefly_sync.c **** 	
+  75:../src/firefly_sync.c **** 	obsStart = (ObsQueue*)myMalloc(sizeof(ObsQueue));
+  76:../src/firefly_sync.c **** 	obsStart->obs = 0;
+  77:../src/firefly_sync.c **** 	obsStart->next = obsStart;
+  78:../src/firefly_sync.c **** 	obsStart->prev = obsStart;
+  79:../src/firefly_sync.c **** }
+  80:../src/firefly_sync.c **** 
+  81:../src/firefly_sync.c **** ISR(TCE0_OVF_vect){
+  82:../src/firefly_sync.c **** 	schedule_task(rand_short()%FFSYNC_D, (arg_func_t)sendPing, (void*)((uint16_t)(get_time()&0xFFFF)))
+  83:../src/firefly_sync.c **** 	//sendPing( (void*)((uint16_t)(get_time()&0xFFFF)));
+  84:../src/firefly_sync.c **** 	updateRTC();
+  85:../src/firefly_sync.c **** 	//printf("ovf @ %lu\r\n",get_time());
+  86:../src/firefly_sync.c **** }
+  87:../src/firefly_sync.c **** 
+  88:../src/firefly_sync.c **** void processObsQueue(){
+  23               		.loc 1 88 0
+  24               		.cfi_startproc
+  25 0000 BF92      		push r11
+  26               	.LCFI0:
+  27               		.cfi_def_cfa_offset 4
+  28               		.cfi_offset 11, -3
+  29 0002 CF92      		push r12
+  30               	.LCFI1:
+  31               		.cfi_def_cfa_offset 5
+  32               		.cfi_offset 12, -4
+  33 0004 DF92      		push r13
+  34               	.LCFI2:
+  35               		.cfi_def_cfa_offset 6
+  36               		.cfi_offset 13, -5
+  37 0006 EF92      		push r14
+  38               	.LCFI3:
+  39               		.cfi_def_cfa_offset 7
+  40               		.cfi_offset 14, -6
+  41 0008 FF92      		push r15
+  42               	.LCFI4:
+  43               		.cfi_def_cfa_offset 8
+  44               		.cfi_offset 15, -7
+  45 000a 0F93      		push r16
+  46               	.LCFI5:
+  47               		.cfi_def_cfa_offset 9
+  48               		.cfi_offset 16, -8
+  49 000c 1F93      		push r17
+  50               	.LCFI6:
+  51               		.cfi_def_cfa_offset 10
+  52               		.cfi_offset 17, -9
+  53 000e CF93      		push r28
+  54               	.LCFI7:
+  55               		.cfi_def_cfa_offset 11
+  56               		.cfi_offset 28, -10
+  57 0010 DF93      		push r29
+  58               	.LCFI8:
+  59               		.cfi_def_cfa_offset 12
+  60               		.cfi_offset 29, -11
+  61               	/* prologue: function */
+  62               	/* frame size = 0 */
+  63               	/* stack size = 9 */
+  64               	.L__stack_usage = 9
+  65               	.LVL0:
+  89:../src/firefly_sync.c **** 	float newStart=0.0;
+  90:../src/firefly_sync.c **** 	ObsQueue* curr = obsStart->next;
+  66               		.loc 1 90 0
+  67 0012 E091 0000 		lds r30,obsStart
+  68 0016 F091 0000 		lds r31,obsStart+1
+  69 001a C281      		ldd r28,Z+2
+  70 001c D381      		ldd r29,Z+3
+  71               	.LVL1:
+  91:../src/firefly_sync.c **** 	ObsQueue* tmp;
+  92:../src/firefly_sync.c **** 	while(curr != obsStart){
+  72               		.loc 1 92 0
+  73 001e EC17      		cp r30,r28
+  74 0020 FD07      		cpc r31,r29
+  75 0022 01F4      		brne .+2
+  76 0024 00C0      		rjmp .L8
+  77 0026 C12C      		mov r12,__zero_reg__
+  78 0028 D12C      		mov r13,__zero_reg__
+  79 002a 7601      		movw r14,r12
+  80               	.LVL2:
+  81               	.L3:
+  93:../src/firefly_sync.c **** 		newStart += (((float)(curr->obs))-newStart)/FFSYNC_EPSILON;
+  82               		.loc 1 93 0
+  83 002c 6881      		ld r22,Y
+  84 002e 7981      		ldd r23,Y+1
+  85 0030 80E0      		ldi r24,0
+  86 0032 90E0      		ldi r25,0
+  87 0034 0E94 0000 		call __floatunsisf
+  88               	.LVL3:
+  89 0038 A701      		movw r20,r14
+  90 003a 9601      		movw r18,r12
+  91 003c 0E94 0000 		call __subsf3
+  92               	.LVL4:
+  93 0040 20E0      		ldi r18,0
+  94 0042 30E0      		ldi r19,0
+  95 0044 40E7      		ldi r20,lo8(112)
+  96 0046 52E4      		ldi r21,lo8(66)
+  97 0048 0E94 0000 		call __divsf3
+  98               	.LVL5:
+  99 004c 9B01      		movw r18,r22
+ 100 004e AC01      		movw r20,r24
+ 101 0050 C701      		movw r24,r14
+ 102 0052 B601      		movw r22,r12
+ 103 0054 0E94 0000 		call __addsf3
+ 104               	.LVL6:
+ 105 0058 6B01      		movw r12,r22
+ 106 005a 7C01      		movw r14,r24
+ 107               	.LVL7:
+  94:../src/firefly_sync.c **** 		tmp = curr;
+  95:../src/firefly_sync.c **** 		curr = curr->next;
+ 108               		.loc 1 95 0
+ 109 005c 0A81      		ldd r16,Y+2
+ 110 005e 1B81      		ldd r17,Y+3
+ 111               	.LVL8:
+ 112               	.LBB38:
+ 113               	.LBB39:
+ 114               		.file 2 "../include/droplet_base.h"
+   1:../include/droplet_base.h **** #pragma once
+   2:../include/droplet_base.h **** 
+   3:../include/droplet_base.h **** //#define AUDIO_DROPLET
+   4:../include/droplet_base.h **** #define SYNCHRONIZED
+   5:../include/droplet_base.h **** 
+   6:../include/droplet_base.h **** #include <avr/io.h>
+   7:../include/droplet_base.h **** #include <avr/interrupt.h>
+   8:../include/droplet_base.h **** #include <util/atomic.h>
+   9:../include/droplet_base.h **** #include <util/delay.h>
+  10:../include/droplet_base.h **** #include <util/crc16.h>
+  11:../include/droplet_base.h **** #include <stdlib.h>
+  12:../include/droplet_base.h **** #include <stdio.h>
+  13:../include/droplet_base.h **** #include <avr/pgmspace.h>
+  14:../include/droplet_base.h **** #include <string.h>
+  15:../include/droplet_base.h **** 
+  16:../include/droplet_base.h **** typedef uint16_t id_t;
+  17:../include/droplet_base.h **** 
+  18:../include/droplet_base.h **** //Any #defines needed by other Droplet files
+  19:../include/droplet_base.h **** #define DIR0		((uint8_t)0x01)
+  20:../include/droplet_base.h **** #define DIR1		((uint8_t)0x02)
+  21:../include/droplet_base.h **** #define DIR2		((uint8_t)0x04)
+  22:../include/droplet_base.h **** #define DIR3		((uint8_t)0x08)
+  23:../include/droplet_base.h **** #define DIR4		((uint8_t)0x10)
+  24:../include/droplet_base.h **** #define DIR5		((uint8_t)0x20)
+  25:../include/droplet_base.h **** #define ALL_DIRS	((uint8_t)0x3F)
+  26:../include/droplet_base.h **** 
+  27:../include/droplet_base.h **** #define DIR_NE		DIR0
+  28:../include/droplet_base.h **** #define DIR_E		DIR1
+  29:../include/droplet_base.h **** #define DIR_SE		DIR2
+  30:../include/droplet_base.h **** #define DIR_SW		DIR3
+  31:../include/droplet_base.h **** #define DIR_W		DIR4
+  32:../include/droplet_base.h **** #define DIR_NW		DIR5
+  33:../include/droplet_base.h **** 
+  34:../include/droplet_base.h **** id_t droplet_ID;
+  35:../include/droplet_base.h **** volatile uint16_t rtc_epoch;
+  36:../include/droplet_base.h **** 
+  37:../include/droplet_base.h **** // Returns the number of ms elapsed since the last reset. (Defined in droplet_base_asm.s)
+  38:../include/droplet_base.h **** uint32_t get_time(void);
+  39:../include/droplet_base.h **** 
+  40:../include/droplet_base.h **** // Returns this Droplet's unique 16-bit identifier. 0 will never be an identifier.
+  41:../include/droplet_base.h **** inline id_t get_droplet_id(void){ 
+  42:../include/droplet_base.h **** 	return droplet_ID;
+  43:../include/droplet_base.h **** }
+  44:../include/droplet_base.h **** 
+  45:../include/droplet_base.h **** inline void* myMalloc(size_t size){
+  46:../include/droplet_base.h **** 	void* tmp = NULL;
+  47:../include/droplet_base.h **** 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+  48:../include/droplet_base.h **** 		tmp = malloc(size);
+  49:../include/droplet_base.h **** 	}
+  50:../include/droplet_base.h **** 	return tmp;
+  51:../include/droplet_base.h **** }
+  52:../include/droplet_base.h **** 
+  53:../include/droplet_base.h **** inline void myFree(void* ptr){
+  54:../include/droplet_base.h **** 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+ 115               		.loc 2 54 0
+ 116 0060 BFB6      		in r11,__SREG__
+ 117               	.LVL9:
+ 118               	.LBB40:
+ 119               	.LBB41:
+ 120               		.file 3 "c:\\program files (x86)\\atmel\\studio\\7.0\\toolchain\\avr8\\avr8-gnu-toolchain\\avr\\in
+   1:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** /* Copyright (c) 2007 Dean Camera
+   2:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****    All rights reserved.
+   3:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** 
+   4:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****    Redistribution and use in source and binary forms, with or without
+   5:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****    modification, are permitted provided that the following conditions are met:
+   6:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** 
+   7:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****    * Redistributions of source code must retain the above copyright
+   8:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****      notice, this list of conditions and the following disclaimer.
+   9:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** 
+  10:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****    * Redistributions in binary form must reproduce the above copyright
+  11:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****      notice, this list of conditions and the following disclaimer in
+  12:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****      the documentation and/or other materials provided with the
+  13:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****      distribution.
+  14:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** 
+  15:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****    * Neither the name of the copyright holders nor the names of
+  16:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****      contributors may be used to endorse or promote products derived
+  17:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****      from this software without specific prior written permission.
+  18:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** 
+  19:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+  20:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****   AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+  21:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****   IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+  22:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****   ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+  23:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****   LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+  24:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****   CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+  25:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****   SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+  26:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****   INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+  27:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****   CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+  28:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+  29:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****   POSSIBILITY OF SUCH DAMAGE.
+  30:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** */
+  31:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** 
+  32:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** /* $Id$ */
+  33:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** 
+  34:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** #ifndef _UTIL_ATOMIC_H_
+  35:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** #define _UTIL_ATOMIC_H_ 1
+  36:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** 
+  37:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** #include <avr/io.h>
+  38:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** #include <avr/interrupt.h>
+  39:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** 
+  40:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** #if !defined(__DOXYGEN__)
+  41:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** /* Internal helper functions. */
+  42:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** static __inline__ uint8_t __iSeiRetVal(void)
+  43:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** {
+  44:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     sei();
+  45:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     return 1;
+  46:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** }
+  47:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** 
+  48:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** static __inline__ uint8_t __iCliRetVal(void)
+  49:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** {
+  50:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     cli();
+ 121               		.loc 3 50 0
+ 122               	/* #APP */
+ 123               	 ;  50 "c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\
+ 124 0062 F894      		cli
+ 125               	 ;  0 "" 2
+ 126               	.LVL10:
+ 127               	/* #NOAPP */
+ 128               	.LBE41:
+ 129               	.LBE40:
+  55:../include/droplet_base.h **** 		free(ptr);
+ 130               		.loc 2 55 0
+ 131 0064 CE01      		movw r24,r28
+ 132 0066 0E94 0000 		call free
+ 133               	.LVL11:
+ 134               	.LBB42:
+ 135               	.LBB43:
+  51:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     return 1;
+  52:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** }
+  53:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** 
+  54:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** static __inline__ void __iSeiParam(const uint8_t *__s)
+  55:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** {
+  56:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     sei();
+  57:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     __asm__ volatile ("" ::: "memory");
+  58:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     (void)__s;
+  59:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** }
+  60:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** 
+  61:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** static __inline__ void __iCliParam(const uint8_t *__s)
+  62:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** {
+  63:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     cli();
+  64:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     __asm__ volatile ("" ::: "memory");
+  65:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     (void)__s;
+  66:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** }
+  67:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** 
+  68:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** static __inline__ void __iRestore(const  uint8_t *__s)
+  69:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** {
+  70:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     SREG = *__s;
+ 136               		.loc 3 70 0
+ 137 006a BFBE      		out __SREG__,r11
+  71:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     __asm__ volatile ("" ::: "memory");
+ 138               		.loc 3 71 0
+ 139               	.LVL12:
+ 140 006c E801      		movw r28,r16
+ 141               	.LVL13:
+ 142               	.LBE43:
+ 143               	.LBE42:
+ 144               	.LBE39:
+ 145               	.LBE38:
+  92:../src/firefly_sync.c **** 		newStart += (((float)(curr->obs))-newStart)/FFSYNC_EPSILON;
+ 146               		.loc 1 92 0
+ 147 006e 8091 0000 		lds r24,obsStart
+ 148 0072 9091 0000 		lds r25,obsStart+1
+ 149 0076 8017      		cp r24,r16
+ 150 0078 9107      		cpc r25,r17
+ 151 007a 01F4      		brne .L3
+ 152 007c C701      		movw r24,r14
+ 153 007e B601      		movw r22,r12
+ 154 0080 0E94 0000 		call __fixunssfsi
+ 155               	.LVL14:
+ 156               	.L2:
+  96:../src/firefly_sync.c **** 		myFree(tmp);	
+  97:../src/firefly_sync.c **** 	}
+  98:../src/firefly_sync.c **** 	//printf("Processing @ %lu | newStart: %f\r\n",get_time(), newStart);	
+  99:../src/firefly_sync.c **** 	obsStart->next = obsStart;
+ 157               		.loc 1 99 0
+ 158 0084 F801      		movw r30,r16
+ 159 0086 0283      		std Z+2,r16
+ 160 0088 1383      		std Z+3,r17
+ 100:../src/firefly_sync.c **** 	obsStart->prev = obsStart;
+ 161               		.loc 1 100 0
+ 162 008a 0483      		std Z+4,r16
+ 163 008c 1583      		std Z+5,r17
+ 101:../src/firefly_sync.c **** 	uint16_t theCount = TCE0.CNT;
+ 164               		.loc 1 101 0
+ 165 008e C091 200A 		lds r28,2592
+ 166 0092 D091 210A 		lds r29,2592+1
+ 167               	.LVL15:
+ 102:../src/firefly_sync.c **** 	
+ 103:../src/firefly_sync.c **** 	if(theCount<TCE0.CCB&&(theCount+(uint16_t)newStart)>TCE0.CCB){
+ 168               		.loc 1 103 0
+ 169 0096 8091 2A0A 		lds r24,2602
+ 170 009a 9091 2B0A 		lds r25,2602+1
+ 171 009e C817      		cp r28,r24
+ 172 00a0 D907      		cpc r29,r25
+ 173 00a2 00F0      		brlo .L4
+ 174 00a4 C60F      		add r28,r22
+ 175 00a6 D71F      		adc r29,r23
+ 176               	.LVL16:
+ 177               	.L5:
+ 104:../src/firefly_sync.c **** 		set_rgb(ffsync_blink_prev_r, ffsync_blink_prev_g, ffsync_blink_prev_b);	
+ 105:../src/firefly_sync.c **** 	}
+ 106:../src/firefly_sync.c **** 	
+ 107:../src/firefly_sync.c **** 	if((theCount+(uint16_t)newStart)>=FFSYNC_FULL_PERIOD){
+ 178               		.loc 1 107 0
+ 179 00a8 C134      		cpi r28,65
+ 180 00aa FDE9      		ldi r31,-99
+ 181 00ac DF07      		cpc r29,r31
+ 182 00ae 00F4      		brsh .L11
+ 183               	.L6:
+ 108:../src/firefly_sync.c **** 		//printf("\tOVERFLOW\r\n");
+ 109:../src/firefly_sync.c **** 		TCE0.CNT = FFSYNC_FULL_PERIOD-1;
+ 110:../src/firefly_sync.c **** 	}else{
+ 111:../src/firefly_sync.c **** 		TCE0.CNT = theCount+(uint16_t)newStart;
+ 184               		.loc 1 111 0
+ 185 00b0 C093 200A 		sts 2592,r28
+ 186 00b4 D093 210A 		sts 2592+1,r29
+ 187               	.L1:
+ 188               	/* epilogue start */
+ 112:../src/firefly_sync.c **** 	}
+ 113:../src/firefly_sync.c **** }
+ 189               		.loc 1 113 0
+ 190 00b8 DF91      		pop r29
+ 191 00ba CF91      		pop r28
+ 192 00bc 1F91      		pop r17
+ 193 00be 0F91      		pop r16
+ 194 00c0 FF90      		pop r15
+ 195 00c2 EF90      		pop r14
+ 196 00c4 DF90      		pop r13
+ 197 00c6 CF90      		pop r12
+ 198 00c8 BF90      		pop r11
+ 199 00ca 0895      		ret
+ 200               	.LVL17:
+ 201               	.L4:
+ 103:../src/firefly_sync.c **** 		set_rgb(ffsync_blink_prev_r, ffsync_blink_prev_g, ffsync_blink_prev_b);	
+ 202               		.loc 1 103 0 discriminator 1
+ 203 00cc C60F      		add r28,r22
+ 204 00ce D71F      		adc r29,r23
+ 205               	.LVL18:
+ 206 00d0 8091 2A0A 		lds r24,2602
+ 207 00d4 9091 2B0A 		lds r25,2602+1
+ 208 00d8 8C17      		cp r24,r28
+ 209 00da 9D07      		cpc r25,r29
+ 210 00dc 00F4      		brsh .L5
+ 104:../src/firefly_sync.c **** 	}
+ 211               		.loc 1 104 0
+ 212 00de 4091 0000 		lds r20,ffsync_blink_prev_b
+ 213 00e2 6091 0000 		lds r22,ffsync_blink_prev_g
+ 214 00e6 8091 0000 		lds r24,ffsync_blink_prev_r
+ 215 00ea 0E94 0000 		call set_rgb
+ 216               	.LVL19:
+ 107:../src/firefly_sync.c **** 		//printf("\tOVERFLOW\r\n");
+ 217               		.loc 1 107 0
+ 218 00ee C134      		cpi r28,65
+ 219 00f0 FDE9      		ldi r31,-99
+ 220 00f2 DF07      		cpc r29,r31
+ 221 00f4 00F0      		brlo .L6
+ 222               	.L11:
+ 109:../src/firefly_sync.c **** 	}else{
+ 223               		.loc 1 109 0
+ 224 00f6 80E4      		ldi r24,lo8(64)
+ 225 00f8 9DE9      		ldi r25,lo8(-99)
+ 226 00fa 8093 200A 		sts 2592,r24
+ 227 00fe 9093 210A 		sts 2592+1,r25
+ 228 0102 00C0      		rjmp .L1
+ 229               	.LVL20:
+ 230               	.L8:
+  92:../src/firefly_sync.c **** 		newStart += (((float)(curr->obs))-newStart)/FFSYNC_EPSILON;
+ 231               		.loc 1 92 0
+ 232 0104 8F01      		movw r16,r30
+ 233 0106 60E0      		ldi r22,0
+ 234 0108 70E0      		ldi r23,0
+ 235 010a 00C0      		rjmp .L2
+ 236               		.cfi_endproc
+ 237               	.LFE71:
+ 239               		.section	.text.sendPing,"ax",@progbits
+ 240               	.global	sendPing
+ 242               	sendPing:
+ 243               	.LFB73:
+ 114:../src/firefly_sync.c **** 
+ 115:../src/firefly_sync.c **** static void updateRTC(void){
+ 116:../src/firefly_sync.c **** 	int16_t change;
+ 117:../src/firefly_sync.c **** 	uint16_t remainder;
+ 118:../src/firefly_sync.c **** 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
+ 119:../src/firefly_sync.c **** 	{
+ 120:../src/firefly_sync.c **** 		uint32_t currTime = get_time();
+ 121:../src/firefly_sync.c **** 		uint16_t theCount = currTime&0xFFFF;		
+ 122:../src/firefly_sync.c **** 		remainder = (int16_t)(currTime%FFSYNC_FULL_PERIOD_MS);
+ 123:../src/firefly_sync.c **** 		//printf("%u.\r\n", remainder);
+ 124:../src/firefly_sync.c **** 	
+ 125:../src/firefly_sync.c **** 		if(remainder>(FFSYNC_FULL_PERIOD_MS/2)){
+ 126:../src/firefly_sync.c **** 			change = FFSYNC_FULL_PERIOD_MS-((int16_t)remainder);
+ 127:../src/firefly_sync.c **** 			if((RTC.PER-change)<theCount) rtc_epoch++;			//0xFFFF: RTC.PER
+ 128:../src/firefly_sync.c **** 		}else{
+ 129:../src/firefly_sync.c **** 			change = -(int16_t)remainder;
+ 130:../src/firefly_sync.c **** 			if(theCount<remainder) rtc_epoch--;
+ 131:../src/firefly_sync.c **** 		}
+ 132:../src/firefly_sync.c **** 		while(RTC.STATUS & RTC_SYNCBUSY_bm);
+ 133:../src/firefly_sync.c **** 		RTC.CNT =  (theCount+change);
+ 134:../src/firefly_sync.c **** 		RTC.COMP = (RTC.COMP+change);
+ 135:../src/firefly_sync.c **** 	}	
+ 136:../src/firefly_sync.c **** 	//printf("!! %d !!\r\n", change);
+ 137:../src/firefly_sync.c **** 	/*
+ 138:../src/firefly_sync.c **** 	 * change represents how the RTC clock's measure of 2048ms differs from the synchronization's meas
+ 139:../src/firefly_sync.c **** 	 * If change is quite large, then probably we're still getting sync'd - so no implications about t
+ 140:../src/firefly_sync.c **** 	 * If it's smallish, though, the code below adjusts the factory-set calibration value to minimize 
+ 141:../src/firefly_sync.c **** 	 * (From observations, changing the calibration by one seemed to effect the change by about 10ms, 
+ 142:../src/firefly_sync.c **** 	 * 11ms, we won't get any better.)
+ 143:../src/firefly_sync.c **** 	 */
+ 144:../src/firefly_sync.c **** 	if(abs(change)<(FFSYNC_MAX_DEVIATION*5)){
+ 145:../src/firefly_sync.c **** 		if(change>0) OSC.RC32KCAL++;
+ 146:../src/firefly_sync.c **** 		else if(abs(change)<FFSYNC_MAX_DEVIATION) OSC.RC32KCAL--;
+ 147:../src/firefly_sync.c **** 	}
+ 148:../src/firefly_sync.c **** 	//printf("\t\t%d\r\n",change);
+ 149:../src/firefly_sync.c **** }
+ 150:../src/firefly_sync.c **** 
+ 151:../src/firefly_sync.c **** void sendPing(uint16_t val){
+ 244               		.loc 1 151 0
+ 245               		.cfi_startproc
+ 246               	.LVL21:
+ 247               	/* prologue: function */
+ 248               	/* frame size = 0 */
+ 249               	/* stack size = 0 */
+ 250               	.L__stack_usage = 0
+ 152:../src/firefly_sync.c **** 	/*uint8_t result = */hp_ir_targeted_cmd(ALL_DIRS, NULL, 64, val);
+ 251               		.loc 1 152 0
+ 252 0000 9C01      		movw r18,r24
+ 253 0002 40E4      		ldi r20,lo8(64)
+ 254 0004 60E0      		ldi r22,0
+ 255 0006 70E0      		ldi r23,0
+ 256 0008 8FE3      		ldi r24,lo8(63)
+ 257               	.LVL22:
+ 258 000a 0E94 0000 		call hp_ir_targeted_cmd
+ 259               	.LVL23:
+ 153:../src/firefly_sync.c **** 	//if(!result){
+ 154:../src/firefly_sync.c **** 		//printf_P(PSTR("Unable to send ff_sync ping due to other hp ir activity.\r\n"));
+ 155:../src/firefly_sync.c **** 	//}
+ 156:../src/firefly_sync.c **** 	schedule_task(FFSYNC_W, processObsQueue, NULL);
+ 260               		.loc 1 156 0
+ 261 000e 20E0      		ldi r18,0
+ 262 0010 30E0      		ldi r19,0
+ 263 0012 40E0      		ldi r20,lo8(gs(processObsQueue))
+ 264 0014 50E0      		ldi r21,hi8(gs(processObsQueue))
+ 265 0016 68EC      		ldi r22,lo8(-56)
+ 266 0018 70E0      		ldi r23,0
+ 267 001a 80E0      		ldi r24,0
+ 268 001c 90E0      		ldi r25,0
+ 269 001e 0E94 0000 		call schedule_task
+ 270               	.LVL24:
+ 271 0022 0895      		ret
+ 272               		.cfi_endproc
+ 273               	.LFE73:
+ 275               		.section	.text.set_sync_blink_color,"ax",@progbits
+ 276               	.global	set_sync_blink_color
+ 278               	set_sync_blink_color:
+ 279               	.LFB62:
+  10:../src/firefly_sync.c **** 	ffsync_blink_r = r;
+ 280               		.loc 1 10 0
+ 281               		.cfi_startproc
+ 282               	.LVL25:
+ 283               	/* prologue: function */
+ 284               	/* frame size = 0 */
+ 285               	/* stack size = 0 */
+ 286               	.L__stack_usage = 0
+  11:../src/firefly_sync.c **** 	ffsync_blink_g = g;
+ 287               		.loc 1 11 0
+ 288 0000 8093 0000 		sts ffsync_blink_r,r24
+  12:../src/firefly_sync.c **** 	ffsync_blink_b = b;
+ 289               		.loc 1 12 0
+ 290 0004 6093 0000 		sts ffsync_blink_g,r22
+  13:../src/firefly_sync.c **** }
+ 291               		.loc 1 13 0
+ 292 0008 4093 0000 		sts ffsync_blink_b,r20
+ 293 000c 0895      		ret
+ 294               		.cfi_endproc
+ 295               	.LFE62:
+ 297               	.global	__mulsf3
+ 298               		.section	.text.set_sync_blink_duration,"ax",@progbits
+ 299               	.global	set_sync_blink_duration
+ 301               	set_sync_blink_duration:
+ 302               	.LFB63:
+  16:../src/firefly_sync.c **** 	ffsync_blink_dur = dur;
+ 303               		.loc 1 16 0
+ 304               		.cfi_startproc
+ 305               	.LVL26:
+ 306 0000 CF93      		push r28
+ 307               	.LCFI9:
+ 308               		.cfi_def_cfa_offset 4
+ 309               		.cfi_offset 28, -3
+ 310 0002 DF93      		push r29
+ 311               	.LCFI10:
+ 312               		.cfi_def_cfa_offset 5
+ 313               		.cfi_offset 29, -4
+ 314               	/* prologue: function */
+ 315               	/* frame size = 0 */
+ 316               	/* stack size = 2 */
+ 317               	.L__stack_usage = 2
+ 318 0004 BC01      		movw r22,r24
+  17:../src/firefly_sync.c **** 	if((TCE0.INTCTRLB & TC_CCAINTLVL_HI_gc) == TC_CCAINTLVL_HI_gc){
+ 319               		.loc 1 17 0
+ 320 0006 8093 0000 		sts ffsync_blink_dur,r24
+ 321 000a 9093 0000 		sts ffsync_blink_dur+1,r25
+  18:../src/firefly_sync.c **** 		TCE0.CCA = TCE0.CCB - (uint16_t)(ffsync_blink_dur*FFSYNC_MS_CONVERSION_FACTOR);
+ 322               		.loc 1 18 0
+ 323 000e 9091 070A 		lds r25,2567
+ 324 0012 9370      		andi r25,lo8(3)
+ 325 0014 9330      		cpi r25,lo8(3)
+ 326 0016 01F4      		brne .L14
+  19:../src/firefly_sync.c **** 	}
+ 327               		.loc 1 19 0
+ 328 0018 C091 2A0A 		lds r28,2602
+ 329 001c D091 2B0A 		lds r29,2602+1
+ 330 0020 80E0      		ldi r24,0
+ 331 0022 90E0      		ldi r25,0
+ 332               	.LVL27:
+ 333 0024 0E94 0000 		call __floatunsisf
+ 334               	.LVL28:
+ 335 0028 20E0      		ldi r18,0
+ 336 002a 30E0      		ldi r19,0
+ 337 002c 4AEF      		ldi r20,lo8(-6)
+ 338 002e 50E4      		ldi r21,lo8(64)
+ 339 0030 0E94 0000 		call __mulsf3
+ 340               	.LVL29:
+ 341 0034 0E94 0000 		call __fixunssfsi
+ 342               	.LVL30:
+ 343 0038 C61B      		sub r28,r22
+ 344 003a D70B      		sbc r29,r23
+ 345 003c C093 280A 		sts 2600,r28
+ 346 0040 D093 290A 		sts 2600+1,r29
+ 347               	.L14:
+ 348               	/* epilogue start */
+  21:../src/firefly_sync.c **** 
+ 349               		.loc 1 21 0
+ 350 0044 DF91      		pop r29
+ 351 0046 CF91      		pop r28
+ 352 0048 0895      		ret
+ 353               		.cfi_endproc
+ 354               	.LFE63:
+ 356               		.section	.text.enable_sync_blink,"ax",@progbits
+ 357               	.global	enable_sync_blink
+ 359               	enable_sync_blink:
+ 360               	.LFB64:
+  23:../src/firefly_sync.c **** 	phase_offset = phase_offset%(((uint32_t)FFSYNC_FULL_PERIOD)/2);
+ 361               		.loc 1 23 0
+ 362               		.cfi_startproc
+ 363               	.LVL31:
+ 364 0000 CF93      		push r28
+ 365               	.LCFI11:
+ 366               		.cfi_def_cfa_offset 4
+ 367               		.cfi_offset 28, -3
+ 368 0002 DF93      		push r29
+ 369               	.LCFI12:
+ 370               		.cfi_def_cfa_offset 5
+ 371               		.cfi_offset 29, -4
+ 372               	/* prologue: function */
+ 373               	/* frame size = 0 */
+ 374               	/* stack size = 2 */
+ 375               	.L__stack_usage = 2
+ 376               	.LVL32:
+  25:../src/firefly_sync.c **** 	uint16_t turn_on_cc = turn_off_cc - (uint16_t)(ffsync_blink_dur*FFSYNC_MS_CONVERSION_FACTOR);
+ 377               		.loc 1 25 0
+ 378 0004 60EA      		ldi r22,lo8(-96)
+ 379 0006 7EE4      		ldi r23,lo8(78)
+ 380 0008 0E94 0000 		call __udivmodhi4
+ 381               	.LVL33:
+ 382 000c C1E4      		ldi r28,lo8(65)
+ 383 000e DDE9      		ldi r29,lo8(-99)
+ 384 0010 C81B      		sub r28,r24
+ 385 0012 D90B      		sbc r29,r25
+ 386               	.LVL34:
+  26:../src/firefly_sync.c **** 	TCE0.CCA = turn_on_cc;
+ 387               		.loc 1 26 0
+ 388 0014 6091 0000 		lds r22,ffsync_blink_dur
+ 389 0018 7091 0000 		lds r23,ffsync_blink_dur+1
+ 390 001c 80E0      		ldi r24,0
+ 391 001e 90E0      		ldi r25,0
+ 392               	.LVL35:
+ 393 0020 0E94 0000 		call __floatunsisf
+ 394               	.LVL36:
+ 395 0024 20E0      		ldi r18,0
+ 396 0026 30E0      		ldi r19,0
+ 397 0028 4AEF      		ldi r20,lo8(-6)
+ 398 002a 50E4      		ldi r21,lo8(64)
+ 399 002c 0E94 0000 		call __mulsf3
+ 400               	.LVL37:
+ 401 0030 0E94 0000 		call __fixunssfsi
+ 402               	.LVL38:
+ 403 0034 CE01      		movw r24,r28
+ 404 0036 861B      		sub r24,r22
+ 405 0038 970B      		sbc r25,r23
+ 406               	.LVL39:
+  27:../src/firefly_sync.c **** 	TCE0.CCB = turn_off_cc;
+ 407               		.loc 1 27 0
+ 408 003a E0E0      		ldi r30,0
+ 409 003c FAE0      		ldi r31,lo8(10)
+ 410 003e 80A7      		std Z+40,r24
+ 411 0040 91A7      		std Z+41,r25
+  28:../src/firefly_sync.c **** 	TCE0.INTCTRLB = TC_CCAINTLVL_HI_gc | TC_CCBINTLVL_HI_gc;
+ 412               		.loc 1 28 0
+ 413 0042 C2A7      		std Z+42,r28
+ 414 0044 D3A7      		std Z+43,r29
+  29:../src/firefly_sync.c **** }
+ 415               		.loc 1 29 0
+ 416 0046 8FE0      		ldi r24,lo8(15)
+ 417               	.LVL40:
+ 418 0048 8783      		std Z+7,r24
+ 419               	/* epilogue start */
+  30:../src/firefly_sync.c **** 
+ 420               		.loc 1 30 0
+ 421 004a DF91      		pop r29
+ 422 004c CF91      		pop r28
+ 423               	.LVL41:
+ 424 004e 0895      		ret
+ 425               		.cfi_endproc
+ 426               	.LFE64:
+ 428               		.section	.text.sync_blink_enabled,"ax",@progbits
+ 429               	.global	sync_blink_enabled
+ 431               	sync_blink_enabled:
+ 432               	.LFB65:
+  32:../src/firefly_sync.c **** 	return (TCE0.INTCTRLB & (TC_CCAINTLVL_HI_gc | TC_CCBINTLVL_HI_gc)) == (TC_CCAINTLVL_HI_gc | TC_CCB
+ 433               		.loc 1 32 0
+ 434               		.cfi_startproc
+ 435               	/* prologue: function */
+ 436               	/* frame size = 0 */
+ 437               	/* stack size = 0 */
+ 438               	.L__stack_usage = 0
+  33:../src/firefly_sync.c **** }
+ 439               		.loc 1 33 0
+ 440 0000 9091 070A 		lds r25,2567
+ 441 0004 9F70      		andi r25,lo8(15)
+ 442 0006 81E0      		ldi r24,lo8(1)
+ 443 0008 9F30      		cpi r25,lo8(15)
+ 444 000a 01F0      		breq .L18
+ 445 000c 80E0      		ldi r24,0
+ 446               	.L18:
+  34:../src/firefly_sync.c **** 
+ 447               		.loc 1 34 0
+ 448 000e 0895      		ret
+ 449               		.cfi_endproc
+ 450               	.LFE65:
+ 452               		.section	.text.disable_sync_blink,"ax",@progbits
+ 453               	.global	disable_sync_blink
+ 455               	disable_sync_blink:
+ 456               	.LFB66:
+  36:../src/firefly_sync.c **** 	TCE0.INTCTRLB = TC_CCAINTLVL_OFF_gc | TC_CCBINTLVL_OFF_gc;
+ 457               		.loc 1 36 0
+ 458               		.cfi_startproc
+ 459               	/* prologue: function */
+ 460               	/* frame size = 0 */
+ 461               	/* stack size = 0 */
+ 462               	.L__stack_usage = 0
+  37:../src/firefly_sync.c **** 	TCE0.CCA = 0;
+ 463               		.loc 1 37 0
+ 464 0000 E0E0      		ldi r30,0
+ 465 0002 FAE0      		ldi r31,lo8(10)
+ 466 0004 1782      		std Z+7,__zero_reg__
+  38:../src/firefly_sync.c **** 	TCE0.CCB = 0;
+ 467               		.loc 1 38 0
+ 468 0006 10A6      		std Z+40,__zero_reg__
+ 469 0008 11A6      		std Z+41,__zero_reg__
+  39:../src/firefly_sync.c **** }
+ 470               		.loc 1 39 0
+ 471 000a 12A6      		std Z+42,__zero_reg__
+ 472 000c 13A6      		std Z+43,__zero_reg__
+ 473 000e 0895      		ret
+ 474               		.cfi_endproc
+ 475               	.LFE66:
+ 477               		.section	.text.__vector_49,"ax",@progbits
+ 478               	.global	__vector_49
+ 480               	__vector_49:
+ 481               	.LFB67:
+  43:../src/firefly_sync.c **** 	ffsync_blink_prev_r = get_red_led();
+ 482               		.loc 1 43 0
+ 483               		.cfi_startproc
+ 484 0000 1F92      		push r1
+ 485               	.LCFI13:
+ 486               		.cfi_def_cfa_offset 4
+ 487               		.cfi_offset 1, -3
+ 488 0002 0F92      		push r0
+ 489               	.LCFI14:
+ 490               		.cfi_def_cfa_offset 5
+ 491               		.cfi_offset 0, -4
+ 492 0004 0FB6      		in r0,__SREG__
+ 493 0006 0F92      		push r0
+ 494 0008 1124      		clr __zero_reg__
+ 495 000a 0BB6      		in r0,__RAMPZ__
+ 496 000c 0F92      		push r0
+ 497 000e 2F93      		push r18
+ 498               	.LCFI15:
+ 499               		.cfi_def_cfa_offset 6
+ 500               		.cfi_offset 18, -5
+ 501 0010 3F93      		push r19
+ 502               	.LCFI16:
+ 503               		.cfi_def_cfa_offset 7
+ 504               		.cfi_offset 19, -6
+ 505 0012 4F93      		push r20
+ 506               	.LCFI17:
+ 507               		.cfi_def_cfa_offset 8
+ 508               		.cfi_offset 20, -7
+ 509 0014 5F93      		push r21
+ 510               	.LCFI18:
+ 511               		.cfi_def_cfa_offset 9
+ 512               		.cfi_offset 21, -8
+ 513 0016 6F93      		push r22
+ 514               	.LCFI19:
+ 515               		.cfi_def_cfa_offset 10
+ 516               		.cfi_offset 22, -9
+ 517 0018 7F93      		push r23
+ 518               	.LCFI20:
+ 519               		.cfi_def_cfa_offset 11
+ 520               		.cfi_offset 23, -10
+ 521 001a 8F93      		push r24
+ 522               	.LCFI21:
+ 523               		.cfi_def_cfa_offset 12
+ 524               		.cfi_offset 24, -11
+ 525 001c 9F93      		push r25
+ 526               	.LCFI22:
+ 527               		.cfi_def_cfa_offset 13
+ 528               		.cfi_offset 25, -12
+ 529 001e AF93      		push r26
+ 530               	.LCFI23:
+ 531               		.cfi_def_cfa_offset 14
+ 532               		.cfi_offset 26, -13
+ 533 0020 BF93      		push r27
+ 534               	.LCFI24:
+ 535               		.cfi_def_cfa_offset 15
+ 536               		.cfi_offset 27, -14
+ 537 0022 EF93      		push r30
+ 538               	.LCFI25:
+ 539               		.cfi_def_cfa_offset 16
+ 540               		.cfi_offset 30, -15
+ 541 0024 FF93      		push r31
+ 542               	.LCFI26:
+ 543               		.cfi_def_cfa_offset 17
+ 544               		.cfi_offset 31, -16
+ 545               	/* prologue: Signal */
+ 546               	/* frame size = 0 */
+ 547               	/* stack size = 16 */
+ 548               	.L__stack_usage = 16
+ 549               	.LBB44:
+ 550               	.LBB45:
+ 551               		.file 4 "../include/rgb_led.h"
+   1:../include/rgb_led.h **** #pragma once
+   2:../include/rgb_led.h **** #include "droplet_base.h"
+   3:../include/rgb_led.h **** #include <math.h>
+   4:../include/rgb_led.h **** 
+   5:../include/rgb_led.h **** #define LED_R_PIN_bm			PIN5_bm
+   6:../include/rgb_led.h **** #define LED_G_PIN_bm			PIN4_bm
+   7:../include/rgb_led.h **** #define LED_B_PIN_bm			PIN4_bm
+   8:../include/rgb_led.h **** 
+   9:../include/rgb_led.h **** void rgb_led_init(void); // Set RGB LED pins as output & initialize timers for PWM
+  10:../include/rgb_led.h **** 
+  11:../include/rgb_led.h **** // Get and set intensity for red LED
+  12:../include/rgb_led.h **** inline uint8_t get_red_led(void){ return TCE1.CCBBUF; }
+ 552               		.loc 4 12 0
+ 553 0026 E0E4      		ldi r30,lo8(64)
+ 554 0028 FAE0      		ldi r31,lo8(10)
+ 555 002a 82AD      		ldd r24,Z+58
+ 556 002c 93AD      		ldd r25,Z+59
+ 557               	.LBE45:
+ 558               	.LBE44:
+  44:../src/firefly_sync.c **** 	ffsync_blink_prev_g = get_green_led();
+ 559               		.loc 1 44 0
+ 560 002e 8093 0000 		sts ffsync_blink_prev_r,r24
+ 561               	.LBB46:
+ 562               	.LBB47:
+  13:../include/rgb_led.h **** inline void set_red_led(uint8_t saturation) { TCE1.CCBBUF = saturation; }
+  14:../include/rgb_led.h **** 
+  15:../include/rgb_led.h **** // Get and set intensity for green LED
+  16:../include/rgb_led.h **** inline uint8_t get_green_led(void){ return TCE1.CCABUF; }
+ 563               		.loc 4 16 0
+ 564 0032 80AD      		ldd r24,Z+56
+ 565 0034 91AD      		ldd r25,Z+57
+ 566               	.LBE47:
+ 567               	.LBE46:
+  45:../src/firefly_sync.c **** 	ffsync_blink_prev_b = get_blue_led();
+ 568               		.loc 1 45 0
+ 569 0036 8093 0000 		sts ffsync_blink_prev_g,r24
+ 570               	.LBB48:
+ 571               	.LBB49:
+  17:../include/rgb_led.h **** inline void set_green_led(uint8_t saturation) { TCE1.CCABUF = saturation; }
+  18:../include/rgb_led.h **** 	
+  19:../include/rgb_led.h **** // Get and set intensity for blue LED
+  20:../include/rgb_led.h **** inline uint8_t get_blue_led(void){ return TCD1.CCABUF; }
+ 572               		.loc 4 20 0
+ 573 003a 8091 7809 		lds r24,2424
+ 574 003e 9091 7909 		lds r25,2424+1
+ 575               	.LBE49:
+ 576               	.LBE48:
+  46:../src/firefly_sync.c **** 	set_rgb(ffsync_blink_r,ffsync_blink_g,ffsync_blink_b);
+ 577               		.loc 1 46 0
+ 578 0042 8093 0000 		sts ffsync_blink_prev_b,r24
+  47:../src/firefly_sync.c **** }
+ 579               		.loc 1 47 0
+ 580 0046 4091 0000 		lds r20,ffsync_blink_b
+ 581 004a 6091 0000 		lds r22,ffsync_blink_g
+ 582 004e 8091 0000 		lds r24,ffsync_blink_r
+ 583 0052 0E94 0000 		call set_rgb
+ 584               	.LVL42:
+ 585               	/* epilogue start */
+  48:../src/firefly_sync.c **** 
+ 586               		.loc 1 48 0
+ 587 0056 FF91      		pop r31
+ 588 0058 EF91      		pop r30
+ 589 005a BF91      		pop r27
+ 590 005c AF91      		pop r26
+ 591 005e 9F91      		pop r25
+ 592 0060 8F91      		pop r24
+ 593 0062 7F91      		pop r23
+ 594 0064 6F91      		pop r22
+ 595 0066 5F91      		pop r21
+ 596 0068 4F91      		pop r20
+ 597 006a 3F91      		pop r19
+ 598 006c 2F91      		pop r18
+ 599 006e 0F90      		pop r0
+ 600 0070 0BBE      		out __RAMPZ__,r0
+ 601 0072 0F90      		pop r0
+ 602 0074 0FBE      		out __SREG__,r0
+ 603 0076 0F90      		pop r0
+ 604 0078 1F90      		pop r1
+ 605 007a 1895      		reti
+ 606               		.cfi_endproc
+ 607               	.LFE67:
+ 609               		.section	.text.__vector_50,"ax",@progbits
+ 610               	.global	__vector_50
+ 612               	__vector_50:
+ 613               	.LFB68:
+  50:../src/firefly_sync.c **** 	set_rgb(ffsync_blink_prev_r, ffsync_blink_prev_g, ffsync_blink_prev_b);	
+ 614               		.loc 1 50 0
+ 615               		.cfi_startproc
+ 616 0000 1F92      		push r1
+ 617               	.LCFI27:
+ 618               		.cfi_def_cfa_offset 4
+ 619               		.cfi_offset 1, -3
+ 620 0002 0F92      		push r0
+ 621               	.LCFI28:
+ 622               		.cfi_def_cfa_offset 5
+ 623               		.cfi_offset 0, -4
+ 624 0004 0FB6      		in r0,__SREG__
+ 625 0006 0F92      		push r0
+ 626 0008 1124      		clr __zero_reg__
+ 627 000a 0BB6      		in r0,__RAMPZ__
+ 628 000c 0F92      		push r0
+ 629 000e 2F93      		push r18
+ 630               	.LCFI29:
+ 631               		.cfi_def_cfa_offset 6
+ 632               		.cfi_offset 18, -5
+ 633 0010 3F93      		push r19
+ 634               	.LCFI30:
+ 635               		.cfi_def_cfa_offset 7
+ 636               		.cfi_offset 19, -6
+ 637 0012 4F93      		push r20
+ 638               	.LCFI31:
+ 639               		.cfi_def_cfa_offset 8
+ 640               		.cfi_offset 20, -7
+ 641 0014 5F93      		push r21
+ 642               	.LCFI32:
+ 643               		.cfi_def_cfa_offset 9
+ 644               		.cfi_offset 21, -8
+ 645 0016 6F93      		push r22
+ 646               	.LCFI33:
+ 647               		.cfi_def_cfa_offset 10
+ 648               		.cfi_offset 22, -9
+ 649 0018 7F93      		push r23
+ 650               	.LCFI34:
+ 651               		.cfi_def_cfa_offset 11
+ 652               		.cfi_offset 23, -10
+ 653 001a 8F93      		push r24
+ 654               	.LCFI35:
+ 655               		.cfi_def_cfa_offset 12
+ 656               		.cfi_offset 24, -11
+ 657 001c 9F93      		push r25
+ 658               	.LCFI36:
+ 659               		.cfi_def_cfa_offset 13
+ 660               		.cfi_offset 25, -12
+ 661 001e AF93      		push r26
+ 662               	.LCFI37:
+ 663               		.cfi_def_cfa_offset 14
+ 664               		.cfi_offset 26, -13
+ 665 0020 BF93      		push r27
+ 666               	.LCFI38:
+ 667               		.cfi_def_cfa_offset 15
+ 668               		.cfi_offset 27, -14
+ 669 0022 EF93      		push r30
+ 670               	.LCFI39:
+ 671               		.cfi_def_cfa_offset 16
+ 672               		.cfi_offset 30, -15
+ 673 0024 FF93      		push r31
+ 674               	.LCFI40:
+ 675               		.cfi_def_cfa_offset 17
+ 676               		.cfi_offset 31, -16
+ 677               	/* prologue: Signal */
+ 678               	/* frame size = 0 */
+ 679               	/* stack size = 16 */
+ 680               	.L__stack_usage = 16
+  51:../src/firefly_sync.c **** }
+ 681               		.loc 1 51 0
+ 682 0026 4091 0000 		lds r20,ffsync_blink_prev_b
+ 683 002a 6091 0000 		lds r22,ffsync_blink_prev_g
+ 684 002e 8091 0000 		lds r24,ffsync_blink_prev_r
+ 685 0032 0E94 0000 		call set_rgb
+ 686               	.LVL43:
+ 687               	/* epilogue start */
+  52:../src/firefly_sync.c **** 
+ 688               		.loc 1 52 0
+ 689 0036 FF91      		pop r31
+ 690 0038 EF91      		pop r30
+ 691 003a BF91      		pop r27
+ 692 003c AF91      		pop r26
+ 693 003e 9F91      		pop r25
+ 694 0040 8F91      		pop r24
+ 695 0042 7F91      		pop r23
+ 696 0044 6F91      		pop r22
+ 697 0046 5F91      		pop r21
+ 698 0048 4F91      		pop r20
+ 699 004a 3F91      		pop r19
+ 700 004c 2F91      		pop r18
+ 701 004e 0F90      		pop r0
+ 702 0050 0BBE      		out __RAMPZ__,r0
+ 703 0052 0F90      		pop r0
+ 704 0054 0FBE      		out __SREG__,r0
+ 705 0056 0F90      		pop r0
+ 706 0058 1F90      		pop r1
+ 707 005a 1895      		reti
+ 708               		.cfi_endproc
+ 709               	.LFE68:
+ 711               		.section	.text.firefly_sync_init,"ax",@progbits
+ 712               	.global	firefly_sync_init
+ 714               	firefly_sync_init:
+ 715               	.LFB69:
+  55:../src/firefly_sync.c **** 	ffsync_blink_r = 255;
+ 716               		.loc 1 55 0
+ 717               		.cfi_startproc
+ 718 0000 CF93      		push r28
+ 719               	.LCFI41:
+ 720               		.cfi_def_cfa_offset 4
+ 721               		.cfi_offset 28, -3
+ 722               	/* prologue: function */
+ 723               	/* frame size = 0 */
+ 724               	/* stack size = 1 */
+ 725               	.L__stack_usage = 1
+  56:../src/firefly_sync.c **** 	ffsync_blink_g = 255;
+ 726               		.loc 1 56 0
+ 727 0002 8FEF      		ldi r24,lo8(-1)
+ 728 0004 8093 0000 		sts ffsync_blink_r,r24
+  57:../src/firefly_sync.c **** 	ffsync_blink_b = 255;
+ 729               		.loc 1 57 0
+ 730 0008 8093 0000 		sts ffsync_blink_g,r24
+  58:../src/firefly_sync.c **** 	ffsync_blink_dur = 200;
+ 731               		.loc 1 58 0
+ 732 000c 8093 0000 		sts ffsync_blink_b,r24
+  59:../src/firefly_sync.c **** 	
+ 733               		.loc 1 59 0
+ 734 0010 88EC      		ldi r24,lo8(-56)
+ 735 0012 90E0      		ldi r25,0
+ 736 0014 8093 0000 		sts ffsync_blink_dur,r24
+ 737 0018 9093 0000 		sts ffsync_blink_dur+1,r25
+  63:../src/firefly_sync.c **** 	
+ 738               		.loc 1 63 0
+ 739 001c 8CE8      		ldi r24,lo8(-116)
+ 740 001e 8093 8001 		sts 384,r24
+  65:../src/firefly_sync.c **** 	TCE0.CTRLB = TC_WGMODE_NORMAL_gc;
+ 741               		.loc 1 65 0
+ 742 0022 E0E0      		ldi r30,0
+ 743 0024 FAE0      		ldi r31,lo8(10)
+ 744 0026 88E0      		ldi r24,lo8(8)
+ 745 0028 8083      		st Z,r24
+  66:../src/firefly_sync.c **** 
+ 746               		.loc 1 66 0
+ 747 002a 1182      		std Z+1,__zero_reg__
+  68:../src/firefly_sync.c **** 	TCE0.INTCTRLA = TC_OVFINTLVL_HI_gc;
+ 748               		.loc 1 68 0
+ 749 002c 81E4      		ldi r24,lo8(65)
+ 750 002e 9DE9      		ldi r25,lo8(-99)
+ 751 0030 86A3      		std Z+38,r24
+ 752 0032 97A3      		std Z+39,r25
+  69:../src/firefly_sync.c **** 	TCE0.INTCTRLB = TC_CCAINTLVL_OFF_gc | TC_CCBINTLVL_OFF_gc;	
+ 753               		.loc 1 69 0
+ 754 0034 83E0      		ldi r24,lo8(3)
+ 755 0036 8683      		std Z+6,r24
+  70:../src/firefly_sync.c **** 	TCE0.CNT = 0;
+ 756               		.loc 1 70 0
+ 757 0038 1782      		std Z+7,__zero_reg__
+  71:../src/firefly_sync.c **** 		TCE0.CCA = 0;
+ 758               		.loc 1 71 0
+ 759 003a 10A2      		std Z+32,__zero_reg__
+ 760 003c 11A2      		std Z+33,__zero_reg__
+  72:../src/firefly_sync.c **** 		TCE0.CCB = 0;
+ 761               		.loc 1 72 0
+ 762 003e 10A6      		std Z+40,__zero_reg__
+ 763 0040 11A6      		std Z+41,__zero_reg__
+  73:../src/firefly_sync.c **** 	
+ 764               		.loc 1 73 0
+ 765 0042 12A6      		std Z+42,__zero_reg__
+ 766 0044 13A6      		std Z+43,__zero_reg__
+ 767               	.LVL44:
+ 768               	.LBB50:
+ 769               	.LBB51:
+ 770               	.LBB52:
+  47:../include/droplet_base.h **** 		tmp = malloc(size);
+ 771               		.loc 2 47 0
+ 772 0046 CFB7      		in r28,__SREG__
+ 773               	.LVL45:
+ 774               	.LBB53:
+ 775               	.LBB54:
+  50:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     return 1;
+ 776               		.loc 3 50 0
+ 777               	/* #APP */
+ 778               	 ;  50 "c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\
+ 779 0048 F894      		cli
+ 780               	 ;  0 "" 2
+ 781               	.LVL46:
+ 782               	/* #NOAPP */
+ 783               	.LBE54:
+ 784               	.LBE53:
+  48:../include/droplet_base.h **** 	}
+ 785               		.loc 2 48 0
+ 786 004a 86E0      		ldi r24,lo8(6)
+ 787 004c 90E0      		ldi r25,0
+ 788 004e 0E94 0000 		call malloc
+ 789               	.LVL47:
+ 790 0052 FC01      		movw r30,r24
+ 791               	.LVL48:
+ 792               	.LBB55:
+ 793               	.LBB56:
+  70:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     __asm__ volatile ("" ::: "memory");
+ 794               		.loc 3 70 0
+ 795 0054 CFBF      		out __SREG__,r28
+ 796               		.loc 3 71 0
+ 797               	.LVL49:
+ 798               	.LBE56:
+ 799               	.LBE55:
+ 800               	.LBE52:
+ 801               	.LBE51:
+ 802               	.LBE50:
+  75:../src/firefly_sync.c **** 	obsStart->obs = 0;
+ 803               		.loc 1 75 0
+ 804 0056 8093 0000 		sts obsStart,r24
+ 805 005a 9093 0000 		sts obsStart+1,r25
+  76:../src/firefly_sync.c **** 	obsStart->next = obsStart;
+ 806               		.loc 1 76 0
+ 807 005e 1082      		st Z,__zero_reg__
+ 808 0060 1182      		std Z+1,__zero_reg__
+  77:../src/firefly_sync.c **** 	obsStart->prev = obsStart;
+ 809               		.loc 1 77 0
+ 810 0062 8283      		std Z+2,r24
+ 811 0064 9383      		std Z+3,r25
+  78:../src/firefly_sync.c **** }
+ 812               		.loc 1 78 0
+ 813 0066 8483      		std Z+4,r24
+ 814 0068 9583      		std Z+5,r25
+ 815               	/* epilogue start */
+  79:../src/firefly_sync.c **** 
+ 816               		.loc 1 79 0
+ 817 006a CF91      		pop r28
+ 818 006c 0895      		ret
+ 819               		.cfi_endproc
+ 820               	.LFE69:
+ 822               		.section	.text.__vector_47,"ax",@progbits
+ 823               	.global	__vector_47
+ 825               	__vector_47:
+ 826               	.LFB70:
+  81:../src/firefly_sync.c **** 	schedule_task(rand_short()%FFSYNC_D, (arg_func_t)sendPing, (void*)((uint16_t)(get_time()&0xFFFF)))
+ 827               		.loc 1 81 0
+ 828               		.cfi_startproc
+ 829 0000 1F92      		push r1
+ 830               	.LCFI42:
+ 831               		.cfi_def_cfa_offset 4
+ 832               		.cfi_offset 1, -3
+ 833 0002 0F92      		push r0
+ 834               	.LCFI43:
+ 835               		.cfi_def_cfa_offset 5
+ 836               		.cfi_offset 0, -4
+ 837 0004 0FB6      		in r0,__SREG__
+ 838 0006 0F92      		push r0
+ 839 0008 1124      		clr __zero_reg__
+ 840 000a 0BB6      		in r0,__RAMPZ__
+ 841 000c 0F92      		push r0
+ 842 000e CF92      		push r12
+ 843               	.LCFI44:
+ 844               		.cfi_def_cfa_offset 6
+ 845               		.cfi_offset 12, -5
+ 846 0010 DF92      		push r13
+ 847               	.LCFI45:
+ 848               		.cfi_def_cfa_offset 7
+ 849               		.cfi_offset 13, -6
+ 850 0012 EF92      		push r14
+ 851               	.LCFI46:
+ 852               		.cfi_def_cfa_offset 8
+ 853               		.cfi_offset 14, -7
+ 854 0014 FF92      		push r15
+ 855               	.LCFI47:
+ 856               		.cfi_def_cfa_offset 9
+ 857               		.cfi_offset 15, -8
+ 858 0016 0F93      		push r16
+ 859               	.LCFI48:
+ 860               		.cfi_def_cfa_offset 10
+ 861               		.cfi_offset 16, -9
+ 862 0018 1F93      		push r17
+ 863               	.LCFI49:
+ 864               		.cfi_def_cfa_offset 11
+ 865               		.cfi_offset 17, -10
+ 866 001a 2F93      		push r18
+ 867               	.LCFI50:
+ 868               		.cfi_def_cfa_offset 12
+ 869               		.cfi_offset 18, -11
+ 870 001c 3F93      		push r19
+ 871               	.LCFI51:
+ 872               		.cfi_def_cfa_offset 13
+ 873               		.cfi_offset 19, -12
+ 874 001e 4F93      		push r20
+ 875               	.LCFI52:
+ 876               		.cfi_def_cfa_offset 14
+ 877               		.cfi_offset 20, -13
+ 878 0020 5F93      		push r21
+ 879               	.LCFI53:
+ 880               		.cfi_def_cfa_offset 15
+ 881               		.cfi_offset 21, -14
+ 882 0022 6F93      		push r22
+ 883               	.LCFI54:
+ 884               		.cfi_def_cfa_offset 16
+ 885               		.cfi_offset 22, -15
+ 886 0024 7F93      		push r23
+ 887               	.LCFI55:
+ 888               		.cfi_def_cfa_offset 17
+ 889               		.cfi_offset 23, -16
+ 890 0026 8F93      		push r24
+ 891               	.LCFI56:
+ 892               		.cfi_def_cfa_offset 18
+ 893               		.cfi_offset 24, -17
+ 894 0028 9F93      		push r25
+ 895               	.LCFI57:
+ 896               		.cfi_def_cfa_offset 19
+ 897               		.cfi_offset 25, -18
+ 898 002a AF93      		push r26
+ 899               	.LCFI58:
+ 900               		.cfi_def_cfa_offset 20
+ 901               		.cfi_offset 26, -19
+ 902 002c BF93      		push r27
+ 903               	.LCFI59:
+ 904               		.cfi_def_cfa_offset 21
+ 905               		.cfi_offset 27, -20
+ 906 002e CF93      		push r28
+ 907               	.LCFI60:
+ 908               		.cfi_def_cfa_offset 22
+ 909               		.cfi_offset 28, -21
+ 910 0030 EF93      		push r30
+ 911               	.LCFI61:
+ 912               		.cfi_def_cfa_offset 23
+ 913               		.cfi_offset 30, -22
+ 914 0032 FF93      		push r31
+ 915               	.LCFI62:
+ 916               		.cfi_def_cfa_offset 24
+ 917               		.cfi_offset 31, -23
+ 918               	/* prologue: Signal */
+ 919               	/* frame size = 0 */
+ 920               	/* stack size = 23 */
+ 921               	.L__stack_usage = 23
+  82:../src/firefly_sync.c **** 	//sendPing( (void*)((uint16_t)(get_time()&0xFFFF)));
+ 922               		.loc 1 82 0
+ 923 0034 0E94 0000 		call get_time
+ 924               	.LVL50:
+ 925 0038 6B01      		movw r12,r22
+ 926 003a 7C01      		movw r14,r24
+ 927 003c 0E94 0000 		call rand_short
+ 928               	.LVL51:
+ 929 0040 AC01      		movw r20,r24
+ 930 0042 9C01      		movw r18,r24
+ 931 0044 ADEC      		ldi r26,lo8(-51)
+ 932 0046 BCEC      		ldi r27,lo8(-52)
+ 933 0048 0E94 0000 		call __umulhisi3
+ 934 004c 880F      		lsl r24
+ 935 004e 892F      		mov r24,r25
+ 936 0050 881F      		rol r24
+ 937 0052 990B      		sbc r25,r25
+ 938 0054 9195      		neg r25
+ 939 0056 60EA      		ldi r22,lo8(-96)
+ 940 0058 689F      		mul r22,r24
+ 941 005a 9001      		movw r18,r0
+ 942 005c 699F      		mul r22,r25
+ 943 005e 300D      		add r19,r0
+ 944 0060 1124      		clr __zero_reg__
+ 945 0062 BA01      		movw r22,r20
+ 946 0064 621B      		sub r22,r18
+ 947 0066 730B      		sbc r23,r19
+ 948 0068 80E0      		ldi r24,0
+ 949 006a 90E0      		ldi r25,0
+ 950 006c 9601      		movw r18,r12
+ 951 006e 40E0      		ldi r20,lo8(gs(sendPing))
+ 952 0070 50E0      		ldi r21,hi8(gs(sendPing))
+ 953 0072 0E94 0000 		call schedule_task
+ 954               	.LVL52:
+ 955               	.LBB65:
+ 956               	.LBB66:
+ 957               	.LBB67:
+ 118:../src/firefly_sync.c **** 	{
+ 958               		.loc 1 118 0
+ 959 0076 CFB7      		in r28,__SREG__
+ 960               	.LVL53:
+ 961               	.LBB68:
+ 962               	.LBB69:
+  50:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     return 1;
+ 963               		.loc 3 50 0
+ 964               	/* #APP */
+ 965               	 ;  50 "c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\
+ 966 0078 F894      		cli
+ 967               	 ;  0 "" 2
+ 968               	.LVL54:
+ 969               	/* #NOAPP */
+ 970               	.LBE69:
+ 971               	.LBE68:
+ 972               	.LBB70:
+ 120:../src/firefly_sync.c **** 		uint16_t theCount = currTime&0xFFFF;		
+ 973               		.loc 1 120 0
+ 974 007a 0E94 0000 		call get_time
+ 975               	.LVL55:
+ 976 007e 6B01      		movw r12,r22
+ 977 0080 7C01      		movw r14,r24
+ 978               	.LVL56:
+ 122:../src/firefly_sync.c **** 		//printf("%u.\r\n", remainder);
+ 979               		.loc 1 122 0
+ 980 0082 21E2      		ldi r18,lo8(33)
+ 981 0084 34E1      		ldi r19,lo8(20)
+ 982 0086 40E0      		ldi r20,0
+ 983 0088 50E0      		ldi r21,0
+ 984 008a 0E94 0000 		call __udivmodsi4
+ 985               	.LVL57:
+ 125:../src/firefly_sync.c **** 			change = FFSYNC_FULL_PERIOD_MS-((int16_t)remainder);
+ 986               		.loc 1 125 0
+ 987 008e 6131      		cpi r22,17
+ 988 0090 2AE0      		ldi r18,10
+ 989 0092 7207      		cpc r23,r18
+ 990 0094 00F4      		brsh .+2
+ 991 0096 00C0      		rjmp .L27
+ 126:../src/firefly_sync.c **** 			if((RTC.PER-change)<theCount) rtc_epoch++;			//0xFFFF: RTC.PER
+ 992               		.loc 1 126 0
+ 993 0098 21E2      		ldi r18,lo8(33)
+ 994 009a 34E1      		ldi r19,lo8(20)
+ 995 009c 261B      		sub r18,r22
+ 996 009e 370B      		sbc r19,r23
+ 997               	.LVL58:
+ 127:../src/firefly_sync.c **** 		}else{
+ 998               		.loc 1 127 0
+ 999 00a0 8091 0A04 		lds r24,1034
+ 1000 00a4 9091 0B04 		lds r25,1034+1
+ 1001 00a8 821B      		sub r24,r18
+ 1002 00aa 930B      		sbc r25,r19
+ 1003 00ac 8C15      		cp r24,r12
+ 1004 00ae 9D05      		cpc r25,r13
+ 1005 00b0 00F4      		brsh .L30
+ 1006 00b2 8091 0000 		lds r24,rtc_epoch
+ 1007 00b6 9091 0000 		lds r25,rtc_epoch+1
+ 1008 00ba 0196      		adiw r24,1
+ 1009 00bc 8093 0000 		sts rtc_epoch,r24
+ 1010 00c0 9093 0000 		sts rtc_epoch+1,r25
+ 1011               	.L30:
+ 132:../src/firefly_sync.c **** 		RTC.CNT =  (theCount+change);
+ 1012               		.loc 1 132 0
+ 1013 00c4 8091 0104 		lds r24,1025
+ 1014 00c8 80FD      		sbrc r24,0
+ 1015 00ca 00C0      		rjmp .L30
+ 133:../src/firefly_sync.c **** 		RTC.COMP = (RTC.COMP+change);
+ 1016               		.loc 1 133 0
+ 1017 00cc C20E      		add r12,r18
+ 1018 00ce D31E      		adc r13,r19
+ 1019               	.LVL59:
+ 1020 00d0 C092 0804 		sts 1032,r12
+ 1021 00d4 D092 0904 		sts 1032+1,r13
+ 134:../src/firefly_sync.c **** 	}	
+ 1022               		.loc 1 134 0
+ 1023 00d8 8091 0C04 		lds r24,1036
+ 1024 00dc 9091 0D04 		lds r25,1036+1
+ 1025 00e0 820F      		add r24,r18
+ 1026 00e2 931F      		adc r25,r19
+ 1027 00e4 8093 0C04 		sts 1036,r24
+ 1028 00e8 9093 0D04 		sts 1036+1,r25
+ 1029               	.LVL60:
+ 1030               	.LBE70:
+ 1031               	.LBB71:
+ 1032               	.LBB72:
+  70:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     __asm__ volatile ("" ::: "memory");
+ 1033               		.loc 3 70 0
+ 1034 00ec CFBF      		out __SREG__,r28
+ 1035               		.loc 3 71 0
+ 1036               	.LVL61:
+ 1037               	.LBE72:
+ 1038               	.LBE71:
+ 1039               	.LBE67:
+ 144:../src/firefly_sync.c **** 		if(change>0) OSC.RC32KCAL++;
+ 1040               		.loc 1 144 0
+ 1041 00ee C901      		movw r24,r18
+ 1042 00f0 37FD      		sbrc r19,7
+ 1043 00f2 00C0      		rjmp .L35
+ 1044               	.L31:
+ 1045 00f4 8139      		cpi r24,-111
+ 1046 00f6 9105      		cpc r25,__zero_reg__
+ 1047 00f8 04F4      		brge .L26
+ 145:../src/firefly_sync.c **** 		else if(abs(change)<FFSYNC_MAX_DEVIATION) OSC.RC32KCAL--;
+ 1048               		.loc 1 145 0
+ 1049 00fa 1216      		cp __zero_reg__,r18
+ 1050 00fc 1306      		cpc __zero_reg__,r19
+ 1051 00fe 04F4      		brge .L33
+ 1052 0100 8091 5400 		lds r24,84
+ 1053 0104 8F5F      		subi r24,lo8(-(1))
+ 1054 0106 8093 5400 		sts 84,r24
+ 1055               	.LVL62:
+ 1056               	.L26:
+ 1057               	/* epilogue start */
+ 1058               	.LBE66:
+ 1059               	.LBE65:
+  86:../src/firefly_sync.c **** 
+ 1060               		.loc 1 86 0
+ 1061 010a FF91      		pop r31
+ 1062 010c EF91      		pop r30
+ 1063 010e CF91      		pop r28
+ 1064 0110 BF91      		pop r27
+ 1065 0112 AF91      		pop r26
+ 1066 0114 9F91      		pop r25
+ 1067 0116 8F91      		pop r24
+ 1068 0118 7F91      		pop r23
+ 1069 011a 6F91      		pop r22
+ 1070 011c 5F91      		pop r21
+ 1071 011e 4F91      		pop r20
+ 1072 0120 3F91      		pop r19
+ 1073 0122 2F91      		pop r18
+ 1074 0124 1F91      		pop r17
+ 1075 0126 0F91      		pop r16
+ 1076 0128 FF90      		pop r15
+ 1077 012a EF90      		pop r14
+ 1078 012c DF90      		pop r13
+ 1079 012e CF90      		pop r12
+ 1080 0130 0F90      		pop r0
+ 1081 0132 0BBE      		out __RAMPZ__,r0
+ 1082 0134 0F90      		pop r0
+ 1083 0136 0FBE      		out __SREG__,r0
+ 1084 0138 0F90      		pop r0
+ 1085 013a 1F90      		pop r1
+ 1086 013c 1895      		reti
+ 1087               	.LVL63:
+ 1088               	.L27:
+ 1089               	.LBB76:
+ 1090               	.LBB75:
+ 1091               	.LBB74:
+ 1092               	.LBB73:
+ 129:../src/firefly_sync.c **** 			if(theCount<remainder) rtc_epoch--;
+ 1093               		.loc 1 129 0
+ 1094 013e 2227      		clr r18
+ 1095 0140 3327      		clr r19
+ 1096 0142 261B      		sub r18,r22
+ 1097 0144 370B      		sbc r19,r23
+ 1098               	.LVL64:
+ 130:../src/firefly_sync.c **** 		}
+ 1099               		.loc 1 130 0
+ 1100 0146 C616      		cp r12,r22
+ 1101 0148 D706      		cpc r13,r23
+ 1102 014a 00F0      		brlo .+2
+ 1103 014c 00C0      		rjmp .L30
+ 1104 014e 8091 0000 		lds r24,rtc_epoch
+ 1105 0152 9091 0000 		lds r25,rtc_epoch+1
+ 1106 0156 0197      		sbiw r24,1
+ 1107 0158 8093 0000 		sts rtc_epoch,r24
+ 1108 015c 9093 0000 		sts rtc_epoch+1,r25
+ 1109 0160 00C0      		rjmp .L30
+ 1110               	.LVL65:
+ 1111               	.L35:
+ 1112               	.LBE73:
+ 1113               	.LBE74:
+ 144:../src/firefly_sync.c **** 		if(change>0) OSC.RC32KCAL++;
+ 1114               		.loc 1 144 0
+ 1115 0162 8827      		clr r24
+ 1116 0164 9927      		clr r25
+ 1117 0166 821B      		sub r24,r18
+ 1118 0168 930B      		sbc r25,r19
+ 1119 016a 00C0      		rjmp .L31
+ 1120               	.L33:
+ 146:../src/firefly_sync.c **** 	}
+ 1121               		.loc 1 146 0
+ 1122 016c 4D97      		sbiw r24,29
+ 1123 016e 04F4      		brge .L26
+ 1124 0170 8091 5400 		lds r24,84
+ 1125 0174 8150      		subi r24,lo8(-(-1))
+ 1126 0176 8093 5400 		sts 84,r24
+ 1127               	.LVL66:
+ 1128               	.LBE75:
+ 1129               	.LBE76:
+  86:../src/firefly_sync.c **** 
+ 1130               		.loc 1 86 0
+ 1131 017a 00C0      		rjmp .L26
+ 1132               		.cfi_endproc
+ 1133               	.LFE70:
+ 1135               		.section	.bss.ffsync_blink_dur,"aw",@nobits
+ 1138               	ffsync_blink_dur:
+ 1139 0000 0000      		.zero	2
+ 1140               		.section	.bss.ffsync_blink_prev_b,"aw",@nobits
+ 1143               	ffsync_blink_prev_b:
+ 1144 0000 00        		.zero	1
+ 1145               		.section	.bss.ffsync_blink_prev_g,"aw",@nobits
+ 1148               	ffsync_blink_prev_g:
+ 1149 0000 00        		.zero	1
+ 1150               		.section	.bss.ffsync_blink_prev_r,"aw",@nobits
+ 1153               	ffsync_blink_prev_r:
+ 1154 0000 00        		.zero	1
+ 1155               		.section	.bss.ffsync_blink_b,"aw",@nobits
+ 1158               	ffsync_blink_b:
+ 1159 0000 00        		.zero	1
+ 1160               		.section	.bss.ffsync_blink_g,"aw",@nobits
+ 1163               	ffsync_blink_g:
+ 1164 0000 00        		.zero	1
+ 1165               		.section	.bss.ffsync_blink_r,"aw",@nobits
+ 1168               	ffsync_blink_r:
+ 1169 0000 00        		.zero	1
+ 1170               		.comm	obsStart,2,1
+ 1171               		.comm	cmd_sender_dir,1,1
+ 1172               		.comm	cmd_arrival_dir,1,1
+ 1173               		.comm	cmd_sender_id,2,1
+ 1174               		.comm	cmd_arrival_time,4,1
+ 1175               		.comm	user_facing_messages_ovf,1,1
+ 1176               		.comm	num_waiting_msgs,1,1
+ 1177               		.comm	hp_ir_block_bm,1,1
+ 1178               		.comm	msg_node,294,1
+ 1179               		.comm	ir_rxtx,342,1
+ 1180               		.comm	mm_per_kilostep,16,1
+ 1181               		.comm	motor_adjusts,48,1
+ 1182               		.comm	rnbProcessingFlag,1,1
+ 1183               		.comm	rnbCmdSentTime,4,1
+ 1184               		.comm	rnbCmdID,2,1
+ 1185               		.comm	rnb_updated,1,1
+ 1186               		.comm	last_good_rnb,8,1
+ 1187               		.comm	curr_ir_power,2,1
+ 1188               		.comm	twi,2,1
+ 1189               		.comm	twiMaster,25,1
+ 1190               		.section	.bss.task_storage_arr,"aw",@nobits
+ 1193               	task_storage_arr:
+ 1194 0000 0000 0000 		.zero	140
+ 1194      0000 0000 
+ 1194      0000 0000 
+ 1194      0000 0000 
+ 1194      0000 0000 
+ 1195               		.comm	task_executing,1,1
+ 1196               		.comm	num_tasks,1,1
+ 1197               		.comm	task_list,2,1
+ 1198               		.comm	rtc_epoch,2,1
+ 1199               		.comm	droplet_ID,2,1
+ 1200               		.text
+ 1201               	.Letext0:
+ 1202               		.file 5 "c:\\program files (x86)\\atmel\\studio\\7.0\\toolchain\\avr8\\avr8-gnu-toolchain\\avr\\in
+ 1203               		.file 6 "C:/Program Files (x86)/Atmel/Studio/7.0/Packs/atmel/XMEGAA_DFP/1.1.68/include/avr/iox128a
+ 1204               		.file 7 "c:\\program files (x86)\\atmel\\studio\\7.0\\toolchain\\avr8\\avr8-gnu-toolchain\\lib\\gc
+ 1205               		.file 8 "../include/scheduler.h"
+ 1206               		.file 9 "../include/i2c.h"
+ 1207               		.file 10 "../include/range_algs.h"
+ 1208               		.file 11 "../include/ir_comm.h"
+ 1209               		.file 12 "../include/firefly_sync.h"
+ 1210               		.file 13 "../include/ir_led.h"
+ 1211               		.file 14 "../include/motor.h"
+ 1212               		.file 15 "c:\\program files (x86)\\atmel\\studio\\7.0\\toolchain\\avr8\\avr8-gnu-toolchain\\avr\\i
+ 1213               		.file 16 "../include/random.h"
+DEFINED SYMBOLS
+                            *ABS*:00000000 firefly_sync.c
+C:\Users\JOHNK~1\AppData\Local\Temp\ccByfc1j.s:2      *ABS*:0000003e __SP_H__
+C:\Users\JOHNK~1\AppData\Local\Temp\ccByfc1j.s:3      *ABS*:0000003d __SP_L__
+C:\Users\JOHNK~1\AppData\Local\Temp\ccByfc1j.s:4      *ABS*:0000003f __SREG__
+C:\Users\JOHNK~1\AppData\Local\Temp\ccByfc1j.s:5      *ABS*:0000003b __RAMPZ__
+C:\Users\JOHNK~1\AppData\Local\Temp\ccByfc1j.s:6      *ABS*:00000034 __CCP__
+C:\Users\JOHNK~1\AppData\Local\Temp\ccByfc1j.s:7      *ABS*:00000000 __tmp_reg__
+C:\Users\JOHNK~1\AppData\Local\Temp\ccByfc1j.s:8      *ABS*:00000001 __zero_reg__
+C:\Users\JOHNK~1\AppData\Local\Temp\ccByfc1j.s:20     .text.processObsQueue:00000000 processObsQueue
+                            *COM*:00000002 obsStart
+C:\Users\JOHNK~1\AppData\Local\Temp\ccByfc1j.s:1143   .bss.ffsync_blink_prev_b:00000000 ffsync_blink_prev_b
+C:\Users\JOHNK~1\AppData\Local\Temp\ccByfc1j.s:1148   .bss.ffsync_blink_prev_g:00000000 ffsync_blink_prev_g
+C:\Users\JOHNK~1\AppData\Local\Temp\ccByfc1j.s:1153   .bss.ffsync_blink_prev_r:00000000 ffsync_blink_prev_r
+C:\Users\JOHNK~1\AppData\Local\Temp\ccByfc1j.s:242    .text.sendPing:00000000 sendPing
+C:\Users\JOHNK~1\AppData\Local\Temp\ccByfc1j.s:278    .text.set_sync_blink_color:00000000 set_sync_blink_color
+C:\Users\JOHNK~1\AppData\Local\Temp\ccByfc1j.s:1168   .bss.ffsync_blink_r:00000000 ffsync_blink_r
+C:\Users\JOHNK~1\AppData\Local\Temp\ccByfc1j.s:1163   .bss.ffsync_blink_g:00000000 ffsync_blink_g
+C:\Users\JOHNK~1\AppData\Local\Temp\ccByfc1j.s:1158   .bss.ffsync_blink_b:00000000 ffsync_blink_b
+C:\Users\JOHNK~1\AppData\Local\Temp\ccByfc1j.s:301    .text.set_sync_blink_duration:00000000 set_sync_blink_duration
+C:\Users\JOHNK~1\AppData\Local\Temp\ccByfc1j.s:1138   .bss.ffsync_blink_dur:00000000 ffsync_blink_dur
+C:\Users\JOHNK~1\AppData\Local\Temp\ccByfc1j.s:359    .text.enable_sync_blink:00000000 enable_sync_blink
+C:\Users\JOHNK~1\AppData\Local\Temp\ccByfc1j.s:431    .text.sync_blink_enabled:00000000 sync_blink_enabled
+C:\Users\JOHNK~1\AppData\Local\Temp\ccByfc1j.s:455    .text.disable_sync_blink:00000000 disable_sync_blink
+C:\Users\JOHNK~1\AppData\Local\Temp\ccByfc1j.s:480    .text.__vector_49:00000000 __vector_49
+C:\Users\JOHNK~1\AppData\Local\Temp\ccByfc1j.s:612    .text.__vector_50:00000000 __vector_50
+C:\Users\JOHNK~1\AppData\Local\Temp\ccByfc1j.s:714    .text.firefly_sync_init:00000000 firefly_sync_init
+C:\Users\JOHNK~1\AppData\Local\Temp\ccByfc1j.s:825    .text.__vector_47:00000000 __vector_47
+                            *COM*:00000002 rtc_epoch
+                            *COM*:00000001 cmd_sender_dir
+                            *COM*:00000001 cmd_arrival_dir
+                            *COM*:00000002 cmd_sender_id
+                            *COM*:00000004 cmd_arrival_time
+                            *COM*:00000001 user_facing_messages_ovf
+                            *COM*:00000001 num_waiting_msgs
+                            *COM*:00000001 hp_ir_block_bm
+                            *COM*:00000126 msg_node
+                            *COM*:00000156 ir_rxtx
+                            *COM*:00000010 mm_per_kilostep
+                            *COM*:00000030 motor_adjusts
+                            *COM*:00000001 rnbProcessingFlag
+                            *COM*:00000004 rnbCmdSentTime
+                            *COM*:00000002 rnbCmdID
+                            *COM*:00000001 rnb_updated
+                            *COM*:00000008 last_good_rnb
+                            *COM*:00000002 curr_ir_power
+                            *COM*:00000002 twi
+                            *COM*:00000019 twiMaster
+C:\Users\JOHNK~1\AppData\Local\Temp\ccByfc1j.s:1193   .bss.task_storage_arr:00000000 task_storage_arr
+                            *COM*:00000001 task_executing
+                            *COM*:00000001 num_tasks
+                            *COM*:00000002 task_list
+                            *COM*:00000002 droplet_ID
+
+UNDEFINED SYMBOLS
+__floatunsisf
+__subsf3
+__divsf3
+__addsf3
+__fixunssfsi
+free
+set_rgb
+hp_ir_targeted_cmd
+schedule_task
+__mulsf3
+__udivmodhi4
+malloc
+get_time
+rand_short
+__umulhisi3
+__udivmodsi4
+__do_clear_bss

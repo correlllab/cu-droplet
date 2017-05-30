@@ -1,0 +1,990 @@
+   1               		.file	"rgb_led.c"
+   2               	__SP_H__ = 0x3e
+   3               	__SP_L__ = 0x3d
+   4               	__SREG__ = 0x3f
+   5               	__RAMPZ__ = 0x3b
+   6               	__CCP__ = 0x34
+   7               	__tmp_reg__ = 0
+   8               	__zero_reg__ = 1
+   9               		.text
+  10               	.Ltext0:
+  11               		.cfi_sections	.debug_frame
+  12               		.section	.text.rgb_led_init,"ax",@progbits
+  13               	.global	rgb_led_init
+  15               	rgb_led_init:
+  16               	.LFB35:
+  17               		.file 1 "../src/rgb_led.c"
+   1:../src/rgb_led.c **** #include "rgb_led.h"
+   2:../src/rgb_led.c **** 
+   3:../src/rgb_led.c **** void rgb_led_init()
+   4:../src/rgb_led.c **** {
+  18               		.loc 1 4 0
+  19               		.cfi_startproc
+  20               	/* prologue: function */
+  21               	/* frame size = 0 */
+  22               	/* stack size = 0 */
+  23               	.L__stack_usage = 0
+   5:../src/rgb_led.c **** 	// LED Pins as output
+   6:../src/rgb_led.c **** 	PORTE.DIRSET = LED_R_PIN_bm | LED_G_PIN_bm;
+  24               		.loc 1 6 0
+  25 0000 80E3      		ldi r24,lo8(48)
+  26 0002 8093 8106 		sts 1665,r24
+   7:../src/rgb_led.c **** 	PORTD.DIRSET = LED_B_PIN_bm;
+  27               		.loc 1 7 0
+  28 0006 80E1      		ldi r24,lo8(16)
+  29 0008 8093 6106 		sts 1633,r24
+   8:../src/rgb_led.c **** 	
+   9:../src/rgb_led.c **** 	//-------RED&GREEN--------
+  10:../src/rgb_led.c **** 	TCE1.PER = 255;							
+  30               		.loc 1 10 0
+  31 000c E0E4      		ldi r30,lo8(64)
+  32 000e FAE0      		ldi r31,lo8(10)
+  33 0010 2FEF      		ldi r18,lo8(-1)
+  34 0012 30E0      		ldi r19,0
+  35 0014 26A3      		std Z+38,r18
+  36 0016 37A3      		std Z+39,r19
+  11:../src/rgb_led.c **** 	TCE1.CCA = 0;							
+  37               		.loc 1 11 0
+  38 0018 10A6      		std Z+40,__zero_reg__
+  39 001a 11A6      		std Z+41,__zero_reg__
+  12:../src/rgb_led.c **** 	TCE1.CCB = 0;							
+  40               		.loc 1 12 0
+  41 001c 12A6      		std Z+42,__zero_reg__
+  42 001e 13A6      		std Z+43,__zero_reg__
+  13:../src/rgb_led.c **** 	TCE1.CTRLA = TC_CLKSEL_DIV64_gc;		
+  43               		.loc 1 13 0
+  44 0020 85E0      		ldi r24,lo8(5)
+  45 0022 8083      		st Z,r24
+  14:../src/rgb_led.c **** 	TCE1.CTRLB = TC_WGMODE_SS_gc | TC1_CCBEN_bm | TC1_CCAEN_bm;
+  46               		.loc 1 14 0
+  47 0024 93E3      		ldi r25,lo8(51)
+  48 0026 9183      		std Z+1,r25
+  15:../src/rgb_led.c **** 	
+  16:../src/rgb_led.c **** 	//---------BLUE-----------
+  17:../src/rgb_led.c **** 	
+  18:../src/rgb_led.c **** 	TCD1.PER = 255;
+  49               		.loc 1 18 0
+  50 0028 E0E4      		ldi r30,lo8(64)
+  51 002a F9E0      		ldi r31,lo8(9)
+  52 002c 26A3      		std Z+38,r18
+  53 002e 37A3      		std Z+39,r19
+  19:../src/rgb_led.c **** 	TCD1.CCA = 0;
+  54               		.loc 1 19 0
+  55 0030 10A6      		std Z+40,__zero_reg__
+  56 0032 11A6      		std Z+41,__zero_reg__
+  20:../src/rgb_led.c **** 	TCD1.CTRLA = TC_CLKSEL_DIV64_gc;
+  57               		.loc 1 20 0
+  58 0034 8083      		st Z,r24
+  21:../src/rgb_led.c **** 	TCD1.CTRLB = TC_WGMODE_SS_gc | TC1_CCAEN_bm;	
+  59               		.loc 1 21 0
+  60 0036 83E1      		ldi r24,lo8(19)
+  61 0038 8183      		std Z+1,r24
+  62 003a 0895      		ret
+  63               		.cfi_endproc
+  64               	.LFE35:
+  66               		.section	.text.led_off,"ax",@progbits
+  67               	.global	led_off
+  69               	led_off:
+  70               	.LFB36:
+  22:../src/rgb_led.c **** }
+  23:../src/rgb_led.c **** 
+  24:../src/rgb_led.c **** void led_off()
+  25:../src/rgb_led.c **** { 
+  71               		.loc 1 25 0
+  72               		.cfi_startproc
+  73               	/* prologue: function */
+  74               	/* frame size = 0 */
+  75               	/* stack size = 0 */
+  76               	.L__stack_usage = 0
+  26:../src/rgb_led.c **** 	TCE1.CCABUF = 0;
+  77               		.loc 1 26 0
+  78 0000 E0E4      		ldi r30,lo8(64)
+  79 0002 FAE0      		ldi r31,lo8(10)
+  80 0004 10AE      		std Z+56,__zero_reg__
+  81 0006 11AE      		std Z+57,__zero_reg__
+  27:../src/rgb_led.c **** 	TCE1.CCBBUF = 0;
+  82               		.loc 1 27 0
+  83 0008 12AE      		std Z+58,__zero_reg__
+  84 000a 13AE      		std Z+59,__zero_reg__
+  28:../src/rgb_led.c **** 	TCD1.CCABUF = 0;	
+  85               		.loc 1 28 0
+  86 000c 1092 7809 		sts 2424,__zero_reg__
+  87 0010 1092 7909 		sts 2424+1,__zero_reg__
+  88 0014 0895      		ret
+  89               		.cfi_endproc
+  90               	.LFE36:
+  92               		.section	.text.set_rgb,"ax",@progbits
+  93               	.global	set_rgb
+  95               	set_rgb:
+  96               	.LFB37:
+  29:../src/rgb_led.c **** }
+  30:../src/rgb_led.c **** 
+  31:../src/rgb_led.c **** void set_rgb(uint8_t r, uint8_t g, uint8_t b) 
+  32:../src/rgb_led.c **** {
+  97               		.loc 1 32 0
+  98               		.cfi_startproc
+  99               	.LVL0:
+ 100               	/* prologue: function */
+ 101               	/* frame size = 0 */
+ 102               	/* stack size = 0 */
+ 103               	.L__stack_usage = 0
+ 104               	.LBB16:
+ 105               	.LBB17:
+ 106               		.file 2 "../include/rgb_led.h"
+   1:../include/rgb_led.h **** #pragma once
+   2:../include/rgb_led.h **** #include "droplet_base.h"
+   3:../include/rgb_led.h **** #include <math.h>
+   4:../include/rgb_led.h **** 
+   5:../include/rgb_led.h **** #define LED_R_PIN_bm			PIN5_bm
+   6:../include/rgb_led.h **** #define LED_G_PIN_bm			PIN4_bm
+   7:../include/rgb_led.h **** #define LED_B_PIN_bm			PIN4_bm
+   8:../include/rgb_led.h **** 
+   9:../include/rgb_led.h **** void rgb_led_init(void); // Set RGB LED pins as output & initialize timers for PWM
+  10:../include/rgb_led.h **** 
+  11:../include/rgb_led.h **** // Get and set intensity for red LED
+  12:../include/rgb_led.h **** inline uint8_t get_red_led(void){ return TCE1.CCBBUF; }
+  13:../include/rgb_led.h **** inline void set_red_led(uint8_t saturation) { TCE1.CCBBUF = saturation; }
+ 107               		.loc 2 13 0
+ 108 0000 90E0      		ldi r25,0
+ 109 0002 E0E4      		ldi r30,lo8(64)
+ 110 0004 FAE0      		ldi r31,lo8(10)
+ 111 0006 82AF      		std Z+58,r24
+ 112 0008 93AF      		std Z+59,r25
+ 113               	.LVL1:
+ 114               	.LBE17:
+ 115               	.LBE16:
+ 116               	.LBB18:
+ 117               	.LBB19:
+  14:../include/rgb_led.h **** 
+  15:../include/rgb_led.h **** // Get and set intensity for green LED
+  16:../include/rgb_led.h **** inline uint8_t get_green_led(void){ return TCE1.CCABUF; }
+  17:../include/rgb_led.h **** inline void set_green_led(uint8_t saturation) { TCE1.CCABUF = saturation; }
+ 118               		.loc 2 17 0
+ 119 000a 70E0      		ldi r23,0
+ 120 000c 60AF      		std Z+56,r22
+ 121 000e 71AF      		std Z+57,r23
+ 122               	.LVL2:
+ 123               	.LBE19:
+ 124               	.LBE18:
+ 125               	.LBB20:
+ 126               	.LBB21:
+  18:../include/rgb_led.h **** 	
+  19:../include/rgb_led.h **** // Get and set intensity for blue LED
+  20:../include/rgb_led.h **** inline uint8_t get_blue_led(void){ return TCD1.CCABUF; }
+  21:../include/rgb_led.h **** inline void set_blue_led(uint8_t saturation) { TCD1.CCABUF = saturation;	}
+ 127               		.loc 2 21 0
+ 128 0010 50E0      		ldi r21,0
+ 129 0012 4093 7809 		sts 2424,r20
+ 130 0016 5093 7909 		sts 2424+1,r21
+ 131               	.LVL3:
+ 132 001a 0895      		ret
+ 133               	.LBE21:
+ 134               	.LBE20:
+ 135               		.cfi_endproc
+ 136               	.LFE37:
+ 138               	.global	__floatsisf
+ 139               	.global	__divsf3
+ 140               	.global	__ltsf2
+ 141               	.global	__floatunsisf
+ 142               	.global	__fixunssfsi
+ 143               	.global	__subsf3
+ 144               	.global	__mulsf3
+ 145               		.section	.text.hsv_to_rgb,"ax",@progbits
+ 146               	.global	hsv_to_rgb
+ 148               	hsv_to_rgb:
+ 149               	.LFB39:
+  33:../src/rgb_led.c **** 	set_red_led(r); 
+  34:../src/rgb_led.c **** 	set_green_led(g); 
+  35:../src/rgb_led.c **** 	set_blue_led(b);
+  36:../src/rgb_led.c **** }
+  37:../src/rgb_led.c **** 
+  38:../src/rgb_led.c **** /*
+  39:../src/rgb_led.c **** Hue should be between 0 and 360 (though it gets modulo'd with 360, so should be okay)
+  40:../src/rgb_led.c **** Saturation and value can be between 0 and 255, where 255 is brightest/most saturated,
+  41:../src/rgb_led.c **** and 0 is dimmest/least saturated.
+  42:../src/rgb_led.c **** */
+  43:../src/rgb_led.c **** void set_hsv(uint16_t h, uint8_t s, uint8_t v)
+  44:../src/rgb_led.c **** {
+  45:../src/rgb_led.c **** 	uint8_t r,g,b;
+  46:../src/rgb_led.c **** 	hsv_to_rgb(h,s,v,&r,&g,&b);
+  47:../src/rgb_led.c **** 	set_rgb(r,g,b);
+  48:../src/rgb_led.c **** }
+  49:../src/rgb_led.c **** 
+  50:../src/rgb_led.c **** //Adapted from cs.rit.edu/~ncs/color/t_convert.html
+  51:../src/rgb_led.c **** void hsv_to_rgb(uint16_t hue, uint8_t saturation, uint8_t val, uint8_t* red, uint8_t* green, uint8_
+  52:../src/rgb_led.c **** {
+ 150               		.loc 1 52 0
+ 151               		.cfi_startproc
+ 152               	.LVL4:
+ 153 0000 2F92      		push r2
+ 154               	.LCFI0:
+ 155               		.cfi_def_cfa_offset 4
+ 156               		.cfi_offset 2, -3
+ 157 0002 3F92      		push r3
+ 158               	.LCFI1:
+ 159               		.cfi_def_cfa_offset 5
+ 160               		.cfi_offset 3, -4
+ 161 0004 4F92      		push r4
+ 162               	.LCFI2:
+ 163               		.cfi_def_cfa_offset 6
+ 164               		.cfi_offset 4, -5
+ 165 0006 5F92      		push r5
+ 166               	.LCFI3:
+ 167               		.cfi_def_cfa_offset 7
+ 168               		.cfi_offset 5, -6
+ 169 0008 6F92      		push r6
+ 170               	.LCFI4:
+ 171               		.cfi_def_cfa_offset 8
+ 172               		.cfi_offset 6, -7
+ 173 000a 7F92      		push r7
+ 174               	.LCFI5:
+ 175               		.cfi_def_cfa_offset 9
+ 176               		.cfi_offset 7, -8
+ 177 000c 8F92      		push r8
+ 178               	.LCFI6:
+ 179               		.cfi_def_cfa_offset 10
+ 180               		.cfi_offset 8, -9
+ 181 000e 9F92      		push r9
+ 182               	.LCFI7:
+ 183               		.cfi_def_cfa_offset 11
+ 184               		.cfi_offset 9, -10
+ 185 0010 AF92      		push r10
+ 186               	.LCFI8:
+ 187               		.cfi_def_cfa_offset 12
+ 188               		.cfi_offset 10, -11
+ 189 0012 BF92      		push r11
+ 190               	.LCFI9:
+ 191               		.cfi_def_cfa_offset 13
+ 192               		.cfi_offset 11, -12
+ 193 0014 CF92      		push r12
+ 194               	.LCFI10:
+ 195               		.cfi_def_cfa_offset 14
+ 196               		.cfi_offset 12, -13
+ 197 0016 DF92      		push r13
+ 198               	.LCFI11:
+ 199               		.cfi_def_cfa_offset 15
+ 200               		.cfi_offset 13, -14
+ 201 0018 EF92      		push r14
+ 202               	.LCFI12:
+ 203               		.cfi_def_cfa_offset 16
+ 204               		.cfi_offset 14, -15
+ 205 001a FF92      		push r15
+ 206               	.LCFI13:
+ 207               		.cfi_def_cfa_offset 17
+ 208               		.cfi_offset 15, -16
+ 209 001c 0F93      		push r16
+ 210               	.LCFI14:
+ 211               		.cfi_def_cfa_offset 18
+ 212               		.cfi_offset 16, -17
+ 213 001e 1F93      		push r17
+ 214               	.LCFI15:
+ 215               		.cfi_def_cfa_offset 19
+ 216               		.cfi_offset 17, -18
+ 217 0020 CF93      		push r28
+ 218               	.LCFI16:
+ 219               		.cfi_def_cfa_offset 20
+ 220               		.cfi_offset 28, -19
+ 221 0022 DF93      		push r29
+ 222               	.LCFI17:
+ 223               		.cfi_def_cfa_offset 21
+ 224               		.cfi_offset 29, -20
+ 225 0024 CDB7      		in r28,__SP_L__
+ 226 0026 DEB7      		in r29,__SP_H__
+ 227               	.LCFI18:
+ 228               		.cfi_def_cfa_register 28
+ 229 0028 2C97      		sbiw r28,12
+ 230               	.LCFI19:
+ 231               		.cfi_def_cfa_offset 33
+ 232 002a CDBF      		out __SP_L__,r28
+ 233 002c DEBF      		out __SP_H__,r29
+ 234               	/* prologue: function */
+ 235               	/* frame size = 12 */
+ 236               	/* stack size = 30 */
+ 237               	.L__stack_usage = 30
+ 238 002e 8B83      		std Y+3,r24
+ 239 0030 9C83      		std Y+4,r25
+ 240 0032 B42E      		mov r11,r20
+ 241 0034 1901      		movw r2,r18
+ 242 0036 E982      		std Y+1,r14
+ 243 0038 FA82      		std Y+2,r15
+ 244               	.LVL5:
+  53:../src/rgb_led.c **** 	float h = (hue%360)*1.0;
+  54:../src/rgb_led.c **** 	float s = (1.0*saturation)/255.0;
+ 245               		.loc 1 54 0
+ 246 003a 70E0      		ldi r23,0
+ 247 003c 80E0      		ldi r24,0
+ 248 003e 90E0      		ldi r25,0
+ 249               	.LVL6:
+ 250 0040 0E94 0000 		call __floatsisf
+ 251               	.LVL7:
+ 252 0044 20E0      		ldi r18,0
+ 253 0046 30E0      		ldi r19,0
+ 254 0048 4FE7      		ldi r20,lo8(127)
+ 255 004a 53E4      		ldi r21,lo8(67)
+ 256 004c 0E94 0000 		call __divsf3
+ 257               	.LVL8:
+ 258 0050 6B01      		movw r12,r22
+ 259 0052 7C01      		movw r14,r24
+ 260               	.LVL9:
+  55:../src/rgb_led.c **** 	float v = (1.0*val)/255.0;
+  56:../src/rgb_led.c **** 	float f, p, q, t;
+  57:../src/rgb_led.c **** 	float r=0, g=0, b=0;
+  58:../src/rgb_led.c **** 	
+  59:../src/rgb_led.c **** 	if (fabsf(s)<0.00001){
+ 261               		.loc 1 59 0
+ 262 0054 9F77      		andi r25,0x7f
+ 263 0056 2CEA      		ldi r18,lo8(-84)
+ 264 0058 35EC      		ldi r19,lo8(-59)
+ 265 005a 47E2      		ldi r20,lo8(39)
+ 266 005c 57E3      		ldi r21,lo8(55)
+ 267 005e 0E94 0000 		call __ltsf2
+ 268               	.LVL10:
+ 269 0062 87FD      		sbrc r24,7
+ 270 0064 00C0      		rjmp .L22
+  55:../src/rgb_led.c **** 	float v = (1.0*val)/255.0;
+ 271               		.loc 1 55 0
+ 272 0066 6B2D      		mov r22,r11
+ 273 0068 70E0      		ldi r23,0
+ 274 006a 80E0      		ldi r24,0
+ 275 006c 90E0      		ldi r25,0
+ 276 006e 0E94 0000 		call __floatsisf
+ 277               	.LVL11:
+ 278 0072 20E0      		ldi r18,0
+ 279 0074 30E0      		ldi r19,0
+ 280 0076 4FE7      		ldi r20,lo8(127)
+ 281 0078 53E4      		ldi r21,lo8(67)
+ 282 007a 0E94 0000 		call __divsf3
+ 283               	.LVL12:
+ 284 007e 4B01      		movw r8,r22
+ 285 0080 5C01      		movw r10,r24
+  53:../src/rgb_led.c **** 	float h = (hue%360)*1.0;
+ 286               		.loc 1 53 0
+ 287 0082 2B81      		ldd r18,Y+3
+ 288 0084 3C81      		ldd r19,Y+4
+ 289 0086 A3E8      		ldi r26,lo8(-125)
+ 290 0088 BDE2      		ldi r27,lo8(45)
+ 291 008a 0E94 0000 		call __umulhisi3
+ 292 008e 0024      		clr __tmp_reg__
+ 293 0090 880F      		lsl r24
+ 294 0092 991F      		rol r25
+ 295 0094 001C      		rol __tmp_reg__
+ 296 0096 880F      		lsl r24
+ 297 0098 991F      		rol r25
+ 298 009a 001C      		rol __tmp_reg__
+ 299 009c 892F      		mov r24,r25
+ 300 009e 902D      		mov r25,__tmp_reg__
+ 301 00a0 48E6      		ldi r20,lo8(104)
+ 302 00a2 51E0      		ldi r21,lo8(1)
+ 303 00a4 849F      		mul r24,r20
+ 304 00a6 9001      		movw r18,r0
+ 305 00a8 859F      		mul r24,r21
+ 306 00aa 300D      		add r19,r0
+ 307 00ac 949F      		mul r25,r20
+ 308 00ae 300D      		add r19,r0
+ 309 00b0 1124      		clr r1
+ 310 00b2 8B81      		ldd r24,Y+3
+ 311 00b4 9C81      		ldd r25,Y+4
+ 312 00b6 821B      		sub r24,r18
+ 313 00b8 930B      		sbc r25,r19
+ 314 00ba 8B83      		std Y+3,r24
+ 315 00bc 9C83      		std Y+4,r25
+ 316               	.LVL13:
+ 317 00be BC01      		movw r22,r24
+ 318 00c0 80E0      		ldi r24,0
+ 319 00c2 90E0      		ldi r25,0
+ 320 00c4 0E94 0000 		call __floatunsisf
+ 321               	.LVL14:
+  60:../src/rgb_led.c **** 		*red = *green = *blue = val;
+  61:../src/rgb_led.c **** 		return;
+  62:../src/rgb_led.c **** 	}
+  63:../src/rgb_led.c **** 	
+  64:../src/rgb_led.c **** 	h = h / 60.0;
+ 322               		.loc 1 64 0
+ 323 00c8 20E0      		ldi r18,0
+ 324 00ca 30E0      		ldi r19,0
+ 325 00cc 40E7      		ldi r20,lo8(112)
+ 326 00ce 52E4      		ldi r21,lo8(66)
+ 327 00d0 0E94 0000 		call __divsf3
+ 328               	.LVL15:
+ 329 00d4 2B01      		movw r4,r22
+ 330 00d6 3C01      		movw r6,r24
+ 331               	.LVL16:
+  65:../src/rgb_led.c **** 	uint8_t i = (uint8_t)h;
+ 332               		.loc 1 65 0
+ 333 00d8 0E94 0000 		call __fixunssfsi
+ 334               	.LVL17:
+ 335 00dc 6B87      		std Y+11,r22
+ 336               	.LVL18:
+  66:../src/rgb_led.c **** 	f = h - i;
+ 337               		.loc 1 66 0
+ 338 00de 70E0      		ldi r23,0
+ 339 00e0 80E0      		ldi r24,0
+ 340 00e2 90E0      		ldi r25,0
+ 341 00e4 0E94 0000 		call __floatsisf
+ 342               	.LVL19:
+ 343 00e8 9B01      		movw r18,r22
+ 344 00ea AC01      		movw r20,r24
+ 345 00ec C301      		movw r24,r6
+ 346 00ee B201      		movw r22,r4
+ 347 00f0 0E94 0000 		call __subsf3
+ 348               	.LVL20:
+ 349 00f4 2B01      		movw r4,r22
+ 350 00f6 3C01      		movw r6,r24
+ 351               	.LVL21:
+  67:../src/rgb_led.c **** 	
+  68:../src/rgb_led.c **** 	p = v*(1.0-s);
+ 352               		.loc 1 68 0
+ 353 00f8 A701      		movw r20,r14
+ 354 00fa 9601      		movw r18,r12
+ 355 00fc 60E0      		ldi r22,0
+ 356 00fe 70E0      		ldi r23,0
+ 357 0100 80E8      		ldi r24,lo8(-128)
+ 358 0102 9FE3      		ldi r25,lo8(63)
+ 359 0104 0E94 0000 		call __subsf3
+ 360               	.LVL22:
+ 361 0108 A501      		movw r20,r10
+ 362 010a 9401      		movw r18,r8
+ 363 010c 0E94 0000 		call __mulsf3
+ 364               	.LVL23:
+ 365 0110 6B83      		std Y+3,r22
+ 366 0112 7C83      		std Y+4,r23
+ 367 0114 8D83      		std Y+5,r24
+ 368 0116 9E83      		std Y+6,r25
+ 369               	.LVL24:
+  69:../src/rgb_led.c **** 	q = v*(1.0-s*f);
+ 370               		.loc 1 69 0
+ 371 0118 A301      		movw r20,r6
+ 372 011a 9201      		movw r18,r4
+ 373 011c C701      		movw r24,r14
+ 374 011e B601      		movw r22,r12
+ 375               	.LVL25:
+ 376 0120 0E94 0000 		call __mulsf3
+ 377               	.LVL26:
+ 378 0124 9B01      		movw r18,r22
+ 379 0126 AC01      		movw r20,r24
+ 380 0128 60E0      		ldi r22,0
+ 381 012a 70E0      		ldi r23,0
+ 382 012c 80E8      		ldi r24,lo8(-128)
+ 383 012e 9FE3      		ldi r25,lo8(63)
+ 384 0130 0E94 0000 		call __subsf3
+ 385               	.LVL27:
+ 386 0134 A501      		movw r20,r10
+ 387 0136 9401      		movw r18,r8
+ 388 0138 0E94 0000 		call __mulsf3
+ 389               	.LVL28:
+ 390 013c 6F83      		std Y+7,r22
+ 391 013e 7887      		std Y+8,r23
+ 392 0140 8987      		std Y+9,r24
+ 393 0142 9A87      		std Y+10,r25
+ 394               	.LVL29:
+  70:../src/rgb_led.c **** 	t = v*(1.0-s*(1-f));
+ 395               		.loc 1 70 0
+ 396 0144 A301      		movw r20,r6
+ 397 0146 9201      		movw r18,r4
+ 398 0148 60E0      		ldi r22,0
+ 399 014a 70E0      		ldi r23,0
+ 400 014c 80E8      		ldi r24,lo8(-128)
+ 401 014e 9FE3      		ldi r25,lo8(63)
+ 402               	.LVL30:
+ 403 0150 0E94 0000 		call __subsf3
+ 404               	.LVL31:
+ 405 0154 A701      		movw r20,r14
+ 406 0156 9601      		movw r18,r12
+ 407 0158 0E94 0000 		call __mulsf3
+ 408               	.LVL32:
+ 409 015c 9B01      		movw r18,r22
+ 410 015e AC01      		movw r20,r24
+ 411 0160 60E0      		ldi r22,0
+ 412 0162 70E0      		ldi r23,0
+ 413 0164 80E8      		ldi r24,lo8(-128)
+ 414 0166 9FE3      		ldi r25,lo8(63)
+ 415 0168 0E94 0000 		call __subsf3
+ 416               	.LVL33:
+ 417 016c A501      		movw r20,r10
+ 418 016e 9401      		movw r18,r8
+ 419 0170 0E94 0000 		call __mulsf3
+ 420               	.LVL34:
+ 421 0174 6B01      		movw r12,r22
+ 422 0176 7C01      		movw r14,r24
+ 423               	.LVL35:
+  71:../src/rgb_led.c **** 	
+  72:../src/rgb_led.c **** 	switch(i)
+ 424               		.loc 1 72 0
+ 425 0178 9B85      		ldd r25,Y+11
+ 426 017a 9230      		cpi r25,lo8(2)
+ 427 017c 01F4      		brne .+2
+ 428 017e 00C0      		rjmp .L9
+ 429 0180 00F0      		brlo .L23
+ 430 0182 EB85      		ldd r30,Y+11
+ 431 0184 E430      		cpi r30,lo8(4)
+ 432 0186 01F4      		brne .+2
+ 433 0188 00C0      		rjmp .L13
+ 434 018a 00F4      		brsh .+2
+ 435 018c 00C0      		rjmp .L14
+ 436 018e E530      		cpi r30,lo8(5)
+ 437 0190 01F0      		breq .+2
+ 438 0192 00C0      		rjmp .L16
+ 439               	.LVL36:
+ 440 0194 20E0      		ldi r18,0
+ 441 0196 30E0      		ldi r19,0
+ 442 0198 4FE7      		ldi r20,lo8(127)
+ 443 019a 53E4      		ldi r21,lo8(67)
+ 444 019c C501      		movw r24,r10
+ 445 019e B401      		movw r22,r8
+ 446 01a0 0E94 0000 		call __mulsf3
+ 447               	.LVL37:
+ 448 01a4 0E94 0000 		call __fixunssfsi
+ 449               	.LVL38:
+ 450 01a8 6C87      		std Y+12,r22
+ 451 01aa 20E0      		ldi r18,0
+ 452 01ac 30E0      		ldi r19,0
+ 453 01ae 4FE7      		ldi r20,lo8(127)
+ 454 01b0 53E4      		ldi r21,lo8(67)
+ 455 01b2 6F81      		ldd r22,Y+7
+ 456 01b4 7885      		ldd r23,Y+8
+ 457 01b6 8985      		ldd r24,Y+9
+ 458 01b8 9A85      		ldd r25,Y+10
+ 459               	.LVL39:
+ 460               	.L19:
+ 461 01ba 0E94 0000 		call __mulsf3
+ 462               	.LVL40:
+ 463 01be 0E94 0000 		call __fixunssfsi
+ 464               	.LVL41:
+ 465 01c2 6B87      		std Y+11,r22
+ 466               	.LVL42:
+ 467 01c4 20E0      		ldi r18,0
+ 468 01c6 30E0      		ldi r19,0
+ 469 01c8 4FE7      		ldi r20,lo8(127)
+ 470 01ca 53E4      		ldi r21,lo8(67)
+ 471 01cc 6B81      		ldd r22,Y+3
+ 472 01ce 7C81      		ldd r23,Y+4
+ 473 01d0 8D81      		ldd r24,Y+5
+ 474 01d2 9E81      		ldd r25,Y+6
+ 475 01d4 0E94 0000 		call __mulsf3
+ 476               	.LVL43:
+ 477 01d8 0E94 0000 		call __fixunssfsi
+ 478               	.LVL44:
+  73:../src/rgb_led.c **** 	{
+  74:../src/rgb_led.c **** 		case 0:
+  75:../src/rgb_led.c **** 			r = v;
+  76:../src/rgb_led.c **** 			g = t;
+  77:../src/rgb_led.c **** 			b = p;
+  78:../src/rgb_led.c **** 			break;
+  79:../src/rgb_led.c **** 		case 1:
+  80:../src/rgb_led.c **** 			r = q;
+  81:../src/rgb_led.c **** 			g = v;
+  82:../src/rgb_led.c **** 			b = p;
+  83:../src/rgb_led.c **** 			break;
+  84:../src/rgb_led.c **** 		case 2:
+  85:../src/rgb_led.c **** 			r = p;
+  86:../src/rgb_led.c **** 			g = v;
+  87:../src/rgb_led.c **** 			b = t;
+  88:../src/rgb_led.c **** 			break;
+  89:../src/rgb_led.c **** 		case 3:
+  90:../src/rgb_led.c **** 			r = p;
+  91:../src/rgb_led.c **** 			g = q;
+  92:../src/rgb_led.c **** 			b = v;
+  93:../src/rgb_led.c **** 			break;
+  94:../src/rgb_led.c **** 		case 4:
+  95:../src/rgb_led.c **** 			r = t;
+  96:../src/rgb_led.c **** 			g = p;
+  97:../src/rgb_led.c **** 			b = v;
+  98:../src/rgb_led.c **** 			break;
+  99:../src/rgb_led.c **** 		case 5:
+ 100:../src/rgb_led.c **** 			r = v;
+ 101:../src/rgb_led.c **** 			g = p;
+ 102:../src/rgb_led.c **** 			b = q;
+ 103:../src/rgb_led.c **** 			break;
+ 479               		.loc 1 103 0
+ 480 01dc 00C0      		rjmp .L8
+ 481               	.LVL45:
+ 482               	.L23:
+  72:../src/rgb_led.c **** 	{
+ 483               		.loc 1 72 0
+ 484 01de 9923      		tst r25
+ 485 01e0 01F4      		brne .+2
+ 486 01e2 00C0      		rjmp .L11
+ 487 01e4 9130      		cpi r25,lo8(1)
+ 488 01e6 01F0      		breq .+2
+ 489 01e8 00C0      		rjmp .L16
+ 490               	.LVL46:
+ 491 01ea 20E0      		ldi r18,0
+ 492 01ec 30E0      		ldi r19,0
+ 493 01ee 4FE7      		ldi r20,lo8(127)
+ 494 01f0 53E4      		ldi r21,lo8(67)
+ 495 01f2 6F81      		ldd r22,Y+7
+ 496 01f4 7885      		ldd r23,Y+8
+ 497 01f6 8985      		ldd r24,Y+9
+ 498 01f8 9A85      		ldd r25,Y+10
+ 499 01fa 0E94 0000 		call __mulsf3
+ 500               	.LVL47:
+ 501 01fe 0E94 0000 		call __fixunssfsi
+ 502               	.LVL48:
+ 503 0202 6C87      		std Y+12,r22
+ 504 0204 20E0      		ldi r18,0
+ 505 0206 30E0      		ldi r19,0
+ 506 0208 4FE7      		ldi r20,lo8(127)
+ 507 020a 53E4      		ldi r21,lo8(67)
+ 508 020c 6B81      		ldd r22,Y+3
+ 509 020e 7C81      		ldd r23,Y+4
+ 510 0210 8D81      		ldd r24,Y+5
+ 511 0212 9E81      		ldd r25,Y+6
+ 512               	.LVL49:
+ 513               	.L20:
+ 514 0214 0E94 0000 		call __mulsf3
+ 515               	.LVL50:
+ 516 0218 0E94 0000 		call __fixunssfsi
+ 517               	.LVL51:
+ 518 021c 6B87      		std Y+11,r22
+ 519               	.LVL52:
+ 520 021e 20E0      		ldi r18,0
+ 521 0220 30E0      		ldi r19,0
+ 522 0222 4FE7      		ldi r20,lo8(127)
+ 523 0224 53E4      		ldi r21,lo8(67)
+ 524 0226 C501      		movw r24,r10
+ 525 0228 B401      		movw r22,r8
+ 526 022a 0E94 0000 		call __mulsf3
+ 527               	.LVL53:
+ 528 022e 0E94 0000 		call __fixunssfsi
+ 529               	.LVL54:
+ 530               	.L8:
+ 104:../src/rgb_led.c **** 		default:
+ 105:../src/rgb_led.c **** 			//printf("SHOULD NEVER SEE THIS. i: %hhu",i);
+ 106:../src/rgb_led.c **** 			break;
+ 107:../src/rgb_led.c **** 	}
+ 108:../src/rgb_led.c **** 	*red = (uint8_t)(r*255);
+ 531               		.loc 1 108 0
+ 532 0232 2C85      		ldd r18,Y+12
+ 533 0234 F101      		movw r30,r2
+ 534 0236 2083      		st Z,r18
+ 109:../src/rgb_led.c **** 	*blue = (uint8_t)(b*255);
+ 535               		.loc 1 109 0
+ 536 0238 2B85      		ldd r18,Y+11
+ 537 023a E981      		ldd r30,Y+1
+ 538 023c FA81      		ldd r31,Y+2
+ 539 023e 2083      		st Z,r18
+ 110:../src/rgb_led.c **** 	*green = (uint8_t)(g*255);
+ 540               		.loc 1 110 0
+ 541 0240 F801      		movw r30,r16
+ 542 0242 6083      		st Z,r22
+ 543 0244 00C0      		rjmp .L4
+ 544               	.LVL55:
+ 545               	.L22:
+  60:../src/rgb_led.c **** 		return;
+ 546               		.loc 1 60 0
+ 547 0246 E981      		ldd r30,Y+1
+ 548 0248 FA81      		ldd r31,Y+2
+ 549 024a B082      		st Z,r11
+ 550 024c F801      		movw r30,r16
+ 551 024e B082      		st Z,r11
+ 552 0250 F101      		movw r30,r2
+ 553 0252 B082      		st Z,r11
+ 554               	.LVL56:
+ 555               	.L4:
+ 556               	/* epilogue start */
+ 111:../src/rgb_led.c **** }...
+ 557               		.loc 1 111 0
+ 558 0254 2C96      		adiw r28,12
+ 559 0256 CDBF      		out __SP_L__,r28
+ 560 0258 DEBF      		out __SP_H__,r29
+ 561 025a DF91      		pop r29
+ 562 025c CF91      		pop r28
+ 563 025e 1F91      		pop r17
+ 564 0260 0F91      		pop r16
+ 565               	.LVL57:
+ 566 0262 FF90      		pop r15
+ 567 0264 EF90      		pop r14
+ 568               	.LVL58:
+ 569 0266 DF90      		pop r13
+ 570 0268 CF90      		pop r12
+ 571 026a BF90      		pop r11
+ 572               	.LVL59:
+ 573 026c AF90      		pop r10
+ 574 026e 9F90      		pop r9
+ 575 0270 8F90      		pop r8
+ 576 0272 7F90      		pop r7
+ 577 0274 6F90      		pop r6
+ 578 0276 5F90      		pop r5
+ 579 0278 4F90      		pop r4
+ 580 027a 3F90      		pop r3
+ 581 027c 2F90      		pop r2
+ 582               	.LVL60:
+ 583 027e 0895      		ret
+ 584               	.LVL61:
+ 585               	.L11:
+ 586 0280 20E0      		ldi r18,0
+ 587 0282 30E0      		ldi r19,0
+ 588 0284 4FE7      		ldi r20,lo8(127)
+ 589 0286 53E4      		ldi r21,lo8(67)
+ 590 0288 C501      		movw r24,r10
+ 591 028a B401      		movw r22,r8
+ 592 028c 0E94 0000 		call __mulsf3
+ 593               	.LVL62:
+ 594 0290 0E94 0000 		call __fixunssfsi
+ 595               	.LVL63:
+ 596 0294 6C87      		std Y+12,r22
+ 597 0296 20E0      		ldi r18,0
+ 598 0298 30E0      		ldi r19,0
+ 599 029a 4FE7      		ldi r20,lo8(127)
+ 600 029c 53E4      		ldi r21,lo8(67)
+ 601 029e 6B81      		ldd r22,Y+3
+ 602 02a0 7C81      		ldd r23,Y+4
+ 603 02a2 8D81      		ldd r24,Y+5
+ 604 02a4 9E81      		ldd r25,Y+6
+ 605 02a6 0E94 0000 		call __mulsf3
+ 606               	.LVL64:
+ 607 02aa 0E94 0000 		call __fixunssfsi
+ 608               	.LVL65:
+ 609 02ae 6B87      		std Y+11,r22
+ 610               	.LVL66:
+ 611 02b0 20E0      		ldi r18,0
+ 612 02b2 30E0      		ldi r19,0
+ 613 02b4 4FE7      		ldi r20,lo8(127)
+ 614 02b6 53E4      		ldi r21,lo8(67)
+ 615 02b8 C701      		movw r24,r14
+ 616 02ba B601      		movw r22,r12
+ 617 02bc 0E94 0000 		call __mulsf3
+ 618               	.LVL67:
+ 619 02c0 0E94 0000 		call __fixunssfsi
+ 620               	.LVL68:
+  78:../src/rgb_led.c **** 			break;
+ 621               		.loc 1 78 0
+ 622 02c4 00C0      		rjmp .L8
+ 623               	.LVL69:
+ 624               	.L14:
+ 625 02c6 20E0      		ldi r18,0
+ 626 02c8 30E0      		ldi r19,0
+ 627 02ca 4FE7      		ldi r20,lo8(127)
+ 628 02cc 53E4      		ldi r21,lo8(67)
+ 629 02ce 6B81      		ldd r22,Y+3
+ 630 02d0 7C81      		ldd r23,Y+4
+ 631 02d2 8D81      		ldd r24,Y+5
+ 632 02d4 9E81      		ldd r25,Y+6
+ 633 02d6 0E94 0000 		call __mulsf3
+ 634               	.LVL70:
+ 635 02da 0E94 0000 		call __fixunssfsi
+ 636               	.LVL71:
+ 637 02de 6C87      		std Y+12,r22
+ 638 02e0 20E0      		ldi r18,0
+ 639 02e2 30E0      		ldi r19,0
+ 640 02e4 4FE7      		ldi r20,lo8(127)
+ 641 02e6 53E4      		ldi r21,lo8(67)
+ 642 02e8 C501      		movw r24,r10
+ 643 02ea B401      		movw r22,r8
+ 644 02ec 0E94 0000 		call __mulsf3
+ 645               	.LVL72:
+ 646 02f0 0E94 0000 		call __fixunssfsi
+ 647               	.LVL73:
+ 648 02f4 6B87      		std Y+11,r22
+ 649               	.LVL74:
+ 650 02f6 20E0      		ldi r18,0
+ 651 02f8 30E0      		ldi r19,0
+ 652 02fa 4FE7      		ldi r20,lo8(127)
+ 653 02fc 53E4      		ldi r21,lo8(67)
+ 654 02fe 6F81      		ldd r22,Y+7
+ 655 0300 7885      		ldd r23,Y+8
+ 656 0302 8985      		ldd r24,Y+9
+ 657 0304 9A85      		ldd r25,Y+10
+ 658 0306 0E94 0000 		call __mulsf3
+ 659               	.LVL75:
+ 660 030a 0E94 0000 		call __fixunssfsi
+ 661               	.LVL76:
+  93:../src/rgb_led.c **** 			break;
+ 662               		.loc 1 93 0
+ 663 030e 00C0      		rjmp .L8
+ 664               	.LVL77:
+ 665               	.L16:
+  72:../src/rgb_led.c **** 	switch(i)
+ 666               		.loc 1 72 0
+ 667 0310 60E0      		ldi r22,0
+ 668 0312 1B86      		std Y+11,__zero_reg__
+ 669 0314 1C86      		std Y+12,__zero_reg__
+ 670 0316 00C0      		rjmp .L8
+ 671               	.L13:
+ 672               	.LVL78:
+ 673 0318 20E0      		ldi r18,0
+ 674 031a 30E0      		ldi r19,0
+ 675 031c 4FE7      		ldi r20,lo8(127)
+ 676 031e 53E4      		ldi r21,lo8(67)
+ 677 0320 C701      		movw r24,r14
+ 678 0322 B601      		movw r22,r12
+ 679 0324 0E94 0000 		call __mulsf3
+ 680               	.LVL79:
+ 681 0328 0E94 0000 		call __fixunssfsi
+ 682               	.LVL80:
+ 683 032c 6C87      		std Y+12,r22
+ 684 032e 20E0      		ldi r18,0
+ 685 0330 30E0      		ldi r19,0
+ 686 0332 4FE7      		ldi r20,lo8(127)
+ 687 0334 53E4      		ldi r21,lo8(67)
+ 688 0336 C501      		movw r24,r10
+ 689 0338 B401      		movw r22,r8
+ 690 033a 00C0      		rjmp .L19
+ 691               	.LVL81:
+ 692               	.L9:
+ 693 033c 20E0      		ldi r18,0
+ 694 033e 30E0      		ldi r19,0
+ 695 0340 4FE7      		ldi r20,lo8(127)
+ 696 0342 53E4      		ldi r21,lo8(67)
+ 697 0344 6B81      		ldd r22,Y+3
+ 698 0346 7C81      		ldd r23,Y+4
+ 699 0348 8D81      		ldd r24,Y+5
+ 700 034a 9E81      		ldd r25,Y+6
+ 701 034c 0E94 0000 		call __mulsf3
+ 702               	.LVL82:
+ 703 0350 0E94 0000 		call __fixunssfsi
+ 704               	.LVL83:
+ 705 0354 6C87      		std Y+12,r22
+ 706 0356 20E0      		ldi r18,0
+ 707 0358 30E0      		ldi r19,0
+ 708 035a 4FE7      		ldi r20,lo8(127)
+ 709 035c 53E4      		ldi r21,lo8(67)
+ 710 035e C701      		movw r24,r14
+ 711 0360 B601      		movw r22,r12
+ 712 0362 00C0      		rjmp .L20
+ 713               		.cfi_endproc
+ 714               	.LFE39:
+ 716               		.section	.text.set_hsv,"ax",@progbits
+ 717               	.global	set_hsv
+ 719               	set_hsv:
+ 720               	.LFB38:
+  44:../src/rgb_led.c **** {
+ 721               		.loc 1 44 0
+ 722               		.cfi_startproc
+ 723               	.LVL84:
+ 724 0000 EF92      		push r14
+ 725               	.LCFI20:
+ 726               		.cfi_def_cfa_offset 4
+ 727               		.cfi_offset 14, -3
+ 728 0002 FF92      		push r15
+ 729               	.LCFI21:
+ 730               		.cfi_def_cfa_offset 5
+ 731               		.cfi_offset 15, -4
+ 732 0004 0F93      		push r16
+ 733               	.LCFI22:
+ 734               		.cfi_def_cfa_offset 6
+ 735               		.cfi_offset 16, -5
+ 736 0006 1F93      		push r17
+ 737               	.LCFI23:
+ 738               		.cfi_def_cfa_offset 7
+ 739               		.cfi_offset 17, -6
+ 740 0008 CF93      		push r28
+ 741               	.LCFI24:
+ 742               		.cfi_def_cfa_offset 8
+ 743               		.cfi_offset 28, -7
+ 744 000a DF93      		push r29
+ 745               	.LCFI25:
+ 746               		.cfi_def_cfa_offset 9
+ 747               		.cfi_offset 29, -8
+ 748 000c 00D0      		rcall .
+ 749               	.LCFI26:
+ 750               		.cfi_def_cfa_offset 12
+ 751 000e CDB7      		in r28,__SP_L__
+ 752 0010 DEB7      		in r29,__SP_H__
+ 753               	.LCFI27:
+ 754               		.cfi_def_cfa_register 28
+ 755               	/* prologue: function */
+ 756               	/* frame size = 3 */
+ 757               	/* stack size = 9 */
+ 758               	.L__stack_usage = 9
+  46:../src/rgb_led.c **** 	hsv_to_rgb(h,s,v,&r,&g,&b);
+ 759               		.loc 1 46 0
+ 760 0012 9E01      		movw r18,r28
+ 761 0014 2F5F      		subi r18,-1
+ 762 0016 3F4F      		sbci r19,-1
+ 763 0018 7901      		movw r14,r18
+ 764 001a 8E01      		movw r16,r28
+ 765 001c 0E5F      		subi r16,-2
+ 766 001e 1F4F      		sbci r17,-1
+ 767 0020 2E5F      		subi r18,-2
+ 768 0022 3F4F      		sbci r19,-1
+ 769 0024 0E94 0000 		call hsv_to_rgb
+ 770               	.LVL85:
+  47:../src/rgb_led.c **** 	set_rgb(r,g,b);
+ 771               		.loc 1 47 0
+ 772 0028 8981      		ldd r24,Y+1
+ 773 002a 2A81      		ldd r18,Y+2
+ 774               	.LVL86:
+ 775               	.LBB22:
+ 776               	.LBB23:
+ 777               	.LBB24:
+  13:../include/rgb_led.h **** 
+ 778               		.loc 2 13 0
+ 779 002c 4B81      		ldd r20,Y+3
+ 780 002e 50E0      		ldi r21,0
+ 781 0030 E0E4      		ldi r30,lo8(64)
+ 782 0032 FAE0      		ldi r31,lo8(10)
+ 783 0034 42AF      		std Z+58,r20
+ 784 0036 53AF      		std Z+59,r21
+ 785               	.LVL87:
+ 786               	.LBE24:
+ 787               	.LBE23:
+ 788               	.LBB25:
+ 789               	.LBB26:
+  17:../include/rgb_led.h **** 	
+ 790               		.loc 2 17 0
+ 791 0038 30E0      		ldi r19,0
+ 792 003a 20AF      		std Z+56,r18
+ 793 003c 31AF      		std Z+57,r19
+ 794               	.LVL88:
+ 795               	.LBE26:
+ 796               	.LBE25:
+ 797               	.LBB27:
+ 798               	.LBB28:
+ 799               		.loc 2 21 0
+ 800 003e 90E0      		ldi r25,0
+ 801 0040 8093 7809 		sts 2424,r24
+ 802 0044 9093 7909 		sts 2424+1,r25
+ 803               	.LVL89:
+ 804               	/* epilogue start */
+ 805               	.LBE28:
+ 806               	.LBE27:
+ 807               	.LBE22:
+  48:../src/rgb_led.c **** }
+ 808               		.loc 1 48 0
+ 809 0048 2396      		adiw r28,3
+ 810 004a CDBF      		out __SP_L__,r28
+ 811 004c DEBF      		out __SP_H__,r29
+ 812 004e DF91      		pop r29
+ 813 0050 CF91      		pop r28
+ 814 0052 1F91      		pop r17
+ 815 0054 0F91      		pop r16
+ 816 0056 FF90      		pop r15
+ 817 0058 EF90      		pop r14
+ 818 005a 0895      		ret
+ 819               		.cfi_endproc
+ 820               	.LFE38:
+ 822               		.comm	rtc_epoch,2,1
+ 823               		.comm	droplet_ID,2,1
+ 824               		.text
+ 825               	.Letext0:
+ 826               		.file 3 "c:\\program files (x86)\\atmel\\studio\\7.0\\toolchain\\avr8\\avr8-gnu-toolchain\\avr\\in
+ 827               		.file 4 "C:/Program Files (x86)/Atmel/Studio/7.0/Packs/atmel/XMEGAA_DFP/1.1.68/include/avr/iox128a
+ 828               		.file 5 "../include/droplet_base.h"
+DEFINED SYMBOLS
+                            *ABS*:00000000 rgb_led.c
+C:\Users\JOHNK~1\AppData\Local\Temp\ccDTVBNJ.s:2      *ABS*:0000003e __SP_H__
+C:\Users\JOHNK~1\AppData\Local\Temp\ccDTVBNJ.s:3      *ABS*:0000003d __SP_L__
+C:\Users\JOHNK~1\AppData\Local\Temp\ccDTVBNJ.s:4      *ABS*:0000003f __SREG__
+C:\Users\JOHNK~1\AppData\Local\Temp\ccDTVBNJ.s:5      *ABS*:0000003b __RAMPZ__
+C:\Users\JOHNK~1\AppData\Local\Temp\ccDTVBNJ.s:6      *ABS*:00000034 __CCP__
+C:\Users\JOHNK~1\AppData\Local\Temp\ccDTVBNJ.s:7      *ABS*:00000000 __tmp_reg__
+C:\Users\JOHNK~1\AppData\Local\Temp\ccDTVBNJ.s:8      *ABS*:00000001 __zero_reg__
+C:\Users\JOHNK~1\AppData\Local\Temp\ccDTVBNJ.s:15     .text.rgb_led_init:00000000 rgb_led_init
+C:\Users\JOHNK~1\AppData\Local\Temp\ccDTVBNJ.s:69     .text.led_off:00000000 led_off
+C:\Users\JOHNK~1\AppData\Local\Temp\ccDTVBNJ.s:95     .text.set_rgb:00000000 set_rgb
+C:\Users\JOHNK~1\AppData\Local\Temp\ccDTVBNJ.s:148    .text.hsv_to_rgb:00000000 hsv_to_rgb
+C:\Users\JOHNK~1\AppData\Local\Temp\ccDTVBNJ.s:719    .text.set_hsv:00000000 set_hsv
+                            *COM*:00000002 rtc_epoch
+                            *COM*:00000002 droplet_ID
+
+UNDEFINED SYMBOLS
+__floatsisf
+__divsf3
+__ltsf2
+__floatunsisf
+__fixunssfsi
+__subsf3
+__mulsf3
+__umulhisi3
+__do_clear_bss

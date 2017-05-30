@@ -1,0 +1,945 @@
+   1               		.file	"ir_led.c"
+   2               	__SP_H__ = 0x3e
+   3               	__SP_L__ = 0x3d
+   4               	__SREG__ = 0x3f
+   5               	__RAMPZ__ = 0x3b
+   6               	__CCP__ = 0x34
+   7               	__tmp_reg__ = 0
+   8               	__zero_reg__ = 1
+   9               		.text
+  10               	.Ltext0:
+  11               		.cfi_sections	.debug_frame
+  12               		.section	.text.twiWriteWrapper.constprop.0,"ax",@progbits
+  14               	twiWriteWrapper.constprop.0:
+  15               	.LFB43:
+  16               		.file 1 "../src/ir_led.c"
+   1:../src/ir_led.c **** #include "ir_led.h"
+   2:../src/ir_led.c **** 
+   3:../src/ir_led.c **** static uint8_t twiWriteWrapper(uint8_t addr, uint8_t* write_buff, uint8_t buff_len, char marker);
+   4:../src/ir_led.c **** static uint8_t waitForTWIReady(uint32_t startTime, char marker);
+   5:../src/ir_led.c **** 
+   6:../src/ir_led.c **** USART_t* channel[6] = {
+   7:../src/ir_led.c **** 	&USARTC0,  //   -- Channel 0
+   8:../src/ir_led.c **** 	&USARTC1,  //   -- Channel 1
+   9:../src/ir_led.c **** 	&USARTD0,  //   -- Channel 2
+  10:../src/ir_led.c **** 	&USARTE0,  //   -- Channel 3
+  11:../src/ir_led.c **** 	&USARTE1,  //   -- Channel 4
+  12:../src/ir_led.c **** 	&USARTF0   //   -- Channel 5
+  13:../src/ir_led.c **** };
+  14:../src/ir_led.c **** 
+  15:../src/ir_led.c **** static uint8_t carrier_wave_pins[6] = { PIN0_bm, PIN1_bm, PIN4_bm, PIN5_bm, PIN7_bm, PIN6_bm};
+  16:../src/ir_led.c **** static uint8_t tx_pins[6] = {PIN3_bm, PIN7_bm, PIN3_bm, PIN3_bm, PIN7_bm, PIN3_bm};
+  17:../src/ir_led.c **** static PORT_t* uart_ch[6] = {&PORTC, &PORTC, &PORTD, &PORTE, &PORTE, &PORTF};
+  18:../src/ir_led.c **** static uint8_t saved_usart_ctrlb_vals[6] = {0,0,0,0,0,0};
+  19:../src/ir_led.c **** 
+  20:../src/ir_led.c **** void ir_led_init()
+  21:../src/ir_led.c **** {
+  22:../src/ir_led.c **** 	/* Initialize carrier waves */
+  23:../src/ir_led.c **** 	PORTF.DIRSET = ALL_EMITTERS_CARWAV_bm;
+  24:../src/ir_led.c **** 	
+  25:../src/ir_led.c **** 	TCF2.CTRLE = TC2_BYTEM_SPLITMODE_gc;		// "split mode" puts this timer counter into "Type 2 mode"
+  26:../src/ir_led.c **** 	TCF2.CTRLA |= TC2_CLKSEL_DIV4_gc;		// see CTRLA description in TC2 mode
+  27:../src/ir_led.c **** 	
+  28:../src/ir_led.c **** 	TCF2.HPER = 211; TCF2.LPER = 211; // 32MHz / (4 * 211) = 38kHz
+  29:../src/ir_led.c **** 	TCF2.HCMPA = 105; TCF2.HCMPB = 105; TCF2.HCMPC = 105; // 50% Duty Cycle
+  30:../src/ir_led.c **** 	TCF2.HCMPD = 105; TCF2.LCMPA = 105; TCF2.LCMPB = 105; // 50% Duty Cycle
+  31:../src/ir_led.c **** 	TCF2.CTRLB = ALL_EMITTERS_CARWAV_bm;	// Set TC outputs on carrier wave pins (see CTRLA description
+  32:../src/ir_led.c **** 
+  33:../src/ir_led.c **** 	// TX pins as outputs:
+  34:../src/ir_led.c **** 	PORTC.DIRSET = PIN3_bm | PIN7_bm;		// DIR 0,1
+  35:../src/ir_led.c **** 	PORTD.DIRSET = PIN3_bm;					// DIR 2
+  36:../src/ir_led.c **** 	PORTE.DIRSET = PIN3_bm | PIN7_bm;		// DIR 3,4
+  37:../src/ir_led.c **** 	PORTF.DIRSET = PIN3_bm;					// DIR 5
+  38:../src/ir_led.c **** 	
+  39:../src/ir_led.c **** 	PORTC.OUTCLR = (PIN3_bm | PIN7_bm);
+  40:../src/ir_led.c **** 	PORTD.OUTCLR = PIN3_bm;
+  41:../src/ir_led.c **** 	PORTE.OUTCLR = (PIN3_bm | PIN7_bm);
+  42:../src/ir_led.c **** 	PORTF.OUTCLR = PIN3_bm;
+  43:../src/ir_led.c **** 		
+  44:../src/ir_led.c **** 	// Invert the output pins:
+  45:../src/ir_led.c **** 	PORTC.PIN3CTRL = PORT_INVEN_bm;
+  46:../src/ir_led.c **** 	PORTC.PIN7CTRL = PORT_INVEN_bm;
+  47:../src/ir_led.c **** 	PORTD.PIN3CTRL = PORT_INVEN_bm;
+  48:../src/ir_led.c **** 	PORTE.PIN3CTRL = PORT_INVEN_bm;
+  49:../src/ir_led.c **** 	PORTE.PIN7CTRL = PORT_INVEN_bm;
+  50:../src/ir_led.c **** 	PORTF.PIN3CTRL = PORT_INVEN_bm;
+  51:../src/ir_led.c **** 	
+  52:../src/ir_led.c **** }
+  53:../src/ir_led.c **** 
+  54:../src/ir_led.c **** void ir_led_on(uint8_t direction)
+  55:../src/ir_led.c **** {
+  56:../src/ir_led.c **** 	//Turning on the light.
+  57:../src/ir_led.c **** 	saved_usart_ctrlb_vals[direction]	  = channel[direction]->CTRLB;	// record the current state of th
+  58:../src/ir_led.c **** 	TCF2.CTRLB			 &= ~carrier_wave_pins[direction];	// disable carrier wave output
+  59:../src/ir_led.c **** 	PORTF.DIRSET		  =  carrier_wave_pins[direction];	// enable user output on this pin
+  60:../src/ir_led.c **** 	PORTF.OUT			 |=  carrier_wave_pins[direction];	// high signal on this pin
+  61:../src/ir_led.c **** 	channel[direction]->CTRLB  	  =  0;					// disable USART
+  62:../src/ir_led.c **** 	uart_ch[direction]->DIRSET =  tx_pins[direction];			// enable user output on this pin
+  63:../src/ir_led.c **** 	uart_ch[direction]->OUT	 &= ~tx_pins[direction];			// low signal on TX pin (remember: these pins w
+  64:../src/ir_led.c **** 
+  65:../src/ir_led.c **** }
+  66:../src/ir_led.c **** 
+  67:../src/ir_led.c **** void ir_led_off(uint8_t direction)
+  68:../src/ir_led.c **** {
+  69:../src/ir_led.c **** 	//Turning off the light.
+  70:../src/ir_led.c **** 	uart_ch[direction]->OUT  |=  tx_pins[direction];			// high signal on TX pin (turns IR blast OFF)
+  71:../src/ir_led.c **** 	channel[direction]->CTRLB	 =  saved_usart_ctrlb_vals[direction];	// re-enable USART (restore setti
+  72:../src/ir_led.c **** 	PORTF.OUT			&= ~carrier_wave_pins[direction];	// low signal on the carrier wave pin, just in casie
+  73:../src/ir_led.c **** 	TCF2.CTRLB			|=  carrier_wave_pins[direction];	// re-enable carrier wave output
+  74:../src/ir_led.c **** }
+  75:../src/ir_led.c **** 
+  76:../src/ir_led.c **** void set_all_ir_powers(uint16_t power)
+  77:../src/ir_led.c **** {
+  78:../src/ir_led.c **** 	if(power>256) return;
+  79:../src/ir_led.c **** 	if(curr_ir_power==power) return;
+  80:../src/ir_led.c **** 	uint8_t power_high = (power>>8);
+  81:../src/ir_led.c **** 	uint8_t power_low = (power&0xFF);
+  82:../src/ir_led.c **** 	uint8_t write_buffer[6] = {0x00|power_high,power_low,0x10|power_high,power_low,0x60|power_high, po
+  83:../src/ir_led.c **** 	
+  84:../src/ir_led.c **** 	uint8_t aResult = 0;
+  85:../src/ir_led.c **** 	uint8_t bResult = 0;
+  86:../src/ir_led.c **** 	
+  87:../src/ir_led.c **** 	aResult = twiWriteWrapper(IR_POWER_ADDR_A, write_buffer, 6, 'a');
+  88:../src/ir_led.c **** 	if(!aResult){
+  89:../src/ir_led.c **** 		return;
+  90:../src/ir_led.c **** 	}
+  91:../src/ir_led.c **** 	bResult = twiWriteWrapper(IR_POWER_ADDR_B, write_buffer, 6, 'b');
+  92:../src/ir_led.c **** 	if(!bResult){
+  93:../src/ir_led.c **** 		return;
+  94:../src/ir_led.c **** 	}
+  95:../src/ir_led.c **** 	
+  96:../src/ir_led.c **** 	if((aResult+bResult)>2){
+  97:../src/ir_led.c **** 		printf_P(PSTR("\tDone waiting for TWI. IR powers set successfully.\r\n"));
+  98:../src/ir_led.c **** 	}
+  99:../src/ir_led.c **** 	curr_ir_power = power;
+ 100:../src/ir_led.c **** }
+ 101:../src/ir_led.c **** 
+ 102:../src/ir_led.c **** static uint8_t twiWriteWrapper(uint8_t addr, uint8_t* write_buff, uint8_t buff_len, char marker){
+  17               		.loc 1 102 0
+  18               		.cfi_startproc
+  19               	.LVL0:
+  20 0000 4F92      		push r4
+  21               	.LCFI0:
+  22               		.cfi_def_cfa_offset 4
+  23               		.cfi_offset 4, -3
+  24 0002 5F92      		push r5
+  25               	.LCFI1:
+  26               		.cfi_def_cfa_offset 5
+  27               		.cfi_offset 5, -4
+  28 0004 7F92      		push r7
+  29               	.LCFI2:
+  30               		.cfi_def_cfa_offset 6
+  31               		.cfi_offset 7, -5
+  32 0006 8F92      		push r8
+  33               	.LCFI3:
+  34               		.cfi_def_cfa_offset 7
+  35               		.cfi_offset 8, -6
+  36 0008 9F92      		push r9
+  37               	.LCFI4:
+  38               		.cfi_def_cfa_offset 8
+  39               		.cfi_offset 9, -7
+  40 000a AF92      		push r10
+  41               	.LCFI5:
+  42               		.cfi_def_cfa_offset 9
+  43               		.cfi_offset 10, -8
+  44 000c BF92      		push r11
+  45               	.LCFI6:
+  46               		.cfi_def_cfa_offset 10
+  47               		.cfi_offset 11, -9
+  48 000e CF92      		push r12
+  49               	.LCFI7:
+  50               		.cfi_def_cfa_offset 11
+  51               		.cfi_offset 12, -10
+  52 0010 EF92      		push r14
+  53               	.LCFI8:
+  54               		.cfi_def_cfa_offset 12
+  55               		.cfi_offset 14, -11
+  56 0012 FF92      		push r15
+  57               	.LCFI9:
+  58               		.cfi_def_cfa_offset 13
+  59               		.cfi_offset 15, -12
+  60 0014 1F93      		push r17
+  61               	.LCFI10:
+  62               		.cfi_def_cfa_offset 14
+  63               		.cfi_offset 17, -13
+  64 0016 CF93      		push r28
+  65               	.LCFI11:
+  66               		.cfi_def_cfa_offset 15
+  67               		.cfi_offset 28, -14
+  68 0018 DF93      		push r29
+  69               	.LCFI12:
+  70               		.cfi_def_cfa_offset 16
+  71               		.cfi_offset 29, -15
+  72               	/* prologue: function */
+  73               	/* frame size = 0 */
+  74               	/* stack size = 13 */
+  75               	.L__stack_usage = 13
+  76 001a 782E      		mov r7,r24
+  77 001c EB01      		movw r28,r22
+  78 001e C42E      		mov r12,r20
+  79               	.LVL1:
+ 103:../src/ir_led.c **** 	uint32_t startTime = get_time();
+  80               		.loc 1 103 0
+  81 0020 0E94 0000 		call get_time
+  82               	.LVL2:
+  83 0024 4B01      		movw r8,r22
+  84 0026 5C01      		movw r10,r24
+  85               	.LVL3:
+  86               	.LBB6:
+  87               	.LBB7:
+ 104:../src/ir_led.c **** 	uint8_t result = 0;
+ 105:../src/ir_led.c **** 	uint8_t printed = 0;
+ 106:../src/ir_led.c **** 	while(!result){
+ 107:../src/ir_led.c **** 		if((printed = waitForTWIReady(startTime, marker))){
+ 108:../src/ir_led.c **** 			result = TWI_MasterWrite(addr, write_buff, buff_len);
+ 109:../src/ir_led.c **** 		}else{
+ 110:../src/ir_led.c **** 			return 0;
+ 111:../src/ir_led.c **** 		}
+ 112:../src/ir_led.c **** 	}
+ 113:../src/ir_led.c **** 	return result + printed - 1;
+ 114:../src/ir_led.c **** }
+ 115:../src/ir_led.c **** 
+ 116:../src/ir_led.c **** static uint8_t waitForTWIReady(uint32_t startTime, char marker){
+ 117:../src/ir_led.c **** 	uint8_t printed = 0;
+ 118:../src/ir_led.c **** 	while(twi->status!=TWIM_STATUS_READY){
+ 119:../src/ir_led.c **** 		if((get_time()-startTime)>1000){
+ 120:../src/ir_led.c **** 			printf_P(PSTR("\tTWI timeout when setting IR Powers [%c]\r\n"), marker);
+ 121:../src/ir_led.c **** 			return 0;
+ 122:../src/ir_led.c **** 		}else if((get_time()-startTime)>100){
+ 123:../src/ir_led.c **** 			if(!printed){
+ 124:../src/ir_led.c **** 				printf_P(PSTR("Waiting for TWI [%c]...\r\n"), marker);
+  88               		.loc 1 124 0
+  89 0028 EC2C      		mov r14,r12
+  90 002a 0C2C      		mov __tmp_reg__,r12
+  91 002c 000C      		lsl r0
+  92 002e FF08      		sbc r15,r15
+  93 0030 80E0      		ldi r24,lo8(__c.4865)
+  94 0032 482E      		mov r4,r24
+  95 0034 80E0      		ldi r24,hi8(__c.4865)
+  96 0036 582E      		mov r5,r24
+  97               	.LVL4:
+  98               	.L2:
+  99               	.LBE7:
+ 100               	.LBE6:
+ 102:../src/ir_led.c **** 	uint32_t startTime = get_time();
+ 101               		.loc 1 102 0
+ 102 0038 10E0      		ldi r17,0
+ 103 003a 00C0      		rjmp .L5
+ 104               	.LVL5:
+ 105               	.L7:
+ 106               	.LBB11:
+ 107               	.LBB8:
+ 119:../src/ir_led.c **** 			printf_P(PSTR("\tTWI timeout when setting IR Powers [%c]\r\n"), marker);
+ 108               		.loc 1 119 0
+ 109 003c 0E94 0000 		call get_time
+ 110               	.LVL6:
+ 111 0040 DC01      		movw r26,r24
+ 112 0042 CB01      		movw r24,r22
+ 113 0044 8819      		sub r24,r8
+ 114 0046 9909      		sbc r25,r9
+ 115 0048 AA09      		sbc r26,r10
+ 116 004a BB09      		sbc r27,r11
+ 117 004c 893E      		cpi r24,-23
+ 118 004e 9340      		sbci r25,3
+ 119 0050 A105      		cpc r26,__zero_reg__
+ 120 0052 B105      		cpc r27,__zero_reg__
+ 121 0054 00F4      		brsh .L12
+ 122:../src/ir_led.c **** 			if(!printed){
+ 122               		.loc 1 122 0
+ 123 0056 0E94 0000 		call get_time
+ 124               	.LVL7:
+ 125 005a DC01      		movw r26,r24
+ 126 005c CB01      		movw r24,r22
+ 127 005e 8819      		sub r24,r8
+ 128 0060 9909      		sbc r25,r9
+ 129 0062 AA09      		sbc r26,r10
+ 130 0064 BB09      		sbc r27,r11
+ 131 0066 8536      		cpi r24,101
+ 132 0068 9105      		cpc r25,__zero_reg__
+ 133 006a A105      		cpc r26,__zero_reg__
+ 134 006c B105      		cpc r27,__zero_reg__
+ 135 006e 00F4      		brsh .L13
+ 136               	.LVL8:
+ 137               	.L5:
+ 118:../src/ir_led.c **** 		if((get_time()-startTime)>1000){
+ 138               		.loc 1 118 0
+ 139 0070 E091 0000 		lds r30,twi
+ 140 0074 F091 0000 		lds r31,twi+1
+ 141 0078 8789      		ldd r24,Z+23
+ 142 007a 8111      		cpse r24,__zero_reg__
+ 143 007c 00C0      		rjmp .L7
+ 144               	.LVL9:
+ 145               	.LBE8:
+ 146               	.LBE11:
+ 108:../src/ir_led.c **** 		}else{
+ 147               		.loc 1 108 0
+ 148 007e 46E0      		ldi r20,lo8(6)
+ 149 0080 BE01      		movw r22,r28
+ 150 0082 872D      		mov r24,r7
+ 151 0084 0E94 0000 		call TWI_MasterWrite
+ 152               	.LVL10:
+ 106:../src/ir_led.c **** 		if((printed = waitForTWIReady(startTime, marker))){
+ 153               		.loc 1 106 0
+ 154 0088 8823      		tst r24
+ 155 008a 01F0      		breq .L2
+ 113:../src/ir_led.c **** }
+ 156               		.loc 1 113 0
+ 157 008c 810F      		add r24,r17
+ 158               	.LVL11:
+ 159               	.L4:
+ 160               	/* epilogue start */
+ 114:../src/ir_led.c **** 
+ 161               		.loc 1 114 0
+ 162 008e DF91      		pop r29
+ 163 0090 CF91      		pop r28
+ 164               	.LVL12:
+ 165 0092 1F91      		pop r17
+ 166 0094 FF90      		pop r15
+ 167 0096 EF90      		pop r14
+ 168 0098 CF90      		pop r12
+ 169               	.LVL13:
+ 170 009a BF90      		pop r11
+ 171 009c AF90      		pop r10
+ 172 009e 9F90      		pop r9
+ 173 00a0 8F90      		pop r8
+ 174               	.LVL14:
+ 175 00a2 7F90      		pop r7
+ 176               	.LVL15:
+ 177 00a4 5F90      		pop r5
+ 178 00a6 4F90      		pop r4
+ 179 00a8 0895      		ret
+ 180               	.LVL16:
+ 181               	.L12:
+ 182               	.LBB12:
+ 183               	.LBB9:
+ 120:../src/ir_led.c **** 			return 0;
+ 184               		.loc 1 120 0
+ 185 00aa 8C2D      		mov r24,r12
+ 186 00ac 0C2C      		mov __tmp_reg__,r12
+ 187 00ae 000C      		lsl r0
+ 188 00b0 990B      		sbc r25,r25
+ 189 00b2 9F93      		push r25
+ 190               	.LCFI13:
+ 191               		.cfi_def_cfa_offset 17
+ 192 00b4 CF92      		push r12
+ 193               	.LCFI14:
+ 194               		.cfi_def_cfa_offset 18
+ 195 00b6 80E0      		ldi r24,lo8(__c.4863)
+ 196 00b8 90E0      		ldi r25,hi8(__c.4863)
+ 197 00ba 9F93      		push r25
+ 198               	.LCFI15:
+ 199               		.cfi_def_cfa_offset 19
+ 200 00bc 8F93      		push r24
+ 201               	.LCFI16:
+ 202               		.cfi_def_cfa_offset 20
+ 203 00be 0E94 0000 		call printf_P
+ 204               	.LVL17:
+ 205 00c2 0F90      		pop __tmp_reg__
+ 206 00c4 0F90      		pop __tmp_reg__
+ 207 00c6 0F90      		pop __tmp_reg__
+ 208 00c8 0F90      		pop __tmp_reg__
+ 209               	.LCFI17:
+ 210               		.cfi_def_cfa_offset 16
+ 211               	.LBE9:
+ 212               	.LBE12:
+ 110:../src/ir_led.c **** 		}
+ 213               		.loc 1 110 0
+ 214 00ca 80E0      		ldi r24,0
+ 215 00cc 00C0      		rjmp .L4
+ 216               	.LVL18:
+ 217               	.L13:
+ 218               	.LBB13:
+ 219               	.LBB10:
+ 123:../src/ir_led.c **** 				printf_P(PSTR("Waiting for TWI [%c]...\r\n"), marker);
+ 220               		.loc 1 123 0
+ 221 00ce 1123      		tst r17
+ 222 00d0 01F0      		breq .L14
+ 223               	.LVL19:
+ 224               	.L6:
+ 125:../src/ir_led.c **** 				printed = 1;				
+ 126:../src/ir_led.c **** 			}
+ 127:../src/ir_led.c **** 			delay_ms(10);
+ 225               		.loc 1 127 0
+ 226 00d2 8AE0      		ldi r24,lo8(10)
+ 227 00d4 90E0      		ldi r25,0
+ 228 00d6 0E94 0000 		call delay_ms
+ 229               	.LVL20:
+ 230 00da 11E0      		ldi r17,lo8(1)
+ 231 00dc 00C0      		rjmp .L5
+ 232               	.LVL21:
+ 233               	.L14:
+ 124:../src/ir_led.c **** 				printed = 1;				
+ 234               		.loc 1 124 0
+ 235 00de FF92      		push r15
+ 236               	.LCFI18:
+ 237               		.cfi_def_cfa_offset 17
+ 238 00e0 CF92      		push r12
+ 239               	.LCFI19:
+ 240               		.cfi_def_cfa_offset 18
+ 241 00e2 5F92      		push r5
+ 242               	.LCFI20:
+ 243               		.cfi_def_cfa_offset 19
+ 244 00e4 4F92      		push r4
+ 245               	.LCFI21:
+ 246               		.cfi_def_cfa_offset 20
+ 247 00e6 0E94 0000 		call printf_P
+ 248               	.LVL22:
+ 249 00ea 0F90      		pop __tmp_reg__
+ 250 00ec 0F90      		pop __tmp_reg__
+ 251 00ee 0F90      		pop __tmp_reg__
+ 252 00f0 0F90      		pop __tmp_reg__
+ 253               	.LCFI22:
+ 254               		.cfi_def_cfa_offset 16
+ 255 00f2 00C0      		rjmp .L6
+ 256               	.LBE10:
+ 257               	.LBE13:
+ 258               		.cfi_endproc
+ 259               	.LFE43:
+ 261               		.section	.text.ir_led_init,"ax",@progbits
+ 262               	.global	ir_led_init
+ 264               	ir_led_init:
+ 265               	.LFB37:
+  21:../src/ir_led.c **** 	/* Initialize carrier waves */
+ 266               		.loc 1 21 0
+ 267               		.cfi_startproc
+ 268 0000 CF93      		push r28
+ 269               	.LCFI23:
+ 270               		.cfi_def_cfa_offset 4
+ 271               		.cfi_offset 28, -3
+ 272 0002 DF93      		push r29
+ 273               	.LCFI24:
+ 274               		.cfi_def_cfa_offset 5
+ 275               		.cfi_offset 29, -4
+ 276               	/* prologue: function */
+ 277               	/* frame size = 0 */
+ 278               	/* stack size = 2 */
+ 279               	.L__stack_usage = 2
+  23:../src/ir_led.c **** 	
+ 280               		.loc 1 23 0
+ 281 0004 A0EA      		ldi r26,lo8(-96)
+ 282 0006 B6E0      		ldi r27,lo8(6)
+ 283 0008 93EF      		ldi r25,lo8(-13)
+ 284 000a 1196      		adiw r26,1
+ 285 000c 9C93      		st X,r25
+ 286 000e 1197      		sbiw r26,1
+  25:../src/ir_led.c **** 	TCF2.CTRLA |= TC2_CLKSEL_DIV4_gc;		// see CTRLA description in TC2 mode
+ 287               		.loc 1 25 0
+ 288 0010 E0E0      		ldi r30,0
+ 289 0012 FBE0      		ldi r31,lo8(11)
+ 290 0014 82E0      		ldi r24,lo8(2)
+ 291 0016 8483      		std Z+4,r24
+  26:../src/ir_led.c **** 	
+ 292               		.loc 1 26 0
+ 293 0018 8081      		ld r24,Z
+ 294 001a 8360      		ori r24,lo8(3)
+ 295 001c 8083      		st Z,r24
+  28:../src/ir_led.c **** 	TCF2.HCMPA = 105; TCF2.HCMPB = 105; TCF2.HCMPC = 105; // 50% Duty Cycle
+ 296               		.loc 1 28 0
+ 297 001e 83ED      		ldi r24,lo8(-45)
+ 298 0020 87A3      		std Z+39,r24
+ 299 0022 86A3      		std Z+38,r24
+  29:../src/ir_led.c **** 	TCF2.HCMPD = 105; TCF2.LCMPA = 105; TCF2.LCMPB = 105; // 50% Duty Cycle
+ 300               		.loc 1 29 0
+ 301 0024 89E6      		ldi r24,lo8(105)
+ 302 0026 81A7      		std Z+41,r24
+ 303 0028 83A7      		std Z+43,r24
+ 304 002a 85A7      		std Z+45,r24
+  30:../src/ir_led.c **** 	TCF2.CTRLB = ALL_EMITTERS_CARWAV_bm;	// Set TC outputs on carrier wave pins (see CTRLA description
+ 305               		.loc 1 30 0
+ 306 002c 87A7      		std Z+47,r24
+ 307 002e 80A7      		std Z+40,r24
+ 308 0030 82A7      		std Z+42,r24
+  31:../src/ir_led.c **** 
+ 309               		.loc 1 31 0
+ 310 0032 9183      		std Z+1,r25
+  34:../src/ir_led.c **** 	PORTD.DIRSET = PIN3_bm;					// DIR 2
+ 311               		.loc 1 34 0
+ 312 0034 C0E4      		ldi r28,lo8(64)
+ 313 0036 D6E0      		ldi r29,lo8(6)
+ 314 0038 98E8      		ldi r25,lo8(-120)
+ 315 003a 9983      		std Y+1,r25
+  35:../src/ir_led.c **** 	PORTE.DIRSET = PIN3_bm | PIN7_bm;		// DIR 3,4
+ 316               		.loc 1 35 0
+ 317 003c 20E6      		ldi r18,lo8(96)
+ 318 003e 36E0      		ldi r19,lo8(6)
+ 319 0040 88E0      		ldi r24,lo8(8)
+ 320 0042 F901      		movw r30,r18
+ 321 0044 8183      		std Z+1,r24
+  36:../src/ir_led.c **** 	PORTF.DIRSET = PIN3_bm;					// DIR 5
+ 322               		.loc 1 36 0
+ 323 0046 40E8      		ldi r20,lo8(-128)
+ 324 0048 56E0      		ldi r21,lo8(6)
+ 325 004a FA01      		movw r30,r20
+ 326 004c 9183      		std Z+1,r25
+  37:../src/ir_led.c **** 	
+ 327               		.loc 1 37 0
+ 328 004e 1196      		adiw r26,1
+ 329 0050 8C93      		st X,r24
+ 330 0052 1197      		sbiw r26,1
+  39:../src/ir_led.c **** 	PORTD.OUTCLR = PIN3_bm;
+ 331               		.loc 1 39 0
+ 332 0054 9E83      		std Y+6,r25
+  40:../src/ir_led.c **** 	PORTE.OUTCLR = (PIN3_bm | PIN7_bm);
+ 333               		.loc 1 40 0
+ 334 0056 F901      		movw r30,r18
+ 335 0058 8683      		std Z+6,r24
+  41:../src/ir_led.c **** 	PORTF.OUTCLR = PIN3_bm;
+ 336               		.loc 1 41 0
+ 337 005a FA01      		movw r30,r20
+ 338 005c 9683      		std Z+6,r25
+  42:../src/ir_led.c **** 		
+ 339               		.loc 1 42 0
+ 340 005e 1696      		adiw r26,6
+ 341 0060 8C93      		st X,r24
+ 342 0062 1697      		sbiw r26,6
+  45:../src/ir_led.c **** 	PORTC.PIN7CTRL = PORT_INVEN_bm;
+ 343               		.loc 1 45 0
+ 344 0064 80E4      		ldi r24,lo8(64)
+ 345 0066 8B8B      		std Y+19,r24
+  46:../src/ir_led.c **** 	PORTD.PIN3CTRL = PORT_INVEN_bm;
+ 346               		.loc 1 46 0
+ 347 0068 8F8B      		std Y+23,r24
+  47:../src/ir_led.c **** 	PORTE.PIN3CTRL = PORT_INVEN_bm;
+ 348               		.loc 1 47 0
+ 349 006a F901      		movw r30,r18
+ 350 006c 838B      		std Z+19,r24
+  48:../src/ir_led.c **** 	PORTE.PIN7CTRL = PORT_INVEN_bm;
+ 351               		.loc 1 48 0
+ 352 006e FA01      		movw r30,r20
+ 353 0070 838B      		std Z+19,r24
+  49:../src/ir_led.c **** 	PORTF.PIN3CTRL = PORT_INVEN_bm;
+ 354               		.loc 1 49 0
+ 355 0072 878B      		std Z+23,r24
+  50:../src/ir_led.c **** 	
+ 356               		.loc 1 50 0
+ 357 0074 5396      		adiw r26,19
+ 358 0076 8C93      		st X,r24
+ 359               	/* epilogue start */
+  52:../src/ir_led.c **** 
+ 360               		.loc 1 52 0
+ 361 0078 DF91      		pop r29
+ 362 007a CF91      		pop r28
+ 363 007c 0895      		ret
+ 364               		.cfi_endproc
+ 365               	.LFE37:
+ 367               		.section	.text.ir_led_on,"ax",@progbits
+ 368               	.global	ir_led_on
+ 370               	ir_led_on:
+ 371               	.LFB38:
+  55:../src/ir_led.c **** 	//Turning on the light.
+ 372               		.loc 1 55 0
+ 373               		.cfi_startproc
+ 374               	.LVL23:
+ 375 0000 CF93      		push r28
+ 376               	.LCFI25:
+ 377               		.cfi_def_cfa_offset 4
+ 378               		.cfi_offset 28, -3
+ 379 0002 DF93      		push r29
+ 380               	.LCFI26:
+ 381               		.cfi_def_cfa_offset 5
+ 382               		.cfi_offset 29, -4
+ 383               	/* prologue: function */
+ 384               	/* frame size = 0 */
+ 385               	/* stack size = 2 */
+ 386               	.L__stack_usage = 2
+  57:../src/ir_led.c **** 	TCF2.CTRLB			 &= ~carrier_wave_pins[direction];	// disable carrier wave output
+ 387               		.loc 1 57 0
+ 388 0004 90E0      		ldi r25,0
+ 389 0006 9C01      		movw r18,r24
+ 390 0008 220F      		lsl r18
+ 391 000a 331F      		rol r19
+ 392 000c F901      		movw r30,r18
+ 393 000e E050      		subi r30,lo8(-(channel))
+ 394 0010 F040      		sbci r31,hi8(-(channel))
+ 395 0012 A081      		ld r26,Z
+ 396 0014 B181      		ldd r27,Z+1
+ 397 0016 1496      		adiw r26,4
+ 398 0018 4C91      		ld r20,X
+ 399 001a 1497      		sbiw r26,4
+ 400 001c FC01      		movw r30,r24
+ 401 001e E050      		subi r30,lo8(-(saved_usart_ctrlb_vals))
+ 402 0020 F040      		sbci r31,hi8(-(saved_usart_ctrlb_vals))
+ 403 0022 4083      		st Z,r20
+  58:../src/ir_led.c **** 	PORTF.DIRSET		  =  carrier_wave_pins[direction];	// enable user output on this pin
+ 404               		.loc 1 58 0
+ 405 0024 E0E0      		ldi r30,0
+ 406 0026 FBE0      		ldi r31,lo8(11)
+ 407 0028 4181      		ldd r20,Z+1
+ 408 002a EC01      		movw r28,r24
+ 409 002c C050      		subi r28,lo8(-(carrier_wave_pins))
+ 410 002e D040      		sbci r29,hi8(-(carrier_wave_pins))
+ 411 0030 5881      		ld r21,Y
+ 412 0032 652F      		mov r22,r21
+ 413 0034 6095      		com r22
+ 414 0036 4623      		and r20,r22
+ 415 0038 4183      		std Z+1,r20
+  59:../src/ir_led.c **** 	PORTF.OUT			 |=  carrier_wave_pins[direction];	// high signal on this pin
+ 416               		.loc 1 59 0
+ 417 003a E0EA      		ldi r30,lo8(-96)
+ 418 003c F6E0      		ldi r31,lo8(6)
+ 419 003e 5183      		std Z+1,r21
+  60:../src/ir_led.c **** 	channel[direction]->CTRLB  	  =  0;					// disable USART
+ 420               		.loc 1 60 0
+ 421 0040 4481      		ldd r20,Z+4
+ 422 0042 452B      		or r20,r21
+ 423 0044 4483      		std Z+4,r20
+  61:../src/ir_led.c **** 	uart_ch[direction]->DIRSET =  tx_pins[direction];			// enable user output on this pin
+ 424               		.loc 1 61 0
+ 425 0046 1496      		adiw r26,4
+ 426 0048 1C92      		st X,__zero_reg__
+  62:../src/ir_led.c **** 	uart_ch[direction]->OUT	 &= ~tx_pins[direction];			// low signal on TX pin (remember: these pins w
+ 427               		.loc 1 62 0
+ 428 004a F901      		movw r30,r18
+ 429 004c E050      		subi r30,lo8(-(uart_ch))
+ 430 004e F040      		sbci r31,hi8(-(uart_ch))
+ 431 0050 0190      		ld __tmp_reg__,Z+
+ 432 0052 F081      		ld r31,Z
+ 433 0054 E02D      		mov r30,__tmp_reg__
+ 434 0056 DC01      		movw r26,r24
+ 435 0058 A050      		subi r26,lo8(-(tx_pins))
+ 436 005a B040      		sbci r27,hi8(-(tx_pins))
+ 437 005c 8C91      		ld r24,X
+ 438               	.LVL24:
+ 439 005e 8183      		std Z+1,r24
+  63:../src/ir_led.c **** 
+ 440               		.loc 1 63 0
+ 441 0060 9481      		ldd r25,Z+4
+ 442 0062 8095      		com r24
+ 443 0064 8923      		and r24,r25
+ 444 0066 8483      		std Z+4,r24
+ 445               	/* epilogue start */
+  65:../src/ir_led.c **** 
+ 446               		.loc 1 65 0
+ 447 0068 DF91      		pop r29
+ 448 006a CF91      		pop r28
+ 449 006c 0895      		ret
+ 450               		.cfi_endproc
+ 451               	.LFE38:
+ 453               		.section	.text.ir_led_off,"ax",@progbits
+ 454               	.global	ir_led_off
+ 456               	ir_led_off:
+ 457               	.LFB39:
+  68:../src/ir_led.c **** 	//Turning off the light.
+ 458               		.loc 1 68 0
+ 459               		.cfi_startproc
+ 460               	.LVL25:
+ 461               	/* prologue: function */
+ 462               	/* frame size = 0 */
+ 463               	/* stack size = 0 */
+ 464               	.L__stack_usage = 0
+  70:../src/ir_led.c **** 	channel[direction]->CTRLB	 =  saved_usart_ctrlb_vals[direction];	// re-enable USART (restore setti
+ 465               		.loc 1 70 0
+ 466 0000 90E0      		ldi r25,0
+ 467 0002 9C01      		movw r18,r24
+ 468 0004 220F      		lsl r18
+ 469 0006 331F      		rol r19
+ 470 0008 F901      		movw r30,r18
+ 471 000a E050      		subi r30,lo8(-(uart_ch))
+ 472 000c F040      		sbci r31,hi8(-(uart_ch))
+ 473 000e 0190      		ld __tmp_reg__,Z+
+ 474 0010 F081      		ld r31,Z
+ 475 0012 E02D      		mov r30,__tmp_reg__
+ 476 0014 5481      		ldd r21,Z+4
+ 477 0016 DC01      		movw r26,r24
+ 478 0018 A050      		subi r26,lo8(-(tx_pins))
+ 479 001a B040      		sbci r27,hi8(-(tx_pins))
+ 480 001c 4C91      		ld r20,X
+ 481 001e 452B      		or r20,r21
+ 482 0020 4483      		std Z+4,r20
+  71:../src/ir_led.c **** 	PORTF.OUT			&= ~carrier_wave_pins[direction];	// low signal on the carrier wave pin, just in casie
+ 483               		.loc 1 71 0
+ 484 0022 F901      		movw r30,r18
+ 485 0024 E050      		subi r30,lo8(-(channel))
+ 486 0026 F040      		sbci r31,hi8(-(channel))
+ 487 0028 0190      		ld __tmp_reg__,Z+
+ 488 002a F081      		ld r31,Z
+ 489 002c E02D      		mov r30,__tmp_reg__
+ 490 002e DC01      		movw r26,r24
+ 491 0030 A050      		subi r26,lo8(-(saved_usart_ctrlb_vals))
+ 492 0032 B040      		sbci r27,hi8(-(saved_usart_ctrlb_vals))
+ 493 0034 2C91      		ld r18,X
+ 494 0036 2483      		std Z+4,r18
+  72:../src/ir_led.c **** 	TCF2.CTRLB			|=  carrier_wave_pins[direction];	// re-enable carrier wave output
+ 495               		.loc 1 72 0
+ 496 0038 E0EA      		ldi r30,lo8(-96)
+ 497 003a F6E0      		ldi r31,lo8(6)
+ 498 003c 2481      		ldd r18,Z+4
+ 499 003e DC01      		movw r26,r24
+ 500 0040 A050      		subi r26,lo8(-(carrier_wave_pins))
+ 501 0042 B040      		sbci r27,hi8(-(carrier_wave_pins))
+ 502 0044 3C91      		ld r19,X
+ 503 0046 932F      		mov r25,r19
+ 504 0048 9095      		com r25
+ 505 004a 9223      		and r25,r18
+ 506 004c 9483      		std Z+4,r25
+  73:../src/ir_led.c **** }
+ 507               		.loc 1 73 0
+ 508 004e E0E0      		ldi r30,0
+ 509 0050 FBE0      		ldi r31,lo8(11)
+ 510 0052 8181      		ldd r24,Z+1
+ 511               	.LVL26:
+ 512 0054 832B      		or r24,r19
+ 513 0056 8183      		std Z+1,r24
+ 514 0058 0895      		ret
+ 515               		.cfi_endproc
+ 516               	.LFE39:
+ 518               		.section	.text.set_all_ir_powers,"ax",@progbits
+ 519               	.global	set_all_ir_powers
+ 521               	set_all_ir_powers:
+ 522               	.LFB40:
+  77:../src/ir_led.c **** 	if(power>256) return;
+ 523               		.loc 1 77 0
+ 524               		.cfi_startproc
+ 525               	.LVL27:
+ 526 0000 FF92      		push r15
+ 527               	.LCFI27:
+ 528               		.cfi_def_cfa_offset 4
+ 529               		.cfi_offset 15, -3
+ 530 0002 0F93      		push r16
+ 531               	.LCFI28:
+ 532               		.cfi_def_cfa_offset 5
+ 533               		.cfi_offset 16, -4
+ 534 0004 1F93      		push r17
+ 535               	.LCFI29:
+ 536               		.cfi_def_cfa_offset 6
+ 537               		.cfi_offset 17, -5
+ 538 0006 CF93      		push r28
+ 539               	.LCFI30:
+ 540               		.cfi_def_cfa_offset 7
+ 541               		.cfi_offset 28, -6
+ 542 0008 DF93      		push r29
+ 543               	.LCFI31:
+ 544               		.cfi_def_cfa_offset 8
+ 545               		.cfi_offset 29, -7
+ 546 000a 00D0      		rcall .
+ 547 000c 00D0      		rcall .
+ 548               	.LCFI32:
+ 549               		.cfi_def_cfa_offset 14
+ 550 000e CDB7      		in r28,__SP_L__
+ 551 0010 DEB7      		in r29,__SP_H__
+ 552               	.LCFI33:
+ 553               		.cfi_def_cfa_register 28
+ 554               	/* prologue: function */
+ 555               	/* frame size = 6 */
+ 556               	/* stack size = 11 */
+ 557               	.L__stack_usage = 11
+  78:../src/ir_led.c **** 	if(curr_ir_power==power) return;
+ 558               		.loc 1 78 0
+ 559 0012 8130      		cpi r24,1
+ 560 0014 21E0      		ldi r18,1
+ 561 0016 9207      		cpc r25,r18
+ 562 0018 00F4      		brsh .L18
+  79:../src/ir_led.c **** 	uint8_t power_high = (power>>8);
+ 563               		.loc 1 79 0
+ 564 001a 2091 0000 		lds r18,curr_ir_power
+ 565 001e 3091 0000 		lds r19,curr_ir_power+1
+ 566 0022 8217      		cp r24,r18
+ 567 0024 9307      		cpc r25,r19
+ 568 0026 01F0      		breq .L18
+ 569 0028 8C01      		movw r16,r24
+ 570               	.LVL28:
+  82:../src/ir_led.c **** 	
+ 571               		.loc 1 82 0
+ 572 002a 1983      		std Y+1,r17
+ 573 002c 8A83      		std Y+2,r24
+ 574 002e 812F      		mov r24,r17
+ 575               	.LVL29:
+ 576 0030 8061      		ori r24,lo8(16)
+ 577 0032 8B83      		std Y+3,r24
+ 578 0034 0C83      		std Y+4,r16
+ 579 0036 812F      		mov r24,r17
+ 580 0038 8066      		ori r24,lo8(96)
+ 581 003a 8D83      		std Y+5,r24
+ 582 003c 0E83      		std Y+6,r16
+ 583               	.LVL30:
+  87:../src/ir_led.c **** 	if(!aResult){
+ 584               		.loc 1 87 0
+ 585 003e 41E6      		ldi r20,lo8(97)
+ 586 0040 BE01      		movw r22,r28
+ 587 0042 6F5F      		subi r22,-1
+ 588 0044 7F4F      		sbci r23,-1
+ 589 0046 8CE2      		ldi r24,lo8(44)
+ 590 0048 0E94 0000 		call twiWriteWrapper.constprop.0
+ 591               	.LVL31:
+ 592 004c F82E      		mov r15,r24
+ 593               	.LVL32:
+  88:../src/ir_led.c **** 		return;
+ 594               		.loc 1 88 0
+ 595 004e 8111      		cpse r24,__zero_reg__
+ 596 0050 00C0      		rjmp .L31
+ 597               	.LVL33:
+ 598               	.L18:
+ 599               	/* epilogue start */
+ 100:../src/ir_led.c **** 
+ 600               		.loc 1 100 0
+ 601 0052 2696      		adiw r28,6
+ 602 0054 CDBF      		out __SP_L__,r28
+ 603 0056 DEBF      		out __SP_H__,r29
+ 604 0058 DF91      		pop r29
+ 605 005a CF91      		pop r28
+ 606 005c 1F91      		pop r17
+ 607 005e 0F91      		pop r16
+ 608 0060 FF90      		pop r15
+ 609 0062 0895      		ret
+ 610               	.LVL34:
+ 611               	.L31:
+  91:../src/ir_led.c **** 	if(!bResult){
+ 612               		.loc 1 91 0
+ 613 0064 42E6      		ldi r20,lo8(98)
+ 614 0066 BE01      		movw r22,r28
+ 615 0068 6F5F      		subi r22,-1
+ 616 006a 7F4F      		sbci r23,-1
+ 617 006c 8EE2      		ldi r24,lo8(46)
+ 618 006e 0E94 0000 		call twiWriteWrapper.constprop.0
+ 619               	.LVL35:
+  92:../src/ir_led.c **** 		return;
+ 620               		.loc 1 92 0
+ 621 0072 8823      		tst r24
+ 622 0074 01F0      		breq .L18
+  96:../src/ir_led.c **** 		printf_P(PSTR("\tDone waiting for TWI. IR powers set successfully.\r\n"));
+ 623               		.loc 1 96 0
+ 624 0076 90E0      		ldi r25,0
+ 625 0078 8F0D      		add r24,r15
+ 626 007a 911D      		adc r25,__zero_reg__
+ 627               	.LVL36:
+ 628 007c 0297      		sbiw r24,2
+ 629 007e 01F0      		breq .L20
+  97:../src/ir_led.c **** 	}
+ 630               		.loc 1 97 0
+ 631 0080 80E0      		ldi r24,lo8(__c.4844)
+ 632 0082 90E0      		ldi r25,hi8(__c.4844)
+ 633 0084 9F93      		push r25
+ 634 0086 8F93      		push r24
+ 635 0088 0E94 0000 		call printf_P
+ 636               	.LVL37:
+ 637 008c 0F90      		pop __tmp_reg__
+ 638 008e 0F90      		pop __tmp_reg__
+ 639               	.L20:
+  99:../src/ir_led.c **** }
+ 640               		.loc 1 99 0
+ 641 0090 0093 0000 		sts curr_ir_power,r16
+ 642 0094 1093 0000 		sts curr_ir_power+1,r17
+ 643 0098 00C0      		rjmp .L18
+ 644               		.cfi_endproc
+ 645               	.LFE40:
+ 647               		.section	.progmem.data.__c.4865,"a",@progbits
+ 650               	__c.4865:
+ 651 0000 5761 6974 		.string	"Waiting for TWI [%c]...\r\n"
+ 651      696E 6720 
+ 651      666F 7220 
+ 651      5457 4920 
+ 651      5B25 635D 
+ 652               		.section	.progmem.data.__c.4863,"a",@progbits
+ 655               	__c.4863:
+ 656 0000 0954 5749 		.string	"\tTWI timeout when setting IR Powers [%c]\r\n"
+ 656      2074 696D 
+ 656      656F 7574 
+ 656      2077 6865 
+ 656      6E20 7365 
+ 657               		.section	.progmem.data.__c.4844,"a",@progbits
+ 660               	__c.4844:
+ 661 0000 0944 6F6E 		.string	"\tDone waiting for TWI. IR powers set successfully.\r\n"
+ 661      6520 7761 
+ 661      6974 696E 
+ 661      6720 666F 
+ 661      7220 5457 
+ 662               		.section	.bss.saved_usart_ctrlb_vals,"aw",@nobits
+ 665               	saved_usart_ctrlb_vals:
+ 666 0000 0000 0000 		.zero	6
+ 666      0000 
+ 667               		.section	.rodata.uart_ch,"a",@progbits
+ 670               	uart_ch:
+ 671 0000 4006      		.word	1600
+ 672 0002 4006      		.word	1600
+ 673 0004 6006      		.word	1632
+ 674 0006 8006      		.word	1664
+ 675 0008 8006      		.word	1664
+ 676 000a A006      		.word	1696
+ 677               		.section	.rodata.tx_pins,"a",@progbits
+ 680               	tx_pins:
+ 681 0000 08        		.byte	8
+ 682 0001 80        		.byte	-128
+ 683 0002 08        		.byte	8
+ 684 0003 08        		.byte	8
+ 685 0004 80        		.byte	-128
+ 686 0005 08        		.byte	8
+ 687               		.section	.rodata.carrier_wave_pins,"a",@progbits
+ 690               	carrier_wave_pins:
+ 691 0000 01        		.byte	1
+ 692 0001 02        		.byte	2
+ 693 0002 10        		.byte	16
+ 694 0003 20        		.byte	32
+ 695 0004 80        		.byte	-128
+ 696 0005 40        		.byte	64
+ 697               	.global	channel
+ 698               		.section	.data.channel,"aw",@progbits
+ 701               	channel:
+ 702 0000 A008      		.word	2208
+ 703 0002 B008      		.word	2224
+ 704 0004 A009      		.word	2464
+ 705 0006 A00A      		.word	2720
+ 706 0008 B00A      		.word	2736
+ 707 000a A00B      		.word	2976
+ 708               		.comm	curr_ir_power,2,1
+ 709               		.comm	twi,2,1
+ 710               		.comm	twiMaster,25,1
+ 711               		.section	.bss.task_storage_arr,"aw",@nobits
+ 714               	task_storage_arr:
+ 715 0000 0000 0000 		.zero	140
+ 715      0000 0000 
+ 715      0000 0000 
+ 715      0000 0000 
+ 715      0000 0000 
+ 716               		.comm	task_executing,1,1
+ 717               		.comm	num_tasks,1,1
+ 718               		.comm	task_list,2,1
+ 719               		.comm	rtc_epoch,2,1
+ 720               		.comm	droplet_ID,2,1
+ 721               		.text
+ 722               	.Letext0:
+ 723               		.file 2 "c:\\program files (x86)\\atmel\\studio\\7.0\\toolchain\\avr8\\avr8-gnu-toolchain\\avr\\in
+ 724               		.file 3 "C:/Program Files (x86)/Atmel/Studio/7.0/Packs/atmel/XMEGAA_DFP/1.1.68/include/avr/iox128a
+ 725               		.file 4 "../include/droplet_base.h"
+ 726               		.file 5 "../include/scheduler.h"
+ 727               		.file 6 "../include/i2c.h"
+ 728               		.file 7 "../include/ir_led.h"
+ 729               		.file 8 "c:\\program files (x86)\\atmel\\studio\\7.0\\toolchain\\avr8\\avr8-gnu-toolchain\\avr\\in
+DEFINED SYMBOLS
+                            *ABS*:00000000 ir_led.c
+C:\Users\JOHNK~1\AppData\Local\Temp\ccJ75stn.s:2      *ABS*:0000003e __SP_H__
+C:\Users\JOHNK~1\AppData\Local\Temp\ccJ75stn.s:3      *ABS*:0000003d __SP_L__
+C:\Users\JOHNK~1\AppData\Local\Temp\ccJ75stn.s:4      *ABS*:0000003f __SREG__
+C:\Users\JOHNK~1\AppData\Local\Temp\ccJ75stn.s:5      *ABS*:0000003b __RAMPZ__
+C:\Users\JOHNK~1\AppData\Local\Temp\ccJ75stn.s:6      *ABS*:00000034 __CCP__
+C:\Users\JOHNK~1\AppData\Local\Temp\ccJ75stn.s:7      *ABS*:00000000 __tmp_reg__
+C:\Users\JOHNK~1\AppData\Local\Temp\ccJ75stn.s:8      *ABS*:00000001 __zero_reg__
+C:\Users\JOHNK~1\AppData\Local\Temp\ccJ75stn.s:14     .text.twiWriteWrapper.constprop.0:00000000 twiWriteWrapper.constprop.0
+C:\Users\JOHNK~1\AppData\Local\Temp\ccJ75stn.s:650    .progmem.data.__c.4865:00000000 __c.4865
+                            *COM*:00000002 twi
+C:\Users\JOHNK~1\AppData\Local\Temp\ccJ75stn.s:655    .progmem.data.__c.4863:00000000 __c.4863
+C:\Users\JOHNK~1\AppData\Local\Temp\ccJ75stn.s:264    .text.ir_led_init:00000000 ir_led_init
+C:\Users\JOHNK~1\AppData\Local\Temp\ccJ75stn.s:370    .text.ir_led_on:00000000 ir_led_on
+C:\Users\JOHNK~1\AppData\Local\Temp\ccJ75stn.s:701    .data.channel:00000000 channel
+C:\Users\JOHNK~1\AppData\Local\Temp\ccJ75stn.s:665    .bss.saved_usart_ctrlb_vals:00000000 saved_usart_ctrlb_vals
+C:\Users\JOHNK~1\AppData\Local\Temp\ccJ75stn.s:690    .rodata.carrier_wave_pins:00000000 carrier_wave_pins
+C:\Users\JOHNK~1\AppData\Local\Temp\ccJ75stn.s:670    .rodata.uart_ch:00000000 uart_ch
+C:\Users\JOHNK~1\AppData\Local\Temp\ccJ75stn.s:680    .rodata.tx_pins:00000000 tx_pins
+C:\Users\JOHNK~1\AppData\Local\Temp\ccJ75stn.s:456    .text.ir_led_off:00000000 ir_led_off
+C:\Users\JOHNK~1\AppData\Local\Temp\ccJ75stn.s:521    .text.set_all_ir_powers:00000000 set_all_ir_powers
+                            *COM*:00000002 curr_ir_power
+C:\Users\JOHNK~1\AppData\Local\Temp\ccJ75stn.s:660    .progmem.data.__c.4844:00000000 __c.4844
+                            *COM*:00000019 twiMaster
+C:\Users\JOHNK~1\AppData\Local\Temp\ccJ75stn.s:714    .bss.task_storage_arr:00000000 task_storage_arr
+                            *COM*:00000001 task_executing
+                            *COM*:00000001 num_tasks
+                            *COM*:00000002 task_list
+                            *COM*:00000002 rtc_epoch
+                            *COM*:00000002 droplet_ID
+
+UNDEFINED SYMBOLS
+get_time
+TWI_MasterWrite
+printf_P
+delay_ms
+__do_copy_data
+__do_clear_bss

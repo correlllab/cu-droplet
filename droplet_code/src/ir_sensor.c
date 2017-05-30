@@ -15,7 +15,7 @@ void ir_sensor_init(){
 		PORTA.DIRCLR = PIN5_bm | PIN6_bm | PIN7_bm;
 		PORTB.DIRCLR = PIN4_bm | PIN2_bm | PIN3_bm;
 	
-		//
+		//git 
 		//IR SENSORS ACTING WEIRD? TRY COMMENTING OUT THE BELOW.
 		//BELOW RECOMMENDED BY note on pg 153 of the manual
 		//

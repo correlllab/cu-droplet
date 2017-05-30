@@ -17,10 +17,9 @@ TARGET = Droplets
 # This serves as the base location for accessing key #include files.
 ATMEL_STUDIO_PATH = "C:/Program Files (x86)/Atmel/Studio/7.0/"
 
-# List C source files here. (C dependencies are automatically generated.)
+# List your user C source file(s) here.
 USER_FILES = \
-../pong.c \
-#../user_template.c \
+../user_template.c \
 
 
 #----------------------------------------------------------------------------

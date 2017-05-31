@@ -1,6 +1,6 @@
 #pragma once
 
-//#define AUDIO_DROPLET
+#define AUDIO_DROPLET
 //#define SYNCHRONIZED
 
 #include <avr/io.h>
@@ -10,6 +10,7 @@
 #include <util/crc16.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <math.h>
 #include <avr/pgmspace.h>
 #include <string.h>
 

@@ -5,7 +5,6 @@
 #pragma once
 
 #include "droplet_base.h"
-#include "delay_x.h"
 #include "ir_comm.h"
 #include "ir_led.h"
 

@@ -1,16 +1,7 @@
 #pragma once
-
-#include <avr/io.h>
-#include <math.h>
-#include <avr/pgmspace.h>
-
-//#include "droplet_init.h"
-#include "scheduler.h"
+#include "droplet_base.h"
 #include "ir_sensor.h"
 #include "rgb_led.h"
-#include "ir_comm.h"
-#include "i2c.h"
-#include "delay_x.h"
 
 #define DROPLET_RADIUS 22U  //mm
 #define DROPLET_RADIUS_SQ 484U //mm

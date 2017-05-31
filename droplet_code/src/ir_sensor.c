@@ -186,7 +186,7 @@ void check_collision_values(int16_t meas[6]){
 	//for(uint8_t i=0;i<6;i++) printf("%4d ", baseline_meas[i]);
 	//printf("\r\n");
 	for(uint8_t i=0;i<6;i++) ir_led_on(i);
-	busy_delay_us(250);	
+	delay_us(250);	
 	get_ir_sensors(measured_vals, 5);
 	//printf("Coll results: ");
 	//for(uint8_t i=0;i<6;i++) printf("%4d ", measured_vals[i]);

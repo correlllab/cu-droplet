@@ -38,7 +38,7 @@ void init(){
 	theBall.id = 0;
 	theBall.radius = 0;
 	printf("mySlot: %u, frame_length: %lu\r\n\r\n", mySlot, FRAME_LENGTH_MS);
-	set_all_ir_powers(200);
+	//set_all_ir_powers(200);
 }
 
 void loop(){
@@ -313,10 +313,12 @@ void handleBallMsg(BallMsg* msg, uint32_t arrivalTime){
 }
 
 void sendBotPosMsg(){
-	BotPosMsg msg;
-	copyBotPos(&myPos, &(msg.pos));
-	msg.flag = BOT_POS_MSG_FLAG;
-	ir_send(ALL_DIRS, (char*)(&msg), sizeof(BotPosMsg));
+	if(POS_DEFINED(&myPos)){
+		BotPosMsg msg;
+		copyBotPos(&myPos, &(msg.pos));
+		msg.flag = BOT_POS_MSG_FLAG;
+		ir_send(ALL_DIRS, (char*)(&msg), sizeof(BotPosMsg));
+	}
 }
 
 void handleBotPosMsg(BotPosMsg* msg, id_t senderID){

@@ -80,28 +80,29 @@ void range_algs_init(){
 		}
 	}
 	rnbCmdID=0;
-	rnbProcessingFlag=0;
+	processing_rnb=0;
 }
 
 //TODO: handle variable power.
 void broadcast_rnb_data(){
 	uint8_t power = 255;
-	uint8_t goAhead =0;
+	uint8_t goAhead = 0;
+	uint8_t result = 0;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-		if(!rnbProcessingFlag){
-			rnbProcessingFlag = 1;
+		if(!processing_rnb && (ir_is_busy(ALL_DIRS)<4)){
+			processing_rnb = 1;
 			goAhead = 1;
 		}
 	}
 	if(goAhead){
-		rnbCmdSentTime = get_time();
+		uint32_t rnbCmdSentTime = get_time();
 		char c = 'r';
-		uint8_t result = hp_ir_targeted_cmd(ALL_DIRS, &c, 65, (uint16_t)(rnbCmdSentTime&0xFFFF));
+		result = hp_ir_targeted_cmd(ALL_DIRS, &c, 65, (uint16_t)(rnbCmdSentTime&0xFFFF));
 		if(result){
 			ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-				hp_ir_block_bm = 0xFF;
+				hp_ir_block_bm = 0x3F;
 			}		
-			ir_range_blast(power);
+			ir_range_blast(rnbCmdSentTime, power);
 			ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 				hp_ir_block_bm = 0;
 			}
@@ -109,8 +110,9 @@ void broadcast_rnb_data(){
 		}
 	}
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-		rnbProcessingFlag = 0;
+		processing_rnb = 0;
 	}
+	printf("%02hx\r\n",(goAhead<<1 | result));
 }
 
 void use_rnb_data(){
@@ -129,7 +131,7 @@ void use_rnb_data(){
 			//printf("\t[%04X] %4u % 4d % 4d | %6.2f", rnbCmdID, (uint16_t)range, (int16_t)rad_to_deg(bearing), (int16_t)rad_to_deg(heading), error);
 			if((range<110 && error>1.0) || (range<200 && error>1.5) || (range>200)){
 				ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-					rnbProcessingFlag=0;
+					processing_rnb=0;
 				}
 				//printf(" <!>\r\n");
 				return;
@@ -146,7 +148,7 @@ void use_rnb_data(){
 		}
 	}
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-		rnbProcessingFlag=0;
+		processing_rnb=0;
 	}
 }
 
@@ -295,7 +297,7 @@ static int16_t processBrightMeas(void){
 	return valSum;
 }
 
-void ir_range_meas(){
+void ir_range_meas(uint32_t rnbCmdSentTime){
 	//int32_t times[16] = {0};
 	cmd_arrival_dir;
 	cmd_sender_dir;
@@ -318,7 +320,7 @@ void ir_range_meas(){
 	}
 }
 
-void ir_range_blast(uint8_t power __attribute__ ((unused))){
+void ir_range_blast(uint32_t rnbCmdSentTime, uint8_t power __attribute__ ((unused))){
 	//int32_t times[16] = {0};
 	//times[0] = get_time();
 	while((get_time() - rnbCmdSentTime) < POST_BROADCAST_DELAY) delay_us(500);

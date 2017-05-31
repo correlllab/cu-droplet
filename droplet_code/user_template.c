@@ -40,8 +40,7 @@ void loop(){
 		printf("%04X | %3u  % 4d  % 4d\r\n", last_good_rnb.id, last_good_rnb.range, last_good_rnb.bearing, last_good_rnb.heading);
 		rnb_updated = 0;
 	}
-
-
+	
 	if(get_time()-last_red_time > 500)
 		set_red_led(0);
 	if(get_time()-last_green_time > 500)

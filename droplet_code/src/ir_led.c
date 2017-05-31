@@ -73,13 +73,12 @@ void ir_led_off(uint8_t direction)
 	TCF2.CTRLB			|=  carrier_wave_pins[direction];	// re-enable carrier wave output
 }
 
-void set_all_ir_powers(uint16_t power)
-{
+void set_all_ir_powers(uint16_t power){
 	if(power>256) return;
 	if(curr_ir_power==power) return;
 	uint8_t power_high = (power>>8);
 	uint8_t power_low = (power&0xFF);
-	uint8_t write_buffer[6] = {0x00|power_high,power_low,0x10|power_high,power_low,0x60|power_high, power_low};
+	uint8_t write_buffer[6] = {power_high,power_low,0x10|power_high,power_low,0x60|power_high, power_low};
 	
 	uint8_t aResult = 0;
 	uint8_t bResult = 0;

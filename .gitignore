@@ -228,6 +228,7 @@ droplet_code/build/*.d
 droplet_code/build/*.lst
 droplet_code/build/*.o
 droplet_code/build/src/*
+droplet_code/build/.dep
 
 
 

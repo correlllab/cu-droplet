@@ -1,7 +1,6 @@
 #pragma once
-
-#include <avr/io.h>
-#include "droplet_init.h"
+#include "droplet_base.h"
+#include "ir_comm.h"
 #include "random.h"
 
 #define FFSYNC_FULL_PERIOD_MS		5153
@@ -17,15 +16,15 @@
 #define FFSYNC_D				160
 #define FFSYNC_W				200
 
-void firefly_sync_init();
+void firefly_sync_init(void);
 
 void set_sync_blink_color(uint8_t r, uint8_t g, uint8_t b);
 void set_sync_blink_duration(uint16_t dur);
 void enable_sync_blink(uint16_t phase_offset_ms);
-uint8_t sync_blink_enabled();
-void disable_sync_blink();
-void processObsQueue();
-void sendPing(void* val);
+uint8_t sync_blink_enabled(void);
+void disable_sync_blink(void);
+void processObsQueue(void);
+void sendPing(uint16_t val);
 
 typedef struct obs_queue_struct{
 	uint16_t obs;

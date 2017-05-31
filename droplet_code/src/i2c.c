@@ -68,14 +68,13 @@
 
 #include "i2c.h"
 
-void i2c_init()
-{
+void i2c_init(){
 	PORTB.DIRCLR = PIN5_bm; 
 	PORTB.PIN5CTRL = PORT_OPC_WIREDOR_gc;
 	
 	PORTE.DIRSET = PIN0_bm | PIN1_bm;
 	twi = &twiMaster;
-	TWI_MasterInit(&TWIE, TWI_MASTER_INTLVL_MED_gc, TWI_BAUD(F_CPU, 100000));
+	TWI_MasterInit(&TWIE, TWI_MASTER_INTLVL_HI_gc, TWI_BAUD(F_CPU, 100000));
 }
 
 /*! \brief Initialize the TWI module.

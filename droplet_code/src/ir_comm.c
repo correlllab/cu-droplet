@@ -5,7 +5,7 @@ static volatile uint8_t processing_cmd;
 static volatile uint8_t processing_ffsync;
 
 static void clear_ir_buffer(uint8_t dir);
-static void perform_ir_upkeep();
+static void perform_ir_upkeep(void);
 static void ir_receive(uint8_t dir); //Called by Interrupt Handler Only
 static void received_ir_cmd(uint8_t dir);
 static void received_rnb_r(uint8_t delay, id_t senderID, uint32_t last_byte);
@@ -15,7 +15,7 @@ static void ir_transmit(uint8_t dir);
 static void ir_transmit_complete(uint8_t dir);
 
 static volatile uint16_t	cmd_length;
-static volatile char		cmd_buffer[BUFFER_SIZE];
+static volatile char		cmd_buffer[SRL_BUFFER_SIZE];
 /* Hardware addresses for the port pins with the carrier wave */
 static uint8_t ir_carrier_bm[] = { PIN0_bm, PIN1_bm, PIN4_bm, PIN5_bm, PIN6_bm, PIN7_bm };
 
@@ -108,7 +108,7 @@ void handle_cmd_wrapper(){
 	}
 }
 
-static void perform_ir_upkeep(){
+static void perform_ir_upkeep(void){
 	uint16_t seen_crcs[6] = {0,0,0,0,0,0};
 	uint8_t crc_seen;
 	int8_t check_dir;
@@ -406,6 +406,7 @@ static void received_ir_sync(uint8_t delay, id_t senderID){
 			processing_ffsync = 0;
 		}
 	}
+	//printf("F\r\n");
 }
 
 static void received_rnb_r(uint8_t delay, id_t senderID, uint32_t last_byte){
@@ -439,6 +440,7 @@ static void received_rnb_r(uint8_t delay, id_t senderID, uint32_t last_byte){
 		}
 		schedule_task(10, use_rnb_data, NULL);
 	}
+	//printf("R\r\n");
 }
 
 // TO BE CALLED FROM INTERRUPT HANDLER ONLY

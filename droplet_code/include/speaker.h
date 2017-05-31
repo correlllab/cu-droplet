@@ -1,14 +1,10 @@
 #pragma once
+#include "droplet_base.h"
+#include "scheduler.h"
 
-#include <stdio.h>
-#include <avr/pgmspace.h>
-
-void speaker_init();
+void speaker_init(void);
 
 #ifdef AUDIO_DROPLET
-
-#include <avr/interrupt.h>
-#include "scheduler.h"
 
 #define MAX_NOTES_PER_SONG 128
 #define NOTE_SWITCH_DUR_MS 10
@@ -17,9 +13,9 @@ void play_song(uint8_t* notes, uint16_t* durs, uint8_t song_len, uint8_t pauses)
 
 void emit_sound(uint16_t period, uint32_t duration);
 void start_sound(uint8_t note);
-void switch_sound();
-void brief_pause();
-void stop_sound();
+void switch_sound(void);
+void brief_pause(void);
+void stop_sound(void);
 
 #define NOTE_B7		62
 #define NOTE_AS7	66

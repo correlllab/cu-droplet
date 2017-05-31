@@ -1,9 +1,7 @@
 #pragma once
+#include "droplet_base.h"
 
-#include <stdio.h>
-#include <avr/pgmspace.h>
-
-void mic_init();
+void mic_init(void);
 
 #ifdef AUDIO_DROPLET
 

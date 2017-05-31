@@ -3,16 +3,16 @@
  *
  *****************************************************************************/
 #pragma once
-
-#include <avr/io.h>
-#include <util/crc16.h>
-#include <avr/interrupt.h>
-#include <avr/pgmspace.h>
-#include "droplet_init.h"
-#include "scheduler.h"
+#include "droplet_base.h"
 #include "ir_led.h"
 #include "ir_sensor.h"
+#include "pc_comm.h"
 #include "firefly_sync.h"
+#include "range_algs.h"
+//#include "scheduler.h"
+
+
+//#include "firefly_sync.h"
 
 // FYI, the XMEGA128A3U has:
 //		128 KB flash (program memory)
@@ -110,9 +110,9 @@ volatile id_t		cmd_sender_id;
 volatile uint8_t	cmd_arrival_dir;
 volatile uint8_t	cmd_sender_dir;
 
-void ir_comm_init();
+void ir_comm_init(void);
 
-void handle_cmd_wrapper();
+void handle_cmd_wrapper(void);
 
 uint8_t ir_targeted_cmd(uint8_t dirs, char *data, uint8_t data_length, id_t target);
 uint8_t ir_cmd(uint8_t dirs, char *data, uint8_t data_length);

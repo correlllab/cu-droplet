@@ -1,13 +1,9 @@
 #pragma once
-
-#include <avr/pgmspace.h>
-
-#include "avr/io.h" 
+#include "droplet_base.h"
 #include "rgb_led.h"
-#include "scheduler.h"
 #include "i2c.h"
 
-void rgb_sensor_init();
+void rgb_sensor_init(void);
 
 #ifdef AUDIO_DROPLET
 
@@ -22,9 +18,9 @@ void rgb_sensor_init();
 	#define RGB_SENSOR_G_PIN_bm PIN6_bm
 	#define RGB_SENSOR_B_PIN_bm PIN7_bm
 
-	int16_t get_red_sensor();
-	int16_t get_green_sensor();
-	int16_t get_blue_sensor();
+	int16_t get_red_sensor(void);
+	int16_t get_green_sensor(void);
+	int16_t get_blue_sensor(void);
 #endif
 
 	void get_rgb(int16_t *r, int16_t *g, int16_t *b);

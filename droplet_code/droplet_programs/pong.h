@@ -249,8 +249,8 @@ uint16_t msgExtraDelay;
 //int16_t		paddleStart;
 //int16_t		paddleEnd;
 uint8_t		isCovered;
-uint16_t myDist;
-uint16_t otherDist;
+uint16_t    myDist;
+uint16_t    otherDist;
 
 void		init();
 void		loop();

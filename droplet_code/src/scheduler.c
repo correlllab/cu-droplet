@@ -1,17 +1,14 @@
 #include "scheduler.h"
 
 static void add_task_to_list(volatile Task_t* task);
-static int8_t run_tasks();
+static int8_t run_tasks(void);
 
-static volatile Task_t* scheduler_malloc()
-{
+static volatile Task_t* scheduler_malloc(void){
 	if(num_tasks>=MAX_NUM_SCHEDULED_TASKS) return NULL;
 
-	for(uint8_t tmp=0 ; tmp<MAX_NUM_SCHEDULED_TASKS ; tmp++)
-	{
+	for(uint8_t tmp=0 ; tmp<MAX_NUM_SCHEDULED_TASKS ; tmp++){
 		//This code assumes that all tasks will have non-null function pointers.
-		if((task_storage_arr[tmp].func.noarg_function) == NULL)
-		{
+		if((task_storage_arr[tmp].func.noarg_func) == NULL){
 			return &(task_storage_arr[tmp]);
 		}
 	}
@@ -20,17 +17,15 @@ static volatile Task_t* scheduler_malloc()
 
 }
 
-static void scheduler_free(volatile Task_t* tgt)
-{
-	if((tgt<task_storage_arr)||(tgt>(&(task_storage_arr[MAX_NUM_SCHEDULED_TASKS]))))
-	{
+static void scheduler_free(volatile Task_t* tgt){
+	if((tgt<task_storage_arr)||(tgt>(&(task_storage_arr[MAX_NUM_SCHEDULED_TASKS])))){
 		printf_P(PSTR("ERROR: In scheduler_free, tgt (%X) was outside valid Task* range.\r\n"),tgt);
 		set_rgb(0,0,255);
 		delay_ms(60000);
 	}
 	tgt->arg = 0;
 	tgt->period = 0;
-	(tgt->func).noarg_function = NULL;
+	(tgt->func).noarg_func = ((void (*)(void))NULL);
 	tgt->scheduled_time = 0;
 	tgt->next = NULL;
 }
@@ -51,44 +46,6 @@ void scheduler_init(){
 		RTC.CTRL = RTC_PRESCALER_DIV1_gc;
 		while (RTC.STATUS & RTC_SYNCBUSY_bm);
 		RTC.CNT = 0;
-	}
-}
-
-void Config32MHzClock(void){
-	// Set system clock to 32 MHz
-	CCP = CCP_IOREG_gc;
-	OSC.CTRL = OSC_RC32MEN_bm;
-	while(!(OSC.STATUS & OSC_RC32MRDY_bm));
-	CCP = CCP_IOREG_gc;
-	CLK.CTRL = 0x01;
-	//OSC.RC32KCAL = PRODSIGNATURES_RCOSC32K;
-	// Set up real-time clock
-	CLK.RTCCTRL = CLK_RTCSRC_RCOSC_gc | CLK_RTCEN_bm;
-	//RTC.INTCTRL = RTC_OVFINTLVL_LO_gc;
-	while (RTC.STATUS & RTC_SYNCBUSY_bm);	// wait for SYNCBUSY to clear
-	
-	RTC.PER = 0xFFFF;		//(2^16)-1 milliseconds is 65.535 seconds
-	RTC.CTRL = RTC_PRESCALER_DIV1_gc;
-
-	// reset RTC to 0, important for after a reboot:
-	while(RTC.STATUS & RTC_SYNCBUSY_bm);	// wait for SYNCBUSY to clear
-	RTC.CNT = 0;
-}
-
-// Delay ms milliseconds
-// (the built-in _delay_ms only takes constant arguments, not variables)
-void delay_ms(uint16_t ms){
-	uint32_t cur_time, end_time;
-	cli(); cur_time = get_time(); sei();
-	end_time = cur_time + ms;
-	while (1){
-		cli();
-		if (get_time() >= end_time){
-			sei();
-			return;
-		}
-		sei();
-		delay_us(10);
 	}
 }
 
@@ -124,7 +81,7 @@ void task_list_cleanup(){
 // time is number of milliseconds until function is executed
 // function is a function pointer to execute
 // arg is the argument to supply to function
-volatile Task_t* schedule_task(uint32_t time, void (*function)(), void* arg){
+volatile Task_t* schedule_task(uint32_t time, flex_function function, void* arg){
 	volatile Task_t* new_task;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 		new_task = scheduler_malloc();
@@ -139,7 +96,7 @@ volatile Task_t* schedule_task(uint32_t time, void (*function)(), void* arg){
 		time+=MIN_TASK_TIME_IN_FUTURE*(time<MIN_TASK_TIME_IN_FUTURE);
 		new_task->scheduled_time = time + get_time();
 		new_task->arg = arg;
-		new_task->func.noarg_function = function;
+		new_task->func = function;
 		new_task->period = 0;
 		new_task->next = NULL;
 	}
@@ -149,7 +106,7 @@ volatile Task_t* schedule_task(uint32_t time, void (*function)(), void* arg){
 	return new_task;
 }
 
-volatile Task_t* schedule_periodic_task(uint32_t period, void (*function)(), void* arg){
+volatile Task_t* schedule_periodic_task(uint32_t period, flex_function function, void* arg){
 	period+=MIN_TASK_TIME_IN_FUTURE*(period<MIN_TASK_TIME_IN_FUTURE);	
 	volatile Task_t* new_task = schedule_task(period, function, arg);
 	new_task->period=period;
@@ -183,7 +140,7 @@ static void add_task_to_list(volatile Task_t* task){
 				if(tmp_task_ptr->next==tmp_task_ptr){
 					//set_rgb(255, 50, 0);
 					printf_P(PSTR("ERROR! Task list has self-reference.\r\n"));
-					printf_P(PSTR("New Task %p (%p) scheduled at %lu with period %lu, %lu current\r\n"), task, (task->func).noarg_function, task->scheduled_time, task->period, get_time());
+					printf_P(PSTR("New Task %p (%p) scheduled at %lu with period %lu, %lu current\r\n"), task, (task->func).noarg_func, task->scheduled_time, task->period, get_time());
 					print_task_queue();
 					return;				
 				}
@@ -241,7 +198,7 @@ void print_task_queue(){
 		
 		// Iterate through the list of tasks, printing name, function, and scheduled time of each
 		while (cur_task != NULL){
-			printf_P(PSTR("\tTask %p (%p) scheduled at %lu with period %lu, %lu current\r\n"), cur_task, (cur_task->func).noarg_function, cur_task->scheduled_time, cur_task->period, get_time());
+			printf_P(PSTR("\tTask %p (%p) scheduled at %lu with period %lu, %lu current\r\n"), cur_task, (cur_task->func).noarg_func, cur_task->scheduled_time, cur_task->period, get_time());
 			if(cur_task==cur_task->next) break;
 			cur_task = cur_task->next;
 		}
@@ -258,7 +215,7 @@ int8_t run_tasks(){
 		while (task_list != NULL && task_list->scheduled_time <= get_time() + 2){
 			uint8_t num_slots_used = 0;
 			for(uint8_t i=0;i<MAX_NUM_SCHEDULED_TASKS;i++){
-				if(((uint16_t)(task_storage_arr[i].func.noarg_function))!=0){
+				if(((uint16_t)(task_storage_arr[i].func.noarg_func))!=0){
 					num_slots_used++;
 					volatile Task_t* next_ptr = task_storage_arr[i].next;
 					if((next_ptr!=0)&&((next_ptr<task_storage_arr)||(next_ptr>(&(task_storage_arr[MAX_NUM_SCHEDULED_TASKS-1]))))){
@@ -278,7 +235,7 @@ int8_t run_tasks(){
 
 			if(cur_task->arg==NULL){
 				NONATOMIC_BLOCK(NONATOMIC_RESTORESTATE){ // Enable interrupts during tasks
-					(cur_task->func).noarg_function(); // run the task
+					(cur_task->func).noarg_func(); // run the task
 				}
 			}else{
 				NONATOMIC_BLOCK(NONATOMIC_RESTORESTATE){ // Enable interrupts during tasks
@@ -299,7 +256,7 @@ int8_t run_tasks(){
 			
 			num_slots_used = 0;
 			for(uint8_t i=0;i<MAX_NUM_SCHEDULED_TASKS;i++){
-				if(((uint16_t)(task_storage_arr[i].func.noarg_function))!=0){
+				if(((uint16_t)(task_storage_arr[i].func.noarg_func))!=0){
 					num_slots_used++;
 					volatile Task_t* next_ptr = task_storage_arr[i].next;
 					if((next_ptr!=0)&&((next_ptr<task_storage_arr)||(next_ptr>(&(task_storage_arr[MAX_NUM_SCHEDULED_TASKS-1]))))){

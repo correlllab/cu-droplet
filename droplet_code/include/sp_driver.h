@@ -61,8 +61,6 @@
  *****************************************************************************/
 #pragma once
 
-//#include "avr_compiler.h"
-//#include "Flash_Defines.h"
 #include <avr/io.h>
 
 

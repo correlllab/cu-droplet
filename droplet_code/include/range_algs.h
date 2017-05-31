@@ -51,8 +51,7 @@ typedef struct rnb_data {
 rnb last_good_rnb;
 volatile uint8_t rnb_updated;
 volatile id_t rnbCmdID;
-volatile uint32_t rnbCmdSentTime;
-volatile uint8_t rnbProcessingFlag;
+volatile uint8_t processing_rnb;
 
 void range_algs_init();
 
@@ -61,8 +60,8 @@ void broadcast_rnb_data(); //takes about 142ms.
 void use_rnb_data();
 
 
-void ir_range_meas();
-void ir_range_blast(uint8_t power);
+void ir_range_meas(uint32_t rnbCmdSentTime);
+void ir_range_blast(uint32_t rnbCmdSentTime, uint8_t power);
 
 inline int8_t sgn(float x){
 	return (0<x)-(x<0);

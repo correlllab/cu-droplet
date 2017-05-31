@@ -307,19 +307,19 @@ static void decompressP(Matrix* P, DensePosCovar* covar){
  * "Decentralized Multi-robot Cooperative Localization using Covariance Intersection"
  * by Luic C. Carillo-Arce et. al.
  */
-void	updateForMovement(uint8_t dir, uint16_t mag){
-	Vector curX = {myPos.x, myPos.y, deg_to_rad(myPos.o)};
+void	updateForMovement(uint8_t dir __attribute__ ((unused)), uint16_t mag __attribute__ ((unused))){
+	Vector curX __attribute__ ((unused)) = {myPos.x, myPos.y, deg_to_rad(myPos.o)};
 	Matrix curP;
 	decompressP(&curP, &myPosCovar);
-	Vector newX;
+	Vector newX __attribute__ ((unused));
 	//TODO: Implement function 'f', which calculates newX based on curX, movement dir, and movement mag.
-	Matrix Phi;
+	Matrix Phi __attribute__ ((unused));
 	//TODO: Calculate Phi, the gradient of 'f' w.r.t. changes in the robot's current position.
-	Matrix G;
+	Matrix G __attribute__ ((unused));
 	//TODO: Calculate G, the gradient of 'f' w.r.t. errors in the robot's motion.
-	Matrix Q;
+	Matrix Q __attribute__ ((unused));
 	//TODO: Hard-Code Q, our movement's covariance. Probably separately for each direction???
-	Matrix newP;
+	Matrix newP __attribute__ ((unused));
 	//newP = Phi.curP.(tr(Phi)) + G.Q.(tr(G))
 }
 

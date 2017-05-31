@@ -92,7 +92,8 @@ void initialize_ir_baselines(){
 
 void update_ir_baselines(){
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-		if(hp_ir_block_bm){
+		if(ir_is_busy(ALL_DIRS)){
+			printf("Skipping this baseline update.\r\n");
 			return;
 		}
 		hp_ir_block_bm=0x3F;
@@ -170,7 +171,7 @@ void check_collision_values(int16_t meas[6]){
 	int16_t measured_vals[6];
 	//uint8_t dirs=0;
 	if(ir_is_busy(ALL_DIRS)>1){
-		printf_P(PSTR("IR Hardware busy, probably sending a message? Can't check collisions.\r\n"));
+		printf_P(PSTR("IR Hardware busy. Can't check collisions.\r\n"));
 		return;
 	}
 	for(uint8_t i=0;i<6;i++) ir_rxtx[i].status = IR_STATUS_BUSY_bm;	

@@ -86,9 +86,10 @@ void range_algs_init(){
 //TODO: handle variable power.
 void broadcast_rnb_data(){
 	uint8_t power = 255;
-	uint8_t goAhead =0;
+	uint8_t goAhead = 0;
+	uint8_t result = 0;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-		if(!processing_rnb){
+		if(!processing_rnb && (ir_is_busy(ALL_DIRS)<4)){
 			processing_rnb = 1;
 			goAhead = 1;
 		}
@@ -96,7 +97,7 @@ void broadcast_rnb_data(){
 	if(goAhead){
 		uint32_t rnbCmdSentTime = get_time();
 		char c = 'r';
-		uint8_t result = hp_ir_targeted_cmd(ALL_DIRS, &c, 65, (uint16_t)(rnbCmdSentTime&0xFFFF));
+		result = hp_ir_targeted_cmd(ALL_DIRS, &c, 65, (uint16_t)(rnbCmdSentTime&0xFFFF));
 		if(result){
 			ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 				hp_ir_block_bm = 0x3F;
@@ -111,6 +112,7 @@ void broadcast_rnb_data(){
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 		processing_rnb = 0;
 	}
+	printf("%02hx\r\n",(goAhead<<1 | result));
 }
 
 void use_rnb_data(){

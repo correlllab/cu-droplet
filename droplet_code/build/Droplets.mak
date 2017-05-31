@@ -19,8 +19,7 @@ ATMEL_STUDIO_PATH = "C:/Program Files (x86)/Atmel/Studio/7.0/"
 
 # List your user C source file(s) here.
 USER_FILES = \
-../pong.c \
-#../user_template.c \
+../user_template.c \
 
 
 

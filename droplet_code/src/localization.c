@@ -1,10 +1,18 @@
 #include "localization.h"
 
-#define NUM_SEEDS 4
+/*#define NUM_SEEDS 4
 
 const BotPos SEED_POS[NUM_SEEDS] = {{50,50,0}, {200,50,0}, {50,200,0}, {200,200,0}};
 const id_t   SEED_IDS[NUM_SEEDS] = {0x7EDF, 0x1361, 0x6C66, 0x9669};
+*/
 
+#define NUM_SEEDS 2
+
+const BotPos SEED_POS[NUM_SEEDS] = {{0,0,0}, {UNDF, UNDF, UNDF}};
+//const id_t   SEED_IDS[NUM_SEEDS] = {0x1361, 0xFFFF};
+const id_t   SEED_IDS[NUM_SEEDS] = {0xC806, 0xFFFF};
+	
+	
 //const BotPos SEEDS[NUM_SEEDS] = {{100, 600, 0}, {600, 600, 0}, {100, 100, 0}, {600, 100, 0}};
 
 //The MIN and MAX values below are only needed for getPosColor.

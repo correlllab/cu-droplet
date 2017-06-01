@@ -11,7 +11,7 @@
 
 # Target file name (without extension).
 # This should match your AtmelStudio Project Name
-TARGET = Localization_Test3
+TARGET = Grid_Initialization_WIP
 
 # The base directory of your Atmel Studio installation folder.
 # This serves as the base location for accessing key #include files.
@@ -19,7 +19,7 @@ ATMEL_STUDIO_PATH = "C:/Program Files (x86)/Atmel/Studio/7.0/"
 
 # List your user C source file(s) here.
 USER_FILES = \
-../droplet_programs/positions.c
+../droplet_programs/tdma_template.c
 
 
 

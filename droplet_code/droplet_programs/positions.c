@@ -9,7 +9,7 @@ void init(){
 	frameStart=get_time();
 	mySlot = getSlot(get_droplet_id());
 	printf("mySlot: %u, frame_length: %lu\r\n\r\n", mySlot, FRAME_LENGTH_MS);
-	set_all_ir_powers(200);
+	//set_all_ir_powers(200);
 }
 
 void loop(){

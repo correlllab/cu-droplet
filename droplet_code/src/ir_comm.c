@@ -285,8 +285,6 @@ void waitForTransmission(uint8_t dirs){
 	   } while (busy);
 }
 
-
-
 // To be called from interrupt handler only. Do not call.
 static void ir_receive(uint8_t dir){
 	uint8_t in_byte = channel[dir]->DATA;				// Some data just came in

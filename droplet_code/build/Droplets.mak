@@ -19,7 +19,7 @@ ATMEL_STUDIO_PATH = "C:/Program Files (x86)/Atmel/Studio/7.0/"
 
 # List your user C source file(s) here.
 USER_FILES = \
-../pong.c \
+../droplet_programs/pong.c \
 
 
 
@@ -50,7 +50,7 @@ FORMAT = ihex
 #     this an empty or blank macro!
 # JOHN NOTE: This directory appears to be relative to where the *.c file containing
 # main is (maybe??)
-OBJDIR = ../build/src
+OBJDIR = .
 
 # List C source files here. (C dependencies are automatically generated.)
 SRC = $(USER_FILES) \
@@ -84,7 +84,8 @@ ASRC =  \
 
 C_INCLUDE_DIRS = \
 -I ../include \
--I ../
+-I ../ \
+-I ../droplet_programs
 
 SYS_INCLUDE_DIRS = \
 -I $(ATMEL_STUDIO_PATH)Packs/atmel/XMEGAA_DFP/1.1.68/include \

@@ -91,7 +91,7 @@ void broadcast_rnb_data(){
 	uint8_t irStatus = 0;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 		irStatus = ir_is_busy(ALL_DIRS);
-		if(!processing_rnb_flag && (irStatus<4)){
+		if(!processing_rnb_flag){
 			processing_rnb_flag = 1;
 			goAhead = 1;
 		}
@@ -115,7 +115,7 @@ void broadcast_rnb_data(){
 		}
 	}else{
 		uint8_t failureInfo = ((processing_rnb_flag<<6) | (result<<4) | irStatus);
-		printf_P(PSTR("RNB Broadcast failed [%02hX]\r\n"),  failureInfo);
+		printf_P(PSTR("RNB Broadcast failed [ %02hX ]\r\n"),  failureInfo);
 	}
 }
 

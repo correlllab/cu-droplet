@@ -1,13 +1,12 @@
-/*
- * GLOBAL SETTINGS/SYMBOLS:
- *
- * Use the project settings to define the symbol AUDIO_DROPLET, 
- * if you have an audio droplet.
- *
- * Use the project settings to define the symbol SYNCHRONIZED,
- * to have the Droplets synchronize using the firefly
- * synchronization algorithm.
- */
+### Global Settings/Symbols
+    These are located at the top of (../include/droplet_base.h).
+    
+    __AUDIO_DROPLET__  
+      Should only be #define'd if you are programming an Audio Droplet.
+    
+    __SYNCHRONIZED__  
+      If this is #define'd here, it will turn on the firefly synchronization subsystem.
+      At the cost of each Droplet sending a very short message every few seconds, the Droplets will have their real time clocks synchronized such that, if they all have code to perform some action at, for example, `get_time()%1000`, they will all do that action simultaneously.
 
 /*
  * Because memory is limited on the Droplets, I strongly encourage you to use the size-explicit

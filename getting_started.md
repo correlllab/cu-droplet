@@ -49,7 +49,7 @@ Now that we have a custom Makefile, it shouldn't be too hard to get up and runni
         This needs to be the file path to wherever Atmel Studio is installed. 
         If Atmel Studio is installed in the default location, you shouldn't need to modify this.
       
-      __USER_FILES__  
+      __USER_FILE__  
         This should be your 'main' file: the file with the 'init', 'loop', and 'handle_msg' functions.
         If you're just getting started with 'user_template.c', you shouldn't need to modify this.
         Note: This is a file path relative to the location of the makefile. Thus, '../' should be the same as 'cu-droplet/droplet_code/'
@@ -68,27 +68,37 @@ Good luck!
 #### Fuse Settings
 The first time you get started with a brand new Droplet, you must set some fuse settings. Here are correct fuse settings copied directly from ATMEL: 
 
-##### Fuse Settings
-* JTAGUSERID = 0xFF
-* WDWP = 8CLK
-* WDP = 8CLK
-* BOOTRST = APPLICATION
-* TOSCSEL = XTAL
-* BODPD = DISABLED
-* RSTDISBL = [ ]
-* SUT = 0MS
-* WDLOCK = [ ]
-* JTAGEN = [ ]
-* BODACT = DISABLED
-* EESAVE = [X]
-* BODLVL = 1V6
+| Tables        | Are           | Cool  |
+| ------------- |:-------------:| -----:|
+| col 3 is      | right-aligned | $1600 |
+| col 2 is      | centered      |   $12 |
+| zebra stripes | are neat      |    $1 |
 
-##### Fuse Bytes
-* FUSEBYTE0 = 0xFF (valid)
-* FUSEBYTE1 = 0x00 (valid)
-* FUSEBYTE2 = 0xFF (valid)
-* FUSEBYTE4 = 0xFF (valid)
-* FUSEBYTE5 = 0xF7 (valid)
+##### Fuse Settings
+
+| Fuse Name     | Value         |
+| -------------:|:------------- |
+| JTAGUSERID    | 0xFF          |
+| WDWP          | 8CLK          |
+| WDP           | 8CLK          |
+| BOOTRST       | APPLICATION   |
+| TOSCSEL       | XTAL          |
+| BODPD         | DISABLED      |
+| RSTDIBL       | [ ]           |
+| SUT           | 0MS           |
+| WDLOCK        | [ ]           |
+| JTAGEN        | [ ]           |
+| BODACT        | DISABLED      |
+| EESAVE        | [X]           |
+| BODLVL        | 1V6           |
+
+| Fuse Register | Value         |
+| -------------:|:------------- |
+| FUSEBYTE0     | 0xFF (valid)  |
+| FUSEBYTE1     | 0x00 (valid)  |
+| FUSEBYTE2     | 0xFF (valid)  |
+| FUSEBYTE4     | 0xFF (valid)  |
+| FUSEBYTE5     | 0xF7 (valid)  |
 
 #### Programming
 

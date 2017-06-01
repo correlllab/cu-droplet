@@ -92,12 +92,6 @@ The first time you get started with a brand new Droplet, verify that the fuse se
 | FUSEBYTE4     | 0xFF (valid)  |
 | FUSEBYTE5     | 0xF7 (valid)  |
 
-#### Programming
-
-The 'user_template.c' and 'user_template.h' files have comments to explain the functionality of the three key functions: 'init()', 'loop()', and 'handle_msg(msg_struct* msg)'. Feel free to delete these two files and replace them with your own. As long as you define those three functions somewhere in your code the linker should be able to sort it out.
-
-The /src/ and /include/ folders contain all of the hardware code. In theory, you shouldn't need to modify these files, but if you feel need to, be our guests!
-
 #### Serial Communication
 
 The Droplets are capable of serial communication with a computer. Primarily, we use this to view print statements from the Droplets, and occasionally to override their code for debugging purposes.

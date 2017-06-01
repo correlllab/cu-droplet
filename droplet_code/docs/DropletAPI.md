@@ -81,9 +81,9 @@ void set_hsv(uint16_t h, uint8_t s, uint8_t v);
 
   These functions are used to get the intensity that the red, green, or blue LED is currently set to.
 ```C 
-uint8_t get_red_led();
-uint8_t get_green_led();
-uint8_t get_blue_led();
+uint8_t get_red_led(void);
+uint8_t get_green_led(void);
+uint8_t get_blue_led(void);
 ```
 
 ### Color Sensing.
@@ -134,7 +134,7 @@ void broadcast_rnb_data(void);
 
   This function has the Droplet stop all movement.
   ```C
-  void stop_move();
+  void stop_move(void);
   ```
   This function returns '-1' (NOT '0') if the Droplet is not moving, and otherwise returns the direction the Droplet is moving in.
   ```C
@@ -144,9 +144,9 @@ void broadcast_rnb_data(void);
 ### Power
   The functions below can be used to check power levels on each leg, and on the capacitor.
   ```C
-  uint8_t cap_status();
+  uint8_t cap_status(void);
   int8_t leg_status(uint8_t leg);
-  uint8_t legs_powered();
+  uint8_t legs_powered(void);
   ```
 
 ### Utilities
@@ -162,7 +162,7 @@ void broadcast_rnb_data(void);
   Every droplet has a unique, sixteen-bit ID number.
   This function returns the ID number of the Droplet which calls it.
   ```C
-  id_t get_droplet_id();
+  id_t get_droplet_id(void);
   ```
   
   Restart the Droplet:

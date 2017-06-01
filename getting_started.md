@@ -66,15 +66,7 @@ Now just repeat steps 7 & 8 as necessary!
 Good luck!
 
 #### Fuse Settings
-The first time you get started with a brand new Droplet, you must set some fuse settings. Here are correct fuse settings copied directly from ATMEL: 
-
-| Tables        | Are           | Cool  |
-| ------------- |:-------------:| -----:|
-| col 3 is      | right-aligned | $1600 |
-| col 2 is      | centered      |   $12 |
-| zebra stripes | are neat      |    $1 |
-
-##### Fuse Settings
+The first time you get started with a brand new Droplet, verify that the fuse settings are as follows
 
 | Fuse Name     | Value         |
 | -------------:|:------------- |

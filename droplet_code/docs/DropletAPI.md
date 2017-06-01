@@ -121,62 +121,65 @@ void broadcast_rnb_data(void);
 
   Note: An rnb broadcast takes ~142ms.
 
-/*
- * This function returns a dir_mask as described above, where a position is '1' if 
- * a collision is detected in the corresponding direction, and '0' otherwise. Here,
- * a collision being detected indicates that there is some object within a cm or two
- * of the ir hardware indicated by that direction. 
- * For example, if you wanted the Droplet's light to turn red when a collision was 
- * detected in direction 3, you would want the following code in loop():
- *      if(DIR3&check_collisions()){
- *          set_rgb(255,0,0);
- *      }
- */
-uint8_t check_collisions();
+### Movement
+  This function has the Droplet move in the specified direction for the specific number of 'steps'. There isn't a great way to map from steps to actual distances. Try 30-100 as a starting place.
+  ```C
+  uint8_t	move_steps(uint8_t direction, uint16_t num_steps);
+  ```
 
+  Droplets can be calibrated for how far they move each step. If they have been, this function lets you specify how far you want the robot to move and converts the distance in mm to a number of steps.
+  ```C 
+  void walk(uint8_t direction, uint16_t mm);
+  ```
 
-uint8_t	move_steps(uint8_t direction, uint16_t num_steps);
-/*
- * Droplets can be calibrated for how far they move each step.
- * If they have been, the walk function lets you specify how far you want
- * the robot to move and converts the distance in mm to a number of steps.
- */
-void walk(uint8_t direction, uint16_t mm);
-void stop_move(); //stops all motors.
+  This function has the Droplet stop all movement.
+  ```C
+  void stop_move();
+  ```
+  This function returns '-1' (NOT '0') if the Droplet is not moving, and otherwise returns the direction the Droplet is moving in.
+  ```C
+  int8_t is_moving(void);
+  ```
+  
+### Power
+  The functions below can be used to check power levels on each leg, and on the capacitor.
+  ```C
+  uint8_t cap_status();
+  int8_t leg_status(uint8_t leg);
+  uint8_t legs_powered();
+  ```
 
-//This function returns -1 if the Droplet is not moving, or the direction 
-//the Droplet is moving in otherwise.
-int8_t is_moving(void);
-
-// Power
-uint8_t cap_status();
-int8_t leg_status(uint8_t leg);
-uint8_t legs_powered();
-
-// Utilities
-/*
- * This function returns a single, psuedorandom value, uniformly distributed over the full range of the appropriate data-type.
- */
-uint8_t  rand_byte();  //from 0 to 255
-uint16_t rand_short(); //from 0 to 65535
-uint32_t rand_quad();  //from 0 to 4294967295
-
-/*
- * Every droplet has a unique, sixteen-bit ID number. 
- * This function returns the ID number of the Droplet which calls it.
- * It's inlined and thus runs fast.
- */
-id_t get_droplet_id();
-
-// Scheduler
-void delay_ms(uint16_t ms);
-void schedule_task(uint32_t time, (void *)fn_name, void *args); // maybe?
-
-//This function returns the time in ms since the Droplet last powered on.
-uint32_t get_time();
-
-// Initialization
-void droplet_reboot();
+### Utilities
+  These functions return random values:
+  ```C
+  uint8_t  rand_byte(void);  //from 0 to 255
+  uint16_t rand_short(void); //from 0 to 65535
+  uint32_t rand_quad(void);  //from 0 to 4294967295
+  float    rand_real(void);  //from 0.0 to 1.0
+  float    rand_norm(float mean, float stdDev); //normally-distributed random value with the specified properties.
+  ```
+  
+  Every droplet has a unique, sixteen-bit ID number.
+  This function returns the ID number of the Droplet which calls it.
+  ```C
+  id_t get_droplet_id();
+  ```
+  
+  Restart the Droplet:
+  ```C
+  void droplet_reboot(void);
+  ```
+  
+### Time
+  ```C
+  void delay_ms(uint16_t ms).
+  uint32_t get_time(void); //returns time in ms since Droplet started.
+  ```
+  
+  schedule_task causes the Droplet to call the specified function, time milliseconds from now.
+  ```C
+  volatile Task_t* schedule_task(uint32_t time, flex_function function, void* arg);
+  ```
 
 ## IR Directions
   For several different IR functions, we use a 'dir mask', a single byte (ie, uint8_t) which can mark each of the six directions as 'on' or 'off'. A few values are defined in the code to make using these dir_masks easier. There is a direction for each set of IR hardware. To help describe each direction unambiguously, imagine the top of a Droplet as a 12-hour clock face, with the arrow on the shell at 12 o'clock. With this, each direction has the hour position on the clock which corresponds with that direction.

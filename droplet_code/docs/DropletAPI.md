@@ -1,18 +1,18 @@
-### Global Settings/Symbols
-    These are located at the top of (../include/droplet_base.h).
+### Global Settings/Symbols  
+  These are located at the top of (../include/droplet_base.h).
     
-    __AUDIO_DROPLET__  
-      Should only be #define'd if you are programming an Audio Droplet.
+  __AUDIO_DROPLET__  
+    Should only be #define'd if you are programming an Audio Droplet.
     
-    __SYNCHRONIZED__  
+  __SYNCHRONIZED__  
       If this is #define'd here, it will turn on the firefly synchronization subsystem.
       At the cost of each Droplet sending a very short message every few seconds, the Droplets will have their real time clocks synchronized such that, if they all have code to perform some action at, for example, `get_time()%1000`, they will all do that action simultaneously.
 
-/*
- * Because memory is limited on the Droplets, I strongly encourage you to use the size-explicit
- * data types provided, as you will see throughout the Droplets code: 
- * uint8_t, int8_t, uint16_t, int16_t, uint32_t, int32_t
- */
+### General Guidelines  
+  Due primarily to memory limitations, I strongly encourage you to use the size-explicit
+  data types provided, as you will see throughout the Droplets code: 
+  `uint8_t`, `int8_t`, `uint16_t`, `int16_t`, `uint32_t`, `int32_t`
+
 
 /*
  *     If you have an FTDI cable set up with a serial connection to a Droplet, you can talk to it! 

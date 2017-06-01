@@ -7,7 +7,7 @@ static int16_t get_mic_reading(void);
 
 //The code below assumes that ir_sensor_init() has already been called, which does some of the set up for ADCB.
 void mic_init(){
-	#ifdef AUDIO_DROPLET	
+	#ifdef AUDIO_DROPLET
 		PORTB.DIRCLR = PIN5_bm;
 		PORTB.PIN5CTRL = PORT_OPC_WIREDOR_gc | PORT_ISC_INPUT_DISABLE_gc;
 		PORTD.DIRCLR = PIN5_bm;

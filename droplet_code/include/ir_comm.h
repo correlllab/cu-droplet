@@ -9,7 +9,7 @@
 #include "pc_comm.h"
 #include "firefly_sync.h"
 #include "range_algs.h"
-//#include "scheduler.h"
+#include "scheduler.h"
 
 
 //#include "firefly_sync.h"

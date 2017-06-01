@@ -5,7 +5,6 @@
 #pragma once
 
 #include "droplet_base.h"
-#include "delay_x.h"
 #include "ir_comm.h"
 #include "ir_led.h"
 
@@ -32,8 +31,6 @@ void update_ir_baselines(void);
 	inline void ir_sensor_disable(void){ ADCA.CTRLA &= ~ADC_ENABLE_bm; ADCB.CTRLA &= ~ADC_ENABLE_bm; }
 #else
 	#define IR_SENSOR_PORT PORTB
-
-	#define IR_MEAS_COUNT 5
 
 	#define IR_SENSOR_0_PIN_bm		PIN5_bm
 	#define IR_SENSOR_1_PIN_bm		PIN6_bm

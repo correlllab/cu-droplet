@@ -59,7 +59,6 @@
 #pragma once
 
 #include "droplet_base.h"
-#include "scheduler.h"
 
 //#include "avr_compiler.h"
 //

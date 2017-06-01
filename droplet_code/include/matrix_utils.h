@@ -1,6 +1,5 @@
 #pragma once
 #include "droplet_base.h"
-#include <math.h>
 
 typedef float Vector[3];
 typedef float Matrix[3][3];

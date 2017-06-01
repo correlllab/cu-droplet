@@ -421,11 +421,7 @@ static void prepBotMeasMsg(id_t id, uint16_t r, int16_t b, BotPos* pos, DensePos
 //Sends a BotMeasMsg using a poor man's CSMA protocol. Close-range measurements are biased to wait less 
 //long in exponential backoff.
 void sendBotMeasMsg(BotMeasMsgNode* mNode){
-	if(!ir_is_busy(ALL_DIRS)){
-		ir_targeted_send(mNode->dirMask, (char*)(&(mNode->msg)), sizeof(BotMeasMsg), mNode->tgt);
-		POS_MSG_DEBUG_PRINT("%04X sent pos msg in dirs %02hX after %hu tries.\r\n", mNode->tgt, mNode->dirMask, mNode->numTries);
-		myFree(mNode);
-	}else{
+	if(ir_is_busy(ALL_DIRS)){
 		if(mNode->numTries>5){
 			POS_MSG_DEBUG_PRINT("Giving up on msg to %04X after %hu tries.\r\n", mNode->tgt, mNode->numTries);
 			myFree(mNode);
@@ -433,8 +429,11 @@ void sendBotMeasMsg(BotMeasMsgNode* mNode){
 			schedule_task(getBackoffTime(mNode->numTries, mNode->range), (arg_func_t)sendBotMeasMsg, mNode);
 		}
 		mNode->numTries++;
+	}else{
+		ir_targeted_send(mNode->dirMask, (char*)(&(mNode->msg)), sizeof(BotMeasMsg), mNode->tgt);
+		POS_MSG_DEBUG_PRINT("%04X sent pos msg in dirs %02hX after %hu tries.\r\n", mNode->tgt, mNode->dirMask, mNode->numTries);
+		myFree(mNode);
 	}
-
 }
 
 void handleBotMeasMsg(BotMeasMsg* msg, id_t senderID __attribute__ ((unused))){

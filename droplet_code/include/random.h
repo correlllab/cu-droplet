@@ -1,7 +1,6 @@
 #pragma once
 
 #include "droplet_base.h"
-#include <math.h>
 
 void random_init(void);
 

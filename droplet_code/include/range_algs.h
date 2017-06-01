@@ -1,16 +1,9 @@
 #pragma once
 
-#include <avr/io.h>
-#include <math.h>
-#include <avr/pgmspace.h>
-
-//#include "droplet_init.h"
+#include "droplet_base.h"
 #include "scheduler.h"
 #include "ir_sensor.h"
 #include "rgb_led.h"
-#include "ir_comm.h"
-#include "i2c.h"
-#include "delay_x.h"
 
 #define DROPLET_RADIUS 22U  //mm
 #define DROPLET_RADIUS_SQ 484U //mm
@@ -49,8 +42,7 @@ typedef struct rnb_data {
 rnb last_good_rnb;
 volatile uint8_t rnb_updated;
 volatile id_t rnbCmdID;
-volatile uint32_t rnbCmdSentTime;
-volatile uint8_t rnbProcessingFlag;
+volatile uint8_t processing_rnb_flag;
 
 void range_algs_init(void);
 
@@ -58,9 +50,8 @@ void broadcast_rnb_data(void); //takes about 142ms.
 //void receive_rnb_data(void);
 void use_rnb_data(void);
 
-
-void ir_range_meas(void);
-void ir_range_blast(uint8_t power);
+void ir_range_meas(uint32_t rnbCmdSentTime);
+void ir_range_blast(uint32_t rnbCmdSentTime, uint8_t power);
 
 inline int8_t sgn(float x){
 	return (0<x)-(x<0);

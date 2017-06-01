@@ -2,10 +2,12 @@
 #include "rgb_led.h"
 
 static volatile uint8_t processing_cmd;
-static volatile uint8_t processing_ffsync;
+static volatile uint8_t processing_ffsync_flag;
 
 static void clear_ir_buffer(uint8_t dir);
 static void perform_ir_upkeep(void);
+static uint8_t all_ir_sends(uint8_t dirs, char* data, uint8_t data_length, id_t target, uint8_t cmd_flag);
+static uint8_t all_hp_ir_cmds(uint8_t dirs, char* data, uint8_t data_length, id_t target);
 static void ir_receive(uint8_t dir); //Called by Interrupt Handler Only
 static void received_ir_cmd(uint8_t dir);
 static void received_rnb_r(uint8_t delay, id_t senderID, uint32_t last_byte);
@@ -52,7 +54,7 @@ void ir_comm_init(){
 	PORTF.DIRCLR = PIN2_bm;					// DIR 5
 
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-		hp_ir_block_bm=0xFF;
+		hp_ir_block_bm=0x3F;
 	}
 
 	for (uint8_t i = 0; i < 6; i++){
@@ -86,7 +88,7 @@ void ir_comm_init(){
 	num_waiting_msgs=0;
 	user_facing_messages_ovf=0;
 	processing_cmd = 0;
-	processing_ffsync = 0;
+	processing_ffsync_flag = 0;
 
 	schedule_periodic_task(1000/IR_UPKEEP_FREQUENCY, perform_ir_upkeep, NULL);
 	
@@ -114,6 +116,9 @@ static void perform_ir_upkeep(void){
 	int8_t check_dir;
 	int8_t dir;
 	for(dir= 0; dir<6; dir++){ //This first loop looks for a channel on which we got a good message.
+		if(ir_is_busy(1<<dir)>=8){ //This dir is busy with some low level high priority task; skip it.
+			continue;
+		}
 		if(ir_rxtx[dir].status&IR_STATUS_COMPLETE_bm){
 			crc_seen = 0;
 			for(check_dir=(dir-1) ;  check_dir>=0 ; check_dir--)
@@ -194,28 +199,25 @@ void send_msg(uint8_t dirs, char *data, uint8_t data_length, uint8_t hp_flag){
  * in claiming channels and starting the message send process. Note that this function returning '1' doesn't
  * guarantee a successful transmission, as it's still possible for something to go wrong with the send.
  */
-inline uint8_t all_ir_sends(uint8_t dirs_to_go, char* data, uint8_t data_length, id_t target, uint8_t cmd_flag){
-	if(hp_ir_block_bm){
-		printf_P(PSTR("Normal send blocked by hp.\r\n"));
-		return 0;
-	}
-	if(ir_is_busy(dirs_to_go)>1){
+static uint8_t all_ir_sends(uint8_t dirs, char* data, uint8_t data_length, id_t target, uint8_t cmd_flag){
+	uint8_t busy_status = ir_is_busy(dirs);
+	if(busy_status>1){
         printf_P(PSTR("Aborting IR send while trying:\r\n\t"));
 		for(uint8_t i=0;i<data_length;i++){
 			printf("%02hX ",data[i]);
 		}
-		printf_P(PSTR("\r\nChannels are probably blocked by your previous message.\r\n"));
+		printf_P(PSTR("\r\n\tBusy Status: %02hX\r\n"),busy_status);		
         return 0;
     }        
 	for(uint8_t dir=0;dir<6;dir++){
-		if(dirs_to_go&(1<<dir)){		
+		if(dirs&(1<<dir)){		
 			channel[dir]->CTRLB &= ~USART_RXEN_bm;
 			ir_rxtx[dir].status = IR_STATUS_BUSY_bm;
 			if(cmd_flag) ir_rxtx[dir].status |= IR_STATUS_COMMAND_bm;
 			ir_rxtx[dir].target_ID=target;
 		}
 	}
-	send_msg(dirs_to_go, data, data_length, 0);
+	send_msg(dirs, data, data_length, 0);
     return 1;
 }
 
@@ -235,10 +237,11 @@ uint8_t ir_send(uint8_t dirs, char *data, uint8_t data_length){
 	return all_ir_sends(dirs, data, data_length, 0, 0);
 }
 
-static inline uint8_t all_hp_ir_cmds(uint8_t dirs, char* data, uint8_t data_length, id_t target){
+static uint8_t all_hp_ir_cmds(uint8_t dirs, char* data, uint8_t data_length, id_t target){
     //perform_ir_upkeep();
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-		if(hp_ir_block_bm){
+		if(ir_is_busy(dirs)>=4){
+			//printf_P(PSTR("HP send blocked by other HP. Should only see this rarely.\r\n"));
 			return 0;
 		}
 		uint8_t timed;
@@ -252,7 +255,6 @@ static inline uint8_t all_hp_ir_cmds(uint8_t dirs, char* data, uint8_t data_leng
 				ir_rxtx[dir].status = IR_STATUS_BUSY_bm | IR_STATUS_COMMAND_bm;
 				ir_rxtx[dir].status |= (timed ? IR_STATUS_TIMED_bm : 0);
 				ir_rxtx[dir].target_ID=target;
-				hp_ir_block_bm |= (1<<dir);
 			}
 		}
 	}
@@ -347,10 +349,8 @@ static void ir_receive(uint8_t dir){
 					ir_rxtx[dir].status |= IR_STATUS_COMPLETE_bm;
 					ir_rxtx[dir].status |= IR_STATUS_BUSY_bm; //mark as busy so we don't overwrite it.
 					channel[dir]->CTRLB &= ~USART_RXEN_bm; //Disable receiving messages on this channel until the message has been processed.
-					if(ir_rxtx[dir].data_length==22) printf("%hu %04X\r\n", dir, ir_rxtx[dir].sender_ID);
 				}
 			}
-			//printf("\r\n");
 		}else{
 			clear_ir_buffer(dir);
 		}
@@ -386,11 +386,11 @@ static void received_ir_sync(uint8_t delay, id_t senderID){
 	uint8_t processThisFFSync = 0;
 	uint16_t count;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-		if(!processing_ffsync){
+		if(!processing_ffsync_flag){
 			count = TCE0.CNT;
 			if(delay!=0xFF){
 				processThisFFSync = 1;
-				processing_ffsync = 1;
+				processing_ffsync_flag = 1;
 			}
 		}
 	}
@@ -403,7 +403,7 @@ static void received_ir_sync(uint8_t delay, id_t senderID){
 					clear_ir_buffer(dir);
 				}
 			}
-			processing_ffsync = 0;
+			processing_ffsync_flag = 0;
 		}
 	}
 	//printf("F\r\n");
@@ -411,16 +411,17 @@ static void received_ir_sync(uint8_t delay, id_t senderID){
 
 static void received_rnb_r(uint8_t delay, id_t senderID, uint32_t last_byte){
 	uint8_t processThisRNB = 0;
+	uint32_t rnbCmdSentTime = 0;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-		if(!rnbProcessingFlag && !hp_ir_block_bm){
+		if(!processing_rnb_flag && (ir_is_busy(ALL_DIRS)<8)){
 			if(delay!=0xFF){
 				rnbCmdID = senderID;
 				//printf("%04X: %hu\r\n", rnbCmdID, delay+5);			
 				if(delay<5) delay = 20-delay;
 				rnbCmdSentTime = last_byte-(delay+5);
 				processThisRNB = 1;
-				rnbProcessingFlag = 1;
-				hp_ir_block_bm = 0xFF;
+				processing_rnb_flag = 1;
+				hp_ir_block_bm = 0x3F;
 
 			}
 		}
@@ -433,12 +434,11 @@ static void received_rnb_r(uint8_t delay, id_t senderID, uint32_t last_byte){
 				}
 			}
 		}
-		rnbCmdSentTime-= (processThisRNB>1) ? (20-delay) : 0;
-		ir_range_meas();	
+		ir_range_meas(rnbCmdSentTime);	
 		ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 			hp_ir_block_bm = 0;
 		}
-		schedule_task(5, use_rnb_data, NULL);
+		schedule_task(10, use_rnb_data, NULL);
 	}
 	//printf("R\r\n");
 }
@@ -487,46 +487,6 @@ static void ir_transmit(uint8_t dir){
 	}
 
 }
-//
-//static void ir_remote_send(uint8_t dir, uint16_t data){	
-	//channel[dir]->CTRLB &= ~USART_RXEN_bm;
-	//channel[dir]->CTRLB &= ~USART_TXEN_bm;
-	////printf("Sending:\t");
-	//TCF2.CTRLB |= ir_carrier_bm[dir];
-	//PORT_t* port = 0;
-	//if((dir==0)|(dir==1))		port=&PORTC;
-	//else if(dir==2)			port=&PORTD;
-	//else if((dir==3)|(dir==4))	port=&PORTE;
-	//else if(dir==5)			port=&PORTF;
-	//uint8_t pin_mask=0;
-	//if((dir==0)|(dir==2)|(dir==3)|(dir==5)) pin_mask=PIN3_bm;
-	//else if((dir==1)|(dir==4))				pin_mask=PIN7_bm;
-	//
-	//ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-		//port->DIRSET = pin_mask;	
-		////start bit
-		//port->OUTCLR = pin_mask;				delay_us(5000);
-		//port->OUTSET = pin_mask;				delay_us(5000);
-		////send E0E0:
-		//for(uint8_t i=0;i<16;i++){
-			//port->OUTCLR = pin_mask;	delay_us(560);		
-			//if((0xE0E0<<i)&0x8000){	port->OUTSET = pin_mask;	delay_us(1600);}
-			//else{					port->OUTSET = pin_mask;	delay_us(560);	}
-		//}
-		////send data:
-		//for(uint8_t i=0;i<16;i++){
-			//port->OUTCLR = pin_mask;	delay_us(560);		
-			//if((data<<i)&0x8000){		port->OUTSET = pin_mask;	delay_us(1600);}
-			//else{						port->OUTSET = pin_mask;	delay_us(560);	}
-		//}	
-		////stop bit
-		//port->OUTCLR = pin_mask;		delay_us(560);
-		//port->OUTSET = pin_mask;
-	//}
-	//channel[dir]->CTRLB |= USART_TXEN_bm;
-	//ir_transmit_complete(dir);
-	////printf("End of ir_remote_send.\r\n");	
-//}
 
 // TO BE CALLED FROM INTERRUPT HANDLER ONLY
 // DO NOT CALL
@@ -550,28 +510,32 @@ static void ir_transmit_complete(uint8_t dir){
 	
 		channel[dir]->STATUS |= USART_TXCIF_bm;		// writing a 1 to this bit manually clears the TXCIF flag
 		channel[dir]->CTRLB |= USART_RXEN_bm;	// this enables receive on the USART
-		hp_ir_block_bm &= (~(1<<dir));
 	}
 }
 
 uint8_t ir_is_busy(uint8_t dirs_mask){
 	uint32_t now = get_time();
+	uint8_t hp_block = 0;
 	uint8_t transmitting = 0;
 	uint8_t receiving = 0;
+	uint8_t timed_cmd = 0;
 	if(hp_ir_block_bm&dirs_mask){
-		return 3;
+		hp_block = 1<<3;
 	}
 	for(uint8_t dir=0; dir<6; dir++){
     	if(dirs_mask&(1<<dir)){
+			if((ir_rxtx[dir].status & IR_STATUS_TIMED_bm) && (ir_rxtx[dir].status & IR_STATUS_COMMAND_bm)){
+				timed_cmd			= 1<<2;
+			}
         	if(ir_rxtx[dir].status & IR_STATUS_TRANSMITTING_bm){
-            	transmitting = 1;
+            	transmitting	= 1<<1;
         	}
 			if((now - ir_rxtx[dir].last_byte) < IR_MSG_TIMEOUT){
-				receiving = 1;	
+				receiving		= 1<<0;
 			}
     	}
 	}
-	return transmitting ? 2 : (receiving ? 1 : 0);
+	return receiving | transmitting | timed_cmd | hp_block;
 }
 
 // ISRs for IR channel 0

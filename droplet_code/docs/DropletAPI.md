@@ -1,4 +1,4 @@
-### Global Settings/Symbols  
+## Global Settings/Symbols  
   These are located at the top of (../include/droplet_base.h).
     
   __AUDIO_DROPLET__  
@@ -8,41 +8,31 @@
       If this is #define'd here, it will turn on the firefly synchronization subsystem.
       At the cost of each Droplet sending a very short message every few seconds, the Droplets will have their real time clocks synchronized such that, if they all have code to perform some action at, for example, `get_time()%1000`, they will all do that action simultaneously.
 
-### General Guidelines  
+## General Guidelines  
   Due primarily to memory limitations, I strongly encourage you to use the size-explicit
-  data types provided, as you will see throughout the Droplets code: 
-  `uint8_t`, `int8_t`, `uint16_t`, `int16_t`, `uint32_t`, `int32_t`
+  data types provided, as you will see throughout the Droplets code:  `uint8_t`, `int8_t`, `uint16_t`, `int16_t`, `uint32_t`, `int32_t`
 
+## Debugging & `printf`
+  If you have an FTDI cable set up with a serial connection to a Droplet, you can talk to it! See (../../getting_started.md)  for details on getting there.
+  The Droplet will respond to the commands listed in (../src/serial_handler.c), and you can add your own commands by uncommenting and populating the user_handle_command function seen in the template code. Everything up to the first space character is considered the command_word, and everything after that is considered the command_args. You can use the code in serial_handler.c as a template for writing your own command handlers. Remember that the string library expects (and gives) null-terminated strings. 
+  Be sure that user_handle_command returns 1 if the command_word is valid, and 0 otherwise.
 
-/*
- *     If you have an FTDI cable set up with a serial connection to a Droplet, you can talk to it! 
- * (See ../../getting_started.md  for details on getting there.)
- *     It will respond to the commands listed in ../src/serial_handler.c, and you can add your own
- * commands by uncommenting and populating the user_handle_command function seen in the template code.
- * Everything up to the first space character is considered the command_word, and everything after
- * that is considered the command_args. You can use the code in serial_handler.c as a template for
- * writing your own command handlers. Remember that the string library expects (and gives) null-terminated
- * strings. Be sure that user_handle_command returns 1 if the command_word is valid, and 0 otherwise.
- *
- *     To have a Droplet talk back to you, use printf! It works as normal, but tends to be much more
- * sensitive to format chars than normal C. More specifically: all of the variables in your format string
- * for printf will total a certain number of bytes. If the arguments you pass printf after the format
- * string do not add up to the correct number of bytes, it can cause insidious stack-corruption bugs.
- * Most commonly, this occurs when a variable is, say, 8 bits long and your format string specifices a
- * two-byte-long type. Brief primer on format strings for the different types:
- * %[C1]{C2}
- * C1: Optional. If not included, indicates the default size for the type specific by C2. For ints,
- *     both signed and unsigned, the default size is two bytes. If 'h', size is one byte. If 'l', size
- *     is 4 bytes.
- * C2: Indicates the variable type. %d: signed int, %u: unsigned int, %f: float,  %x lower-case hex,
- *     %X upper-case hex.
- * (So use %hu for a uint8_t, %ld for an int32_t, %u for a uint32_t, and %f for a float).
- * 
- * Also: you may see printf_P(PSTR("some format string"), ...) in the code. This changes the printf to
- * store the string argument in program memory instead of data memory, since the former is much more
- * spacious. In general, users shouldn't need to worry about this, but if your code gets long and complex,
- * and you start running low on memory, it can help to do this yourself.
- */
+  To have a Droplet talk back to you, use printf! It works as normal, but is much more sensitive to format chars than normal C. More specifically: all of the variables in your format string for printf will total a certain number of bytes. If the arguments you pass printf after the format string do not add up to the correct number of bytes, it can cause insidious stack-corruption bugs. Most commonly, this occurs when a variable is, say, 8 bits long and your format string specifices a two-byte-long type. 
+  
+  Brief primer on format strings for the different types:  
+    `%[C1]{C2}`  
+    `C1`  
+      Optional. If not included, indicates the default size for the type specific by C2. For ints, both signed and unsigned, the default size is two bytes. If 'h', size is one byte. If 'l', size is 4 bytes.
+    `C2`  
+      Indicates the variable type. 
+        %d : signed int
+        %u : unsigned int
+        %f : float
+        %x : lower-case hex
+        %X : upper-case hex
+    (So use %hu for a uint8_t, %ld for an int32_t, %u for a uint32_t, and %f for a float).
+
+  Also: you may see printf_P(PSTR("some format string"), ...) in the code. This changes the printf to store the string argument in program memory instead of data memory, since the former is much more spacious. In general, users shouldn't need to worry about this, but if your code gets long and complex, and you start running low on memory, it can help to do this yourself.
 
 /*
  *      These two functions are used for communicating with other Droplets. If these 

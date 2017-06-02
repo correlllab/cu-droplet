@@ -5,7 +5,8 @@ uint8_t n = 3;
 uint8_t dist = 50;
 uint8_t margin = 20;
 id_t undf_id = 0xFFFF;
-uint8_t filled;
+uint8_t state;
+uint32_t start_time;
 
 typedef struct cell_struct
 {
@@ -139,13 +140,14 @@ void show_neighbors_filled(void){
 	if (neighbors_filled == 8)
 	{
 		set_green_led(255);
-		filled = 1;
+		state = 2;
 	}
 	
 }
 
 void print_neighbors(void){
 	
+	printf("My ID is %04X \r\n", me.ID);
 	printf("N ID is %04X \r\n", N.ID);
 	printf("NE ID is %04X \r\n", NE.ID);
 	printf("E ID is %04X \r\n", E.ID);
@@ -173,7 +175,8 @@ void init(){
 	
 	update_neighbors();
 	
-	filled = 0;
+	state = 0;
+	start_time = get_time();
 	set_rgb(255,255,255);
 }
 
@@ -190,29 +193,71 @@ void loop(){
 	if(loopID!=(frameTime/SLOT_LENGTH_MS)){
 		loopID = frameTime/SLOT_LENGTH_MS;
 		if(loopID==mySlot){
-			broadcast_rnb_data();
-			
-			/*if (POS_DEFINED(&myPos))
+			if (state == 0)
 			{
-				sendPosMsg();
-			}*/
+				broadcast_rnb_data();
+			}
+			
+			if (state >= 1)
+			{
+				if (POS_DEFINED(&myPos))
+				{
+					sendPosMsg();
+				}
+			}
+			
+			
 		}else if(loopID==(SLOTS_PER_FRAME-1)){
 			//compute new state based on messages.
 			
 			
-			
+			if (state == 0)
+			{
 				count_neighbors_expected();
 				show_neighbors_expected();
+			}
+						
+			if (state == 1)
+			{
 				show_neighbors_filled();
-			
-			if (filled == 1)
+			}
+						
+			if (state == 2)
 			{
 				print_neighbors();
 			}
+		
+			printf("state is %hu \r\n", state);
 			
 		}
 		
 	}
+				
+		if (state == 0)
+		{
+			if (get_time()-start_time > 30000)
+			{
+				printf("time > 30s \r\n");
+				printf("changing to state = 1 \r\n");
+				state = 1;
+				start_time = get_time();
+			}
+		}
+		
+		if (state == 1)
+		{
+			if (get_time()-start_time > 30000)
+			{
+				printf("time > 30s \r\n");
+				printf("changing to state = 0 \r\n");
+				state = 0;
+				start_time = get_time();
+			}
+		}
+		
+		
+	
+	
 	if(rnb_updated){
 		//Handle rnb data in last_good_rnb struct.
 		useRNBmeas(last_good_rnb.id, last_good_rnb.range, last_good_rnb.bearing, last_good_rnb.heading);
@@ -225,65 +270,73 @@ void loop(){
  * received, and calls this function once for each message.
  */
 void handle_msg(ir_msg* msg_struct){
-	if(((BotMeasMsg*)(msg_struct->msg))->flag==BOT_MEAS_MSG_FLAG && msg_struct->length==sizeof(BotMeasMsg)){
-		handleBotMeasMsg((BotMeasMsg*)(msg_struct->msg), msg_struct->sender_ID);
+	
+	if (state == 0)
+	{
+		if(((BotMeasMsg*)(msg_struct->msg))->flag==BOT_MEAS_MSG_FLAG && msg_struct->length==sizeof(BotMeasMsg)){
+			handleBotMeasMsg((BotMeasMsg*)(msg_struct->msg), msg_struct->sender_ID);
+		}
 	}
 	
-	/*if(msg_struct->length == sizeof(PosMsg))
+	if (state == 1)
 	{
-		PosMsg* posMsg = (PosMsg*)(msg_struct->msg);
-		
-		if (posMsg->posx >= myPos.x-dist-margin && posMsg->posx <= myPos.x-dist+margin)
-		{
-			if (posMsg->posy >= myPos.y-dist-margin && posMsg->posy <= myPos.y-dist+margin )
+		if(msg_struct->length == sizeof(PosMsg))
+		{	
+			PosMsg* posMsg = (PosMsg*)(msg_struct->msg);
+			
+			if (posMsg->posx >= myPos.x-dist-margin && posMsg->posx <= myPos.x-dist+margin)
 			{
-				SW.ID = msg_struct->sender_ID;
+				if (posMsg->posy >= myPos.y-dist-margin && posMsg->posy <= myPos.y-dist+margin )
+				{
+					SW.ID = msg_struct->sender_ID;
+				}
+				
+				if (posMsg->posy >= myPos.y-margin && posMsg->posy <= myPos.y+margin)
+				{
+					W.ID = msg_struct->sender_ID;
+				}
+				
+				if (posMsg->posy >= myPos.y+dist-margin && posMsg->posy <= myPos.y+dist+margin )
+				{
+					NW.ID = msg_struct->sender_ID;
+				}
 			}
 			
-			if (posMsg->posy >= myPos.y-margin && posMsg->posy <= myPos.y+margin)
+			if (posMsg->posx >= myPos.x+dist-margin && posMsg->posx <= myPos.x+dist+margin)
 			{
-				W.ID = msg_struct->sender_ID;
+				if (posMsg->posy >= myPos.y-dist-margin && posMsg->posy <= myPos.y-dist+margin)
+				{
+					SE.ID = msg_struct->sender_ID;
+				}
+				
+				if (posMsg->posy >= myPos.y-margin && posMsg->posy <= myPos.y+margin )
+				{
+					E.ID = msg_struct->sender_ID;
+				}
+				
+				if (posMsg->posy >= myPos.y+dist-margin && posMsg->posy <= myPos.y+dist+margin )
+				{
+					NE.ID = msg_struct->sender_ID;
+				}
 			}
 			
-			if (posMsg->posy >= myPos.y+dist-margin && posMsg->posy <= myPos.y+dist+margin )
+			if (posMsg->posx >= myPos.x-margin && posMsg->posx <= myPos.x+margin )
 			{
-				NW.ID = msg_struct->sender_ID;
+				if (posMsg->posy >= myPos.y-dist-margin && posMsg->posy <= myPos.y-dist+margin)
+				{
+					S.ID = msg_struct->sender_ID;
+				}
+				
+				if (posMsg->posy >= myPos.y+dist-margin && posMsg->posy <= myPos.y+dist+margin )
+				{
+					N.ID = msg_struct->sender_ID;
+				}
 			}
+			
+			update_neighbors();
 		}
-		
-		if (posMsg->posx >= myPos.x+dist-margin && posMsg->posx <= myPos.x+dist+margin)
-		{
-			if (posMsg->posy >= myPos.y-dist-margin && posMsg->posy <= myPos.y-dist+margin)
-			{
-				SE.ID = msg_struct->sender_ID;
-			}
-			
-			if (posMsg->posy >= myPos.y-margin && posMsg->posy <= myPos.y+margin )
-			{
-				E.ID = msg_struct->sender_ID;
-			}
-			
-			if (posMsg->posy >= myPos.y+dist-margin && posMsg->posy <= myPos.y+dist+margin )
-			{
-				NE.ID = msg_struct->sender_ID;
-			}
-		}
-		
-		if (posMsg->posx >= myPos.x-margin && posMsg->posx <= myPos.x+margin )
-		{
-			if (posMsg->posy >= myPos.y-dist-margin && posMsg->posy <= myPos.y-dist+margin)
-			{
-				S.ID = msg_struct->sender_ID;
-			}
-			
-			if (posMsg->posy >= myPos.y+dist-margin && posMsg->posy <= myPos.y+dist+margin )
-			{
-				N.ID = msg_struct->sender_ID;
-			}
-		}
-		
-		update_neighbors();
-	}*/
+	}
+	
 }
 
 ///*

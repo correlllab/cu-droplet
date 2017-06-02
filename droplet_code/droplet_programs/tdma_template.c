@@ -3,9 +3,8 @@
 uint8_t m = 3;
 uint8_t n = 3;
 uint8_t dist = 50;
-uint8_t margin = 10;
+uint8_t margin = 20;
 id_t undf_id = 0xFFFF;
-uint8_t loc_msg_received;
 uint8_t filled;
 
 typedef struct cell_struct
@@ -38,6 +37,17 @@ void sendPosMsg(void){
 	ir_send(ALL_DIRS, (char*)(&msg), sizeof(PosMsg));
 }
 
+void reset_neighbors(void){
+	me.ID = get_droplet_id();
+	N.ID = undf_id;
+	NE.ID = undf_id;
+	E.ID = undf_id;
+	SE.ID = undf_id;
+	S.ID = undf_id;
+	SW.ID = undf_id;
+	W.ID = undf_id;
+	NW.ID = undf_id;
+}
 
 void update_neighbors(void){
 	neighbors[0] = N;
@@ -52,6 +62,9 @@ void update_neighbors(void){
 
 void count_neighbors_expected(void){
 	// Knowing how many neighbors to expect (am I a corner, border or center ?)
+	
+	reset_neighbors();
+	
 	if(POS_DEFINED(&myPos)){
 		if (myPos.y >= 0-margin && myPos.y <= 0+margin)
 		{
@@ -156,19 +169,10 @@ void init(){
 	mySlot = (get_droplet_id()%(SLOTS_PER_FRAME-1));
 	frameStart = get_time();
 	
-	me.ID = get_droplet_id();
-	N.ID = undf_id;
-	NE.ID = undf_id;
-	E.ID = undf_id;
-	SE.ID = undf_id;
-	S.ID = undf_id;
-	SW.ID = undf_id;
-	W.ID = undf_id;
-	NW.ID = undf_id;
+	reset_neighbors();
 	
 	update_neighbors();
 	
-	loc_msg_received = 0;
 	filled = 0;
 	set_rgb(255,255,255);
 }
@@ -196,12 +200,11 @@ void loop(){
 			//compute new state based on messages.
 			
 			
-			if (loc_msg_received > 5)
-			{
+			
 				count_neighbors_expected();
 				show_neighbors_expected();
 				show_neighbors_filled();
-			}
+			
 			if (filled == 1)
 			{
 				print_neighbors();
@@ -223,7 +226,6 @@ void loop(){
  */
 void handle_msg(ir_msg* msg_struct){
 	if(((BotMeasMsg*)(msg_struct->msg))->flag==BOT_MEAS_MSG_FLAG && msg_struct->length==sizeof(BotMeasMsg)){
-		loc_msg_received += 1;
 		handleBotMeasMsg((BotMeasMsg*)(msg_struct->msg), msg_struct->sender_ID);
 	}
 	

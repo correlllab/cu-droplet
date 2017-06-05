@@ -223,11 +223,16 @@ droplet_code/build/*.elf
 droplet_code/build/*.lss
 droplet_code/build/*.map
 droplet_code/build/*.sym
-droplet_code/build/*.d
-droplet_code/build/*.lst
-droplet_code/build/*.o
+droplet_code/build/.dep/
 droplet_code/build/src/*
+droplet_code/*.lst
+droplet_code/*.o
+droplet_code/src/*.lst
+droplet_code/src/*.o
+droplet_code/droplet_programs/*.lst
+droplet_code/droplet_programs/*.o
 droplet_code/build/.dep
+
 
 
 

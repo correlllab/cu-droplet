@@ -1,6 +1,5 @@
-### OUTDATED DUE TO CUSTOM MAKEFILE SWITCHOVER
-
-NOTE: These instructions are specific to the Windows operating system. All hardware referenced is simply the hardware we use. I believe that it would be possible to use other operating systems and other hardware, but I haven't tried and so can't comment on doing so.
+NOTE: These instructions are specific to the Windows operating system. All hardware referenced is simply the hardware we use.
+Now that we have a custom Makefile, it shouldn't be too hard to get up and running on a different OS, though I'm sure there are a few extra steps that will be needed.
 
 #### Physical Supplies
 * A PDI programmer. We use the <a href="http://www.digikey.com/product-detail/en/ATATMEL-ICE/ATATMEL-ICE-ND/4753379">JTAGICE3</a>.
@@ -21,62 +20,77 @@ NOTE: These instructions are specific to the Windows operating system. All hardw
 
 3. Atmel Studio wiill start your project off with a \<Project Name\>.c file. Go ahead and delete it.
 
-4. Next, we need to set up the project with the appropriate file structure.
+4. Next, we need to set up the project with the appropriate file structure.  
+   1. In the 'Solution Explorer' sidebar, right-click on '\<Project Name\>->Add->New Folder', and make a folder called 'src'.
+   2. Repeat the above to make another folder called 'include'.
+   3. In the same sidebar, right-click on the src folder you just created and go to 'Add->Existing Item...'. This will open up a file browser, which you should use to navigate to the src folder in the repository. Specifically, cu-droplet/droplet_code/src/.
+   4. *Important* Select (highlight) all files in this folder, and then click the little down-arrow on the right side of the 'Add' button, which should open a drop-down menu. In this menu, select 'Add as Link'. The reason for this is that if you just clicked 'Add', the files would be copied to the location of the project folder, and any changes you made would not be tracked by git. 
+   5. Make sure that the 'src' folder in the Solution Explorer has been populated with c and s files, and that each file icon has a little 'shortcut' arrow in the bottom-right, which indicates that the file has been correctly added as a link.
+   6. Repeat steps iii-v for the 'include' folder: right-click on the folder in the solution explorer of Atmel Studio, select 'Add->Existing Item...', and add all files in cu-droplet/droplet_code/include/, making sure again to add them as links.
+   7. Finally, repeat steps iii-v one more time, right-clicking on '\<Project Name\>' in the solution explorer to add cu-droplet/droplet_code/user_template.* to your project as links. These are the files you will modify for your code.
   
-  1. In the 'Solution Explorer' sidebar, right-click on '\<Project Name\>->Add->New Folder', and make a folder called 'src'.
-  2. Repeat the above to make another folder called 'include'.
-  3. In the same sidebar, right-click on the src folder you just created and go to 'Add->Existing Item...'. This will open up a file browser, which you should use to navigate to the src folder in the repository. Specifically, 'cu-droplet/droplet_code/src/'.
-  4. *Important* Select (highlight) all files in this folder, and then click the little down-arrow on the right side of the 'Add' button, which should open a drop-down menu. In this menu, select 'Add as Link'. The reason for this is that if you just clicked 'Add', the files would be copied to the location of the project folder, and any changes you made would not be tracked by git. 
-  5. Make sure that the 'src' folder in the Solution Explorer has been populated with c and s files, and that each file icon has a little 'shortcut' arrow in the bottom-right, which indicates that the file has been correctly added as a link.
-  6. Repeat steps 3-5 for the 'include' folder: right-click on the folder in the solution explorer of Atmel Studio, select 'Add->Existing Item...', and add all files in 'cu-droplet/droplet_code/include/', making sure again to add them as links.
-  7. Finally, repeat steps 3-5 one more time, right-clicking on '\<Project Name\>' in the solution explorer to add 'cu-droplet/droplet_code/user_template.*' to your project as links. These are the files you will modify for your code.
-5. Next, we need to set up the project settings appropriately.
+5. Project Properties  
+   1. Right-click on '\<Project Name\>' again, and select 'Properties', which opens the main dialog for editing settings. There are a lot of things you could edit in this dialog, but this document will only tell you what needs to be changed from the defaults that should have been set if you started the project correctly.
+   2. 'Build' Tab  
+      1. Check the 'Use External Makefile' box, then click 'Browse' and select cu-droplet/droplet_code/build/Droplets.mak
+   3. 'Tool' Tab  
+      1. Use the drop-down menu under 'Selected debugger/programmer' and choose the option which starts 'Atmel-ICE' (note: this option will only show up if the JTAGICE3 programmer is actually plugged in to and recognized by your machine).
+      2. In the 'Interface:' drop-down menu, select 'PDI'. 
+      3. Make sure that PDI Clock is set to 4MHz and, under 'Programming settings', the 'Preserve EEPROM' box is checked.
+    
+6. user-specific Makefile changes.
+   1. Open up cu-droplet/droplet_code/build/Droplets.mak
+   2. There are only three lines here you should need to modify; the first three non-comment lines.
+   
+      __TARGET__  
+        This needs to match the name of your Atmel Studio project. 
+      
+      __ATMEL_STUDIO_PATH__  
+        This needs to be the file path to wherever Atmel Studio is installed. 
+        If Atmel Studio is installed in the default location, you shouldn't need to modify this.
+      
+      __USER_FILE__  
+        This should be your 'main' file: the file with the 'init', 'loop', and 'handle_msg' functions.
+        If you're just getting started with 'user_template.c', you shouldn't need to modify this.
+        Note: This is a file path relative to the location of the makefile. Thus, '../' should be the same as 'cu-droplet/droplet_code/'
+      
+7. Write Code!
+   See the [DropletAPI](droplet_code/docs/DropletAPI.md) for an introduction to some of the main functions you'll need to use, and [Common Problems](droplet_code/docs/common_problems.md) for help debugging.
 
-  1. Right-click on '\<Project Name\>' again, and select 'Properties', which opens the main dialog for editing settings. There are a lot of things you could edit in this dialog, but this document will only tell you what needs to be changed from the defaults that should have been set if you started the project correctly.
-  2. On the left, click the 'Toolchain' tab.
-    1. In 'AVR/GNU C Compiler->Directories', click the little button with a piece of paper and a green plus sign, then add then navigate to wherever you saved the repo on your machine, and add the repos' include folder ('cu-droplet/droplet_code/include/') to your include path. Then, add 'cu-droplet/droplet_code/' in the same way, so that any '*.h' files you create are included as well. (It doesn't matter if the path is relative or not.)
-    2. In 'AVR/GNU Linker->General', check 'Use vprintf library'.
-    3. In 'AVR/GNU Linker->Memory Settings', Click the little paper-with-green-plus-sign button for the 'FLASH segment'. Enter '.BOOT = 0x010000' and hit 'OK'.
-    4. In 'AVR/GNU Linker->Miscellaneous', in 'Other Linker Flags:' add '-lprintf_flt'
-  3. On the left, click the 'Tool' tab.
-    1. Use the drop-down menu under 'Selected debuger/programmer' and choose the option which starts 'JTAGICE3' (note: this option will only show up if the JTAGICE3 programmer is actually plugged in to and recognized by your machine).
-    2. In the 'Interface:' drop-down menu, select 'PDI'. 
-    3. Make sure that PDI Clock is set to 4MHz and, under 'Programming settings', the 'Preserve EEPROM' box is checked.
+8. Compile and Upload  
+   1. Plug your Droplet in.
+   2. Click the green 'play' outline button in the top task bar, to the left of the drop-down menu which defaults to 'Debug'. 
+      (Not the solid play button, which actually starts up Debug mode. When you mouseover the button, the tooltip should say 'Start Without Debugging'.)
 
-Okay! You're done! You should now be able to compile code and upload it to your Droplet. To do so, plug your Droplet in, and then click the green 'play' button in the top task bar, to the left of the drop-down menu which defaults to 'Debug'. This compiles the code and writes it to the Droplets. Checkout /droplet_code/docs/dropletAPI.h for a description of some of the primary functions you'll want to use with your Droplets.
-
+Now just repeat steps 7 & 8 as necessary!
 Good luck!
 
 #### Fuse Settings
-The first time you get started with a brand new Droplet, you must set some fuse settings. Here are correct fuse settings copied directly from ATMEL: 
+The first time you get started with a brand new Droplet, verify that the fuse settings are as follows
 
-##### Fuse Settings
-* JAGUSERID = 0xFF
-* WDWP = 8CLK
-* WDP = 8CLK
-* BOOTRST = APPLICATION
-* TOSCSEL = XTAL
-* BODPD = DISABLED
-* RSTDISBL = [ ]
-* SUT = 0MS
-* WDLOCK = [ ]
-* JTAGEN = [ ]
-* BODACT = DISABLED
-* EESAVE = [X]
-* BODLVL = 1V6
+| Fuse Name     | Value         |
+| -------------:|:------------- |
+| JTAGUSERID    | 0xFF          |
+| WDWP          | 8CLK          |
+| WDP           | 8CLK          |
+| BOOTRST       | APPLICATION   |
+| TOSCSEL       | XTAL          |
+| BODPD         | DISABLED      |
+| RSTDIBL       | [ ]           |
+| SUT           | 0MS           |
+| WDLOCK        | [ ]           |
+| JTAGEN        | [ ]           |
+| BODACT        | DISABLED      |
+| EESAVE        | [X]           |
+| BODLVL        | 1V6           |
 
-##### Fuse Bytes
-* FUSEBYTE0 = 0xFF (valid)
-* FUSEBYTE1 = 0x00 (valid)
-* FUSEBYTE2 = 0xFF (valid)
-* FUSEBYTE4 = 0xFF (valid)
-* FUSEBYTE5 = 0xF7 (valid)
-
-#### Programming
-
-The 'user_template.c' and 'user_template.h' files have comments to explain the functionality of the three key functions: 'init()', 'loop()', and 'handle_msg(msg_struct* msg)'. Feel free to delete these two files and replace them with your own. As long as you define those three functions somewhere in your code the linker should be able to sort it out.
-
-The /src/ and /include/ folders contain all of the hardware code. In theory, you shouldn't need to modify these files, but if you feel need to, be our guests!
+| Fuse Register | Value         |
+| -------------:|:------------- |
+| FUSEBYTE0     | 0xFF (valid)  |
+| FUSEBYTE1     | 0x00 (valid)  |
+| FUSEBYTE2     | 0xFF (valid)  |
+| FUSEBYTE4     | 0xFF (valid)  |
+| FUSEBYTE5     | 0xF7 (valid)  |
 
 #### Serial Communication
 

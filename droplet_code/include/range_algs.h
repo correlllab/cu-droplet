@@ -42,7 +42,7 @@ typedef struct rnb_data {
 rnb last_good_rnb;
 volatile uint8_t rnb_updated;
 volatile id_t rnbCmdID;
-volatile uint8_t processing_rnb;
+volatile uint8_t processing_rnb_flag;
 
 void range_algs_init(void);
 

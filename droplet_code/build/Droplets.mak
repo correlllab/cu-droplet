@@ -11,16 +11,15 @@
 
 # Target file name (without extension).
 # This should match your AtmelStudio Project Name
-TARGET = JohnTestLocalizationBug
+TARGET = Droplets
 
 # The base directory of your Atmel Studio installation folder.
 # This serves as the base location for accessing key #include files.
+# It also is used as the base path for the location of the actual compiler .exe.
 ATMEL_STUDIO_PATH = "C:/Program Files (x86)/Atmel/Studio/7.0/"
 
-# List your user C source file(s) here.
-USER_FILES = \
-../user_template.c \
-
+# Set to your user source file. This should be the one with 'init', 'loop', and 'handle_msg' defined.
+USER_FILE = ../user_template.c
 
 #----------------------------------------------------------------------------
 # ! - ! - ! - ! - ! - ! - ! - ! - ! - ! - ! - ! - ! - ! - ! - ! - ! - ! - !
@@ -49,10 +48,10 @@ FORMAT = ihex
 #     this an empty or blank macro!
 # JOHN NOTE: This directory appears to be relative to where the *.c file containing
 # main is (maybe??)
-OBJDIR = ../build/src
+OBJDIR = .
 
 # List C source files here. (C dependencies are automatically generated.)
-SRC = $(USER_FILES) \
+SRC = $(USER_FILE) \
 ../src/droplet_base.c \
 ../src/droplet_init.c \
 ../src/eeprom_driver.c \
@@ -83,7 +82,8 @@ ASRC =  \
 
 C_INCLUDE_DIRS = \
 -I ../include \
--I ../
+-I ../ \
+-I ../droplet_programs
 
 SYS_INCLUDE_DIRS = \
 -I $(ATMEL_STUDIO_PATH)Packs/atmel/XMEGAA_DFP/1.1.68/include \

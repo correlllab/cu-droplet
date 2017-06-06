@@ -109,14 +109,5 @@ TWI_Master_t* twi;
 
 void i2c_init(void);
 
-void TWI_MasterInit(TWI_t *module, TWI_MASTER_INTLVL_t intLevel, uint8_t baudRateRegisterSetting);
-TWI_MASTER_BUSSTATE_t TWI_MasterState(void);
-uint8_t TWI_MasterReady(void);
-uint8_t TWI_MasterWrite(uint8_t address, uint8_t * writeData, uint8_t bytesToWrite);
-uint8_t TWI_MasterRead(uint8_t address, uint8_t bytesToRead);
-uint8_t TWI_MasterWriteRead(uint8_t address, uint8_t *writeData, uint8_t bytesToWrite, uint8_t bytesToRead);
-void TWI_MasterInterruptHandler(void);
-void TWI_MasterArbitrationLostBusErrorHandler(void);
-void TWI_MasterWriteHandler(void);
-void TWI_MasterReadHandler(void);
-void TWI_MasterTransactionFinished(uint8_t result);
+uint8_t twiWriteWrapper(uint8_t addr, uint8_t* writeData, uint8_t bytesToWrite, char* callerDescr);
+uint8_t twiWriteReadWrapper(uint8_t addr, uint8_t* writeData, uint8_t bytesToWrite, uint8_t bytesToRead, char* callerDescr);

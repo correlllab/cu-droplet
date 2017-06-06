@@ -23,23 +23,23 @@ Now that we have a custom Makefile, it shouldn't be too hard to get up and runni
 4. Next, we need to set up the project with the appropriate file structure.  
    1. In the 'Solution Explorer' sidebar, right-click on '\<Project Name\>->Add->New Folder', and make a folder called 'src'.
    2. Repeat the above to make another folder called 'include'.
-   3. In the same sidebar, right-click on the src folder you just created and go to 'Add->Existing Item...'. This will open up a file browser, which you should use to navigate to the src folder in the repository. Specifically, (droplet_code/src/).
+   3. In the same sidebar, right-click on the src folder you just created and go to 'Add->Existing Item...'. This will open up a file browser, which you should use to navigate to the src folder in the repository. Specifically, cu-droplet/droplet_code/src/.
    4. *Important* Select (highlight) all files in this folder, and then click the little down-arrow on the right side of the 'Add' button, which should open a drop-down menu. In this menu, select 'Add as Link'. The reason for this is that if you just clicked 'Add', the files would be copied to the location of the project folder, and any changes you made would not be tracked by git. 
    5. Make sure that the 'src' folder in the Solution Explorer has been populated with c and s files, and that each file icon has a little 'shortcut' arrow in the bottom-right, which indicates that the file has been correctly added as a link.
-   6. Repeat steps iii-v for the 'include' folder: right-click on the folder in the solution explorer of Atmel Studio, select 'Add->Existing Item...', and add all files in (droplet_code/include/), making sure again to add them as links.
-   7. Finally, repeat steps iii-v one more time, right-clicking on '\<Project Name\>' in the solution explorer to add (droplet_code/user_template.c) and (droplet_code/user_template.h) to your project as links. These are the files you will modify for your code.
+   6. Repeat steps iii-v for the 'include' folder: right-click on the folder in the solution explorer of Atmel Studio, select 'Add->Existing Item...', and add all files in cu-droplet/droplet_code/include/, making sure again to add them as links.
+   7. Finally, repeat steps iii-v one more time, right-clicking on '\<Project Name\>' in the solution explorer to add cu-droplet/droplet_code/user_template.* to your project as links. These are the files you will modify for your code.
   
 5. Project Properties  
    1. Right-click on '\<Project Name\>' again, and select 'Properties', which opens the main dialog for editing settings. There are a lot of things you could edit in this dialog, but this document will only tell you what needs to be changed from the defaults that should have been set if you started the project correctly.
    2. 'Build' Tab  
-      1. Check the 'Use External Makefile' box, then click 'Browse' and select (droplet_code/build/Droplets.mak)
+      1. Check the 'Use External Makefile' box, then click 'Browse' and select cu-droplet/droplet_code/build/Droplets.mak
    3. 'Tool' Tab  
       1. Use the drop-down menu under 'Selected debugger/programmer' and choose the option which starts 'Atmel-ICE' (note: this option will only show up if the JTAGICE3 programmer is actually plugged in to and recognized by your machine).
       2. In the 'Interface:' drop-down menu, select 'PDI'. 
       3. Make sure that PDI Clock is set to 4MHz and, under 'Programming settings', the 'Preserve EEPROM' box is checked.
     
 6. user-specific Makefile changes.
-   1. Open up (cu-droplet/droplet_code/build/Droplets.mak)
+   1. Open up cu-droplet/droplet_code/build/Droplets.mak
    2. There are only three lines here you should need to modify; the first three non-comment lines.
    
       __TARGET__  
@@ -54,8 +54,8 @@ Now that we have a custom Makefile, it shouldn't be too hard to get up and runni
         If you're just getting started with 'user_template.c', you shouldn't need to modify this.
         Note: This is a file path relative to the location of the makefile. Thus, '../' should be the same as 'cu-droplet/droplet_code/'
       
-7. Write Code!  
-   See (droplet_code/docs/DropletAPI.md) for an introduction to some of the main functions you'll need to use, and (droplet_code/docs/common_problems.md) for help debugging.
+7. Write Code!
+   See the [DropletAPI](droplet_code/docs/DropletAPI.md) for an introduction to some of the main functions you'll need to use, and [Common Problems](droplet_code/docs/common_problems.md) for help debugging.
 
 8. Compile and Upload  
    1. Plug your Droplet in.

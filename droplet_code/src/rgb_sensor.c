@@ -22,19 +22,15 @@ void rgb_sensor_init()
 										0x8F, 0x01,  // Write 0x01 to CONTROL register, setting the gain to x4.
 										0x81, 0xD5,	 // Write 0xD5 to ATIME register, setting the integration time to 2.4ms*(256-ATIME)
 										0x80, 0x03};  // Write 0x03 to ENABLE register, activating the ADC (and leaving the oscillator on);
-
-		uint8_t result = TWI_MasterWrite(RGB_SENSE_ADDR, &(power_on_sequence[0]), 2);
+		char callerDescr[9] = "RGB Init\0";
+		uint8_t result = twiWriteWrapper(RGB_SENSE_ADDR, &(power_on_sequence[0]), 2, callerDescr);
 		if(!result)	printf_P(RGB_SENSE_POWERON_FAILURE,1);
-		delay_ms(5);
-		result = TWI_MasterWrite(RGB_SENSE_ADDR, &(power_on_sequence[2]), 2);
+		result = twiWriteWrapper(RGB_SENSE_ADDR, &(power_on_sequence[2]), 2, callerDescr);
 		if(!result)	printf_P(RGB_SENSE_POWERON_FAILURE,2);
-		delay_ms(5);
-		result = TWI_MasterWrite(RGB_SENSE_ADDR, &(power_on_sequence[4]), 2);
+		result = twiWriteWrapper(RGB_SENSE_ADDR, &(power_on_sequence[4]), 2, callerDescr);
 		if(!result)	printf_P(RGB_SENSE_POWERON_FAILURE,3);
-		delay_ms(5);
-		result = TWI_MasterWrite(RGB_SENSE_ADDR, &(power_on_sequence[6]), 2);
+		result = twiWriteWrapper(RGB_SENSE_ADDR, &(power_on_sequence[6]), 2, callerDescr);
 		if(!result)	printf_P(RGB_SENSE_POWERON_FAILURE,4);
-		delay_ms(5);
 	#else		
 		RGB_SENSOR_PORT.DIRCLR = RGB_SENSOR_R_PIN_bm | RGB_SENSOR_G_PIN_bm | RGB_SENSOR_B_PIN_bm;
 
@@ -139,15 +135,18 @@ int16_t get_blue_sensor(){
 void get_rgb(int16_t *r, int16_t *g, int16_t *b)
 {
 	#ifdef AUDIO_DROPLET
+		
 		uint8_t write_sequence = 0xB4;
-		uint8_t result = TWI_MasterWriteRead(RGB_SENSE_ADDR, &write_sequence, 1, 8);
-		uint16_t* temp_values = (uint16_t*)(twi->readData);
+		char callerDescr[8] = "Get RGB\0";
+		uint8_t result = twiWriteReadWrapper(RGB_SENSE_ADDR, &write_sequence, 1, 8, callerDescr);
+		int16_t* temp_values = (int16_t*)(twi->readData);
 		if(result)
 		{
 			//*c=temp_values[0];
-			*r=(int16_t)temp_values[1];
-			*g=(int16_t)temp_values[2];
-			*b=(int16_t)temp_values[3];
+			*r=temp_values[1];
+			*g=temp_values[2];
+			*b=temp_values[3];
+			printf("% 5d % 5d % 5d % 5d\r\n", temp_values[0], *r, *g, *b);
 		}
 		else printf_P(PSTR("Read failed.\r\n"));
 	#else

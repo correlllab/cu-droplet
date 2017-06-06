@@ -82,7 +82,6 @@ void ir_comm_init(){
 		EVSYS.CH7MUX = EVSYS_CHMUX_PORTF_PIN2_gc;
 	#endif	
 
-	curr_ir_power=0;	
 	for(uint8_t dir=0; dir<6; dir++) clear_ir_buffer(dir); //this initializes the buffer's values to 0.
 	cmd_arrival_time=0;
 	num_waiting_msgs=0;

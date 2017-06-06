@@ -1,8 +1,5 @@
 #include "ir_led.h"
 
-static uint8_t twiWriteWrapper(uint8_t addr, uint8_t* write_buff, uint8_t buff_len, char marker);
-static uint8_t waitForTWIReady(uint32_t startTime, char marker);
-
 USART_t* channel[6] = {
 	&USARTC0,  //   -- Channel 0
 	&USARTC1,  //   -- Channel 1
@@ -73,7 +70,7 @@ void ir_led_off(uint8_t direction)
 	TCF2.CTRLB			|=  carrier_wave_pins[direction];	// re-enable carrier wave output
 }
 
-void set_all_ir_powers(uint16_t power){
+void set_all_ir_powers(volatile uint16_t power){
 	if(power>256) return;
 	if(curr_ir_power==power) return;
 	uint8_t power_high = (power>>8);
@@ -82,12 +79,12 @@ void set_all_ir_powers(uint16_t power){
 	
 	uint8_t aResult = 0;
 	uint8_t bResult = 0;
-	
-	aResult = twiWriteWrapper(IR_POWER_ADDR_A, write_buffer, 6, 'a');
+	char callerDescr[7] = "Set IR\0";
+	aResult = twiWriteWrapper(IR_POWER_ADDR_A, write_buffer, 6, callerDescr);
 	if(!aResult){
 		return;
 	}
-	bResult = twiWriteWrapper(IR_POWER_ADDR_B, write_buffer, 6, 'b');
+	bResult = twiWriteWrapper(IR_POWER_ADDR_B, write_buffer, 6, callerDescr);
 	if(!bResult){
 		return;
 	}
@@ -96,35 +93,4 @@ void set_all_ir_powers(uint16_t power){
 		printf_P(PSTR("\tDone waiting for TWI. IR powers set successfully.\r\n"));
 	}
 	curr_ir_power = power;
-}
-
-static uint8_t twiWriteWrapper(uint8_t addr, uint8_t* write_buff, uint8_t buff_len, char marker){
-	uint32_t startTime = get_time();
-	uint8_t result = 0;
-	uint8_t printed = 0;
-	while(!result){
-		if((printed = waitForTWIReady(startTime, marker))){
-			result = TWI_MasterWrite(addr, write_buff, buff_len);
-		}else{
-			return 0;
-		}
-	}
-	return result + printed - 1;
-}
-
-static uint8_t waitForTWIReady(uint32_t startTime, char marker){
-	uint8_t printed = 0;
-	while(twi->status!=TWIM_STATUS_READY){
-		if((get_time()-startTime)>1000){
-			printf_P(PSTR("\tTWI timeout when setting IR Powers [%c]\r\n"), marker);
-			return 0;
-		}else if((get_time()-startTime)>100){
-			if(!printed){
-				printf_P(PSTR("Waiting for TWI [%c]...\r\n"), marker);
-				printed = 1;				
-			}
-			delay_ms(10);
-		}
-	}
-	return 1 + printed;
 }

@@ -25,6 +25,11 @@ static void get_command_word_and_args(char* command, uint16_t command_length, ch
 
 uint8_t user_handle_command(char* command_word, char* command_args) __attribute__((weak));
 
+/*
+ * This is where incoming commands are interpreted. The actual command is the string inside the PSTR function.
+ * For example, move_steps, walk, or get_rgb. If the command matches the string, the function on the same line
+ * will get called. See individual functions for further documentation on that command's syntax.
+ */
 void handle_serial_command(char* command, uint16_t command_length){
 	if(command[0]!='\0'){ //Not much to handle if we get an empty string.
 		char command_word[SRL_BUFFER_SIZE];
@@ -61,6 +66,10 @@ void handle_serial_command(char* command, uint16_t command_length){
 	}
 }
 
+/*
+ * No arguments.
+ * Prints each direction in which a collision was detected, or None.
+ */
 static void handle_check_collisions(void){
 	uint8_t dirs = check_collisions();
 	uint8_t found=0;
@@ -74,6 +83,11 @@ static void handle_check_collisions(void){
 	printf("\r\n");
 }
 
+/*
+ * Format:
+ *     move_steps <dir> <num_steps>
+ * Calls the move_steps function with arguments as described above.
+ */
 static void handle_move_steps(char* command_args){
 	const char delim[2] = " ";
 	
@@ -88,6 +102,11 @@ static void handle_move_steps(char* command_args){
 	}	
 }	
 
+/*
+ * Format:
+ *     walk <dir> <distance>
+ * Calls the walk function with arguments as described above.
+ */
 static void handle_walk(char* command_args){	
 	const char delim[2] = " ";
 	
@@ -100,12 +119,21 @@ static void handle_walk(char* command_args){
 	walk(direction, distance_mm);
 }
 
+/*
+ * No arguments.
+ * Prints the sensed colors, as reported by get_rgb.
+ */
 static void handle_get_rgb(void){
 	int16_t r, g, b;
 	get_rgb(&r, &g, &b);
 	printf_P(PSTR("r: %hu, g: %hu, b: %hu\r\n"), r, g, b);
 }
 
+/*
+ * Format:
+ *     set_ir <power>
+ * Calls the set_all_ir_powers function with arguments as described above.
+ */
 static void handle_set_ir(char* command_args){
 	const char delim[2] = " ";
 	
@@ -115,10 +143,22 @@ static void handle_set_ir(char* command_args){
 	schedule_task(10, (arg_func_t)set_all_ir_powers, (void*)ir_val);
 }
 
+/*
+ * No arguments.
+ * Calls the stop_move function; the droplet stops moving.
+ */
 static void handle_stop_walk(void){
 	stop_move();
 }
 
+/*
+ * Format:
+ *     set_motors <dir> <mot0val> <mot1val> <mot2val>
+ * Adjusts the (volatile-memory-copy) motor settings for <dir> to be the three motor values indicated.
+ * The sign of the motor value indicates what direction the motor should spin, the magnitude effects
+ * how long it spins for.
+ * Note that Audio Droplets don't have a motor 0, so <mot0val> should always be 0 for them.
+ */
 static void handle_set_motors(char* command_args){	
 	uint8_t r = get_red_led(), g = get_green_led(), b = get_blue_led();
 	set_rgb(0,0,255);
@@ -145,6 +185,12 @@ static void handle_set_motors(char* command_args){
 	set_rgb(r,g,b);
 }
 
+/*
+ * Format:
+ *     adj_motors <dir> <mot0val> <mot1val> <mot2val>
+ * Same as set_motors, described above, except that the motor settings currently stored in volatile 
+ * memory are changed by the indicated values.
+ */
 static void handle_adjust_motors(char* command_args){
 	uint8_t r = get_red_led(), g = get_green_led(), b = get_blue_led();
 	set_rgb(0,0,255);
@@ -180,6 +226,13 @@ static void handle_adjust_motors(char* command_args){
 	set_rgb(r,g,b);
 }
 
+/*
+ * Format:
+ *     set_dist_per_step <dir> <value>
+ * Adjusts the (volatile-memory-copy) walking distance settings for <dir>; the value should
+ * be the distance in mm that the robot travels per thousand steps taken. For spinning
+ * directions (6 & 7), the distance is in degrees.
+ */
 static void handle_set_mm_per_kilostep(char* command_args){
 	const char delim[2] = " ";
 	
@@ -193,21 +246,35 @@ static void handle_set_mm_per_kilostep(char* command_args){
 	
 }
 
-/* This tells the droplet that it should tell other droplets nearby their rnb to it.
- * In other words, this tells nearby droplets to listen, and then performs an ir_range_blast.
+/*
+ * No arguments.
+ * Calls broadcast_rnb_data.
  */
 static void handle_rnb_broadcast(void){
 	schedule_task(5,broadcast_rnb_data,NULL);
 }
 
+/*
+ * Format:
+ *     set_led <colors> <values>
+ *     <colors>: A string containing some combination of 'r', 'g', 'b', up to once each, in any order,
+ *               with no spaces, or 'hsv'.
+ *     <values>: If <colors> was 'hsv':
+ *                   <hue> <saturation> <value>
+ *                   <hue>: 0-360
+ *               Otherwise:
+ *                   Some combination of <r>, <g>, and <b> values, in the same order and quantity as 'colors'.
+ * Examples:
+ *     set_led rgb 255 255 255 //Full white.
+ *     set_led rgb 255 0 0     //Full red, green, and blue off.
+ *     set_led r 255           //Full red without effecting green or blue.
+ *     set_led br 127 64       //Half-strength blue, quarter-strength red. (order is flexible)
+ *     set_led hsv 0 255 255   //Set to fully saturated and bright hue 0 (red).
+ */
 static void handle_set_led(char* command_args){
 	const char delim[2] = " ";
-	char* token;
-
-	uint8_t successful_read = 0;
-	
+	char* token;	
 	char* colors = strtok(command_args,delim);
-	
 	int length = strlen(colors);
 
 	if(strcmp(colors,"hsv")==0){
@@ -220,48 +287,52 @@ static void handle_set_led(char* command_args){
 		token = strtok(NULL,delim);	
 		vVal = atoi(token);
 		set_hsv(hVal,sVal,vVal);
-		successful_read=1;
 	}else{
 		for(int i=0 ; i < length ; i++){
 			token = strtok(NULL,delim);
 			if(colors[i]=='r'){
 				set_red_led(atoi(token));
-				successful_read=1;
 			}else if(colors[i]=='g'){
 				set_green_led(atoi(token));
-				successful_read=1;
 			}else if(colors[i]=='b'){
 				set_blue_led(atoi(token));
-				successful_read=1;
 			}else{
-				successful_read=0;
 				break;
 			}
 		}
 	}
-
-	if(successful_read!=1){
-		printf_P(PSTR("\tGot command set_led, but arguments (%s) were invalid. Format should be:\r\n"),command_args);
-		printf_P(PSTR("\t Letters r,g,b, in any order, followed by values 0-255, in same \r\n"));
-		printf_P(PSTR("\t order, indicating the brightness of the associated LEDs. Example: \r\n"));
-		printf_P(PSTR("\t \"set_led bgr 5 30 0\" gives a bluish green.\r\n"));
-	}
 }
 
+/*
+ * No arguments.
+ * Broadcasts the four-character readable form of this Droplet's ID.
+ */
 static void handle_broadcast_id(void){
 	schedule_task(5, send_id, NULL);
 }
 
+/*
+ * No arguments.
+ * prints this Droplet's ID.
+ */
 static void handle_get_id(void){
 	printf_P(PSTR("My ID is: %04X\r\n"),get_droplet_id());
 }
 
-void send_id(){
-	char msg[5];
-	sprintf(msg, "%04X", get_droplet_id());
-	ir_send(ALL_DIRS, msg, 4);
-}
 
+/*
+ * Format:
+ *     cmd <CMD>
+ * <CMD>: Anything.
+ *
+ * This Droplet broadcasts <CMD> as an IR command.
+ * IR commands are communicated over infrared, but then interpreted by the same code which interprets 
+ * commands over serial, in this file.
+ *
+ * Example:
+ *     cmd reset
+ *     All receiving Droplets will act as if they had 'reset' typed to them over the terminal, and reset.
+ */
 static void handle_cmd(char* command_args){
 	printf_P(PSTR("Broadcasting command: \"%s\", of length %i.\r\n"),(uint8_t*)command_args, strlen(command_args));
 	ir_cmd(ALL_DIRS, command_args,strlen(command_args));
@@ -276,6 +347,20 @@ static void handle_cmd(char* command_args){
 	//}
 }
 
+/*
+ * Format:
+ *     tgt_cmd <ID> <CMD>
+ * <ID>: A droplet ID.
+ * <CMD>: Anything.
+ *
+ * This works the same as 'cmd', described above, except the command is targetted to a specific Droplet ID, <ID>. 
+ * All other Droplets will ignore the message.
+ *
+ * Example:
+ *     tgt_cmd af6a reset
+ *     The Droplet with ID 0xAF6A will act as if it had 'reset' typed to it over the terminal, and reset. Other
+ *     Droplets will do nothing.)
+ */
 static void handle_targeted_cmd(char* command_args){
 	uint8_t loc = strcspn(command_args, " ");
 	char targetString[5];
@@ -289,6 +374,14 @@ static void handle_targeted_cmd(char* command_args){
 	ir_targeted_cmd(ALL_DIRS, cmdString,strlen(cmdString), target);
 }
 
+/*
+ * Format:
+ *     msg <MSG>
+ *     <MSG>: Any test. This argument is optional.
+ *
+ * <MSG> will be treated as a string and broadcast over IR.
+ * If <MSG> is not present, a simple test string will be broadcast instead.
+ */
 static void handle_shout(char* command_args){
 	if(strlen(command_args)==0){
 		command_args = "Unique New York.";
@@ -299,6 +392,12 @@ static void handle_shout(char* command_args){
 	ir_send(ALL_DIRS, command_args,strlen(command_args));
 }
 
+/*
+ * Format:
+ *     msg_tst <dir_mask>
+ *     <dir_mask>: A direction mask indicating which direction(s) to send the message in.
+ * Sends a simple test message in the indicated directions.
+ */
 static void handle_msg_test(char* command_args){
 	uint8_t dir_mask = atoi(command_args);
 	char msg[16] = "Unique New York.";
@@ -306,6 +405,14 @@ static void handle_msg_test(char* command_args){
 	ir_send(dir_mask, msg,16);
 }
 
+/*
+ * Format:
+ *      tgt <ID> <MSG>
+ *	<ID>: A Droplet ID.
+ * Behaves the same as the 'msg' command, described above, except the message is broadcast
+ * to a specific Droplet with <ID>, and will be ignored by other Droplets. Also, this function
+ * does not have a default message.
+ */
 static void handle_target(char* command_args){
 	uint8_t loc = strcspn(command_args, " ");
 	char targetString[5];
@@ -321,6 +428,19 @@ static void handle_target(char* command_args){
 	ir_targeted_send(ALL_DIRS, msgString,strlen(msgString), target);
 } 
 
+/*
+ * No arguments.
+ * The Droplet resets.
+ */
+static void handle_reset(void){
+	droplet_reboot();
+}
+
+void send_id(){
+	char msg[5];
+	sprintf(msg, "%04X", get_droplet_id());
+	ir_send(ALL_DIRS, msg, 4);
+}
 
 static void get_command_word_and_args(char* command, uint16_t command_length, char* command_word, char* command_args){
 	//printf("\tIn gcwaa.\r\n");
@@ -348,8 +468,4 @@ static void get_command_word_and_args(char* command, uint16_t command_length, ch
 	}else{
 		command_args[write_index] = '\0';
 	}
-}
-
-static void handle_reset(void){
-	droplet_reboot();
 }

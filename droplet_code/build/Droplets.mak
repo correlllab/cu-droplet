@@ -15,10 +15,11 @@ TARGET = Droplets
 
 # The base directory of your Atmel Studio installation folder.
 # This serves as the base location for accessing key #include files.
+# It also is used as the base path for the location of the actual compiler .exe.
 ATMEL_STUDIO_PATH = "C:/Program Files (x86)/Atmel/Studio/7.0/"
 
 # List your user C source file(s) here.
-USER_FILES = ../droplet_programs/pong.c \
+USER_FILE = ../droplet_programs/pong.c \
 
 
 #----------------------------------------------------------------------------
@@ -51,7 +52,7 @@ FORMAT = ihex
 OBJDIR = .
 
 # List C source files here. (C dependencies are automatically generated.)
-SRC = $(USER_FILES) \
+SRC = $(USER_FILE) \
 ../src/droplet_base.c \
 ../src/droplet_init.c \
 ../src/eeprom_driver.c \

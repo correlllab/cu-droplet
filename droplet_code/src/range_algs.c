@@ -331,7 +331,7 @@ void ir_range_blast(uint32_t rnbCmdSentTime, uint8_t power __attribute__ ((unuse
 	//times[1] = get_time();
 	uint32_t pre_sync_op = get_time();
 	uint16_t prevPower = curr_ir_power;
-	//set_all_ir_powers(256);	
+	set_all_ir_powers(256);	
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){		
 		while((get_time() - pre_sync_op) < TIME_FOR_SET_IR_POWERS) delay_us(500);
 		//times[2] = get_time();
@@ -347,7 +347,7 @@ void ir_range_blast(uint32_t rnbCmdSentTime, uint8_t power __attribute__ ((unuse
 			delay_ms(DELAY_BETWEEN_RB_TRANSMISSIONS);
 		}
 	}
-	//set_all_ir_powers(prevPower);
+	set_all_ir_powers(prevPower);
 }
 
 

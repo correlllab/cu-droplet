@@ -7,10 +7,10 @@
  *
  */
 
- #define MIN_X -150
- #define MIN_Y -150
- #define MAX_X 150
- #define MAX_Y 150
+ #define MIN_X 0
+ #define MIN_Y 0
+ #define MAX_X 250
+ #define MAX_Y 250
 
 void init(){
 	if((LOCALIZATION_DUR)>=SLOT_LENGTH_MS){
@@ -24,7 +24,7 @@ void init(){
 		cleanOtherBot(&nearBots[i]);
 	}
 	myState = STATE_PIXEL;
-	colorMode = POS;
+	colorMode = GAME;
 	gameMode = BOUNCE;
 	lastBallID = 0;
 	lastBallMsg = 0;
@@ -38,7 +38,7 @@ void init(){
 	theBall.id = 0;
 	theBall.radius = 0;
 	printf("mySlot: %u, frame_length: %lu\r\n\r\n", mySlot, FRAME_LENGTH_MS);
-	//set_all_ir_powers(200);
+	set_all_ir_powers(200);
 }
 
 void loop(){
@@ -70,11 +70,15 @@ void loop(){
 			}else{
 				printf("\r\n\r\n");
 			}
-			if((theBall.xPos != UNDF) && (theBall.yPos != UNDF)){
+			updateHardBots();
+			if(BALL_VALID()){
 				printf_P(PSTR("\tBall ID: %hu; radius: %hu; Pos: (%d, %d) @ vel (%hd, %hd)\r\n"), theBall.id, theBall.radius, theBall.xPos, theBall.yPos, theBall.xVel, theBall.yVel);
 			}
 		}
 		updateBall();
+		if(BALL_VALID() && myDist!=UNDF && myDist<=DROPLET_RADIUS){
+			sendBallMsg();
+		}
 		updateColor();
 	}
 	if(NS_PIXEL_Q(myState)){
@@ -93,25 +97,29 @@ void updateColor(){
 	if(colorMode==POS){
 		getPosColor(&newR, &newG, &newB);
 	}else if(colorMode==GAME){
-		float coverage = getBallCoverage() + getPaddleCoverage();
-		coverage = (coverage > 1.0) ? 1.0 : coverage;
-		uint8_t intensityIncrease = 0;
-		if(coverage>0.01){
-			intensityIncrease = (uint16_t)(5.0*pow(51.0,coverage));
+		if(POS_DEFINED(&myPos)){
+			float coverage = getBallCoverage() + getPaddleCoverage();
+			coverage = (coverage > 1.0) ? 1.0 : coverage;
+			uint8_t intensityIncrease = 0;
+			if(coverage>0.01){
+				intensityIncrease = (uint16_t)(5.0*pow(51.0,coverage));
+			}
+			uint16_t newRed		= newR + intensityIncrease;
+			uint16_t newGreen	= newG + intensityIncrease;
+			uint16_t newBlue	= newB + intensityIncrease;
+			newR = newRed>255 ? 255 :  newRed;
+			newG = newGreen>255 ? 255 : newGreen;
+			newB = newBlue>255 ? 255 : newBlue;
+		}else{
+			newB = 50;
 		}
-		uint16_t newRed		= newR + intensityIncrease;
-		uint16_t newGreen	= newG + intensityIncrease;
-		uint16_t newBlue	= newB + intensityIncrease;
-		newR = newRed>255 ? 255 :  newRed;
-		newG = newGreen>255 ? 255 : newGreen;
-		newB = newBlue>255 ? 255 : newBlue;
 	}
 	set_rgb(newR, newG, newB);
 }
 
 float getBallCoverage(){
 	float ballCoveredRatio = 0.0;
-	if((((int16_t)myDist)!=UNDF) && (myDist<(DROPLET_RADIUS+theBall.radius)) && (theBall.id!=0x0F)){
+	if((myDist!=(uint16_t)UNDF) && (myDist<(DROPLET_RADIUS+theBall.radius)) && (theBall.id!=0x0F)){
 		if(theBall.radius<DROPLET_RADIUS){
 			if(myDist>=(DROPLET_RADIUS-theBall.radius)){
 				ballCoveredRatio = getCoverageRatioA(theBall.radius, myDist);
@@ -125,9 +133,9 @@ float getBallCoverage(){
 				ballCoveredRatio = 1.0;
 			}
 		}
-	}
+		printf("Ball Coverage:\t%f | me: (% 4d, % 4d) ball: (% 4d, % 4d)->%hu\r\n", ballCoveredRatio, myPos.x, myPos.y, theBall.xPos, theBall.yPos, theBall.radius);
+	}	
 	return ballCoveredRatio;
-	//printf("Ball Coverage:\t%f | me: (%5.1f, %5.1f) ball: (%5.1f, %5.1f)->%hu\r\n", ballCoveredRatio, myX, myY, theBall.xPos, theBall.yPos, theBall.radius);
 }
 
 float getPaddleCoverage(){
@@ -156,49 +164,47 @@ float getPaddleCoverage(){
 }
 
 void updateBall(){
-	if(theBall.lastUpdate){
-		uint32_t now = get_time();
-		int32_t timePassed = now-theBall.lastUpdate;
-		if(POS_DEFINED(&myPos) && ((theBall.xPos!=UNDF) && (theBall.yPos!=UNDF))){
-			theBall.xPos += (int16_t)((((int32_t)(theBall.xVel))*timePassed)/1000.0);
-			theBall.yPos += (int16_t)((((int32_t)(theBall.yVel))*timePassed)/1000.0);
-			theBall.lastUpdate = now;
-			BALL_DEBUG_PRINT("B[%hu]: %d, %d\r\n", theBall.id, theBall.xPos, theBall.yPos);
-			uint8_t bounced = 0;
-			HardBot* tmp = hardBotsList;
-			myDist = (uint16_t)hypotf(myPos.x-theBall.xPos, myPos.y-theBall.yPos);
-			while(tmp!=NULL){
-				OtherBot* bot = getOtherBot(tmp->id);
-				otherDist = (uint16_t)hypotf(bot->pos.x - theBall.xPos, bot->pos.y - theBall.yPos);
-				if(myDist < otherDist){
-					BALL_DEBUG_PRINT("\t%04X | ", tmp->id);
-					if(checkBounceHard(bot->pos.x, bot->pos.y, timePassed)){
-						if(gameMode==PONG && ((SOUTH_PIXEL_Q(myState) && theBall.yVel<=0) || (NORTH_PIXEL_Q(myState) && theBall.yVel>=0))){
-							if(!isCovered){
-								//Other Side scores a point!
-								killBall();
-								set_rgb(255,0,0);
-							}
+	uint32_t now = get_time();
+	int32_t timePassed = now-theBall.lastUpdate;
+	if(POS_DEFINED(&myPos) && BALL_VALID()){
+		theBall.xPos += (int16_t)((((int32_t)(theBall.xVel))*timePassed)/1000.0);
+		theBall.yPos += (int16_t)((((int32_t)(theBall.yVel))*timePassed)/1000.0);
+		theBall.lastUpdate = now;
+		BALL_DEBUG_PRINT("B[%hu]: %d, %d\r\n", theBall.id, theBall.xPos, theBall.yPos);
+		uint8_t bounced = 0;
+		HardBot* tmp = hardBotsList;
+		myDist = (uint16_t)hypotf(myPos.x-theBall.xPos, myPos.y-theBall.yPos);
+		while(tmp!=NULL){
+			OtherBot* bot = getOtherBot(tmp->id);
+			otherDist = (uint16_t)hypotf(bot->pos.x - theBall.xPos, bot->pos.y - theBall.yPos);
+			if(myDist < otherDist){
+				BALL_DEBUG_PRINT("\t%04X | ", tmp->id);
+				if(checkBounceHard(bot->pos.x, bot->pos.y, timePassed)){
+					if(gameMode==PONG && ((SOUTH_PIXEL_Q(myState) && theBall.yVel<=0) || (NORTH_PIXEL_Q(myState) && theBall.yVel>=0))){
+						if(!isCovered){
+							//Other Side scores a point!
+							killBall();
+							set_rgb(255,0,0);
 						}
-						calculateBounce(bot->pos.x, bot->pos.y);
-						BALL_DEBUG_PRINT("Ball bounced off boundary between me and %04X!\r\n", tmp->id);
-						bounced = 1;
-						break;
 					}
+					calculateBounce(bot->pos.x, bot->pos.y);
+					BALL_DEBUG_PRINT("Ball bounced off boundary between me and %04X!\r\n", tmp->id);
+					bounced = 1;
+					break;
 				}
-				tmp = tmp->next;
 			}
-			if(theBall.xPos<MIN_X || theBall.xPos>MAX_X || theBall.yPos<MIN_Y || theBall.yPos>MAX_Y){
-				BALL_DEBUG_PRINT("Ball hit boundary, so we must have lost track.\r\n");
-				theBall.xPos = UNDF;
-				theBall.yPos = UNDF;
-				myDist = UNDF;
-				otherDist = UNDF;
-			}
-			}else{
+			tmp = tmp->next;
+		}
+		if(theBall.xPos<MIN_X || theBall.xPos>MAX_X || theBall.yPos<MIN_Y || theBall.yPos>MAX_Y){
+			BALL_DEBUG_PRINT("Ball hit boundary, so we must have lost track.\r\n");
+			theBall.xPos = UNDF;
+			theBall.yPos = UNDF;
 			myDist = UNDF;
 			otherDist = UNDF;
 		}
+	}else{
+		myDist = UNDF;
+		otherDist = UNDF;
 	}
 }
 
@@ -244,7 +250,7 @@ void updateHardBots(){
 	//TODO:
 	//	nearBotsCmpFunc sorts by RANGE! Need to change to one that sorts by bearing!
 	//
-	qsort(nearBotsCopy, numNearBots, sizeof(BotMeas), nearBotsDistCmp);
+	qsort(nearBotsCopy, numNearBots, sizeof(BotMeas), nearBotsBearingCmp);
 	//go through each near bot by bearing and add it to hardBots if the gap in bearings is above 120 degrees
 	for(uint8_t i=0;i<numNearBots;i++){
 		if(nearBotsCopy[i].id==0) continue;
@@ -270,9 +276,6 @@ void updateHardBots(){
 }
 
 void sendBallMsg(){
-	if((((int16_t)myDist)==UNDF) || (myDist>=30)){
-		return;
-	}
 	BallMsg msg;
 	msg.flag = BALL_MSG_FLAG;
 	int16_t tempX = theBall.xPos;
@@ -441,9 +444,9 @@ uint8_t user_handle_command(char* command_word, char* command_args){
 		if(POS_DEFINED(&myPos)){
 			const char delim[2] = " ";
 			char* token = strtok(command_args, delim);
-			int8_t vel = (token!=NULL) ? (int8_t)atoi(token) : 10;
+			int8_t vel = (token!=NULL) ? (int8_t)atoi(token) : 20;
 			token = strtok(NULL, delim);
-			uint8_t size = (token!=NULL) ? (uint8_t)atoi(token) : 60;
+			uint8_t size = (token!=NULL) ? (uint8_t)atoi(token) : (DROPLET_RADIUS+2);
 			theBall.xPos = myPos.x;
 			theBall.yPos = myPos.y;
 			int16_t randomdir = rand_short()%360;

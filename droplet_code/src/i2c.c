@@ -68,6 +68,18 @@
 
 #include "i2c.h"
 
+static void TWI_MasterInit(TWI_t *module, TWI_MASTER_INTLVL_t intLevel, uint8_t baudRateRegisterSetting);
+static uint8_t TWI_MasterWrite(uint8_t address, uint8_t * writeData, uint8_t bytesToWrite);
+static uint8_t TWI_MasterRead(uint8_t address, uint8_t bytesToRead) __attribute__((unused));
+static uint8_t TWI_MasterWriteRead(uint8_t address, uint8_t *writeData, uint8_t bytesToWrite, uint8_t bytesToRead);
+static void TWI_MasterInterruptHandler(void);
+static void TWI_MasterArbitrationLostBusErrorHandler(void);
+static void TWI_MasterWriteHandler(void);
+static void TWI_MasterReadHandler(void);
+static void TWI_MasterTransactionFinished(uint8_t result);
+
+static uint8_t waitForTWIReady(uint32_t startTime, char* callerDescr);
+
 void i2c_init(){
 	PORTB.DIRCLR = PIN5_bm; 
 	PORTB.PIN5CTRL = PORT_OPC_WIREDOR_gc;
@@ -75,6 +87,51 @@ void i2c_init(){
 	PORTE.DIRSET = PIN0_bm | PIN1_bm;
 	twi = &twiMaster;
 	TWI_MasterInit(&TWIE, TWI_MASTER_INTLVL_HI_gc, TWI_BAUD(F_CPU, 100000));
+}
+
+uint8_t twiWriteWrapper(uint8_t addr, uint8_t* writeData, uint8_t bytesToWrite, char* callerDescr){
+	uint32_t startTime = get_time();
+	uint8_t result = 0;
+	uint8_t printed = 0;
+	while(!result){
+		if((printed = waitForTWIReady(startTime, callerDescr))){
+			result = TWI_MasterWrite(addr, writeData, bytesToWrite);
+		}else{
+			return 0;
+		}
+	}
+	return result + printed - 1;
+}
+
+uint8_t twiWriteReadWrapper(uint8_t addr, uint8_t* writeData, uint8_t bytesToWrite, uint8_t bytesToRead, char* callerDescr){
+	uint32_t startTime = get_time();
+	uint8_t result = 0;
+	uint8_t printed = 0;
+	while(!result){
+		if((printed = waitForTWIReady(startTime, callerDescr))){
+			result = TWI_MasterWriteRead(addr, writeData, bytesToWrite, bytesToRead);
+		}else{
+			return 0;
+		}
+	}
+	return result + printed - 1;
+}
+
+static uint8_t waitForTWIReady(uint32_t startTime, char* callerDescr){
+	uint8_t printed = 0;
+	while(twi->status!=TWIM_STATUS_READY){
+		if((get_time()-startTime)>1000){
+			printf_P(PSTR("\tTWI timeout | %s\r\n"), callerDescr);
+			return 0;
+			}else if((get_time()-startTime)>100){
+			if(!printed){
+				printf_P(PSTR("Waiting for TWI | %s\r\n"), callerDescr);
+				printed = 1;
+			}
+			delay_ms(10);
+		}
+	}
+	return 1 + printed;
 }
 
 /*! \brief Initialize the TWI module.
@@ -88,7 +145,7 @@ void i2c_init(){
  *  \param intLevel                 Master interrupt level.
  *  \param baudRateRegisterSetting  The baud rate register value.
  */
-void TWI_MasterInit(TWI_t *module,
+static void TWI_MasterInit(TWI_t *module,
                     TWI_MASTER_INTLVL_t intLevel,
                     uint8_t baudRateRegisterSetting)
 {
@@ -100,45 +157,6 @@ void TWI_MasterInit(TWI_t *module,
 	twi->interface->MASTER.BAUD = baudRateRegisterSetting;
 	twi->interface->MASTER.STATUS = TWI_MASTER_BUSSTATE_IDLE_gc;
 }
-
-
-/*! \brief Returns the TWI bus state.
- *
- *  Returns the TWI bus state (type defined in device headerfile),
- *  unknown, idle, owner or busy.
- *
- *  \param twi The TWI_Master_t struct instance.
- *
- *  \retval TWI_MASTER_BUSSTATE_UNKNOWN_gc Bus state is unknown.
- *  \retval TWI_MASTER_BUSSTATE_IDLE_gc    Bus state is idle.
- *  \retval TWI_MASTER_BUSSTATE_OWNER_gc   Bus state is owned by the master.
- *  \retval TWI_MASTER_BUSSTATE_BUSY_gc    Bus state is busy.
- */
-TWI_MASTER_BUSSTATE_t TWI_MasterState()
-{
-	TWI_MASTER_BUSSTATE_t twi_status;
-	twi_status = (TWI_MASTER_BUSSTATE_t) (twi->interface->MASTER.STATUS &
-	                                      TWI_MASTER_BUSSTATE_gm);
-	return twi_status;
-}
-
-
-/*! \brief Returns 1 if transaction is ready.
- *
- *  This function returns a uint8_tean whether the TWI Master is ready
- *  for a new transaction.
- *
- *  \param twi The TWI_Master_t struct instance.
- *
- *  \retval 1  If transaction could be started.
- *  \retval 0 If transaction could not be started.
- */
-uint8_t TWI_MasterReady()
-{
-	uint8_t twi_status = (twi->status & TWIM_STATUS_READY);
-	return twi_status;
-}
-
 
 /*! \brief TWI write transaction.
  *
@@ -152,14 +170,10 @@ uint8_t TWI_MasterReady()
  *  \retval 1  If transaction could be started.
  *  \retval 0 If transaction could not be started.
  */
-uint8_t TWI_MasterWrite(uint8_t address,
-                     uint8_t *writeData,
-                     uint8_t bytesToWrite)
-{
+static uint8_t TWI_MasterWrite(uint8_t address, uint8_t *writeData, uint8_t bytesToWrite){
 	uint8_t twi_status = TWI_MasterWriteRead(address, writeData, bytesToWrite, 0);
 	return twi_status;
 }
-
 
 /*! \brief TWI read transaction.
  *
@@ -172,13 +186,10 @@ uint8_t TWI_MasterWrite(uint8_t address,
  *  \retval 1  If transaction could be started.
  *  \retval 0 If transaction could not be started.
  */
-uint8_t TWI_MasterRead(uint8_t address,
-                    uint8_t bytesToRead)
-{
+static uint8_t TWI_MasterRead(uint8_t address, uint8_t bytesToRead){
 	uint8_t twi_status = TWI_MasterWriteRead(address, 0, 0, bytesToRead);
 	return twi_status;
 }
-
 
 /*! \brief TWI write and/or read transaction.
  *
@@ -195,7 +206,7 @@ uint8_t TWI_MasterRead(uint8_t address,
  *  \retval 1  If transaction could be started.
  *  \retval 0 If transaction could not be started.
  */
-uint8_t TWI_MasterWriteRead(uint8_t address,
+static uint8_t TWI_MasterWriteRead(uint8_t address,
                          uint8_t *writeData,
                          uint8_t bytesToWrite,
                          uint8_t bytesToRead)
@@ -254,7 +265,7 @@ uint8_t TWI_MasterWriteRead(uint8_t address,
  *
  *  \param twi  The TWI_Master_t struct instance.
  */
-void TWI_MasterInterruptHandler()
+static void TWI_MasterInterruptHandler()
 {
 	uint8_t currentStatus = twi->interface->MASTER.STATUS;
 	/* If arbitration lost or bus error. */
@@ -287,7 +298,7 @@ void TWI_MasterInterruptHandler()
  *
  *  \param twi  The TWI_Master_t struct instance.
  */
-void TWI_MasterArbitrationLostBusErrorHandler()
+static void TWI_MasterArbitrationLostBusErrorHandler()
 {
 	uint8_t currentStatus = twi->interface->MASTER.STATUS;
 
@@ -313,7 +324,7 @@ void TWI_MasterArbitrationLostBusErrorHandler()
  *
  *  \param twi The TWI_Master_t struct instance.
  */
-void TWI_MasterWriteHandler()
+static void TWI_MasterWriteHandler()
 {
 	/* Local variables used in if tests to avoid compiler warning. */
 	uint8_t bytesToWrite  = twi->bytesToWrite;
@@ -355,7 +366,7 @@ void TWI_MasterWriteHandler()
  *
  *  \param twi The TWI_Master_t struct instance.
  */
-void TWI_MasterReadHandler()
+static void TWI_MasterReadHandler()
 {
 	/* Fetch data if bytes to be read. */
 	if (twi->bytesRead < TWIM_READ_BUFFER_SIZE) {
@@ -394,7 +405,7 @@ void TWI_MasterReadHandler()
  *  \param twi     The TWI_Master_t struct instance.
  *  \param result  The result of the operation.
  */
-void TWI_MasterTransactionFinished(uint8_t result)
+static void TWI_MasterTransactionFinished(uint8_t result)
 {
 	twi->result = result;
 	twi->status = TWIM_STATUS_READY;

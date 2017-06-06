@@ -3,7 +3,7 @@
 #include "droplet_init.h"
 
 //#define RNB_DEBUG_MODE
-//#define BALL_DEBUG_MODE
+#define BALL_DEBUG_MODE
 //#define PADDLE_DEBUG_MODE
 
 #ifdef RNB_DEBUG_MODE
@@ -24,6 +24,8 @@
 #define PADDLE_DEBUG_PRINT(format, ...)
 #endif
 
+#define BALL_VALID() ((theBall.xPos!=UNDF) && (theBall.yPos!=UNDF) && (theBall.id!=0x0F))
+
 #define DROPLET_DIAMETER_MM		44.4
 #define BALL_MSG_FLAG			'B'
 #define BOT_POS_MSG_FLAG		'P'
@@ -31,7 +33,7 @@
 #define S_PADDLE_MSG_FLAG		'S'
 
 #define SLOT_LENGTH_MS			397
-#define SLOTS_PER_FRAME			38
+#define SLOTS_PER_FRAME			17
 #define FRAME_LENGTH_MS			(((uint32_t)SLOT_LENGTH_MS)*((uint32_t)SLOTS_PER_FRAME))
 #define LOOP_DELAY_MS			17
 
@@ -243,6 +245,26 @@ inline static void killBall(void){
 }
 
 static inline uint16_t getSlot(id_t id){
+	switch(id){
+		case 0x6C66: return 0;
+		case 0x3D6C: return 1;
+		case 0x9669: return 2;
+		case 0xAF6A: return 3;
+		case 0x1361: return 4;
+		case 0x7066: return 5;
+		case 0x7EDF: return 6;
+		case 0x5D61: return 7;
+		case 0xD2D7: return 8;
+		case 0xDC62: return 9;
+		case 0x9261: return 10;
+		case 0xD76C: return 11;
+		case 0x4E2E: return 12;
+		case 0x2826: return 13;
+		case 0xA250: return 14;
+		case 0xD913: return 15;
+		default: printf("ID Fetch Error\r\n");
+				 warning_light_sequence();		
+	}
 	return (id%(SLOTS_PER_FRAME-1));
 }
 

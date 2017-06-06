@@ -220,7 +220,6 @@ pip-log.txt
 #############
 droplet_code/build/*.eep
 droplet_code/build/*.elf
-droplet_code/build/*.hex
 droplet_code/build/*.lss
 droplet_code/build/*.map
 droplet_code/build/*.sym

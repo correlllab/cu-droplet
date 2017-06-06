@@ -16,6 +16,7 @@ void init(){
 	last_red_time = 0;
 	last_green_time = 0;
 	last_blue_time = 0;
+	set_all_ir_powers(200);
 }
 
 /*

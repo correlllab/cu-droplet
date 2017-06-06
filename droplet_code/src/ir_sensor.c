@@ -15,7 +15,7 @@ void ir_sensor_init(){
 		PORTA.DIRCLR = PIN5_bm | PIN6_bm | PIN7_bm;
 		PORTB.DIRCLR = PIN4_bm | PIN2_bm | PIN3_bm;
 	
-		//
+		//git 
 		//IR SENSORS ACTING WEIRD? TRY COMMENTING OUT THE BELOW.
 		//BELOW RECOMMENDED BY note on pg 153 of the manual
 		//
@@ -93,7 +93,6 @@ void initialize_ir_baselines(){
 void update_ir_baselines(){
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 		if(ir_is_busy(ALL_DIRS)){
-			printf("Skipping this baseline update.\r\n");
 			return;
 		}
 		hp_ir_block_bm=0x3F;
@@ -170,7 +169,7 @@ void check_collision_values(int16_t meas[6]){
 	int16_t baseline_meas[6];
 	int16_t measured_vals[6];
 	//uint8_t dirs=0;
-	if(ir_is_busy(ALL_DIRS)>1){
+	if(ir_is_busy(ALL_DIRS)){
 		printf_P(PSTR("IR Hardware busy. Can't check collisions.\r\n"));
 		return;
 	}

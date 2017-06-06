@@ -2,7 +2,7 @@
 #include "rgb_led.h"
 
 static volatile uint8_t processing_cmd;
-static volatile uint8_t processing_ffsync;
+static volatile uint8_t processing_ffsync_flag;
 
 static void clear_ir_buffer(uint8_t dir);
 static void perform_ir_upkeep(void);
@@ -82,13 +82,12 @@ void ir_comm_init(){
 		EVSYS.CH7MUX = EVSYS_CHMUX_PORTF_PIN2_gc;
 	#endif	
 
-	curr_ir_power=0;	
 	for(uint8_t dir=0; dir<6; dir++) clear_ir_buffer(dir); //this initializes the buffer's values to 0.
 	cmd_arrival_time=0;
 	num_waiting_msgs=0;
 	user_facing_messages_ovf=0;
 	processing_cmd = 0;
-	processing_ffsync = 0;
+	processing_ffsync_flag = 0;
 
 	schedule_periodic_task(1000/IR_UPKEEP_FREQUENCY, perform_ir_upkeep, NULL);
 	
@@ -241,7 +240,7 @@ static uint8_t all_hp_ir_cmds(uint8_t dirs, char* data, uint8_t data_length, id_
     //perform_ir_upkeep();
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 		if(ir_is_busy(dirs)>=4){
-			printf_P(PSTR("HP send blocked by other HP. Should only see this rarely.\r\n"));
+			//printf_P(PSTR("HP send blocked by other HP. Should only see this rarely.\r\n"));
 			return 0;
 		}
 		uint8_t timed;
@@ -386,11 +385,11 @@ static void received_ir_sync(uint8_t delay, id_t senderID){
 	uint8_t processThisFFSync = 0;
 	uint16_t count;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-		if(!processing_ffsync){
+		if(!processing_ffsync_flag){
 			count = TCE0.CNT;
 			if(delay!=0xFF){
 				processThisFFSync = 1;
-				processing_ffsync = 1;
+				processing_ffsync_flag = 1;
 			}
 		}
 	}
@@ -403,7 +402,7 @@ static void received_ir_sync(uint8_t delay, id_t senderID){
 					clear_ir_buffer(dir);
 				}
 			}
-			processing_ffsync = 0;
+			processing_ffsync_flag = 0;
 		}
 	}
 	//printf("F\r\n");
@@ -413,14 +412,14 @@ static void received_rnb_r(uint8_t delay, id_t senderID, uint32_t last_byte){
 	uint8_t processThisRNB = 0;
 	uint32_t rnbCmdSentTime = 0;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-		if(!processing_rnb && (ir_is_busy(ALL_DIRS)<8)){
+		if(!processing_rnb_flag && (ir_is_busy(ALL_DIRS)<8)){
 			if(delay!=0xFF){
 				rnbCmdID = senderID;
 				//printf("%04X: %hu\r\n", rnbCmdID, delay+5);			
 				if(delay<5) delay = 20-delay;
 				rnbCmdSentTime = last_byte-(delay+5);
 				processThisRNB = 1;
-				processing_rnb = 1;
+				processing_rnb_flag = 1;
 				hp_ir_block_bm = 0x3F;
 
 			}

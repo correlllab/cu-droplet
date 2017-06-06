@@ -80,7 +80,7 @@ void range_algs_init(){
 		}
 	}
 	rnbCmdID=0;
-	processing_rnb=0;
+	processing_rnb_flag=0;
 }
 
 //TODO: handle variable power.
@@ -88,9 +88,11 @@ void broadcast_rnb_data(){
 	uint8_t power = 255;
 	uint8_t goAhead = 0;
 	uint8_t result = 0;
+	uint8_t irStatus = 0;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-		if(!processing_rnb && (ir_is_busy(ALL_DIRS)<4)){
-			processing_rnb = 1;
+		irStatus = ir_is_busy(ALL_DIRS);
+		if(!processing_rnb_flag){
+			processing_rnb_flag = 1;
 			goAhead = 1;
 		}
 	}
@@ -108,11 +110,13 @@ void broadcast_rnb_data(){
 			}
 			//printf("rnb_b\r\n");
 		}
+		ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+			processing_rnb_flag = 0;
+		}
+	}else{
+		uint8_t failureInfo = ((processing_rnb_flag<<6) | (result<<4) | irStatus);
+		printf_P(PSTR("RNB Broadcast failed [ %02hX ]\r\n"),  failureInfo);
 	}
-	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-		processing_rnb = 0;
-	}
-	printf("%02hx\r\n",(goAhead<<1 | result));
 }
 
 void use_rnb_data(){
@@ -131,7 +135,7 @@ void use_rnb_data(){
 			//printf("\t[%04X] %4u % 4d % 4d | %6.2f", rnbCmdID, (uint16_t)range, (int16_t)rad_to_deg(bearing), (int16_t)rad_to_deg(heading), error);
 			if((range<110 && error>1.0) || (range<200 && error>1.5) || (range>200)){
 				ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-					processing_rnb=0;
+					processing_rnb_flag=0;
 				}
 				//printf(" <!>\r\n");
 				return;
@@ -148,7 +152,7 @@ void use_rnb_data(){
 		}
 	}
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-		processing_rnb=0;
+		processing_rnb_flag=0;
 	}
 }
 

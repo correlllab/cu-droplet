@@ -16,7 +16,7 @@ void init(){
 	last_red_time = 0;
 	last_green_time = 0;
 	last_blue_time = 0;
-	set_all_ir_powers(200);
+	set_all_ir_powers(250);
 }
 
 /*
@@ -33,7 +33,7 @@ void loop(){
 	if(get_time()-last_normal_msg > 2050){
 		printf("Sending normal message: %02hX\r\n",ir_send(ALL_DIRS, "This is a normal message.", 25));
 		last_normal_msg=get_time();
-	}	
+	}
 	
 	if(rnb_updated){
 		set_blue_led(100);

@@ -273,12 +273,8 @@ static void handle_rnb_broadcast(void){
  */
 static void handle_set_led(char* command_args){
 	const char delim[2] = " ";
-	char* token;
-
-	uint8_t successful_read = 0;
-	
+	char* token;	
 	char* colors = strtok(command_args,delim);
-	
 	int length = strlen(colors);
 
 	if(strcmp(colors,"hsv")==0){
@@ -291,21 +287,16 @@ static void handle_set_led(char* command_args){
 		token = strtok(NULL,delim);	
 		vVal = atoi(token);
 		set_hsv(hVal,sVal,vVal);
-		successful_read=1;
 	}else{
 		for(int i=0 ; i < length ; i++){
 			token = strtok(NULL,delim);
 			if(colors[i]=='r'){
 				set_red_led(atoi(token));
-				successful_read=1;
 			}else if(colors[i]=='g'){
 				set_green_led(atoi(token));
-				successful_read=1;
 			}else if(colors[i]=='b'){
 				set_blue_led(atoi(token));
-				successful_read=1;
 			}else{
-				successful_read=0;
 				break;
 			}
 		}

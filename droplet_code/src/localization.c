@@ -399,7 +399,7 @@ void useRNBmeas(id_t id, uint16_t r, int16_t b, int16_t h){
 
 //Takes all of the information needed for a botMeasMsg and packs it up in to a BotMeasMsgNode,
 //then calls sendBotMeasMsg with it.
-static void prepBotMeasMsg(id_t id, uint16_t r, int16_t b, BotPos* pos, DensePosCovar* covar){ //i: index in nearBots array.
+static void prepBotMeasMsg(id_t id, uint16_t r, int16_t b, BotPos* pos, DensePosCovar* covar){ 
 	BotMeasMsgNode* mNode = (BotMeasMsgNode*)myMalloc(sizeof(BotMeasMsgNode));
 	mNode->numTries = 0;
 	mNode->tgt = id;

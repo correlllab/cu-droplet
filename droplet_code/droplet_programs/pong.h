@@ -4,6 +4,7 @@
 
 //#define RNB_DEBUG_MODE
 #define BALL_DEBUG_MODE
+#define CHECK_BOUNCE_DEBUG_MODE
 //#define PADDLE_DEBUG_MODE
 
 #ifdef RNB_DEBUG_MODE
@@ -16,6 +17,12 @@
 #define BALL_DEBUG_PRINT(format, ...) printf_P(PSTR(format), ##__VA_ARGS__)
 #else
 #define BALL_DEBUG_PRINT(format, ...)
+#endif
+
+#ifdef CHECK_BOUNCE_DEBUG_MODE
+#define CHECK_BOUNCE_DEBUG_PRINT(format, ...) printf_P(PSTR(format), ##__VA_ARGS__)
+#else
+#define CHECK_BOUNCE_DEBUG_PRINT(format, ...)
 #endif
 
 #ifdef PADDLE_DEBUG_MODE
@@ -109,10 +116,13 @@ typedef struct other_bot_rnb_struct{
 OtherBot nearBots[NUM_TRACKED_BOTS+1];
 
 typedef struct hard_bot_struct{
-	id_t id;
+	int16_t xStart;
+	int16_t yStart;
+	int16_t xEnd;
+	int16_t yEnd;
 	struct hard_bot_struct* next;
-} HardBot;
-HardBot* hardBotsList;
+} HardEdge;
+HardEdge* hardEdges;
 
 uint8_t		lastBallID;
 uint8_t		myState;
@@ -144,7 +154,7 @@ void		updateBall(void);
 void		updateColor(void);
 float		getBallCoverage(void);
 
-void		updateHardBots(void);
+void		updateHardEdges(void);
 void		sendBallMsg(void);
 void		handleBallMsg(BallMsg* msg, uint32_t arrivalTime);
 void		sendPaddleMsg(void);
@@ -157,8 +167,8 @@ OtherBot*	addOtherBot(id_t id);
 void		cleanOtherBot(OtherBot* other);
 void		printNearBots(void);
 
-void		addHardBot(id_t id);
-void		cleanHardBots(void);
+void		addHardEdge(int16_t fromX, int16_t fromY, int16_t toX, int16_t toY);
+void		cleanHardEdges(void);
 
 inline static void copyBotPos(BotPos* src, BotPos* dest){
 	dest->x = src->x;
@@ -180,29 +190,61 @@ inline static int8_t checkBallCrossedMe(void){
 	return sgn(((theBall.yVel*(theBall.yPos-myPos.y-theBall.xVel) + theBall.xVel*(theBall.xPos-myPos.x+theBall.yVel))));
 }
 
-inline static int8_t checkBounceHard(int16_t Bx, int16_t By, int32_t timePassed){
-	int16_t Ax = myPos.x;
-	int16_t Ay = myPos.y;
-	int16_t x = theBall.xPos;
-	int16_t y = theBall.yPos;
-	int8_t signBefore = sgn((Bx-Ax)*(y-Ay) - (By-Ay)*(x-Ax));
-	int16_t xAfter = x + (int16_t)((((int32_t)(theBall.xVel))*timePassed)/1000.0);
-	int16_t yAfter = y + (int16_t)((((int32_t)(theBall.yVel))*timePassed)/1000.0);
-	int8_t signAfter = sgn((Bx-Ax)*(yAfter-Ay) - (By-Ay)*(xAfter-Ax));
-	BALL_DEBUG_PRINT("(%4d, %4d) [%hd] -> (%4d, %4d) [%hd]\r\n", x, y, signBefore, xAfter, yAfter, signAfter);
-	if(signBefore!=signAfter){
+//TODO: 'Boing!' is happening at the right time, but not changing the ball velocity appropriately.
+//Returns 1 if  the line segment of the edge and the line segment between the ball's current and future position intersect.
+//Additionally, uses pass-by-reference to return the calculated intersect point.
+inline static int8_t checkBounce(HardEdge* edge, int16_t* xIntersect, int16_t* yIntersect, int32_t timePassed){
+	CHECK_BOUNCE_DEBUG_PRINT("Checking Bounce!\r\n");
+	float x1 = theBall.xPos;
+	float y1 = theBall.yPos;
+	float x2 = x1 + (int16_t)((((int32_t)(theBall.xVel))*timePassed)/1000.0);
+	float y2 = y1 + (int16_t)((((int32_t)(theBall.yVel))*timePassed)/1000.0);
+	float x3 = edge->xStart;
+	float y3 = edge->yStart;
+	float x4 = edge->xEnd;
+	float y4 = edge->yEnd;
+	CHECK_BOUNCE_DEBUG_PRINT("\tBall Line Seg: (%8.2f, %8.2f)<->(%8.2f, %8.2f)\r\n", x1, y1, x2, y2);
+	CHECK_BOUNCE_DEBUG_PRINT("\tEdge Line Seg: (%8.2f, %8.2f)<->(%8.2f, %8.2f)\r\n", x3, y3, x4, y4);
+	float denom = (x1 - x2)*(y3 - y4) - (y1 - y2)*(x3 - x4);
+	if(denom==0){
+		*xIntersect = UNDF;
+		*yIntersect = UNDF;
+		return 0; //Lines are parallel.
+	}
+	float xIntrs = (x1*y2 - y1*x2)*(x3 - x4) - (x1 - x2)*(x3*y4 - y3*x4);
+	xIntrs /= denom;
+	float yIntrs = (x1*y2 - y1*x2)*(y3 - y4) - (y1 - y2)*(x3*y4 - y3*x4);
+	yIntrs /= denom;
+	CHECK_BOUNCE_DEBUG_PRINT("\tIntersect: (%8.2f, %8.2f)\r\n", xIntrs, yIntrs);
+	
+	uint8_t ballXboundsCheck = ((x1 < xIntrs) && (xIntrs <= x2)) || ((xIntrs < x1) && (x2 <= xIntrs));
+	uint8_t ballYboundsCheck = ((y1 < yIntrs) && (yIntrs <= y2)) || ((yIntrs < y1) && (y2 <= yIntrs));
+	uint8_t edgeXboundsCheck = ((x3 < xIntrs) && (xIntrs <= x4)) || ((xIntrs < x3) && (x4 <= xIntrs));
+	uint8_t edgeYboundsCheck = ((y3 < yIntrs) && (yIntrs <= y4)) || ((yIntrs < y3) && (y4 <= yIntrs));
+
+	ballXboundsCheck = ballXboundsCheck || (x1==x2);
+	ballYboundsCheck = ballYboundsCheck || (y1==y2);
+	edgeXboundsCheck = edgeXboundsCheck || (x3==x4);
+	edgeYboundsCheck = edgeYboundsCheck || (y3==y4);
+
+	CHECK_BOUNCE_DEBUG_PRINT("\tBounds Checks: %hu %hu %hu %hu\r\n", ballXboundsCheck, ballYboundsCheck, edgeXboundsCheck, edgeYboundsCheck);
+
+	if(ballXboundsCheck && ballYboundsCheck && edgeXboundsCheck && edgeYboundsCheck){
+		CHECK_BOUNCE_DEBUG_PRINT("\tBoing!\r\n");
+		*xIntersect = xIntrs + 0.5;
+		*yIntersect = yIntrs + 0.5;
 		return 1;
 	}else{
-		return 0;
+		*xIntersect = UNDF;
+		*yIntersect = UNDF;
+		return 0; //Lines intersect outside of bounds.
 	}
 }
 
 /*Code below from http://stackoverflow.com/questions/573084/how-to-calculate-bounce-angle */
-inline static void calculateBounce(int16_t Bx, int16_t By){
+inline static void calculateBounce(int16_t normX, int16_t normY){
 	int16_t vX = theBall.xVel;
 	int16_t vY = theBall.yVel;
-	int16_t normX = -(By-myPos.y);
-	int16_t normY = (Bx-myPos.x);
 	int16_t nDotN = normX*normX + normY*normY;
 	int16_t vDotN = vX*normX + vY*normY;
 	int16_t uX = normX*vDotN/nDotN;
@@ -216,9 +258,17 @@ static int nearBotsDistCmp(const void* a, const void* b){
 	BotPos* bPos = &(((OtherBot*)b)->pos);
 	float aDist = hypot(aPos->y - myPos.y, aPos->x - myPos.x);
 	float bDist = hypot(bPos->y - myPos.y, bPos->x - myPos.x);
-	if(aDist < bDist){
+	if(POS_DEFINED(aPos) && POS_DEFINED(bPos)){
+		if(aDist < bDist){
+			return -1;
+		}else if(bDist < aDist){
+			return 1;
+		}else{
+			return 0;
+		}
+	}else if(POS_DEFINED(aPos)){
 		return -1;
-	}else if(bDist < aDist){
+	}else if(POS_DEFINED(bPos)){
 		return 1;
 	}else{
 		return 0;
@@ -230,9 +280,17 @@ static int nearBotsBearingCmp(const void* a, const void* b){
 	BotPos* bPos = &(((OtherBot*)b)->pos);
 	float aBearing = atan2(aPos->y - myPos.y, aPos->x - myPos.x);
 	float bBearing = atan2(bPos->y - myPos.y, bPos->x - myPos.x);
-	if(aBearing < bBearing){
+	if(POS_DEFINED(aPos) && POS_DEFINED(bPos)){
+		if(aBearing < bBearing){
+			return -1;
+		}else if(bBearing < aBearing){
+			return 1;
+		}else{
+			return 0;
+		}
+	}else if(POS_DEFINED(aPos)){
 		return -1;
-	}else if(bBearing < aBearing){
+	}else if(POS_DEFINED(bPos)){
 		return 1;
 	}else{
 		return 0;
@@ -268,3 +326,6 @@ static inline uint16_t getSlot(id_t id){
 	return (id%(SLOTS_PER_FRAME-1));
 }
 
+void printNearBots(void);
+
+void printOtherBot(OtherBot* bot);

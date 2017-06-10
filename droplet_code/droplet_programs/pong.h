@@ -4,7 +4,7 @@
 
 //#define RNB_DEBUG_MODE
 #define BALL_DEBUG_MODE
-#define CHECK_BOUNCE_DEBUG_MODE
+//#define CHECK_BOUNCE_DEBUG_MODE
 //#define PADDLE_DEBUG_MODE
 
 #ifdef RNB_DEBUG_MODE
@@ -31,7 +31,7 @@
 #define PADDLE_DEBUG_PRINT(format, ...)
 #endif
 
-#define BALL_VALID() ((theBall.xPos!=UNDF) && (theBall.yPos!=UNDF) && (theBall.id!=0x0F))
+#define BALL_VALID() (!isnan(theBall.xPos) && (!isnan(theBall.yPos)) && (theBall.id!=0x0F))
 
 #define DROPLET_DIAMETER_MM		44.4
 #define BALL_MSG_FLAG			'B'
@@ -39,7 +39,7 @@
 #define N_PADDLE_MSG_FLAG		'N'
 #define S_PADDLE_MSG_FLAG		'S'
 
-#define SLOT_LENGTH_MS			397
+#define SLOT_LENGTH_MS			509
 #define SLOTS_PER_FRAME			17
 #define FRAME_LENGTH_MS			(((uint32_t)SLOT_LENGTH_MS)*((uint32_t)SLOTS_PER_FRAME))
 #define LOOP_DELAY_MS			17
@@ -79,9 +79,9 @@ GameMode gameMode;
 
 typedef struct ball_msg_struct{
 	char flag;
-	uint8_t xPos;
-	uint8_t yPos;
-	uint8_t extraBits; //bits 7-5 are three high bits for xPos; bits 4-2 are three high bits for yPos; bits 0-1 are two low bits for id.
+	int16_t xPos;
+	int16_t yPos;
+	uint8_t id;
 	int8_t xVel;
 	int8_t yVel;
 	uint8_t radius; //bits 0-1 are two high bits for id. rest is radius (which must be divisible by 4)
@@ -89,10 +89,10 @@ typedef struct ball_msg_struct{
 
 typedef struct ball_dat_struct{
 	uint32_t lastUpdate;
-	int16_t xPos;
-	int16_t yPos;
-	int8_t xVel;
-	int8_t yVel;
+	float xPos;
+	float yPos;
+	float xVel;
+	float yVel;
 	uint8_t id;
 	uint8_t radius;
 }BallDat;
@@ -142,6 +142,9 @@ uint16_t	mySlot;
 uint16_t	loopID;
 
 uint8_t		numNearBots;
+volatile BallMsg*	preppedMsgHandle;
+volatile uint8_t		msgHandleLock;
+
 void		init(void);
 void		loop(void);
 void		handle_msg(ir_msg* msg_struct);
@@ -155,7 +158,8 @@ void		updateColor(void);
 float		getBallCoverage(void);
 
 void		updateHardEdges(void);
-void		sendBallMsg(void);
+void		prepBallMsg(void);
+void		sendBallMsg(BallMsg* msg);
 void		handleBallMsg(BallMsg* msg, uint32_t arrivalTime);
 void		sendPaddleMsg(void);
 void		handlePaddleMsg(char flag, int16_t delta);
@@ -190,10 +194,10 @@ inline static int8_t checkBallCrossedMe(void){
 	return sgn(((theBall.yVel*(theBall.yPos-myPos.y-theBall.xVel) + theBall.xVel*(theBall.xPos-myPos.x+theBall.yVel))));
 }
 
-//TODO: 'Boing!' is happening at the right time, but not changing the ball velocity appropriately.
+
 //Returns 1 if  the line segment of the edge and the line segment between the ball's current and future position intersect.
 //Additionally, uses pass-by-reference to return the calculated intersect point.
-inline static int8_t checkBounce(HardEdge* edge, int16_t* xIntersect, int16_t* yIntersect, int32_t timePassed){
+inline static int8_t checkBounce(HardEdge* edge, float* xIntersect, float* yIntersect, int32_t timePassed){
 	CHECK_BOUNCE_DEBUG_PRINT("Checking Bounce!\r\n");
 	float x1 = theBall.xPos;
 	float y1 = theBall.yPos;
@@ -231,8 +235,8 @@ inline static int8_t checkBounce(HardEdge* edge, int16_t* xIntersect, int16_t* y
 
 	if(ballXboundsCheck && ballYboundsCheck && edgeXboundsCheck && edgeYboundsCheck){
 		CHECK_BOUNCE_DEBUG_PRINT("\tBoing!\r\n");
-		*xIntersect = xIntrs + 0.5;
-		*yIntersect = yIntrs + 0.5;
+		*xIntersect = xIntrs;
+		*yIntersect = yIntrs;
 		return 1;
 	}else{
 		*xIntersect = UNDF;
@@ -243,14 +247,14 @@ inline static int8_t checkBounce(HardEdge* edge, int16_t* xIntersect, int16_t* y
 
 /*Code below from http://stackoverflow.com/questions/573084/how-to-calculate-bounce-angle */
 inline static void calculateBounce(int16_t normX, int16_t normY){
-	int16_t vX = theBall.xVel;
-	int16_t vY = theBall.yVel;
-	int16_t nDotN = normX*normX + normY*normY;
-	int16_t vDotN = vX*normX + vY*normY;
-	int16_t uX = normX*vDotN/nDotN;
-	int16_t uY = normY*vDotN/nDotN;
-	theBall.xVel = vX - 2*uX;
-	theBall.yVel = vY - 2*uY;
+	float vX = theBall.xVel;
+	float vY = theBall.yVel;
+	float nDotN = normX*normX + normY*normY;
+	float vDotN = vX*normX + vY*normY;
+	float uX = normX*vDotN/nDotN;
+	float uY = normY*vDotN/nDotN;
+	theBall.xVel = (vX - 2*uX);
+	theBall.yVel =(vY - 2*uY);
 }
 
 static int nearBotsDistCmp(const void* a, const void* b){

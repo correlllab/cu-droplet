@@ -201,7 +201,7 @@ void send_msg(uint8_t dirs, char *data, uint8_t data_length, uint8_t hp_flag){
 static uint8_t all_ir_sends(uint8_t dirs, char* data, uint8_t data_length, id_t target, uint8_t cmd_flag){
 	uint8_t busy_status = ir_is_busy(dirs);
 	if(busy_status>1){
-        printf_P(PSTR("Aborting IR send [%02hx] while trying: <<"), busy_status);
+        printf_P(PSTR("Aborting IR send [%02hx] while trying: "), busy_status);
 		uint8_t text = 1;
 		for(uint8_t i=0;i<data_length;i++){
 			if( (data[i] < 32) || (data[i] > 126) ){ //printable ASCII range.

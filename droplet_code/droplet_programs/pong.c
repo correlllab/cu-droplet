@@ -31,12 +31,13 @@ void init(){
 	lastPaddleMsg = 0;
 	hardEdges = NULL;
 	theBall.lastUpdate = 0;
-	theBall.xPos = UNDF;
-	theBall.yPos = UNDF;
-	theBall.xVel = 0;
-	theBall.yVel = 0;
+	theBall.xPos = NAN;
+	theBall.yPos = NAN;
+	theBall.xVel = NAN;
+	theBall.yVel = NAN;
 	theBall.id = 0;
 	theBall.radius = 0;
+	msgHandleLock = 1;
 	printf("mySlot: %u, frame_length: %lu\r\n\r\n", mySlot, FRAME_LENGTH_MS);
 	set_all_ir_powers(200);
 }
@@ -48,6 +49,8 @@ void loop(){
 		frameStart += FRAME_LENGTH_MS;
 		frameCount++;
 	}
+	updateBall();
+	updateColor();
 	if(loopID!=(frameTime/SLOT_LENGTH_MS)){
 		loopID = frameTime/SLOT_LENGTH_MS;
 		if(loopID==mySlot){
@@ -72,14 +75,15 @@ void loop(){
 			}
 			updateHardEdges();
 			if(BALL_VALID()){
-				printf_P(PSTR("\tBall ID: %hu; radius: %hu; Pos: (%d, %d) @ vel (%hd, %hd)\r\n"), theBall.id, theBall.radius, theBall.xPos, theBall.yPos, theBall.xVel, theBall.yVel);
+				printf_P(PSTR("\tBall ID: %hu; radius: %hu; Pos: (% 8.2f, % 8.2f) @ vel (% 6.2f, % 6.2f)\r\n"), theBall.id, theBall.radius, theBall.xPos, theBall.yPos, theBall.xVel, theBall.yVel);
 			}
 		}
-		updateBall();
-		if(BALL_VALID() && myDist!=(uint16_t)UNDF && myDist<=DROPLET_RADIUS){
-			sendBallMsg();
+		if(BALL_VALID() && myDist!=(uint16_t)UNDF){
+			BALL_DEBUG_PRINT("B[%hu]: % 8.2f, % 8.2f (% 6.2f, % 6.2f)\r\n", theBall.id, theBall.xPos, theBall.yPos, theBall.xVel, theBall.yVel);
+			if(myDist<=DROPLET_RADIUS){
+				schedule_task(RNB_DUR+100, prepBallMsg, NULL);
+			}
 		}
-		updateColor();
 	}
 	if(NS_PIXEL_Q(myState)){
 		checkLightLevel();
@@ -133,7 +137,6 @@ float getBallCoverage(){
 				ballCoveredRatio = 1.0;
 			}
 		}
-		printf("Ball Coverage:\t%f | me: (% 4d, % 4d) ball: (% 4d, % 4d)->%hu\r\n", ballCoveredRatio, myPos.x, myPos.y, theBall.xPos, theBall.yPos, theBall.radius);
 	}	
 	return ballCoveredRatio;
 }
@@ -171,7 +174,7 @@ void updateBall(){
 		float portionOfSpeedRemaining = 1.0; 
 		HardEdge* edge = hardEdges;
 		//TODO: Some mechanism to keep all the Droplets in an area each doing redundant bounce calculations?
-		int16_t xIntersect, yIntersect;
+		float xIntersect, yIntersect;
 		int32_t timeRemaining;
 		while(edge!=NULL){
 			 timeRemaining = timePassed*portionOfSpeedRemaining;
@@ -187,27 +190,30 @@ void updateBall(){
 				float distanceToEdge = hypotf(xIntersect-theBall.xPos, yIntersect-theBall.yPos);
 				float overallSpeed = hypotf(theBall.xVel, theBall.yVel);
 				portionOfSpeedRemaining -= distanceToEdge/overallSpeed;
+				BALL_DEBUG_PRINT("\tSpeed: %f (% 6.2f, % 6.2f), distanceToEdge: %f, portionLeft: %f\r\n", overallSpeed, theBall.xVel, theBall.yVel, distanceToEdge, portionOfSpeedRemaining);
 				theBall.xPos = xIntersect;
 				theBall.yPos = yIntersect;
 
 				int16_t edgeDeltaX = edge->xEnd - edge->xStart;
 				int16_t edgeDeltaY = edge->yEnd - edge->yStart;
 				calculateBounce(-edgeDeltaY, edgeDeltaX);
+				BALL_DEBUG_PRINT("\tSpeed After: %f (% 6.2f, % 6.2f)\r\n", hypotf(theBall.xVel, theBall.yVel), theBall.xVel, theBall.yVel);
 				edge = hardEdges; //We need to start searching through edges again to make sure there aren't two+ bounces within this timestep.
 			}else{
 				edge = edge->next;
 			}
 		}
 		timeRemaining = portionOfSpeedRemaining*timePassed;
-		theBall.xPos += (int16_t)((((int32_t)(theBall.xVel))*timeRemaining)/1000.0);
-		theBall.yPos += (int16_t)((((int32_t)(theBall.yVel))*timeRemaining)/1000.0);
+		theBall.xPos += ((theBall.xVel*timeRemaining)/1000.0);
+		theBall.yPos += ((theBall.yVel*timeRemaining)/1000.0);
 		myDist = (uint16_t)hypotf(myPos.x-theBall.xPos, myPos.y-theBall.yPos);
 		theBall.lastUpdate = now;
-		BALL_DEBUG_PRINT("B[%hu]: %d, %d\r\n", theBall.id, theBall.xPos, theBall.yPos);
+
 		if(myDist > 250){
 			BALL_DEBUG_PRINT("Ball moved far away, so we're going to stop tracking it.\r\n");
-			theBall.xPos = UNDF;
-			theBall.yPos = UNDF;
+			theBall.xPos = NAN;
+			theBall.yPos = NAN;
+			theBall.id = 0x0F;
 			myDist = UNDF;
 			otherDist = UNDF;
 		}
@@ -285,44 +291,92 @@ void updateHardEdges(){
 	}
 }
 
-void sendBallMsg(){
-	BallMsg msg;
-	msg.flag = BALL_MSG_FLAG;
-	int16_t tempX = theBall.xPos;
-	int16_t tempY = theBall.yPos;
-	msg.xPos		= tempX&0xFF;
-	msg.extraBits	= ((tempX & 0x0700)>>3)&0xE0;
-	msg.yPos		= tempY&0xFF;
-	msg.extraBits |= ((tempY & 0x0700)>>6)&0x1C;
-	msg.extraBits |= theBall.id&0x03;
-	msg.xVel = theBall.xVel;
-	msg.yVel = theBall.yVel;
-	msg.radius = (theBall.radius&0xFC) | ((theBall.id&0x0C)>>2);
-	ir_send(ALL_DIRS, (char*)(&msg), sizeof(BallMsg));
-	lastBallMsg=get_time();
+void prepBallMsg(){	
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+		if(msgHandleLock){
+			msgHandleLock = 0;
+
+			if(preppedMsgHandle==NULL){
+				BallMsg* msg = (BallMsg*)myMalloc(sizeof(BallMsg));
+				msg->xPos		= theBall.xPos;
+				msg->yPos		= theBall.yPos;
+				msg->id			= theBall.id;
+				msg->xVel		= (int8_t)theBall.xVel;
+				msg->yVel		= (int8_t)theBall.yVel;
+				msg->radius		= theBall.radius;
+				msg->flag		= 0; //Using this as number of send attempts, for now.
+				preppedMsgHandle = msg;
+				schedule_task(5, (arg_func_t)sendBallMsg, msg);
+			}else{
+				preppedMsgHandle->xPos		= theBall.xPos;
+				preppedMsgHandle->yPos		= theBall.yPos;
+				preppedMsgHandle->id			= theBall.id;
+				preppedMsgHandle->xVel		= (int8_t)theBall.xVel;
+				preppedMsgHandle->yVel		= (int8_t)theBall.yVel;
+				preppedMsgHandle->radius		= theBall.radius;
+			}
+
+			msgHandleLock = 1;
+		}else{
+			printf("Message handle locked.\r\n");
+		}
+	}
+}
+
+void sendBallMsg(BallMsg* msg){
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+		if(!msgHandleLock){
+			schedule_task(5, (arg_func_t)sendBallMsg, msg);
+			return;
+		}else{
+			msgHandleLock = 0;
+		}
+	}
+	if(ir_is_busy(ALL_DIRS)){
+		if(msg->flag>5){
+			printf("Giving up on sending this ball msg.\r\n");
+			myFree(msg);
+			preppedMsgHandle = NULL;
+		}else{
+			printf("Waiting to send ball msg.\r\n");
+			uint32_t backOffMax = pow(2,msg->flag)-1;
+			uint32_t backOffTime = rand_quad()%(backOffMax);
+			backOffTime*=50;
+			schedule_task(backOffTime, (arg_func_t)sendBallMsg, msg);
+		}
+		msg->flag += 1;
+	}else{
+		msg->flag = BALL_MSG_FLAG;
+		ir_send(ALL_DIRS, (char*)msg, sizeof(BallMsg));
+		lastBallMsg=get_time();
+		myFree(msg);
+		printf("Ball message sent.\r\n");
+		preppedMsgHandle = NULL;
+	}
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+		msgHandleLock = 1;
+	}
 }
 
 void handleBallMsg(BallMsg* msg, uint32_t arrivalTime){
-	BALL_DEBUG_PRINT("Got Ball! T: %lu\r\n\tPos: (%4d, %4d)   Vel: (%hd, %hd) | lastUpdate: %lu\r\n", get_time(), theBall.xPos, theBall.yPos, theBall.xVel, theBall.yVel, theBall.lastUpdate);
-	int16_t highX = (int16_t)(((int8_t)(msg->extraBits))>>5);
-	int16_t highY = (int16_t)((((int8_t)(msg->extraBits))<<3)>>5);
-	int16_t tempX = (int16_t)((highX<<8) | ((uint16_t)(msg->xPos)));
-	int16_t tempY = (int16_t)((highY<<8) | ((uint16_t)(msg->yPos)));
-	uint8_t id = ((msg->extraBits)&0x03) | (((msg->radius)&0x03)<<2);
-	if(id == 0x0F && theBall.id!=0x0F){
+	BALL_DEBUG_PRINT("Got Ball! T: %lu\r\n", get_time());
+	if(BALL_VALID()){
+		BALL_DEBUG_PRINT("\tBEFORE | Pos: (% 8.2f, % 8.2f)   Vel: (% 6.2f, % 6.2f) | lastUpdate: %lu\r\n", theBall.xPos, theBall.yPos, theBall.xVel, theBall.yVel, theBall.lastUpdate);
+	}
+	if(msg->id == 0x0F && theBall.id!=0x0F){
 		lastBallID = theBall.id;
 		set_rgb(255,0,0);
-	}else if(id == lastBallID && theBall.id==0x0F){
+	}else if(msg->id == lastBallID && theBall.id==0x0F){
 		return; //this is from someone who hasn't realized the ball is dead, yet.
 	}
-	theBall.xPos = tempX;
-	theBall.yPos = tempY;
-	theBall.id = id;
-	theBall.xVel = msg->xVel;
-	theBall.yVel = msg->yVel;
-	theBall.radius = ((msg->radius)&0xFC);
+	theBall.xPos = (float)msg->xPos;
+	theBall.yPos = (float)msg->yPos;
+	theBall.id = msg->id;
+	theBall.xVel = (float)msg->xVel;
+	theBall.yVel = (float)msg->yVel;
+	theBall.radius = (msg->radius);
 	theBall.lastUpdate = arrivalTime-4;
-	BALL_DEBUG_PRINT("\tPos: (%4d, %4d)   Vel: (%hd, %hd) | lastUpdate: %lu\r\n", theBall.xPos, theBall.yPos, theBall.xVel, theBall.yVel, theBall.lastUpdate);
+	BALL_DEBUG_PRINT("\t AFTER | Pos: (% 8.2f, % 8.2f)   Vel: (% 6.2f, % 6.2f) | lastUpdate: %lu\r\n", theBall.xPos, theBall.yPos, theBall.xVel, theBall.yVel, theBall.lastUpdate);
 }
 
 void sendBotPosMsg(){

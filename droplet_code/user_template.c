@@ -4,14 +4,17 @@
  * any code in this function will be run once, when the robot starts.
  */
 void init(){
-
+	enable_sync_blink(500);
+	set_sync_blink_color(0, 100, 0);
+	set_sync_blink_duration(4000);
+	set_rgb(0,0,150);
 }
 
 /*
  * the code in this function will be called repeatedly, as fast as it can execute.
  */
 void loop(){
-
+	delay_ms(10);
 }
 
 /*

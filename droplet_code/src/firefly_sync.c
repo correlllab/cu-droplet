@@ -44,7 +44,9 @@ ISR(TCE0_CCA_vect){
 	ffsync_blink_prev_r = get_red_led();
 	ffsync_blink_prev_g = get_green_led();
 	ffsync_blink_prev_b = get_blue_led();
-	set_rgb(ffsync_blink_r,ffsync_blink_g,ffsync_blink_b);
+	set_red_led(ffsync_blink_r);
+	set_green_led(ffsync_blink_g);
+	set_blue_led(ffsync_blink_b);
 }
 
 ISR(TCE0_CCB_vect){

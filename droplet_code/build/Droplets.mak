@@ -19,7 +19,7 @@ TARGET = Droplets
 ATMEL_STUDIO_PATH = "C:/Program Files (x86)/Atmel/Studio/7.0/"
 
 # List your user C source file(s) here.
-USER_FILE = ../droplet_programs/pong.c \
+USER_FILE = ../user_template.c \
 
 
 #----------------------------------------------------------------------------

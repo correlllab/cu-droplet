@@ -4,20 +4,24 @@
  * any code in this function will be run once, when the robot starts.
  */
 void init(){
-set_red_led(200);
+set_red_led(50);
 }
 
 /*
  * the code in this function will be called repeatedly, as fast as it can execute.
  */
 void loop(){
+	
+	float new_bearing, new_heading;
+	uint16_t new_steps;
+	
 	if(rnb_updated){
 		
 		last_good_rnb.id;
 		last_good_rnb.range;
 		last_good_rnb.bearing;
 		last_good_rnb.heading;
-		rnb_updated = 0; //Note! This line must be included for things to work properly.
+
 		
 		
 		//printf("\n\r%04x",last_good_rnb.id);
@@ -29,8 +33,63 @@ void loop(){
 		printf("\n\rBearing-> %f",last_good_rnb.bearing*180/M_PI);
 		printf("\n\rHeading-> %f",last_good_rnb.heading*180/M_PI);
 		printf("\n\rID-> %04x",last_good_rnb.id);
+		//rad_to_deg()
+		new_bearing = last_good_rnb.bearing*180/M_PI;
+		new_heading = last_good_rnb.heading*180/M_PI; 
+		
+		printf("\n\rnew_Bearing-> %f",new_bearing);
+		printf("\n\rnew_Heading-> %f",new_heading);
+		
 		//useRNBmeas(last_good_rnb.id, last_good_rnb.range, last_good_rnb.bearing, last_good_rnb.heading);
-		//rnb_updated=0;
+		
+		
+		//kinda working
+	
+		
+		stop_move();
+		
+		if(new_bearing > -10255 && new_bearing < -228)
+		{
+			
+			if(is_moving() < 0)
+			{
+				move_steps(6,5);
+				printf("\n\rDirection 6,5");
+			}
+			
+		}
+		else if(new_bearing < 10255 && new_bearing > 228)
+		{
+			if(is_moving() < 0)
+			{
+				move_steps(7,5);
+				printf("\n\rDirection 7,5");
+				
+			}
+			
+		}
+		else if(new_bearing < 228 && new_bearing > -228)
+		{
+			if (last_good_rnb.range < 75)
+				stop_move();
+			else
+			{
+				if(is_moving() < 0)
+				{
+					move_steps(0,10);
+					printf("\n\rDirection 0,10");
+				}
+				
+			}
+				
+		}
+		
+		//stop_move();
+		
+		rnb_updated = 0; //Note! This line must be included for things to work properly.
+	}else{
+		delay_ms(100);
+		broadcast_rnb_data();
 	}
 	
 

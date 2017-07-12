@@ -1,16 +1,38 @@
 #include "user_template.h"
 
+void set_gol_blinker(void){
+	set_rgb(255,255,0);
+	if (myPos.x >= dist-margin && myPos.x <= dist+margin)
+	{
+		set_rgb(0,255,255);
+	}
+}
+
 /*
  * any code in this function will be run once, when the robot starts.
  */
 void init(){
-
+	//initialize_grid(3,3);
+	//set_gol_blinker();
+	set_rgb(0,255,0);
 }
 
 /*
  * the code in this function will be called repeatedly, as fast as it can execute.
  */
 void loop(){
+	//sendPosMsg();
+	//print_neighbors();
+	//delay_ms(500);
+	//printf(" %04X", neighbors[0].ID);
+
+	if(rnb_updated){
+		//Handle rnb data in last_good_rnb struct.
+		
+		//useRNBmeas(last_good_rnb.id, last_good_rnb.range, last_good_rnb.bearing, last_good_rnb.heading);
+		rnb_updated=0;
+		
+	}
 
 }
 

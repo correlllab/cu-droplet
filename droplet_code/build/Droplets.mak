@@ -11,7 +11,7 @@
 
 # Target file name (without extension).
 # This should match your AtmelStudio Project Name
-TARGET = Grid_Initialization_WIP
+TARGET = GoL_Initialized
 
 # The base directory of your Atmel Studio installation folder.
 # This serves as the base location for accessing key #include files.
@@ -59,6 +59,7 @@ SRC = $(USER_FILES) \
 ../src/eeprom_driver.c \
 ../src/firefly_sync.c \
 ../src/flash_api.c \
+../src/grid_init.c \
 ../src/i2c.c \
 ../src/ir_comm.c \
 ../src/ir_led.c \

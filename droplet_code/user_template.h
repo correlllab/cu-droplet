@@ -1,6 +1,7 @@
 #pragma once
 
 #include "droplet_init.h"
+#include "grid_init.h"
 
 void		init(void);
 void		loop(void);

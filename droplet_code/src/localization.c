@@ -6,11 +6,11 @@ const BotPos SEED_POS[NUM_SEEDS] = {{50,50,0}, {200,50,0}, {50,200,0}, {200,200,
 const id_t   SEED_IDS[NUM_SEEDS] = {0x7EDF, 0x1361, 0x6C66, 0x9669};
 */
 
-#define NUM_SEEDS 2
+#define NUM_SEEDS 3
 
-const BotPos SEED_POS[NUM_SEEDS] = {{0,0,0}, {UNDF, UNDF, UNDF}};
+const BotPos SEED_POS[NUM_SEEDS] = {{0,0,0}, {150,-150,0}, {UNDF, UNDF, UNDF}};
 //const id_t   SEED_IDS[NUM_SEEDS] = {0x1361, 0xFFFF};
-const id_t   SEED_IDS[NUM_SEEDS] = {0xC806, 0xFFFF};
+const id_t   SEED_IDS[NUM_SEEDS] = {0xC806, 0xF60A, 0xFFFF};
 	
 	
 //const BotPos SEEDS[NUM_SEEDS] = {{100, 600, 0}, {600, 600, 0}, {100, 100, 0}, {600, 100, 0}};
@@ -210,18 +210,22 @@ static void updatePos(BotPos* pos, Matrix* yourP){
 		}
 	}
 
-	myPos.x = myNewPos[0]>8191 ? 8191 : (myNewPos[0]<-8192 ? -8192 : myNewPos[0]);
-	myPos.y = myNewPos[1]>8191 ? 8191 : (myNewPos[1]<-8192 ? -8192 : myNewPos[1]);
-	myPos.o = (rad_to_deg(myNewPos[2]) + 0.5);
-	MY_POS_DEBUG_PRINT(" giving pos {%d, %d, %d}.\r\n", myPos.x, myPos.y, myPos.o);
-	MY_POS_DEBUG_PRINT("\tMahalanobis Distance: %f\r\n", mDist);
-	#if defined(MY_POS_DEBUG_MODE) && defined(COVAR_DEBUG_MODE)
-		MY_POS_DEBUG_PRINT("Your Update Covar:\r\n");
-		printMatrixMathematica(yourP);
-		MY_POS_DEBUG_PRINT("My new covar=\r\n");
-		printMatrixMathematica(&myNewP);
-	#endif
-	compressP(&myNewP, &myPosCovar);
+	
+		myPos.x = myNewPos[0]>8191 ? 8191 : (myNewPos[0]<-8192 ? -8192 : myNewPos[0]);
+		myPos.y = myNewPos[1]>8191 ? 8191 : (myNewPos[1]<-8192 ? -8192 : myNewPos[1]);
+		myPos.o = (rad_to_deg(myNewPos[2]) + 0.5);
+		MY_POS_DEBUG_PRINT(" giving pos {%d, %d, %d}.\r\n", myPos.x, myPos.y, myPos.o);
+		MY_POS_DEBUG_PRINT("\tMahalanobis Distance: %f\r\n", mDist);
+		#if defined(MY_POS_DEBUG_MODE) && defined(COVAR_DEBUG_MODE)
+			MY_POS_DEBUG_PRINT("Your Update Covar:\r\n");
+			printMatrixMathematica(yourP);
+			MY_POS_DEBUG_PRINT("My new covar=\r\n");
+			printMatrixMathematica(&myNewP);
+		#endif
+		compressP(&myNewP, &myPosCovar);
+	
+
+	
 }
 
 /*

@@ -1,161 +1,217 @@
 #include "tdma_template.h"
+#include <stdbool.h>
 
-uint8_t m = 3;
-uint8_t n = 3;
-uint8_t dist = 50;
-uint8_t margin = 20;
-id_t undf_id = 0xFFFF;
-uint8_t state;
-uint32_t start_time;
 
-typedef struct cell_struct
+typedef struct gol_cell_struct
 {
 	id_t ID;			// ID of the Droplet representing this cell
-}cell;
+	uint8_t state;		// Current state of the cell: 0 = dead, 1 = alive, 2 = unknown
+	uint8_t	next_state;	// Next state of the cell: 0 = dead, 1 = alive, 2 = unknown
+	bool next_state_calculated;		// Indicate that the cell calculated its next state.
+	bool next_state_passed;		// Indicate that the cell passed to the next state.
+	bool allow_next_step; // Indicate that you are ready to pass to the next step.
+	uint8_t current_state; // The current state the cell is at.
+}gol_cell;
 
-cell me;
-cell N;
-cell NE;
-cell E;
-cell SE;
-cell S;
-cell SW;
-cell W;
-cell NW;
-cell neighbors[8];
+gol_cell gol_me;
+gol_cell gol_N;
+gol_cell gol_NE;
+gol_cell gol_E;
+gol_cell gol_SE;
+gol_cell gol_S;
+gol_cell gol_SW;
+gol_cell gol_W;
+gol_cell gol_NW;
+gol_cell gol_neighbors[8];
 
-typedef struct pos_msg_struct{
-	int16_t posx;
-	int16_t posy;
-} PosMsg;
+typedef struct state_msg_struct{
+	uint8_t state;
+	uint8_t next_state_calculated;
+	uint8_t next_state_passed;
+	uint8_t allow_next_step;
+	uint8_t current_state;
+} StateMsg;
 
-void sendPosMsg(void){
-	PosMsg msg;
+void sendStateMsg(void){
+	StateMsg msg;
 
-	msg.posx = myPos.x;
-	msg.posy = myPos.y;
+	msg.state = gol_me.state;
+	msg.current_state = gol_me.current_state;
 	
-	ir_send(ALL_DIRS, (char*)(&msg), sizeof(PosMsg));
-}
-
-void reset_neighbors(void){
-	me.ID = get_droplet_id();
-	N.ID = undf_id;
-	NE.ID = undf_id;
-	E.ID = undf_id;
-	SE.ID = undf_id;
-	S.ID = undf_id;
-	SW.ID = undf_id;
-	W.ID = undf_id;
-	NW.ID = undf_id;
-}
-
-void update_neighbors(void){
-	neighbors[0] = N;
-	neighbors[1] = NE;
-	neighbors[2] = E;
-	neighbors[3] = SE;
-	neighbors[4] = S;
-	neighbors[5] = SW;
-	neighbors[6] = W;
-	neighbors[7] = NW;
-}
-
-void count_neighbors_expected(void){
-	// Knowing how many neighbors to expect (am I a corner, border or center ?)
-	
-	reset_neighbors();
-	
-	if(POS_DEFINED(&myPos)){
-		if (myPos.y >= 0-margin && myPos.y <= 0+margin)
-		{
-			N.ID = 0;
-			NW.ID = 0;
-			NE.ID = 0;
-		}
-		
-		if (myPos.y >= -(n-1)*dist-margin && myPos.y <= -(n-1)*dist+margin)
-		{
-			S.ID = 0;
-			SW.ID = 0;
-			SE.ID = 0;
-		}
-		
-		if (myPos.x >= 0-margin && myPos.x <= 0+margin)
-		{
-			W.ID = 0;
-			NW.ID = 0;
-			SW.ID = 0;
-		}
-		
-		if (myPos.x >= (m-1)*dist-margin && myPos.x <= (m-1)*dist+margin)
-		{
-			E.ID = 0;
-			NE.ID = 0;
-			SE.ID = 0;
-		}
+	if (gol_me.next_state_calculated == true)
+	{
+		msg.next_state_calculated = 1;
+		//printf("sending next state calculated \r \n");
+	}
+	else
+	{
+		msg.next_state_calculated = 0;
 	}
 	
-	update_neighbors();
+	
+	if (gol_me.next_state_passed == true)
+	{
+		msg.next_state_passed = 1;
+		//printf("sending next state passed \r \n");
+	}
+	else
+	{
+		msg.next_state_passed = 0;
+	}
+	
+	if (gol_me.allow_next_step == true)
+	{
+		msg.allow_next_step = 1;
+		//printf("sending next state allowed \r \n");
+	}
+	else
+	{
+		msg.allow_next_step = 0;
+	}
+	
+	
+	ir_send(ALL_DIRS, (char*)(&msg), sizeof(StateMsg));
 }
 
-void show_neighbors_expected(void){
-	// Show if I am a corner, border or center
-	uint8_t blank_neighbors = 0;
+void calculate_next_state(void){
+	
+	uint16_t number_neighbors_alive = 0;
+	
 	for (int i=0; i<8; i++)
 	{
-		if (neighbors[i].ID == 0)
+		number_neighbors_alive += gol_neighbors[i].state;
+	}
+	
+	if ( gol_me.state == 1)
+	{
+		if (number_neighbors_alive == 2 || number_neighbors_alive == 3)
 		{
-			blank_neighbors += 1;
+			gol_me.next_state = 1;
+		}
+		else
+		{
+			gol_me.next_state = 0;
 		}
 	}
 	
-	if (blank_neighbors == 5)
+	else
+	{
+		if (number_neighbors_alive == 3)
+		{
+			gol_me.next_state = 1;
+		}
+		else
+		{
+			gol_me.next_state = 0;
+		}
+	}
+	
+	gol_me.next_state_calculated = true;
+	gol_me.next_state_passed = false;
+}
+
+void show_next_state_calculated(void){
+	
+	if (gol_me.next_state == 1)
+	{
+		set_rgb(0,255,255);
+	}
+	else
+	{
+		set_rgb(255,255,0);
+	}
+}
+
+void pass_next_state(void){
+	gol_me.state = gol_me.next_state;
+	gol_me.next_state = 2;
+	gol_me.allow_next_step = false;
+	
+	if (gol_me.state == 1)
+	{
+		set_rgb(0,0,255);
+	}
+	else
 	{
 		set_rgb(255,0,0);
 	}
 	
-	if (blank_neighbors == 3)
-	{
-		set_rgb(255,0,255);
-	}
-	
-	if (blank_neighbors == 0)
-	{
-		set_rgb(0,0,255);
-	}
-
+	gol_me.next_state_passed = true;
 }
 
-void show_neighbors_filled(void){
-	uint8_t neighbors_filled = 0;
+void allow_step(void){
+	
+	gol_me.allow_next_step = true;
+	gol_me.next_state_calculated = false;
+}
+
+void reset_gol_neighbors(void)
+{
+
 	for (int i=0; i<8; i++)
 	{
-		if (neighbors[i].ID != undf_id)
+		if (gol_neighbors[i].ID == 0)
 		{
-			neighbors_filled += 1;
+			gol_neighbors[i].state =  0;
+			gol_neighbors[i].allow_next_step = true;
+			gol_neighbors[i].next_state_passed = true;
+			gol_neighbors[i].next_state_calculated = true;
 		}
-	}
-	
-	if (neighbors_filled == 8)
-	{
-		set_green_led(255);
-		state = 2;
+		else
+		{
+			gol_neighbors[i].state = 2;
+			gol_neighbors[i].allow_next_step = false;
+			gol_neighbors[i].next_state_passed = false;
+			gol_neighbors[i].next_state_calculated = false;
+		}
+		
 	}
 	
 }
 
-void print_neighbors(void){
+void init_gol_neighbors(void)
+{
+	for (int i=0; i<8; i++)
+	{
+		gol_neighbors[i].ID = neighbors[i].ID;
+	}
 	
-	printf("My ID is %04X \r\n", me.ID);
-	printf("N ID is %04X \r\n", N.ID);
-	printf("NE ID is %04X \r\n", NE.ID);
-	printf("E ID is %04X \r\n", E.ID);
-	printf("SE ID is %04X \r\n", SE.ID);
-	printf("S ID is %04X \r\n", S.ID);
-	printf("SW ID is %04X \r\n", SW.ID);
-	printf("W ID is %04X \r\n", W.ID);
-	printf("NW ID is %04X \r\n", NW.ID);
+	reset_gol_neighbors();
+}
+
+void init_gol_me(void){
+	gol_me.ID = get_droplet_id();
+	gol_me.state = 0;
+	gol_me.next_state = 2;
+	gol_me.next_state_calculated = false;
+	gol_me.next_state_passed = false;
+	gol_me.allow_next_step = true;
+	gol_me.current_state = 0;
+}
+
+void set_gol_blinker(void){
+	gol_me.state = 0;
+	set_rgb(255,255,0);
+	if (myPos.x >= dist-margin && myPos.x <= dist+margin)
+	{
+		gol_me.state = 1;
+		set_rgb(0,255,255);
+	}
+}
+
+void set_gol_beacon(void){
+	gol_me.state = 0;
+	set_rgb(255,255,0);
+	if (myPos.x >= 2*dist-margin && myPos.y >= -dist-margin)
+	{
+		gol_me.state = 1;
+		set_rgb(0,255,255);
+	}
+	if (myPos.x <= dist+margin && myPos.y <= -2*dist+margin)
+	{
+		gol_me.state = 1;
+		set_rgb(0,255,255);
+	}
 }
 
 
@@ -171,13 +227,13 @@ void init(){
 	mySlot = (get_droplet_id()%(SLOTS_PER_FRAME-1));
 	frameStart = get_time();
 	
-	reset_neighbors();
+	gol_me.allow_next_step = false;
+	initialize_grid(4,4);
+	init_gol_neighbors();
+	init_gol_me();
+	set_gol_beacon();
+	//set_rgb(0,255,0);
 	
-	update_neighbors();
-	
-	state = 0;
-	start_time = get_time();
-	set_rgb(255,255,255);
 }
 
 /*
@@ -193,76 +249,67 @@ void loop(){
 	if(loopID!=(frameTime/SLOT_LENGTH_MS)){
 		loopID = frameTime/SLOT_LENGTH_MS;
 		if(loopID==mySlot){
-			if (state == 0)
-			{
-				broadcast_rnb_data();
-			}
+			sendStateMsg();
 			
-			if (state >= 1)
+			if (gol_me.current_state < 1)
 			{
-				if (POS_DEFINED(&myPos))
-				{
-					sendPosMsg();
-				}
+				delay_ms(500);
+				sendPosMsg();
 			}
-			
 			
 		}else if(loopID==(SLOTS_PER_FRAME-1)){
 			//compute new state based on messages.
+			//print_neighbors();
 			
+			if (gol_neighbors[0].state != 2 && gol_neighbors[1].state != 2 && gol_neighbors[2].state != 2 && gol_neighbors[3].state != 2 && gol_neighbors[4].state != 2 && gol_neighbors[5].state != 2 && gol_neighbors[6].state != 2 && gol_neighbors[7].state != 2)
+			{
+				if (gol_neighbors[0].allow_next_step == true && gol_neighbors[1].allow_next_step == true && gol_neighbors[2].allow_next_step == true && gol_neighbors[3].allow_next_step == true && gol_neighbors[4].allow_next_step == true && gol_neighbors[5].allow_next_step == true && gol_neighbors[6].allow_next_step == true && gol_neighbors[7].allow_next_step == true)
+				{
+					if (gol_me.next_state_calculated == false)
+					{
+						calculate_next_state();
+						show_next_state_calculated();
+						reset_gol_neighbors();
+						gol_me.current_state += 1;
+					}
+					
+				}
+				
+			}
 			
-			if (state == 0)
+			if (gol_neighbors[0].next_state_calculated == true && gol_neighbors[1].next_state_calculated == true && gol_neighbors[2].next_state_calculated == true && gol_neighbors[3].next_state_calculated == true && gol_neighbors[4].next_state_calculated == true && gol_neighbors[5].next_state_calculated == true && gol_neighbors[6].next_state_calculated == true && gol_neighbors[7].next_state_calculated == true)
 			{
-				count_neighbors_expected();
-				show_neighbors_expected();
+				if (gol_me.next_state_passed == false)
+				{
+					pass_next_state();
+					reset_gol_neighbors();
+					gol_me.current_state += 1;
+				}
+				
 			}
-						
-			if (state == 1)
+			
+			if (gol_neighbors[0].next_state_passed == true && gol_neighbors[1].next_state_passed == true && gol_neighbors[2].next_state_passed == true && gol_neighbors[3].next_state_passed == true && gol_neighbors[4].next_state_passed == true && gol_neighbors[5].next_state_passed == true && gol_neighbors[6].next_state_passed == true && gol_neighbors[7].next_state_passed == true)
 			{
-				show_neighbors_filled();
+				if (gol_me.allow_next_step == false)
+				{
+					allow_step();
+					reset_gol_neighbors();
+					gol_me.current_state += 1;
+					set_rgb(255,255,255);
+				}
+				
 			}
-						
-			if (state == 2)
-			{
-				print_neighbors();
-			}
-		
-			printf("state is %hu \r\n", state);
 			
 		}
 		
 	}
-				
-		if (state == 0)
-		{
-			if (get_time()-start_time > 30000)
-			{
-				printf("time > 30s \r\n");
-				printf("changing to state = 1 \r\n");
-				state = 1;
-				start_time = get_time();
-			}
-		}
-		
-		if (state == 1)
-		{
-			if (get_time()-start_time > 30000)
-			{
-				printf("time > 30s \r\n");
-				printf("changing to state = 0 \r\n");
-				state = 0;
-				start_time = get_time();
-			}
-		}
-		
-		
-	
 	
 	if(rnb_updated){
 		//Handle rnb data in last_good_rnb struct.
 		useRNBmeas(last_good_rnb.id, last_good_rnb.range, last_good_rnb.bearing, last_good_rnb.heading);
 		rnb_updated=0;
 	}
+	
 	delay_ms(LOOP_DELAY_MS);
 }
 /*
@@ -270,73 +317,66 @@ void loop(){
  * received, and calls this function once for each message.
  */
 void handle_msg(ir_msg* msg_struct){
+
+if(msg_struct->length == sizeof(StateMsg))
+{
+	StateMsg* stateMsg = (StateMsg*)(msg_struct->msg);
 	
-	if (state == 0)
+	if ( (stateMsg->current_state == gol_me.current_state) || (stateMsg->current_state == (gol_me.current_state + 1) ) )
 	{
-		if(((BotMeasMsg*)(msg_struct->msg))->flag==BOT_MEAS_MSG_FLAG && msg_struct->length==sizeof(BotMeasMsg)){
-			handleBotMeasMsg((BotMeasMsg*)(msg_struct->msg), msg_struct->sender_ID);
+		for(int i=0; i<8; i++)
+		{
+			if (msg_struct->sender_ID == gol_neighbors[i].ID)
+			{
+				if (gol_me.next_state_calculated == false)
+				{
+					
+					if (stateMsg->state == 1  && gol_neighbors[i].state == 2)
+					{
+						gol_neighbors[i].state = 1;
+						//printf("Neighbor %u is alive \n \r", neighbors[i].ID);
+					}
+					
+					if (stateMsg->state == 0 && gol_neighbors[i].state == 2)
+					{
+						gol_neighbors[i].state = 0;
+						//printf("Neighbor %u is dead \n \r", neighbors[i].ID);
+					}
+					
+					if (stateMsg->allow_next_step == 1 && gol_neighbors[i].allow_next_step == false)
+					{
+						gol_neighbors[i].allow_next_step = true;
+						//printf("Neighbor %u allowed next step \n \r", neighbors[i].ID);
+					}
+				}
+				
+				if (gol_me.next_state_passed == false)
+				{
+					
+					if (stateMsg->next_state_calculated == 1 && gol_neighbors[i].next_state_calculated == false)
+					{
+						gol_neighbors[i].next_state_calculated = true;
+						//printf("Neighbor %u calculated next state \n \r", neighbors[i].ID);
+					}
+					
+				}
+				
+				if (gol_me.allow_next_step == false)
+				{
+					
+					if (stateMsg->next_state_passed == 1 && gol_neighbors[i].next_state_passed == false)
+					{
+						gol_neighbors[i].next_state_passed = true;
+						//printf("Neighbor %u passed next state \n \r", neighbors[i].ID);
+					}
+					
+				}
+				
+			}
 		}
 	}
-	
-	if (state == 1)
-	{
-		if(msg_struct->length == sizeof(PosMsg))
-		{	
-			PosMsg* posMsg = (PosMsg*)(msg_struct->msg);
-			
-			if (posMsg->posx >= myPos.x-dist-margin && posMsg->posx <= myPos.x-dist+margin)
-			{
-				if (posMsg->posy >= myPos.y-dist-margin && posMsg->posy <= myPos.y-dist+margin )
-				{
-					SW.ID = msg_struct->sender_ID;
-				}
-				
-				if (posMsg->posy >= myPos.y-margin && posMsg->posy <= myPos.y+margin)
-				{
-					W.ID = msg_struct->sender_ID;
-				}
-				
-				if (posMsg->posy >= myPos.y+dist-margin && posMsg->posy <= myPos.y+dist+margin )
-				{
-					NW.ID = msg_struct->sender_ID;
-				}
-			}
-			
-			if (posMsg->posx >= myPos.x+dist-margin && posMsg->posx <= myPos.x+dist+margin)
-			{
-				if (posMsg->posy >= myPos.y-dist-margin && posMsg->posy <= myPos.y-dist+margin)
-				{
-					SE.ID = msg_struct->sender_ID;
-				}
-				
-				if (posMsg->posy >= myPos.y-margin && posMsg->posy <= myPos.y+margin )
-				{
-					E.ID = msg_struct->sender_ID;
-				}
-				
-				if (posMsg->posy >= myPos.y+dist-margin && posMsg->posy <= myPos.y+dist+margin )
-				{
-					NE.ID = msg_struct->sender_ID;
-				}
-			}
-			
-			if (posMsg->posx >= myPos.x-margin && posMsg->posx <= myPos.x+margin )
-			{
-				if (posMsg->posy >= myPos.y-dist-margin && posMsg->posy <= myPos.y-dist+margin)
-				{
-					S.ID = msg_struct->sender_ID;
-				}
-				
-				if (posMsg->posy >= myPos.y+dist-margin && posMsg->posy <= myPos.y+dist+margin )
-				{
-					N.ID = msg_struct->sender_ID;
-				}
-			}
-			
-			update_neighbors();
-		}
-	}
-	
+}
+
 }
 
 ///*
@@ -347,4 +387,3 @@ void handle_msg(ir_msg* msg_struct){
 //uint8_t user_handle_command(char* command_word, char* command_args){
 	//return 0;
 //}
-

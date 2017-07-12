@@ -1,6 +1,7 @@
 #pragma once
 
 #include "droplet_init.h"
+#include "grid_init.h"
 
 /*
  * SLOT_LENGTH_MS should be long enough for all of the communicating

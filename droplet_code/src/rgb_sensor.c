@@ -146,7 +146,7 @@ void get_rgb(int16_t *r, int16_t *g, int16_t *b)
 			*r=temp_values[1];
 			*g=temp_values[2];
 			*b=temp_values[3];
-			printf("% 5d % 5d % 5d % 5d\r\n", temp_values[0], *r, *g, *b);
+			//printf("% 5d % 5d % 5d % 5d\r\n", temp_values[0], *r, *g, *b);
 		}
 		else printf_P(PSTR("Read failed.\r\n"));
 	#else

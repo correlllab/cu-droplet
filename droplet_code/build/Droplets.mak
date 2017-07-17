@@ -18,8 +18,9 @@ TARGET = droplet_riya
 # It also is used as the base path for the location of the actual compiler .exe.
 ATMEL_STUDIO_PATH = "C:/Program Files (x86)/Atmel/Studio/7.0/"
 
-# Set to your user source file. This should be the one with 'init', 'loop', and 'handle_msg' defined.
-USER_FILE = ../user_template.c
+# List your user C source file(s) here.
+USER_FILE = ../user_template.c \
+
 
 #----------------------------------------------------------------------------
 # ! - ! - ! - ! - ! - ! - ! - ! - ! - ! - ! - ! - ! - ! - ! - ! - ! - ! - !

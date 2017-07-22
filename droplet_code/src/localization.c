@@ -1,17 +1,21 @@
 #include "localization.h"
 
+//#define NUM_SEEDS 4
+//
+//const BotPos SEED_POS[NUM_SEEDS] = {{50,50,0}, {200,50,0}, {50,200,0}, {200,200,0}};
+//const id_t   SEED_IDS[NUM_SEEDS] = {0x7EDF, 0x1361, 0x6C66, 0x9669};
 #define NUM_SEEDS 4
 
-const BotPos SEED_POS[NUM_SEEDS] = {{50,50,0}, {200,50,0}, {50,200,0}, {200,200,0}};
-const id_t   SEED_IDS[NUM_SEEDS] = {0x7EDF, 0x1361, 0x6C66, 0x9669};
+const BotPos SEED_POS[NUM_SEEDS] = {{0,0,0}, {0,150, 0},{150,150,0},{150,0,0}};
+const id_t   SEED_IDS[NUM_SEEDS] = {0x6C66, 0xFFFF, 0xFFFF,0xFFFF};
 
 //const BotPos SEEDS[NUM_SEEDS] = {{100, 600, 0}, {600, 600, 0}, {100, 100, 0}, {600, 100, 0}};
 
 //The MIN and MAX values below are only needed for getPosColor.
 #define MIN_X 0
 #define MIN_Y 0
-#define MAX_X 250
-#define MAX_Y 250
+#define MAX_X 150
+#define MAX_Y 150
 
 static float	chooseOmega(Matrix* myPinv, Matrix* yourPinv);
 static float	mahalanobisDistance(Vector* a, Matrix* A, Vector* b, Matrix* B);
@@ -167,6 +171,11 @@ static void covarUnion(Vector* x, Matrix* U, Vector* a, Matrix* A, Vector* b, Ma
 }
 
 /*
+ * TODO:
+ * Experiment with Mahalanobis Distance Thresholds for intersection vs. union vs. outright rejection.
+ */
+
+/*
  * This function updates my position estimate based on a new position estimate.
  * pos is the new position estimate.
  * yourP is the new position estimate's covariance matrix.
@@ -192,7 +201,7 @@ static void updatePos(BotPos* pos, Matrix* yourP){
 		//Based on cumulative chi-squared distribution.
 		MY_POS_DEBUG_PRINT(" but the mahalanobis distance (%5.2f) is too large.\r\n", mDist);
 		return;
-		}else if(mDist>1.0){
+	}else if(mDist>1.0){
 		//This mDist corresponds to a likelihood (of consistency..?) of ~80%
 		//Based on cumulative chi-squared distribution.
 		covarUnion(&myNewPos, &myNewP, &xMe, &myP, &xMeFromYou, yourP);
@@ -513,8 +522,13 @@ void getPosColor(uint8_t* r, uint8_t* g, uint8_t* b){
 	if(POS_DEFINED(&myPos)){
 		int16_t xRange = MAX_X-MIN_X;
 		int16_t yRange = MAX_Y-MIN_Y;
-		int16_t xColVal = (int16_t)(6.0*pow(41.0,(myPos.x-MIN_X)/((float)xRange))+9.0);
-		int16_t yColVal = (int16_t)(3.0*pow(84.0,(myPos.y-MIN_Y)/((float)yRange))+3.0);
+		float effX = (myPos.x-MIN_X)/(2.0*xRange);
+	    effX = 2.0*fabsf(floor(effX+0.5)-effX);
+		int16_t xColVal = (int16_t)(26*(pow(10.0,effX)-1)+1);
+		float effY = (myPos.y-MIN_Y)/(2.0*yRange);
+		effY = 2.0*fabsf(floor(effY+0.5)-effY);
+		int16_t yColVal = (int16_t)(20.0*(pow(10.0,effY)-1)+1);
+		//printf("{% 4d, %4d}->{%4.2f, %4.2f}->{%3d, %3d}\r\n", myPos.x, myPos.y, effX, effY, xColVal, yColVal);
 		*r = (uint8_t)(xColVal);
 		*g = (uint8_t)(yColVal);
 		*b = 0;

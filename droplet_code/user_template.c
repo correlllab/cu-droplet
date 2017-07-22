@@ -9,7 +9,7 @@ void init(){
 	frameStart=get_time();
 	mySlot = getSlot(get_droplet_id());
 	printf("mySlot: %u, frame_length: %lu\r\n\r\n", mySlot, FRAME_LENGTH_MS);
-	set_all_ir_powers(200);
+	set_all_ir_powers(225);
 }
 
 void loop(){
@@ -26,11 +26,9 @@ void loop(){
 		}else if(loopID==SLOTS_PER_FRAME-1){
 			//printf_P(PSTR("\nID: %04X T: %lu "), get_droplet_id(), get_time());
 			if(POS_DEFINED(&myPos)){
-				printf_P(PSTR("\t{%d, %d, %d}\r\n"), myPos.x, myPos.y, myPos.o);
+				printf_P(PSTR("{\r\n\t%lu,\r\n\t{%d, %d, %d},\r\n"), get_time(), myPos.x, myPos.y, myPos.o);
 				printPosCovar(&myPosCovar);
-				printf("\r\n");
-			}else{
-				printf("\r\n\r\n");
+				printf("},\r\n");
 			}
 		}
 		uint8_t newR = 0, newG = 0, newB = 0;

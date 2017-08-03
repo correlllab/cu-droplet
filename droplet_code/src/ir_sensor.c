@@ -1,21 +1,21 @@
 #include "ir_sensor.h"
 
-
 #ifdef AUDIO_DROPLET
 	ADC_CH_t* ir_sense_channels[6]  = {&(ADCA.CH0), &(ADCA.CH1), &(ADCA.CH2), &(ADCB.CH0), &(ADCB.CH1), &(ADCB.CH2)};
 #else
 	const uint8_t mux_sensor_selectors[6] = {MUX_IR_SENSOR_0, MUX_IR_SENSOR_1, MUX_IR_SENSOR_2, MUX_IR_SENSOR_3, MUX_IR_SENSOR_4, MUX_IR_SENSOR_5};
 #endif
 
+static int16_t  ir_sense_baseline[6];
+
 // IR sensors use ADCB channel 0, all the time
-void ir_sensor_init()
-{
+void ir_sensor_init(){
 	#ifdef AUDIO_DROPLET
 		/* SET INPUT PINS AS INPUTS */
 		PORTA.DIRCLR = PIN5_bm | PIN6_bm | PIN7_bm;
 		PORTB.DIRCLR = PIN4_bm | PIN2_bm | PIN3_bm;
 	
-		//
+		//git 
 		//IR SENSORS ACTING WEIRD? TRY COMMENTING OUT THE BELOW.
 		//BELOW RECOMMENDED BY note on pg 153 of the manual
 		//
@@ -79,33 +79,23 @@ void ir_sensor_init()
 		ADCB.CTRLA = ADC_ENABLE_bm;
 	#endif
 	
-	delay_ms(10);
-	
-	for(uint8_t dir=0; dir<6; dir++){
-		min_collision_vals[dir] = 32767;
-	}
 	for(uint8_t dir=0;dir<6;dir++){
 		ir_sense_baseline[dir]=0;
 	}
 	schedule_task(1000,initialize_ir_baselines,NULL);
-	schedule_periodic_task(13331, update_ir_baselines, NULL);
+	schedule_periodic_task(5407, update_ir_baselines, NULL);
 }
 
 void initialize_ir_baselines(){
 	get_ir_sensors(ir_sense_baseline, 13);
-	printf("Baselines:");
-	for(uint8_t dir=0;dir<6;dir++){
-		printf(" %4d", ir_sense_baseline[dir]);
-	}
-	printf("\r\n");	
 }
 
 void update_ir_baselines(){
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-		if(hp_ir_block_bm){
+		if(ir_is_busy(ALL_DIRS)){
 			return;
 		}
-		hp_ir_block_bm=0xFF;
+		hp_ir_block_bm=0x3F;
 	}
 	int16_t prevBaselines[6];
 	for(uint8_t dir=0; dir<6; dir++){
@@ -119,11 +109,9 @@ void update_ir_baselines(){
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 		hp_ir_block_bm = 0;
 	}
-
 }
 
-void get_ir_sensors(int16_t* output_arr, uint8_t meas_per_ch)
-{			
+void get_ir_sensors(int16_t* output_arr, uint8_t meas_per_ch){			
 	int16_t meas[6][meas_per_ch];	
 	#ifdef AUDIO_DROPLET
 		for(uint8_t meas_count=0;meas_count<meas_per_ch;meas_count++){
@@ -152,8 +140,7 @@ void get_ir_sensors(int16_t* output_arr, uint8_t meas_per_ch)
 	#endif	
 	
 	
-	for(uint8_t dir=0;dir<6;dir++)
-	{
+	for(uint8_t dir=0;dir<6;dir++){
 		if(meas_per_ch>2){
 			int16_t median = meas_find_median(&(meas[dir][2]),meas_per_ch-2);
 			//printf("%d ",median);
@@ -169,59 +156,40 @@ void get_ir_sensors(int16_t* output_arr, uint8_t meas_per_ch)
 }
 
 uint8_t check_collisions(){
+	int16_t meas[6];
+	uint8_t dirs = 0;
+	check_collision_values(meas);
+	for(uint8_t i=0;i<6;i++){
+		dirs |=  (((meas[i]+ir_sense_baseline[i])>=IR_SENSE_MAX)<<i);
+	}
+	return dirs;
+}
+
+void check_collision_values(int16_t meas[6]){
 	int16_t baseline_meas[6];
 	int16_t measured_vals[6];
-	uint8_t dirs=0;
-	//wait_for_ir(ALL_DIRS);
+	//uint8_t dirs=0;
+	if(ir_is_busy(ALL_DIRS)){
+		printf_P(PSTR("IR Hardware busy. Can't check collisions.\r\n"));
+		return;
+	}
 	for(uint8_t i=0;i<6;i++) ir_rxtx[i].status = IR_STATUS_BUSY_bm;	
 	uint16_t curr_power = get_all_ir_powers();
 	set_all_ir_powers(256);
-	//printf("coll base: ");
 	get_ir_sensors(baseline_meas, 5);
+	//printf("Coll    base: ");
+	//for(uint8_t i=0;i<6;i++) printf("%4d ", baseline_meas[i]);
 	//printf("\r\n");
 	for(uint8_t i=0;i<6;i++) ir_led_on(i);
-	busy_delay_us(250);	
-	//delay_ms(250);
-	//printf("Coll results: ");
+	delay_us(250);	
 	get_ir_sensors(measured_vals, 5);
+	//printf("Coll results: ");
+	//for(uint8_t i=0;i<6;i++) printf("%4d ", measured_vals[i]);
 	//printf("\r\n");
 	for(uint8_t i=0;i<6;i++) ir_led_off(i);
-	
-	for(uint8_t i=0;i<6;i++)
-	{
-		int16_t measure_above_base = measured_vals[i]-baseline_meas[i];
-		//printf("%4d ", measure_above_base);
-		if(measure_above_base<min_collision_vals[i]) min_collision_vals[i]=measure_above_base;
-		//printf("%4d ", measure_above_base-min_collision_vals[i]);
-		if((measure_above_base-min_collision_vals[i])>20){
-			dirs = dirs|(1<<i);
-		}
+	for(uint8_t i=0;i<6;i++){
+		meas[i] = (measured_vals[i]-baseline_meas[i]);
 	}
-	//printf("\r\n");
 	set_all_ir_powers(curr_power);
 	for(uint8_t i=0;i<6;i++) ir_rxtx[i].status = 0;		
-	return dirs;
 }	
-
-// Finds the median of arr_len numbers by finding the max, finding the min, and returning the other value
-// WARNING! This function modifies the array!
-int16_t meas_find_median(int16_t* meas, uint8_t arr_len)
-{
-	if(arr_len==1) return meas[0];
-	else if(arr_len==2) return (meas[0]+meas[1])/2;
-	
-	for(uint8_t i=0; i<arr_len ; i++)
-	{
-		for(uint8_t j=i+1 ; j<arr_len ; j++)
-		{
-			if(meas[j] < meas[i])
-			{
-				int16_t temp = meas[i];
-				meas[i] = meas[j];
-				meas[j] = temp;
-			}
-		}
-	}
-	if(arr_len%2==0) return (meas[arr_len/2-1]+meas[arr_len/2])/2;
-	else return meas[arr_len/2];
-}

@@ -1,5 +1,12 @@
 #include "firefly_sync.h"
 
+static uint8_t ffsync_blink_r, ffsync_blink_g, ffsync_blink_b;
+static uint8_t ffsync_blink_prev_r, ffsync_blink_prev_g, ffsync_blink_prev_b;
+static uint16_t ffsync_blink_dur;
+static uint16_t ffsync_blink_phase_offset_ms;
+
+static void updateRTC(void);
+
 void set_sync_blink_color(uint8_t r, uint8_t g, uint8_t b){
 	ffsync_blink_r = r;
 	ffsync_blink_g = g;
@@ -17,7 +24,6 @@ void enable_sync_blink(uint16_t phase_offset){
 	phase_offset = phase_offset%(((uint32_t)FFSYNC_FULL_PERIOD)/2);
 	uint16_t turn_off_cc = FFSYNC_FULL_PERIOD - phase_offset;
 	uint16_t turn_on_cc = turn_off_cc - (uint16_t)(ffsync_blink_dur*FFSYNC_MS_CONVERSION_FACTOR);
-	//uint16_t turn_off_cc = (turn_on_cc+((uint16_t)(ffsync_blink_dur*FFSYNC_MS_CONVERSION_FACTOR)))%FFSYNC_FULL_PERIOD;
 	TCE0.CCA = turn_on_cc;
 	TCE0.CCB = turn_off_cc;
 	TCE0.INTCTRLB = TC_CCAINTLVL_HI_gc | TC_CCBINTLVL_HI_gc;
@@ -66,14 +72,14 @@ void firefly_sync_init()
 		TCE0.CCA = 0;
 		TCE0.CCB = 0;
 	
-	obsStart = malloc(sizeof(obsQueue));
+	obsStart = (ObsQueue*)myMalloc(sizeof(ObsQueue));
 	obsStart->obs = 0;
 	obsStart->next = obsStart;
 	obsStart->prev = obsStart;
 }
 
 ISR(TCE0_OVF_vect){
-	schedule_task(rand_short()%FFSYNC_D, sendPing, (void*)((uint16_t)(get_time()&0xFFFF)));
+	schedule_task(rand_short()%FFSYNC_D, (arg_func_t)sendPing, (void*)((uint16_t)(get_time()&0xFFFF)));
 	//sendPing( (void*)((uint16_t)(get_time()&0xFFFF)));
 	updateRTC();
 	//printf("ovf @ %lu\r\n",get_time());
@@ -81,15 +87,13 @@ ISR(TCE0_OVF_vect){
 
 void processObsQueue(){
 	float newStart=0.0;
-	obsQueue* curr = obsStart->next;
-	obsQueue* tmp;
+	ObsQueue* curr = obsStart->next;
+	ObsQueue* tmp;
 	while(curr != obsStart){
 		newStart += (((float)(curr->obs))-newStart)/FFSYNC_EPSILON;
 		tmp = curr;
 		curr = curr->next;
-		ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-			free(tmp);	
-		}
+		myFree(tmp);	
 	}
 	//printf("Processing @ %lu | newStart: %f\r\n",get_time(), newStart);	
 	obsStart->next = obsStart;
@@ -108,9 +112,9 @@ void processObsQueue(){
 	}
 }
 
-void updateRTC(){
+static void updateRTC(void){
 	int16_t change;
-	int16_t remainder;
+	uint16_t remainder;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 	{
 		uint32_t currTime = get_time();
@@ -119,10 +123,10 @@ void updateRTC(){
 		//printf("%u.\r\n", remainder);
 	
 		if(remainder>(FFSYNC_FULL_PERIOD_MS/2)){
-			change = FFSYNC_FULL_PERIOD_MS-remainder;
+			change = FFSYNC_FULL_PERIOD_MS-((int16_t)remainder);
 			if((RTC.PER-change)<theCount) rtc_epoch++;			//0xFFFF: RTC.PER
 		}else{
-			change = -remainder;
+			change = -(int16_t)remainder;
 			if(theCount<remainder) rtc_epoch--;
 		}
 		while(RTC.STATUS & RTC_SYNCBUSY_bm);
@@ -139,60 +143,15 @@ void updateRTC(){
 	 */
 	if(abs(change)<(FFSYNC_MAX_DEVIATION*5)){
 		if(change>0) OSC.RC32KCAL++;
-		else if(change<-FFSYNC_MAX_DEVIATION) OSC.RC32KCAL--;
+		else if(abs(change)<FFSYNC_MAX_DEVIATION) OSC.RC32KCAL--;
 	}
 	//printf("\t\t%d\r\n",change);
 }
 
-void sendPing(void* val){
-	//uint16_t diff = ((uint16_t)(get_time()&0xFFFF))-((uint16_t)val);
-	uint8_t result = hp_ir_targeted_cmd(ALL_DIRS, NULL, 64, (uint16_t)val);
-	if(!result){
-		//printf_P(PSTR("sendPing blocked by other hp ir activity.\r\n"));
-	}
+void sendPing(uint16_t val){
+	/*uint8_t result = */hp_ir_targeted_cmd(ALL_DIRS, NULL, 64, val);
+	//if(!result){
+		//printf_P(PSTR("Unable to send ff_sync ping due to other hp ir activity.\r\n"));
+	//}
 	schedule_task(FFSYNC_W, processObsQueue, NULL);
-	//if(diff>(FFSYNC_W-5)){
-		//processObsQueue();
-	//}else{
-		//schedule_task(200-diff, processObsQueue, NULL);
-	//}
 }
-
-//ISR(TCE0_OVF_vect)
-//{
-	//int16_t change;
-	//ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
-	//{
-		//uint16_t the_count = RTC.CNT;
-		//int16_t remainder = (int16_t)(the_count%FFSYNC_FULL_PERIOD_MS);
-		////printf("Count: %u. Remainder: %u.\r\n", the_count, remainder);
-//
-		//if(remainder>(FFSYNC_FULL_PERIOD_MS/2))
-		//{
-			//change = FFSYNC_FULL_PERIOD_MS-remainder;
-			//if((RTC.PER-change)<the_count) rtc_epoch++;			//0xFFFF: RTC.PER
-		//}
-		//else
-		//{
-			//change = -remainder;
-			//if(the_count<remainder) rtc_epoch--;
-		//}
-//
-		//while(RTC.STATUS & RTC_SYNCBUSY_bm);
-		//RTC.CNT =  (the_count+change);
-		//RTC.COMP = (RTC.COMP+change);
-	//}
-//
-	//
-	//////change represents how the RTC clock's measure of 2048ms differs from the synchronization's measure.
-	//////If change is quite large, then probably we're still getting sync'd - so no implications about the RTC clock.
-	//////If it's smallish, though, the code below adjusts the factory-set calibration value to minimize this difference.
-	//////(From observations, changing the calibration by one seemed to effect the change by about 10ms, so if we're within
-	//////11ms, we won't get any better.)
-	////if(abs(change)<(FFSYNC_MAX_DEVIATION*10))
-	////{
-		////if(change>0) OSC.RC32KCAL++;
-		////else if(change<-FFSYNC_MAX_DEVIATION) OSC.RC32KCAL--;
-	////}
-	//////printf("\t\t%d\r\n",change);
-//}

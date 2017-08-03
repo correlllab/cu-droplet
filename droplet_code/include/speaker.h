@@ -1,34 +1,21 @@
 #pragma once
-
-#include <avr/io.h>
-#include <avr/interrupt.h>
-#include <avr/pgmspace.h>
+#include "droplet_base.h"
 #include "scheduler.h"
+
+void speaker_init(void);
+
+#ifdef AUDIO_DROPLET
 
 #define MAX_NOTES_PER_SONG 128
 #define NOTE_SWITCH_DUR_MS 10
 
-typedef struct{
-	uint16_t dur;
-	uint8_t note;
-} sound_str;
-
-uint8_t song_playing;
-
-
-void speaker_init();
 void play_song(uint8_t* notes, uint16_t* durs, uint8_t song_len, uint8_t pauses);
 
-#ifdef AUDIO_DROPLET
-
-	void emit_sound(uint16_t period, uint32_t duration);
-	void start_sound(uint8_t note);
-	void switch_sound();
-	void brief_pause();
-	void stop_sound();
-
-#endif
-
+void emit_sound(uint16_t period, uint32_t duration);
+void start_sound(uint8_t note);
+void switch_sound(void);
+void brief_pause(void);
+void stop_sound(void);
 
 #define NOTE_B7		62
 #define NOTE_AS7	66
@@ -103,4 +90,4 @@ void play_song(uint8_t* notes, uint16_t* durs, uint8_t song_len, uint8_t pauses)
 #define NOTE_CS2	3607
 #define NOTE_C2		3821
 
-extern const uint16_t note_values[6][12]; // defined in speaker.c
+#endif

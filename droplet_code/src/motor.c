@@ -1,5 +1,40 @@
 #include "motor.h"
 
+static volatile uint8_t motor_status;
+static volatile Task_t* current_motor_task;
+
+static int16_t motor_on_time;
+static int16_t motor_off_time;
+
+static inline void motor_forward(uint8_t num)
+{
+	switch(num)
+	{
+		#ifdef AUDIO_DROPLET
+		case 0: printf_P(PSTR("ERROR! motor_fw called with num=0\r\n")); break;
+		#else
+		case 0: TCC0.CTRLB |= TC0_CCBEN_bm; TCC0.CTRLC = 0; TCC0.CTRLA = TC_CLKSEL_DIV1024_gc; break;
+		#endif
+		case 1: TCC1.CTRLB |= TC1_CCBEN_bm; TCC1.CTRLC = 0; TCC1.CTRLA = TC_CLKSEL_DIV1024_gc; break;
+		case 2: TCD0.CTRLB |= TC0_CCBEN_bm; TCD0.CTRLC = 0; TCD0.CTRLA = TC_CLKSEL_DIV1024_gc; break;
+	}
+}
+
+static inline void motor_backward(uint8_t num)
+{
+	switch(num)
+	{
+		#ifdef AUDIO_DROPLET
+		case 0: printf_P(PSTR("ERROR! motor_bw called with num=0\r\n")); break;
+		#else
+		case 0: TCC0.CTRLB |= TC0_CCAEN_bm; TCC0.CTRLC = 0; TCC0.CTRLA = TC_CLKSEL_DIV1024_gc; break;
+		#endif
+		case 1: TCC1.CTRLB |= TC1_CCAEN_bm; TCC1.CTRLC = 0; TCC1.CTRLA = TC_CLKSEL_DIV1024_gc; break;
+		case 2: TCD0.CTRLB |= TC0_CCAEN_bm; TCD0.CTRLC = 0; TCD0.CTRLA = TC_CLKSEL_DIV1024_gc; break;
+	}
+}
+
+
 void motor_init()
 {
 	#ifdef AUDIO_DROPLET
@@ -10,21 +45,28 @@ void motor_init()
 	PORTD.DIRSET = PIN0_bm | PIN1_bm; 
 
 	#ifndef AUDIO_DROPLET
-		TCC0.CTRLA = TC_CLKSEL_DIV1024_gc;
+		TCC0.CTRLA = TC_CLKSEL_OFF_gc;
 		TCC0.CTRLB = TC_WGMODE_SS_gc;
 	#endif
 	
-    TCC1.CTRLA = TC_CLKSEL_DIV1024_gc;
+    TCC1.CTRLA = TC_CLKSEL_OFF_gc;
     TCC1.CTRLB = TC_WGMODE_SS_gc;
 
-    TCD0.CTRLA = TC_CLKSEL_DIV1024_gc; 
+    TCD0.CTRLA = TC_CLKSEL_OFF_gc;
     TCD0.CTRLB = TC_WGMODE_SS_gc;  
 	
+	#ifndef AUDIO_DROPLET
+	PORTC.PIN0CTRL = PORT_INVEN_bm;
+	PORTC.PIN1CTRL = PORT_INVEN_bm;
+	#endif
 	PORTC.PIN4CTRL = PORT_INVEN_bm;
 	PORTC.PIN5CTRL = PORT_INVEN_bm;
 	PORTD.PIN0CTRL = PORT_INVEN_bm;
 	PORTD.PIN1CTRL = PORT_INVEN_bm;
 	
+	#ifndef AUDIO_DROPLET
+	PORTC.OUTCLR = PIN0_bm | PIN1_bm;
+	#endif
 	PORTC.OUTCLR = PIN4_bm | PIN5_bm;
 	PORTD.OUTCLR = PIN0_bm | PIN1_bm;
 
@@ -95,8 +137,13 @@ uint8_t move_steps(uint8_t direction, uint16_t num_steps)
 		current_offset += mot_durs[mot] + 32*motor_off_time;//If we left the motor on for longer to compensate, we should wait a little longer before starting again.
 	}
 	
-	if(current_offset != total_time) printf_P(PSTR("ERROR: current_offset: %hu and total_time: %hu not equal!\r\n"), current_offset, total_time);
+	if(current_offset != total_time) printf_P(PSTR("ERROR: current_offset: %u and total_time: %u not equal!\r\n"), current_offset, total_time);
 	//printf("Just about to turn on motors: %lu\r\n",get_time());
+	//TCC0.CTRLFSET = TC_TC0_CMD_RESET_gc;
+	//TCC1.CTRLFSET = TC_TC0_CMD_RESET_gc;
+	//TCD0.CTRLFSET = TC_TC0_CMD_RESET_gc;
+
+
 	for(uint8_t mot=0 ; mot<3 ; mot++) 	//Now we just need to tell the motors to go!
 	{
 		if(mot_dirs[mot]<0) motor_backward(mot); 
@@ -105,7 +152,7 @@ uint8_t move_steps(uint8_t direction, uint16_t num_steps)
 	uint32_t total_movement_duration = (((uint32_t)total_time)*((uint32_t)num_steps))/32;
 	//printf("Total duration: %lu ms.\r\n\n",total_movement_duration);
 	current_motor_task = schedule_task(total_movement_duration, stop_move, NULL);
-	if(current_motor_task==NULL) printf("Error! Failed to schedule stop_move task.");
+	if(current_motor_task==NULL) printf_P(PSTR("Error! Failed to schedule stop_move task."));
 	return 1;
 }
 
@@ -113,7 +160,7 @@ void walk(uint8_t direction, uint16_t mm)
 {
 	uint16_t mm_per_kilostep = get_mm_per_kilostep(direction);
 	if(abs((0xFFFF-((uint32_t)mm_per_kilostep)))<1000){
-		printf("Error: Don't have calibrated values for this direction.\r\n");
+		printf_P(PSTR("Error: Don't have calibrated values for this direction.\r\n"));
 		if(direction>5){
 			mm_per_kilostep = 2000;
 		}else{
@@ -133,10 +180,13 @@ void stop_move()
 	//printf("Stopping.\r\n");
 	
 	#ifndef AUDIO_DROPLET
-		TCC0.CTRLB = TC_WGMODE_SS_gc;
+		TCC0.CTRLB &= ~(TC0_CCAEN_bm | TC0_CCBEN_bm);
+		TCC0.CTRLA = TC_CLKSEL_OFF_gc;
 	#endif
-	TCC1.CTRLB = TC_WGMODE_SS_gc;
-	TCD0.CTRLB = TC_WGMODE_SS_gc;
+	TCC1.CTRLB  &= ~(TC1_CCAEN_bm | TC1_CCBEN_bm);
+	TCC1.CTRLA = TC_CLKSEL_OFF_gc;
+	TCD0.CTRLB  &= ~(TC0_CCAEN_bm | TC0_CCBEN_bm);
+	TCD0.CTRLA = TC_CLKSEL_OFF_gc;
 	
 	#ifdef AUDIO_DROPLET
 		PORTC.OUTCLR = PIN4_bm | PIN5_bm;
@@ -147,6 +197,7 @@ void stop_move()
 	
 	motor_status = 0;
 	remove_task((Task_t*)current_motor_task);
+	current_motor_task = NULL;
 }
 
 int8_t is_moving() // returns -1 if droplet is not moving, movement dir otherwise.
@@ -208,7 +259,7 @@ void print_motor_values()
 	printf_P(PSTR("Motor Values\r\n"));
 	for(uint8_t direction=0;direction<8;direction++)
 	{
-		printf_P(PSTR("\tdir: %d\t"),direction);
+		printf_P(PSTR("\tdir: %hu\t"),direction);
 		for(uint8_t motor=0;motor<3;motor++)
 		{
 			printf("%d\t", motor_adjusts[direction][motor]);
@@ -227,6 +278,6 @@ void print_dist_per_step()
 	printf_P(PSTR("Dist (mm) per kilostep\r\n"));
 	for(uint8_t direction = 0 ; direction<8; direction++)
 	{
-		printf_P(PSTR("\t%i\t%hu\r\n"), direction, mm_per_kilostep[direction]);	
+		printf_P(PSTR("\t%hu\t%u\r\n"), direction, mm_per_kilostep[direction]);	
 	}
 }

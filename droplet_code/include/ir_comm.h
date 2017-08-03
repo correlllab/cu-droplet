@@ -3,16 +3,16 @@
  *
  *****************************************************************************/
 #pragma once
-
-#include <avr/io.h>
-#include <util/crc16.h>
-#include <avr/interrupt.h>
-#include <avr/pgmspace.h>
-#include "droplet_init.h"
-#include "scheduler.h"
+#include "droplet_base.h"
 #include "ir_led.h"
 #include "ir_sensor.h"
+#include "pc_comm.h"
 #include "firefly_sync.h"
+#include "range_algs.h"
+#include "scheduler.h"
+
+
+//#include "firefly_sync.h"
 
 // FYI, the XMEGA128A3U has:
 //		128 KB flash (program memory)
@@ -34,9 +34,9 @@
 #define KEY_LEFT		((uint16_t)0xA659)
 #define KEY_RIGHT		((uint16_t)0x46B9)
 
-#define IR_BUFFER_SIZE			40 //bytes
+#define IR_BUFFER_SIZE			40u //bytes
 #define IR_UPKEEP_FREQUENCY		16 //Hz
-#define IR_MSG_TIMEOUT			20 //ms
+#define IR_MSG_TIMEOUT			16 //ms
 
 #define IR_STATUS_BUSY_bm				0x01	// 0000 0001				
 #define IR_STATUS_COMPLETE_bm			0x02	// 0000 0010
@@ -64,7 +64,7 @@
 #define HEADER_POS_TARGET_ID_HIGH 6
 #define HEADER_POS_SOURCE_DIR 7
 
-#define HEADER_LEN 8
+#define HEADER_LEN 8U
 
 #define MAX_WAIT_FOR_IR_TIME (5*(IR_BUFFER_SIZE+HEADER_LEN))
 
@@ -72,18 +72,18 @@
 	extern ADC_CH_t* ir_sense_channels[6];
 #endif
 
+extern USART_t* channel[6];
+
+
 volatile struct
 {	
 	volatile uint32_t last_byte;			// TX time or RX time of last received byte	
-	#ifdef AUDIO_DROPLET
-	volatile int16_t ir_meas[IR_BUFFER_SIZE+HEADER_LEN];		
-	#endif
 	volatile uint16_t data_crc;
-	volatile uint16_t sender_ID;
-	volatile uint16_t target_ID;
+	volatile id_t sender_ID;
+	volatile id_t target_ID;
 	volatile uint16_t curr_pos;				// Current position in buffer
 	volatile uint16_t calc_crc;
-	volatile char   buf[IR_BUFFER_SIZE];	// Transmit / receive buffer		
+	volatile char buf[IR_BUFFER_SIZE];		// Transmit / receive buffer		
 	volatile uint8_t  data_length;	
 	volatile int8_t inc_dir;
 	volatile uint8_t status;		// Transmit:
@@ -94,10 +94,7 @@ volatile struct
 volatile struct
 {
 	volatile uint32_t	arrival_time;
-	volatile float		range;
-	volatile float		bearing;
-	volatile float		heading;
-	volatile uint16_t	sender_ID;
+	volatile id_t		sender_ID;
 	volatile char		msg[IR_BUFFER_SIZE];		
 	volatile uint8_t	arrival_dir;
 	volatile uint8_t	msg_length;
@@ -109,41 +106,32 @@ volatile uint8_t num_waiting_msgs;
 volatile uint8_t user_facing_messages_ovf;
 
 volatile uint32_t	cmd_arrival_time;
-volatile uint16_t	cmd_sender_id;
+volatile id_t		cmd_sender_id;
 volatile uint8_t	cmd_arrival_dir;
 volatile uint8_t	cmd_sender_dir;
 
-volatile uint8_t processing_cmd;
-volatile uint8_t processing_ffsync;
+void ir_comm_init(void);
 
-void clear_ir_buffer(uint8_t dir);
+void handle_cmd_wrapper(void);
 
-void ir_comm_init();
-
-void handle_cmd_wrapper();
-void perform_ir_upkeep();
-uint8_t ir_targeted_cmd(uint8_t dirs, char *data, uint8_t data_length, uint16_t target);
+uint8_t ir_targeted_cmd(uint8_t dirs, char *data, uint8_t data_length, id_t target);
 uint8_t ir_cmd(uint8_t dirs, char *data, uint8_t data_length);
-uint8_t ir_targeted_send(uint8_t dirs, char *data, uint8_t data_length, uint16_t target);
+uint8_t ir_targeted_send(uint8_t dirs, char *data, uint8_t data_length, id_t target);
 uint8_t ir_send(uint8_t dirs, char *data, uint8_t data_length);
-void waitForTransmission(uint8_t dirs);
 uint8_t hp_ir_cmd(uint8_t dirs, char *data, uint8_t data_length);
-uint8_t hp_ir_targeted_cmd(uint8_t dirs, char *data, uint8_t data_length, uint16_t target);
+uint8_t hp_ir_targeted_cmd(uint8_t dirs, char *data, uint8_t data_length, id_t target);
+void waitForTransmission(uint8_t dirs);
 
-void handle_rx_length_byte(uint8_t in_byte, uint8_t dir);
-uint8_t handle_tx_length_byte(uint8_t dir);
-void ir_receive(uint8_t dir); //Called by Interrupt Handler Only
-void received_ir_cmd(uint8_t dir);
-void received_rnb_r(uint8_t delay, uint16_t senderID, uint32_t last_byte);
-void received_ir_sync(uint8_t delay, uint16_t senderID);
-void ir_transmit(uint8_t dir);
-void ir_remote_send(uint8_t dir, uint16_t data);
-void ir_transmit_complete(uint8_t dir);
-void ir_reset_rx(uint8_t dir);
-uint8_t ir_is_available(uint8_t dirs_mask);
+/*
+ * dirs_mask specifies the directions a function caller is interested in.
+ *
+ * This function returns:
+ * 3: If any of the specified directions are currently blocked by a high-priority IR task.
+ * 2: If the droplet is currently transmitting in any of the specified directions.
+ * 1: If the droplet is currently receiving a message in any of the specified directions.
+ * 0: Otherwise (all directions clear).
+ * 
+ * Using (ir_is_busy(dirs_mask)>1) is equivalent to the old (!ir_is_available(dirs_mask))
+ */
+uint8_t ir_is_busy(uint8_t dirs_mask);
 //uint8_t wait_for_ir(uint8_t dirs);
-
-static inline float comm_inverse_amplitude_model(float comm_amp)
-{
-	return 17.25+(6292.0/powf(comm_amp+12,2));
-}

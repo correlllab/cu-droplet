@@ -4,14 +4,11 @@
  *****************************************************************************/
 #pragma once
 
-#include <avr/io.h>
-#include "scheduler.h"
-#include "delay_x.h"
-#include "droplet_init.h"
+#include "droplet_base.h"
+#include "ir_comm.h"
 #include "ir_led.h"
 
-int16_t ir_sense_baseline[6];
-int16_t min_collision_vals[6];
+#define IR_SENSE_MAX 2047
 
 /**
  * \brief Can be used to check if object(s) are within 1cm of this Droplet.
@@ -20,21 +17,20 @@ int16_t min_collision_vals[6];
  * Direction macros are defined in droplet_init.h.
  *
  */
-void ir_sensor_init();
+void ir_sensor_init(void);
 void get_ir_sensors(int16_t* output_arr, uint8_t meas_per_ch);
+
 //int16_t get_ir_sensor(uint8_t sensor_num, uint8_t ir_meas_count);
-uint8_t check_collisions();
-int16_t meas_find_median(int16_t* meas, uint8_t arr_len); // Helper function for getting the middle of the 3 measurements
-void initialize_ir_baselines();
-void update_ir_baselines();
+void check_collision_values(int16_t meas[6]);
+uint8_t check_collisions(void);
+void initialize_ir_baselines(void);
+void update_ir_baselines(void);
 
 #ifdef AUDIO_DROPLET
-	inline void ir_sensor_enable(){ ADCA.CTRLA |= ADC_ENABLE_bm; ADCB.CTRLA |= ADC_ENABLE_bm; }
-	inline void ir_sensor_disable(){ ADCA.CTRLA &= ~ADC_ENABLE_bm; ADCB.CTRLA &= ~ADC_ENABLE_bm; }
+	inline void ir_sensor_enable(void){ ADCA.CTRLA |= ADC_ENABLE_bm; ADCB.CTRLA |= ADC_ENABLE_bm; }
+	inline void ir_sensor_disable(void){ ADCA.CTRLA &= ~ADC_ENABLE_bm; ADCB.CTRLA &= ~ADC_ENABLE_bm; }
 #else
 	#define IR_SENSOR_PORT PORTB
-
-	#define IR_MEAS_COUNT 5
 
 	#define IR_SENSOR_0_PIN_bm		PIN5_bm
 	#define IR_SENSOR_1_PIN_bm		PIN6_bm
@@ -52,8 +48,6 @@ void update_ir_baselines();
 	#define MUX_IR_SENSOR_5		ADC_CH_MUXPOS_PIN3_gc		// IR5 sensor on PB3
 	#define MUX_SENSOR_CLR		0b00000111
 
-	inline void ir_sensor_enable(){ ADCB.CTRLA |= ADC_ENABLE_bm; }
-	inline void ir_sensor_disable(){ ADCB.CTRLA &= ~ADC_ENABLE_bm; }
+	inline void ir_sensor_enable(void){ ADCB.CTRLA |= ADC_ENABLE_bm; }
+	inline void ir_sensor_disable(void){ ADCB.CTRLA &= ~ADC_ENABLE_bm; }
 #endif
-
-#pragma once

@@ -1,7 +1,19 @@
 #include "rgb_sensor.h"
 #define RGB_SENSE_ADDR 0x29
 
+static const char RGB_SENSE_POWERON_FAILURE[] PROGMEM = "RGB sense power-on failed %u.\r\n";
+#ifndef AUDIO_DROPLET
+static int16_t r_baseline, g_baseline, b_baseline;
+#endif
 
+//typedef enum{
+	//R, G, B
+//} Colors;
+
+typedef union{
+	uint32_t i;
+	float f;
+} u;
 
 void rgb_sensor_init()
 {
@@ -10,19 +22,15 @@ void rgb_sensor_init()
 										0x8F, 0x01,  // Write 0x01 to CONTROL register, setting the gain to x4.
 										0x81, 0xD5,	 // Write 0xD5 to ATIME register, setting the integration time to 2.4ms*(256-ATIME)
 										0x80, 0x03};  // Write 0x03 to ENABLE register, activating the ADC (and leaving the oscillator on);
-
-		uint8_t result = TWI_MasterWrite(RGB_SENSE_ADDR, &(power_on_sequence[0]), 2);
+		char callerDescr[9] = "RGB Init\0";
+		uint8_t result = twiWriteWrapper(RGB_SENSE_ADDR, &(power_on_sequence[0]), 2, callerDescr);
 		if(!result)	printf_P(RGB_SENSE_POWERON_FAILURE,1);
-		delay_ms(5);
-		result = TWI_MasterWrite(RGB_SENSE_ADDR, &(power_on_sequence[2]), 2);
+		result = twiWriteWrapper(RGB_SENSE_ADDR, &(power_on_sequence[2]), 2, callerDescr);
 		if(!result)	printf_P(RGB_SENSE_POWERON_FAILURE,2);
-		delay_ms(5);
-		result = TWI_MasterWrite(RGB_SENSE_ADDR, &(power_on_sequence[4]), 2);
+		result = twiWriteWrapper(RGB_SENSE_ADDR, &(power_on_sequence[4]), 2, callerDescr);
 		if(!result)	printf_P(RGB_SENSE_POWERON_FAILURE,3);
-		delay_ms(5);
-		result = TWI_MasterWrite(RGB_SENSE_ADDR, &(power_on_sequence[6]), 2);
+		result = twiWriteWrapper(RGB_SENSE_ADDR, &(power_on_sequence[6]), 2, callerDescr);
 		if(!result)	printf_P(RGB_SENSE_POWERON_FAILURE,4);
-		delay_ms(5);
 	#else		
 		RGB_SENSOR_PORT.DIRCLR = RGB_SENSOR_R_PIN_bm | RGB_SENSOR_G_PIN_bm | RGB_SENSOR_B_PIN_bm;
 
@@ -135,45 +143,21 @@ int16_t get_blue_sensor(){
 
 #endif
 
-void write_color_settings(){
-	printf("Writing color settings:");
-	printf("\tr: %4d, g: %4d, b: %4d\r\n", r_baseline, g_baseline, b_baseline);
-	EEPROM_write_byte(0x60, (uint8_t)(r_baseline&0xFF));
-	EEPROM_write_byte(0x61, (uint8_t)((r_baseline>>8)&0xFF));
-	EEPROM_write_byte(0x62, (uint8_t)(g_baseline&0xFF));
-	EEPROM_write_byte(0x63, (uint8_t)((g_baseline>>8)&0xFF));
-	EEPROM_write_byte(0x64, (uint8_t)(b_baseline&0xFF));
-	EEPROM_write_byte(0x65, (uint8_t)((b_baseline>>8)&0xFF));	
-}
-
-void read_color_settings()
-{
-	#ifndef AUDIO_DROPLET
-		printf("Reading Color Calibration:");
-		r_baseline =((uint16_t)EEPROM_read_byte(0x60));
-		r_baseline |= ((uint16_t)EEPROM_read_byte(0x61))<<8;
-		g_baseline =((uint16_t)EEPROM_read_byte(0x62));
-		g_baseline |= ((uint16_t)EEPROM_read_byte(0x63))<<8;
-		b_baseline =((uint16_t)EEPROM_read_byte(0x64));
-		b_baseline |= ((uint16_t)EEPROM_read_byte(0x65))<<8;
-		printf("\tr: %4d, g: %4d, b: %4d\r\n", r_baseline, g_baseline, b_baseline);
-	#else
-		printf_P(PSTR("ERROR: Audio droplets don't use color_settings.\r\n"));
-	#endif		
-}
-
 void get_rgb(int16_t *r, int16_t *g, int16_t *b)
 {
 	#ifdef AUDIO_DROPLET
+		
 		uint8_t write_sequence = 0xB4;
-		uint8_t result = TWI_MasterWriteRead(RGB_SENSE_ADDR, &write_sequence, 1, 8);
-		uint16_t* temp_values = (uint16_t*)(twi->readData);
+		char callerDescr[8] = "Get RGB\0";
+		uint8_t result = twiWriteReadWrapper(RGB_SENSE_ADDR, &write_sequence, 1, 8, callerDescr);
+		int16_t* temp_values = (int16_t*)(twi->readData);
 		if(result)
 		{
 			//*c=temp_values[0];
-			*r=(int16_t)temp_values[1];
-			*g=(int16_t)temp_values[2];
-			*b=(int16_t)temp_values[3];
+			*r=temp_values[1];
+			*g=temp_values[2];
+			*b=temp_values[3];
+			//printf("% 5d % 5d % 5d % 5d\r\n", temp_values[0], *r, *g, *b);
 		}
 		else printf_P(PSTR("Read failed.\r\n"));
 	#else
@@ -192,4 +176,23 @@ void get_rgb(int16_t *r, int16_t *g, int16_t *b)
 		if(g!=NULL) *g = gTemp;
 		if(b!=NULL) *b = bTemp;
 	#endif
+}
+
+// Finds the median of arr_len numbers by finding the max, finding the min, and returning the other value
+// WARNING! This function modifies the array!
+int16_t meas_find_median(int16_t* meas, uint8_t arr_len){
+	if(arr_len==1) return meas[0];
+	else if(arr_len==2) return (meas[0]+meas[1])/2;
+	
+	for(uint8_t i=0; i<arr_len ; i++){
+		for(uint8_t j=i+1 ; j<arr_len ; j++){
+			if(meas[j] < meas[i]){
+				int16_t temp = meas[i];
+				meas[i] = meas[j];
+				meas[j] = temp;
+			}
+		}
+	}
+	if(arr_len%2==0) return (meas[arr_len/2-1]+meas[arr_len/2])/2;
+	else return meas[arr_len/2];
 }

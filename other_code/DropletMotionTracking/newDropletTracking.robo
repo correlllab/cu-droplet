@@ -1,16 +1,17 @@
-<head><version>2.77.8</version></head>
+<head><version>2.80.48</version></head>
 <Affine>
+  <maintain_aspect_ratio>FALSE</maintain_aspect_ratio>
   <perspective_compensation>TRUE</perspective_compensation>
-  <point_1_x>681.5</point_1_x>
-  <point_1_y>1075.5</point_1_y>
-  <point_2_x>1620</point_2_x>
-  <point_2_y>1068</point_2_y>
-  <point_3_x>556.5</point_3_x>
-  <point_3_y>82.5</point_3_y>
-  <point_4_x>1751.5</point_4_x>
-  <point_4_y>35.5</point_4_y>
-  <scroll_x_offset>133</scroll_x_offset>
-  <scroll_y_offset>558</scroll_y_offset>
+  <point_1_x>682.75</point_1_x>
+  <point_1_y>1070</point_1_y>
+  <point_2_x>1606.5</point_2_x>
+  <point_2_y>1048.5</point_2_y>
+  <point_3_x>555.5</point_3_x>
+  <point_3_y>76.25</point_3_y>
+  <point_4_x>1722.75</point_4_x>
+  <point_4_y>24.25</point_4_y>
+  <scroll_x_offset>353</scroll_x_offset>
+  <scroll_y_offset>887</scroll_y_offset>
   <transform_height>1000</transform_height>
   <transform_width>1000</transform_width>
   <zoom>12</zoom>
@@ -20,14 +21,12 @@
   <name>Corrected</name>
   <revert_to>Current</revert_to>
 </Marker>
-<HSV_Channel disabled>
-  <channel>1</channel>
-</HSV_Channel>
 <Fiducial>
   <adaptive_threshold>30</adaptive_threshold>
-  <base_folder>.\fids3</base_folder>
+  <base_folder>.\Fiducials\fids4</base_folder>
+  <color_fiducials>FALSE</color_fiducials>
   <create_shape_array>TRUE</create_shape_array>
-  <display_confidence>FALSE</display_confidence>
+  <display_confidence>TRUE</display_confidence>
   <display_contrast>FALSE</display_contrast>
   <display_coord>FALSE</display_coord>
   <display_distance>FALSE</display_distance>
@@ -38,25 +37,26 @@
   <display_scale>FALSE</display_scale>
   <display_tx>FALSE</display_tx>
   <display_ty>FALSE</display_ty>
-  <fiducial_height>3.3</fiducial_height>
-  <fiducial_width>3.3</fiducial_width>
+  <fiducial_height>3.5</fiducial_height>
+  <fiducial_width>3.5</fiducial_width>
   <field_of_view>61</field_of_view>
   <focal_length>250</focal_length>
   <font_size_index>2</font_size_index>
+  <high_precision>TRUE</high_precision>
   <matched_color_index>3</matched_color_index>
   <max_angle>360</max_angle>
   <max_confidence>100</max_confidence>
   <max_contrast>100</max_contrast>
-  <max_size>1000</max_size>
-  <max_x_angle>0</max_x_angle>
-  <max_y_angle>0</max_y_angle>
+  <max_size>6</max_size>
+  <max_x_angle>20</max_x_angle>
+  <max_y_angle>20</max_y_angle>
   <min_angle>0</min_angle>
-  <min_confidence>70</min_confidence>
+  <min_confidence>50</min_confidence>
   <min_contrast>0</min_contrast>
-  <min_size>0</min_size>
-  <min_x_angle>0</min_x_angle>
-  <min_y_angle>0</min_y_angle>
-  <monitor_folder>TRUE</monitor_folder>
+  <min_size>2</min_size>
+  <min_x_angle>340</min_x_angle>
+  <min_y_angle>340</min_y_angle>
+  <monitor_folder>FALSE</monitor_folder>
   <occurrence_threshold>0</occurrence_threshold>
   <select_top_blobs>20</select_top_blobs>
   <sort_array_on_x>FALSE</sort_array_on_x>
@@ -111,6 +111,7 @@
 <function_name>Tab2</function_name>
 <function_always_run>0</function_always_run>
 <Affine>
+  <maintain_aspect_ratio>FALSE</maintain_aspect_ratio>
   <perspective_compensation>TRUE</perspective_compensation>
   <point_1_x>564.5</point_1_x>
   <point_1_y>1083.5</point_1_y>
@@ -165,6 +166,7 @@
 <Blob_Colorize>
   <comparison_mode>1</comparison_mode>
   <sensitivity>75</sensitivity>
+  <show_labels>FALSE</show_labels>
   <source_image>Corrected</source_image>
   <threshold>0</threshold>
 </Blob_Colorize>

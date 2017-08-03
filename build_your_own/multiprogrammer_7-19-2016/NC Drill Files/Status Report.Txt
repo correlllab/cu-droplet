@@ -1,0 +1,12 @@
+Output: NC Drill Files
+Type  : NC Drill
+From  : Project [Droplet_Multiprogrammer.PrjPcb]
+   Generated File[MultiProgrammer_PCB.TXT]
+   Generated File[MultiProgrammer_PCB.LDP]
+   Generated File[MultiProgrammer_PCB.DRR]
+
+
+Files Generated   : 3
+Documents Printed : 0
+
+Finished Output Generation At 3:03:23 PM On 7/19/2016

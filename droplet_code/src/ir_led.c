@@ -9,18 +9,18 @@ USART_t* channel[6] = {
 	&USARTF0   //   -- Channel 5
 };
 
-uint8_t carrier_wave_pins[6] = { PIN0_bm, PIN1_bm, PIN4_bm, PIN5_bm, PIN7_bm, PIN6_bm};
-uint8_t tx_pins[6] = {PIN3_bm, PIN7_bm, PIN3_bm, PIN3_bm, PIN7_bm, PIN3_bm};
-PORT_t* uart_ch[6] = {&PORTC, &PORTC, &PORTD, &PORTE, &PORTE, &PORTF};
-uint8_t saved_usart_ctrlb_vals[6] = {0,0,0,0,0,0};
+static uint8_t carrier_wave_pins[6] = { PIN0_bm, PIN1_bm, PIN4_bm, PIN5_bm, PIN7_bm, PIN6_bm};
+static uint8_t tx_pins[6] = {PIN3_bm, PIN7_bm, PIN3_bm, PIN3_bm, PIN7_bm, PIN3_bm};
+static PORT_t* uart_ch[6] = {&PORTC, &PORTC, &PORTD, &PORTE, &PORTE, &PORTF};
+static uint8_t saved_usart_ctrlb_vals[6] = {0,0,0,0,0,0};
 
 void ir_led_init()
 {
 	/* Initialize carrier waves */
 	PORTF.DIRSET = ALL_EMITTERS_CARWAV_bm;
 	
-	TCF2.CTRLE = TC_BYTEM_SPLITMODE_gc;		// "split mode" puts this timer counter into "Type 2 mode"
-	TCF2.CTRLA |= TC_CLKSEL_DIV4_gc;		// see CTRLA description in TC2 mode
+	TCF2.CTRLE = TC2_BYTEM_SPLITMODE_gc;		// "split mode" puts this timer counter into "Type 2 mode"
+	TCF2.CTRLA |= TC2_CLKSEL_DIV4_gc;		// see CTRLA description in TC2 mode
 	
 	TCF2.HPER = 211; TCF2.LPER = 211; // 32MHz / (4 * 211) = 38kHz
 	TCF2.HCMPA = 105; TCF2.HCMPB = 105; TCF2.HCMPC = 105; // 50% Duty Cycle
@@ -70,70 +70,26 @@ void ir_led_off(uint8_t direction)
 	TCF2.CTRLB			|=  carrier_wave_pins[direction];	// re-enable carrier wave output
 }
 
-void set_all_ir_powers(uint16_t power)
-{
+void set_all_ir_powers(volatile uint16_t power){
 	if(power>256) return;
 	if(curr_ir_power==power) return;
 	uint8_t power_high = (power>>8);
 	uint8_t power_low = (power&0xFF);
-	uint8_t write_buffer[6] = {0x00|power_high,power_low,0x10|power_high,power_low,0x60|power_high, power_low};
+	uint8_t write_buffer[6] = {power_high,power_low,0x10|power_high,power_low,0x60|power_high, power_low};
 	
-	uint32_t startTime = get_time();
-	uint8_t result;	
-	uint8_t printed = 0;
-	while(twi->status!=TWIM_STATUS_READY){
-		if((get_time()-startTime)>100){
-			printf_P(TWI_WAITING_STR);
-			printed = 1;
-			delay_ms(10);
-		}else if((get_time()-startTime)>1000){
-			printf_P(TWI_TIMEOUT_STR);
-			printf("(a)\r\n");
-			return;
-		}			
+	uint8_t aResult = 0;
+	uint8_t bResult = 0;
+	char callerDescr[7] = "Set IR\0";
+	aResult = twiWriteWrapper(IR_POWER_ADDR_A, write_buffer, 6, callerDescr);
+	if(!aResult){
+		return;
 	}
-	result = TWI_MasterWrite(IR_POWER_ADDR_A, write_buffer, 6);
-	while(!result){
-		while(twi->status!=TWIM_STATUS_READY){
-			if((get_time()-startTime)>100){
-			printf_P(TWI_WAITING_STR);
-				printed = 1;				
-				delay_ms(10);				
-			}else if((get_time()-startTime)>1000){
-				printf_P(TWI_TIMEOUT_STR);
-				printf("(b)\r\n");
-				return;
-			}
-		}	
-		result = TWI_MasterWrite(IR_POWER_ADDR_A, write_buffer, 6);
+	bResult = twiWriteWrapper(IR_POWER_ADDR_B, write_buffer, 6, callerDescr);
+	if(!bResult){
+		return;
 	}
-	while(twi->status!=TWIM_STATUS_READY){
-		if((get_time()-startTime)>100){
-			printf_P(TWI_WAITING_STR);
-			printed = 1;			
-			delay_ms(10);			
-		}else if((get_time()-startTime)>1000){
-			printf_P(TWI_TIMEOUT_STR);
-			printf("(c)\r\n");
-			return;
-		}
-	}
-	result = TWI_MasterWrite(IR_POWER_ADDR_B, write_buffer, 6);	
-	while(!result){
-		while(twi->status!=TWIM_STATUS_READY){
-			if((get_time()-startTime)>100){
-				printf_P(TWI_WAITING_STR);
-				printed = 1;				
-				delay_ms(10);					
-			}else if((get_time()-startTime)>1000){
-				printf_P(TWI_TIMEOUT_STR);
-				printf("(d)\r\n");
-				return;
-			}
-		}
-		result = TWI_MasterWrite(IR_POWER_ADDR_B, write_buffer, 6);
-	}
-	if(printed){
+	
+	if((aResult+bResult)>2){
 		printf_P(PSTR("\tDone waiting for TWI. IR powers set successfully.\r\n"));
 	}
 	curr_ir_power = power;

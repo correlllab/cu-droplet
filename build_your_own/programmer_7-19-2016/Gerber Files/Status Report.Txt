@@ -1,0 +1,22 @@
+Output: Gerber Files
+Type  : Gerber
+From  : Variant [[No Variations]] of Project [Droplet_Programmer.PrjPcb]
+   Generated File[Programmer_PCB.GTL]
+   Generated File[Programmer_PCB.GBL]
+   Generated File[Programmer_PCB.GPB]
+   Generated File[Programmer_PCB.GPT]
+   Generated File[Programmer_PCB.GTO]
+   Generated File[Programmer_PCB.GTS]
+   Generated File[Programmer_PCB.GBS]
+   Generated File[Programmer_PCB.GM1]
+   Generated File[Programmer_PCB.GD1]
+   Generated File[Programmer_PCB.GG1]
+   Generated File[Programmer_PCB.RUL]
+   Generated File[Programmer_PCB.EXTREP]
+   Generated File[Programmer_PCB.REP]
+
+
+Files Generated   : 13
+Documents Printed : 0
+
+Finished Output Generation At 1:12:26 PM On 5/29/2015

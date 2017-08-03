@@ -1,26 +1,19 @@
 #pragma once
 
-#define F_CPU 32000000UL
-
-#include <avr/io.h>
-#include <avr/interrupt.h>
-#include <util/atomic.h>
-#include <util/delay.h>
-#include <stdio.h>
-#include <avr/pgmspace.h>
+#include "droplet_base.h"
 #include "rgb_led.h"
 
-
 #define RTC_COMP_INT_LEVEL RTC_COMPINTLVL_LO_gc;
-
 #define MAX_NUM_SCHEDULED_TASKS 10
-
 #define MIN_TASK_TIME_IN_FUTURE 20
 
-typedef union flex_function
+typedef void (*arg_func_t)(void*);
+typedef void (*noarg_func_t)(void);
+
+typedef union __attribute__ ((__transparent_union__)) flex_function_union
 {
-	void (*arg_function)(void*);
-	void (*noarg_function)();	
+	arg_func_t arg_function;
+	noarg_func_t noarg_func;
 } flex_function;
 
 // A task is a function, possibly with an argument, to be called at a specific time
@@ -28,8 +21,7 @@ typedef union flex_function
 // task_function is the function to call. Its prototype must be "void foo(void *arg)"
 // arg is the argument to pass to task_function.  arg must be typecast to a void*
 // next is a pointer to the next task to be executed, after this one
-typedef struct task
-{
+typedef struct task{
 	uint32_t scheduled_time;
 	uint32_t period;
 	flex_function func;
@@ -41,17 +33,10 @@ typedef struct task
 // Linked list of tasks, sorted by time until execution
 volatile Task_t *task_list;
 
-volatile uint16_t rtc_epoch;
 volatile uint8_t num_tasks, task_executing;
 
-// Get the current 32-bit time, as measured in ms from the last reset
-extern inline uint32_t get_time() __attribute__((OS_task));
-
-void scheduler_init();
-void Config32MHzClock(void);
-void delay_ms(uint16_t ms);
-static inline void delay_us(double __us){ _delay_us(__us); }
-void task_list_cleanup();
+void scheduler_init(void);
+void task_list_cleanup(void);
 
 /* 
  * Adds a new task to the task queue
@@ -62,94 +47,19 @@ void task_list_cleanup();
  * will call foo(55) in one second
  * Returns a pointer to the task that can be used to remove the task from the queue
  */
-volatile Task_t* schedule_task(uint32_t time, void (*function)(), void* arg);
+volatile Task_t* schedule_task(uint32_t time, flex_function function, void* arg);
 // This function primarily calls the above, but always to run 10ms in the future, and then repeat with a certain period.
-volatile Task_t* schedule_periodic_task(uint32_t period, void (*function)(), void* arg);
-void add_task_to_list(volatile Task_t* task);
-void remove_task(volatile Task_t* task); // Removes a task from the queue
-void print_task_queue();
+volatile Task_t* schedule_periodic_task(uint32_t period, flex_function function, void* arg);
 
-// TO BE CALLED FROM INTERRUPT HANDLER ONLY
-// DO NOT CALL
-int8_t run_tasks();
-
-/* To avoid issues caused by malloc, we're going to have some "fake" malloc functions.
- * We'll keep an array of MAX_NUM_SCHEDULED_TASKS Task_t structs, and fake_malloc()
- * will return pointers to those as appropriate.
- */
-static volatile Task_t task_storage_arr[MAX_NUM_SCHEDULED_TASKS];
-//static uint8_t curr_pointer;
-
-
-//static inline Task_t* scheduler_malloc()
-//{
-	//if(num_tasks>=MAX_NUM_SCHEDULED_TASKS) return NULL;
-	//
-	//uint8_t tmp;
-	//for(tmp=(curr_pointer+1)%MAX_NUM_SCHEDULED_TASKS ; tmp!=curr_pointer ; tmp=(tmp+1)%MAX_NUM_SCHEDULED_TASKS)
-	//{
-		////This code assumes that all tasks will have non-null function pointers.
-		//if((task_storage_arr[tmp].func).noarg_function == NULL) break;
-	//}
-	//curr_pointer = tmp;
-	//return &(task_storage_arr[curr_pointer]);
-//}
-
-//static inline volatile Task_t* scheduler_malloc()
-//{
-	//if(num_tasks>=MAX_NUM_SCHEDULED_TASKS) return NULL;
-//
-	//for(uint8_t tmp=0 ; tmp<MAX_NUM_SCHEDULED_TASKS ; tmp++)
-	//{
-		////This code assumes that all tasks will have non-null function pointers.
-		//if((task_storage_arr[tmp].func.noarg_function) == NULL)
-		//{
-			//return &(task_storage_arr[tmp]);
-		//}
-	//}
-	//
-	//return (volatile Task_t*)0xFFFF;
-//
-//}
+void remove_task(volatile Task_t*); // Removes a task from the queue
+void print_task_queue(void);
 
 //Returns '1' if the next task to run is scheduled for more than 255ms in the past. If this occurs, call task_list_cleanup.
-inline uint8_t task_list_check()
-{ 
+inline uint8_t task_list_check(void){ 
 	if(task_executing)	return 0;
 	else				return (((int32_t)(get_time()-(task_list->scheduled_time)))>3000); 
 }
-
-//static inline void scheduler_free(Task_t* tgt)
-//{
-	//for(uint8_t tmp=curr_pointer; tmp!=(curr_pointer+1)%MAX_NUM_SCHEDULED_TASKS; tmp = (tmp+(MAX_NUM_SCHEDULED_TASKS-1))%MAX_NUM_SCHEDULED_TASKS)
-	//{
-		//if(&(task_storage_arr[tmp])==tgt)
-		//{
-			//(task_storage_arr[tmp].func).noarg_function = NULL;
-			//curr_pointer = ((tmp+(MAX_NUM_SCHEDULED_TASKS-1))%MAX_NUM_SCHEDULED_TASKS);
-			//return;
-		//}
-	//}
-	//printf("In scheduler_free, task_storage_arr[tmp] was never equal to tgt.\r\n");
-//}
-
-//static void scheduler_free(volatile Task_t* tgt)
-//{
-	//if((tgt<task_storage_arr)||(tgt>(&(task_storage_arr[MAX_NUM_SCHEDULED_TASKS]))))
-	//{
-		//printf_P(PSTR("In scheduler_free, tgt (%X) was outside valid Task* range.\r\n"),tgt);
-		//set_rgb(0,0,255);
-		//delay_ms(60000);
-	//}
-	//tgt->arg = 0;
-	//tgt->period = 0;
-	//(tgt->func).noarg_function = NULL;
-	//tgt->scheduled_time = 0;
-	//tgt->next = NULL;
-//}
-
-//void task_list_checkup();
-
+static volatile Task_t task_storage_arr[MAX_NUM_SCHEDULED_TASKS];
 
 #define SAVE_CONTEXT()                                  \
     asm volatile (  "push   r0                      \n\t"   \

@@ -29,7 +29,7 @@
 	//{ 
 		//tetris_notes[i]-=0x10;
 	//}	
-	//last_hue=((((uint16_t)rand_byte())<<8)|((uint16_t)rand_byte()))%360;
+	//last_hue=0;
 	//state = MIC_TEST;
 	//moving_dir=0;
 	//waiting=1;
@@ -57,12 +57,10 @@
 			//break;
 		//case IR_IO_TEST:
 			//printf("\t%02hX\r\n", check_collisions());
-			//delay_ms(150);
+			//delay_ms(250);
 			//break;
 		//case RGB_IO_TEST:
-			//last_hue=last_hue+(((int8_t)(rand_byte()%29))-14);
-			//if(last_hue<0)		   last_hue+=360;
-			//else if(last_hue>=360) last_hue-=360;
+			//last_hue = (last_hue+5)%360;
 			//set_hsv(last_hue, 255, 100);
 			//get_rgb(&r, &g, &b);
 			//printf("\t%5u %5u %5u\r\n",r,g,b);
@@ -107,7 +105,7 @@
  //*/
 //uint8_t user_handle_command(char* command_word, char* command_args)
 //{
-	//if(command_word[0]!='X') return 0; //If it is 'X', then its time for the next test.
+	//if(command_word[0]!='x') return 0; //If it is 'x', then its time for the next test.
 	//if(waiting)
 	//{
 		//waiting=0;

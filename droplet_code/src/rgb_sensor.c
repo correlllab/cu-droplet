@@ -2,13 +2,8 @@
 #define RGB_SENSE_ADDR 0x29
 
 static const char RGB_SENSE_POWERON_FAILURE[] PROGMEM = "RGB sense power-on failed %u.\r\n";
-#ifndef AUDIO_DROPLET
 static int16_t r_baseline, g_baseline, b_baseline;
-#endif
 
-//typedef enum{
-	//R, G, B
-//} Colors;
 
 typedef union{
 	uint32_t i;
@@ -51,7 +46,8 @@ void rgb_sensor_init()
 		ADCA.CALH = PRODSIGNATURES_ADCACAL1;
 
 		ADCA.CTRLA = ADC_ENABLE_bm;
-	
+
+		read_color_settings();
 		/* 
 		 * Only include the line below if you want to overwrite the stored
 		 * calibration values in EEPROM!
@@ -112,10 +108,36 @@ int16_t get_blue_sensor(){
 	return blue_val;
 }
 
+void write_color_settings(){
+	printf("Writing color settings:");
+	printf("\tr: %4d, g: %4d, b: %4d\r\n", r_baseline, g_baseline, b_baseline);
+	EEPROM_write_byte(0x70, (uint8_t)(r_baseline&0xFF));
+	EEPROM_write_byte(0x71, (uint8_t)((r_baseline>>8)&0xFF));
+	EEPROM_write_byte(0x72, (uint8_t)(g_baseline&0xFF));
+	EEPROM_write_byte(0x73, (uint8_t)((g_baseline>>8)&0xFF));
+	EEPROM_write_byte(0x74, (uint8_t)(b_baseline&0xFF));
+	EEPROM_write_byte(0x75, (uint8_t)((b_baseline>>8)&0xFF));	
+}
+
+void read_color_settings()
+{
+	#ifndef AUDIO_DROPLET
+		printf("Reading Color Calibration:");
+		r_baseline =((uint16_t)EEPROM_read_byte(0x70));
+		r_baseline |= ((uint16_t)EEPROM_read_byte(0x71))<<8;
+		g_baseline =((uint16_t)EEPROM_read_byte(0x72));
+		g_baseline |= ((uint16_t)EEPROM_read_byte(0x73))<<8;
+		b_baseline =((uint16_t)EEPROM_read_byte(0x74));
+		b_baseline |= ((uint16_t)EEPROM_read_byte(0x75))<<8;
+		printf("\tr: %4d, g: %4d, b: %4d\r\n", r_baseline, g_baseline, b_baseline);
+	#else
+		printf_P(PSTR("ERROR: Audio droplets don't use color_settings.\r\n"));
+	#endif		
+}
+
 #endif
 
-void get_rgb(int16_t *r, int16_t *g, int16_t *b)
-{
+void get_rgb(int16_t *r, int16_t *g, int16_t *b){
 	#ifdef AUDIO_DROPLET
 		
 		uint8_t write_sequence = 0xB4;

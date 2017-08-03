@@ -2,6 +2,7 @@
 #include "droplet_base.h"
 #include "rgb_led.h"
 #include "i2c.h"
+#include "flash_api.h"
 
 void rgb_sensor_init(void);
 
@@ -21,6 +22,17 @@ void rgb_sensor_init(void);
 	int16_t get_red_sensor(void);
 	int16_t get_green_sensor(void);
 	int16_t get_blue_sensor(void);
+
+	void calibrate_color_sensors(void);
+	void read_color_settings(void);
+	void write_color_settings(void);
+
+	typedef enum
+	{
+		R, G, B
+	} Colors;
+
+	int16_t meas_find_median(int16_t* meas, uint8_t arr_len);
 
 #endif
 

@@ -317,45 +317,42 @@ void preparePhase(){
 	
 	/*****************  code here executes once per loop.   ******************/
 	if(rnb_updated){
-		if(last_good_rnb.conf > 1.0){
-			float bearing = last_good_rnb.bearing;
-			float range = last_good_rnb.range;
-			uint16_t id_number = last_good_rnb.id_number;
-			if(!TEST_PREPARE){
-				printf("ID: %04X Rang: %0.4f Bearing: %0.4f \r\n",
-				id_number, range, bearing*180.0/M_PI);
-			}
+		int16_t bearing = last_good_rnb.bearing;
+		uint16_t range = last_good_rnb.range;
+		id_t id = last_good_rnb.id;
+		if(!TEST_PREPARE){
+			printf("ID: %04X Rang: %4u Bearing: % 4d \r\n",
+			id, range, bearing);
+		}
 			
-			if(fabs(bearing-M_PI_2) < PI_12 && range < 8.0f) {// left
-				myFourDr.Ids[3] = id_number;
-				if(TEST_PREPARE){
-					printf("L - ID: %04X Rang: %0.4f Bearing: %0.4f \r\n",
-					id_number, range, bearing*180.0/M_PI);
-				}
-			}
-			else if(fabs(bearing+M_PI_2) < PI_12 && range < 8.0f) {// right
-				myFourDr.Ids[1] = id_number;
-				if(TEST_PREPARE){
-					printf("R - ID: %04X Rang: %0.4f Bearing: %0.4f \r\n",
-					id_number, range, bearing*180.0/M_PI);
-				}
-			}
-			else if(fabs(bearing-0.0f) < PI_12 && range < 8.0f) {// top
-				myFourDr.Ids[0] = id_number;
-				if(TEST_PREPARE){
-					printf("T - ID: %04X Rang: %0.4f Bearing: %0.4f \r\n",
-					id_number, range, bearing*180.0/M_PI);
-				}
-			}
-			else if( (fabs(bearing-M_PI) < PI_12 || fabs(bearing+M_PI) < PI_12 )  && range < 8.0f ) {// bottom
-				myFourDr.Ids[2] = id_number;
-				if(TEST_PREPARE){
-					printf("B - ID: %04X Rang: %0.4f Bearing: %0.4f \r\n",
-					id_number, range, bearing*180.0/M_PI);
-				}
+		if(abs(bearing-90) < 15 && range < 80) {// left
+			myFourDr.Ids[3] = id;
+			if(TEST_PREPARE){
+				printf("L - ID: %04X Rang: %4u Bearing: % 4d \r\n",
+				id, range, bearing);
 			}
 		}
-
+		else if(abs(bearing+90) < 15 && range < 80) {// right
+			myFourDr.Ids[1] = id;
+			if(TEST_PREPARE){
+				printf("R - ID: %04 Rang: %4u Bearing: % 4d \r\n",
+				id, range, bearing);
+			}
+		}
+		else if(abs(bearing) < 15 && range < 80) {// top
+			myFourDr.Ids[0] = id;
+			if(TEST_PREPARE){
+				printf("T - ID: %04X Rang: %4u Bearing: % 4d \r\n",
+				id, range, bearing);
+			}
+		}
+		else if( (abs(bearing-90) < 15 || abs(bearing+90) < 15 )  && range < 80 ) {// bottom
+			myFourDr.Ids[2] = id;
+			if(TEST_PREPARE){
+				printf("B - ID: %04X Rang: %4u Bearing: % 4d \r\n",
+				id, range, bearing);
+			}
+		}
 		rnb_updated = 0;
 	}
 
@@ -437,7 +434,7 @@ void gradientPhase(){
 	if(frameTime > FRAME_LENGTH_MS){
 		frameTime = frameTime - FRAME_LENGTH_MS;
 		frameStart += FRAME_LENGTH_MS;
-		printf("\r\n[Gradient Phase] Current frame No. is %u\r\n", frameCount);
+		printf("\r\n[Gradient Phase] Current frame No. is %lu\r\n", frameCount);
 	}
 	
 	/*****************  code here executes once per slot.   ******************/
@@ -562,7 +559,7 @@ void consensusPhase(){
 	if(frameTime > FRAME_LENGTH_MS){
 		frameTime = frameTime - FRAME_LENGTH_MS;
 		frameStart += FRAME_LENGTH_MS;
-		printf("\r\n[Consensus Phase] Current frame No. is %u\r\n", frameCount);
+		printf("\r\n[Consensus Phase] Current frame No. is %lu\r\n", frameCount);
 	}
 	
 	/*****************  code here executes once per slot.   ******************/
@@ -630,12 +627,12 @@ void weightedAverage(){
 	}
 	
 	if (TEST_CONSENSUS){
-		for (uint8_t i=0; i<NUM_NEIGHBOR_8; i++){
-			if (eightNeiPattern[i].dropletId != 0){
-				printf("%u[%04X] Degree: %u Pattern: %.4f\r\n", i, eightNeiPattern[i].dropletId,
-				eightNeiPattern[i].degree, (float)eightNeiPattern[i].pattern_f/65535.0f);
-			}
-		}
+		//for (uint8_t i=0; i<NUM_NEIGHBOR_8; i++){
+			//if (eightNeiPattern[i].dropletId != 0){
+				//printf("%u[%04X] Degree: %u Pattern: %.4f\r\n", i, eightNeiPattern[i].dropletId,
+				//eightNeiPattern[i].degree, (float)eightNeiPattern[i].pattern_f/65535.0f);
+			//}
+		//}
 		printf("\r\nPre-pattern: [%0.4f %0.4f %0.4f] Cur-pattern: [%0.4f %0.4f %0.4f]\r\n", 
 		me.myPattern_f[0], me.myPattern_f[1], me.myPattern_f[2], pattern[0], pattern[1], pattern[2]);
 	}
@@ -651,7 +648,7 @@ void turingPhase(){
 	if(frameTime > FRAME_LENGTH_MS){
 		frameTime = frameTime - FRAME_LENGTH_MS;
 		frameStart += FRAME_LENGTH_MS;
-		printf("\r\n[Turing Phase] Current frame No. is %u\r\n", frameCount);
+		printf("\r\n[Turing Phase] Current frame No. is %lu\r\n", frameCount);
 	}
 	
 	/*****************  code here executes once per slot.   ******************/
@@ -696,20 +693,21 @@ void changeColor(){
 	
 	for (uint8_t i=0; i<NUM_NEIGHBOR_12; i++){
 		if (me.neighborIds[i] == 0){
-			switch (i):
-			case 0: twelveNeiTuring[i].color = twelveNeiTuring[2].color; break;
-			case 1: twelveNeiTuring[i].color = twelveNeiTuring[3].color; break;
-			case 2: twelveNeiTuring[i].color = twelveNeiTuring[0].color; break;
-			case 3: twelveNeiTuring[i].color = twelveNeiTuring[1].color; break;
-			case 4: twelveNeiTuring[i].color = twelveNeiTuring[7].color; break;
-			case 5: twelveNeiTuring[i].color = twelveNeiTuring[6].color; break;
-			case 6: twelveNeiTuring[i].color = twelveNeiTuring[5].color; break;
-			case 7: twelveNeiTuring[i].color = twelveNeiTuring[4].color; break;
-			case 8: twelveNeiTuring[i].color = twelveNeiTuring[10].color; break;
-			case 9: twelveNeiTuring[i].color = twelveNeiTuring[11].color; break;
-			case 10: twelveNeiTuring[i].color = twelveNeiTuring[8].color; break;
-			case 11: twelveNeiTuring[i].color = twelveNeiTuring[9].color; break;	
-			default: break;		
+			switch (i){
+				case 0: twelveNeiTuring[i].color = twelveNeiTuring[2].color; break;
+				case 1: twelveNeiTuring[i].color = twelveNeiTuring[3].color; break;
+				case 2: twelveNeiTuring[i].color = twelveNeiTuring[0].color; break;
+				case 3: twelveNeiTuring[i].color = twelveNeiTuring[1].color; break;
+				case 4: twelveNeiTuring[i].color = twelveNeiTuring[7].color; break;
+				case 5: twelveNeiTuring[i].color = twelveNeiTuring[6].color; break;
+				case 6: twelveNeiTuring[i].color = twelveNeiTuring[5].color; break;
+				case 7: twelveNeiTuring[i].color = twelveNeiTuring[4].color; break;
+				case 8: twelveNeiTuring[i].color = twelveNeiTuring[10].color; break;
+				case 9: twelveNeiTuring[i].color = twelveNeiTuring[11].color; break;
+				case 10: twelveNeiTuring[i].color = twelveNeiTuring[8].color; break;
+				case 11: twelveNeiTuring[i].color = twelveNeiTuring[9].color; break;
+				default: break;
+			}
 		}
 	}
 	
@@ -799,7 +797,7 @@ uint8_t user_handle_command(char* command_word, char* command_args){
 	}
 
 	if(strcmp(command_word, "set_thresh")==0){
-		threshold_mottled = atoi(command_args));
+		threshold_mottled = atoi(command_args);
 	}
 
 	return 0;	

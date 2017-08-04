@@ -101,6 +101,8 @@ turingMsg twelveNeiTuring[NUM_NEIGHBOR_12];
 // RGB reading
 rgbMsg allRGB[NUM_PREPARE];
 patternMsg  allPattern[NUM_CONSENSUS];
+uint8_t turingHistory[NUM_TURING][NUM_NEIGHBOR_12];
+uint8_t turingHistoryCorrected[NUM_TURING][NUM_NEIGHBOR_12];
 
 int16_t red_array[NUM_PREPARE];
 int16_t green_array[NUM_PREPARE];
@@ -178,12 +180,15 @@ void changeColor(void);
 
 void displayMenu(void);
 
-void printns(void);
-void printrgbs(void);
-void printrgbs_ordered(void);
-void printfrgb(void);
-void printprob(void);
-void printturing(void);
+void printNs(void);
+void printRGBs(void);
+void printRGBs_ordered(void);
+void printRGB(void);
+void printProb(void);
+void printTuring(void);
+void printTuringHistory(void);
+void printTuringHistoryCorrected(void);
+
 
 /*
 in math.h

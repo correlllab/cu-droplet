@@ -490,7 +490,7 @@ void consensusEOP(){
 
 void turingEOP(){
 	/* End of frame. Do some final processing here */
-	changeColor();
+	//changeColor();
 	if (frameCount>=(NUM_TURING-1)){
 		printf("\r\nAll Done!\r\n");
 		displayMenu();
@@ -684,6 +684,8 @@ void weightedAverage(){
 	
 }
 
+// Change me.turing_color according to Young's model
+// the neighbors' colors are also added to turingHistory array for record
 void changeColor(){
 	uint8_t na = 0;
 	uint8_t ni = 0;
@@ -691,6 +693,21 @@ void changeColor(){
 	if (me.turing_color == 1){
 		na += 1;
 	}
+	
+	// save the original colors to turingHistory
+	for (uint8_t i=0; i<NUM_NEIGHBOR_12; i++)
+	{
+		if (twelveNeiTuring[i].dropletId != 0)
+		{
+			turingHistory[frameCount][i] = twelveNeiTuring[i].color;
+		} 
+		else
+		{
+			turingHistory[frameCount][i] = 2;
+		}
+		
+	}
+	
 	
 	for (uint8_t i=0; i<NUM_NEIGHBOR_12; i++){
 		if (twelveNeiTuring[i].dropletId == 0){
@@ -750,6 +767,17 @@ void changeColor(){
 			}
 		}
 	}
+
+	// save the corrected colors to turingHistoryCorrected
+	for (uint8_t i=0; i<NUM_NEIGHBOR_12; i++)
+	{
+		if (twelveNeiTuring[i].dropletId != 0){
+			turingHistoryCorrected[frameCount][i] = twelveNeiTuring[i].color;
+		}
+		else{
+			turingHistoryCorrected[frameCount][i] = 2;
+		}
+	}	
 	
 	if ( (me.myPattern_f[0] > me.myPattern_f[1]) && (me.myPattern_f[0] > me.myPattern_f[2]) ) {	// pattern = 0: horizontal
 		// exclude activator from inhibitor
@@ -826,30 +854,38 @@ void displayMenu(){
 	printf("pa: print all above info\r\n");
 }
 
-void printns(){
+void printNs(){
 	printf("\r\nPrint neighbors' ID\r\n");
 	printf("X[%04X]\r\n", me.dropletId);
 	for (uint8_t i=0; i<NUM_NEIGHBOR_12; i++)
 	{
-		printf("\t%hu [%04X]\r\n", i, me.neighborIds[i]);
+		if (me.neighborIds[i] != 0)
+		{
+			printf("\t%hu [%04X]\r\n", i, me.neighborIds[i]);
+		} 
+		else
+		{
+			printf("\t%hu [----]\r\n", i);
+		}
+		
 	}
 }
 
-void printrgbs(){
+void printRGBs(){
 	printf("\r\nPrint all rgbs read\r\n");
 	for (uint8_t i=0; i<NUM_PREPARE; i++){
 		printf("\t%hu: %d %d %d\r\n", i, allRGB[i].rgb[0], allRGB[i].rgb[1], allRGB[i].rgb[2]);
 	}
 }
 
-void printrgbs_ordered(){
+void printRGBs_ordered(){
 	printf("\r\nPrint all rgbs read (ordered)\r\n");
 	for (uint8_t i=0; i<NUM_PREPARE; i++){
 		printf("\t%hu: %d %d %d\r\n", i, red_array[i], green_array[i], blue_array[i]);
 	}
 }
 
-void printfrgb(){
+void printRGB(){
 	printf("\r\nPrint final rgb and neighbors\r\n"); 
 	printf("X: %d %d %d\r\n", me.rgb[0], me.rgb[1], me.rgb[2]);
 	for (uint8_t i=0; i<NUM_NEIGHBOR_4; i++){
@@ -857,42 +893,99 @@ void printfrgb(){
 	}	
 }
 
-void printprob(){
+void printProb(){
 	printf("\r\nPrint all pattern probs\r\n"); 
 	for (uint8_t i=0; i<NUM_CONSENSUS; i++){
 		printf("%0.6f %0.6f %0.6f\r\n", allPattern[i].pattern_f[0], allPattern[i].pattern_f[1], allPattern[i].pattern_f[2]);
 	}
 }
 
-void printturing(){
+void printTuring(){
 	printf("\r\nPrint final turing colors\r\n"); 
 	printf("X[%04X] Color: %u\r\n", me.dropletId, me.turing_color);
 	for (uint8_t i=0; i<NUM_NEIGHBOR_12; i++) {
 		if (twelveNeiTuring[i].dropletId != 0) {
 			printf("%hu[%04X] Color: %u\r\n", i, twelveNeiTuring[i].dropletId, twelveNeiTuring[i].color);
 		}else{
-			printf("%hu[    ] Color: #\r\n", i);
+			printf("%hu[----] Color: -\r\n", i);
 		}
+	}	
+}
+
+void printTuringHistory(){
+	printf("\r\nPrint history of original neighbors' turing colors\r\n"); 
+	for (uint8_t i=0; i<NUM_TURING; i++){
+		for(uint8_t j=0; j<NUM_NEIGHBOR_12; j++){
+			if (turingHistory[i][j] < 2)
+			{
+				printf("%u ", turingHistory[i][j]);
+			} 
+			else
+			{
+				printf("- ");
+			}
+		}
+		printf("\r\n");
+	}
+	
+	// Print in a positional way
+	for (uint8_t i=0; i<NUM_TURING; i++)
+	{
+		printf("\r\n--%u--\r\n", turingHistory[i][8]);
+		printf("-%u%u%u-\r\n", turingHistory[i][7],turingHistory[i][0],turingHistory[i][4]);
+		printf("%u%u-%u%u\r\n", turingHistory[i][11],turingHistory[i][3],turingHistory[i][1],turingHistory[i][9]);
+		printf("-%u%u%u-\r\n", turingHistory[i][6],turingHistory[i][2],turingHistory[i][5]);
+		printf("--%u--\r\n", turingHistory[i][10]);
+	}
+}
+
+void printTuringHistoryCorrected(){
+	printf("\r\nPrint history of corrected neighbors' turing colors\r\n");
+	for (uint8_t i=0; i<NUM_TURING; i++){
+		for(uint8_t j=0; j<NUM_NEIGHBOR_12; j++){
+			if (turingHistoryCorrected[i][j] < 2)
+			{
+				printf("%u ", turingHistoryCorrected[i][j]);
+			}
+			else
+			{
+				printf("- ");
+			}
+		}
+		printf("\r\n");
+	}
+
+	// Print in a positional way
+	for (uint8_t i=0; i<NUM_TURING; i++)
+	{
+		printf("\r\n--%u--\r\n", turingHistoryCorrected[i][8]);
+		printf("-%u%u%u-\r\n", turingHistoryCorrected[i][7],turingHistoryCorrected[i][0],turingHistoryCorrected[i][4]);
+		printf("%u%u-%u%u\r\n", turingHistoryCorrected[i][11],turingHistoryCorrected[i][3],turingHistoryCorrected[i][1],turingHistoryCorrected[i][9]);
+		printf("-%u%u%u-\r\n", turingHistoryCorrected[i][6],turingHistoryCorrected[i][2],turingHistoryCorrected[i][5]);
+		printf("--%u--\r\n", turingHistoryCorrected[i][10]);
 	}	
 }
 
 uint8_t user_handle_command(char* command_word, char* command_args){
 	if(strcmp(command_word, "pn")==0){
-		printns();
+		printNs();
 	}
 	if(strcmp(command_word, "pp")==0){
-		printprob();
+		printProb();
 	}
 	if(strcmp(command_word, "pt")==0){
-		printturing();
+		printTuring();
 	}
 	if(strcmp(command_word, "pa")==0){
-		printprob();
-		printturing();
-		printns();
+		printNs();
 		//printrgbs();
-		//printrgbs_ordered();
-		printfrgb();
+		printRGBs_ordered();
+		printRGB();		
+		printProb();
+		printTuring();
+		printTuringHistory();
+		printTuringHistoryCorrected();
+
 	}
 
 	if(strcmp(command_word, "set_thresh")==0){

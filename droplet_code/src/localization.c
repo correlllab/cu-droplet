@@ -7,7 +7,7 @@
 #define NUM_SEEDS 4
 
 const BotPos SEED_POS[NUM_SEEDS] = {{0,0,0}, {-17,226, 0},{26,440,0},{0,0,0}};
-const id_t   SEED_IDS[NUM_SEEDS] = {0x6C66, 0xCCD1, 0x1361,0xFFFF};
+const id_t   SEED_IDS[NUM_SEEDS] = {0x6C66, 0xCCD1, 0x1361, 0xFFFF};
 
 //const BotPos SEEDS[NUM_SEEDS] = {{100, 600, 0}, {600, 600, 0}, {100, 100, 0}, {600, 100, 0}};
 
@@ -27,7 +27,6 @@ static void		calcRelativePose(Vector* pose, Vector* meas);
 static void		populateGammaMatrix(Matrix* G, Vector* pos);
 static void		populateHMatrix(Matrix* H, Vector* x_me, Vector* x_you);
 static void		compressP(Matrix* P, DensePosCovar* covar);
-static void		decompressP(Matrix* P, DensePosCovar* covar);
 static void		prepBotMeasMsg(id_t id, uint16_t r, int16_t b, BotPos* pos, DensePosCovar* covar);
 static uint32_t getBackoffTime(uint8_t N, uint16_t r);
 static float	discreteTriangularPDF(float x, uint8_t max, uint16_t r);
@@ -316,7 +315,7 @@ static void compressP(Matrix* P, DensePosCovar* covar){
 }
 
 //Takes DensePosCovar covar and unpacks it to a covariance matrix P.
-static void decompressP(Matrix* P, DensePosCovar* covar){
+void decompressP(Matrix* P, DensePosCovar* covar){
 	(*P)[0][0] = (*covar)[0].u;    (*P)[0][1] = (*covar)[1].d;    (*P)[0][2] = (*covar)[2].d;
 	(*P)[1][1] = (*covar)[3].u;    (*P)[1][2] = (*covar)[4].d;
 	(*P)[2][2] = (*covar)[5].u;

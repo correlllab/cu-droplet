@@ -2,7 +2,8 @@
 * camouflage.c
 * For Camouflage Project
 * Created: 5/25/2016, re-factored on 6/30/2016
-* Author : Yang Li
+* Updated: 8/2/2017
+* Author : Yang Li, John Klingner
 * Description:
 1. https://bitbucket.org/dominicverity/turing-pattern-generator
 2. A local activator-inhibitor model of vertebrate skin patterns
@@ -58,6 +59,7 @@ Neighbor Index document:
 Patterns:
 0: horizontal
 1: vertical
+2: mottle
 
 */
 
@@ -70,7 +72,7 @@ void init(){
 	me.dropletId = get_droplet_id();
 	me.mySlot = me.dropletId%(SLOTS_PER_FRAME-1);
 	//me.mySlot = get_droplet_ord(me.dropletId)-100; // For AUDIO_DROPLET
-	me.mySlot = (get_droplet_id()%(SLOTS_PER_FRAME-1));
+	//me.mySlot = (get_droplet_id()%(SLOTS_PER_FRAME-1));
 	me.myDegree = 1;
 	for (uint8_t i=0; i<NUM_NEIGHBOR_12; i++){
 		me.neighborIds[i] = 0;
@@ -111,7 +113,7 @@ void init(){
 	frameCount = 0;
 	loopID = 0xFFFF;
 	phase = 0;
-	printf("Initializing Camouflage Project. mySlot is %03hu\r\n", me.mySlot);		
+	printf("Initializing Camouflage Project. mySlot is %03hu\r\n", me.mySlot);
 	frameStart = get_time();
 }
 
@@ -145,7 +147,7 @@ void loop(){
 				case Gradient:	gradientEOP();		break;
 				case Consensus: consensusEOP();		break;
 				case Turing:	turingEOP();		break;
-				case Waiting:   waitingEOP();		break;
+				case Waiting:   /*waitingEOP();*/ 		break;
 			}
 			printf("End of frame %lu.\r\n", frameCount);
 		}
@@ -189,7 +191,7 @@ void setColor(){
 		}
 	}else{
 		if(phase!=Turing){
-			led_off();
+			//led_off();
 		}
 	}
 }
@@ -208,7 +210,19 @@ void handleRNB(){
 		lastMeasAdded->id = last_good_rnb.id;
 		lastMeasAdded->conf = 10;
 		lastMeasAdded->next = NULL;
-
+		
+		/*
+		 * Comment in/out the line below to toggle the Localization system.
+		 * If you do, consult BotPos myPos for your position estimate, and
+		 * DensePosCovar myPosCovar for the error in your position estimate.
+		 * call decompressP with a pointer to myPosCovar and a pointer to a Matrix
+		 *     to unpack the covar in to something useful.
+		 * Example:
+		 *     Matrix covar;
+		 *     decompressP(&covar, &myPosCovar);
+		 */
+		//useRNBmeas(last_good_rnb.id, last_good_rnb.range, last_good_rnb.bearing, last_good_rnb.heading);
+		
 		printf("ID: %04X Range: %4d Bearing: % 4d\r\n", lastMeasAdded->id, lastMeasAdded->range, lastMeasAdded->bearing);
 	}
 }
@@ -258,12 +272,16 @@ void sendTuringMsg(){
 */
 void handle_msg(ir_msg* msg_struct)
 {
-	switch (phase){
-		case 0: handle_neighbor_msg((neighborMsg*)msg_struct->msg); break;
-		case 1: handle_rgb_msg((rgbMsg*)msg_struct->msg); break;
-		case 2: handle_pattern_msg((patternMsg*)msg_struct->msg); break;
-		case 3: handle_turing_msg((turingMsg*)msg_struct->msg); break;
-		default: break;
+	if(((BotMeasMsg*)(msg_struct->msg))->flag==BOT_MEAS_MSG_FLAG && msg_struct->length==sizeof(BotMeasMsg)){
+		handleBotMeasMsg((BotMeasMsg*)(msg_struct->msg), msg_struct->sender_ID);
+	}else{	
+		switch (phase){
+			case 0: handle_neighbor_msg((neighborMsg*)msg_struct->msg); break;
+			case 1: handle_rgb_msg((rgbMsg*)msg_struct->msg); break;
+			case 2: handle_pattern_msg((patternMsg*)msg_struct->msg); break;
+			case 3: handle_turing_msg((turingMsg*)msg_struct->msg); break;
+			default: break;
+		}
 	}
 }
 
@@ -335,7 +353,9 @@ void prepareSlot(){
 	/* Do stuff. send messages. do rnb broadcast. */
 	//set_rgb(255, 0, 0);
 	broadcast_rnb_data();
-	delay_ms(20);
+	while(ir_is_busy(ALL_DIRS)>=2){
+		delay_ms(5);
+	}
 	sendNeiMsg();
 
 	// read colors
@@ -776,9 +796,9 @@ void changeColor(){
 	}
 
 	if (me.turing_color == 0){
-		set_rgb(0, 0, 0);
-	}else{
 		set_rgb(255, 255, 255);
+	}else{
+		set_rgb(255, 0, 0);
 		
 	}	
 	
@@ -793,10 +813,10 @@ void changeColor(){
 }
 
 void displayMenu(){
-printf("pn: print neighbors' ID\r\n"); //
-printf("pp: print all pattern probs\r\n");
-printf("pt: print neighbors' turing colors\r\n"); //
-printf("pa: print all above info\r\n");
+	printf("pn: print neighbors' ID\r\n"); //
+	printf("pp: print all pattern probs\r\n");
+	printf("pt: print neighbors' turing colors\r\n"); //
+	printf("pa: print all above info\r\n");
 }
 
 void printns(){

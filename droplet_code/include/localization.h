@@ -78,6 +78,7 @@ void	handleBotMeasMsg(BotMeasMsg* msg, id_t senderID __attribute__ ((unused)));
 
 //WARNING! This function hasn't yet been implemented; it's a stub to serve as a reminder/framework for future work.
 void	updateForMovement(uint8_t dir, uint16_t mag);
+void		decompressP(Matrix* P, DensePosCovar* covar);
 
 /*
  * r, b, h  -  Should be a range and bearing measurement this robot took.

@@ -1,6 +1,6 @@
 #pragma once
 
-#define AUDIO_DROPLET
+//#define AUDIO_DROPLET
 #define SYNCHRONIZED
 
 #include <avr/io.h>

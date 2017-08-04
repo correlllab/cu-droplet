@@ -705,7 +705,6 @@ void changeColor(){
 		{
 			turingHistory[frameCount][i] = 2;
 		}
-		
 	}
 	
 	
@@ -771,12 +770,7 @@ void changeColor(){
 	// save the corrected colors to turingHistoryCorrected
 	for (uint8_t i=0; i<NUM_NEIGHBOR_12; i++)
 	{
-		if (twelveNeiTuring[i].dropletId != 0){
-			turingHistoryCorrected[frameCount][i] = twelveNeiTuring[i].color;
-		}
-		else{
-			turingHistoryCorrected[frameCount][i] = 2;
-		}
+		turingHistoryCorrected[frameCount][i] = twelveNeiTuring[i].color;
 	}	
 	
 	if ( (me.myPattern_f[0] > me.myPattern_f[1]) && (me.myPattern_f[0] > me.myPattern_f[2]) ) {	// pattern = 0: horizontal
@@ -834,7 +828,6 @@ void changeColor(){
 		set_rgb(255, 255, 255);
 	}else{
 		set_rgb(255, 0, 0);
-		
 	}	
 	
 	if (TEST_TURING) {
@@ -914,7 +907,7 @@ void printTuring(){
 
 void printTuringHistory(){
 	printf("\r\nPrint history of original neighbors' turing colors\r\n"); 
-	for (uint8_t i=0; i<NUM_TURING; i++){
+	for (uint8_t i=0; i<NUM_TURING-1; i++){
 		for(uint8_t j=0; j<NUM_NEIGHBOR_12; j++){
 			if (turingHistory[i][j] < 2)
 			{
@@ -929,7 +922,7 @@ void printTuringHistory(){
 	}
 	
 	// Print in a positional way
-	for (uint8_t i=0; i<NUM_TURING; i++)
+	for (uint8_t i=0; i<NUM_TURING-1; i++)
 	{
 		printf("\r\n--%u--\r\n", turingHistory[i][8]);
 		printf("-%u%u%u-\r\n", turingHistory[i][7],turingHistory[i][0],turingHistory[i][4]);
@@ -941,7 +934,7 @@ void printTuringHistory(){
 
 void printTuringHistoryCorrected(){
 	printf("\r\nPrint history of corrected neighbors' turing colors\r\n");
-	for (uint8_t i=0; i<NUM_TURING; i++){
+	for (uint8_t i=0; i<NUM_TURING-1; i++){
 		for(uint8_t j=0; j<NUM_NEIGHBOR_12; j++){
 			if (turingHistoryCorrected[i][j] < 2)
 			{
@@ -956,7 +949,7 @@ void printTuringHistoryCorrected(){
 	}
 
 	// Print in a positional way
-	for (uint8_t i=0; i<NUM_TURING; i++)
+	for (uint8_t i=0; i<NUM_TURING-1; i++)
 	{
 		printf("\r\n--%u--\r\n", turingHistoryCorrected[i][8]);
 		printf("-%u%u%u-\r\n", turingHistoryCorrected[i][7],turingHistoryCorrected[i][0],turingHistoryCorrected[i][4]);

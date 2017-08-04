@@ -115,6 +115,8 @@ void init(){
 	phase = 0;
 	printf("Initializing Camouflage Project. mySlot is %03hu\r\n", me.mySlot);
 	frameStart = get_time();
+	
+	printf("\r\n*************  Start PREPARE Phase   ***************\r\n");
 }
 
 /*
@@ -172,8 +174,7 @@ void setColor(){
 			case Prepare: led_off(); break;
 			case Gradient: set_rgb(255, 0, 0); break;
 			case Consensus: set_rgb(255, 0, 0); break;
-			case Turing: /*Do nothing.*/ break;
-			case Waiting: /*Do nothing.*/ break;
+			default: /*Do nothing.*/ break;
 		}
 	}else if(loopID == SLOTS_PER_FRAME-1){
 		switch (phase){
@@ -187,11 +188,13 @@ void setColor(){
 				}
 				break;
 			case Turing: changeColor(); break;
-			case Waiting: /*Do nothing.*/ break;
+			default: /*Do nothing.*/ break;
 		}
 	}else{
-		if(phase!=Turing){
-			//led_off();
+		if(phase==Waiting || phase==Turing){
+			/*Do nothing.*/
+		}else{
+			led_off();
 		}
 	}
 }
@@ -446,6 +449,7 @@ void prepareEOP(){
 		}
 		phase++;
 		frameCount = 0;
+		printf("\r\n*************  Start GRADIENT Phase   ***************\r\n");
 	}
 }
 
@@ -467,6 +471,7 @@ void gradientEOP(){
 		}
 		phase++;
 		frameCount = 0;
+		printf("\r\n*************  Start CONSENSUS Phase   ***************\r\n");
 	}
 }
 
@@ -479,6 +484,7 @@ void consensusEOP(){
 	}else{
 		phase++;
 		frameCount = 0;
+		printf("\r\n*************  Start TURING Phase   ***************\r\n");
 	}
 }
 
@@ -490,6 +496,7 @@ void turingEOP(){
 		displayMenu();
 		frameCount = 0;
 		phase++;
+		printf("\r\n*************  Start WAITING Phase   ***************\r\n");
 	}
 }
 

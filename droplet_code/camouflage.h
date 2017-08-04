@@ -9,6 +9,8 @@
 
 #include "droplet_init.h"
 
+#define GRID_WIDTH			50
+#define GRID_OFFSET			((GRID_WIDTH*5)/2)
 #define NUM_NEIGHBOR_12		12
 #define NUM_NEIGHBOR_8		8
 #define NUM_NEIGHBOR_4		4
@@ -19,6 +21,7 @@
 #define RGB_MSG_FLAG		'R'
 #define PATTERN_MSG_FLAG	'P'
 #define TURING_MSG_FLAG		'T'
+#define BOT_POS_MSG_FLAG	'B'
 #define NUM_PATTERNS		3
 #define NUM_PREPARE			20 //20
 #define NUM_GRADIENT		10 //10
@@ -26,7 +29,7 @@
 #define NUM_TURING			20 //20
 #define NUM_WAITING			500
 
-#define SLOT_LENGTH_MS		271
+#define SLOT_LENGTH_MS		991
 #define SLOTS_PER_FRAME		37
 #define FRAME_LENGTH_MS		(((uint32_t)SLOT_LENGTH_MS)*((uint32_t)SLOTS_PER_FRAME))
 #define LOOP_DELAY_MS		17
@@ -83,6 +86,11 @@ typedef struct Turing_struct{
 	char flag;
 } turingMsg;
 
+typedef struct botpos_msg_struct{
+	BotPos pos;
+	char flag;
+}BotPosMsg;
+
 
 Droplet me;
 
@@ -119,7 +127,7 @@ Neighbor Index document:
        10
 //////////////////////////////
 */
-Droplet neighborDroplets[NUM_NEIGHBOR_12];
+//Droplet neighborDroplets[NUM_NEIGHBOR_12];
 
 typedef enum{
 	Prepare=0,
@@ -150,6 +158,7 @@ int threshold_mottled = 0;
 void init(void);
 void loop(void);
 void handle_msg	(ir_msg* msg_struct);
+void handleBotPosMsg(BotPos* pos, id_t id);
 void handle_neighbor_msg(neighborMsg* msg);
 void handle_rgb_msg(rgbMsg* msg);
 void handle_pattern_msg(patternMsg* msg);
@@ -171,6 +180,7 @@ void waitingEOP(void);
 void setColor(void);
 
 void sendRGBMsg(void);
+void sendBotPosMsg(void);
 void sendPatternMsg(void);
 void sendTuringMsg(void);
 void sendNeiMsg(void);

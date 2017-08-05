@@ -381,28 +381,12 @@ void processMeasList(RnbNode* node){
 	printf("\t[%04X] R: %4d, B: % 4d |-> %04x\r\n",node->id, node->range, node->bearing,  (uint16_t)node->next);
 	if(abs(node->bearing-90) <= NEIGHBOR_ANGLE_THRESH){// left
 		myFourDr.Ids[3] = node->id;
-		//if(node->conf>myFourDrConfs[3]){
-			//myFourDr.Ids[3] = node->id;
-			//myFourDrConfs[3] = node->conf;
-		//}
 	}else if(abs(node->bearing+90) <= NEIGHBOR_ANGLE_THRESH) {// right
 		myFourDr.Ids[1] = node->id;
-		//if(node->conf>myFourDrConfs[1]){
-			//myFourDr.Ids[1] = node->id;
-			//myFourDrConfs[1] = node->conf;
-		//}
 	}else if( abs(node->bearing) <= NEIGHBOR_ANGLE_THRESH) {// top
 		myFourDr.Ids[0] = node->id;
-		//if(node->conf>myFourDrConfs[0]){
-			//myFourDr.Ids[0] = node->id;
-			//myFourDrConfs[0] = node->conf;
-		//}
 	}else if( ( abs(node->bearing-180) <= NEIGHBOR_ANGLE_THRESH || abs(node->bearing+180) <= NEIGHBOR_ANGLE_THRESH )) {// bottom
 		myFourDr.Ids[2] = node->id;
-		//if(node->conf>myFourDrConfs[2]){
-			//myFourDr.Ids[2] = node->id;
-			//myFourDrConfs[2] = node->conf;
-		//}
 	}
 }
 
@@ -509,7 +493,8 @@ void updateNeighbors(){
 	for(uint8_t i=0;i<NUM_NEIGHBOR_4;i++){
 		if(myFourDr.Ids[i]!=0){
 			printf("%04X ", myFourDr.Ids[i]);
-			}else{
+			}
+		else{
 			printf("---- ");
 		}
 	}
@@ -521,8 +506,8 @@ void updateNeighbors(){
 // extend the neighbor graph based on them
 void extendNeighbors(){
 	// top part
+	me.neighborIds[0] = myFourDr.Ids[0];
 	if (myFourDr.gotMsg_flags[0] != 0){
-		me.neighborIds[0] = myFourDr.Ids[0];
 		if (fourNeiInfo[0].Ids[0] != 0){
 			me.neighborIds[8] = fourNeiInfo[0].Ids[0];
 		}
@@ -535,8 +520,8 @@ void extendNeighbors(){
 	}
 	
 	// left part
+	me.neighborIds[1] = myFourDr.Ids[1];
 	if (myFourDr.gotMsg_flags[1] != 0){
-		me.neighborIds[1] = myFourDr.Ids[1];
 		if (fourNeiInfo[1].Ids[0] != 0){
 			me.neighborIds[4] = fourNeiInfo[1].Ids[0];
 		}
@@ -549,8 +534,8 @@ void extendNeighbors(){
 	}	
 
 	// bottom part
+	me.neighborIds[2] = myFourDr.Ids[2];
 	if (myFourDr.gotMsg_flags[2] != 0){
-		me.neighborIds[2] = myFourDr.Ids[2];
 		if (fourNeiInfo[2].Ids[1] != 0){
 			me.neighborIds[5] = fourNeiInfo[2].Ids[1];
 		}
@@ -563,8 +548,8 @@ void extendNeighbors(){
 	}
 	
 	// right part
+	me.neighborIds[3] = myFourDr.Ids[3];
 	if (myFourDr.gotMsg_flags[3] != 0){
-		me.neighborIds[3] = myFourDr.Ids[3];
 		if (fourNeiInfo[3].Ids[0] != 0){
 			me.neighborIds[7] = fourNeiInfo[3].Ids[0];
 		}

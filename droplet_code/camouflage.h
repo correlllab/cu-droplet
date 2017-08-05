@@ -86,8 +86,28 @@ typedef struct Turing_struct{
 
 Droplet me;
 
+/*
+* myFourDr stores the neighbors' IDs of my four neighbors
+* so that I can extend the neighbor graph to a larger one as needed
+
+From:
+			0	
+		3	X	1	
+			2	
+To:
+			8
+		7	0	4
+    11	3	X	1	9
+		6	2	5
+			10	
+*/
 neighborMsg myFourDr;
-uint8_t myFourDrConfs[NUM_NEIGHBOR_4];
+/* DELETED
+	uint8_t myFourDrConfs[NUM_NEIGHBOR_4];
+
+* In the new version, it seems from John we don't need Conf value to 
+* decide if the measurement is better than others.
+*/
 // store 4 neighbor's neighbor information
 neighborMsg fourNeiInfo[NUM_NEIGHBOR_4];
 // store 4 neighbor's RGB information
@@ -134,8 +154,8 @@ typedef struct rnb_node_struct{
 	int16_t bearing;
 	id_t id;
 	struct rnb_node_struct* next;
-	uint8_t conf;
 } RnbNode;
+
 RnbNode* measRoot;
 RnbNode* lastMeasAdded;
 

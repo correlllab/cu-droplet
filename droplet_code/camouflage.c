@@ -72,11 +72,11 @@ void init(){
 	me.dropletId = get_droplet_id();
 	me.mySlot = me.dropletId%(SLOTS_PER_FRAME-1);
 	//me.mySlot = get_droplet_ord(me.dropletId)-100; // For AUDIO_DROPLET
-	//me.mySlot = (get_droplet_id()%(SLOTS_PER_FRAME-1));
+
 	me.myDegree = 1;
 	for (uint8_t i=0; i<NUM_NEIGHBOR_12; i++){
 		me.neighborIds[i] = 0;
-		twelveNeiTuring[i].color = 0;
+		twelveNeiTuring[i].color = 2;		// 2 means unkown color
 	}
 	
 	me.rgb[0] = 0;
@@ -95,6 +95,7 @@ void init(){
 		fourNeiRGB[i].dropletId = 0;
 	}
 	
+	// Init 8 neighbor's Pattern information
 	for (uint8_t i=0; i<NUM_NEIGHBOR_8; i++){
 		eightNeiPattern[i].dropletId = 0;
 		eightNeiPattern[i].degree = 0;
@@ -110,9 +111,9 @@ void init(){
 	lastMeasAdded = NULL;
 
 	// global
-	frameCount = 0;
 	loopID = 0xFFFF;
 	phase = 0;
+	frameCount = 0;
 	printf("Initializing Camouflage Project. mySlot is %03hu\r\n", me.mySlot);
 	frameStart = get_time();
 	
@@ -211,7 +212,6 @@ void handleRNB(){
 		lastMeasAdded->bearing = last_good_rnb.bearing;
 		lastMeasAdded->range = last_good_rnb.range;
 		lastMeasAdded->id = last_good_rnb.id;
-		lastMeasAdded->conf = 10;
 		lastMeasAdded->next = NULL;
 		
 		/*
@@ -356,9 +356,10 @@ void prepareSlot(){
 	/* Do stuff. send messages. do rnb broadcast. */
 	//set_rgb(255, 0, 0);
 	broadcast_rnb_data();
-	while(ir_is_busy(ALL_DIRS)>=2){
-		delay_ms(5);
-	}
+	//while(ir_is_busy(ALL_DIRS)>=2){
+		//delay_ms(5);
+	//}
+	delay_ms(20);
 	sendNeiMsg();
 
 	// read colors
@@ -377,49 +378,32 @@ void prepareSlot(){
 }
 
 void processMeasList(RnbNode* node){
-	printf("\t[%04X] R: %4d, B: % 4d, C: %2hu |-> %04x\r\n",node->id, node->range, node->bearing, node->conf,  (uint16_t)node->next);
+	printf("\t[%04X] R: %4d, B: % 4d |-> %04x\r\n",node->id, node->range, node->bearing,  (uint16_t)node->next);
 	if(abs(node->bearing-90) <= NEIGHBOR_ANGLE_THRESH){// left
-		if(node->conf>myFourDrConfs[3]){
-			myFourDr.Ids[3] = node->id;
-			myFourDrConfs[3] = node->conf;
-		}
+		myFourDr.Ids[3] = node->id;
+		//if(node->conf>myFourDrConfs[3]){
+			//myFourDr.Ids[3] = node->id;
+			//myFourDrConfs[3] = node->conf;
+		//}
 	}else if(abs(node->bearing+90) <= NEIGHBOR_ANGLE_THRESH) {// right
-		if(node->conf>myFourDrConfs[1]){
-			myFourDr.Ids[1] = node->id;
-			myFourDrConfs[1] = node->conf;
-		}
+		myFourDr.Ids[1] = node->id;
+		//if(node->conf>myFourDrConfs[1]){
+			//myFourDr.Ids[1] = node->id;
+			//myFourDrConfs[1] = node->conf;
+		//}
 	}else if( abs(node->bearing) <= NEIGHBOR_ANGLE_THRESH) {// top
-		if(node->conf>myFourDrConfs[0]){
-			myFourDr.Ids[0] = node->id;
-			myFourDrConfs[0] = node->conf;
-		}
+		myFourDr.Ids[0] = node->id;
+		//if(node->conf>myFourDrConfs[0]){
+			//myFourDr.Ids[0] = node->id;
+			//myFourDrConfs[0] = node->conf;
+		//}
 	}else if( ( abs(node->bearing-180) <= NEIGHBOR_ANGLE_THRESH || abs(node->bearing+180) <= NEIGHBOR_ANGLE_THRESH )) {// bottom
-		if(node->conf>myFourDrConfs[2]){
-			myFourDr.Ids[2] = node->id;
-			myFourDrConfs[2] = node->conf;
-		}
+		myFourDr.Ids[2] = node->id;
+		//if(node->conf>myFourDrConfs[2]){
+			//myFourDr.Ids[2] = node->id;
+			//myFourDrConfs[2] = node->conf;
+		//}
 	}
-}
-
-void updateNeighbors(){
-	printf("Going through meas list.\r\n");
-	RnbNode* tmp;
-	while(measRoot!=NULL){
-		processMeasList(measRoot);
-		tmp = measRoot->next;
-		myFree(measRoot);
-		measRoot = tmp;
-	}
-	lastMeasAdded = NULL;
-	printf("Neighbors: ");
-	for(uint8_t i=0;i<NUM_NEIGHBOR_4;i++){
-		if(myFourDr.Ids[i]!=0){
-			printf("%04X ", myFourDr.Ids[i]);
-		}else{
-			printf("---- ");
-		}
-	}
-	printf("\r\n");
 }
 
 void prepareEOP(){
@@ -509,11 +493,34 @@ void waitingEOP(){
 	}
 }
 
+
+// Inside of __preparePhase__
+void updateNeighbors(){
+	printf("Going through meas list.\r\n");
+	RnbNode* tmp;
+	while(measRoot!=NULL){
+		processMeasList(measRoot);
+		tmp = measRoot->next;
+		myFree(measRoot);
+		measRoot = tmp;
+	}
+	lastMeasAdded = NULL;
+	printf("Neighbors: ");
+	for(uint8_t i=0;i<NUM_NEIGHBOR_4;i++){
+		if(myFourDr.Ids[i]!=0){
+			printf("%04X ", myFourDr.Ids[i]);
+			}else{
+			printf("---- ");
+		}
+	}
+	printf("\r\n");
+}
+
 // Inside of __preparePhase__
 // get information about neighbor's neighbor
 // extend the neighbor graph based on them
 void extendNeighbors(){
-	// top part - Done!
+	// top part
 	if (myFourDr.gotMsg_flags[0] != 0){
 		me.neighborIds[0] = myFourDr.Ids[0];
 		if (fourNeiInfo[0].Ids[0] != 0){
@@ -527,7 +534,7 @@ void extendNeighbors(){
 		}				
 	}
 	
-	// left part - Done!
+	// left part
 	if (myFourDr.gotMsg_flags[1] != 0){
 		me.neighborIds[1] = myFourDr.Ids[1];
 		if (fourNeiInfo[1].Ids[0] != 0){
@@ -541,7 +548,7 @@ void extendNeighbors(){
 		}
 	}	
 
-	// bottom part - Done!
+	// bottom part
 	if (myFourDr.gotMsg_flags[2] != 0){
 		me.neighborIds[2] = myFourDr.Ids[2];
 		if (fourNeiInfo[2].Ids[1] != 0){
@@ -555,7 +562,7 @@ void extendNeighbors(){
 		}
 	}
 	
-	// right part - Done!
+	// right part
 	if (myFourDr.gotMsg_flags[3] != 0){
 		me.neighborIds[3] = myFourDr.Ids[3];
 		if (fourNeiInfo[3].Ids[0] != 0){

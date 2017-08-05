@@ -201,18 +201,18 @@ void setColor(){
 
 void handleRNB(){
 	if(last_good_rnb.range < 80){
-		//if(lastMeasAdded==NULL){
-			//lastMeasAdded = (RnbNode*)myMalloc(sizeof(RnbNode));
-			//measRoot = lastMeasAdded;
-		//}else{
-			//lastMeasAdded->next = (RnbNode*)myMalloc(sizeof(RnbNode));
-			//lastMeasAdded = lastMeasAdded->next;
-		//}
-		//lastMeasAdded->bearing = last_good_rnb.bearing;
-		//lastMeasAdded->range = last_good_rnb.range;
-		//lastMeasAdded->id = last_good_rnb.id;
-		//lastMeasAdded->conf = 10;
-		//lastMeasAdded->next = NULL;
+		if(lastMeasAdded==NULL){
+			lastMeasAdded = (RnbNode*)myMalloc(sizeof(RnbNode));
+			measRoot = lastMeasAdded;
+		}else{
+			lastMeasAdded->next = (RnbNode*)myMalloc(sizeof(RnbNode));
+			lastMeasAdded = lastMeasAdded->next;
+		}
+		lastMeasAdded->bearing = last_good_rnb.bearing;
+		lastMeasAdded->range = last_good_rnb.range;
+		lastMeasAdded->id = last_good_rnb.id;
+		lastMeasAdded->conf = 10;
+		lastMeasAdded->next = NULL;
 		
 		/*
 		 * Comment in/out the line below to toggle the Localization system.
@@ -224,9 +224,9 @@ void handleRNB(){
 		 *     Matrix covar;
 		 *     decompressP(&covar, &myPosCovar);
 		 */
-		useRNBmeas(last_good_rnb.id, last_good_rnb.range, last_good_rnb.bearing, last_good_rnb.heading);
+		//useRNBmeas(last_good_rnb.id, last_good_rnb.range, last_good_rnb.bearing, last_good_rnb.heading);
 		
-		//printf("ID: %04X Range: %4d Bearing: % 4d\r\n", lastMeasAdded->id, lastMeasAdded->range, lastMeasAdded->bearing);
+		printf("ID: %04X Range: %4d Bearing: % 4d\r\n", lastMeasAdded->id, lastMeasAdded->range, lastMeasAdded->bearing);
 	}
 }
 
@@ -245,64 +245,6 @@ void sendRGBMsg(){
 		}
 		ir_send(ALL_DIRS, (char*)(&msg), sizeof(rgbMsg));
 	//}
-}
-
-void sendBotPosMsg(){
-	if(!POS_DEFINED(&myPos)){
-		return;
-	}
-	//Matrix covar;
-	//decompressP(&covar, &myPosCovar);
-	//float determinant = matrixDet(&covar);
-	//determinant = powf(determinant, 1/6.0);
-	//if(determinant>THRESHOLD){
-		//return;
-	//}
-	BotPosMsg msg;
-	msg.pos = myPos;
-	msg.flag = BOT_POS_MSG_FLAG;
-	ir_send(ALL_DIRS, (char*)(&msg), sizeof(BotPosMsg));
-}
-
-// Store information from neighboring Droplets
-/*
-Neighbor Index document:
-//////////////////////////////
-        8
-    7	0	4
-11	3	X	1	9
-    6	2	5
-       10
-//////////////////////////////
-*/
-uint8_t magicArray[5][5] =	{
-								{0xFF, 0xFF, 10, 0xFF, 0xFF},
-								{0xFF, 6, 2, 5, 0xFF},
-								{11, 3, 0xFF, 1, 9},
-								{0xFF, 7, 0, 4, 0xFF},
-								{0xFF, 0xFF, 8, 0xFF, 0xFF}
-							};
-							
-
-void handleBotPosMsg(BotPos* pos, id_t id){
-	if(!POS_DEFINED(&myPos) || !POS_DEFINED(pos)){
-		return;
-	}
-	int16_t relX = pos->x - (myPos.x-GRID_OFFSET);
-	int16_t relY = pos->y - (myPos.y-GRID_OFFSET);
-	int8_t xIdx = relX/GRID_WIDTH;
-	int8_t yIdx = relY/GRID_WIDTH;
-	if(xIdx > 4 || xIdx<0 || yIdx > 4 || yIdx<0){
-		return;
-	}	
-	uint8_t idx = magicArray[yIdx][xIdx];
-	printf("Pos Conversion!\r\n");
-	printf("\tMy Pos: % 4d, % 4d\r\n", myPos.x, myPos.y);
-	printf("\tOther Pos: % 4d, % 4d\r\n", pos->x, pos->y);
-	printf("\tIndices: (%hu, %hu)->%hu\r\n", xIdx, yIdx, idx);
-	if(idx!=0xFF){
-		me.neighborIds[idx]=id;
-	}
 }
 
 void sendPatternMsg(){
@@ -337,11 +279,10 @@ void handle_msg(ir_msg* msg_struct)
 		handleBotMeasMsg((BotMeasMsg*)(msg_struct->msg), msg_struct->sender_ID);
 	}else{	
 		switch (phase){
-			case Prepare: handleBotPosMsg(&(((BotPosMsg*)(msg_struct->msg))->pos), msg_struct->sender_ID);
-			//case Prepare: handle_neighbor_msg((neighborMsg*)msg_struct->msg); break;
-			case Gradient: handle_rgb_msg((rgbMsg*)msg_struct->msg); break;
-			case Consensus: handle_pattern_msg((patternMsg*)msg_struct->msg); break;
-			case Turing: handle_turing_msg((turingMsg*)msg_struct->msg); break;
+			case 0: handle_neighbor_msg((neighborMsg*)msg_struct->msg); break;
+			case 1: handle_rgb_msg((rgbMsg*)msg_struct->msg); break;
+			case 2: handle_pattern_msg((patternMsg*)msg_struct->msg); break;
+			case 3: handle_turing_msg((turingMsg*)msg_struct->msg); break;
 			default: break;
 		}
 	}
@@ -414,14 +355,11 @@ void handle_turing_msg(turingMsg* msg){
 void prepareSlot(){
 	/* Do stuff. send messages. do rnb broadcast. */
 	//set_rgb(255, 0, 0);
-	sendBotPosMsg();
+	broadcast_rnb_data();
 	while(ir_is_busy(ALL_DIRS)>=2){
 		delay_ms(5);
 	}
-	delay_ms(20);
-	broadcast_rnb_data();
-	//sendNeiMsg();
-
+	sendNeiMsg();
 
 	// read colors
 	int16_t red, green, blue;
@@ -486,8 +424,8 @@ void updateNeighbors(){
 
 void prepareEOP(){
 	/* End of frame. Do some final processing here */
-	//updateNeighbors();
-	//extendNeighbors();
+	updateNeighbors();
+	extendNeighbors();
 	if (frameCount<(NUM_PREPARE-1)) {
 		if(TEST_PREPARE){
 			printf("X[%04X] R: %d G: %d B: %d\r\n", me.dropletId, allRGB[frameCount].rgb[0], allRGB[frameCount].rgb[1], allRGB[frameCount].rgb[2]);

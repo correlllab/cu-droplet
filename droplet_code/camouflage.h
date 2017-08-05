@@ -20,7 +20,7 @@
 #define PATTERN_MSG_FLAG	'P'
 #define TURING_MSG_FLAG		'T'
 #define NUM_PATTERNS		3
-#define NUM_PREPARE			20 //20
+#define NUM_PREPARE			25 //25
 #define NUM_GRADIENT		10 //10
 #define NUM_CONSENSUS		30 //30
 #define NUM_TURING			20 //20

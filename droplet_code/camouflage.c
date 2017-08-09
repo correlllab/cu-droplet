@@ -639,16 +639,19 @@ void weightedAverage(){
 	}
 	me.myDegree = degree;
 	
-	while(tmp != NULL){
+	while(nbrPatternRoot != NULL){
 		maxDegree = me.myDegree;
-		if (maxDegree < tmp->degree){
-			maxDegree = tmp->degree;
+		if (maxDegree < nbrPatternRoot->degree){
+			maxDegree = nbrPatternRoot->degree;
 		}
 		wi = 1.0/(1.0+maxDegree);
 		wc -= wi;
 		for(uint8_t j=0; j<NUM_PATTERNS; j++){
-			pattern[j] += wi*tmp->pattern_f[j];
+			pattern[j] += wi*nbrPatternRoot->pattern_f[j];
 		}
+		tmp = nbrPatternRoot->next;
+		myFree(nbrPatternRoot);
+		nbrPatternRoot = tmp;
 	}
 	for (uint8_t i=0; i<NUM_PATTERNS; i++){
 		pattern[i] += wc*me.myPattern_f[i];

@@ -11,9 +11,6 @@
 
 #define GRID_WIDTH			50
 #define GRID_OFFSET			((GRID_WIDTH*5)/2)
-#define NUM_NEIGHBOR_12		12
-#define NUM_NEIGHBOR_8		8
-#define NUM_NEIGHBOR_4		4
 
 #define NEIGHBOR_ANGLE_THRESH 20
 
@@ -29,9 +26,8 @@
 #define NUM_TURING			20 //20
 #define NUM_WAITING			500
 
-#define SLOT_LENGTH_MS		991
+
 #define SLOTS_PER_FRAME		37
-#define FRAME_LENGTH_MS		(((uint32_t)SLOT_LENGTH_MS)*((uint32_t)SLOTS_PER_FRAME))
 #define LOOP_DELAY_MS		17
 
 //Turing Pattern related
@@ -46,9 +42,6 @@
 
 const float rgb_weights[3] = {0.5, 0.5, 0.0};  // RGB to Gray
 
-const uint8_t vIndex[NUM_NEIGHBOR_4] = {0, 2, 8, 10};
-const uint8_t hIndex[NUM_NEIGHBOR_4] = {1, 3, 9, 11};
-
 /*  */
 typedef struct Droplet_struct{
 	float myPattern_f[NUM_PATTERNS];
@@ -59,13 +52,6 @@ typedef struct Droplet_struct{
 	uint8_t myDegree;
 	uint8_t turing_color;
 } Droplet;
-
-typedef struct NeighborId_struct{
-	id_t Ids[NUM_NEIGHBOR_4];
-	id_t dropletId;
-	uint8_t  gotMsg_flags[NUM_NEIGHBOR_4];
-	char flag;
-} neighborMsg;
 
 typedef struct RGB_struct{
 	int16_t rgb[3];
@@ -86,24 +72,19 @@ typedef struct Turing_struct{
 	char flag;
 } turingMsg;
 
+typedef struct pos_and_color_struct{
+	int16_t x;
+	int16_t y;
+	uint8_t col;
+}PosColor;
+PosColor otherBots[
+
 typedef struct botpos_msg_struct{
-	BotPos pos;
+	PosColor bots[5]
 	char flag;
 }BotPosMsg;
 
-
 Droplet me;
-
-neighborMsg myFourDr;
-uint8_t myFourDrConfs[NUM_NEIGHBOR_4];
-// store 4 neighbor's neighbor information
-neighborMsg fourNeiInfo[NUM_NEIGHBOR_4];
-// store 4 neighbor's RGB information
-rgbMsg fourNeiRGB[NUM_NEIGHBOR_4];
-// store 8 neighbor's Pattern information
-patternMsg eightNeiPattern[NUM_NEIGHBOR_8];
-// store 12 neighbor's Turing Color information
-turingMsg twelveNeiTuring[NUM_NEIGHBOR_12];
 
 /*       Print data        */ 
 // RGB reading
@@ -129,13 +110,19 @@ Neighbor Index document:
 */
 //Droplet neighborDroplets[NUM_NEIGHBOR_12];
 
+#define NUM_PHASES 6
+
 typedef enum{
-	Prepare=0,
-	Gradient=1,
-	Consensus=2,
-	Turing=3,
-	Waiting=4
+	Localize,
+	Prepare,
+	Gradient,
+	Consensus,
+	Turing,
+	Waiting
 } Phase;
+uint32_t slotLength[NUM_PHASES] = {397, 271, 271, 271, 271, 271};
+uint32_t frameLength[NUM_PHASES];
+
 
 typedef struct rnb_node_struct{
 	int16_t range;
@@ -146,6 +133,7 @@ typedef struct rnb_node_struct{
 } RnbNode;
 RnbNode* measRoot;
 RnbNode* lastMeasAdded;
+
 
 uint32_t frameStart;
 uint32_t frameCount;
@@ -159,19 +147,17 @@ void init(void);
 void loop(void);
 void handle_msg	(ir_msg* msg_struct);
 void handleBotPosMsg(BotPos* pos, id_t id);
-void handle_neighbor_msg(neighborMsg* msg);
 void handle_rgb_msg(rgbMsg* msg);
 void handle_pattern_msg(patternMsg* msg);
 void handle_turing_msg(turingMsg* msg);
 
 void handleRNB(void);
-void updateNeighbors(void);
-void processMeasList(RnbNode* node);
 
-void extendNeighbors(void);
 uint8_t user_handle_command(char* command_word, char* command_args);
 
-void prepareSlot(void);
+void localizeSlot(void);
+
+void localizeEOP(void);
 void prepareEOP(void);
 void gradientEOP(void);
 void consensusEOP(void);
@@ -183,7 +169,6 @@ void sendRGBMsg(void);
 void sendBotPosMsg(void);
 void sendPatternMsg(void);
 void sendTuringMsg(void);
-void sendNeiMsg(void);
 void decidePattern(void);
 void weightedAverage(void);
 void changeColor(void);

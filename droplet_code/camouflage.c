@@ -74,35 +74,12 @@ void init(){
 	//me.mySlot = get_droplet_ord(me.dropletId)-100; // For AUDIO_DROPLET
 	//me.mySlot = (get_droplet_id()%(SLOTS_PER_FRAME-1));
 	me.myDegree = 1;
-	for (uint8_t i=0; i<NUM_NEIGHBOR_12; i++){
-		me.neighborIds[i] = 0;
-		twelveNeiTuring[i].color = 0;
-	}
 	
 	me.rgb[0] = 0;
 	me.rgb[1] = 0;
 	me.rgb[2] = 0;
 	/********************* other variables ************************/ 
 	// fourDr: use as a message to send out
-	myFourDr.dropletId = me.dropletId;
-	myFourDr.flag = NEIGHBOR_MSG_FLAG;
-	for (uint8_t i=0; i<NUM_NEIGHBOR_4; i++)
-	{
-		myFourDr.Ids[i] = 0;
-		myFourDr.gotMsg_flags[i] = 0;
-		
-		fourNeiInfo[i].dropletId = 0;
-		fourNeiRGB[i].dropletId = 0;
-	}
-	
-	for (uint8_t i=0; i<NUM_NEIGHBOR_8; i++){
-		eightNeiPattern[i].dropletId = 0;
-		eightNeiPattern[i].degree = 0;
-		for(uint8_t j=0;j<NUM_PATTERNS; j++){
-			eightNeiPattern[i].pattern_f[j] = 0.0;
-		}
-	}
-	
 	for (uint8_t i=0; i<NUM_PATTERNS; i++){
 		me.myPattern_f[i] = 0.0f;
 	}
@@ -112,11 +89,15 @@ void init(){
 	// global
 	frameCount = 0;
 	loopID = 0xFFFF;
-	phase = 0;
+	phase = Localize;
 	printf("Initializing Camouflage Project. mySlot is %03hu\r\n", me.mySlot);
 	frameStart = get_time();
 	
-	printf("\r\n*************  Start PREPARE Phase   ***************\r\n");
+	for(uint8_t i=0;i<NUM_PHASES;i++){
+		frameLength[i] = ((uint32_t)slotLength[i])*((uint32_t)SLOTS_PER_FRAME);
+	}
+
+	printf("\r\n*************  Start LOCALIZE Phase   ***************\r\n");
 }
 
 /*
@@ -124,27 +105,27 @@ void init(){
 */
 void loop(){
 	uint32_t frameTime = get_time()-frameStart;
-	if(frameTime > FRAME_LENGTH_MS){
-		frameTime = frameTime - FRAME_LENGTH_MS;
-		frameStart += FRAME_LENGTH_MS;
+	if(frameTime > frameLength[phase]){
+		frameTime = frameTime - frameLength[phase];
+		frameStart += frameLength[phase];
 		frameCount++;
 	}
-	if(loopID!=(frameTime/SLOT_LENGTH_MS)){
-		loopID = frameTime/SLOT_LENGTH_MS;
+	if(loopID!=(frameTime/slotLength[phase])){
+		loopID = frameTime/slotLength[phase];
 		if(loopID == me.mySlot){
 			printf("Start of my slot, frame %lu.\r\n", frameCount);
-			delay_ms(20);
 			switch (phase){
-				case Prepare:	prepareSlot();		break;
+				case Localize:	localizeSlot();		break;
+				case Prepare:	sendBotPosMsg();	break;
 				case Gradient:	sendRGBMsg();		break;
 				case Consensus:	sendPatternMsg();	break;
 				case Turing:	sendTuringMsg();	break;
 				case Waiting: /*Do nothing.*/		break;
 			}
-			delay_ms(20);
 			printf("End of my slot, frame %lu.\r\n", frameCount);
 		}else if(loopID == SLOTS_PER_FRAME-1){
 			switch (phase){
+				case Localize:	localizeEOP();		break;
 				case Prepare:	prepareEOP();		break;
 				case Gradient:	gradientEOP();		break;
 				case Consensus: consensusEOP();		break;
@@ -171,20 +152,22 @@ void loop(){
 void setColor(){
 	if(loopID == me.mySlot){
 		switch (phase){
-			case Prepare: led_off(); break;
-			case Gradient: set_rgb(255, 0, 0); break;
-			case Consensus: set_rgb(255, 0, 0); break;
+			case Localize: led_off(); break;
+			case Prepare: set_rgb(80, 160, 160); break;
+			case Gradient: set_rgb(200, 0, 0); break;
+			case Consensus: set_rgb(200, 0, 0); break;
 			default: /*Do nothing.*/ break;
 		}
 	}else if(loopID == SLOTS_PER_FRAME-1){
 		switch (phase){
-			case Prepare: set_rgb(0, 255, 0); break;
-			case Gradient: set_rgb(0, 0, 255); break;
+			case Localize: set_rgb(0, 200, 200); break;
+			case Prepare: set_rgb(0, 200, 0); break;
+			case Gradient: set_rgb(0, 0, 200); break;
 			case Consensus:
 				if(me.turing_color){
-					set_rgb(255, 0, 0);
+					set_rgb(200, 0, 0);
 				}else{
-					set_rgb(255,255,255);
+					set_rgb(200,200,200);
 				}
 				break;
 			case Turing: changeColor(); break;
@@ -200,39 +183,17 @@ void setColor(){
 }
 
 void handleRNB(){
-	if(last_good_rnb.range < 80){
-		//if(lastMeasAdded==NULL){
-			//lastMeasAdded = (RnbNode*)myMalloc(sizeof(RnbNode));
-			//measRoot = lastMeasAdded;
-		//}else{
-			//lastMeasAdded->next = (RnbNode*)myMalloc(sizeof(RnbNode));
-			//lastMeasAdded = lastMeasAdded->next;
-		//}
-		//lastMeasAdded->bearing = last_good_rnb.bearing;
-		//lastMeasAdded->range = last_good_rnb.range;
-		//lastMeasAdded->id = last_good_rnb.id;
-		//lastMeasAdded->conf = 10;
-		//lastMeasAdded->next = NULL;
-		
-		/*
-		 * Comment in/out the line below to toggle the Localization system.
-		 * If you do, consult BotPos myPos for your position estimate, and
-		 * DensePosCovar myPosCovar for the error in your position estimate.
-		 * call decompressP with a pointer to myPosCovar and a pointer to a Matrix
-		 *     to unpack the covar in to something useful.
-		 * Example:
-		 *     Matrix covar;
-		 *     decompressP(&covar, &myPosCovar);
-		 */
-		useRNBmeas(last_good_rnb.id, last_good_rnb.range, last_good_rnb.bearing, last_good_rnb.heading);
-		
-		//printf("ID: %04X Range: %4d Bearing: % 4d\r\n", lastMeasAdded->id, lastMeasAdded->range, lastMeasAdded->bearing);
-	}
-}
-
-// different phases send different kind of message
-void sendNeiMsg(){
-	ir_send(ALL_DIRS, (char*)(&myFourDr), sizeof(neighborMsg));
+	/*
+		* Comment in/out the line below to toggle the Localization system.
+		* If you do, consult BotPos myPos for your position estimate, and
+		* DensePosCovar myPosCovar for the error in your position estimate.
+		* call decompressP with a pointer to myPosCovar and a pointer to a Matrix
+		*     to unpack the covar in to something useful.
+		* Example:
+		*     Matrix covar;
+		*     decompressP(&covar, &myPosCovar);
+		*/
+	useRNBmeas(last_good_rnb.id, last_good_rnb.range, last_good_rnb.bearing, last_good_rnb.heading);
 }
 
 void sendRGBMsg(){
@@ -247,19 +208,35 @@ void sendRGBMsg(){
 	//}
 }
 
-void sendBotPosMsg(){
-	if(!POS_DEFINED(&myPos)){
-		return;
+uint8_t packColor(uint8_t r, uint8_t g, uint8_t b){
+	uint8_t packedVal = 0;
+	if(r+b>130){
+		packedVal |= 0b11000000;
 	}
-	//Matrix covar;
-	//decompressP(&covar, &myPosCovar);
-	//float determinant = matrixDet(&covar);
-	//determinant = powf(determinant, 1/6.0);
-	//if(determinant>THRESHOLD){
-		//return;
-	//}
+	if(r>25 && r<=40){
+		packedVal |= 0b00010000;
+	}else if(r>40){
+		packedVal |= 0b00100000;
+	}
+	if(g>25 && g<=40){
+		packedVal |= 0b00000100;
+	}else if(g>40){
+		packedVal |= 0b00001000;
+	}
+	if(b>25 && b<=40){
+		packedVal |= 0b00000001;
+	}else if(b>40){
+		packedVal |= 0b00000010;
+	}
+	return packedVal;
+}
+
+void sendBotPosMsg(){
 	BotPosMsg msg;
-	msg.pos = myPos;
+	msg.bots[0].x = myPos.x;
+	msg.bots[0].y = myPos.y;
+	msg.bots[0].col = packColor(me.rgb[0], me.rgb[1], me.rgb[2]);
+
 	msg.flag = BOT_POS_MSG_FLAG;
 	ir_send(ALL_DIRS, (char*)(&msg), sizeof(BotPosMsg));
 }
@@ -337,8 +314,7 @@ void handle_msg(ir_msg* msg_struct)
 		handleBotMeasMsg((BotMeasMsg*)(msg_struct->msg), msg_struct->sender_ID);
 	}else{	
 		switch (phase){
-			case Prepare: handleBotPosMsg(&(((BotPosMsg*)(msg_struct->msg))->pos), msg_struct->sender_ID);
-			//case Prepare: handle_neighbor_msg((neighborMsg*)msg_struct->msg); break;
+			case Prepare: handleBotPosMsg(&(((BotPosMsg*)(msg_struct->msg))->pos), msg_struct->sender_ID); break;
 			case Gradient: handle_rgb_msg((rgbMsg*)msg_struct->msg); break;
 			case Consensus: handle_pattern_msg((patternMsg*)msg_struct->msg); break;
 			case Turing: handle_turing_msg((turingMsg*)msg_struct->msg); break;
@@ -366,63 +342,24 @@ void handle_neighbor_msg(neighborMsg* msg){
 
 void handle_rgb_msg(rgbMsg* msg){
 	if(msg->flag == RGB_MSG_FLAG){
-		for (uint8_t i=0; i<NUM_NEIGHBOR_4; i++){
-			if (msg->dropletId == myFourDr.Ids[i]){
-				fourNeiRGB[i].dropletId = msg->dropletId;
-				fourNeiRGB[i].flag = msg->flag;
-				fourNeiRGB[i].rgb[0] = msg->rgb[0];
-				fourNeiRGB[i].rgb[1] = msg->rgb[1];
-				fourNeiRGB[i].rgb[2] = msg->rgb[2];
-				break;
-			}
-		}
+
 	}
 }
 
 void handle_pattern_msg(patternMsg* msg){
 	if(msg->flag == PATTERN_MSG_FLAG){
-		for (uint8_t i=0; i<NUM_NEIGHBOR_8; i++){
-			if (msg->dropletId == me.neighborIds[i]){
-				eightNeiPattern[i].dropletId = msg->dropletId;
-				eightNeiPattern[i].degree = msg->degree;
-				eightNeiPattern[i].flag = msg->flag;
-				printf("Got Pattern Msg from %04X.\r\n",eightNeiPattern[i].dropletId);
-				printf("\t%hu | %f %f %f\r\n", eightNeiPattern[i].degree, eightNeiPattern[i].pattern_f[0], eightNeiPattern[i].pattern_f[1], eightNeiPattern[i].pattern_f[2]);
-				for(uint8_t j=0;j<NUM_PATTERNS;j++){
-					float tmp = msg->pattern_f[j];
-					eightNeiPattern[i].pattern_f[j] = (tmp>1.0) ? 1.0 : ((tmp<0.0) ? 0.0 : tmp);
-				}
-				break;
-			}
-		}
+
 	}
 }
 
 void handle_turing_msg(turingMsg* msg){
 	if(msg->flag == TURING_MSG_FLAG){
-		for (uint8_t i=0; i<NUM_NEIGHBOR_12; i++){
-			if (msg->dropletId == me.neighborIds[i]){
-				twelveNeiTuring[i].dropletId = msg->dropletId;
-				twelveNeiTuring[i].color = !!(msg->color);
-				twelveNeiTuring[i].flag = msg->flag;
-				break;
-			}
-		}
+
 	}
 }
 
-void prepareSlot(){
-	/* Do stuff. send messages. do rnb broadcast. */
-	//set_rgb(255, 0, 0);
-	sendBotPosMsg();
-	while(ir_is_busy(ALL_DIRS)>=2){
-		delay_ms(5);
-	}
-	delay_ms(20);
+void localizeSlot(){
 	broadcast_rnb_data();
-	//sendNeiMsg();
-
-
 	// read colors
 	int16_t red, green, blue;
 
@@ -438,50 +375,25 @@ void prepareSlot(){
 	printf("X[%04X] R: %d G: %d B: %d (ori)\r\n", me.dropletId, red, green, blue);
 }
 
-void processMeasList(RnbNode* node){
-	printf("\t[%04X] R: %4d, B: % 4d, C: %2hu |-> %04x\r\n",node->id, node->range, node->bearing, node->conf,  (uint16_t)node->next);
-	if(abs(node->bearing-90) <= NEIGHBOR_ANGLE_THRESH){// left
-		if(node->conf>myFourDrConfs[3]){
-			myFourDr.Ids[3] = node->id;
-			myFourDrConfs[3] = node->conf;
+void localizeEOP(){
+	if(frameCount<(NUM_PREPARE-1)){
+		printf("My Pos: % 4d, % 4d, %4d\r\n", myPos.x, myPos.y, myPos.o);
+	}else{
+		if(!POS_DEFINED(&myPos)){
+			printf("Localize ended without my figuring out my position.\r\n");
+			warning_light_sequence();
 		}
-	}else if(abs(node->bearing+90) <= NEIGHBOR_ANGLE_THRESH) {// right
-		if(node->conf>myFourDrConfs[1]){
-			myFourDr.Ids[1] = node->id;
-			myFourDrConfs[1] = node->conf;
-		}
-	}else if( abs(node->bearing) <= NEIGHBOR_ANGLE_THRESH) {// top
-		if(node->conf>myFourDrConfs[0]){
-			myFourDr.Ids[0] = node->id;
-			myFourDrConfs[0] = node->conf;
-		}
-	}else if( ( abs(node->bearing-180) <= NEIGHBOR_ANGLE_THRESH || abs(node->bearing+180) <= NEIGHBOR_ANGLE_THRESH )) {// bottom
-		if(node->conf>myFourDrConfs[2]){
-			myFourDr.Ids[2] = node->id;
-			myFourDrConfs[2] = node->conf;
-		}
-	}
-}
+		me.rgb[0] = meas_find_median(red_array, NUM_PREPARE);
+		me.rgb[1] = meas_find_median(green_array, NUM_PREPARE);
+		me.rgb[2] = meas_find_median(blue_array, NUM_PREPARE);
+		
+		me.turing_color = (me.rgb[0]+me.rgb[1])>130;
 
-void updateNeighbors(){
-	printf("Going through meas list.\r\n");
-	RnbNode* tmp;
-	while(measRoot!=NULL){
-		processMeasList(measRoot);
-		tmp = measRoot->next;
-		myFree(measRoot);
-		measRoot = tmp;
+		phase=Prepare;
+		frameCount = 0;
+		printf("\r\n*************  Start PREPARE Phase   ***************\r\n");
 	}
-	lastMeasAdded = NULL;
-	printf("Neighbors: ");
-	for(uint8_t i=0;i<NUM_NEIGHBOR_4;i++){
-		if(myFourDr.Ids[i]!=0){
-			printf("%04X ", myFourDr.Ids[i]);
-		}else{
-			printf("---- ");
-		}
-	}
-	printf("\r\n");
+
 }
 
 void prepareEOP(){
@@ -492,15 +404,8 @@ void prepareEOP(){
 		if(TEST_PREPARE){
 			printf("X[%04X] R: %d G: %d B: %d\r\n", me.dropletId, allRGB[frameCount].rgb[0], allRGB[frameCount].rgb[1], allRGB[frameCount].rgb[2]);
 		}
-
 	}else{
 		printf("Once only loop in Prepare\r\n");
-		me.rgb[0] = meas_find_median(red_array, NUM_PREPARE);
-		me.rgb[1] = meas_find_median(green_array, NUM_PREPARE);
-		me.rgb[2] = meas_find_median(blue_array, NUM_PREPARE);
-	
-		me.turing_color = (me.rgb[0]+me.rgb[1])>130;
-
 		if(TEST_PREPARE){
 			for (uint8_t i=0; i<NUM_NEIGHBOR_12; i++){
 				if (me.neighborIds[i] != 0){
@@ -509,7 +414,7 @@ void prepareEOP(){
 			}
 			printf("\r\n");
 		}
-		phase++;
+		phase=Gradient;
 		frameCount = 0;
 		printf("\r\n*************  Start GRADIENT Phase   ***************\r\n");
 	}
@@ -531,7 +436,7 @@ void gradientEOP(){
 		for (uint8_t i=0; i<NUM_PATTERNS; i++){
 			allPattern[0].pattern_f[i] = me.myPattern_f[i];
 		}
-		phase++;
+		phase=Consensus;
 		frameCount = 0;
 		printf("\r\n*************  Start CONSENSUS Phase   ***************\r\n");
 	}
@@ -544,7 +449,7 @@ void consensusEOP(){
 			allPattern[frameCount].pattern_f[i] = me.myPattern_f[i];
 		}
 	}else{
-		phase++;
+		phase=Turing;
 		frameCount = 0;
 		printf("\r\n*************  Start TURING Phase   ***************\r\n");
 	}
@@ -557,7 +462,7 @@ void turingEOP(){
 		printf("\r\nAll Done!\r\n");
 		displayMenu();
 		frameCount = 0;
-		phase++;
+		phase=Waiting;
 		printf("\r\n*************  Start WAITING Phase   ***************\r\n");
 	}
 }
@@ -567,76 +472,10 @@ void waitingEOP(){
 	if (frameCount>=(NUM_WAITING-1)){
 		printf("\r\nRestarting!\r\n");
 		frameCount = 0;
-		phase = 0;
+		phase = Prepare;
 	}
 }
 
-// Inside of __preparePhase__
-// get information about neighbor's neighbor
-// extend the neighbor graph based on them
-void extendNeighbors(){
-	// top part - Done!
-	if (myFourDr.gotMsg_flags[0] != 0){
-		me.neighborIds[0] = myFourDr.Ids[0];
-		if (fourNeiInfo[0].Ids[0] != 0){
-			me.neighborIds[8] = fourNeiInfo[0].Ids[0];
-		}
-		if (fourNeiInfo[0].Ids[1] != 0){
-			me.neighborIds[4] = fourNeiInfo[0].Ids[1];
-		}
-		if (fourNeiInfo[0].Ids[3] != 0){
-			me.neighborIds[7] = fourNeiInfo[0].Ids[3];
-		}				
-	}
-	
-	// left part - Done!
-	if (myFourDr.gotMsg_flags[1] != 0){
-		me.neighborIds[1] = myFourDr.Ids[1];
-		if (fourNeiInfo[1].Ids[0] != 0){
-			me.neighborIds[4] = fourNeiInfo[1].Ids[0];
-		}
-		if (fourNeiInfo[1].Ids[1] != 0){
-			me.neighborIds[9] = fourNeiInfo[1].Ids[1];
-		}
-		if (fourNeiInfo[1].Ids[2] != 0){
-			me.neighborIds[5] = fourNeiInfo[1].Ids[2];
-		}
-	}	
-
-	// bottom part - Done!
-	if (myFourDr.gotMsg_flags[2] != 0){
-		me.neighborIds[2] = myFourDr.Ids[2];
-		if (fourNeiInfo[2].Ids[1] != 0){
-			me.neighborIds[5] = fourNeiInfo[2].Ids[1];
-		}
-		if (fourNeiInfo[2].Ids[2] != 0){
-			me.neighborIds[10] = fourNeiInfo[2].Ids[2];
-		}
-		if (fourNeiInfo[2].Ids[3] != 0){
-			me.neighborIds[6] = fourNeiInfo[2].Ids[3];
-		}
-	}
-	
-	// right part - Done!
-	if (myFourDr.gotMsg_flags[3] != 0){
-		me.neighborIds[3] = myFourDr.Ids[3];
-		if (fourNeiInfo[3].Ids[0] != 0){
-			me.neighborIds[7] = fourNeiInfo[3].Ids[0];
-		}
-		if (fourNeiInfo[3].Ids[2] != 0){
-			me.neighborIds[6] = fourNeiInfo[3].Ids[2];
-		}
-		if (fourNeiInfo[3].Ids[3] != 0){
-			me.neighborIds[11] = fourNeiInfo[3].Ids[3];
-		}
-	}
-	
-	// recalculate Degree for consensus phase
-	me.myDegree = 1;
-	for (uint8_t i=0; i<NUM_NEIGHBOR_8; i++){
-		if (me.neighborIds[i] != 0) me.myDegree++;
-	}
-}
 
 // Inside of __gradientPhase__
 // Apply filters on both directions: horizontal and vertical

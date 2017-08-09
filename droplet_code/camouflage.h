@@ -51,6 +51,7 @@ typedef struct Droplet_struct{
 	float myPattern_f[NUM_PATTERNS];
 	id_t neighborIds[NUM_NEIGHBOR_12];
 	int16_t rgb[3];
+	int16_t colorDiff[2];
 	id_t dropletId;
 	uint8_t mySlot;
 	uint8_t myDegree;

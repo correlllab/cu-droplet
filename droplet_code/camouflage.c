@@ -127,7 +127,7 @@ void loop(){
 		loopID = frameTime/SLOT_LENGTH_MS;
 		if(loopID == me.mySlot){
 			printf("Start of my slot, frame %lu.\r\n", frameCount);
-			delay_ms(20);
+			//delay_ms(20);
 			switch (phase){
 				case Prepare:	prepareSlot();		break;
 				case Gradient:	sendRGBMsg();		break;
@@ -135,7 +135,7 @@ void loop(){
 				case Turing:	sendTuringMsg();	break;
 				case Waiting: /*Do nothing.*/		break;
 			}
-			delay_ms(20);
+			//delay_ms(20);
 			printf("End of my slot, frame %lu.\r\n", frameCount);
 		}else if(loopID == SLOTS_PER_FRAME-1){
 			switch (phase){
@@ -172,8 +172,8 @@ void setColor(){
 		}
 	}else if(loopID == SLOTS_PER_FRAME-1){
 		switch (phase){
-			case Prepare: set_rgb(0, 255, 0); break;
-			case Gradient: set_rgb(0, 0, 255); break;
+			case Prepare: set_rgb(0, 0, 255); break;
+			case Gradient: set_rgb(0, 255, 0); break;
 			case Consensus:
 				if(me.turing_color){
 					set_rgb(255, 0, 0);
@@ -229,7 +229,7 @@ void sendNeiMsg(){
 }
 
 void sendRGBMsg(){
-	//if((50<me.rgb[0] && me.rgb[0]<400) && (50<me.rgb[1] && me.rgb[1]<400) && (50<me.rgb[2] && me.rgb[2]<400)){
+	if((0<me.rgb[0] && me.rgb[0]<400) && (0<me.rgb[1] && me.rgb[1]<400) && (0<me.rgb[2] && me.rgb[2]<400)){
 		rgbMsg msg;
 		msg.flag = RGB_MSG_FLAG;
 		msg.dropletId = me.dropletId;
@@ -237,7 +237,7 @@ void sendRGBMsg(){
 			msg.rgb[i] = me.rgb[i];
 		}
 		ir_send(ALL_DIRS, (char*)(&msg), sizeof(rgbMsg));
-	//}
+	}
 }
 
 void sendPatternMsg(){
@@ -555,6 +555,19 @@ void extendNeighbors(){
 	}
 }
 
+void colorReflectionFour(uint8_t a, uint8_t b){
+	if (fourNeiRGB[b].dropletId != 0){
+		for (uint8_t j=0; j<3; j++){
+			fourNeiRGB[a].rgb[j] = fourNeiRGB[b].rgb[j];
+		}
+	}
+	else{
+		for (uint8_t j=0; j<3; j++){
+			fourNeiRGB[a].rgb[j] = me.rgb[j];
+		}
+	}	
+}
+
 // Inside of __gradientPhase__
 // Apply filters on both directions: horizontal and vertical
 // Note: ONLY ONCE
@@ -562,21 +575,18 @@ void decidePattern(){
 	// Compute two gradients and decide which pattern
 	// At this point, only use Red channel
 	uint8_t channel = 1;
-	if((30<me.rgb[0]&& me.rgb[0]<400) && (30<me.rgb[1]&& me.rgb[1]<400) && (30<me.rgb[2]&& me.rgb[2]<400) ){  // ignore and set to 0.5f
+	if((0<me.rgb[0]&& me.rgb[0]<400) && (0<me.rgb[1]&& me.rgb[1]<400) && (0<me.rgb[2]&& me.rgb[2]<400) ){  // ignore and set to 0.5f
 		for(uint8_t i=0; i<NUM_NEIGHBOR_4; i++){
 			if (fourNeiRGB[i].dropletId == 0){
-				for (uint8_t j=0; j<3; j++){
-					fourNeiRGB[i].rgb[j] = me.rgb[j];
-				}
+				switch(i){
+					case 0: colorReflectionFour(0, 2);		break;
+					case 1: colorReflectionFour(1, 3);		break;
+					case 2: colorReflectionFour(2, 0);		break;
+					case 3: colorReflectionFour(3, 1);		break;
+					default: break;
+				}				
 			}
 		}
-		
-		//uint16_t diff_row = 0;
-		//uint16_t diff_col = 0;
-		//for (uint8_t channel = 0; channel <3; channel++){
-			//diff_row += abs(me.rgb[channel] - fourNeiRGB[1].rgb[channel]) + abs(me.rgb[channel]- fourNeiRGB[3].rgb[channel]);
-			//diff_col += abs(me.rgb[channel] - fourNeiRGB[0].rgb[channel]) + abs(me.rgb[channel]- fourNeiRGB[2].rgb[channel]);
-		//}
 		
 		float diff_row = 0;
 		float diff_col = 0;
@@ -592,10 +602,10 @@ void decidePattern(){
 			grays[4] += (float)me.rgb[i]*rgb_weights[i];
 		}
 					
-		diff_row = fabs(grays[4]-grays[1] + grays[4]-grays[3]);
-			
-		diff_col = fabs(grays[4]-grays[0] + grays[4]-grays[2]);
-		
+		diff_row = fabs(grays[4]-grays[1]) + fabs(grays[4]-grays[3]);
+		diff_col = fabs(grays[4]-grays[0]) + fabs(grays[4]-grays[2]);
+		me.colorDiff[0] = (int16_t)diff_row;
+		me.colorDiff[1] = (int16_t)diff_col;
 		printf("Px: %0.4f Py: %0.4f\r\n", diff_row, diff_col);
 		
 		// Decide which pattern to be
@@ -606,10 +616,13 @@ void decidePattern(){
 		}else{ // for the corner ones
 			me.myPattern_f[2] = 1.0f;
 		}
-	}else{
+
+ 	}else{
+		me.colorDiff[0] = -1;
+		me.colorDiff[1] = -1;		
 		for (uint8_t i=0; i<NUM_PATTERNS; i++){
 			me.myPattern_f[i] = 0.333333333f;
-		}	
+		}
 	}
 	if (TEST_GRADIENT){
 		printf("X[%04X] RGB: %03d\r\n", me.dropletId, me.rgb[channel]);
@@ -638,7 +651,9 @@ void weightedAverage(){
 		tmp = tmp->next;
 	}
 	me.myDegree = degree;
+	printf("My updated degree: %u\r\n", degree);
 	
+	// weighted averaging using Metropolis weights
 	while(nbrPatternRoot != NULL){
 		maxDegree = me.myDegree;
 		if (maxDegree < nbrPatternRoot->degree){
@@ -690,7 +705,6 @@ void changeColor(){
 			turingHistory[frameCount][i] = 2;
 		}
 	}
-	
 	
 	for (uint8_t i=0; i<NUM_NEIGHBOR_12; i++){
 		if (twelveNeiTuring[i].dropletId == 0){
@@ -946,27 +960,32 @@ void printTuringHistoryCorrected(){
 uint8_t user_handle_command(char* command_word, char* command_args){
 	if(strcmp(command_word, "pn")==0){
 		printNs();
+		return 1;
 	}
 	if(strcmp(command_word, "pp")==0){
 		printProb();
+		return 1;
 	}
 	if(strcmp(command_word, "pt")==0){
 		printTuring();
+		return 1;
 	}
 	if(strcmp(command_word, "pa")==0){
 		printNs();
 		//printrgbs();
 		printRGBs_ordered();
-		printRGB();		
+		printRGB();
+		printf("row diff: %d, col diff: %d\n", me.colorDiff[0], me.colorDiff[1]);
 		printProb();
 		printTuring();
 		printTuringHistory();
 		printTuringHistoryCorrected();
-
+		return 1;
 	}
 
 	if(strcmp(command_word, "set_thresh")==0){
 		threshold_mottled = atoi(command_args);
+		return 1;
 	}
 
 	return 0;

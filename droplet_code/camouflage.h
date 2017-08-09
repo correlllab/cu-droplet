@@ -112,10 +112,18 @@ neighborMsg myFourDr;
 neighborMsg fourNeiInfo[NUM_NEIGHBOR_4];
 // store 4 neighbor's RGB information
 rgbMsg fourNeiRGB[NUM_NEIGHBOR_4];
-// store 8 neighbor's Pattern information
-patternMsg eightNeiPattern[NUM_NEIGHBOR_8];
 // store 12 neighbor's Turing Color information
 turingMsg twelveNeiTuring[NUM_NEIGHBOR_12];
+
+/* Used in consensus phase */
+typedef struct pattern_node_struct{
+	float pattern_f[NUM_PATTERNS];
+	uint8_t degree;
+	struct pattern_node_struct* next;
+} patternNode;
+patternNode* nbrPatternRoot;
+patternNode* lastPatternAdded;
+
 
 /*       Print data        */ 
 // RGB reading
@@ -199,7 +207,6 @@ void weightedAverage(void);
 void changeColor(void);
 
 void displayMenu(void);
-
 void printNs(void);
 void printRGBs(void);
 void printRGBs_ordered(void);

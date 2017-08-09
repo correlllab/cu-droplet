@@ -95,20 +95,13 @@ void init(){
 		fourNeiRGB[i].dropletId = 0;
 	}
 	
-	// Init 8 neighbor's Pattern information
-	for (uint8_t i=0; i<NUM_NEIGHBOR_8; i++){
-		eightNeiPattern[i].dropletId = 0;
-		eightNeiPattern[i].degree = 0;
-		for(uint8_t j=0;j<NUM_PATTERNS; j++){
-			eightNeiPattern[i].pattern_f[j] = 0.0;
-		}
-	}
-	
 	for (uint8_t i=0; i<NUM_PATTERNS; i++){
 		me.myPattern_f[i] = 0.0f;
 	}
 	measRoot = NULL;
 	lastMeasAdded = NULL;
+	nbrPatternRoot = NULL;
+	lastPatternAdded = NULL;
 
 	// global
 	loopID = 0xFFFF;
@@ -322,20 +315,20 @@ void handle_rgb_msg(rgbMsg* msg){
 
 void handle_pattern_msg(patternMsg* msg){
 	if(msg->flag == PATTERN_MSG_FLAG){
-		for (uint8_t i=0; i<NUM_NEIGHBOR_8; i++){
-			if (msg->dropletId == me.neighborIds[i]){
-				eightNeiPattern[i].dropletId = msg->dropletId;
-				eightNeiPattern[i].degree = msg->degree;
-				eightNeiPattern[i].flag = msg->flag;
-				printf("Got Pattern Msg from %04X.\r\n",eightNeiPattern[i].dropletId);
-				printf("\t%hu | %f %f %f\r\n", eightNeiPattern[i].degree, eightNeiPattern[i].pattern_f[0], eightNeiPattern[i].pattern_f[1], eightNeiPattern[i].pattern_f[2]);
-				for(uint8_t j=0;j<NUM_PATTERNS;j++){
-					float tmp = msg->pattern_f[j];
-					eightNeiPattern[i].pattern_f[j] = (tmp>1.0) ? 1.0 : ((tmp<0.0) ? 0.0 : tmp);
-				}
-				break;
-			}
+		if(lastPatternAdded==NULL){
+			lastPatternAdded = (patternNode*)myMalloc(sizeof(patternNode));
+			nbrPatternRoot = lastPatternAdded;
 		}
+		else{
+			lastPatternAdded->next = (patternNode*)myMalloc(sizeof(patternNode));
+			lastPatternAdded = lastPatternAdded->next;
+		}
+		lastPatternAdded->degree = msg->degree;
+		for(uint8_t j=0;j<NUM_PATTERNS;j++){
+			float tmp = msg->pattern_f[j];
+			lastPatternAdded->pattern_f[j] = (tmp>1.0) ? 1.0 : ((tmp<0.0) ? 0.0 : tmp);
+		}
+		lastPatternAdded->next = NULL;	
 	}
 }
 
@@ -560,12 +553,6 @@ void extendNeighbors(){
 			me.neighborIds[11] = fourNeiInfo[3].Ids[3];
 		}
 	}
-	
-	// recalculate Degree for consensus phase
-	me.myDegree = 1;
-	for (uint8_t i=0; i<NUM_NEIGHBOR_8; i++){
-		if (me.neighborIds[i] != 0) me.myDegree++;
-	}
 }
 
 // Inside of __gradientPhase__
@@ -641,17 +628,26 @@ void weightedAverage(){
 	float pattern[3] ={0.0, 0.0, 0.0};
 	uint8_t maxDegree;
 	wc = 1.0;
-	for (uint8_t i=0; i<NUM_NEIGHBOR_8; i++){
-		if (eightNeiPattern[i].dropletId){
-			maxDegree = me.myDegree;
-			if (maxDegree < eightNeiPattern[i].degree){
-				maxDegree = eightNeiPattern[i].degree;
-			}
-			wi = 1.0/(1.0+maxDegree);
-			wc -= wi;
-			for(uint8_t j=0; j<NUM_PATTERNS; j++){
-				pattern[j] += wi*eightNeiPattern[i].pattern_f[j];
-			}
+	uint8_t degree = 0;
+	patternNode* tmp = nbrPatternRoot;
+	
+	// count the number of nodes in the the list
+	// this will be my degree
+	while(tmp != NULL){
+		degree += 1;
+		tmp = tmp->next;
+	}
+	me.myDegree = degree;
+	
+	while(tmp != NULL){
+		maxDegree = me.myDegree;
+		if (maxDegree < tmp->degree){
+			maxDegree = tmp->degree;
+		}
+		wi = 1.0/(1.0+maxDegree);
+		wc -= wi;
+		for(uint8_t j=0; j<NUM_PATTERNS; j++){
+			pattern[j] += wi*tmp->pattern_f[j];
 		}
 	}
 	for (uint8_t i=0; i<NUM_PATTERNS; i++){
@@ -659,13 +655,6 @@ void weightedAverage(){
 	}
 	
 	if (TEST_CONSENSUS){
-		for (uint8_t i=0; i<NUM_NEIGHBOR_8; i++){
-			if (eightNeiPattern[i].dropletId != 0){
-				printf("%hu[%04X] Degree: %hu Pattern: %0.4f %0.4f %0.4f\r\n", i, eightNeiPattern[i].dropletId,
-				eightNeiPattern[i].degree, eightNeiPattern[i].pattern_f[0], eightNeiPattern[i].pattern_f[1],
-				eightNeiPattern[i].pattern_f[2]);
-			}
-		}
 		printf("\r\nPre-pattern: [%0.4f %0.4f %0.4f] Cur-pattern: [%0.4f %0.4f %0.4f]\r\n", 
 		me.myPattern_f[0], me.myPattern_f[1], me.myPattern_f[2], pattern[0], pattern[1], pattern[2]);
 	}

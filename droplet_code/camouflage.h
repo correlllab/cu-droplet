@@ -22,14 +22,14 @@
 #define NUM_PATTERNS		3
 #define NUM_PREPARE			25 //25
 #define NUM_GRADIENT		10 //10
-#define NUM_CONSENSUS		30 //30
+#define NUM_CONSENSUS		30 //15
 #define NUM_TURING			20 //20
-#define NUM_WAITING			500
+#define NUM_WAITING			500	//500
 
-#define SLOT_LENGTH_MS		271
-#define SLOTS_PER_FRAME		37
+#define SLOT_LENGTH_MS		271	//271
+#define SLOTS_PER_FRAME		37	//37
 #define FRAME_LENGTH_MS		(((uint32_t)SLOT_LENGTH_MS)*((uint32_t)SLOTS_PER_FRAME))
-#define LOOP_DELAY_MS		17
+#define LOOP_DELAY_MS		17	//17
 
 //Turing Pattern related
 #define TURING_F			(0.75f)

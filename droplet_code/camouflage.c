@@ -107,7 +107,7 @@ void init(){
 	loopID = 0xFFFF;
 	phase = 0;
 	frameCount = 0;
-	printf("Initializing Camouflage Project. mySlot is %03hu\r\n", me.mySlot);
+	printf("\r\nInitializing Camouflage Project. mySlot is %03hu\r\n", me.mySlot);
 	frameStart = get_time();
 	
 	printf("\r\n*************  Start PREPARE Phase   ***************\r\n");
@@ -175,11 +175,12 @@ void setColor(){
 			case Prepare: set_rgb(0, 0, 255); break;
 			case Gradient: set_rgb(0, 255, 0); break;
 			case Consensus:
-				if(me.turing_color){
-					set_rgb(255, 0, 0);
-				}else{
-					set_rgb(255,255,255);
-				}
+				set_rgb(0, 0, 255);
+				//if(me.turing_color){
+					//set_rgb(255, 0, 0);
+				//}else{
+					//set_rgb(255,255,255);
+				//}
 				break;
 			case Turing: changeColor(); break;
 			default: /*Do nothing.*/ break;
@@ -651,8 +652,15 @@ void weightedAverage(){
 		tmp = tmp->next;
 	}
 	me.myDegree = degree;
-	printf("My updated degree: %u\r\n", degree);
+	printf("My updated degree: %hu\r\n", degree);
 	
+	if (nbrPatternRoot == NULL)
+	{
+		printf("\t\tNo pattern Node in the list!!!\r\n");
+	}
+	else{
+		printf("\t\tYes pattern Node in the list!!!\r\n");
+	}
 	// weighted averaging using Metropolis weights
 	while(nbrPatternRoot != NULL){
 		maxDegree = me.myDegree;
@@ -668,6 +676,8 @@ void weightedAverage(){
 		myFree(nbrPatternRoot);
 		nbrPatternRoot = tmp;
 	}
+	lastPatternAdded = NULL;
+	
 	for (uint8_t i=0; i<NUM_PATTERNS; i++){
 		pattern[i] += wc*me.myPattern_f[i];
 	}
@@ -975,7 +985,7 @@ uint8_t user_handle_command(char* command_word, char* command_args){
 		//printrgbs();
 		printRGBs_ordered();
 		printRGB();
-		printf("row diff: %d, col diff: %d\n", me.colorDiff[0], me.colorDiff[1]);
+		printf("row diff: %d, col diff: %d, diff: %d\r\n", me.colorDiff[0], me.colorDiff[1], abs(me.colorDiff[0]-me.colorDiff[1]));
 		printProb();
 		printTuring();
 		printTuringHistory();

@@ -236,49 +236,22 @@ void sendBotPosMsg(){
 	msg.bots[0].x = myPos.x;
 	msg.bots[0].y = myPos.y;
 	msg.bots[0].col = packColor(me.rgb[0], me.rgb[1], me.rgb[2]);
+	
+	uint8_t indices[NUM_CHOSEN_BOTS];
+	chooseTransmittedBots(&indices);
+	for(uint8_t i=1;i<(NUM_CHOSEN_BOTS+1);i++){
+		msg.bots[i+1].x = otherBots[indices[i]].x;
+		msg.bots[i+1].y = otherBots[indices[i]].y;
+		msg.bots[i+1].col = otherBots[indices[i]].col;
+	}
 
 	msg.flag = BOT_POS_MSG_FLAG;
 	ir_send(ALL_DIRS, (char*)(&msg), sizeof(BotPosMsg));
 }
 
-// Store information from neighboring Droplets
-/*
-Neighbor Index document:
-//////////////////////////////
-        8
-    7	0	4
-11	3	X	1	9
-    6	2	5
-       10
-//////////////////////////////
-*/
-uint8_t magicArray[5][5] =	{
-								{0xFF, 0xFF, 10, 0xFF, 0xFF},
-								{0xFF, 6, 2, 5, 0xFF},
-								{11, 3, 0xFF, 1, 9},
-								{0xFF, 7, 0, 4, 0xFF},
-								{0xFF, 0xFF, 8, 0xFF, 0xFF}
-							};
-							
-
-void handleBotPosMsg(BotPos* pos, id_t id){
-	if(!POS_DEFINED(&myPos) || !POS_DEFINED(pos)){
-		return;
-	}
-	int16_t relX = pos->x - (myPos.x-GRID_OFFSET);
-	int16_t relY = pos->y - (myPos.y-GRID_OFFSET);
-	int8_t xIdx = relX/GRID_WIDTH;
-	int8_t yIdx = relY/GRID_WIDTH;
-	if(xIdx > 4 || xIdx<0 || yIdx > 4 || yIdx<0){
-		return;
-	}	
-	uint8_t idx = magicArray[yIdx][xIdx];
-	printf("Pos Conversion!\r\n");
-	printf("\tMy Pos: % 4d, % 4d\r\n", myPos.x, myPos.y);
-	printf("\tOther Pos: % 4d, % 4d\r\n", pos->x, pos->y);
-	printf("\tIndices: (%hu, %hu)->%hu\r\n", xIdx, yIdx, idx);
-	if(idx!=0xFF){
-		me.neighborIds[idx]=id;
+void handleBotPosMsg(BotPosMsg* msg, id_t sender){
+	for(uint8_t i=0;i<NUM_TRANSMITTED_BOTS;i++){
+		addBot( (msg->bots)[i]);
 	}
 }
 
@@ -314,7 +287,7 @@ void handle_msg(ir_msg* msg_struct)
 		handleBotMeasMsg((BotMeasMsg*)(msg_struct->msg), msg_struct->sender_ID);
 	}else{	
 		switch (phase){
-			case Prepare: handleBotPosMsg(&(((BotPosMsg*)(msg_struct->msg))->pos), msg_struct->sender_ID); break;
+			case Prepare: handleBotPosMsg((((BotPosMsg*)(msg_struct->msg))), msg_struct->sender_ID); break;
 			case Gradient: handle_rgb_msg((rgbMsg*)msg_struct->msg); break;
 			case Consensus: handle_pattern_msg((patternMsg*)msg_struct->msg); break;
 			case Turing: handle_turing_msg((turingMsg*)msg_struct->msg); break;
@@ -741,6 +714,45 @@ void changeColor(){
 	
 }
 
+/*
+Neighbor Index document:
+//////////////////////////////
+        8
+    7	0	4
+11	3	X	1	9
+    6	2	5
+       10
+//////////////////////////////
+*/
+static uint8_t magicArray[5][5] =	{
+								{0xFF, 0xFF, 10, 0xFF, 0xFF},
+								{0xFF, 6, 2, 5, 0xFF},
+								{11, 3, 0xFF, 1, 9},
+								{0xFF, 7, 0, 4, 0xFF},
+								{0xFF, 0xFF, 8, 0xFF, 0xFF}
+							};
+							
+uint8_t getNeighborIndex(PosColor pos){
+	if(!POS_DEFINED(&myPos) || !POS_DEFINED(pos)){
+		return;
+	}
+	int16_t relX = pos->x - (myPos.x-GRID_OFFSET);
+	int16_t relY = pos->y - (myPos.y-GRID_OFFSET);
+	int8_t xIdx = relX/GRID_WIDTH;
+	int8_t yIdx = relY/GRID_WIDTH;
+	if(xIdx > 4 || xIdx<0 || yIdx > 4 || yIdx<0){
+		return;
+	}
+	uint8_t idx = magicArray[yIdx][xIdx];
+	printf("Pos Conversion!\r\n");
+	printf("\tMy Pos: % 4d, % 4d\r\n", myPos.x, myPos.y);
+	printf("\tOther Pos: % 4d, % 4d\r\n", pos->x, pos->y);
+	printf("\tIndices: (%hu, %hu)->%hu\r\n", xIdx, yIdx, idx);
+	if(idx!=0xFF){
+		return idx;
+	}
+}
+
 void displayMenu(){
 	printf("pn: print neighbors' ID\r\n"); //
 	printf("pp: print all pattern probs\r\n");
@@ -887,4 +899,41 @@ uint8_t user_handle_command(char* command_word, char* command_args){
 	}
 
 	return 0;
+}
+
+//Returns 1 if a new bot was added to the array.
+//Returns 0 if the bot was already in the array.
+uint8_t addBot(PosColor pos){
+	uint8_t foundIdx = NUM_TRACKED_BOTS;
+	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
+		if((otherBots[i].x == pos.x) && (otherBots[i].y == pos.y)){
+			return 0; //The bot already existed; no need to add it.
+		}
+		if(!POS_C_DEFINED(&(otherBots[i]))){
+			foundIdx = i;
+		}
+	}
+	otherBots[foundIdx] = pos;
+	qsort(otherBots, NUM_TRACKED_BOTS+1, sizeof(PosColor), distCmp);
+	return 1;
+}
+
+void chooseTransmittedBots(uint8_t (*indices)[NUM_CHOSEN_BOTS]){
+	uint8_t numSelected = 0;
+	uint8_t numChoices = 0;
+	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
+		if(POS_C_DEFINED(otherBots[i])){
+			numChoices++;
+		}else{
+			break;
+		}
+	}//Now, numChoices is the number of valid trackedBots.
+	uint16_t randomizer[numChoices];
+	for(uint8_t i=0;i<numChoices;i++){
+		randomizer[i] = (((uint16_t)i)<<8) | rand_byte();
+	}
+	qsort(randomizer, numChoices, sizeof(uint16_t), randomizerCmp);
+	for(uint8_t i=0;i<NUM_CHOSEN_BOTS;i++){
+		(*indices)[i] = ((uint8_t)((randomizer[i]>>8)&0xFF));
+	}
 }

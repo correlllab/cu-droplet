@@ -72,15 +72,22 @@ typedef struct Turing_struct{
 	char flag;
 } turingMsg;
 
+#define NUM_TRACKED_BOTS 32
+
+#define POS_C_DEFINED(pos) ((((pos)->x)!=UNDF)&&(((pos)->y)!=UNDF))
+
 typedef struct pos_and_color_struct{
 	int16_t x;
 	int16_t y;
 	uint8_t col;
 }PosColor;
-PosColor otherBots[
+PosColor otherBots[NUM_TRACKED_BOTS+1];
+
+#define NUM_TRANSMITTED_BOTS 5
+#define NUM_CHOSEN_BOTS (NUM_TRANSMITTED_BOTS-1)
 
 typedef struct botpos_msg_struct{
-	PosColor bots[5]
+	PosColor bots[NUM_TRANSMITTED_BOTS]
 	char flag;
 }BotPosMsg;
 
@@ -146,7 +153,7 @@ int threshold_mottled = 0;
 void init(void);
 void loop(void);
 void handle_msg	(ir_msg* msg_struct);
-void handleBotPosMsg(BotPos* pos, id_t id);
+void handleBotPosMsg(BotPosMsg* msg, id_t sender);
 void handle_rgb_msg(rgbMsg* msg);
 void handle_pattern_msg(patternMsg* msg);
 void handle_turing_msg(turingMsg* msg);
@@ -173,6 +180,8 @@ void decidePattern(void);
 void weightedAverage(void);
 void changeColor(void);
 
+uint8_t getNeighborIndex(PosColor pos);
+
 void displayMenu(void);
 
 void printNs(void);
@@ -183,6 +192,45 @@ void printProb(void);
 void printTuring(void);
 void printTuringHistory(void);
 void printTuringHistoryCorrected(void);
+
+void chooseTransmittedBots(uint8_t (*indices)[NUM_CHOSEN_BOTS]);
+uint8_t addBot(PosColor pos);
+
+static int distCmp(const void* a, const void* b){
+	PosColor* aPos = &(((PosColor*)a));
+	PosColor* bPos = &(((PosColor*)b));
+	float aDist = hypot(aPos->y - myPos.y, aPos->x - myPos.x);
+	float bDist = hypot(bPos->y - myPos.y, bPos->x - myPos.x);
+	if(POS_C_DEFINED(aPos) && POS_C_DEFINED(bPos)){
+		if(aDist < bDist){
+			return -1;
+		}else if(bDist < aDist){
+			return 1;
+		}else{
+			return 0;
+		}
+	}else if(POS_C_DEFINED(aPos)){
+		return -1;
+	}else if(POS_C_DEFINED(bPos)){
+		return 1;
+	}else{
+		return 0;
+	}
+}
+
+static int randomizerCmp(const void* a, const void* b){
+	uint16_t aAll = *(((uint16_t*)a));
+	uint16_t bAll = *(((uint16_t*)b));
+	uint16_t a = aAll&0xFF;
+	uint16_t b = bAll&0xFF;
+	if(a < b){
+		return -1;
+	}else if(b < a){
+		return 1;
+	}else{
+		return 0;
+	}
+}
 
 
 /*

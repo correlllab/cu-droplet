@@ -40,6 +40,9 @@
 #define TEST_CONSENSUS		1
 #define TEST_TURING			1
 
+#define L_OF_G_SIGMA		0.5
+#define L_OF_G_WIDTH		50.0 //mm
+
 const float rgb_weights[3] = {0.5, 0.5, 0.0};  // RGB to Gray
 
 /*  */
@@ -52,12 +55,6 @@ typedef struct Droplet_struct{
 	uint8_t myDegree;
 	uint8_t turing_color;
 } Droplet;
-
-typedef struct RGB_struct{
-	int16_t rgb[3];
-	uint16_t dropletId;
-	char flag;
-} rgbMsg;
 
 typedef struct Pattern_struct{
 	float pattern_f[NUM_PATTERNS];
@@ -82,6 +79,7 @@ typedef struct pos_and_color_struct{
 	uint8_t col;
 }PosColor;
 PosColor otherBots[NUM_TRACKED_BOTS+1];
+PosColor myPosColor;
 
 #define NUM_TRANSMITTED_BOTS 5
 #define NUM_CHOSEN_BOTS (NUM_TRANSMITTED_BOTS-1)
@@ -95,7 +93,7 @@ Droplet me;
 
 /*       Print data        */ 
 // RGB reading
-rgbMsg allRGB[NUM_PREPARE];
+int16_t allRGB[NUM_PREPARE][3];
 patternMsg  allPattern[NUM_CONSENSUS];
 uint8_t turingHistory[NUM_TURING][NUM_NEIGHBOR_12];
 uint8_t turingHistoryCorrected[NUM_TURING][NUM_NEIGHBOR_12];
@@ -104,30 +102,16 @@ int16_t red_array[NUM_PREPARE];
 int16_t green_array[NUM_PREPARE];
 int16_t blue_array[NUM_PREPARE];
 
-// Store information from neighboring Droplets
-/*
-Neighbor Index document:
-//////////////////////////////
-        8
-    7	0	4
-11	3	X	1	9
-    6	2	5
-       10
-//////////////////////////////
-*/
-//Droplet neighborDroplets[NUM_NEIGHBOR_12];
-
-#define NUM_PHASES 6
+#define NUM_PHASES 5
 
 typedef enum{
 	Localize,
 	Prepare,
-	Gradient,
 	Consensus,
 	Turing,
 	Waiting
 } Phase;
-uint32_t slotLength[NUM_PHASES] = {397, 271, 271, 271, 271, 271};
+uint32_t slotLength[NUM_PHASES] = {397, 271, 271, 271, 271};
 uint32_t frameLength[NUM_PHASES];
 
 
@@ -148,13 +132,10 @@ uint16_t loopID;
 Phase phase;
 uint8_t counter;			// to exit phases
 
-int threshold_mottled = 0;
-
 void init(void);
 void loop(void);
 void handle_msg	(ir_msg* msg_struct);
 void handleBotPosMsg(BotPosMsg* msg, id_t sender);
-void handle_rgb_msg(rgbMsg* msg);
 void handle_pattern_msg(patternMsg* msg);
 void handle_turing_msg(turingMsg* msg);
 
@@ -172,7 +153,6 @@ void turingEOP(void);
 void waitingEOP(void);
 void setColor(void);
 
-void sendRGBMsg(void);
 void sendBotPosMsg(void);
 void sendPatternMsg(void);
 void sendTuringMsg(void);
@@ -180,21 +160,60 @@ void decidePattern(void);
 void weightedAverage(void);
 void changeColor(void);
 
-uint8_t getNeighborIndex(PosColor pos);
-
-void displayMenu(void);
-
-void printNs(void);
-void printRGBs(void);
-void printRGBs_ordered(void);
-void printRGB(void);
-void printProb(void);
-void printTuring(void);
-void printTuringHistory(void);
-void printTuringHistoryCorrected(void);
-
 void chooseTransmittedBots(uint8_t (*indices)[NUM_CHOSEN_BOTS]);
 uint8_t addBot(PosColor pos);
+
+inline void LofGxy(int16_t deltaX, int16_t deltaY, float* LofGx, float* LofGy){
+	float scalarTerm = 1.0/(M_2_PI*powf(L_OF_G_SIGMA,6.0));
+	float scaledXsq = powf(deltaX/L_OF_G_WIDTH,2);
+	float scaledYsq = powf(deltaY/L_OF_G_WIDTH,2);
+	float expTerm = -((scaledXsq + scaledYsq)/(2*powf(L_OF_G_SIGMA,2)));
+	float leftSide = scalarTerm*exp(expTerm);
+	*LofGx = leftSide*(scaledXsq - powf(L_OF_G_SIGMA,2));
+	*LofGy = leftSide*(scaledYsq - powf(L_OF_G_SIGMA,2));
+}
+
+inline uint8_t packColor(int16_t r, int16_t g, int16_t b){
+	uint8_t packedVal = 0;
+	if(r+b>130){
+		packedVal |= 0b11000000;
+	}
+	if(r>25 && r<=40){
+		packedVal |= 0b00010000;
+		}else if(r>40){
+		packedVal |= 0b00100000;
+	}
+	if(g>25 && g<=40){
+		packedVal |= 0b00000100;
+		}else if(g>40){
+		packedVal |= 0b00001000;
+	}
+	if(b>25 && b<=40){
+		packedVal |= 0b00000001;
+		}else if(b>40){
+		packedVal |= 0b00000010;
+	}
+	return packedVal;
+}
+
+inline float unpackColorToGray(uint8_t col){
+	if(col & 0b11000000){
+		return 1.0;
+		}else{
+		float rgb[3];
+		rgb[0] = (col>>4)*0.5;
+		rgb[1] = (col>>2)*0.5;
+		rgb[2] = (col)*0.5;
+		float grayVal = 0.0;
+		for(uint8_t i=0; i<3; i++){
+			grayVal += rgb[i]*rgb_weights[i];
+		}
+		return grayVal;
+	}
+}
+
+
+//Comparison functions below are used for the calls to qsort.
 
 static int distCmp(const void* a, const void* b){
 	PosColor* aPos = &(((PosColor*)a));

@@ -117,7 +117,6 @@ void loop(){
 			switch (phase){
 				case Localize:	localizeSlot();		break;
 				case Prepare:	sendBotPosMsg();	break;
-				case Gradient:	sendRGBMsg();		break;
 				case Consensus:	sendPatternMsg();	break;
 				case Turing:	sendTuringMsg();	break;
 				case Waiting: /*Do nothing.*/		break;
@@ -127,10 +126,9 @@ void loop(){
 			switch (phase){
 				case Localize:	localizeEOP();		break;
 				case Prepare:	prepareEOP();		break;
-				case Gradient:	gradientEOP();		break;
 				case Consensus: consensusEOP();		break;
 				case Turing:	turingEOP();		break;
-				case Waiting:   /*waitingEOP();*/ 		break;
+				case Waiting:   /*waitingEOP();*/ 	break;
 			}
 			printf("End of frame %lu.\r\n", frameCount);
 		}
@@ -154,7 +152,6 @@ void setColor(){
 		switch (phase){
 			case Localize: led_off(); break;
 			case Prepare: set_rgb(80, 160, 160); break;
-			case Gradient: set_rgb(200, 0, 0); break;
 			case Consensus: set_rgb(200, 0, 0); break;
 			default: /*Do nothing.*/ break;
 		}
@@ -162,7 +159,6 @@ void setColor(){
 		switch (phase){
 			case Localize: set_rgb(0, 200, 200); break;
 			case Prepare: set_rgb(0, 200, 0); break;
-			case Gradient: set_rgb(0, 0, 200); break;
 			case Consensus:
 				if(me.turing_color){
 					set_rgb(200, 0, 0);
@@ -196,53 +192,16 @@ void handleRNB(){
 	useRNBmeas(last_good_rnb.id, last_good_rnb.range, last_good_rnb.bearing, last_good_rnb.heading);
 }
 
-void sendRGBMsg(){
-	//if((50<me.rgb[0] && me.rgb[0]<400) && (50<me.rgb[1] && me.rgb[1]<400) && (50<me.rgb[2] && me.rgb[2]<400)){
-		rgbMsg msg;
-		msg.flag = RGB_MSG_FLAG;
-		msg.dropletId = me.dropletId;
-		for (uint8_t i=0; i<3; i++){
-			msg.rgb[i] = me.rgb[i];
-		}
-		ir_send(ALL_DIRS, (char*)(&msg), sizeof(rgbMsg));
-	//}
-}
 
-uint8_t packColor(uint8_t r, uint8_t g, uint8_t b){
-	uint8_t packedVal = 0;
-	if(r+b>130){
-		packedVal |= 0b11000000;
-	}
-	if(r>25 && r<=40){
-		packedVal |= 0b00010000;
-	}else if(r>40){
-		packedVal |= 0b00100000;
-	}
-	if(g>25 && g<=40){
-		packedVal |= 0b00000100;
-	}else if(g>40){
-		packedVal |= 0b00001000;
-	}
-	if(b>25 && b<=40){
-		packedVal |= 0b00000001;
-	}else if(b>40){
-		packedVal |= 0b00000010;
-	}
-	return packedVal;
-}
 
 void sendBotPosMsg(){
 	BotPosMsg msg;
-	msg.bots[0].x = myPos.x;
-	msg.bots[0].y = myPos.y;
-	msg.bots[0].col = packColor(me.rgb[0], me.rgb[1], me.rgb[2]);
+	msg.bots[0] = myPosColor;
 	
 	uint8_t indices[NUM_CHOSEN_BOTS];
 	chooseTransmittedBots(&indices);
 	for(uint8_t i=1;i<(NUM_CHOSEN_BOTS+1);i++){
-		msg.bots[i+1].x = otherBots[indices[i]].x;
-		msg.bots[i+1].y = otherBots[indices[i]].y;
-		msg.bots[i+1].col = otherBots[indices[i]].col;
+		msg.bots[i+1] = otherBots[indices[i]];
 	}
 
 	msg.flag = BOT_POS_MSG_FLAG;
@@ -288,34 +247,10 @@ void handle_msg(ir_msg* msg_struct)
 	}else{	
 		switch (phase){
 			case Prepare: handleBotPosMsg((((BotPosMsg*)(msg_struct->msg))), msg_struct->sender_ID); break;
-			case Gradient: handle_rgb_msg((rgbMsg*)msg_struct->msg); break;
 			case Consensus: handle_pattern_msg((patternMsg*)msg_struct->msg); break;
 			case Turing: handle_turing_msg((turingMsg*)msg_struct->msg); break;
 			default: break;
 		}
-	}
-}
-
-void handle_neighbor_msg(neighborMsg* msg){
-	if(msg->flag == NEIGHBOR_MSG_FLAG){
-		for (uint8_t i=0; i<NUM_NEIGHBOR_4; i++){
-			if (msg->dropletId == myFourDr.Ids[i]){
-				myFourDr.gotMsg_flags[i] = 1;
-				fourNeiInfo[i].dropletId = msg->dropletId;
-				fourNeiInfo[i].flag = msg->flag;
-				for(uint8_t j=0; j<NUM_NEIGHBOR_4;j++){
-					fourNeiInfo[i].gotMsg_flags[j] = msg->gotMsg_flags[j];
-					fourNeiInfo[i].Ids[j] = msg->Ids[j];
-				}
-				break;
-			}
-		}
-	}	
-}
-
-void handle_rgb_msg(rgbMsg* msg){
-	if(msg->flag == RGB_MSG_FLAG){
-
 	}
 }
 
@@ -339,9 +274,9 @@ void localizeSlot(){
 	get_rgb(&red, &green, &blue);
 
 	// store to print
-	allRGB[frameCount].rgb[0] = red;
-	allRGB[frameCount].rgb[1] = green;
-	allRGB[frameCount].rgb[2] = blue;
+	allRGB[frameCount][0] = red;
+	allRGB[frameCount][1] = green;
+	allRGB[frameCount][2] = blue;
 	red_array[frameCount] = red;
 	green_array[frameCount] = green;
 	blue_array[frameCount] = blue;
@@ -359,6 +294,10 @@ void localizeEOP(){
 		me.rgb[0] = meas_find_median(red_array, NUM_PREPARE);
 		me.rgb[1] = meas_find_median(green_array, NUM_PREPARE);
 		me.rgb[2] = meas_find_median(blue_array, NUM_PREPARE);
+
+		myPosColor.x = myPos.x;
+		myPosColor.y = myPos.y;
+		myPosColor.col = packColor(me.rgb[0], me.rgb[1], me.rgb[2]);
 		
 		me.turing_color = (me.rgb[0]+me.rgb[1])>130;
 
@@ -375,40 +314,11 @@ void prepareEOP(){
 	//extendNeighbors();
 	if (frameCount<(NUM_PREPARE-1)) {
 		if(TEST_PREPARE){
-			printf("X[%04X] R: %d G: %d B: %d\r\n", me.dropletId, allRGB[frameCount].rgb[0], allRGB[frameCount].rgb[1], allRGB[frameCount].rgb[2]);
+			printf("X[%04X] R: %d G: %d B: %d\r\n", me.dropletId, allRGB[frameCount][0], allRGB[frameCount][1], allRGB[frameCount][2]);
 		}
 	}else{
 		printf("Once only loop in Prepare\r\n");
-		if(TEST_PREPARE){
-			for (uint8_t i=0; i<NUM_NEIGHBOR_12; i++){
-				if (me.neighborIds[i] != 0){
-					printf("%hu-[%04X]\r\n", i, me.neighborIds[i]);
-				}
-			}
-			printf("\r\n");
-		}
-		phase=Gradient;
-		frameCount = 0;
-		printf("\r\n*************  Start GRADIENT Phase   ***************\r\n");
-	}
-}
-
-void gradientEOP(){
-	/* End of frame. Do some final processing here */
-	if (TEST_GRADIENT){
-		printf("X[%04X] R: %d G: %d B: %d\r\n", me.dropletId, me.rgb[0], me.rgb[1], me.rgb[2]);
-		for (uint8_t i=0; i<NUM_NEIGHBOR_4; i++){
-			printf("%hu[%04X] R: %d G: %d B: %d\r\n", i, fourNeiRGB[i].dropletId, fourNeiRGB[i].rgb[0], fourNeiRGB[i].rgb[1], fourNeiRGB[i].rgb[2]);
-		}
-	}
-	// At the end of this phase, decide the pattern
-	// based on the information received
-	// check if go to another phase
-	if(frameCount>=(NUM_GRADIENT-1)){
 		decidePattern();
-		for (uint8_t i=0; i<NUM_PATTERNS; i++){
-			allPattern[0].pattern_f[i] = me.myPattern_f[i];
-		}
 		phase=Consensus;
 		frameCount = 0;
 		printf("\r\n*************  Start CONSENSUS Phase   ***************\r\n");
@@ -449,71 +359,26 @@ void waitingEOP(){
 	}
 }
 
-
-// Inside of __gradientPhase__
-// Apply filters on both directions: horizontal and vertical
-// Note: ONLY ONCE
+/*
+ * Occurs at end of Prepare phase.
+ * Note: ONLY ONCE
+ */
 void decidePattern(){
-	// Compute two gradients and decide which pattern
-	// At this point, only use Red channel
-	uint8_t channel = 1;
-	if((30<me.rgb[0]&& me.rgb[0]<400) && (30<me.rgb[1]&& me.rgb[1]<400) && (30<me.rgb[2]&& me.rgb[2]<400) ){  // ignore and set to 0.5f
-		for(uint8_t i=0; i<NUM_NEIGHBOR_4; i++){
-			if (fourNeiRGB[i].dropletId == 0){
-				for (uint8_t j=0; j<3; j++){
-					fourNeiRGB[i].rgb[j] = me.rgb[j];
-				}
-			}
+	float xGradient = 0.0;
+	float yGradient = 0.0;
+	float LofGx, LofGy;
+	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
+		if(POS_C_DEFINED(&(otherBots[i]))){
+			break;
 		}
-		
-		//uint16_t diff_row = 0;
-		//uint16_t diff_col = 0;
-		//for (uint8_t channel = 0; channel <3; channel++){
-			//diff_row += abs(me.rgb[channel] - fourNeiRGB[1].rgb[channel]) + abs(me.rgb[channel]- fourNeiRGB[3].rgb[channel]);
-			//diff_col += abs(me.rgb[channel] - fourNeiRGB[0].rgb[channel]) + abs(me.rgb[channel]- fourNeiRGB[2].rgb[channel]);
-		//}
-		
-		float diff_row = 0;
-		float diff_col = 0;
-		float grays[5] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
-		
-		for (uint8_t j=0; j<NUM_NEIGHBOR_4; j++){
-			for (uint8_t i=0; i<3; i++){
-				grays[j] += (float)fourNeiRGB[j].rgb[i]*rgb_weights[i];
-			}			
-		}
+		//Maybe add a cut off here, so we ignore contributions from robots farther than ______ away?
+		LofGxy(otherBots[i].x - myPosColor.x, otherBots[i].y - myPosColor.y, &LofGx, &LofGy);
+		xGradient += fabs(unpackColorToGray(otherBots[i].col)) * LofGx;
+		yGradient += fabs(unpackColorToGray(otherBots[i].col)) * LofGy;
+	}
+	float gradientDirRad = atan2(yGradient, xGradient);
+	float gradientMagnitude = sqrtf(xGradient*xGradient + yGradient*yGradient);
 
-		for (uint8_t i=0; i<3; i++){
-			grays[4] += (float)me.rgb[i]*rgb_weights[i];
-		}
-					
-		diff_row = fabs(grays[4]-grays[1] + grays[4]-grays[3]);
-			
-		diff_col = fabs(grays[4]-grays[0] + grays[4]-grays[2]);
-		
-		printf("Px: %0.4f Py: %0.4f\r\n", diff_row, diff_col);
-		
-		// Decide which pattern to be
-		if(diff_col - diff_row > (float)threshold_mottled){ // row less than col: horizontal
-			me.myPattern_f[0] = 1.0f;
-		}else if (diff_row - diff_col > (float)threshold_mottled){ // col less than row: vertical
-			me.myPattern_f[1] = 1.0f;
-		}else{ // for the corner ones
-			me.myPattern_f[2] = 1.0f;
-		}
-	}else{
-		for (uint8_t i=0; i<NUM_PATTERNS; i++){
-			me.myPattern_f[i] = 0.333333333f;
-		}	
-	}
-	if (TEST_GRADIENT){
-		printf("X[%04X] RGB: %03d\r\n", me.dropletId, me.rgb[channel]);
-		for (uint8_t i=0; i<NUM_NEIGHBOR_4; i++){
-			if (fourNeiRGB[i].dropletId != 0){
-				printf("%hu[%04X] RGB: %03d\r\n", i, fourNeiRGB[i].dropletId, fourNeiRGB[i].rgb[channel]);
-			}
-		}
-	}
 }
 
 // Why small degree has larger weight?
@@ -714,52 +579,6 @@ void changeColor(){
 	
 }
 
-/*
-Neighbor Index document:
-//////////////////////////////
-        8
-    7	0	4
-11	3	X	1	9
-    6	2	5
-       10
-//////////////////////////////
-*/
-static uint8_t magicArray[5][5] =	{
-								{0xFF, 0xFF, 10, 0xFF, 0xFF},
-								{0xFF, 6, 2, 5, 0xFF},
-								{11, 3, 0xFF, 1, 9},
-								{0xFF, 7, 0, 4, 0xFF},
-								{0xFF, 0xFF, 8, 0xFF, 0xFF}
-							};
-							
-uint8_t getNeighborIndex(PosColor pos){
-	if(!POS_DEFINED(&myPos) || !POS_DEFINED(pos)){
-		return;
-	}
-	int16_t relX = pos->x - (myPos.x-GRID_OFFSET);
-	int16_t relY = pos->y - (myPos.y-GRID_OFFSET);
-	int8_t xIdx = relX/GRID_WIDTH;
-	int8_t yIdx = relY/GRID_WIDTH;
-	if(xIdx > 4 || xIdx<0 || yIdx > 4 || yIdx<0){
-		return;
-	}
-	uint8_t idx = magicArray[yIdx][xIdx];
-	printf("Pos Conversion!\r\n");
-	printf("\tMy Pos: % 4d, % 4d\r\n", myPos.x, myPos.y);
-	printf("\tOther Pos: % 4d, % 4d\r\n", pos->x, pos->y);
-	printf("\tIndices: (%hu, %hu)->%hu\r\n", xIdx, yIdx, idx);
-	if(idx!=0xFF){
-		return idx;
-	}
-}
-
-void displayMenu(){
-	printf("pn: print neighbors' ID\r\n"); //
-	printf("pp: print all pattern probs\r\n");
-	printf("pt: print neighbors' turing colors\r\n"); //
-	printf("pa: print all above info\r\n");
-}
-
 void printNs(){
 	printf("\r\nPrint neighbors' ID\r\n");
 	printf("X[%04X]\r\n", me.dropletId);
@@ -777,120 +596,25 @@ void printNs(){
 	}
 }
 
-void printRGBs(){
-	printf("\r\nPrint all rgbs read\r\n");
-	for (uint8_t i=0; i<NUM_PREPARE; i++){
-		printf("\t%hu: %d %d %d\r\n", i, allRGB[i].rgb[0], allRGB[i].rgb[1], allRGB[i].rgb[2]);
-	}
-}
-
-void printRGBs_ordered(){
-	printf("\r\nPrint all rgbs read (ordered)\r\n");
-	for (uint8_t i=0; i<NUM_PREPARE; i++){
-		printf("\t%hu: %d %d %d\r\n", i, red_array[i], green_array[i], blue_array[i]);
-	}
-}
-
-void printRGB(){
-	printf("\r\nPrint final rgb and neighbors\r\n"); 
-	printf("X: %d %d %d\r\n", me.rgb[0], me.rgb[1], me.rgb[2]);
-	for (uint8_t i=0; i<NUM_NEIGHBOR_4; i++){
-		printf("\t%hu: %d %d %d\r\n", i, fourNeiRGB[i].rgb[0], fourNeiRGB[i].rgb[1], fourNeiRGB[i].rgb[2]);
-	}	
-}
-
-void printProb(){
-	printf("\r\nPrint all pattern probs\r\n"); 
-	for (uint8_t i=0; i<NUM_CONSENSUS; i++){
-		printf("%0.6f %0.6f %0.6f\r\n", allPattern[i].pattern_f[0], allPattern[i].pattern_f[1], allPattern[i].pattern_f[2]);
-	}
-}
-
-void printTuring(){
-	printf("\r\nPrint final turing colors\r\n"); 
-	printf("X[%04X] Color: %u\r\n", me.dropletId, me.turing_color);
-	for (uint8_t i=0; i<NUM_NEIGHBOR_12; i++) {
-		if (twelveNeiTuring[i].dropletId != 0) {
-			printf("%hu[%04X] Color: %u\r\n", i, twelveNeiTuring[i].dropletId, twelveNeiTuring[i].color);
-		}else{
-			printf("%hu[----] Color: -\r\n", i);
-		}
-	}	
-}
-
-void printTuringHistory(){
-	printf("\r\nPrint history of original neighbors' turing colors\r\n"); 
-	for (uint8_t i=0; i<NUM_TURING-1; i++){
-		for(uint8_t j=0; j<NUM_NEIGHBOR_12; j++){
-			if (turingHistory[i][j] < 2)
-			{
-				printf("%u ", turingHistory[i][j]);
-			} 
-			else
-			{
-				printf("- ");
-			}
-		}
-		printf("\r\n");
-	}
-	
-	// Print in a positional way
-	for (uint8_t i=0; i<NUM_TURING-1; i++)
-	{
-		printf("\r\n--%u--\r\n", turingHistory[i][8]);
-		printf("-%u%u%u-\r\n", turingHistory[i][7],turingHistory[i][0],turingHistory[i][4]);
-		printf("%u%u-%u%u\r\n", turingHistory[i][11],turingHistory[i][3],turingHistory[i][1],turingHistory[i][9]);
-		printf("-%u%u%u-\r\n", turingHistory[i][6],turingHistory[i][2],turingHistory[i][5]);
-		printf("--%u--\r\n", turingHistory[i][10]);
-	}
-}
-
-void printTuringHistoryCorrected(){
-	printf("\r\nPrint history of corrected neighbors' turing colors\r\n");
-	for (uint8_t i=0; i<NUM_TURING-1; i++){
-		for(uint8_t j=0; j<NUM_NEIGHBOR_12; j++){
-			if (turingHistoryCorrected[i][j] < 2)
-			{
-				printf("%u ", turingHistoryCorrected[i][j]);
-			}
-			else
-			{
-				printf("- ");
-			}
-		}
-		printf("\r\n");
-	}
-
-	// Print in a positional way
-	for (uint8_t i=0; i<NUM_TURING-1; i++)
-	{
-		printf("\r\n--%u--\r\n", turingHistoryCorrected[i][8]);
-		printf("-%u%u%u-\r\n", turingHistoryCorrected[i][7],turingHistoryCorrected[i][0],turingHistoryCorrected[i][4]);
-		printf("%u%u-%u%u\r\n", turingHistoryCorrected[i][11],turingHistoryCorrected[i][3],turingHistoryCorrected[i][1],turingHistoryCorrected[i][9]);
-		printf("-%u%u%u-\r\n", turingHistoryCorrected[i][6],turingHistoryCorrected[i][2],turingHistoryCorrected[i][5]);
-		printf("--%u--\r\n", turingHistoryCorrected[i][10]);
-	}	
-}
-
 uint8_t user_handle_command(char* command_word, char* command_args){
-	if(strcmp(command_word, "pn")==0){
-		printNs();
-	}
-	if(strcmp(command_word, "pp")==0){
-		printProb();
-	}
-	if(strcmp(command_word, "pt")==0){
-		printTuring();
-	}
-	if(strcmp(command_word, "pa")==0){
-		printNs();
-		//printrgbs();
-		printRGBs_ordered();
-		printRGB();		
-		printProb();
-		printTuring();
-		printTuringHistory();
-		printTuringHistoryCorrected();
+	//if(strcmp(command_word, "pn")==0){
+		//printNs();
+	//}
+	//if(strcmp(command_word, "pp")==0){
+		//printProb();
+	//}
+	//if(strcmp(command_word, "pt")==0){
+		//printTuring();
+	//}
+	//if(strcmp(command_word, "pa")==0){
+		//printNs();
+		////printrgbs();
+		//printRGBs_ordered();
+		//printRGB();		
+		//printProb();
+		//printTuring();
+		//printTuringHistory();
+		//printTuringHistoryCorrected();
 
 	}
 

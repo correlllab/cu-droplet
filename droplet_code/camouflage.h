@@ -22,7 +22,7 @@
 #define NUM_PATTERNS		3
 #define NUM_PREPARE			25 //25
 #define NUM_GRADIENT		10 //10
-#define NUM_CONSENSUS		30 //15
+#define NUM_CONSENSUS		10 //10
 #define NUM_TURING			20 //20
 #define NUM_WAITING			500	//500
 
@@ -32,7 +32,8 @@
 #define LOOP_DELAY_MS		17	//17
 
 //Turing Pattern related
-#define TURING_F			(0.75f)
+#define TURING_F_STRIPE		(0.75f)
+#define TURING_F_SPOT		(0.55f)
 #define TURING_RANDOM		(0.02f)		// A threshold for random pattern
 #define PI_6				0.523598775598298873077  // pi/6
 #define PI_12				0.261799387799149436538  // pi/12
@@ -40,6 +41,9 @@
 #define TEST_GRADIENT		1
 #define TEST_CONSENSUS		1
 #define TEST_TURING			1
+
+
+int threshold_mottled = 50;	// 45
 
 const float rgb_weights[3] = {0.5, 0.5, 0.0};  // RGB to Gray
 
@@ -173,8 +177,6 @@ uint32_t frameCount;
 uint16_t loopID;
 Phase phase;
 uint8_t counter;			// to exit phases
-
-int threshold_mottled = 0;
 
 void init(void);
 void loop(void);

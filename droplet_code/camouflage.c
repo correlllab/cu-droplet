@@ -176,11 +176,6 @@ void setColor(){
 			case Gradient: set_rgb(0, 255, 0); break;
 			case Consensus:
 				set_rgb(0, 0, 255);
-				//if(me.turing_color){
-					//set_rgb(255, 0, 0);
-				//}else{
-					//set_rgb(255,255,255);
-				//}
 				break;
 			case Turing: changeColor(); break;
 			default: /*Do nothing.*/ break;
@@ -399,7 +394,7 @@ void prepareEOP(){
 		me.rgb[1] = meas_find_median(green_array, NUM_PREPARE);
 		me.rgb[2] = meas_find_median(blue_array, NUM_PREPARE);
 	
-		me.turing_color = (me.rgb[0]+me.rgb[1])>130;
+		me.turing_color = (me.rgb[0]+me.rgb[1])<130;
 
 		if(TEST_PREPARE){
 			for (uint8_t i=0; i<NUM_NEIGHBOR_12; i++){

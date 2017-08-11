@@ -9,17 +9,9 @@
 
 #include "droplet_init.h"
 
-#define GRID_WIDTH			50
-#define GRID_OFFSET			((GRID_WIDTH*5)/2)
-
-#define NEIGHBOR_ANGLE_THRESH 20
-
-#define NEIGHBOR_MSG_FLAG	'N'
-#define RGB_MSG_FLAG		'R'
 #define PATTERN_MSG_FLAG	'P'
 #define TURING_MSG_FLAG		'T'
 #define BOT_POS_MSG_FLAG	'B'
-#define NUM_PATTERNS		3
 #define NUM_PREPARE			20 //20
 #define NUM_GRADIENT		10 //10
 #define NUM_CONSENSUS		30 //30
@@ -33,8 +25,7 @@
 //Turing Pattern related
 #define TURING_F			(0.75f)
 #define TURING_RANDOM		(0.02f)		// A threshold for random pattern
-#define PI_6				0.523598775598298873077  // pi/6
-#define PI_12				0.261799387799149436538  // pi/12
+
 #define TEST_PREPARE		1
 #define TEST_GRADIENT		1
 #define TEST_CONSENSUS		1
@@ -43,31 +34,55 @@
 #define L_OF_G_SIGMA		0.5
 #define L_OF_G_WIDTH		50.0 //mm
 
+//All of the below should be in mm
+#define ACTIVATOR_WIDTH 210
+#define ACTIVATOR_HEIGHT 70
+#define INHIBITOR_WIDTH 210
+#define INHIBITOR_HEIGHT 210
+
 const float rgb_weights[3] = {0.5, 0.5, 0.0};  // RGB to Gray
+
+typedef struct pattern_struct{
+	float x;
+	float y;
+}Pattern;
 
 /*  */
 typedef struct Droplet_struct{
-	float myPattern_f[NUM_PATTERNS];
-	id_t neighborIds[NUM_NEIGHBOR_12];
 	int16_t rgb[3];
 	id_t dropletId;
-	uint8_t mySlot;
-	uint8_t myDegree;
-	uint8_t turing_color;
+	uint8_t slot;
+	uint8_t degree;
+	uint8_t turingColor;
+	uint8_t nA; //num activators
+	uint8_t nI; //num inhibitors
+	Pattern p;
+	Matrix patternTransformA;
+	Matrix patternTransformI;
 } Droplet;
 
-typedef struct Pattern_struct{
-	float pattern_f[NUM_PATTERNS];
+
+/* Used in consensus phase */
+typedef struct pattern_node_struct{
+	Pattern p;
+	uint8_t degree;
+	struct pattern_node_struct* next;
+} PatternNode;
+PatternNode* nbrPatternRoot;
+PatternNode* lastPatternAdded;
+
+typedef struct pattern_msg_struct{ //12 bytes
+	Pattern p;
 	id_t dropletId;
 	uint8_t degree;
 	char flag;
-} patternMsg;
+} PatternMsg;
 
-typedef struct Turing_struct{
-	id_t dropletId;
-	uint8_t color;
+typedef struct turing_msg_struct{
+	int16_t x;
+	int16_t y;
 	char flag;
-} turingMsg;
+} TuringMsg;
 
 #define NUM_TRACKED_BOTS 32
 
@@ -85,18 +100,16 @@ PosColor myPosColor;
 #define NUM_CHOSEN_BOTS (NUM_TRANSMITTED_BOTS-1)
 
 typedef struct botpos_msg_struct{
-	PosColor bots[NUM_TRANSMITTED_BOTS]
+	PosColor bots[NUM_TRANSMITTED_BOTS];
 	char flag;
 }BotPosMsg;
 
 Droplet me;
 
 /*       Print data        */ 
-// RGB reading
-int16_t allRGB[NUM_PREPARE][3];
-patternMsg  allPattern[NUM_CONSENSUS];
-uint8_t turingHistory[NUM_TURING][NUM_NEIGHBOR_12];
-uint8_t turingHistoryCorrected[NUM_TURING][NUM_NEIGHBOR_12];
+int16_t allRGB[NUM_PREPARE][3]; // RGB reading
+Pattern allPatterns[NUM_CONSENSUS];
+uint8_t turingHistory[NUM_TURING][3];
 
 int16_t red_array[NUM_PREPARE];
 int16_t green_array[NUM_PREPARE];
@@ -135,9 +148,9 @@ uint8_t counter;			// to exit phases
 void init(void);
 void loop(void);
 void handle_msg	(ir_msg* msg_struct);
-void handleBotPosMsg(BotPosMsg* msg, id_t sender);
-void handle_pattern_msg(patternMsg* msg);
-void handle_turing_msg(turingMsg* msg);
+void handleBotPosMsg(BotPosMsg* msg);
+void handlePatternMsg(PatternMsg* msg);
+void handleTuringMsg(TuringMsg* msg);
 
 void handleRNB(void);
 
@@ -158,7 +171,7 @@ void sendPatternMsg(void);
 void sendTuringMsg(void);
 void decidePattern(void);
 void weightedAverage(void);
-void changeColor(void);
+void updateTuringColor(void);
 
 void chooseTransmittedBots(uint8_t (*indices)[NUM_CHOSEN_BOTS]);
 uint8_t addBot(PosColor pos);
@@ -173,9 +186,9 @@ inline void LofGxy(int16_t deltaX, int16_t deltaY, float* LofGx, float* LofGy){
 	*LofGy = leftSide*(scaledYsq - powf(L_OF_G_SIGMA,2));
 }
 
-inline uint8_t packColor(int16_t r, int16_t g, int16_t b){
+inline uint8_t packColor(int16_t r, int16_t g, int16_t b, uint8_t turingColor){
 	uint8_t packedVal = 0;
-	if(r+b>130){
+	if(turingColor){
 		packedVal |= 0b11000000;
 	}
 	if(r>25 && r<=40){
@@ -197,9 +210,6 @@ inline uint8_t packColor(int16_t r, int16_t g, int16_t b){
 }
 
 inline float unpackColorToGray(uint8_t col){
-	if(col & 0b11000000){
-		return 1.0;
-		}else{
 		float rgb[3];
 		rgb[0] = (col>>4)*0.5;
 		rgb[1] = (col>>2)*0.5;
@@ -209,15 +219,14 @@ inline float unpackColorToGray(uint8_t col){
 			grayVal += rgb[i]*rgb_weights[i];
 		}
 		return grayVal;
-	}
 }
 
 
 //Comparison functions below are used for the calls to qsort.
 
 static int distCmp(const void* a, const void* b){
-	PosColor* aPos = &(((PosColor*)a));
-	PosColor* bPos = &(((PosColor*)b));
+	PosColor* aPos = (((PosColor*)a));
+	PosColor* bPos = (((PosColor*)b));
 	float aDist = hypot(aPos->y - myPos.y, aPos->x - myPos.x);
 	float bDist = hypot(bPos->y - myPos.y, bPos->x - myPos.x);
 	if(POS_C_DEFINED(aPos) && POS_C_DEFINED(bPos)){
@@ -237,9 +246,9 @@ static int distCmp(const void* a, const void* b){
 	}
 }
 
-static int randomizerCmp(const void* a, const void* b){
-	uint16_t aAll = *(((uint16_t*)a));
-	uint16_t bAll = *(((uint16_t*)b));
+static int randomizerCmp(const void* aR, const void* bR){
+	uint16_t aAll = *(((uint16_t*)aR));
+	uint16_t bAll = *(((uint16_t*)bR));
 	uint16_t a = aAll&0xFF;
 	uint16_t b = bAll&0xFF;
 	if(a < b){

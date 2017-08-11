@@ -70,19 +70,22 @@ Patterns:
 */
 void init(){
 	me.dropletId = get_droplet_id();
-	me.mySlot = me.dropletId%(SLOTS_PER_FRAME-1);
+	me.slot = me.dropletId%(SLOTS_PER_FRAME-1);
 	//me.mySlot = get_droplet_ord(me.dropletId)-100; // For AUDIO_DROPLET
 	//me.mySlot = (get_droplet_id()%(SLOTS_PER_FRAME-1));
-	me.myDegree = 1;
+	me.degree = 1;
 	
 	me.rgb[0] = 0;
 	me.rgb[1] = 0;
 	me.rgb[2] = 0;
+	me.nA = 0;
+	me.nI = 0;
 	/********************* other variables ************************/ 
 	// fourDr: use as a message to send out
-	for (uint8_t i=0; i<NUM_PATTERNS; i++){
-		me.myPattern_f[i] = 0.0f;
-	}
+	me.p.x = NAN;
+	me.p.y = NAN;
+	myPosColor.x = UNDF;
+	myPosColor.y = UNDF;
 	measRoot = NULL;
 	lastMeasAdded = NULL;
 
@@ -90,7 +93,7 @@ void init(){
 	frameCount = 0;
 	loopID = 0xFFFF;
 	phase = Localize;
-	printf("Initializing Camouflage Project. mySlot is %03hu\r\n", me.mySlot);
+	printf("Initializing Camouflage Project. mySlot is %03hu\r\n", me.slot);
 	frameStart = get_time();
 	
 	for(uint8_t i=0;i<NUM_PHASES;i++){
@@ -112,7 +115,7 @@ void loop(){
 	}
 	if(loopID!=(frameTime/slotLength[phase])){
 		loopID = frameTime/slotLength[phase];
-		if(loopID == me.mySlot){
+		if(loopID == me.slot){
 			printf("Start of my slot, frame %lu.\r\n", frameCount);
 			switch (phase){
 				case Localize:	localizeSlot();		break;
@@ -148,7 +151,7 @@ void loop(){
 }
 
 void setColor(){
-	if(loopID == me.mySlot){
+	if(loopID == me.slot){
 		switch (phase){
 			case Localize: led_off(); break;
 			case Prepare: set_rgb(80, 160, 160); break;
@@ -159,14 +162,14 @@ void setColor(){
 		switch (phase){
 			case Localize: set_rgb(0, 200, 200); break;
 			case Prepare: set_rgb(0, 200, 0); break;
-			case Consensus:
-				if(me.turing_color){
+			case Consensus: //fall through; consensus and turing should behave the same way.
+			case Turing:
+				if(me.turingColor){
 					set_rgb(200, 0, 0);
 				}else{
 					set_rgb(200,200,200);
 				}
 				break;
-			case Turing: changeColor(); break;
 			default: /*Do nothing.*/ break;
 		}
 	}else{
@@ -199,41 +202,41 @@ void sendBotPosMsg(){
 	msg.bots[0] = myPosColor;
 	
 	uint8_t indices[NUM_CHOSEN_BOTS];
+	uint8_t idx = 0;
 	chooseTransmittedBots(&indices);
-	for(uint8_t i=1;i<(NUM_CHOSEN_BOTS+1);i++){
-		msg.bots[i+1] = otherBots[indices[i]];
+	for(uint8_t i=1;i<NUM_TRANSMITTED_BOTS;i++){
+		idx = indices[i-1];
+		msg.bots[i] = otherBots[idx];
 	}
 
 	msg.flag = BOT_POS_MSG_FLAG;
 	ir_send(ALL_DIRS, (char*)(&msg), sizeof(BotPosMsg));
 }
 
-void handleBotPosMsg(BotPosMsg* msg, id_t sender){
+void handleBotPosMsg(BotPosMsg* msg){
 	for(uint8_t i=0;i<NUM_TRANSMITTED_BOTS;i++){
 		addBot( (msg->bots)[i]);
 	}
 }
 
 void sendPatternMsg(){
-	patternMsg msg;
+	PatternMsg msg;
 	msg.flag = PATTERN_MSG_FLAG;
 	msg.dropletId = me.dropletId;
-	msg.degree = me.myDegree;
-	for (uint8_t i=0; i<NUM_PATTERNS; i++){
-		float tmp = me.myPattern_f[i];
-		msg.pattern_f[i] = (tmp>1.0) ? 1.0 : ((tmp<0.0) ? 0.0 : tmp);
-		me.myPattern_f[i] = msg.pattern_f[i];
-	}
-	ir_send(ALL_DIRS, (char*)(&msg), sizeof(patternMsg));
+	msg.degree = me.degree;
+	msg.p.x = me.p.x;
+	msg.p.y = me.p.y;
+	ir_send(ALL_DIRS, (char*)(&msg), sizeof(PatternMsg));
 }
 
 void sendTuringMsg(){
-	turingMsg msg;
-	msg.flag = TURING_MSG_FLAG;
-	msg.dropletId = me.dropletId;
-	msg.color = me.turing_color;
-	
-	ir_send(ALL_DIRS, (char*)(&msg), sizeof(turingMsg));
+	if(me.turingColor){
+		TuringMsg msg;
+		msg.flag = TURING_MSG_FLAG;
+		msg.x = myPosColor.x;
+		msg.y = myPosColor.y;
+		ir_send(ALL_DIRS, (char*)(&msg), sizeof(TuringMsg));
+	}
 }
 
 /*
@@ -246,23 +249,43 @@ void handle_msg(ir_msg* msg_struct)
 		handleBotMeasMsg((BotMeasMsg*)(msg_struct->msg), msg_struct->sender_ID);
 	}else{	
 		switch (phase){
-			case Prepare: handleBotPosMsg((((BotPosMsg*)(msg_struct->msg))), msg_struct->sender_ID); break;
-			case Consensus: handle_pattern_msg((patternMsg*)msg_struct->msg); break;
-			case Turing: handle_turing_msg((turingMsg*)msg_struct->msg); break;
+			case Prepare: handleBotPosMsg((((BotPosMsg*)(msg_struct->msg)))); break;
+			case Consensus: handlePatternMsg((PatternMsg*)msg_struct->msg); break;
+			case Turing: handleTuringMsg((TuringMsg*)msg_struct->msg); break;
 			default: break;
 		}
 	}
 }
 
-void handle_pattern_msg(patternMsg* msg){
+void handlePatternMsg(PatternMsg* msg){
 	if(msg->flag == PATTERN_MSG_FLAG){
-
+		if(lastPatternAdded==NULL){
+			lastPatternAdded = (PatternNode*)myMalloc(sizeof(PatternNode));
+			nbrPatternRoot = lastPatternAdded;
+		}else{
+			lastPatternAdded->next = (PatternNode*)myMalloc(sizeof(PatternNode));
+			lastPatternAdded = lastPatternAdded->next;
+		}
+		lastPatternAdded->degree = msg->degree;
+		lastPatternAdded->p.x = msg->p.x;
+		lastPatternAdded->p.y = msg->p.y;
+		lastPatternAdded->next = NULL;
 	}
 }
 
-void handle_turing_msg(turingMsg* msg){
+void handleTuringMsg(TuringMsg* msg){
 	if(msg->flag == TURING_MSG_FLAG){
-
+		//TODO
+		Vector pos = {msg->x, msg->y, 1};
+		Vector activatorTF, inhibitorTF;
+		matrixTimesVector(&activatorTF, &(me.patternTransformA), &pos);
+		matrixTimesVector(&inhibitorTF, &(me.patternTransformI), &pos);
+		printf("{{% 4d, % 4d}, {% 4d, % 4d}, {% 4d, % 4d}},", msg->x, msg->y, (int16_t)activatorTF[0], (int16_t)activatorTF[1], (int16_t)inhibitorTF[0], (int16_t)inhibitorTF[1]);
+		if((activatorTF[0]*activatorTF[0]+activatorTF[1]*activatorTF[1])<=1.0){ //if the position is inside unit circle after transformation..
+			me.nA++;
+		}else if((inhibitorTF[0]*inhibitorTF[0]+inhibitorTF[1]*inhibitorTF[1])<=1.0){ //if the position is inside unit circle after transformation..
+			me.nI++;
+		}
 	}
 }
 
@@ -295,11 +318,13 @@ void localizeEOP(){
 		me.rgb[1] = meas_find_median(green_array, NUM_PREPARE);
 		me.rgb[2] = meas_find_median(blue_array, NUM_PREPARE);
 
+		me.turingColor = (me.rgb[0]+me.rgb[1])>130;
+
 		myPosColor.x = myPos.x;
 		myPosColor.y = myPos.y;
-		myPosColor.col = packColor(me.rgb[0], me.rgb[1], me.rgb[2]);
+		myPosColor.col = packColor(me.rgb[0], me.rgb[1], me.rgb[2], me.turingColor);
 		
-		me.turing_color = (me.rgb[0]+me.rgb[1])>130;
+		
 
 		phase=Prepare;
 		frameCount = 0;
@@ -309,9 +334,6 @@ void localizeEOP(){
 }
 
 void prepareEOP(){
-	/* End of frame. Do some final processing here */
-	//updateNeighbors();
-	//extendNeighbors();
 	if (frameCount<(NUM_PREPARE-1)) {
 		if(TEST_PREPARE){
 			printf("X[%04X] R: %d G: %d B: %d\r\n", me.dropletId, allRGB[frameCount][0], allRGB[frameCount][1], allRGB[frameCount][2]);
@@ -328,10 +350,23 @@ void prepareEOP(){
 void consensusEOP(){
 	weightedAverage();
 	if (frameCount<(NUM_CONSENSUS-1)) {
-		for (uint8_t i=0; i<NUM_PATTERNS; i++){
-			allPattern[frameCount].pattern_f[i] = me.myPattern_f[i];
-		}
+		allPatterns[frameCount] = me.p;
 	}else{
+		//Compute the appropriate transformations:
+		float pTheta = atan2(me.p.y, me.p.x);
+		Matrix translate = {{1, 0, myPosColor.x}, {0, 1,  myPosColor.y}, {0, 0, 1}};
+		Matrix rotate = {{cos(-pTheta), sin(-pTheta), 0}, {-sin(-pTheta), cos(-pTheta), 0}, {0, 0, 1}};
+		Matrix activatorScale = {{1.0/ACTIVATOR_WIDTH, 0, 0}, {0, 1.0/ACTIVATOR_HEIGHT, 0}, {0, 0, 1}};
+		Matrix inhibitorScale = {{1.0/INHIBITOR_WIDTH, 0, 0}, {0, 1.0/INHIBITOR_HEIGHT, 0}, {0, 0, 1}};
+
+		Matrix tmp;
+		matrixMultiply(&tmp, &rotate, &translate);
+		matrixMultiply(&(me.patternTransformA), &activatorScale, &tmp);
+		matrixMultiply(&(me.patternTransformI), &inhibitorScale, &tmp);
+
+		printMatrixMathematica(&(me.patternTransformA));
+		printMatrixMathematica(&(me.patternTransformI));
+
 		phase=Turing;
 		frameCount = 0;
 		printf("\r\n*************  Start TURING Phase   ***************\r\n");
@@ -339,11 +374,12 @@ void consensusEOP(){
 }
 
 void turingEOP(){
-	/* End of frame. Do some final processing here */
-	//changeColor();
-	if (frameCount>=(NUM_TURING-1)){
+	updateTuringColor();
+	if (frameCount<(NUM_TURING-1)){
+		//Nothing right now.
+	}else{
 		printf("\r\nAll Done!\r\n");
-		displayMenu();
+		//displayMenu();
 		frameCount = 0;
 		phase=Waiting;
 		printf("\r\n*************  Start WAITING Phase   ***************\r\n");
@@ -364,8 +400,8 @@ void waitingEOP(){
  * Note: ONLY ONCE
  */
 void decidePattern(){
-	float xGradient = 0.0;
-	float yGradient = 0.0;
+	me.p.x = 0.0;
+	me.p.y = 0.0;
 	float LofGx, LofGy;
 	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
 		if(POS_C_DEFINED(&(otherBots[i]))){
@@ -373,257 +409,125 @@ void decidePattern(){
 		}
 		//Maybe add a cut off here, so we ignore contributions from robots farther than ______ away?
 		LofGxy(otherBots[i].x - myPosColor.x, otherBots[i].y - myPosColor.y, &LofGx, &LofGy);
-		xGradient += fabs(unpackColorToGray(otherBots[i].col)) * LofGx;
-		yGradient += fabs(unpackColorToGray(otherBots[i].col)) * LofGy;
+		me.p.x += fabs(unpackColorToGray(otherBots[i].col)) * LofGx;
+		me.p.y += fabs(unpackColorToGray(otherBots[i].col)) * LofGy;
 	}
-	float gradientDirRad = atan2(yGradient, xGradient);
-	float gradientMagnitude = sqrtf(xGradient*xGradient + yGradient*yGradient);
 
+	me.p.x = fabs(me.p.x);
+	me.p.y = fabs(me.p.y); 
+	//Is this the right place to be absing?? 
+	//This effectively reduces the space of possible pattern directions to the upper right quadrant, a 90 degree swath.
+	//Pretty sure that covers everything though.
 }
 
-// Why small degree has larger weight?
 void weightedAverage(){
 	float wi;
 	float wc;
-	float pattern[3] ={0.0, 0.0, 0.0};
+	Pattern p;
+	p.x = 0;
+	p.y = 0;
 	uint8_t maxDegree;
 	wc = 1.0;
-	for (uint8_t i=0; i<NUM_NEIGHBOR_8; i++){
-		if (eightNeiPattern[i].dropletId){
-			maxDegree = me.myDegree;
-			if (maxDegree < eightNeiPattern[i].degree){
-				maxDegree = eightNeiPattern[i].degree;
-			}
-			wi = 1.0/(1.0+maxDegree);
-			wc -= wi;
-			for(uint8_t j=0; j<NUM_PATTERNS; j++){
-				pattern[j] += wi*eightNeiPattern[i].pattern_f[j];
-			}
+	uint8_t degree = 0;
+	PatternNode* tmp = nbrPatternRoot;
+	
+	// count the number of nodes in the the list
+	// this will be my degree
+	while(tmp != NULL){
+		degree += 1;
+		tmp = tmp->next;
+	}
+	me.degree = degree;
+	printf("My updated degree: %hu\r\n", degree);
+	
+	if (nbrPatternRoot == NULL){
+		printf("\t\tNo pattern Node in the list!!!\r\n");
+	}else{
+		printf("\t\tYes pattern Node in the list!!!\r\n");
+	}
+	// weighted averaging using Metropolis weights
+	while(nbrPatternRoot != NULL){
+		maxDegree = me.degree;
+		if (maxDegree < nbrPatternRoot->degree){
+			maxDegree = nbrPatternRoot->degree;
 		}
+		wi = 1.0/(1.0+maxDegree);
+		wc -= wi;
+		p.x += wi*nbrPatternRoot->p.x;
+		p.y += wi*nbrPatternRoot->p.y;
+		tmp = nbrPatternRoot->next;
+		myFree(nbrPatternRoot);
+		nbrPatternRoot = tmp;
 	}
-	for (uint8_t i=0; i<NUM_PATTERNS; i++){
-		pattern[i] += wc*me.myPattern_f[i];
-	}
+	lastPatternAdded = NULL;
+	
+	p.x += wc*me.p.x;
+	p.y += wc*me.p.y;
 	
 	if (TEST_CONSENSUS){
-		for (uint8_t i=0; i<NUM_NEIGHBOR_8; i++){
-			if (eightNeiPattern[i].dropletId != 0){
-				printf("%hu[%04X] Degree: %hu Pattern: %0.4f %0.4f %0.4f\r\n", i, eightNeiPattern[i].dropletId,
-				eightNeiPattern[i].degree, eightNeiPattern[i].pattern_f[0], eightNeiPattern[i].pattern_f[1],
-				eightNeiPattern[i].pattern_f[2]);
-			}
-		}
-		printf("\r\nPre-pattern: [%0.4f %0.4f %0.4f] Cur-pattern: [%0.4f %0.4f %0.4f]\r\n", 
-		me.myPattern_f[0], me.myPattern_f[1], me.myPattern_f[2], pattern[0], pattern[1], pattern[2]);
+		printf("\r\nPre-pattern: [%0.4f, %0.4f] Cur-pattern: [%0.4f, %0.4f]\r\n",
+		me.p.x, me.p.y, p.x, p.y);
 	}
-	for (uint8_t i=0; i<NUM_PATTERNS; i++)
-	{
-		me.myPattern_f[i] = pattern[i];
-	}
-	
+	me.p.x = p.x;
+	me.p.y = p.y;	
 }
 
 // Change me.turing_color according to Young's model
 // the neighbors' colors are also added to turingHistory array for record
-void changeColor(){
-	uint8_t na = 0;
-	uint8_t ni = 0;
+void updateTuringColor(){
 	float ss = 0.0f;
-	if (me.turing_color == 1){
-		na += 1;
+	if (me.turingColor == 1){
+		me.nA += 1;
 	}
-	
-	// save the original colors to turingHistory
-	for (uint8_t i=0; i<NUM_NEIGHBOR_12; i++)
-	{
-		if (twelveNeiTuring[i].dropletId != 0)
-		{
-			turingHistory[frameCount][i] = twelveNeiTuring[i].color;
-		} 
-		else
-		{
-			turingHistory[frameCount][i] = 2;
-		}
-	}
-	
-	
-	for (uint8_t i=0; i<NUM_NEIGHBOR_12; i++){
-		if (twelveNeiTuring[i].dropletId == 0){
-			switch (i){
-				case 0: twelveNeiTuring[i].color = twelveNeiTuring[2].color; break;
-				case 1: twelveNeiTuring[i].color = twelveNeiTuring[3].color; break;
-				case 2: twelveNeiTuring[i].color = twelveNeiTuring[0].color; break;
-				case 3: twelveNeiTuring[i].color = twelveNeiTuring[1].color; break;
-				case 4:
-					if((twelveNeiTuring[7].dropletId == 0) && (twelveNeiTuring[5].dropletId == 0)){
-						twelveNeiTuring[i].color = twelveNeiTuring[6].color;
-					}else if((twelveNeiTuring[5].dropletId != 0)){
-						twelveNeiTuring[i].color = twelveNeiTuring[5].color;
-					}else if(twelveNeiTuring[7].dropletId !=0){
-						twelveNeiTuring[i].color = twelveNeiTuring[7].color;
-					}else{
-						twelveNeiTuring[i].color = 0;
-					}
-					break;				
-				case 5: 
-					if((twelveNeiTuring[4].dropletId == 0) && (twelveNeiTuring[6].dropletId == 0)){
-						twelveNeiTuring[i].color = twelveNeiTuring[7].color;
-						}else if((twelveNeiTuring[4].dropletId != 0)){
-						twelveNeiTuring[i].color = twelveNeiTuring[4].color;
-						}else if(twelveNeiTuring[6].dropletId !=0){
-						twelveNeiTuring[i].color = twelveNeiTuring[6].color;
-						}else{
-						twelveNeiTuring[i].color = 0;
-					}				
-					break;
-				case 6: 
-					if((twelveNeiTuring[7].dropletId == 0) && (twelveNeiTuring[5].dropletId == 0)){
-						twelveNeiTuring[i].color = twelveNeiTuring[4].color;
-						}else if((twelveNeiTuring[5].dropletId != 0)){
-						twelveNeiTuring[i].color = twelveNeiTuring[5].color;
-						}else if(twelveNeiTuring[7].dropletId !=0){
-						twelveNeiTuring[i].color = twelveNeiTuring[7].color;
-						}else{
-						twelveNeiTuring[i].color = 0;
-					}				
-					break;
-				case 7: 
-					if((twelveNeiTuring[4].dropletId == 0) && (twelveNeiTuring[6].dropletId == 0)){
-						twelveNeiTuring[i].color = twelveNeiTuring[5].color;
-						}else if((twelveNeiTuring[4].dropletId != 0)){
-						twelveNeiTuring[i].color = twelveNeiTuring[4].color;
-						}else if(twelveNeiTuring[6].dropletId !=0){
-						twelveNeiTuring[i].color = twelveNeiTuring[6].color;
-						}else{
-						twelveNeiTuring[i].color = 0;
-					}
-					break;
-				case 8: twelveNeiTuring[i].color = twelveNeiTuring[10].color; break;
-				case 9: twelveNeiTuring[i].color = twelveNeiTuring[11].color; break;
-				case 10: twelveNeiTuring[i].color = twelveNeiTuring[8].color; break;
-				case 11: twelveNeiTuring[i].color = twelveNeiTuring[9].color; break;
-			}
-		}
-	}
+	turingHistory[frameCount][0] = me.turingColor;
+	turingHistory[frameCount][1] = me.nA;
+	turingHistory[frameCount][2] = me.nI;
 
-	// save the corrected colors to turingHistoryCorrected
-	for (uint8_t i=0; i<NUM_NEIGHBOR_12; i++)
-	{
-		turingHistoryCorrected[frameCount][i] = twelveNeiTuring[i].color;
-	}	
-	
-	if ( (me.myPattern_f[0] > me.myPattern_f[1]) && (me.myPattern_f[0] > me.myPattern_f[2]) ) {	// pattern = 0: horizontal
-		// exclude activator from inhibitor
-		printf("Horizontal stripe!\r\n");
-		na += (twelveNeiTuring[1].color == 1);
-		na += (twelveNeiTuring[3].color == 1);
-		na += (twelveNeiTuring[9].color == 1);
-		na += (twelveNeiTuring[11].color == 1);
-
-		ni += (twelveNeiTuring[0].color == 1);
-		ni += (twelveNeiTuring[2].color == 1);
-		ni += (twelveNeiTuring[4].color == 1);
-		ni += (twelveNeiTuring[5].color == 1);
-		ni += (twelveNeiTuring[6].color == 1);
-		ni += (twelveNeiTuring[7].color == 1);
-	}else if ((me.myPattern_f[1] > me.myPattern_f[0]) && (me.myPattern_f[1] > me.myPattern_f[2])){	// pattern = 1: vertical
-		printf("Vertical stripe!\r\n");
-		na += (twelveNeiTuring[0].color == 1);
-		na += (twelveNeiTuring[2].color == 1);
-		na += (twelveNeiTuring[8].color == 1);
-		na += (twelveNeiTuring[10].color == 1);
-
-		ni += (twelveNeiTuring[1].color == 1);
-		ni += (twelveNeiTuring[3].color == 1);
-		ni += (twelveNeiTuring[4].color == 1);
-		ni += (twelveNeiTuring[5].color == 1);
-		ni += (twelveNeiTuring[6].color == 1);
-		ni += (twelveNeiTuring[7].color == 1);
-	}else{
-		printf("Mottled Pattern!\r\n");		
-		na += (twelveNeiTuring[0].color == 1);
-		na += (twelveNeiTuring[1].color == 1);
-		na += (twelveNeiTuring[2].color == 1);
-		na += (twelveNeiTuring[3].color == 1);
-
-		ni += (twelveNeiTuring[4].color == 1);
-		ni += (twelveNeiTuring[5].color == 1);
-		ni += (twelveNeiTuring[6].color == 1);
-		ni += (twelveNeiTuring[7].color == 1);
-		ni += (twelveNeiTuring[8].color == 1);
-		ni += (twelveNeiTuring[9].color == 1);	
-		ni += (twelveNeiTuring[10].color == 1);	
-		ni += (twelveNeiTuring[11].color == 1);	
-	}
-	
-	ss += (float)na - (float)ni*TURING_F;
+	ss += (float)me.nA - (float)me.nI*TURING_F;
 	if (ss > 0){
-		me.turing_color = 1;
+		me.turingColor = 1;
 	}else if (ss < 0){
-		me.turing_color = 0;
+		me.turingColor = 0;
 	}
 
-	if (me.turing_color == 0){
-		set_rgb(255, 255, 255);
-	}else{
-		set_rgb(255, 0, 0);
-	}	
+	me.nA = 0;
+	me.nI = 0;
+
 	
 	if (TEST_TURING) {
-		for (uint8_t i=0; i<NUM_NEIGHBOR_12; i++) {
-			if (twelveNeiTuring[i].dropletId != 0) {
-				printf("%hu[%04X] Color: %hu\r\n", i, twelveNeiTuring[i].dropletId, twelveNeiTuring[i].color);
-			}
-		}
+		//TODO: Print something useful here.
 	}
 	
 }
 
-void printNs(){
-	printf("\r\nPrint neighbors' ID\r\n");
-	printf("X[%04X]\r\n", me.dropletId);
-	for (uint8_t i=0; i<NUM_NEIGHBOR_12; i++)
-	{
-		if (me.neighborIds[i] != 0)
-		{
-			printf("\t%hu [%04X]\r\n", i, me.neighborIds[i]);
-		} 
-		else
-		{
-			printf("\t%hu [----]\r\n", i);
-		}
-		
-	}
-}
-
-uint8_t user_handle_command(char* command_word, char* command_args){
-	//if(strcmp(command_word, "pn")==0){
-		//printNs();
-	//}
-	//if(strcmp(command_word, "pp")==0){
-		//printProb();
-	//}
-	//if(strcmp(command_word, "pt")==0){
-		//printTuring();
-	//}
-	//if(strcmp(command_word, "pa")==0){
-		//printNs();
-		////printrgbs();
-		//printRGBs_ordered();
-		//printRGB();		
-		//printProb();
-		//printTuring();
-		//printTuringHistory();
-		//printTuringHistoryCorrected();
-
-	}
-
-	if(strcmp(command_word, "set_thresh")==0){
-		threshold_mottled = atoi(command_args);
-	}
-
-	return 0;
-}
+//uint8_t user_handle_command(char* command_word, char* command_args){
+	////if(strcmp(command_word, "pn")==0){
+		////printNs();
+	////}
+	////if(strcmp(command_word, "pp")==0){
+		////printProb();
+	////}
+	////if(strcmp(command_word, "pt")==0){
+		////printTuring();
+	////}
+	////if(strcmp(command_word, "pa")==0){
+		////printNs();
+		//////printrgbs();
+		////printRGBs_ordered();
+		////printRGB();		
+		////printProb();
+		////printTuring();
+		////printTuringHistory();
+		////printTuringHistoryCorrected();
+////
+	////}
+////
+	////if(strcmp(command_word, "set_thresh")==0){
+		////threshold_mottled = atoi(command_args);
+	////}
+////
+	//return 0;
+//}
 
 //Returns 1 if a new bot was added to the array.
 //Returns 0 if the bot was already in the array.
@@ -643,10 +547,9 @@ uint8_t addBot(PosColor pos){
 }
 
 void chooseTransmittedBots(uint8_t (*indices)[NUM_CHOSEN_BOTS]){
-	uint8_t numSelected = 0;
 	uint8_t numChoices = 0;
 	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
-		if(POS_C_DEFINED(otherBots[i])){
+		if(POS_C_DEFINED(&(otherBots[i]))){
 			numChoices++;
 		}else{
 			break;

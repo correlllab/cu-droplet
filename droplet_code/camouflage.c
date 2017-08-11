@@ -795,6 +795,8 @@ void changeColor(){
 		ni += (twelveNeiTuring[5].color == 1);
 		ni += (twelveNeiTuring[6].color == 1);
 		ni += (twelveNeiTuring[7].color == 1);
+		
+		ss += (float)na - (float)ni*TURING_F_STRIPE;
 	}else if ((me.myPattern_f[1] > me.myPattern_f[0]) && (me.myPattern_f[1] > me.myPattern_f[2])){	// pattern = 1: vertical
 		printf("Vertical stripe!\r\n");
 		na += (twelveNeiTuring[0].color == 1);
@@ -808,6 +810,8 @@ void changeColor(){
 		ni += (twelveNeiTuring[5].color == 1);
 		ni += (twelveNeiTuring[6].color == 1);
 		ni += (twelveNeiTuring[7].color == 1);
+		
+		ss += (float)na - (float)ni*TURING_F_STRIPE;
 	}else{
 		printf("Mottled Pattern!\r\n");		
 		na += (twelveNeiTuring[0].color == 1);
@@ -822,10 +826,11 @@ void changeColor(){
 		ni += (twelveNeiTuring[8].color == 1);
 		ni += (twelveNeiTuring[9].color == 1);	
 		ni += (twelveNeiTuring[10].color == 1);	
-		ni += (twelveNeiTuring[11].color == 1);	
+		ni += (twelveNeiTuring[11].color == 1);
+		
+		ss += (float)na - (float)ni*TURING_F_SPOT;
 	}
 	
-	ss += (float)na - (float)ni*TURING_F;
 	if (ss > 0){
 		me.turing_color = 1;
 	}else if (ss < 0){

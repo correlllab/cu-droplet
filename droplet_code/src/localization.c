@@ -8,9 +8,9 @@ const id_t   SEED_IDS[NUM_SEEDS] = {0x7EDF, 0x1361, 0x6C66, 0x9669};
 
 #define NUM_SEEDS 3
 
-const BotPos SEED_POS[NUM_SEEDS] = {{0,0,0}, {150,-150,0}, {UNDF, UNDF, UNDF}};
+const BotPos SEED_POS[NUM_SEEDS] = {{0,0,0}, {100,-100,0}, {UNDF, UNDF, UNDF}};
 //const id_t   SEED_IDS[NUM_SEEDS] = {0x1361, 0xFFFF};
-const id_t   SEED_IDS[NUM_SEEDS] = {0xC806, 0xF60A, 0xFFFF};
+const id_t   SEED_IDS[NUM_SEEDS] = {0xCD6B, 0x5D61, 0xFFFF};
 	
 	
 //const BotPos SEEDS[NUM_SEEDS] = {{100, 600, 0}, {600, 600, 0}, {100, 100, 0}, {600, 100, 0}};

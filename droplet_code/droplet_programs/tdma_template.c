@@ -10,7 +10,7 @@ typedef struct gol_cell_struct
 	bool next_state_calculated;		// Indicate that the cell calculated its next state.
 	bool next_state_passed;		// Indicate that the cell passed to the next state.
 	bool allow_next_step; // Indicate that you are ready to pass to the next step.
-	uint8_t current_state; // The current state the cell is at.
+	uint16_t current_state; // The current state the cell is at.
 }gol_cell;
 
 gol_cell gol_me;
@@ -29,7 +29,7 @@ typedef struct state_msg_struct{
 	uint8_t next_state_calculated;
 	uint8_t next_state_passed;
 	uint8_t allow_next_step;
-	uint8_t current_state;
+	uint16_t current_state;
 } StateMsg;
 
 void sendStateMsg(void){
@@ -227,6 +227,7 @@ void init(){
 	mySlot = (get_droplet_id()%(SLOTS_PER_FRAME-1));
 	frameStart = get_time();
 	
+	printf("ID %04X",get_droplet_id());
 	gol_me.allow_next_step = false;
 	initialize_grid(4,4);
 	init_gol_neighbors();
@@ -271,6 +272,7 @@ void loop(){
 						show_next_state_calculated();
 						reset_gol_neighbors();
 						gol_me.current_state += 1;
+						printf("Current state is %u , Current time is %lu ms\r\n",gol_me.current_state,get_time());
 					}
 					
 				}
@@ -284,6 +286,7 @@ void loop(){
 					pass_next_state();
 					reset_gol_neighbors();
 					gol_me.current_state += 1;
+					printf("Current state is %u , Current time is %lu ms\r\n",gol_me.current_state,get_time());
 				}
 				
 			}
@@ -296,6 +299,7 @@ void loop(){
 					reset_gol_neighbors();
 					gol_me.current_state += 1;
 					set_rgb(255,255,255);
+					printf("Current state is %u , Current time is %lu ms\r\n",gol_me.current_state,get_time());
 				}
 				
 			}
@@ -321,7 +325,7 @@ void handle_msg(ir_msg* msg_struct){
 if(msg_struct->length == sizeof(StateMsg))
 {
 	StateMsg* stateMsg = (StateMsg*)(msg_struct->msg);
-	
+	//printf("Got state msg from %04X\r\n", msg_struct->sender_ID);
 	if ( (stateMsg->current_state == gol_me.current_state) || (stateMsg->current_state == (gol_me.current_state + 1) ) )
 	{
 		for(int i=0; i<8; i++)

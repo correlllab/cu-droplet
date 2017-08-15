@@ -23,7 +23,6 @@ id_t dropletListened;
 
 typedef struct ping_message_struct{
 	char flag;
-	//float filler[9];
 }PingMsg;
 
 typedef struct ping_msg_node_struct{
@@ -33,7 +32,6 @@ typedef struct ping_msg_node_struct{
 
 typedef struct ack_message_struct{
 	char flag;
-	//float filler[9];
 }AckMsg;
 
 typedef struct ack_msg_node_struct{
@@ -44,11 +42,7 @@ typedef struct ack_msg_node_struct{
 
 typedef struct mess_message_struct{
 	char flag;
-	uint8_t state;
-	uint8_t next_state_calculated;
-	uint8_t next_state_passed;
-	uint8_t allow_next_step;
-	uint16_t current_state;
+// Insert here the message struct to be send by CSMA
 }MessMsg;
 
 typedef struct mess_msg_node_struct{
@@ -59,7 +53,6 @@ typedef struct mess_msg_node_struct{
 
 typedef struct rec_message_struct{
 	char flag;
-	//float filler[9];
 }RecMsg;
 
 typedef struct rec_msg_node_struct{

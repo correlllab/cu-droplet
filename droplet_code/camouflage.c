@@ -117,6 +117,8 @@ void init(){
 * The code in this function will be called repeatedly, as fast as it can execute.
 */
 void loop(){
+	//set_rgb(255, 0, 0);
+	
 	uint32_t frameTime = get_time()-frameStart;
 	if(frameTime > FRAME_LENGTH_MS){
 		frameTime = frameTime - FRAME_LENGTH_MS;

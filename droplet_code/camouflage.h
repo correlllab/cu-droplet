@@ -13,7 +13,7 @@
 #define PATTERN_MSG_FLAG	'P'
 #define TURING_MSG_FLAG		'T'
 #define BOT_POS_MSG_FLAG	'B'
-#define NUM_LOCALIZE		10 // 20
+#define NUM_LOCALIZE		20 // 20
 #define NUM_PREPARE			20 // 20
 #define NUM_GRADIENT		10 // 10
 #define NUM_CONSENSUS		10 // 10
@@ -21,7 +21,7 @@
 #define NUM_WAITING			500
 
 
-#define SLOTS_PER_FRAME		17	// 37
+#define SLOTS_PER_FRAME		23	// 37
 #define LOOP_DELAY_MS		17
 
 //Turing Pattern related
@@ -113,9 +113,9 @@ int16_t allRGB[NUM_PREPARE][3]; // RGB reading
 Pattern allPatterns[NUM_CONSENSUS];
 uint8_t turingHistory[NUM_TURING][3];
 
-int16_t red_array[NUM_PREPARE];
-int16_t green_array[NUM_PREPARE];
-int16_t blue_array[NUM_PREPARE];
+int16_t red_array[NUM_LOCALIZE];
+int16_t green_array[NUM_LOCALIZE];
+int16_t blue_array[NUM_LOCALIZE];
 
 #define NUM_PHASES 5
 

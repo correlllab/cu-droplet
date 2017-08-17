@@ -346,21 +346,21 @@ void localizeSlot(){
 	red_array[frameCount] = red;
 	green_array[frameCount] = green;
 	blue_array[frameCount] = blue;
-	printf("X[%04X] R: %d G: %d B: %d (ori)\r\n", me.dropletId, red, green, blue);
+	printf("\tX[%04X] R: %d G: %d B: %d (ori)\r\n", me.dropletId, red, green, blue);
 }
 
 void localizeEOP(){
 	if(frameCount<(NUM_LOCALIZE-1)){
-		printf("My Pos: % 4d, % 4d, %4d\r\n", myPos.x, myPos.y, myPos.o);
+		printf("\tMy Pos: % 4d, % 4d, %4d\r\n", myPos.x, myPos.y, myPos.o);
 	}else{
 		if(!POS_DEFINED(&myPos)){
 			printf("Localize ended without my figuring out my position.\r\n");
 			// What does this line do ?
 			warning_light_sequence();
 		}
-		me.rgb[0] = meas_find_median(red_array, NUM_PREPARE);
-		me.rgb[1] = meas_find_median(green_array, NUM_PREPARE);
-		me.rgb[2] = meas_find_median(blue_array, NUM_PREPARE);
+		me.rgb[0] = meas_find_median(red_array, NUM_LOCALIZE);
+		me.rgb[1] = meas_find_median(green_array, NUM_LOCALIZE);
+		me.rgb[2] = meas_find_median(blue_array, NUM_LOCALIZE);
 
 		me.turingColor = (me.rgb[0]+me.rgb[1])<130;
 
@@ -540,27 +540,32 @@ void updateTuringColor(){
 	}
 }
 
+
+void printRGBs_ordered(){
+	printf("\r\nPrint all rgbs read (ordered)\r\n");
+	for (uint8_t i=0; i<NUM_PREPARE; i++){
+		printf("\t%hu: %d %d %d\r\n", i, red_array[i], green_array[i], blue_array[i]);
+	}
+}
+
+void printPos(){
+	printf("\r\n\tMy Pos: % 4d, % 4d, %4d\r\n", myPos.x, myPos.y, myPos.o);
+}
+
 uint8_t user_handle_command(char* command_word, char* command_args){
-//if(strcmp(command_word, "pn")==0){
-	//printNs();
-//}
-//if(strcmp(command_word, "pp")==0){
-	//printProb();
-//}
+	if(strcmp(command_word, "pc")==0){
+		printRGBs_ordered();
+	}
+	if(strcmp(command_word, "pp")==0){
+		printPos();
+	}
 //if(strcmp(command_word, "pt")==0){
 	//printTuring();
 //}
-//if(strcmp(command_word, "pa")==0){
-	//printNs();
-	////printrgbs();
-	//printRGBs_ordered();
-	//printRGB();		
-	//printProb();
-	//printTuring();
-	//printTuringHistory();
-	//printTuringHistoryCorrected();
-//
-//}
+	if(strcmp(command_word, "pa")==0){
+		printPos();
+		printRGBs_ordered();
+	}
 //
 //if(strcmp(command_word, "set_thresh")==0){
 	//threshold_mottled = atoi(command_args);

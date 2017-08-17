@@ -2,7 +2,8 @@
 * camouflage.h
 * For Camouflage Project
 * Created: 5/25/2016, re-factored on 6/30/2016
-* Author : Yang Li
+* Updated: 8/12/2017 (with localization)
+* Author : Yang Li, John Klingner
  */ 
 
 #pragma once
@@ -12,14 +13,15 @@
 #define PATTERN_MSG_FLAG	'P'
 #define TURING_MSG_FLAG		'T'
 #define BOT_POS_MSG_FLAG	'B'
-#define NUM_PREPARE			20 //20
-#define NUM_GRADIENT		10 //10
-#define NUM_CONSENSUS		30 //30
-#define NUM_TURING			20 //20
+#define NUM_LOCALIZE		10 // 20
+#define NUM_PREPARE			20 // 20
+#define NUM_GRADIENT		10 // 10
+#define NUM_CONSENSUS		10 // 10
+#define NUM_TURING			20 // 20
 #define NUM_WAITING			500
 
 
-#define SLOTS_PER_FRAME		37
+#define SLOTS_PER_FRAME		17	// 37
 #define LOOP_DELAY_MS		17
 
 //Turing Pattern related

@@ -2,7 +2,7 @@
 * camouflage.c
 * For Camouflage Project
 * Created: 5/25/2016, re-factored on 6/30/2016
-* Updated: 8/2/2017
+* Updated: 8/12/2017 (with localization)
 * Author : Yang Li, John Klingner
 * Description:
 1. https://bitbucket.org/dominicverity/turing-pattern-generator
@@ -88,12 +88,14 @@ void init(){
 	myPosColor.y = UNDF;
 	measRoot = NULL;
 	lastMeasAdded = NULL;
-
+	nbrPatternRoot = NULL;
+	lastPatternAdded = NULL;
+	
 	// global
 	frameCount = 0;
 	loopID = 0xFFFF;
 	phase = Localize;
-	printf("Initializing Camouflage Project. mySlot is %03hu\r\n", me.slot);
+	printf("Initializing Camouflage Project. My slot is %03hu\r\n", me.slot);
 	frameStart = get_time();
 	
 	for(uint8_t i=0;i<NUM_PHASES;i++){
@@ -162,11 +164,12 @@ void setColor(){
 		switch (phase){
 			case Localize: set_rgb(0, 200, 200); break;
 			case Prepare: set_rgb(0, 200, 0); break;
-			case Consensus: //fall through; consensus and turing should behave the same way.
+			case Consensus: set_rgb(0, 0, 200); break; //fall through; consensus and turing should behave the same way.
 			case Turing:
 				if(me.turingColor){
 					set_rgb(200, 0, 0);
-				}else{
+				}
+				else{
 					set_rgb(200,200,200);
 				}
 				break;
@@ -196,6 +199,27 @@ void handleRNB(){
 }
 
 
+void chooseTransmittedBots(uint8_t (*indices)[NUM_CHOSEN_BOTS]){
+	uint8_t numChoices = 0;
+	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
+		if(POS_C_DEFINED(&(otherBots[i]))){
+			numChoices++;
+		}
+		else{
+			break;
+		}
+	}
+	// Now, numChoices is the number of valid trackedBots.
+	// Do we need to make sure NUM_CHOSEN_BOTS <= numChoices ???
+	uint16_t randomizer[numChoices];
+	for(uint8_t i=0;i<numChoices;i++){
+		randomizer[i] = (((uint16_t)i)<<8) | rand_byte();
+	}
+	qsort(randomizer, numChoices, sizeof(uint16_t), randomizerCmp);
+	for(uint8_t i=0;i<NUM_CHOSEN_BOTS;i++){
+		(*indices)[i] = ((uint8_t)((randomizer[i]>>8)&0xFF));
+	}
+}
 
 void sendBotPosMsg(){
 	BotPosMsg msg;
@@ -213,9 +237,28 @@ void sendBotPosMsg(){
 	ir_send(ALL_DIRS, (char*)(&msg), sizeof(BotPosMsg));
 }
 
+
+//Returns 1 if a new bot was added to the array.
+//Returns 0 if the bot was already in the array.
+uint8_t addBot(PosColor pos){
+	uint8_t foundIdx = NUM_TRACKED_BOTS;
+	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
+		if((otherBots[i].x == pos.x) && (otherBots[i].y == pos.y)){
+			return 0; //The bot already existed; no need to add it.
+		}
+		if(!POS_C_DEFINED(&(otherBots[i]))){
+			foundIdx = i;
+		}
+	}
+	otherBots[foundIdx] = pos;
+	qsort(otherBots, NUM_TRACKED_BOTS+1, sizeof(PosColor), distCmp);
+	return 1;
+}
+
+
 void handleBotPosMsg(BotPosMsg* msg){
 	for(uint8_t i=0;i<NUM_TRANSMITTED_BOTS;i++){
-		addBot( (msg->bots)[i]);
+		addBot( (msg->bots)[i] );
 	}
 }
 
@@ -307,25 +350,24 @@ void localizeSlot(){
 }
 
 void localizeEOP(){
-	if(frameCount<(NUM_PREPARE-1)){
+	if(frameCount<(NUM_LOCALIZE-1)){
 		printf("My Pos: % 4d, % 4d, %4d\r\n", myPos.x, myPos.y, myPos.o);
 	}else{
 		if(!POS_DEFINED(&myPos)){
 			printf("Localize ended without my figuring out my position.\r\n");
+			// What does this line do ?
 			warning_light_sequence();
 		}
 		me.rgb[0] = meas_find_median(red_array, NUM_PREPARE);
 		me.rgb[1] = meas_find_median(green_array, NUM_PREPARE);
 		me.rgb[2] = meas_find_median(blue_array, NUM_PREPARE);
 
-		me.turingColor = (me.rgb[0]+me.rgb[1])>130;
+		me.turingColor = (me.rgb[0]+me.rgb[1])<130;
 
 		myPosColor.x = myPos.x;
 		myPosColor.y = myPos.y;
 		myPosColor.col = packColor(me.rgb[0], me.rgb[1], me.rgb[2], me.turingColor);
 		
-		
-
 		phase=Prepare;
 		frameCount = 0;
 		printf("\r\n*************  Start PREPARE Phase   ***************\r\n");
@@ -492,75 +534,37 @@ void updateTuringColor(){
 
 	me.nA = 0;
 	me.nI = 0;
-
 	
 	if (TEST_TURING) {
 		//TODO: Print something useful here.
 	}
-	
 }
 
-//uint8_t user_handle_command(char* command_word, char* command_args){
-	////if(strcmp(command_word, "pn")==0){
-		////printNs();
-	////}
-	////if(strcmp(command_word, "pp")==0){
-		////printProb();
-	////}
-	////if(strcmp(command_word, "pt")==0){
-		////printTuring();
-	////}
-	////if(strcmp(command_word, "pa")==0){
-		////printNs();
-		//////printrgbs();
-		////printRGBs_ordered();
-		////printRGB();		
-		////printProb();
-		////printTuring();
-		////printTuringHistory();
-		////printTuringHistoryCorrected();
-////
-	////}
-////
-	////if(strcmp(command_word, "set_thresh")==0){
-		////threshold_mottled = atoi(command_args);
-	////}
-////
-	//return 0;
+uint8_t user_handle_command(char* command_word, char* command_args){
+//if(strcmp(command_word, "pn")==0){
+	//printNs();
 //}
-
-//Returns 1 if a new bot was added to the array.
-//Returns 0 if the bot was already in the array.
-uint8_t addBot(PosColor pos){
-	uint8_t foundIdx = NUM_TRACKED_BOTS;
-	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
-		if((otherBots[i].x == pos.x) && (otherBots[i].y == pos.y)){
-			return 0; //The bot already existed; no need to add it.
-		}
-		if(!POS_C_DEFINED(&(otherBots[i]))){
-			foundIdx = i;
-		}
-	}
-	otherBots[foundIdx] = pos;
-	qsort(otherBots, NUM_TRACKED_BOTS+1, sizeof(PosColor), distCmp);
-	return 1;
-}
-
-void chooseTransmittedBots(uint8_t (*indices)[NUM_CHOSEN_BOTS]){
-	uint8_t numChoices = 0;
-	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
-		if(POS_C_DEFINED(&(otherBots[i]))){
-			numChoices++;
-		}else{
-			break;
-		}
-	}//Now, numChoices is the number of valid trackedBots.
-	uint16_t randomizer[numChoices];
-	for(uint8_t i=0;i<numChoices;i++){
-		randomizer[i] = (((uint16_t)i)<<8) | rand_byte();
-	}
-	qsort(randomizer, numChoices, sizeof(uint16_t), randomizerCmp);
-	for(uint8_t i=0;i<NUM_CHOSEN_BOTS;i++){
-		(*indices)[i] = ((uint8_t)((randomizer[i]>>8)&0xFF));
-	}
+//if(strcmp(command_word, "pp")==0){
+	//printProb();
+//}
+//if(strcmp(command_word, "pt")==0){
+	//printTuring();
+//}
+//if(strcmp(command_word, "pa")==0){
+	//printNs();
+	////printrgbs();
+	//printRGBs_ordered();
+	//printRGB();		
+	//printProb();
+	//printTuring();
+	//printTuringHistory();
+	//printTuringHistoryCorrected();
+//
+//}
+//
+//if(strcmp(command_word, "set_thresh")==0){
+	//threshold_mottled = atoi(command_args);
+//}
+//
+	return 0;
 }

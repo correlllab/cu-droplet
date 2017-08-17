@@ -16,7 +16,7 @@ TARGET = Droplets
 # The base directory of your Atmel Studio installation folder.
 # This serves as the base location for accessing key #include files.
 # It also is used as the base path for the location of the actual compiler .exe.
-ATMEL_STUDIO_PATH = "C:/Program Files (x86)/Atmel/Studio/7.0/"
+ATMEL_STUDIO_PATH = "D:/Program Files (x86)/Atmel/Studio/7.0/"
 
 # List your user C source file(s) here.
 USER_FILE = ../camouflage.c \

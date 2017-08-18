@@ -552,6 +552,13 @@ void printPos(){
 	printf("\r\n\tMy Pos: % 4d, % 4d, %4d\r\n", myPos.x, myPos.y, myPos.o);
 }
 
+void printTuringInfo(){
+	printf("\r\nPrint turing info\r\n");
+	for (uint8_t i=0; i<NUM_TURING; i++){
+		printf("\t%hu: color: %hu [%hu, %hu]\r\n", i, turingHistory[i][0], turingHistory[i][1], turingHistory[i][2]);
+	}	
+}
+
 uint8_t user_handle_command(char* command_word, char* command_args){
 	if(strcmp(command_word, "pc")==0){
 		printRGBs_ordered();
@@ -559,12 +566,13 @@ uint8_t user_handle_command(char* command_word, char* command_args){
 	if(strcmp(command_word, "pp")==0){
 		printPos();
 	}
-//if(strcmp(command_word, "pt")==0){
-	//printTuring();
-//}
+	if(strcmp(command_word, "pt")==0){
+		printTuringInfo();
+	}
 	if(strcmp(command_word, "pa")==0){
 		printPos();
 		printRGBs_ordered();
+		printTuringInfo();
 	}
 //
 //if(strcmp(command_word, "set_thresh")==0){

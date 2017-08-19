@@ -53,7 +53,35 @@ void rgb_sensor_init()
 		 * calibration values in EEPROM!
 		 */
 		//calibrate_color_sensors();
+		//delay_ms(100);
 	#endif		
+}
+
+/* 
+ * This function calculates calibration values and stores them in EEPROM.
+ * This should only need to happen once, but maybe again if the ADC settings
+ * are changed. Once it has been called once, the Droplet will load the stored
+ * values every time it restarts.
+ */
+void calibrate_color_sensors(){
+	delay_us(50);
+	const int8_t num_samples = 10;
+	get_red_sensor(); get_blue_sensor(); get_green_sensor();
+	delay_ms(10);
+	int16_t r_avg=0, g_avg=0, b_avg=0;
+	for(uint8_t i=0; i<num_samples; i++){
+		r_avg+=get_red_sensor();
+		g_avg+=get_green_sensor();
+		b_avg+=get_blue_sensor();
+		delay_ms(10);
+		//printf("\r\n");
+	}
+	r_baseline= r_avg/num_samples;
+	g_baseline= g_avg/num_samples;
+	b_baseline= b_avg/num_samples;
+	printf("Baselines:\r\n%3d  %3d  %3d\r\n", r_baseline, g_baseline, b_baseline);
+	
+	write_color_settings();
 }
 
 #ifndef AUDIO_DROPLET

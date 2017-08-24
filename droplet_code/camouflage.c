@@ -90,6 +90,11 @@ void init(){
 	lastMeasAdded = NULL;
 	nbrPatternRoot = NULL;
 	lastPatternAdded = NULL;
+
+	turingRoot_a = NULL;
+	lastAddedturingNode_a = NULL;
+	turingRoot_i = NULL;
+	lastAddedturingNode_i = NULL;
 	
 	// global
 	frameCount = 0;
@@ -286,13 +291,12 @@ void sendPatternMsg(){
 }
 
 void sendTuringMsg(){
-	if(me.turingColor){
-		TuringMsg msg;
-		msg.flag = TURING_MSG_FLAG;
-		msg.x = myPosColor.x;
-		msg.y = myPosColor.y;
-		ir_send(ALL_DIRS, (char*)(&msg), sizeof(TuringMsg));
-	}
+	TuringMsg msg;
+	msg.flag = TURING_MSG_FLAG;
+	msg.x = myPosColor.x;
+	msg.y = myPosColor.y;
+	msg.t_color = me.turingColor;
+	ir_send(ALL_DIRS, (char*)(&msg), sizeof(TuringMsg));
 }
 
 /*
@@ -307,7 +311,7 @@ void handle_msg(ir_msg* msg_struct)
 		switch (phase){
 			case Prepare: handleBotPosMsg((((BotPosMsg*)(msg_struct->msg))), msg_struct->sender_ID); break;
 			case Consensus: handlePatternMsg((PatternMsg*)msg_struct->msg); break;
-			case Turing: handleTuringMsg((TuringMsg*)msg_struct->msg); break;
+			case Turing: handleTuringMsg((TuringMsg*)msg_struct->msg, msg_struct->sender_ID); break;
 			default: break;
 		}
 	}
@@ -368,18 +372,67 @@ void handlePatternMsg(PatternMsg* msg){
 	}
 }
 
-void handleTuringMsg(TuringMsg* msg){
+uint8_t isInList(id_t id, uint8_t color, uint8_t activator){
+	TuringNode* tmp = NULL;
+	if (activator == 1){
+		tmp = turingRoot_a;
+		while(tmp != NULL){
+			if (tmp->id == id){
+				tmp->t_color = color;
+				return 1;
+			}
+			tmp = tmp->next;
+		}
+	}
+	else{
+		tmp = turingRoot_i;
+		while(tmp != NULL){
+			if (tmp->id == id){
+				tmp->t_color = color;
+				return 1;
+			}
+			tmp = tmp->next;
+		}		
+	}
+	return 0;
+}
+
+void handleTuringMsg(TuringMsg* msg, id_t senderID){
 	if(msg->flag == TURING_MSG_FLAG){
-		//TODO
 		Vector pos = {msg->x, msg->y, 1};
 		Vector activatorTF, inhibitorTF;
 		matrixTimesVector(&activatorTF, &(me.patternTransformA), &pos);
 		matrixTimesVector(&inhibitorTF, &(me.patternTransformI), &pos);
 		printf("\t{{% 4d, % 4d}, {% 6.3f, % 6.3f}, {% 6.3f, % 6.3f}}\r\n", msg->x, msg->y, activatorTF[0], activatorTF[1], inhibitorTF[0], inhibitorTF[1]);
 		if((activatorTF[0]*activatorTF[0]+activatorTF[1]*activatorTF[1])<=1.0){ //if the position is inside unit circle after transformation..
-			me.nA++;
-		}else if((inhibitorTF[0]*inhibitorTF[0]+inhibitorTF[1]*inhibitorTF[1])<=1.0){ //if the position is inside unit circle after transformation..
-			me.nI++;
+			if(isInList(senderID, msg->t_color, 1) == 0){
+				if(lastAddedturingNode_a==NULL){
+					lastAddedturingNode_a = (TuringNode*)myMalloc(sizeof(TuringNode));
+					turingRoot_a = lastAddedturingNode_a;
+					}
+				else{
+					lastAddedturingNode_a->next = (TuringNode*)myMalloc(sizeof(TuringNode));
+					lastAddedturingNode_a = lastAddedturingNode_a->next;
+				}
+				lastAddedturingNode_a->t_color = msg->t_color;
+				lastAddedturingNode_a->id = senderID;
+				lastAddedturingNode_a->next = NULL;
+			}
+		}
+		else if((inhibitorTF[0]*inhibitorTF[0]+inhibitorTF[1]*inhibitorTF[1])<=1.0){ //if the position is inside unit circle after transformation..
+			if(isInList(senderID, msg->t_color, 0) == 0){
+				if(lastAddedturingNode_i==NULL){
+					lastAddedturingNode_i = (TuringNode*)myMalloc(sizeof(TuringNode));
+					turingRoot_i = lastAddedturingNode_i;
+				}
+				else{
+					lastAddedturingNode_i->next = (TuringNode*)myMalloc(sizeof(TuringNode));
+					lastAddedturingNode_i = lastAddedturingNode_i->next;
+				}
+				lastAddedturingNode_i->t_color = msg->t_color;
+				lastAddedturingNode_i->id = senderID;
+				lastAddedturingNode_i->next = NULL;
+			}
 		}
 	}
 }
@@ -417,7 +470,7 @@ void localizeEOP(){
 		me.rgb[1] = meas_find_median(green_array, NUM_LOCALIZE);
 		me.rgb[2] = meas_find_median(blue_array, NUM_LOCALIZE);
 
-		me.turingColor = (me.rgb[0]+me.rgb[1])<130;
+		me.turingColor = (me.rgb[0]+me.rgb[1])<90;
 
 		myPosColor.x = myPos.x;
 		myPosColor.y = myPos.y;
@@ -513,20 +566,17 @@ void decidePattern(){
 		me.p.x += fabs(unpackColorToGray(otherBots[i].col)) * LofGx;
 		me.p.y += fabs(unpackColorToGray(otherBots[i].col)) * LofGy;
 		
-		if (1){
-			printf("\tLofGx: %.3f, LofGy: %.3f --> p.x: %.3f, p.y: %.3f, pTheta: %5.3f\r\n", LofGx, LofGy, me.p.x, me.p.y, atan2(me.p.y, me.p.x));
-		}
+		printf("\tLofGx: %.3f, LofGy: %.3f --> p.x: %.3f, p.y: %.3f, pTheta: %5.3f\r\n", LofGx, LofGy, me.p.x, me.p.y, atan2(me.p.y, me.p.x));
 	}
 	printf("\tNum of tracked bots is: %hu\r\n", count);
 	
-	if(me.p.x<0){ //Restrict vectors to be from -90 to 90 degrees.
-		me.p.x = -me.p.x;
-		me.p.y = -me.p.y;
-	} 
+	me.p.x = fabs(me.p.x);
+	me.p.y = fabs(me.p.y);
 	
-	//Is this the right place to be absing?? 
-	//This effectively reduces the space of possible pattern directions to the upper right quadrant, a 90 degree swath.
-	//Pretty sure that covers everything though.
+	//if(me.p.x<0){ //Restrict vectors to be from -90 to 90 degrees.
+		//me.p.x = -me.p.x;
+		//me.p.y = -me.p.y;
+	//}
 }
 
 void weightedAverage(){
@@ -584,10 +634,39 @@ void weightedAverage(){
 // Change me.turing_color according to Young's model
 // the neighbors' colors are also added to turingHistory array for record
 void updateTuringColor(){
+	me.nA = 0;
+	me.nI = 0;	
 	float ss = 0.0f;
+	TuringNode* tmp = NULL;
+	
+	// count nA
 	if (me.turingColor == 1){
 		me.nA += 1;
+	}	
+	printf("Activator:\r\n");
+	printf("\tX[%04X]: %hu\r\n", me.dropletId, me.turingColor);
+	tmp = turingRoot_a;
+	while(tmp != NULL)
+	{
+		printf("\t[%04X]: %hu\r\n", tmp->id, tmp->t_color);
+		if(tmp->t_color == 1){
+			me.nA += 1;
+		}
+		tmp = tmp->next;
 	}
+
+	// count nI
+	printf("Inhibitor:\r\n");
+	tmp = turingRoot_i;
+	while(tmp != NULL)
+	{
+		printf("\t[%04X]: %hu\r\n", tmp->id, tmp->t_color);
+		if(tmp->t_color == 1){
+			me.nI += 1;
+		}
+		tmp = tmp->next;
+	}	
+	
 	turingHistory[frameCount][0] = me.turingColor;
 	turingHistory[frameCount][1] = me.nA;
 	turingHistory[frameCount][2] = me.nI;
@@ -598,12 +677,9 @@ void updateTuringColor(){
 	}else if (ss < 0){
 		me.turingColor = 0;
 	}
-
-	me.nA = 0;
-	me.nI = 0;
 	
 	if (TEST_TURING) {
-		//TODO: Print something useful here.
+		printf("\t turing color: %hu [%hu, %hu]\r\n", me.turingColor, me.nA, me.nI);
 	}
 }
 
@@ -623,6 +699,25 @@ void printTuringInfo(){
 	printf("\r\nPrint turing info\r\n");
 	for (uint8_t i=0; i<NUM_TURING; i++){
 		printf("\t%hu: color: %hu [%hu, %hu]\r\n", i, turingHistory[i][0], turingHistory[i][1], turingHistory[i][2]);
+	}
+	
+	TuringNode* tmp = NULL;
+	printf("Activator:\r\n");
+	printf("\tX[%04X]: %hu\r\n", me.dropletId, me.turingColor);
+	tmp = turingRoot_a;
+	while(tmp != NULL)
+	{
+		printf("\t[%04X]: %hu\r\n", tmp->id, tmp->t_color);
+		tmp = tmp->next;
+	}
+
+	// count nI
+	printf("Inhibitor:\r\n");
+	tmp = turingRoot_i;
+	while(tmp != NULL)
+	{
+		printf("\t[%04X]: %hu\r\n", tmp->id, tmp->t_color);
+		tmp = tmp->next;
 	}	
 }
 

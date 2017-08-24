@@ -85,6 +85,18 @@ typedef struct pattern_node_struct{
 PatternNode* nbrPatternRoot;
 PatternNode* lastPatternAdded;
 
+/* Used in turing phase */
+typedef struct turing_node_struct{
+	id_t id;
+	uint8_t t_color; // 0 or 1
+	struct pattern_node_struct* next;
+} TuringNode;
+
+TuringNode* turingRoot_a;
+TuringNode* lastAddedturingNode_a;
+TuringNode* turingRoot_i;
+TuringNode* lastAddedturingNode_i;
+
 typedef struct pattern_msg_struct{ //12 bytes
 	Pattern p;
 	id_t dropletId;
@@ -95,6 +107,7 @@ typedef struct pattern_msg_struct{ //12 bytes
 typedef struct turing_msg_struct{
 	int16_t x;
 	int16_t y;
+	uint8_t t_color; // 0 or 1
 	char flag;
 } TuringMsg;
 
@@ -151,7 +164,7 @@ void loop(void);
 void handle_msg	(ir_msg* msg_struct);
 void handleBotPosMsg(BotPosMsg* msg,id_t senderID);
 void handlePatternMsg(PatternMsg* msg);
-void handleTuringMsg(TuringMsg* msg);
+void handleTuringMsg(TuringMsg* msg, id_t senderID);
 
 void handleRNB(void);
 

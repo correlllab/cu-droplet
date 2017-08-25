@@ -287,6 +287,7 @@ void sendPatternMsg(){
 	msg.degree = me.degree;
 	msg.p.x = me.p.x;
 	msg.p.y = me.p.y;
+	
 	ir_send(ALL_DIRS, (char*)(&msg), sizeof(PatternMsg));
 }
 
@@ -504,6 +505,10 @@ void consensusEOP(){
 	}else{
 		//Compute the appropriate transformations:
 		float pTheta = atan2(me.p.y, me.p.x);
+		/*
+		 * pTheta is the 'characteristic angle' of the pattern.
+		 * All of a pattern's stripes run perpendicular to this angle.
+		 */
 		Matrix translate = {{1, 0, -myPosColor.x}, {0, 1,  -myPosColor.y}, {0, 0, 1}};
 		Matrix rotate = {{cos(pTheta), sin(pTheta), 0}, {-sin(pTheta), cos(pTheta), 0}, {0, 0, 1}};
 		Matrix activatorScale = {{1.0/ACTIVATOR_WIDTH, 0, 0}, {0, 1.0/ACTIVATOR_HEIGHT, 0}, {0, 0, 1}};
@@ -572,11 +577,7 @@ void decidePattern(){
 	
 	me.p.x = fabs(me.p.x);
 	me.p.y = fabs(me.p.y);
-	
-	//if(me.p.x<0){ //Restrict vectors to be from -90 to 90 degrees.
-		//me.p.x = -me.p.x;
-		//me.p.y = -me.p.y;
-	//}
+
 }
 
 void weightedAverage(){
@@ -623,12 +624,13 @@ void weightedAverage(){
 	p.x += wc*me.p.x;
 	p.y += wc*me.p.y;
 	
+	
 	if (TEST_CONSENSUS){
 		printf("\r\nPre-pattern: [%0.4f, %0.4f] Cur-pattern: [%0.4f, %0.4f]\r\n",
 		me.p.x, me.p.y, p.x, p.y);
 	}
 	me.p.x = p.x; 
-	me.p.y = p.y;	
+	me.p.y = p.y;
 }
 
 // Change me.turing_color according to Young's model
@@ -679,7 +681,7 @@ void updateTuringColor(){
 	}
 	
 	if (TEST_TURING) {
-		printf("\t turing color: %hu [%hu, %hu]\r\n", me.turingColor, me.nA, me.nI);
+		printf("\tTuring color: %hu [%hu, %hu]\r\n", me.turingColor, me.nA, me.nI);
 	}
 }
 

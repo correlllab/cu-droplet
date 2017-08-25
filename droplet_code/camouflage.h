@@ -13,7 +13,7 @@
 #define PATTERN_MSG_FLAG	'P'
 #define TURING_MSG_FLAG		'T'
 #define BOT_POS_MSG_FLAG	'B'
-#define NUM_LOCALIZE		10 // 20
+#define NUM_LOCALIZE		20 // 20
 #define NUM_PREPARE			20 // 20
 #define NUM_GRADIENT		10 // 10
 #define NUM_CONSENSUS		10 // 10
@@ -30,7 +30,7 @@ typedef enum{
 	Localize, //RNB Message Happens (long, 397ms should work though)
 	Prepare, //Message is 26+9 bytes; 88ms
 	Consensus, //Message is 12+9 bytes; 53ms
-	Turing, //Message is 5+9 bytes; 35ms
+	Turing, //Message is 5or6+9 bytes; 35ms
 	Waiting
 } Phase;
 uint32_t slotLength[NUM_PHASES] = {499, 179, 107, 107, 107};
@@ -49,8 +49,8 @@ uint32_t frameLength[NUM_PHASES];
 #define L_OF_G_WIDTH		50.0 //mm
 
 //All of the below should be in mm
-#define ACTIVATOR_WIDTH 80
-#define ACTIVATOR_HEIGHT 40
+#define ACTIVATOR_WIDTH 40
+#define ACTIVATOR_HEIGHT 80
 #define INHIBITOR_WIDTH 80
 #define INHIBITOR_HEIGHT 80
 

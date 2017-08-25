@@ -354,7 +354,7 @@ void consensusEOP(){
 	}else{
 		//Compute the appropriate transformations:
 		float pTheta = atan2(me.p.y, me.p.x);
-		Matrix translate = {{1, 0, myPosColor.x}, {0, 1,  myPosColor.y}, {0, 0, 1}};
+		Matrix translate = {{1, 0, -myPosColor.x}, {0, 1,  -myPosColor.y}, {0, 0, 1}};
 		Matrix rotate = {{cos(-pTheta), sin(-pTheta), 0}, {-sin(-pTheta), cos(-pTheta), 0}, {0, 0, 1}};
 		Matrix activatorScale = {{1.0/ACTIVATOR_WIDTH, 0, 0}, {0, 1.0/ACTIVATOR_HEIGHT, 0}, {0, 0, 1}};
 		Matrix inhibitorScale = {{1.0/INHIBITOR_WIDTH, 0, 0}, {0, 1.0/INHIBITOR_HEIGHT, 0}, {0, 0, 1}};

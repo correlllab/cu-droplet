@@ -2,7 +2,8 @@
 * camouflage.h
 * For Camouflage Project
 * Created: 5/25/2016, re-factored on 6/30/2016
-* Author : Yang Li
+* Updated: 8/12/2017 (with localization)
+* Author : Yang Li, John Klingner
  */ 
 
 #pragma once
@@ -12,19 +13,31 @@
 #define PATTERN_MSG_FLAG	'P'
 #define TURING_MSG_FLAG		'T'
 #define BOT_POS_MSG_FLAG	'B'
-#define NUM_PREPARE			20 //20
-#define NUM_GRADIENT		10 //10
-#define NUM_CONSENSUS		30 //30
-#define NUM_TURING			20 //20
+#define NUM_LOCALIZE		10 // 20
+#define NUM_PREPARE			20 // 20
+#define NUM_GRADIENT		10 // 10
+#define NUM_CONSENSUS		10 // 10
+#define NUM_TURING			20 // 20
 #define NUM_WAITING			500
 
 
-#define SLOTS_PER_FRAME		37
+#define SLOTS_PER_FRAME		37 //23	// 37
 #define LOOP_DELAY_MS		17
+
+#define NUM_PHASES 5
+
+typedef enum{
+	Localize, //RNB Message Happens (long, 397ms should work though)
+	Prepare, //Message is 26+9 bytes; 88ms
+	Consensus, //Message is 12+9 bytes; 53ms
+	Turing, //Message is 5or6+9 bytes; 35ms
+	Waiting
+} Phase;
+uint32_t slotLength[NUM_PHASES] = {499, 179, 107, 107, 107};
+uint32_t frameLength[NUM_PHASES];
 
 //Turing Pattern related
 #define TURING_F			(0.75f)
-#define TURING_RANDOM		(0.02f)		// A threshold for random pattern
 
 #define TEST_PREPARE		1
 #define TEST_GRADIENT		1
@@ -35,10 +48,10 @@
 #define L_OF_G_WIDTH		50.0 //mm
 
 //All of the below should be in mm
-#define ACTIVATOR_WIDTH 210
-#define ACTIVATOR_HEIGHT 70
-#define INHIBITOR_WIDTH 210
-#define INHIBITOR_HEIGHT 210
+#define ACTIVATOR_WIDTH 40
+#define ACTIVATOR_HEIGHT 80
+#define INHIBITOR_WIDTH 80
+#define INHIBITOR_HEIGHT 80
 
 const float rgb_weights[3] = {0.5, 0.5, 0.0};  // RGB to Gray
 
@@ -71,6 +84,18 @@ typedef struct pattern_node_struct{
 PatternNode* nbrPatternRoot;
 PatternNode* lastPatternAdded;
 
+/* Used in turing phase */
+typedef struct turing_node_struct{
+	id_t id;
+	uint8_t t_color; // 0 or 1
+	struct pattern_node_struct* next;
+} TuringNode;
+
+TuringNode* turingRoot_a;
+TuringNode* lastAddedturingNode_a;
+TuringNode* turingRoot_i;
+TuringNode* lastAddedturingNode_i;
+
 typedef struct pattern_msg_struct{ //12 bytes
 	Pattern p;
 	id_t dropletId;
@@ -81,6 +106,7 @@ typedef struct pattern_msg_struct{ //12 bytes
 typedef struct turing_msg_struct{
 	int16_t x;
 	int16_t y;
+	uint8_t t_color; // 0 or 1
 	char flag;
 } TuringMsg;
 
@@ -111,22 +137,9 @@ int16_t allRGB[NUM_PREPARE][3]; // RGB reading
 Pattern allPatterns[NUM_CONSENSUS];
 uint8_t turingHistory[NUM_TURING][3];
 
-int16_t red_array[NUM_PREPARE];
-int16_t green_array[NUM_PREPARE];
-int16_t blue_array[NUM_PREPARE];
-
-#define NUM_PHASES 5
-
-typedef enum{
-	Localize,
-	Prepare,
-	Consensus,
-	Turing,
-	Waiting
-} Phase;
-uint32_t slotLength[NUM_PHASES] = {397, 271, 271, 271, 271};
-uint32_t frameLength[NUM_PHASES];
-
+int16_t red_array[NUM_LOCALIZE];
+int16_t green_array[NUM_LOCALIZE];
+int16_t blue_array[NUM_LOCALIZE];
 
 typedef struct rnb_node_struct{
 	int16_t range;
@@ -148,9 +161,9 @@ uint8_t counter;			// to exit phases
 void init(void);
 void loop(void);
 void handle_msg	(ir_msg* msg_struct);
-void handleBotPosMsg(BotPosMsg* msg);
+void handleBotPosMsg(BotPosMsg* msg,id_t senderID);
 void handlePatternMsg(PatternMsg* msg);
-void handleTuringMsg(TuringMsg* msg);
+void handleTuringMsg(TuringMsg* msg, id_t senderID);
 
 void handleRNB(void);
 
@@ -160,7 +173,6 @@ void localizeSlot(void);
 
 void localizeEOP(void);
 void prepareEOP(void);
-void gradientEOP(void);
 void consensusEOP(void);
 void turingEOP(void);
 void waitingEOP(void);
@@ -173,11 +185,16 @@ void decidePattern(void);
 void weightedAverage(void);
 void updateTuringColor(void);
 
+void printRGBs_ordered(void);
+void printOtherBots(void);
+void printPos(void);
+void printTuringInfo(void);
 void chooseTransmittedBots(uint8_t (*indices)[NUM_CHOSEN_BOTS]);
 uint8_t addBot(PosColor pos);
 
 inline void LofGxy(int16_t deltaX, int16_t deltaY, float* LofGx, float* LofGy){
-	float scalarTerm = 1.0/(M_2_PI*powf(L_OF_G_SIGMA,6.0));
+	float scalarTerm = 1.0/(2*M_PI*powf(L_OF_G_SIGMA,6.0));
+	printf("Scalar Term: %f\r\n",scalarTerm);
 	float scaledXsq = powf(deltaX/L_OF_G_WIDTH,2);
 	float scaledYsq = powf(deltaY/L_OF_G_WIDTH,2);
 	float expTerm = -((scaledXsq + scaledYsq)/(2*powf(L_OF_G_SIGMA,2)));
@@ -211,9 +228,9 @@ inline uint8_t packColor(int16_t r, int16_t g, int16_t b, uint8_t turingColor){
 
 inline float unpackColorToGray(uint8_t col){
 		float rgb[3];
-		rgb[0] = (col>>4)*0.5;
-		rgb[1] = (col>>2)*0.5;
-		rgb[2] = (col)*0.5;
+		rgb[0] = ((col>>4)&0x3)*0.5;
+		rgb[1] = ((col>>2)&0x3)*0.5;
+		rgb[2] = (col&0x3)*0.5;
 		float grayVal = 0.0;
 		for(uint8_t i=0; i<3; i++){
 			grayVal += rgb[i]*rgb_weights[i];

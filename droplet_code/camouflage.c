@@ -2,7 +2,7 @@
 * camouflage.c
 * For Camouflage Project
 * Created: 5/25/2016, re-factored on 6/30/2016
-* Updated: 8/2/2017
+* Updated: 8/12/2017 (with localization)
 * Author : Yang Li, John Klingner
 * Description:
 1. https://bitbucket.org/dominicverity/turing-pattern-generator
@@ -88,16 +88,29 @@ void init(){
 	myPosColor.y = UNDF;
 	measRoot = NULL;
 	lastMeasAdded = NULL;
+	nbrPatternRoot = NULL;
+	lastPatternAdded = NULL;
 
+	turingRoot_a = NULL;
+	lastAddedturingNode_a = NULL;
+	turingRoot_i = NULL;
+	lastAddedturingNode_i = NULL;
+	
 	// global
 	frameCount = 0;
 	loopID = 0xFFFF;
 	phase = Localize;
-	printf("Initializing Camouflage Project. mySlot is %03hu\r\n", me.slot);
+	printf("Initializing Camouflage Project. My slot is %03hu\r\n", me.slot);
 	frameStart = get_time();
 	
 	for(uint8_t i=0;i<NUM_PHASES;i++){
 		frameLength[i] = ((uint32_t)slotLength[i])*((uint32_t)SLOTS_PER_FRAME);
+	}
+
+	for(uint8_t i=0;i<NUM_TRACKED_BOTS+1;i++){
+		otherBots[i].x = UNDF;
+		otherBots[i].y = UNDF;
+		otherBots[i].col = 0;
 	}
 
 	printf("\r\n*************  Start LOCALIZE Phase   ***************\r\n");
@@ -140,7 +153,7 @@ void loop(){
 	
 	/*****************  code here executes once per loop.   ******************/
 	if(rnb_updated){
-		if(phase==Prepare){
+		if(phase==Localize){
 			handleRNB();
 		}
 		rnb_updated = 0;
@@ -162,11 +175,12 @@ void setColor(){
 		switch (phase){
 			case Localize: set_rgb(0, 200, 200); break;
 			case Prepare: set_rgb(0, 200, 0); break;
-			case Consensus: //fall through; consensus and turing should behave the same way.
+			case Consensus: set_rgb(0, 0, 200); break; //fall through; consensus and turing should behave the same way.
 			case Turing:
 				if(me.turingColor){
 					set_rgb(200, 0, 0);
-				}else{
+				}
+				else{
 					set_rgb(200,200,200);
 				}
 				break;
@@ -195,9 +209,56 @@ void handleRNB(){
 	useRNBmeas(last_good_rnb.id, last_good_rnb.range, last_good_rnb.bearing, last_good_rnb.heading);
 }
 
+void printPosColor(PosColor pos){
+	if(POS_C_DEFINED(&pos)){
+		printf("\t\t(% 5d, % 5d) : %hu\r\n", pos.x, pos.y, pos.col);
+	}
+}
 
+void printOtherBots(){
+	for(uint8_t i=0;i<NUM_TRACKED_BOTS+1;i++){
+		printPosColor(otherBots[i]);
+	}
+}
+
+uint16_t randomizer[NUM_CHOSEN_BOTS];
+
+void chooseTransmittedBots(uint8_t (*indices)[NUM_CHOSEN_BOTS]){
+	printf("\tChoosing Transmitted.\r\n");
+	printOtherBots();
+	uint8_t numChoices = 0;
+	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
+		if(POS_C_DEFINED(&(otherBots[i]))){
+			numChoices++;
+		}
+		else{
+			break;
+		}
+	}
+	printf("\tNum Choices: %hu\r\n\tRandomizer:\r\n", numChoices);
+	for(uint8_t i=0;i<NUM_CHOSEN_BOTS;i++){
+		if(i<numChoices){
+			randomizer[i] = (((uint16_t)i)<<8) | rand_byte();
+			printf("\t\t%04X\r\n", randomizer[i]);
+		}else{
+			randomizer[i] = 0xFFFF;
+			printf("\t\t--\r\n");
+		}
+	}
+	qsort(randomizer, NUM_CHOSEN_BOTS, sizeof(uint16_t), randomizerCmp);
+	printf("\tSorted:\r\n");
+	for(uint8_t i=0;i<NUM_CHOSEN_BOTS;i++){
+		(*indices)[i] = ((uint8_t)((randomizer[i]>>8)&0xFF));
+		if( (*indices)[i] != 0xFF){
+			printf("\t\t%hu (%04X)\r\n", (*indices)[i], randomizer[i]);
+		}else{
+			printf("\t\t--\r\n");	
+		}
+	}
+}
 
 void sendBotPosMsg(){
+	delay_ms(20);
 	BotPosMsg msg;
 	msg.bots[0] = myPosColor;
 	
@@ -206,17 +267,17 @@ void sendBotPosMsg(){
 	chooseTransmittedBots(&indices);
 	for(uint8_t i=1;i<NUM_TRANSMITTED_BOTS;i++){
 		idx = indices[i-1];
-		msg.bots[i] = otherBots[idx];
+		if(idx!=0xFF){
+			msg.bots[i] = otherBots[idx];
+		}else{
+			msg.bots[i].x = UNDF;
+			msg.bots[i].y = UNDF;
+			msg.bots[i].col = 0;
+		}
 	}
 
 	msg.flag = BOT_POS_MSG_FLAG;
 	ir_send(ALL_DIRS, (char*)(&msg), sizeof(BotPosMsg));
-}
-
-void handleBotPosMsg(BotPosMsg* msg){
-	for(uint8_t i=0;i<NUM_TRANSMITTED_BOTS;i++){
-		addBot( (msg->bots)[i]);
-	}
 }
 
 void sendPatternMsg(){
@@ -226,17 +287,17 @@ void sendPatternMsg(){
 	msg.degree = me.degree;
 	msg.p.x = me.p.x;
 	msg.p.y = me.p.y;
+	
 	ir_send(ALL_DIRS, (char*)(&msg), sizeof(PatternMsg));
 }
 
 void sendTuringMsg(){
-	if(me.turingColor){
-		TuringMsg msg;
-		msg.flag = TURING_MSG_FLAG;
-		msg.x = myPosColor.x;
-		msg.y = myPosColor.y;
-		ir_send(ALL_DIRS, (char*)(&msg), sizeof(TuringMsg));
-	}
+	TuringMsg msg;
+	msg.flag = TURING_MSG_FLAG;
+	msg.x = myPosColor.x;
+	msg.y = myPosColor.y;
+	msg.t_color = me.turingColor;
+	ir_send(ALL_DIRS, (char*)(&msg), sizeof(TuringMsg));
 }
 
 /*
@@ -249,14 +310,51 @@ void handle_msg(ir_msg* msg_struct)
 		handleBotMeasMsg((BotMeasMsg*)(msg_struct->msg), msg_struct->sender_ID);
 	}else{	
 		switch (phase){
-			case Prepare: handleBotPosMsg((((BotPosMsg*)(msg_struct->msg)))); break;
+			case Prepare: handleBotPosMsg((((BotPosMsg*)(msg_struct->msg))), msg_struct->sender_ID); break;
 			case Consensus: handlePatternMsg((PatternMsg*)msg_struct->msg); break;
-			case Turing: handleTuringMsg((TuringMsg*)msg_struct->msg); break;
+			case Turing: handleTuringMsg((TuringMsg*)msg_struct->msg, msg_struct->sender_ID); break;
 			default: break;
 		}
 	}
 }
 
+//Returns 1 if a new bot was added to the array.
+//Returns 0 if the bot was already in the array.
+uint8_t addBot(PosColor pos){
+	uint8_t foundIdx = NUM_TRACKED_BOTS;
+	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
+		if((otherBots[i].x == pos.x) && (otherBots[i].y == pos.y)){
+			return 0; //The bot already existed; no need to add it.
+		}
+		if(!POS_C_DEFINED(&(otherBots[i]))){
+			foundIdx = i;
+		}
+	}
+	otherBots[foundIdx] = pos;
+	qsort(otherBots, NUM_TRACKED_BOTS+1, sizeof(PosColor), distCmp);
+	printf("\tAdded Pos:\r\n");
+	printPosColor(pos);
+	printf("\tOther Bots:\r\n");
+	printOtherBots();
+	return 1;
+}
+
+
+void handleBotPosMsg(BotPosMsg* msg, id_t senderID){	
+	for(uint8_t i=0;i<NUM_TRANSMITTED_BOTS;i++){
+		if(POS_C_DEFINED(&((msg->bots)[i]))){
+			PosColor pos = (msg->bots)[i];
+			uint8_t result = addBot( pos );
+			if(result){
+				//printf("\taddbot() - Add bot: [%d, %d] (%hu) from %04X\r\n", pos.x, pos.y, i, senderID);
+			}else{
+				//printf("\taddbot() - The bot already existed: [%d, %d] (%hu) from %04X\r\n", pos.x, pos.y, i, senderID);
+			}
+		}
+	}
+}
+
+/* Used in Consensus Phase */
 void handlePatternMsg(PatternMsg* msg){
 	if(msg->flag == PATTERN_MSG_FLAG){
 		if(lastPatternAdded==NULL){
@@ -273,24 +371,72 @@ void handlePatternMsg(PatternMsg* msg){
 	}
 }
 
-void handleTuringMsg(TuringMsg* msg){
+uint8_t isInList(id_t id, uint8_t color, uint8_t activator){
+	TuringNode* tmp = NULL;
+	if (activator == 1){
+		tmp = turingRoot_a;
+		while(tmp != NULL){
+			if (tmp->id == id){
+				tmp->t_color = color;
+				return 1;
+			}
+			tmp = tmp->next;
+		}
+	}
+	else{
+		tmp = turingRoot_i;
+		while(tmp != NULL){
+			if (tmp->id == id){
+				tmp->t_color = color;
+				return 1;
+			}
+			tmp = tmp->next;
+		}		
+	}
+	return 0;
+}
+
+void handleTuringMsg(TuringMsg* msg, id_t senderID){
 	if(msg->flag == TURING_MSG_FLAG){
-		//TODO
 		Vector pos = {msg->x, msg->y, 1};
 		Vector activatorTF, inhibitorTF;
 		matrixTimesVector(&activatorTF, &(me.patternTransformA), &pos);
 		matrixTimesVector(&inhibitorTF, &(me.patternTransformI), &pos);
-		printf("{{% 4d, % 4d}, {% 4d, % 4d}, {% 4d, % 4d}},", msg->x, msg->y, (int16_t)activatorTF[0], (int16_t)activatorTF[1], (int16_t)inhibitorTF[0], (int16_t)inhibitorTF[1]);
+		printf("\t{{% 4d, % 4d}, {% 6.3f, % 6.3f}, {% 6.3f, % 6.3f}}\r\n", msg->x, msg->y, activatorTF[0], activatorTF[1], inhibitorTF[0], inhibitorTF[1]);
 		if((activatorTF[0]*activatorTF[0]+activatorTF[1]*activatorTF[1])<=1.0){ //if the position is inside unit circle after transformation..
-			me.nA++;
-		}else if((inhibitorTF[0]*inhibitorTF[0]+inhibitorTF[1]*inhibitorTF[1])<=1.0){ //if the position is inside unit circle after transformation..
-			me.nI++;
+			if(isInList(senderID, msg->t_color, 1) == 0){
+				if(lastAddedturingNode_a==NULL){
+					lastAddedturingNode_a = (TuringNode*)myMalloc(sizeof(TuringNode));
+					turingRoot_a = lastAddedturingNode_a;
+					}
+				else{
+					lastAddedturingNode_a->next = (TuringNode*)myMalloc(sizeof(TuringNode));
+					lastAddedturingNode_a = lastAddedturingNode_a->next;
+				}
+				lastAddedturingNode_a->t_color = msg->t_color;
+				lastAddedturingNode_a->id = senderID;
+				lastAddedturingNode_a->next = NULL;
+			}
+		}
+		else if((inhibitorTF[0]*inhibitorTF[0]+inhibitorTF[1]*inhibitorTF[1])<=1.0){ //if the position is inside unit circle after transformation..
+			if(isInList(senderID, msg->t_color, 0) == 0){
+				if(lastAddedturingNode_i==NULL){
+					lastAddedturingNode_i = (TuringNode*)myMalloc(sizeof(TuringNode));
+					turingRoot_i = lastAddedturingNode_i;
+				}
+				else{
+					lastAddedturingNode_i->next = (TuringNode*)myMalloc(sizeof(TuringNode));
+					lastAddedturingNode_i = lastAddedturingNode_i->next;
+				}
+				lastAddedturingNode_i->t_color = msg->t_color;
+				lastAddedturingNode_i->id = senderID;
+				lastAddedturingNode_i->next = NULL;
+			}
 		}
 	}
 }
 
 void localizeSlot(){
-	broadcast_rnb_data();
 	// read colors
 	int16_t red, green, blue;
 
@@ -303,29 +449,33 @@ void localizeSlot(){
 	red_array[frameCount] = red;
 	green_array[frameCount] = green;
 	blue_array[frameCount] = blue;
-	printf("X[%04X] R: %d G: %d B: %d (ori)\r\n", me.dropletId, red, green, blue);
+	printf("\tX[%04X] R: %d G: %d B: %d (ori)\r\n", me.dropletId, red, green, blue);
+	broadcast_rnb_data();
 }
 
 void localizeEOP(){
-	if(frameCount<(NUM_PREPARE-1)){
-		printf("My Pos: % 4d, % 4d, %4d\r\n", myPos.x, myPos.y, myPos.o);
+	if(frameCount<(NUM_LOCALIZE-1)){
+		if(POS_DEFINED(&myPos)){
+			printf("\tMy Pos: [%d, %d, %d]\r\n", myPos.x, myPos.y, myPos.o);
+		}else{
+			printf("\tPosition not yet found.\r\n");
+		}
 	}else{
 		if(!POS_DEFINED(&myPos)){
 			printf("Localize ended without my figuring out my position.\r\n");
 			warning_light_sequence();
 		}
-		me.rgb[0] = meas_find_median(red_array, NUM_PREPARE);
-		me.rgb[1] = meas_find_median(green_array, NUM_PREPARE);
-		me.rgb[2] = meas_find_median(blue_array, NUM_PREPARE);
+		me.rgb[0] = meas_find_median(red_array, NUM_LOCALIZE);
+		me.rgb[1] = meas_find_median(green_array, NUM_LOCALIZE);
+		me.rgb[2] = meas_find_median(blue_array, NUM_LOCALIZE);
 
-		me.turingColor = (me.rgb[0]+me.rgb[1])>130;
+		me.turingColor = (me.rgb[0]+me.rgb[1])<90;
 
 		myPosColor.x = myPos.x;
 		myPosColor.y = myPos.y;
-		myPosColor.col = packColor(me.rgb[0], me.rgb[1], me.rgb[2], me.turingColor);
+		myPosColor.col = me.turingColor;
+		//myPosColor.col = packColor(me.rgb[0], me.rgb[1], me.rgb[2], me.turingColor);
 		
-		
-
 		phase=Prepare;
 		frameCount = 0;
 		printf("\r\n*************  Start PREPARE Phase   ***************\r\n");
@@ -336,7 +486,7 @@ void localizeEOP(){
 void prepareEOP(){
 	if (frameCount<(NUM_PREPARE-1)) {
 		if(TEST_PREPARE){
-			printf("X[%04X] R: %d G: %d B: %d\r\n", me.dropletId, allRGB[frameCount][0], allRGB[frameCount][1], allRGB[frameCount][2]);
+			;
 		}
 	}else{
 		printf("Once only loop in Prepare\r\n");
@@ -354,8 +504,12 @@ void consensusEOP(){
 	}else{
 		//Compute the appropriate transformations:
 		float pTheta = atan2(me.p.y, me.p.x);
+		/*
+		 * pTheta is the 'characteristic angle' of the pattern.
+		 * All of a pattern's stripes run perpendicular to this angle.
+		 */
 		Matrix translate = {{1, 0, -myPosColor.x}, {0, 1,  -myPosColor.y}, {0, 0, 1}};
-		Matrix rotate = {{cos(-pTheta), sin(-pTheta), 0}, {-sin(-pTheta), cos(-pTheta), 0}, {0, 0, 1}};
+		Matrix rotate = {{cos(pTheta), sin(pTheta), 0}, {-sin(pTheta), cos(pTheta), 0}, {0, 0, 1}};
 		Matrix activatorScale = {{1.0/ACTIVATOR_WIDTH, 0, 0}, {0, 1.0/ACTIVATOR_HEIGHT, 0}, {0, 0, 1}};
 		Matrix inhibitorScale = {{1.0/INHIBITOR_WIDTH, 0, 0}, {0, 1.0/INHIBITOR_HEIGHT, 0}, {0, 0, 1}};
 
@@ -403,21 +557,29 @@ void decidePattern(){
 	me.p.x = 0.0;
 	me.p.y = 0.0;
 	float LofGx, LofGy;
+	uint8_t count = 0;
 	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
-		if(POS_C_DEFINED(&(otherBots[i]))){
+		// reach the end of filled spots of otherBots[]
+		if(!POS_C_DEFINED(&(otherBots[i]))){
 			break;
 		}
+		count ++;
 		//Maybe add a cut off here, so we ignore contributions from robots farther than ______ away?
 		LofGxy(otherBots[i].x - myPosColor.x, otherBots[i].y - myPosColor.y, &LofGx, &LofGy);
-		me.p.x += fabs(unpackColorToGray(otherBots[i].col)) * LofGx;
-		me.p.y += fabs(unpackColorToGray(otherBots[i].col)) * LofGy;
-	}
 
+		me.p.x += fabs(otherBots[i].col) * LofGx;
+		me.p.y += fabs(otherBots[i].col) * LofGy;
+		
+		//me.p.x += fabs(unpackColorToGray(otherBots[i].col)) * LofGx;
+		//me.p.y += fabs(unpackColorToGray(otherBots[i].col)) * LofGy;
+		
+		printf("\tLofGx: %.3f, LofGy: %.3f --> p.x: %.3f, p.y: %.3f, pTheta: %5.3f\r\n", LofGx, LofGy, me.p.x, me.p.y, atan2(me.p.y, me.p.x));
+	}
+	printf("\tNum of tracked bots is: %hu\r\n", count);
+	
 	me.p.x = fabs(me.p.x);
-	me.p.y = fabs(me.p.y); 
-	//Is this the right place to be absing?? 
-	//This effectively reduces the space of possible pattern directions to the upper right quadrant, a 90 degree swath.
-	//Pretty sure that covers everything though.
+	me.p.y = fabs(me.p.y);
+
 }
 
 void weightedAverage(){
@@ -441,9 +603,9 @@ void weightedAverage(){
 	printf("My updated degree: %hu\r\n", degree);
 	
 	if (nbrPatternRoot == NULL){
-		printf("\t\tNo pattern Node in the list!!!\r\n");
+		printf("\t\tNo, pattern Node not in the list!!!\r\n");
 	}else{
-		printf("\t\tYes pattern Node in the list!!!\r\n");
+		printf("\t\tYes, pattern Node in the list!!!\r\n");
 	}
 	// weighted averaging using Metropolis weights
 	while(nbrPatternRoot != NULL){
@@ -464,21 +626,51 @@ void weightedAverage(){
 	p.x += wc*me.p.x;
 	p.y += wc*me.p.y;
 	
+	
 	if (TEST_CONSENSUS){
 		printf("\r\nPre-pattern: [%0.4f, %0.4f] Cur-pattern: [%0.4f, %0.4f]\r\n",
 		me.p.x, me.p.y, p.x, p.y);
 	}
-	me.p.x = p.x;
-	me.p.y = p.y;	
+	me.p.x = p.x; 
+	me.p.y = p.y;
 }
 
 // Change me.turing_color according to Young's model
 // the neighbors' colors are also added to turingHistory array for record
 void updateTuringColor(){
+	me.nA = 0;
+	me.nI = 0;	
 	float ss = 0.0f;
+	TuringNode* tmp = NULL;
+	
+	// count nA
 	if (me.turingColor == 1){
 		me.nA += 1;
+	}	
+	printf("Activator:\r\n");
+	printf("\tX[%04X]: %hu\r\n", me.dropletId, me.turingColor);
+	tmp = turingRoot_a;
+	while(tmp != NULL)
+	{
+		printf("\t[%04X]: %hu\r\n", tmp->id, tmp->t_color);
+		if(tmp->t_color == 1){
+			me.nA += 1;
+		}
+		tmp = tmp->next;
 	}
+
+	// count nI
+	printf("Inhibitor:\r\n");
+	tmp = turingRoot_i;
+	while(tmp != NULL)
+	{
+		printf("\t[%04X]: %hu\r\n", tmp->id, tmp->t_color);
+		if(tmp->t_color == 1){
+			me.nI += 1;
+		}
+		tmp = tmp->next;
+	}	
+	
 	turingHistory[frameCount][0] = me.turingColor;
 	turingHistory[frameCount][1] = me.nA;
 	turingHistory[frameCount][2] = me.nI;
@@ -489,78 +681,74 @@ void updateTuringColor(){
 	}else if (ss < 0){
 		me.turingColor = 0;
 	}
-
-	me.nA = 0;
-	me.nI = 0;
-
 	
 	if (TEST_TURING) {
-		//TODO: Print something useful here.
+		printf("\tTuring color: %hu [%hu, %hu]\r\n", me.turingColor, me.nA, me.nI);
+	}
+}
+
+
+void printRGBs_ordered(){
+	printf("\r\nPrint all rgbs read (ordered)\r\n");
+	for (uint8_t i=0; i<NUM_LOCALIZE; i++){
+		printf("\t%hu: %d %d %d\r\n", i, red_array[i], green_array[i], blue_array[i]);
+	}
+}
+
+void printPos(){
+	printf("\r\n\tMy Pos: % 4d, % 4d, %4d\r\n", myPos.x, myPos.y, myPos.o);
+}
+
+void printTuringInfo(){
+	printf("\r\nPrint turing info\r\n");
+	for (uint8_t i=0; i<NUM_TURING; i++){
+		printf("\t%hu: color: %hu [%hu, %hu]\r\n", i, turingHistory[i][0], turingHistory[i][1], turingHistory[i][2]);
 	}
 	
+	TuringNode* tmp = NULL;
+	printf("Activator:\r\n");
+	printf("\tX[%04X]: %hu\r\n", me.dropletId, me.turingColor);
+	tmp = turingRoot_a;
+	while(tmp != NULL)
+	{
+		printf("\t[%04X]: %hu\r\n", tmp->id, tmp->t_color);
+		tmp = tmp->next;
+	}
+
+	// count nI
+	printf("Inhibitor:\r\n");
+	tmp = turingRoot_i;
+	while(tmp != NULL)
+	{
+		printf("\t[%04X]: %hu\r\n", tmp->id, tmp->t_color);
+		tmp = tmp->next;
+	}	
 }
 
-//uint8_t user_handle_command(char* command_word, char* command_args){
-	////if(strcmp(command_word, "pn")==0){
-		////printNs();
-	////}
-	////if(strcmp(command_word, "pp")==0){
-		////printProb();
-	////}
-	////if(strcmp(command_word, "pt")==0){
-		////printTuring();
-	////}
-	////if(strcmp(command_word, "pa")==0){
-		////printNs();
-		//////printrgbs();
-		////printRGBs_ordered();
-		////printRGB();		
-		////printProb();
-		////printTuring();
-		////printTuringHistory();
-		////printTuringHistoryCorrected();
-////
-	////}
-////
-	////if(strcmp(command_word, "set_thresh")==0){
-		////threshold_mottled = atoi(command_args);
-	////}
-////
-	//return 0;
+uint8_t user_handle_command(char* command_word, char* command_args){
+	if(strcmp(command_word, "pc")==0){
+		printRGBs_ordered();
+		return 1;
+	}
+	if(strcmp(command_word, "pp")==0){
+		printPos();
+		return 1;
+	}
+	if(strcmp(command_word, "pt")==0){
+		printTuringInfo();
+		return 1;
+	}
+	if(strcmp(command_word, "pa")==0){
+		printPos();
+		printRGBs_ordered();
+		printOtherBots();
+		printTuringInfo();
+		return 1;
+	}
+//
+//if(strcmp(command_word, "set_thresh")==0){
+	//threshold_mottled = atoi(command_args);
 //}
-
-//Returns 1 if a new bot was added to the array.
-//Returns 0 if the bot was already in the array.
-uint8_t addBot(PosColor pos){
-	uint8_t foundIdx = NUM_TRACKED_BOTS;
-	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
-		if((otherBots[i].x == pos.x) && (otherBots[i].y == pos.y)){
-			return 0; //The bot already existed; no need to add it.
-		}
-		if(!POS_C_DEFINED(&(otherBots[i]))){
-			foundIdx = i;
-		}
-	}
-	otherBots[foundIdx] = pos;
-	qsort(otherBots, NUM_TRACKED_BOTS+1, sizeof(PosColor), distCmp);
-	return 1;
-}
-
-void chooseTransmittedBots(uint8_t (*indices)[NUM_CHOSEN_BOTS]){
-	uint8_t numChoices = 0;
-	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
-		if(POS_C_DEFINED(&(otherBots[i]))){
-			numChoices++;
-		}else{
-			break;
-		}
-	}//Now, numChoices is the number of valid trackedBots.
-	uint16_t randomizer[numChoices];
-	for(uint8_t i=0;i<numChoices;i++){
-		randomizer[i] = (((uint16_t)i)<<8) | rand_byte();
-	}
-	qsort(randomizer, numChoices, sizeof(uint16_t), randomizerCmp);
-	for(uint8_t i=0;i<NUM_CHOSEN_BOTS;i++){
-		(*indices)[i] = ((uint8_t)((randomizer[i]>>8)&0xFF));
-	}
+//
+	return 0;
 }

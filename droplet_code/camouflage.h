@@ -38,7 +38,6 @@ uint32_t frameLength[NUM_PHASES];
 
 //Turing Pattern related
 #define TURING_F			(0.75f)
-#define TURING_RANDOM		(0.02f)		// A threshold for random pattern
 
 #define TEST_PREPARE		1
 #define TEST_GRADIENT		1

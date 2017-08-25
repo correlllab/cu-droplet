@@ -13,7 +13,7 @@
 #define PATTERN_MSG_FLAG	'P'
 #define TURING_MSG_FLAG		'T'
 #define BOT_POS_MSG_FLAG	'B'
-#define NUM_LOCALIZE		20 // 20
+#define NUM_LOCALIZE		10 // 20
 #define NUM_PREPARE			20 // 20
 #define NUM_GRADIENT		10 // 10
 #define NUM_CONSENSUS		10 // 10

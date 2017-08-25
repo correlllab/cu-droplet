@@ -211,7 +211,7 @@ void handleRNB(){
 
 void printPosColor(PosColor pos){
 	if(POS_C_DEFINED(&pos)){
-		printf("\t\t(% 5d, % 5d) : %02hX\r\n", pos.x, pos.y, pos.col);
+		printf("\t\t(% 5d, % 5d) : %hu\r\n", pos.x, pos.y, pos.col);
 	}
 }
 
@@ -340,9 +340,7 @@ uint8_t addBot(PosColor pos){
 }
 
 
-void handleBotPosMsg(BotPosMsg* msg, id_t senderID){
-	//printf("\thandleBotPosMsg() - got a message!\r\n");
-	
+void handleBotPosMsg(BotPosMsg* msg, id_t senderID){	
 	for(uint8_t i=0;i<NUM_TRANSMITTED_BOTS;i++){
 		if(POS_C_DEFINED(&((msg->bots)[i]))){
 			PosColor pos = (msg->bots)[i];
@@ -475,7 +473,8 @@ void localizeEOP(){
 
 		myPosColor.x = myPos.x;
 		myPosColor.y = myPos.y;
-		myPosColor.col = packColor(me.rgb[0], me.rgb[1], me.rgb[2], me.turingColor);
+		myPosColor.col = me.turingColor;
+		//myPosColor.col = packColor(me.rgb[0], me.rgb[1], me.rgb[2], me.turingColor);
 		
 		phase=Prepare;
 		frameCount = 0;
@@ -567,9 +566,12 @@ void decidePattern(){
 		count ++;
 		//Maybe add a cut off here, so we ignore contributions from robots farther than ______ away?
 		LofGxy(otherBots[i].x - myPosColor.x, otherBots[i].y - myPosColor.y, &LofGx, &LofGy);
+
+		me.p.x += fabs(otherBots[i].col) * LofGx;
+		me.p.y += fabs(otherBots[i].col) * LofGy;
 		
-		me.p.x += fabs(unpackColorToGray(otherBots[i].col)) * LofGx;
-		me.p.y += fabs(unpackColorToGray(otherBots[i].col)) * LofGy;
+		//me.p.x += fabs(unpackColorToGray(otherBots[i].col)) * LofGx;
+		//me.p.y += fabs(unpackColorToGray(otherBots[i].col)) * LofGy;
 		
 		printf("\tLofGx: %.3f, LofGy: %.3f --> p.x: %.3f, p.y: %.3f, pTheta: %5.3f\r\n", LofGx, LofGy, me.p.x, me.p.y, atan2(me.p.y, me.p.x));
 	}

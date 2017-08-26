@@ -26,10 +26,16 @@
 
 #define NUM_PHASES 5
 
+#define NM_ALPHA	1.0
+#define NM_GAMMA	2
+#define NM_RHO		0.5
+#define NM_SIGMA	0.5
+
+
 typedef enum{
 	Localize, //RNB Message Happens (long, 397ms should work though)
 	Prepare, //Message is 26+9 bytes; 88ms
-	Consensus, //Message is 12+9 bytes; 53ms
+	Consensus, //Message is 13+9 bytes; 58ms
 	Turing, //Message is 5or6+9 bytes; 35ms
 	Waiting
 } Phase;
@@ -55,9 +61,18 @@ uint32_t frameLength[NUM_PHASES];
 
 const float rgb_weights[3] = {0.5, 0.5, 0.0};  // RGB to Gray
 
+typedef struct nm_point{
+	float th;
+	float w;
+	float val;
+}NMPoint;
+
+typedef NMPoint Simplex[3];
+
 typedef struct pattern_struct{
 	float x;
 	float y;
+	uint8_t w;
 }Pattern;
 
 /*  */
@@ -88,7 +103,7 @@ PatternNode* lastPatternAdded;
 typedef struct turing_node_struct{
 	id_t id;
 	uint8_t t_color; // 0 or 1
-	struct pattern_node_struct* next;
+	struct turing_node_struct* next;
 } TuringNode;
 
 TuringNode* turingRoot_a;
@@ -182,6 +197,9 @@ void sendBotPosMsg(void);
 void sendPatternMsg(void);
 void sendTuringMsg(void);
 void decidePattern(void);
+void testLoG(NMPoint* pt);
+void decidePatternB(void);
+float NMStep(Simplex* spx);
 void weightedAverage(void);
 void updateTuringColor(void);
 
@@ -194,13 +212,20 @@ uint8_t addBot(PosColor pos);
 
 inline void LofGxy(int16_t deltaX, int16_t deltaY, float* LofGx, float* LofGy){
 	float scalarTerm = 1.0/(2*M_PI*powf(L_OF_G_SIGMA,6.0));
-	printf("Scalar Term: %f\r\n",scalarTerm);
 	float scaledXsq = powf(deltaX/L_OF_G_WIDTH,2);
 	float scaledYsq = powf(deltaY/L_OF_G_WIDTH,2);
 	float expTerm = -((scaledXsq + scaledYsq)/(2*powf(L_OF_G_SIGMA,2)));
 	float leftSide = scalarTerm*exp(expTerm);
 	*LofGx = leftSide*(scaledXsq - powf(L_OF_G_SIGMA,2));
 	*LofGy = leftSide*(scaledYsq - powf(L_OF_G_SIGMA,2));
+}
+
+inline float LofGx(int16_t deltaX, int16_t deltaY){
+	float scalarTerm = 1.0/(2*M_PI*powf(L_OF_G_SIGMA,6.0));
+	float scaledXsq = powf(deltaX,2);
+	float scaledYsq = powf(deltaY,2);
+	float expTerm = -((scaledXsq + scaledYsq)/(2*powf(L_OF_G_SIGMA,2)));
+	return scalarTerm*exp(expTerm)*(scaledXsq - powf(L_OF_G_SIGMA,2));
 }
 
 inline uint8_t packColor(int16_t r, int16_t g, int16_t b, uint8_t turingColor){
@@ -210,20 +235,28 @@ inline uint8_t packColor(int16_t r, int16_t g, int16_t b, uint8_t turingColor){
 	}
 	if(r>25 && r<=40){
 		packedVal |= 0b00010000;
-		}else if(r>40){
+	}else if(r>40){
 		packedVal |= 0b00100000;
 	}
 	if(g>25 && g<=40){
 		packedVal |= 0b00000100;
-		}else if(g>40){
+	}else if(g>40){
 		packedVal |= 0b00001000;
 	}
 	if(b>25 && b<=40){
 		packedVal |= 0b00000001;
-		}else if(b>40){
+	}else if(b>40){
 		packedVal |= 0b00000010;
 	}
 	return packedVal;
+}
+
+inline float unpackColorToBinary(uint8_t col){
+	if(col&0b11000000){
+		return 1.0;
+	}else{
+		return 0.0;
+	}
 }
 
 inline float unpackColorToGray(uint8_t col){
@@ -257,6 +290,24 @@ static int distCmp(const void* a, const void* b){
 	}else if(POS_C_DEFINED(aPos)){
 		return -1;
 	}else if(POS_C_DEFINED(bPos)){
+		return 1;
+	}else{
+		return 0;
+	}
+}
+
+static int simplexCmp(const void* aR, const void* bR){
+	NMPoint* a = (((NMPoint*)aR));
+	NMPoint* b = (((NMPoint*)bR));
+	if(isnanf(a->val)){
+		testLoG(a);
+	}
+	if(isnanf(b->val)){
+		testLoG(b);
+	}
+	if(a->val < b->val){
+		return -1;
+	}else if(b->val < a->val){
 		return 1;
 	}else{
 		return 0;

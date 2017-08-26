@@ -473,8 +473,7 @@ void localizeEOP(){
 
 		myPosColor.x = myPos.x;
 		myPosColor.y = myPos.y;
-		myPosColor.col = me.turingColor;
-		//myPosColor.col = packColor(me.rgb[0], me.rgb[1], me.rgb[2], me.turingColor);
+		myPosColor.col = packColor(me.rgb[0], me.rgb[1], me.rgb[2], me.turingColor);
 		
 		phase=Prepare;
 		frameCount = 0;
@@ -490,7 +489,7 @@ void prepareEOP(){
 		}
 	}else{
 		printf("Once only loop in Prepare\r\n");
-		decidePattern();
+		decidePatternB();
 		phase=Consensus;
 		frameCount = 0;
 		printf("\r\n*************  Start CONSENSUS Phase   ***************\r\n");
@@ -567,8 +566,8 @@ void decidePattern(){
 		//Maybe add a cut off here, so we ignore contributions from robots farther than ______ away?
 		LofGxy(otherBots[i].x - myPosColor.x, otherBots[i].y - myPosColor.y, &LofGx, &LofGy);
 
-		me.p.x += fabs(otherBots[i].col) * LofGx;
-		me.p.y += fabs(otherBots[i].col) * LofGy;
+		me.p.x += unpackColorToBinary(otherBots[i].col) * LofGx;
+		me.p.y += unpackColorToBinary(otherBots[i].col) * LofGy;
 		
 		//me.p.x += fabs(unpackColorToGray(otherBots[i].col)) * LofGx;
 		//me.p.y += fabs(unpackColorToGray(otherBots[i].col)) * LofGy;
@@ -579,6 +578,98 @@ void decidePattern(){
 	
 	me.p.x = fabs(me.p.x);
 	me.p.y = fabs(me.p.y);
+}
+
+void testLoG(NMPoint* pt){
+	float cosTheta = cos(pt->th);
+	float sinTheta = sin(pt->th);
+	float p = 0.0;
+	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
+		float xDiff = otherBots[i].x - myPosColor.x;
+		float yDiff = otherBots[i].y - myPosColor.y;
+		float x = xDiff*cosTheta - yDiff*sinTheta;
+		float y = xDiff*sinTheta + yDiff*cosTheta;
+		x = x/pt->w;
+		y = y/pt->w;
+		p += unpackColorToBinary(otherBots[i].col) * -LofGx(x, y);
+		
+	}
+	pt->val = p;
+}
+
+
+
+/*
+ * Occurs at end of Prepare phase.
+ * Note: ONLY ONCE
+ */
+void decidePatternB(){ //Using optimal rotation.
+	Simplex spx;
+	spx[0].th = 0;
+	spx[0].w = 50.0;
+	testLoG(&spx[0]);
+	spx[1].th = M_PI_2; //90 degrees;
+	spx[1].w = 50.0;
+	testLoG(&spx[1]);
+	spx[2].th = 0;
+	spx[2].w = 150.0;
+	testLoG(&spx[2]);
+	float result;
+	result = NMStep(&spx);
+	while(result>0.05){
+		result = NMStep(&spx);
+	}
+	me.p.x = cos(spx[0].th);
+	me.p.y = sin(spx[0].th);
+	me.p.w = (uint8_t)spx[0].w;
+}
+
+float NMStep(Simplex* spx){
+	qsort(*spx, 3, sizeof(NMPoint), simplexCmp);
+	NMPoint xo, xr;
+	//xo is the centroid o x[0] & x[1];
+	xo.th = ((*spx)[0].th + (*spx)[1].th)/2.0;
+	xo.w = ((*spx)[0].w + (*spx)[1].w)/2.0;
+	testLoG(&xo);
+	//xr is x[2] reflected opposite xo;
+	xr.th = xo.th + NM_ALPHA*(xo.th - (*spx)[2].th);
+	xr.w = xo.w + NM_ALPHA*(xo.w - (*spx)[2].w);
+	testLoG(&xr);
+	if((xr.val >= (*spx)[0].val) && (xr.val < (*spx)[1].val)){
+		float tmp = hypotf(xr.th-(*spx)[2].th,xr.w-(*spx)[2].w);
+		(*spx)[2] = xr;
+		return tmp;
+	}else if(xr.val < (*spx)[0].val){
+		NMPoint xe;
+		xe.th = xo.th + NM_GAMMA*(xr.th - xo.th);
+		xe.w = xo.w + NM_GAMMA*(xr.w - xo.w);
+		testLoG(&xe);
+		if(xe.val < xr.val){
+			float tmp = hypotf(xe.th-(*spx)[2].th,xe.w-(*spx)[2].w);
+			(*spx)[2] = xe;
+			return tmp;
+		}else{
+			float tmp = hypotf(xr.th-(*spx)[2].th,xr.w-(*spx)[2].w);
+			(*spx)[2] = xr;
+			return tmp;
+		}
+	}else{
+		NMPoint xc;
+		xc.th = xo.th + NM_RHO*((*spx)[2].th - xo.th);
+		xc.w = xo.w + NM_RHO*((*spx)[2].w - xo.w);
+		testLoG(&xc);
+		if(xc.val < (*spx)[2].val){
+			float tmp = hypotf(xc.th-(*spx)[2].th,xc.w-(*spx)[2].w);
+			(*spx)[2] = xc;
+			return tmp;
+		}else{
+			(*spx)[1].th = (*spx)[0].th + NM_SIGMA*((*spx)[1].th - (*spx)[0].th);
+			(*spx)[1].w = (*spx)[0].w + NM_SIGMA*((*spx)[1].w - (*spx)[0].w);
+			(*spx)[2].th = (*spx)[0].th + NM_SIGMA*((*spx)[2].th - (*spx)[0].th);
+			(*spx)[2].w = (*spx)[0].w + NM_SIGMA*((*spx)[2].w - (*spx)[0].w);
+			return 1.0;
+		}
+	}
 
 }
 

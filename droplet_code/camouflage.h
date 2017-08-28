@@ -13,7 +13,7 @@
 #define PATTERN_MSG_FLAG	'P'
 #define TURING_MSG_FLAG		'T'
 #define BOT_POS_MSG_FLAG	'B'
-#define NUM_LOCALIZE		10 // 20
+#define NUM_LOCALIZE		20 // 20
 #define NUM_PREPARE			20 // 20
 #define NUM_GRADIENT		10 // 10
 #define NUM_CONSENSUS		10 // 10
@@ -88,7 +88,7 @@ PatternNode* lastPatternAdded;
 typedef struct turing_node_struct{
 	id_t id;
 	uint8_t t_color; // 0 or 1
-	struct pattern_node_struct* next;
+	struct turing_node_struct* next;
 } TuringNode;
 
 TuringNode* turingRoot_a;

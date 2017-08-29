@@ -38,6 +38,7 @@ volatile uint16_t rtc_epoch;
 // Returns the number of ms elapsed since the last reset. (Defined in droplet_base_asm.s)
 uint32_t get_time(void);
 
+
 // Returns this Droplet's unique 16-bit identifier. 0 will never be an identifier.
 inline id_t get_droplet_id(void){ 
 	return droplet_ID;
@@ -47,6 +48,14 @@ inline void* myMalloc(size_t size){
 	void* tmp = NULL;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 		tmp = malloc(size);
+	}
+	return tmp;
+}
+
+inline char* myStrdup(const char *s1){
+	void* tmp = NULL;
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+		tmp = strdup(s1);
 	}
 	return tmp;
 }

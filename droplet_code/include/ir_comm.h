@@ -49,8 +49,8 @@
 
 #define IR_STATUS_CRC_BITS_bm			0xC0	// SPECIAL or COMMAND
 
-#define DATA_LEN_VAL_bm		0x3F
-#define DATA_LEN_SPCL_bm	0x40
+#define DATA_LEN_VAL_bm		0x3F //data_length & DATA_LEN_VAL_bm 0b00111111
+#define DATA_LEN_SPCL_bm	0x40 //data_length & DATA_LEN_STATUS_BITS_bm 
 #define DATA_LEN_CMD_bm		0x80
 
 #define DATA_LEN_STATUS_BITS_bm			0xC0
@@ -63,6 +63,7 @@
 #define HEADER_POS_TARGET_ID_LOW 5
 #define HEADER_POS_TARGET_ID_HIGH 6
 #define HEADER_POS_SOURCE_DIR 7
+#define ms_droplet_comm_time 12
 
 #define HEADER_LEN 8U
 
@@ -73,6 +74,8 @@
 #endif
 
 extern USART_t* channel[6];
+
+
 
 
 volatile struct
@@ -104,6 +107,21 @@ volatile struct
 volatile uint8_t hp_ir_block_bm;			//can only be set by other high priority ir things!
 volatile uint8_t num_waiting_msgs;
 volatile uint8_t user_facing_messages_ovf;
+volatile uint8_t busy_ch;
+
+/*Totally experimental attempt at creating dynamic buffer*/
+typedef struct NODE {				
+    char* data;
+	uint8_t data_length;
+	uint8_t channel_id;
+	id_t target;
+	uint8_t cmd_flag;
+	uint8_t no_of_tries;
+    struct NODE * next;
+} NODE;
+
+NODE * BUFFER_HEAD;
+NODE * BUFFER_TAIL;
 
 volatile uint32_t	cmd_arrival_time;
 volatile id_t		cmd_sender_id;
@@ -121,6 +139,8 @@ uint8_t ir_send(uint8_t dirs, char *data, uint8_t data_length);
 uint8_t hp_ir_cmd(uint8_t dirs, char *data, uint8_t data_length);
 uint8_t hp_ir_targeted_cmd(uint8_t dirs, char *data, uint8_t data_length, id_t target);
 void waitForTransmission(uint8_t dirs);
+NODE* buffer_createNode(const char * str, uint8_t dir, uint8_t dataLength, id_t msgTarget, uint8_t cmdFlag);
+void tryAndSendMessage(void);//void * msg_temp_node);
 
 /*
  * dirs_mask specifies the directions a function caller is interested in.

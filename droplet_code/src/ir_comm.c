@@ -1,6 +1,7 @@
 #include "ir_comm.h"
 #include "rgb_led.h"
 
+
 static volatile uint8_t processing_cmd;
 static volatile uint8_t processing_ffsync_flag;
 
@@ -20,6 +21,10 @@ static volatile uint16_t	cmd_length;
 static volatile char		cmd_buffer[SRL_BUFFER_SIZE];
 /* Hardware addresses for the port pins with the carrier wave */
 static uint8_t ir_carrier_bm[] = { PIN0_bm, PIN1_bm, PIN4_bm, PIN5_bm, PIN6_bm, PIN7_bm };
+	
+
+uint32_t first_attempt;
+#define timeout_PERIOD 30000
 
 //#define HARDCORE_DEBUG_DIR 1
 
@@ -193,42 +198,148 @@ void send_msg(uint8_t dirs, char *data, uint8_t data_length, uint8_t hp_flag){
 	/* The whole transmission will now occur in interrupts. */
 }
 
+//dirs_to_send = 0b00111111;
+//busy_dirs = 0b00111001;
+//dirs_to_send & ~busy_dirs //== 0b00000110;
+
+
+
+uint32_t getExponentialBackoff(uint8_t c){
+	
+	uint32_t k;
+	uint32_t N;
+	N= (((uint32_t)1)<<c) - 1;
+	k = rand_quad()%N;
+	return (k*ms_droplet_comm_time);
+	
+}
+
+void tryAndSendMessage(){//void * msg_temp_node){
+	//Try and do:
+	NODE * msgNode;
+	NODE * tempNode;
+	//msgNode = (NODE *)msg_temp_node;
+	if(ir_is_busy(BUFFER_HEAD->channel_id)>0){// && (get_time()-first_attempt < timeout_PERIOD) && (BUFFER_HEAD->no_of_tries < 10)){
+		if(get_time()-first_attempt < timeout_PERIOD && BUFFER_HEAD->no_of_tries < 10)
+			schedule_task(getExponentialBackoff(BUFFER_HEAD->no_of_tries++), tryAndSendMessage, NULL);// (void *)BUFFER_HEAD);
+	}else{
+		for(uint8_t dir=0;dir<6;dir++){
+			if(BUFFER_HEAD->channel_id&(1<<dir)){
+				channel[dir]->CTRLB &= ~USART_RXEN_bm;
+				ir_rxtx[dir].status = IR_STATUS_BUSY_bm;
+				if(BUFFER_HEAD->cmd_flag) ir_rxtx[dir].status |= IR_STATUS_COMMAND_bm;
+				ir_rxtx[dir].target_ID=BUFFER_HEAD->target;
+			}
+		}
+		send_msg(BUFFER_HEAD->channel_id, BUFFER_HEAD->data, BUFFER_HEAD->data_length, 0);
+		printf("\n\rsend success\n\r");
+		tempNode=BUFFER_HEAD;
+		BUFFER_HEAD=BUFFER_HEAD->next;
+		free(tempNode);//msgNode);
+	}
+}
+
+typedef struct msg_struct{
+	char text[3];
+	uint16_t msgId;
+}Msg;
+
+NODE* buffer_createNode(const char * str, uint8_t dir, uint8_t dataLength, id_t msgTarget, uint8_t cmdFlag){
+	NODE* bufferPointer = (NODE *) myMalloc(sizeof(NODE));
+	
+	//make sure there was enough memory
+	if(bufferPointer == NULL)
+	return NULL;
+	
+	//channel ID, target, length,cmd_flag
+	bufferPointer->channel_id = dir;
+	bufferPointer->target = msgTarget;
+	bufferPointer->cmd_flag = cmdFlag;
+	bufferPointer->data_length = dataLength;
+
+	//malloc for str
+	bufferPointer->data = myMalloc(strlen(str));
+	strcpy(bufferPointer->data, str);
+	//make sure enough space for the string to be copied
+	if(bufferPointer->data == NULL)
+	return NULL;
+	
+	first_attempt = get_time();
+	
+	//printf("\n\rData = %s,Channel_ID = %u", bufferPointer->data, bufferPointer->channel_id);
+	Msg* msg = (Msg*)(str);
+	printf("%s (%u)\r\n", msg->text, msg->msgId);
+	bufferPointer->no_of_tries = 0;
+	//tryAndSendMessage((void *)bufferPointer);
+	
+	//Linked list if required
+	
+	bufferPointer->next = NULL;
+	
+	if(BUFFER_HEAD == NULL)
+	{
+		BUFFER_HEAD = bufferPointer;
+		BUFFER_TAIL = bufferPointer;
+	}
+	else
+	{
+		BUFFER_TAIL->next = bufferPointer;
+		BUFFER_TAIL = bufferPointer;
+		BUFFER_TAIL->next = BUFFER_HEAD;
+	}
+	
+	while(BUFFER_HEAD)
+		tryAndSendMessage();//(void *)BUFFER_HEAD);//bufferPointer);
+	
+	return bufferPointer;
+	//bufferPointer;
+}
+
+
+
 /*
  * This function returns '0' if no message was sent because the channels were busy, and '1' if it was successful 
  * in claiming channels and starting the message send process. Note that this function returning '1' doesn't
  * guarantee a successful transmission, as it's still possible for something to go wrong with the send.
  */
 static uint8_t all_ir_sends(uint8_t dirs, char* data, uint8_t data_length, id_t target, uint8_t cmd_flag){
-	uint8_t busy_status = ir_is_busy(dirs);
-	if(busy_status>1){
-        printf_P(PSTR("Aborting IR send [%02hx] while trying: "), busy_status);
-		uint8_t text = 1;
-		for(uint8_t i=0;i<data_length;i++){
-			if( (data[i] < 32) || (data[i] > 126) ){ //printable ASCII range.
-				text = 0;
-				break;
-			}
-		}
-		for(uint8_t i=0;i<data_length;i++){
-			if(!text){
-				printf("%02hX ", data[i]);
-			}else{
-				printf("%c", data[i]);
-			}
-		}
-		printf("\r\n");
-        return 0;
-    }        
-	for(uint8_t dir=0;dir<6;dir++){
-		if(dirs&(1<<dir)){		
-			channel[dir]->CTRLB &= ~USART_RXEN_bm;
-			ir_rxtx[dir].status = IR_STATUS_BUSY_bm;
-			if(cmd_flag) ir_rxtx[dir].status |= IR_STATUS_COMMAND_bm;
-			ir_rxtx[dir].target_ID=target;
-		}
-	}
-	send_msg(dirs, data, data_length, 0);
-    return 1;
+	buffer_createNode(data, dirs, data_length, target, cmd_flag);
+	//uint8_t busy_status = ir_is_busy(dirs);
+	//
+	//if(busy_status>1){
+        //printf_P(PSTR("Aborting IR send [%02hx] while trying: "), busy_status);
+		//
+		//buffer_createNode(data, dirs, data_length, target, cmd_flag);
+		//
+		//
+		//uint8_t text = 1;
+		//for(uint8_t i=0;i<data_length;i++){
+			//if( (data[i] < 32) || (data[i] > 126) ){ //printable ASCII range.
+				//text = 0;
+				//break;
+			//}
+		//}
+	//
+		//for(uint8_t i=0;i<data_length;i++){
+			//if(!text){
+				//printf("%02hX ", data[i]);
+			//}else{
+				//printf("%c", data[i]);
+			//}
+		//}
+		//printf("\r\n");
+        //return 0;
+    //}        
+	//for(uint8_t dir=0;dir<6;dir++){
+		//if(dirs&(1<<dir)){		
+			//channel[dir]->CTRLB &= ~USART_RXEN_bm;
+			//ir_rxtx[dir].status = IR_STATUS_BUSY_bm;
+			//if(cmd_flag) ir_rxtx[dir].status |= IR_STATUS_COMMAND_bm;
+			//ir_rxtx[dir].target_ID=target;
+		//}
+	//}
+	//send_msg(dirs, data, data_length, 0);
+    //return 1;
 }
 
 uint8_t ir_targeted_cmd(uint8_t dirs, char *data, uint8_t data_length, id_t target){
@@ -529,6 +640,9 @@ uint8_t ir_is_busy(uint8_t dirs_mask){
 	uint8_t transmitting = 0;
 	uint8_t receiving = 0;
 	uint8_t timed_cmd = 0;
+	
+	busy_ch = 0;
+	
 	if(hp_ir_block_bm&dirs_mask){
 		hp_block = 1<<3;
 	}
@@ -539,9 +653,11 @@ uint8_t ir_is_busy(uint8_t dirs_mask){
 			}
         	if(ir_rxtx[dir].status & IR_STATUS_TRANSMITTING_bm){
             	transmitting	= 1<<1;
+				busy_ch = 1<<dir;
         	}
 			if((now - ir_rxtx[dir].last_byte) < IR_MSG_TIMEOUT){
 				receiving		= 1<<0;
+				busy_ch = 1<<dir;
 			}
     	}
 	}

@@ -13,7 +13,7 @@
 #define PATTERN_MSG_FLAG	'P'
 #define TURING_MSG_FLAG		'T'
 #define BOT_POS_MSG_FLAG	'B'
-#define NUM_LOCALIZE		20 // 20
+#define NUM_LOCALIZE		10 // 20
 #define NUM_PREPARE			20 // 20
 #define NUM_GRADIENT		10 // 10
 #define NUM_CONSENSUS		10 // 10
@@ -43,7 +43,7 @@ uint32_t slotLength[NUM_PHASES] = {499, 179, 107, 107, 107};
 uint32_t frameLength[NUM_PHASES];
 
 //Turing Pattern related
-#define TURING_F			(0.75f)
+#define TURING_F			(0.95f)
 
 #define TEST_PREPARE		1
 #define TEST_GRADIENT		1
@@ -54,6 +54,7 @@ uint32_t frameLength[NUM_PHASES];
 #define L_OF_G_WIDTH		50.0 //mm
 
 //All of the below should be in mm
+// defining a and b of the ellipse, that is half of width or height of the ellipse
 #define ACTIVATOR_WIDTH 40
 #define ACTIVATOR_HEIGHT 80
 #define INHIBITOR_WIDTH 80
@@ -305,7 +306,7 @@ static int simplexCmp(const void* aR, const void* bR){
 	if(isnanf(b->val)){
 		testLoG(b);
 	}
-	if(a->val < b->val){
+	if(a->val > b->val){
 		return -1;
 	}else if(b->val < a->val){
 		return 1;

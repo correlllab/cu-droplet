@@ -6,8 +6,13 @@
 //const id_t   SEED_IDS[NUM_SEEDS] = {0x7EDF, 0x1361, 0x6C66, 0x9669};
 #define NUM_SEEDS 4
 
-const BotPos SEED_POS[NUM_SEEDS] = {{0,0,0}, {400,0, 0},{0,400,0},{400,400,0}};
-const id_t   SEED_IDS[NUM_SEEDS] = {0x5264, 0x5F2D, 0x12AD, 0xD0AE};
+//// Yang: test with large number of Droplets
+//const BotPos SEED_POS[NUM_SEEDS] = {{0,0,0}, {400,0, 0},{0,400,0},{400,400,0}};
+//const id_t   SEED_IDS[NUM_SEEDS] = {0x5264, 0x5F2D, 0x12AD, 0xD0AE};
+
+// Yang: test with 16 Droplets
+const BotPos SEED_POS[NUM_SEEDS] = {{0,0,0}, {150,0, 0},{0,150,0},{150,150,0}};
+const id_t   SEED_IDS[NUM_SEEDS] = {0x3D6C, 0xD2D7, 0x2826, 0x5D61};
 
 //const BotPos SEEDS[NUM_SEEDS] = {{100, 600, 0}, {600, 600, 0}, {100, 100, 0}, {600, 100, 0}};
 

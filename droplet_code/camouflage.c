@@ -224,8 +224,8 @@ void printOtherBots(){
 uint16_t randomizer[NUM_CHOSEN_BOTS];
 
 void chooseTransmittedBots(uint8_t (*indices)[NUM_CHOSEN_BOTS]){
-	printf("\tChoosing Transmitted.\r\n");
-	printOtherBots();
+	//printf("\tChoosing Transmitted.\r\n");
+	//printOtherBots();
 	uint8_t numChoices = 0;
 	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
 		if(POS_C_DEFINED(&(otherBots[i]))){
@@ -235,25 +235,25 @@ void chooseTransmittedBots(uint8_t (*indices)[NUM_CHOSEN_BOTS]){
 			break;
 		}
 	}
-	printf("\tNum Choices: %hu\r\n\tRandomizer:\r\n", numChoices);
+	printf("\tNum Choices: %hu\r\n", numChoices);
 	for(uint8_t i=0;i<NUM_CHOSEN_BOTS;i++){
 		if(i<numChoices){
 			randomizer[i] = (((uint16_t)i)<<8) | rand_byte();
-			printf("\t\t%04X\r\n", randomizer[i]);
+			//printf("\t\t%04X\r\n", randomizer[i]);
 		}else{
 			randomizer[i] = 0xFFFF;
-			printf("\t\t--\r\n");
+			//printf("\t\t--\r\n");
 		}
 	}
 	qsort(randomizer, NUM_CHOSEN_BOTS, sizeof(uint16_t), randomizerCmp);
-	printf("\tSorted:\r\n");
+	//printf("\tSorted:\r\n");
 	for(uint8_t i=0;i<NUM_CHOSEN_BOTS;i++){
 		(*indices)[i] = ((uint8_t)((randomizer[i]>>8)&0xFF));
-		if( (*indices)[i] != 0xFF){
-			printf("\t\t%hu (%04X)\r\n", (*indices)[i], randomizer[i]);
-		}else{
-			printf("\t\t--\r\n");	
-		}
+		//if( (*indices)[i] != 0xFF){
+			////printf("\t\t%hu (%04X)\r\n", (*indices)[i], randomizer[i]);
+		//}else{
+			////printf("\t\t--\r\n");	
+		//}
 	}
 }
 
@@ -287,6 +287,7 @@ void sendPatternMsg(){
 	msg.degree = me.degree;
 	msg.p.x = me.p.x;
 	msg.p.y = me.p.y;
+	msg.p.w = me.p.w;
 	
 	ir_send(ALL_DIRS, (char*)(&msg), sizeof(PatternMsg));
 }
@@ -332,10 +333,10 @@ uint8_t addBot(PosColor pos){
 	}
 	otherBots[foundIdx] = pos;
 	qsort(otherBots, NUM_TRACKED_BOTS+1, sizeof(PosColor), distCmp);
-	printf("\tAdded Pos:\r\n");
-	printPosColor(pos);
-	printf("\tOther Bots:\r\n");
-	printOtherBots();
+	//printf("\tAdded Pos:\r\n");
+	//printPosColor(pos);
+	//printf("\tOther Bots:\r\n");
+	//printOtherBots();
 	return 1;
 }
 
@@ -367,6 +368,7 @@ void handlePatternMsg(PatternMsg* msg){
 		lastPatternAdded->degree = msg->degree;
 		lastPatternAdded->p.x = msg->p.x;
 		lastPatternAdded->p.y = msg->p.y;
+		lastPatternAdded->p.w = msg->p.w;
 		lastPatternAdded->next = NULL;
 	}
 }
@@ -503,6 +505,8 @@ void consensusEOP(){
 	}else{
 		//Compute the appropriate transformations:
 		float pTheta = atan2(me.p.y, me.p.x);
+		
+		printf("pTheta: % 4d\r\n", (int16_t)rad_to_deg(pTheta));
 		/*
 		 * pTheta is the 'characteristic angle' of the pattern.
 		 * All of a pattern's stripes run perpendicular to this angle.
@@ -581,23 +585,26 @@ void decidePattern(){
 }
 
 void testLoG(NMPoint* pt){
+	pt->th = deg_to_rad(rad_to_deg(pt->th));
+	if(pt->w <= 0){
+		pt->w = 1;
+	}
 	float cosTheta = cos(pt->th);
 	float sinTheta = sin(pt->th);
 	float p = 0.0;
 	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
-		float xDiff = otherBots[i].x - myPosColor.x;
-		float yDiff = otherBots[i].y - myPosColor.y;
-		float x = xDiff*cosTheta - yDiff*sinTheta;
-		float y = xDiff*sinTheta + yDiff*cosTheta;
-		x = x/pt->w;
-		y = y/pt->w;
-		p += unpackColorToBinary(otherBots[i].col) * -LofGx(x, y);
-		
+		if(POS_C_DEFINED(&(otherBots[i]))){
+			float xDiff = otherBots[i].x - myPosColor.x;
+			float yDiff = otherBots[i].y - myPosColor.y;
+			float x = xDiff*cosTheta - yDiff*sinTheta;
+			float y = xDiff*sinTheta + yDiff*cosTheta;
+			x = x/pt->w;
+			y = y/pt->w;
+			p += unpackColorToBinary(otherBots[i].col) * (LofGx(x, y));
+		}
 	}
 	pt->val = p;
 }
-
-
 
 /*
  * Occurs at end of Prepare phase.
@@ -605,8 +612,8 @@ void testLoG(NMPoint* pt){
  */
 void decidePatternB(){ //Using optimal rotation.
 	Simplex spx;
-	spx[0].th = 0;
-	spx[0].w = 50.0;
+	spx[0].th = -M_PI_4; //-45 degrees
+	spx[0].w = 100.0;
 	testLoG(&spx[0]);
 	spx[1].th = M_PI_2; //90 degrees;
 	spx[1].w = 50.0;
@@ -616,16 +623,23 @@ void decidePatternB(){ //Using optimal rotation.
 	testLoG(&spx[2]);
 	float result;
 	result = NMStep(&spx);
-	while(result>0.05){
+	uint8_t c = 1;
+	while(result>1.0 && c<30){
+		printf("\tSimplex Step: %2hu (%5.3f)\r\n", c, result);		
 		result = NMStep(&spx);
+		c++;
 	}
 	me.p.x = cos(spx[0].th);
 	me.p.y = sin(spx[0].th);
 	me.p.w = (uint8_t)spx[0].w;
+	printf("Px: %5.3f, Py: %5.3f, width: %hu\r\n\n", me.p.x, me.p.y, me.p.w);
 }
 
 float NMStep(Simplex* spx){
 	qsort(*spx, 3, sizeof(NMPoint), simplexCmp);
+	printf("\t                % 4d, %4u, %6.3f\r\n", (int16_t)rad_to_deg((*spx)[0].th), (uint16_t)(*spx)[0].w, (*spx)[0].val);
+	printf("\t                % 4d, %4u, %6.3f\r\n", (int16_t)rad_to_deg((*spx)[1].th), (uint16_t)(*spx)[1].w, (*spx)[1].val);
+	printf("\t                % 4d, %4u, %6.3f\r\n", (int16_t)rad_to_deg((*spx)[2].th), (uint16_t)(*spx)[2].w, (*spx)[2].val);	
 	NMPoint xo, xr;
 	//xo is the centroid o x[0] & x[1];
 	xo.th = ((*spx)[0].th + (*spx)[1].th)/2.0;
@@ -635,7 +649,7 @@ float NMStep(Simplex* spx){
 	xr.th = xo.th + NM_ALPHA*(xo.th - (*spx)[2].th);
 	xr.w = xo.w + NM_ALPHA*(xo.w - (*spx)[2].w);
 	testLoG(&xr);
-	if((xr.val >= (*spx)[0].val) && (xr.val < (*spx)[1].val)){
+	if((xr.val <= (*spx)[0].val) && (xr.val > (*spx)[1].val)){
 		float tmp = hypotf(xr.th-(*spx)[2].th,xr.w-(*spx)[2].w);
 		(*spx)[2] = xr;
 		return tmp;
@@ -644,9 +658,9 @@ float NMStep(Simplex* spx){
 		xe.th = xo.th + NM_GAMMA*(xr.th - xo.th);
 		xe.w = xo.w + NM_GAMMA*(xr.w - xo.w);
 		testLoG(&xe);
-		if(xe.val < xr.val){
+		if(xe.val > xr.val){
 			float tmp = hypotf(xe.th-(*spx)[2].th,xe.w-(*spx)[2].w);
-			(*spx)[2] = xe;
+			(*spx)[2] = xe; 
 			return tmp;
 		}else{
 			float tmp = hypotf(xr.th-(*spx)[2].th,xr.w-(*spx)[2].w);
@@ -667,10 +681,9 @@ float NMStep(Simplex* spx){
 			(*spx)[1].w = (*spx)[0].w + NM_SIGMA*((*spx)[1].w - (*spx)[0].w);
 			(*spx)[2].th = (*spx)[0].th + NM_SIGMA*((*spx)[2].th - (*spx)[0].th);
 			(*spx)[2].w = (*spx)[0].w + NM_SIGMA*((*spx)[2].w - (*spx)[0].w);
-			return 1.0;
+			return 5.0;
 		}
 	}
-
 }
 
 void weightedAverage(){
@@ -679,6 +692,7 @@ void weightedAverage(){
 	Pattern p;
 	p.x = 0;
 	p.y = 0;
+	float w = 0;
 	uint8_t maxDegree;
 	wc = 1.0;
 	uint8_t degree = 0;
@@ -694,12 +708,13 @@ void weightedAverage(){
 	printf("My updated degree: %hu\r\n", degree);
 	
 	if (nbrPatternRoot == NULL){
-		printf("\t\tNo, pattern Node not in the list!!!\r\n");
+		printf("\tNo, pattern Node not in the list!!!\r\n");
 	}else{
-		printf("\t\tYes, pattern Node in the list!!!\r\n");
+		printf("\tYes, pattern Node in the list!!!\r\n");
 	}
 	// weighted averaging using Metropolis weights
 	while(nbrPatternRoot != NULL){
+		printf("\tPattern: [%0.4f, %0.4f, w-%hu]\r\n", nbrPatternRoot->p.x, nbrPatternRoot->p.y, nbrPatternRoot->p.w);
 		maxDegree = me.degree;
 		if (maxDegree < nbrPatternRoot->degree){
 			maxDegree = nbrPatternRoot->degree;
@@ -708,6 +723,7 @@ void weightedAverage(){
 		wc -= wi;
 		p.x += wi*nbrPatternRoot->p.x;
 		p.y += wi*nbrPatternRoot->p.y;
+		w += wi*nbrPatternRoot->p.w;
 		tmp = nbrPatternRoot->next;
 		myFree(nbrPatternRoot);
 		nbrPatternRoot = tmp;
@@ -716,14 +732,15 @@ void weightedAverage(){
 	
 	p.x += wc*me.p.x;
 	p.y += wc*me.p.y;
-	
+	w += wc*me.p.w;
 	
 	if (TEST_CONSENSUS){
-		printf("\r\nPre-pattern: [%0.4f, %0.4f] Cur-pattern: [%0.4f, %0.4f]\r\n",
-		me.p.x, me.p.y, p.x, p.y);
+		printf("Pre-pattern: [%0.4f, %0.4f, %hu] Cur-pattern: [%0.4f, %0.4f, %hu]\r\n",
+		me.p.x, me.p.y, me.p.w, p.x, p.y, (uint8_t)w);
 	}
 	me.p.x = p.x; 
 	me.p.y = p.y;
+	me.p.w = (uint8_t)w;
 }
 
 // Change me.turing_color according to Young's model
@@ -834,6 +851,9 @@ uint8_t user_handle_command(char* command_word, char* command_args){
 		printRGBs_ordered();
 		printOtherBots();
 		printTuringInfo();
+		
+		printMatrixMathematica(&(me.patternTransformA));
+		printMatrixMathematica(&(me.patternTransformI));
 		return 1;
 	}
 //

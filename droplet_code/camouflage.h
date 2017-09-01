@@ -20,6 +20,7 @@
 #define NUM_TURING			20 // 20
 #define NUM_WAITING			500
 
+#define ONLY_ACTIVE_BOTS_SEND_TURING_MSG 0
 
 #define SLOTS_PER_FRAME		37 //23	// 37
 #define LOOP_DELAY_MS		17
@@ -55,16 +56,18 @@ uint32_t frameLength[NUM_PHASES];
 
 //All of the below should be in mm
 // defining a and b of the ellipse, that is half of width or height of the ellipse
-#define ACTIVATOR_WIDTH 40
-#define ACTIVATOR_HEIGHT 80
-#define INHIBITOR_WIDTH 80
-#define INHIBITOR_HEIGHT 80
+#define PATTERN_WIDTH 40
+
+#define ACTIVATOR_WIDTH		PATTERN_WIDTH
+#define ACTIVATOR_HEIGHT	(PATTERN_WIDTH*2)
+#define INHIBITOR_WIDTH		(PATTERN_WIDTH*2)
+#define INHIBITOR_HEIGHT	(PATTERN_WIDTH*2)
 
 const float rgb_weights[3] = {0.5, 0.5, 0.0};  // RGB to Gray
 
 typedef struct nm_point{
-	float th;
-	float w;
+	float x;
+	float y;
 	float val;
 }NMPoint;
 
@@ -73,7 +76,6 @@ typedef NMPoint Simplex[3];
 typedef struct pattern_struct{
 	float x;
 	float y;
-	uint8_t w;
 }Pattern;
 
 /*  */
@@ -100,18 +102,6 @@ typedef struct pattern_node_struct{
 PatternNode* nbrPatternRoot;
 PatternNode* lastPatternAdded;
 
-/* Used in turing phase */
-typedef struct turing_node_struct{
-	id_t id;
-	uint8_t t_color; // 0 or 1
-	struct turing_node_struct* next;
-} TuringNode;
-
-TuringNode* turingRoot_a;
-TuringNode* lastAddedturingNode_a;
-TuringNode* turingRoot_i;
-TuringNode* lastAddedturingNode_i;
-
 typedef struct pattern_msg_struct{ //12 bytes
 	Pattern p;
 	id_t dropletId;
@@ -119,14 +109,46 @@ typedef struct pattern_msg_struct{ //12 bytes
 	char flag;
 } PatternMsg;
 
-typedef struct turing_msg_struct{
-	int16_t x;
-	int16_t y;
-	uint8_t t_color; // 0 or 1
-	char flag;
-} TuringMsg;
+#if ONLY_ACTIVE_BOTS_SEND_TURING_MSG
 
-#define NUM_TRACKED_BOTS 32
+	typedef struct turing_msg_struct{
+		int16_t x;
+		int16_t y;
+		char flag;
+	} TuringMsg;
+
+#else
+
+	typedef struct turing_msg_struct{
+		int16_t x;
+		int16_t y;
+		uint8_t t_color; // 0 or 1
+		char flag;
+	} TuringMsg;
+
+
+	/* Used in turing phase */
+	typedef struct turing_node_struct{
+		id_t id;
+		uint8_t t_color; // 0 or 1
+		struct turing_node_struct* next;
+	} TuringNode;
+
+	TuringNode* turingRoot_a;
+	TuringNode* lastAddedturingNode_a;
+	TuringNode* turingRoot_i;
+	TuringNode* lastAddedturingNode_i;
+
+#endif
+
+/*
+ * We can tune this back up to 32 if necessary but 16 should be fine.
+ * A dense packing of 17 circles with 50mm diameter has a diameter of ~240mm,
+ * I'm not sure exactly how this maps to the maximum detectable stripe, but 
+ * 120mm  seems quite safe to me.
+ * John
+ */
+#define NUM_TRACKED_BOTS 16 
 
 #define POS_C_DEFINED(pos) ((((pos)->x)!=UNDF)&&(((pos)->y)!=UNDF))
 
@@ -140,6 +162,7 @@ PosColor myPosColor;
 
 #define NUM_TRANSMITTED_BOTS 5
 #define NUM_CHOSEN_BOTS (NUM_TRANSMITTED_BOTS-1)
+uint16_t randomizer[NUM_CHOSEN_BOTS];
 
 typedef struct botpos_msg_struct{
 	PosColor bots[NUM_TRANSMITTED_BOTS];

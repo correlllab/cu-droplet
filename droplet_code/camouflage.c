@@ -90,12 +90,14 @@ void init(){
 	lastMeasAdded = NULL;
 	nbrPatternRoot = NULL;
 	lastPatternAdded = NULL;
-
+	
+	#if (!ONLY_ACTIVE_BOTS_SEND_TURING_MSG)
 	turingRoot_a = NULL;
 	lastAddedturingNode_a = NULL;
 	turingRoot_i = NULL;
 	lastAddedturingNode_i = NULL;
-	
+	#endif 
+
 	// global
 	frameCount = 0;
 	loopID = 0xFFFF;
@@ -221,8 +223,6 @@ void printOtherBots(){
 	}
 }
 
-uint16_t randomizer[NUM_CHOSEN_BOTS];
-
 void chooseTransmittedBots(uint8_t (*indices)[NUM_CHOSEN_BOTS]){
 	//printf("\tChoosing Transmitted.\r\n");
 	//printOtherBots();
@@ -287,10 +287,23 @@ void sendPatternMsg(){
 	msg.degree = me.degree;
 	msg.p.x = me.p.x;
 	msg.p.y = me.p.y;
-	msg.p.w = me.p.w;
 	
 	ir_send(ALL_DIRS, (char*)(&msg), sizeof(PatternMsg));
 }
+
+#if ONLY_ACTIVE_BOTS_SEND_TURING_MSG
+
+void sendTuringMsg(){
+	if(me.turingColor){
+		TuringMsg msg;
+		msg.flag = TURING_MSG_FLAG;
+		msg.x = myPosColor.x;
+		msg.y = myPosColor.y;
+		ir_send(ALL_DIRS, (char*)(&msg), sizeof(TuringMsg));
+	}
+}
+
+#else
 
 void sendTuringMsg(){
 	TuringMsg msg;
@@ -300,6 +313,8 @@ void sendTuringMsg(){
 	msg.t_color = me.turingColor;
 	ir_send(ALL_DIRS, (char*)(&msg), sizeof(TuringMsg));
 }
+
+#endif
 
 /*
 * After each pass through loop(), the robot checks for all messages it has
@@ -321,8 +336,12 @@ void handle_msg(ir_msg* msg_struct)
 
 //Returns 1 if a new bot was added to the array.
 //Returns 0 if the bot was already in the array.
+//Returns 0 if the bot has the same position as me.
 uint8_t addBot(PosColor pos){
 	uint8_t foundIdx = NUM_TRACKED_BOTS;
+	if(pos.x==myPosColor.x && pos.y==myPosColor.y){
+		return 0;
+	}
 	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
 		if((otherBots[i].x == pos.x) && (otherBots[i].y == pos.y)){
 			return 0; //The bot already existed; no need to add it.
@@ -368,10 +387,29 @@ void handlePatternMsg(PatternMsg* msg){
 		lastPatternAdded->degree = msg->degree;
 		lastPatternAdded->p.x = msg->p.x;
 		lastPatternAdded->p.y = msg->p.y;
-		lastPatternAdded->p.w = msg->p.w;
 		lastPatternAdded->next = NULL;
 	}
 }
+
+#if ONLY_ACTIVE_BOTS_SEND_TURING_MSG
+
+void handleTuringMsg(TuringMsg* msg, id_t senderID){
+	if(msg->flag == TURING_MSG_FLAG){
+		//TODO
+		Vector pos = {msg->x, msg->y, 1};
+		Vector activatorTF, inhibitorTF;
+		matrixTimesVector(&activatorTF, &(me.patternTransformA), &pos);
+		matrixTimesVector(&inhibitorTF, &(me.patternTransformI), &pos);
+		printf("\t{{% 4d, % 4d}, {% 6.3f, % 6.3f}, {% 6.3f, % 6.3f}}\r\n", msg->x, msg->y, activatorTF[0], activatorTF[1], inhibitorTF[0], inhibitorTF[1]);
+		if((activatorTF[0]*activatorTF[0]+activatorTF[1]*activatorTF[1])<=1.0){ //if the position is inside unit circle after activator transformation..
+			me.nA++;
+		}else if((inhibitorTF[0]*inhibitorTF[0]+inhibitorTF[1]*inhibitorTF[1])<=1.0){ //if the position is inside unit circle after inhibitor transformation..
+			me.nI++;
+		}
+	}
+}
+
+#else
 
 uint8_t isInList(id_t id, uint8_t color, uint8_t activator){
 	TuringNode* tmp = NULL;
@@ -393,7 +431,7 @@ uint8_t isInList(id_t id, uint8_t color, uint8_t activator){
 				return 1;
 			}
 			tmp = tmp->next;
-		}		
+		}
 	}
 	return 0;
 }
@@ -405,7 +443,7 @@ void handleTuringMsg(TuringMsg* msg, id_t senderID){
 		matrixTimesVector(&activatorTF, &(me.patternTransformA), &pos);
 		matrixTimesVector(&inhibitorTF, &(me.patternTransformI), &pos);
 		printf("\t{{% 4d, % 4d}, {% 6.3f, % 6.3f}, {% 6.3f, % 6.3f}}\r\n", msg->x, msg->y, activatorTF[0], activatorTF[1], inhibitorTF[0], inhibitorTF[1]);
-		if((activatorTF[0]*activatorTF[0]+activatorTF[1]*activatorTF[1])<=1.0){ //if the position is inside unit circle after transformation..
+		if((activatorTF[0]*activatorTF[0]+activatorTF[1]*activatorTF[1])<=1.0){ //if the position is inside unit circle after activator transformation..
 			if(isInList(senderID, msg->t_color, 1) == 0){
 				if(lastAddedturingNode_a==NULL){
 					lastAddedturingNode_a = (TuringNode*)myMalloc(sizeof(TuringNode));
@@ -420,7 +458,7 @@ void handleTuringMsg(TuringMsg* msg, id_t senderID){
 				lastAddedturingNode_a->next = NULL;
 			}
 		}
-		else if((inhibitorTF[0]*inhibitorTF[0]+inhibitorTF[1]*inhibitorTF[1])<=1.0){ //if the position is inside unit circle after transformation..
+		else if((inhibitorTF[0]*inhibitorTF[0]+inhibitorTF[1]*inhibitorTF[1])<=1.0){ //if the position is inside unit circle after inhibitor transformation..
 			if(isInList(senderID, msg->t_color, 0) == 0){
 				if(lastAddedturingNode_i==NULL){
 					lastAddedturingNode_i = (TuringNode*)myMalloc(sizeof(TuringNode));
@@ -437,6 +475,8 @@ void handleTuringMsg(TuringMsg* msg, id_t senderID){
 		}
 	}
 }
+
+#endif
 
 void localizeSlot(){
 	// read colors
@@ -504,12 +544,12 @@ void consensusEOP(){
 		allPatterns[frameCount] = me.p;
 	}else{
 		//Compute the appropriate transformations:
-		float pTheta = atan2(me.p.y, me.p.x);
+		float pTheta = atan2(me.p.y, me.p.x)/2;
 		
-		printf("pTheta: % 4d\r\n", (int16_t)rad_to_deg(pTheta));
+		printf("pTheta: % 4d\r\n\tNOTE: This theta has been UNDOUBLED.\r\n", (int16_t)rad_to_deg(pTheta));
 		/*
 		 * pTheta is the 'characteristic angle' of the pattern.
-		 * All of a pattern's stripes run perpendicular to this angle.
+		 * All of a pattern's stripes run parallel to this angle.
 		 */
 		Matrix translate = {{1, 0, -myPosColor.x}, {0, 1,  -myPosColor.y}, {0, 0, 1}};
 		Matrix rotate = {{cos(pTheta), sin(pTheta), 0}, {-sin(pTheta), cos(pTheta), 0}, {0, 0, 1}};
@@ -585,25 +625,22 @@ void decidePattern(){
 }
 
 void testLoG(NMPoint* pt){
-	pt->th = deg_to_rad(rad_to_deg(pt->th));
-	if(pt->w <= 0){
-		pt->w = 1;
-	}
-	float cosTheta = cos(pt->th);
-	float sinTheta = sin(pt->th);
-	float p = 0.0;
+	float theta =  atan2(pt->x, pt->y);
+	float cosTheta = cos(theta);
+	float sinTheta = sin(theta);
+	float p = unpackColorToBinary(myPosColor.col)*LofGx(0,0);
 	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
 		if(POS_C_DEFINED(&(otherBots[i]))){
 			float xDiff = otherBots[i].x - myPosColor.x;
 			float yDiff = otherBots[i].y - myPosColor.y;
 			float x = xDiff*cosTheta - yDiff*sinTheta;
 			float y = xDiff*sinTheta + yDiff*cosTheta;
-			x = x/pt->w;
-			y = y/pt->w;
+			x = x/PATTERN_WIDTH;
+			y = y/PATTERN_WIDTH;
 			p += unpackColorToBinary(otherBots[i].col) * (LofGx(x, y));
 		}
 	}
-	pt->val = p;
+	pt->val = fabsf(p);
 }
 
 /*
@@ -612,75 +649,79 @@ void testLoG(NMPoint* pt){
  */
 void decidePatternB(){ //Using optimal rotation.
 	Simplex spx;
-	spx[0].th = -M_PI_4; //-45 degrees
-	spx[0].w = 100.0;
+	spx[0].x = 0.96592582628;
+	spx[0].y = 0.2588190451;
 	testLoG(&spx[0]);
-	spx[1].th = M_PI_2; //90 degrees;
-	spx[1].w = 50.0;
+	spx[1].x = -0.70710678118;
+	spx[1].y =  0.70710678118;
 	testLoG(&spx[1]);
-	spx[2].th = 0;
-	spx[2].w = 150.0;
+	spx[2].x = -0.2588190451;
+	spx[2].y = -0.96592582628;
 	testLoG(&spx[2]);
 	float result;
 	result = NMStep(&spx);
 	uint8_t c = 1;
-	while(result>1.0 && c<30){
+	while(result>0.1 && c<50){
 		printf("\tSimplex Step: %2hu (%5.3f)\r\n", c, result);		
 		result = NMStep(&spx);
 		c++;
 	}
-	me.p.x = cos(spx[0].th);
-	me.p.y = sin(spx[0].th);
-	me.p.w = (uint8_t)spx[0].w;
-	printf("Px: %5.3f, Py: %5.3f, width: %hu\r\n\n", me.p.x, me.p.y, me.p.w);
+	if(spx[0].y < 0){
+		spx[0].x = -spx[0].x;
+		spx[0].y = -spx[0].y;
+	}
+	float theta = -atan2(spx[0].y, spx[0].x);
+	me.p.x = cos(2*theta);
+	me.p.y = sin(2*theta);
+	printf("Px: %5.3f, Py: %5.3f (% 4d) NOTE: This theta is now doubled.\r\n\n", me.p.x, me.p.y, (int16_t)rad_to_deg(2*theta));
 }
 
 float NMStep(Simplex* spx){
 	qsort(*spx, 3, sizeof(NMPoint), simplexCmp);
-	printf("\t                % 4d, %4u, %6.3f\r\n", (int16_t)rad_to_deg((*spx)[0].th), (uint16_t)(*spx)[0].w, (*spx)[0].val);
-	printf("\t                % 4d, %4u, %6.3f\r\n", (int16_t)rad_to_deg((*spx)[1].th), (uint16_t)(*spx)[1].w, (*spx)[1].val);
-	printf("\t                % 4d, %4u, %6.3f\r\n", (int16_t)rad_to_deg((*spx)[2].th), (uint16_t)(*spx)[2].w, (*spx)[2].val);	
+	printf("\t                % 4d, %6.3f\r\n", (int16_t)rad_to_deg(atan2((*spx)[0].y, (*spx)[0].x)), (*spx)[0].val);
+	printf("\t                % 4d, %6.3f\r\n", (int16_t)rad_to_deg(atan2((*spx)[0].y, (*spx)[1].x)), (*spx)[1].val);
+	printf("\t                % 4d, %6.3f\r\n", (int16_t)rad_to_deg(atan2((*spx)[0].y, (*spx)[2].x)), (*spx)[2].val);	
 	NMPoint xo, xr;
 	//xo is the centroid o x[0] & x[1];
-	xo.th = ((*spx)[0].th + (*spx)[1].th)/2.0;
-	xo.w = ((*spx)[0].w + (*spx)[1].w)/2.0;
+	xo.x = ((*spx)[0].x + (*spx)[1].x)/2.0;
+	xo.y = ((*spx)[0].y + (*spx)[1].y)/2.0;
 	testLoG(&xo);
 	//xr is x[2] reflected opposite xo;
-	xr.th = xo.th + NM_ALPHA*(xo.th - (*spx)[2].th);
-	xr.w = xo.w + NM_ALPHA*(xo.w - (*spx)[2].w);
+	xr.x = xo.x + NM_ALPHA*(xo.x - (*spx)[2].x);
+	xr.y = xo.y + NM_ALPHA*(xo.y - (*spx)[2].y);
 	testLoG(&xr);
-	if((xr.val <= (*spx)[0].val) && (xr.val > (*spx)[1].val)){
-		float tmp = hypotf(xr.th-(*spx)[2].th,xr.w-(*spx)[2].w);
+	if((xr.val >= (*spx)[0].val) && (xr.val < (*spx)[1].val)){
+		float tmp = hypotf(xr.x-(*spx)[2].x,xr.y-(*spx)[2].y);
 		(*spx)[2] = xr;
 		return tmp;
 	}else if(xr.val < (*spx)[0].val){
 		NMPoint xe;
-		xe.th = xo.th + NM_GAMMA*(xr.th - xo.th);
-		xe.w = xo.w + NM_GAMMA*(xr.w - xo.w);
+		xe.x = xo.x + NM_GAMMA*(xr.x - xo.x);
+		xe.y = xo.y + NM_GAMMA*(xr.y - xo.y);
 		testLoG(&xe);
-		if(xe.val > xr.val){
-			float tmp = hypotf(xe.th-(*spx)[2].th,xe.w-(*spx)[2].w);
+		if(xe.val < xr.val){
+			float tmp = hypotf(xe.x-(*spx)[2].x,xe.y-(*spx)[2].y);
 			(*spx)[2] = xe; 
 			return tmp;
 		}else{
-			float tmp = hypotf(xr.th-(*spx)[2].th,xr.w-(*spx)[2].w);
+			float tmp = hypotf(xr.x-(*spx)[2].x,xr.y-(*spx)[2].y);
 			(*spx)[2] = xr;
 			return tmp;
 		}
 	}else{
 		NMPoint xc;
-		xc.th = xo.th + NM_RHO*((*spx)[2].th - xo.th);
-		xc.w = xo.w + NM_RHO*((*spx)[2].w - xo.w);
+		xc.x = xo.x + NM_RHO*((*spx)[2].x - xo.x);
+		xc.y = xo.y + NM_RHO*((*spx)[2].y - xo.y);
 		testLoG(&xc);
 		if(xc.val < (*spx)[2].val){
-			float tmp = hypotf(xc.th-(*spx)[2].th,xc.w-(*spx)[2].w);
+			float tmp = hypotf(xc.x-(*spx)[2].x,xc.y-(*spx)[2].y);
 			(*spx)[2] = xc;
 			return tmp;
 		}else{
-			(*spx)[1].th = (*spx)[0].th + NM_SIGMA*((*spx)[1].th - (*spx)[0].th);
-			(*spx)[1].w = (*spx)[0].w + NM_SIGMA*((*spx)[1].w - (*spx)[0].w);
-			(*spx)[2].th = (*spx)[0].th + NM_SIGMA*((*spx)[2].th - (*spx)[0].th);
-			(*spx)[2].w = (*spx)[0].w + NM_SIGMA*((*spx)[2].w - (*spx)[0].w);
+			(*spx)[1].x = (*spx)[0].x + NM_SIGMA*((*spx)[1].x - (*spx)[0].x);
+			(*spx)[1].y = (*spx)[0].y + NM_SIGMA*((*spx)[1].y - (*spx)[0].y);
+			(*spx)[2].x = (*spx)[0].x + NM_SIGMA*((*spx)[2].x - (*spx)[0].x);
+			(*spx)[2].y = (*spx)[0].y + NM_SIGMA*((*spx)[2].y - (*spx)[0].y);
 			return 5.0;
 		}
 	}
@@ -692,7 +733,6 @@ void weightedAverage(){
 	Pattern p;
 	p.x = 0;
 	p.y = 0;
-	float w = 0;
 	uint8_t maxDegree;
 	wc = 1.0;
 	uint8_t degree = 0;
@@ -714,7 +754,7 @@ void weightedAverage(){
 	}
 	// weighted averaging using Metropolis weights
 	while(nbrPatternRoot != NULL){
-		printf("\tPattern: [%0.4f, %0.4f, w-%hu]\r\n", nbrPatternRoot->p.x, nbrPatternRoot->p.y, nbrPatternRoot->p.w);
+		printf("\tPattern: [%0.4f, %0.4f]\r\n", nbrPatternRoot->p.x, nbrPatternRoot->p.y);
 		maxDegree = me.degree;
 		if (maxDegree < nbrPatternRoot->degree){
 			maxDegree = nbrPatternRoot->degree;
@@ -723,7 +763,6 @@ void weightedAverage(){
 		wc -= wi;
 		p.x += wi*nbrPatternRoot->p.x;
 		p.y += wi*nbrPatternRoot->p.y;
-		w += wi*nbrPatternRoot->p.w;
 		tmp = nbrPatternRoot->next;
 		myFree(nbrPatternRoot);
 		nbrPatternRoot = tmp;
@@ -732,16 +771,42 @@ void weightedAverage(){
 	
 	p.x += wc*me.p.x;
 	p.y += wc*me.p.y;
-	w += wc*me.p.w;
 	
 	if (TEST_CONSENSUS){
-		printf("Pre-pattern: [%0.4f, %0.4f, %hu] Cur-pattern: [%0.4f, %0.4f, %hu]\r\n",
-		me.p.x, me.p.y, me.p.w, p.x, p.y, (uint8_t)w);
+		printf("Pre-pattern: [%0.4f, %0.4f] Cur-pattern: [%0.4f, %0.4f]\r\n",
+		me.p.x, me.p.y, p.x, p.y);
 	}
 	me.p.x = p.x; 
 	me.p.y = p.y;
-	me.p.w = (uint8_t)w;
 }
+
+#if ONLY_ACTIVE_BOTS_SEND_TURING_MSG
+
+void updateTuringColor(){
+	float ss = 0.0f;
+	if (me.turingColor == 1){
+		me.nA += 1;
+	}
+	turingHistory[frameCount][0] = me.turingColor;
+	turingHistory[frameCount][1] = me.nA;
+	turingHistory[frameCount][2] = me.nI;
+
+	ss += (float)me.nA - (float)me.nI*TURING_F;
+	if (ss > 0){
+		me.turingColor = 1;
+		}else if (ss < 0){
+		me.turingColor = 0;
+	}
+
+	me.nA = 0;
+	me.nI = 0;
+	
+	if (TEST_TURING) {
+		printf("\tTuring color: %hu [%hu, %hu]\r\n", me.turingColor, me.nA, me.nI);
+	}
+}
+
+#else
 
 // Change me.turing_color according to Young's model
 // the neighbors' colors are also added to turingHistory array for record
@@ -795,6 +860,7 @@ void updateTuringColor(){
 	}
 }
 
+#endif
 
 void printRGBs_ordered(){
 	printf("\r\nPrint all rgbs read (ordered)\r\n");
@@ -812,7 +878,7 @@ void printTuringInfo(){
 	for (uint8_t i=0; i<NUM_TURING; i++){
 		printf("\t%hu: color: %hu [%hu, %hu]\r\n", i, turingHistory[i][0], turingHistory[i][1], turingHistory[i][2]);
 	}
-	
+	#if (!ONLY_ACTIVE_BOTS_SEND_TURING_MSG)	
 	TuringNode* tmp = NULL;
 	printf("Activator:\r\n");
 	printf("\tX[%04X]: %hu\r\n", me.dropletId, me.turingColor);
@@ -830,7 +896,8 @@ void printTuringInfo(){
 	{
 		printf("\t[%04X]: %hu\r\n", tmp->id, tmp->t_color);
 		tmp = tmp->next;
-	}	
+	}
+	#endif
 }
 
 uint8_t user_handle_command(char* command_word, char* command_args){

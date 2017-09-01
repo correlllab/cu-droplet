@@ -145,7 +145,7 @@ typedef struct pattern_msg_struct{ //12 bytes
  * We can tune this back up to 32 if necessary but 16 should be fine.
  * A dense packing of 17 circles with 50mm diameter has a diameter of ~240mm,
  * I'm not sure exactly how this maps to the maximum detectable stripe, but 
- * 120mm  seems quite safe to me.
+ * 80mm  seems quite safe to me.
  * John
  */
 #define NUM_TRACKED_BOTS 16 

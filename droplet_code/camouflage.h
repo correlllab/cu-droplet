@@ -58,8 +58,8 @@ uint32_t frameLength[NUM_PHASES];
 // defining a and b of the ellipse, that is half of width or height of the ellipse
 #define PATTERN_WIDTH 40
 
-#define ACTIVATOR_WIDTH		PATTERN_WIDTH
-#define ACTIVATOR_HEIGHT	(PATTERN_WIDTH*2)
+#define ACTIVATOR_WIDTH		(PATTERN_WIDTH*2)
+#define ACTIVATOR_HEIGHT	PATTERN_WIDTH
 #define INHIBITOR_WIDTH		(PATTERN_WIDTH*2)
 #define INHIBITOR_HEIGHT	(PATTERN_WIDTH*2)
 

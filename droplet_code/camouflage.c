@@ -546,7 +546,7 @@ void consensusEOP(){
 		//Compute the appropriate transformations:
 		float pTheta = atan2(me.p.y, me.p.x)/2;
 		
-		printf("pTheta: % 4d\r\n\tNOTE: This theta has been UNDOUBLED.\r\n", (int16_t)rad_to_deg(pTheta));
+		printf("pTheta: % 4d\r\n\tNOTE: This theta has been UNdoubled.\r\n", (int16_t)rad_to_deg(pTheta));
 		/*
 		 * pTheta is the 'characteristic angle' of the pattern.
 		 * All of a pattern's stripes run parallel to this angle.

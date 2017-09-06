@@ -348,6 +348,7 @@ uint8_t addBot(PosColor pos){
 		}
 		if(!POS_C_DEFINED(&(otherBots[i]))){
 			foundIdx = i;
+			break;
 		}
 	}
 	otherBots[foundIdx] = pos;

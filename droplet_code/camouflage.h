@@ -13,7 +13,7 @@
 #define PATTERN_MSG_FLAG	'P'
 #define TURING_MSG_FLAG		'T'
 #define BOT_POS_MSG_FLAG	'B'
-#define NUM_LOCALIZE		10 // 20
+#define NUM_LOCALIZE		30 // 20
 #define NUM_PREPARE			20 // 20
 #define NUM_GRADIENT		10 // 10
 #define NUM_CONSENSUS		10 // 10
@@ -40,7 +40,7 @@ typedef enum{
 	Turing, //Message is 5or6+9 bytes; 35ms
 	Waiting
 } Phase;
-uint32_t slotLength[NUM_PHASES] = {499, 179, 107, 107, 107};
+uint32_t slotLength[NUM_PHASES] = {499, 179, 107, 107, 107}; // {499, 179, 107, 107, 107};
 uint32_t frameLength[NUM_PHASES];
 
 //Turing Pattern related
@@ -52,11 +52,11 @@ uint32_t frameLength[NUM_PHASES];
 #define TEST_TURING			1
 
 #define L_OF_G_SIGMA		0.5
-#define L_OF_G_WIDTH		50.0 //mm
+#define L_OF_G_WIDTH		90.0 //mm
 
 //All of the below should be in mm
 // defining a and b of the ellipse, that is half of width or height of the ellipse
-#define PATTERN_WIDTH 40
+#define PATTERN_WIDTH 45
 
 #define ACTIVATOR_WIDTH		(PATTERN_WIDTH*2)
 #define ACTIVATOR_HEIGHT	PATTERN_WIDTH
@@ -96,6 +96,7 @@ typedef struct Droplet_struct{
 /* Used in consensus phase */
 typedef struct pattern_node_struct{
 	Pattern p;
+	id_t id;
 	uint8_t degree;
 	struct pattern_node_struct* next;
 } PatternNode;
@@ -145,10 +146,10 @@ typedef struct pattern_msg_struct{ //12 bytes
  * We can tune this back up to 32 if necessary but 16 should be fine.
  * A dense packing of 17 circles with 50mm diameter has a diameter of ~240mm,
  * I'm not sure exactly how this maps to the maximum detectable stripe, but 
- * 120mm  seems quite safe to me.
+ * 80mm  seems quite safe to me.
  * John
  */
-#define NUM_TRACKED_BOTS 16 
+#define NUM_TRACKED_BOTS 32
 
 #define POS_C_DEFINED(pos) ((((pos)->x)!=UNDF)&&(((pos)->y)!=UNDF))
 
@@ -172,7 +173,7 @@ typedef struct botpos_msg_struct{
 Droplet me;
 
 /*       Print data        */ 
-int16_t allRGB[NUM_PREPARE][3]; // RGB reading
+int16_t allRGB[NUM_LOCALIZE][3]; // RGB reading
 Pattern allPatterns[NUM_CONSENSUS];
 uint8_t turingHistory[NUM_TURING][3];
 
@@ -329,7 +330,7 @@ static int simplexCmp(const void* aR, const void* bR){
 	if(isnanf(b->val)){
 		testLoG(b);
 	}
-	if(a->val > b->val){
+	if(a->val < b->val){
 		return -1;
 	}else if(b->val < a->val){
 		return 1;

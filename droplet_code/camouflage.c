@@ -213,11 +213,12 @@ void handleRNB(){
 
 void printPosColor(PosColor pos){
 	if(POS_C_DEFINED(&pos)){
-		printf("\t\t(% 5d, % 5d) : %hu\r\n", pos.x, pos.y, pos.col);
+		printf("\t{% 4d, % 4d}: %hu\r\n", pos.x, pos.y, (uint8_t)unpackColorToBinary(pos.col));
 	}
 }
 
 void printOtherBots(){
+	printf("\r\nPrint all otherbots' pos and color information\r\n");
 	for(uint8_t i=0;i<NUM_TRACKED_BOTS+1;i++){
 		printPosColor(otherBots[i]);
 	}
@@ -387,6 +388,7 @@ void handlePatternMsg(PatternMsg* msg){
 		lastPatternAdded->degree = msg->degree;
 		lastPatternAdded->p.x = msg->p.x;
 		lastPatternAdded->p.y = msg->p.y;
+		lastPatternAdded->id = msg->dropletId;
 		lastPatternAdded->next = NULL;
 	}
 }
@@ -511,7 +513,7 @@ void localizeEOP(){
 		me.rgb[1] = meas_find_median(green_array, NUM_LOCALIZE);
 		me.rgb[2] = meas_find_median(blue_array, NUM_LOCALIZE);
 
-		me.turingColor = (me.rgb[0]+me.rgb[1])<90;
+		me.turingColor = (me.rgb[0]+me.rgb[1])<40;
 
 		myPosColor.x = myPos.x;
 		myPosColor.y = myPos.y;
@@ -635,8 +637,8 @@ void testLoG(NMPoint* pt){
 			float yDiff = otherBots[i].y - myPosColor.y;
 			float x = xDiff*cosTheta - yDiff*sinTheta;
 			float y = xDiff*sinTheta + yDiff*cosTheta;
-			x = x/PATTERN_WIDTH;
-			y = y/PATTERN_WIDTH;
+			x = x/L_OF_G_WIDTH;
+			y = y/L_OF_G_WIDTH;
 			p += unpackColorToBinary(otherBots[i].col) * (LofGx(x, y));
 		}
 	}
@@ -648,10 +650,12 @@ void testLoG(NMPoint* pt){
  * Note: ONLY ONCE
  */
 void decidePatternB(){ //Using optimal rotation.
+	printOtherBots();
+	
 	Simplex spx;
 	spx[0].x = 0.96592582628;
 	spx[0].y = 0.2588190451;
-	testLoG(&spx[0]);
+	testLoG(&spx[0]);	// 
 	spx[1].x = -0.70710678118;
 	spx[1].y =  0.70710678118;
 	testLoG(&spx[1]);
@@ -661,10 +665,10 @@ void decidePatternB(){ //Using optimal rotation.
 	float result;
 	result = NMStep(&spx);
 	uint8_t c = 1;
-	while(result>0.1 && c<50){
-		printf("\tSimplex Step: %2hu (%5.3f)\r\n", c, result);		
+	while(c<30){
 		result = NMStep(&spx);
 		c++;
+		printf("\tSimplex Step: %2hu (%5.3f)\r\n", c, result);
 	}
 	if(spx[0].y < 0){
 		spx[0].x = -spx[0].x;
@@ -677,10 +681,12 @@ void decidePatternB(){ //Using optimal rotation.
 }
 
 float NMStep(Simplex* spx){
+	// Minimize, so sort in an ascending order
 	qsort(*spx, 3, sizeof(NMPoint), simplexCmp);
+	printf("\t                %6.3f, %6.3f, %6.3f\r\n", (*spx)[0].y, (*spx)[0].x, (*spx)[0].val);
 	printf("\t                % 4d, %6.3f\r\n", (int16_t)rad_to_deg(atan2((*spx)[0].y, (*spx)[0].x)), (*spx)[0].val);
-	printf("\t                % 4d, %6.3f\r\n", (int16_t)rad_to_deg(atan2((*spx)[0].y, (*spx)[1].x)), (*spx)[1].val);
-	printf("\t                % 4d, %6.3f\r\n", (int16_t)rad_to_deg(atan2((*spx)[0].y, (*spx)[2].x)), (*spx)[2].val);	
+	printf("\t                % 4d, %6.3f\r\n", (int16_t)rad_to_deg(atan2((*spx)[1].y, (*spx)[1].x)), (*spx)[1].val);
+	printf("\t                % 4d, %6.3f\r\n", (int16_t)rad_to_deg(atan2((*spx)[2].y, (*spx)[2].x)), (*spx)[2].val);	
 	NMPoint xo, xr;
 	//xo is the centroid o x[0] & x[1];
 	xo.x = ((*spx)[0].x + (*spx)[1].x)/2.0;
@@ -754,7 +760,8 @@ void weightedAverage(){
 	}
 	// weighted averaging using Metropolis weights
 	while(nbrPatternRoot != NULL){
-		printf("\tPattern: [%0.4f, %0.4f]\r\n", nbrPatternRoot->p.x, nbrPatternRoot->p.y);
+		printf("\t[%04X]: Degree: %u, Pattern: [%6.3f, %6.3f, % 4d]\r\n", nbrPatternRoot->id, nbrPatternRoot->degree, nbrPatternRoot->p.x, nbrPatternRoot->p.y, 
+		(int16_t)rad_to_deg(atan2(nbrPatternRoot->p.y, nbrPatternRoot->p.x)));
 		maxDegree = me.degree;
 		if (maxDegree < nbrPatternRoot->degree){
 			maxDegree = nbrPatternRoot->degree;

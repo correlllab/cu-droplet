@@ -7,10 +7,10 @@
  *
  */
 
- #define MIN_X -150
- #define MIN_Y -150
- #define MAX_X 150
- #define MAX_Y 150
+ #define MIN_X 0
+ #define MIN_Y 0
+ #define MAX_X 250
+ #define MAX_Y 250
 
 void init(){
 	if((LOCALIZATION_DUR)>=SLOT_LENGTH_MS){
@@ -24,21 +24,22 @@ void init(){
 		cleanOtherBot(&nearBots[i]);
 	}
 	myState = STATE_PIXEL;
-	colorMode = POS;
+	colorMode = GAME;
 	gameMode = BOUNCE;
 	lastBallID = 0;
 	lastBallMsg = 0;
 	lastPaddleMsg = 0;
-	hardBotsList = NULL;
+	hardEdges = NULL;
 	theBall.lastUpdate = 0;
-	theBall.xPos = UNDF;
-	theBall.yPos = UNDF;
-	theBall.xVel = 0;
-	theBall.yVel = 0;
+	theBall.xPos = NAN;
+	theBall.yPos = NAN;
+	theBall.xVel = NAN;
+	theBall.yVel = NAN;
 	theBall.id = 0;
 	theBall.radius = 0;
+	msgHandleLock = 1;
 	printf("mySlot: %u, frame_length: %lu\r\n\r\n", mySlot, FRAME_LENGTH_MS);
-	//set_all_ir_powers(200);
+	set_all_ir_powers(200);
 }
 
 void loop(){
@@ -48,6 +49,8 @@ void loop(){
 		frameStart += FRAME_LENGTH_MS;
 		frameCount++;
 	}
+	updateBall();
+	updateColor();
 	if(loopID!=(frameTime/SLOT_LENGTH_MS)){
 		loopID = frameTime/SLOT_LENGTH_MS;
 		if(loopID==mySlot){
@@ -70,12 +73,17 @@ void loop(){
 			}else{
 				printf("\r\n\r\n");
 			}
-			if((theBall.xPos != UNDF) && (theBall.yPos != UNDF)){
-				printf_P(PSTR("\tBall ID: %hu; radius: %hu; Pos: (%d, %d) @ vel (%hd, %hd)\r\n"), theBall.id, theBall.radius, theBall.xPos, theBall.yPos, theBall.xVel, theBall.yVel);
+			updateHardEdges();
+			if(BALL_VALID()){
+				printf_P(PSTR("\tBall ID: %hu; radius: %hu; Pos: (% 8.2f, % 8.2f) @ vel (% 6.2f, % 6.2f)\r\n"), theBall.id, theBall.radius, theBall.xPos, theBall.yPos, theBall.xVel, theBall.yVel);
 			}
 		}
-		updateBall();
-		updateColor();
+		if(BALL_VALID() && myDist!=(uint16_t)UNDF){
+			BALL_DEBUG_PRINT("B[%hu]: % 8.2f, % 8.2f (% 6.2f, % 6.2f)\r\n", theBall.id, theBall.xPos, theBall.yPos, theBall.xVel, theBall.yVel);
+			if(myDist<=DROPLET_RADIUS){
+				schedule_task(RNB_DUR+100, prepBallMsg, NULL);
+			}
+		}
 	}
 	if(NS_PIXEL_Q(myState)){
 		checkLightLevel();
@@ -93,25 +101,29 @@ void updateColor(){
 	if(colorMode==POS){
 		getPosColor(&newR, &newG, &newB);
 	}else if(colorMode==GAME){
-		float coverage = getBallCoverage() + getPaddleCoverage();
-		coverage = (coverage > 1.0) ? 1.0 : coverage;
-		uint8_t intensityIncrease = 0;
-		if(coverage>0.01){
-			intensityIncrease = (uint16_t)(5.0*pow(51.0,coverage));
+		if(POS_DEFINED(&myPos)){
+			float coverage = getBallCoverage() + getPaddleCoverage();
+			coverage = (coverage > 1.0) ? 1.0 : coverage;
+			uint8_t intensityIncrease = 0;
+			if(coverage>0.01){
+				intensityIncrease = (uint16_t)(5.0*pow(51.0,coverage));
+			}
+			uint16_t newRed		= newR + intensityIncrease;
+			uint16_t newGreen	= newG + intensityIncrease;
+			uint16_t newBlue	= newB + intensityIncrease;
+			newR = newRed>255 ? 255 :  newRed;
+			newG = newGreen>255 ? 255 : newGreen;
+			newB = newBlue>255 ? 255 : newBlue;
+		}else{
+			newB = 50;
 		}
-		uint16_t newRed		= newR + intensityIncrease;
-		uint16_t newGreen	= newG + intensityIncrease;
-		uint16_t newBlue	= newB + intensityIncrease;
-		newR = newRed>255 ? 255 :  newRed;
-		newG = newGreen>255 ? 255 : newGreen;
-		newB = newBlue>255 ? 255 : newBlue;
 	}
 	set_rgb(newR, newG, newB);
 }
 
 float getBallCoverage(){
 	float ballCoveredRatio = 0.0;
-	if((((int16_t)myDist)!=UNDF) && (myDist<(DROPLET_RADIUS+theBall.radius)) && (theBall.id!=0x0F)){
+	if((myDist!=(uint16_t)UNDF) && (myDist<(DROPLET_RADIUS+theBall.radius)) && (theBall.id!=0x0F)){
 		if(theBall.radius<DROPLET_RADIUS){
 			if(myDist>=(DROPLET_RADIUS-theBall.radius)){
 				ballCoveredRatio = getCoverageRatioA(theBall.radius, myDist);
@@ -121,13 +133,12 @@ float getBallCoverage(){
 			}else{
 			if(myDist>=(theBall.radius-DROPLET_RADIUS)){
 				ballCoveredRatio = getCoverageRatioB(theBall.radius, myDist);
-				}else{
+			}else{
 				ballCoveredRatio = 1.0;
 			}
 		}
-	}
+	}	
 	return ballCoveredRatio;
-	//printf("Ball Coverage:\t%f | me: (%5.1f, %5.1f) ball: (%5.1f, %5.1f)->%hu\r\n", ballCoveredRatio, myX, myY, theBall.xPos, theBall.yPos, theBall.radius);
 }
 
 float getPaddleCoverage(){
@@ -155,50 +166,60 @@ float getPaddleCoverage(){
 	
 }
 
+
 void updateBall(){
-	if(theBall.lastUpdate){
-		uint32_t now = get_time();
-		int32_t timePassed = now-theBall.lastUpdate;
-		if(POS_DEFINED(&myPos) && ((theBall.xPos!=UNDF) && (theBall.yPos!=UNDF))){
-			theBall.xPos += (int16_t)((((int32_t)(theBall.xVel))*timePassed)/1000.0);
-			theBall.yPos += (int16_t)((((int32_t)(theBall.yVel))*timePassed)/1000.0);
-			theBall.lastUpdate = now;
-			BALL_DEBUG_PRINT("B[%hu]: %d, %d\r\n", theBall.id, theBall.xPos, theBall.yPos);
-			uint8_t bounced = 0;
-			HardBot* tmp = hardBotsList;
-			myDist = (uint16_t)hypotf(myPos.x-theBall.xPos, myPos.y-theBall.yPos);
-			while(tmp!=NULL){
-				OtherBot* bot = getOtherBot(tmp->id);
-				otherDist = (uint16_t)hypotf(bot->pos.x - theBall.xPos, bot->pos.y - theBall.yPos);
-				if(myDist < otherDist){
-					BALL_DEBUG_PRINT("\t%04X | ", tmp->id);
-					if(checkBounceHard(bot->pos.x, bot->pos.y, timePassed)){
-						if(gameMode==PONG && ((SOUTH_PIXEL_Q(myState) && theBall.yVel<=0) || (NORTH_PIXEL_Q(myState) && theBall.yVel>=0))){
-							if(!isCovered){
-								//Other Side scores a point!
-								killBall();
-								set_rgb(255,0,0);
-							}
-						}
-						calculateBounce(bot->pos.x, bot->pos.y);
-						BALL_DEBUG_PRINT("Ball bounced off boundary between me and %04X!\r\n", tmp->id);
-						bounced = 1;
-						break;
-					}
-				}
-				tmp = tmp->next;
-			}
-			if(theBall.xPos<MIN_X || theBall.xPos>MAX_X || theBall.yPos<MIN_Y || theBall.yPos>MAX_Y){
-				BALL_DEBUG_PRINT("Ball hit boundary, so we must have lost track.\r\n");
-				theBall.xPos = UNDF;
-				theBall.yPos = UNDF;
-				myDist = UNDF;
-				otherDist = UNDF;
-			}
+	uint32_t now = get_time();
+	int32_t timePassed = now-theBall.lastUpdate;
+	if(POS_DEFINED(&myPos) && BALL_VALID()){
+		float portionOfSpeedRemaining = 1.0; 
+		HardEdge* edge = hardEdges;
+		//TODO: Some mechanism to keep all the Droplets in an area each doing redundant bounce calculations?
+		float xIntersect, yIntersect;
+		int32_t timeRemaining;
+		while(edge!=NULL){
+			 timeRemaining = timePassed*portionOfSpeedRemaining;
+			if(checkBounce(edge, &xIntersect, &yIntersect, timeRemaining)){
+				//if(gameMode==PONG && ((SOUTH_PIXEL_Q(myState) && theBall.yVel<=0) || (NORTH_PIXEL_Q(myState) && theBall.yVel>=0))){
+					//if(!isCovered){
+						////Other Side scores a point!
+						//killBall();
+						//set_rgb(255,0,0);
+						//break;
+					//}
+				//}
+				float distanceToEdge = hypotf(xIntersect-theBall.xPos, yIntersect-theBall.yPos);
+				float overallSpeed = hypotf(theBall.xVel, theBall.yVel);
+				portionOfSpeedRemaining -= distanceToEdge/overallSpeed;
+				BALL_DEBUG_PRINT("\tSpeed: %f (% 6.2f, % 6.2f), distanceToEdge: %f, portionLeft: %f\r\n", overallSpeed, theBall.xVel, theBall.yVel, distanceToEdge, portionOfSpeedRemaining);
+				theBall.xPos = xIntersect;
+				theBall.yPos = yIntersect;
+
+				int16_t edgeDeltaX = edge->xEnd - edge->xStart;
+				int16_t edgeDeltaY = edge->yEnd - edge->yStart;
+				calculateBounce(-edgeDeltaY, edgeDeltaX);
+				BALL_DEBUG_PRINT("\tSpeed After: %f (% 6.2f, % 6.2f)\r\n", hypotf(theBall.xVel, theBall.yVel), theBall.xVel, theBall.yVel);
+				edge = hardEdges; //We need to start searching through edges again to make sure there aren't two+ bounces within this timestep.
 			}else{
+				edge = edge->next;
+			}
+		}
+		timeRemaining = portionOfSpeedRemaining*timePassed;
+		theBall.xPos += ((theBall.xVel*timeRemaining)/1000.0);
+		theBall.yPos += ((theBall.yVel*timeRemaining)/1000.0);
+		myDist = (uint16_t)hypotf(myPos.x-theBall.xPos, myPos.y-theBall.yPos);
+		theBall.lastUpdate = now;
+
+		if(myDist > 250){
+			BALL_DEBUG_PRINT("Ball moved far away, so we're going to stop tracking it.\r\n");
+			theBall.xPos = NAN;
+			theBall.yPos = NAN;
+			theBall.id = 0x0F;
 			myDist = UNDF;
 			otherDist = UNDF;
 		}
+	}else{
+		myDist = UNDF;
+		otherDist = UNDF;
 	}
 }
 
@@ -226,90 +247,136 @@ void checkLightLevel(){
 	//printf("Light: %5d (%4d, %4d, %4d)\r\n",sum,r,g,b);
 }
 
-void updateHardBots(){
+void updateHardEdges(){
 	//First, making a copy of nearBots so we can sort it by a weird metric.
-	OtherBot nearBotsCopy[NUM_TRACKED_BOTS];
-	memcpy(nearBotsCopy, nearBots, sizeof(BotPos)*NUM_TRACKED_BOTS);
-	uint8_t numNearBots = 0;
-	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
-		if(nearBots[i].id==0) continue;
-		nearBotsCopy[i].id   = nearBots[i].id;
-		nearBotsCopy[i].pos.x    = nearBots[i].pos.x;
-		nearBotsCopy[i].pos.y    = nearBots[i].pos.y;
-		nearBotsCopy[i].pos.o    = nearBots[i].pos.o;
-		numNearBots++;
-	}
-	cleanHardBots(); //clean out the previous hardBots list -- we start fresh each farme.
+	cleanHardEdges(); //clean out the previous hardBots list -- we start fresh each farme.
+	qsort(nearBots, NUM_TRACKED_BOTS+1, sizeof(OtherBot), nearBotsDistCmp);
 	//sort nearBots according to their bearing.
-	//TODO:
-	//	nearBotsCmpFunc sorts by RANGE! Need to change to one that sorts by bearing!
-	//
-	qsort(nearBotsCopy, numNearBots, sizeof(BotMeas), nearBotsDistCmp);
+	qsort(nearBots, NUM_TRACKED_BOTS, sizeof(OtherBot), nearBotsBearingCmp);
 	//go through each near bot by bearing and add it to hardBots if the gap in bearings is above 120 degrees
-	for(uint8_t i=0;i<numNearBots;i++){
-		if(nearBotsCopy[i].id==0) continue;
-		uint8_t nextI = (i+1)%numNearBots;
-		int16_t iBearing =  rad_to_deg(atan2(nearBotsCopy[i].pos.y - myPos.y, nearBotsCopy[i].pos.x - myPos.x));
-		int16_t iNextBearing = rad_to_deg(atan2(nearBotsCopy[nextI].pos.y - myPos.y, nearBotsCopy[nextI].pos.x - myPos.x));
-		uint8_t difference = abs((iBearing-iNextBearing + 540)%360 - 180) ;
+	uint8_t nextI;
+	
+	for(uint8_t i=0;i<NUM_TRACKED_BOTS;i++){
+		//TODO : Extend 'valid for hard edge' criteria to also have range limitations?
+		if(nearBots[i].id==0 || !POS_DEFINED(&(nearBots[i].pos))) continue;
+		for(nextI=((i+1)%NUM_TRACKED_BOTS);nextI!=i;nextI=((nextI+1)%NUM_TRACKED_BOTS)){
+			if(nearBots[nextI].id==0 || !POS_DEFINED(&(nearBots[nextI].pos))){
+				continue;
+			}else{
+				break;
+			}
+		}
+		if(i==nextI){
+			break; //This should only happen when there's only one trackedBot, in which case we can't say anything intelligent about hard edges.
+		}
+		int16_t iBearing =  rad_to_deg(atan2(nearBots[i].pos.y - myPos.y, nearBots[i].pos.x - myPos.x));
+		int16_t iNextBearing = rad_to_deg(atan2(nearBots[nextI].pos.y - myPos.y, nearBots[nextI].pos.x - myPos.x));
+		int16_t difference = abs((iBearing-iNextBearing + 540)%360 - 180);
 		if(difference>120){
-			addHardBot(nearBotsCopy[i].id);
-			addHardBot(nearBotsCopy[nextI].id);
+			addHardEdge(nearBots[i].pos.x, nearBots[i].pos.y, nearBots[nextI].pos.x, nearBots[nextI].pos.y);
+		}
+		if(nextI==0){
+			break; //This will happen after we've gone through every tracked bot. We DO want to process it, though, and thereby close the circle.
 		}
 	}
 	//print out hard bots list.
-	if(hardBotsList!=NULL){
+	if(hardEdges!=NULL){
 		BALL_DEBUG_PRINT("Edges:");
-		HardBot* tmp = hardBotsList;
+		HardEdge* tmp = hardEdges;
 		while(tmp!=NULL){
-			BALL_DEBUG_PRINT("\t%04X", tmp->id);
+			BALL_DEBUG_PRINT("\t(%4d, %4d)<->(%4d, %4d)\r\n", tmp->xStart, tmp->yStart, tmp->xEnd, tmp->yEnd);
 			tmp = tmp->next;
 		}
 		BALL_DEBUG_PRINT("\r\n");
 	}
 }
 
-void sendBallMsg(){
-	if((((int16_t)myDist)==UNDF) || (myDist>=30)){
-		return;
+void prepBallMsg(){	
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+		if(msgHandleLock){
+			msgHandleLock = 0;
+
+			if(preppedMsgHandle==NULL){
+				BallMsg* msg = (BallMsg*)myMalloc(sizeof(BallMsg));
+				msg->xPos		= theBall.xPos;
+				msg->yPos		= theBall.yPos;
+				msg->id			= theBall.id;
+				msg->xVel		= (int8_t)theBall.xVel;
+				msg->yVel		= (int8_t)theBall.yVel;
+				msg->radius		= theBall.radius;
+				msg->flag		= 0; //Using this as number of send attempts, for now.
+				preppedMsgHandle = msg;
+				schedule_task(5, (arg_func_t)sendBallMsg, msg);
+			}else{
+				preppedMsgHandle->xPos		= theBall.xPos;
+				preppedMsgHandle->yPos		= theBall.yPos;
+				preppedMsgHandle->id			= theBall.id;
+				preppedMsgHandle->xVel		= (int8_t)theBall.xVel;
+				preppedMsgHandle->yVel		= (int8_t)theBall.yVel;
+				preppedMsgHandle->radius		= theBall.radius;
+			}
+
+			msgHandleLock = 1;
+		}else{
+			printf("Message handle locked.\r\n");
+		}
 	}
-	BallMsg msg;
-	msg.flag = BALL_MSG_FLAG;
-	int16_t tempX = theBall.xPos;
-	int16_t tempY = theBall.yPos;
-	msg.xPos		= tempX&0xFF;
-	msg.extraBits	= ((tempX & 0x0700)>>3)&0xE0;
-	msg.yPos		= tempY&0xFF;
-	msg.extraBits |= ((tempY & 0x0700)>>6)&0x1C;
-	msg.extraBits |= theBall.id&0x03;
-	msg.xVel = theBall.xVel;
-	msg.yVel = theBall.yVel;
-	msg.radius = (theBall.radius&0xFC) | ((theBall.id&0x0C)>>2);
-	ir_send(ALL_DIRS, (char*)(&msg), sizeof(BallMsg));
-	lastBallMsg=get_time();
+}
+
+void sendBallMsg(BallMsg* msg){
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+		if(!msgHandleLock){
+			schedule_task(5, (arg_func_t)sendBallMsg, msg);
+			return;
+		}else{
+			msgHandleLock = 0;
+		}
+	}
+	if(ir_is_busy(ALL_DIRS)){
+		if(msg->flag>5){
+			printf("Giving up on sending this ball msg.\r\n");
+			myFree(msg);
+			preppedMsgHandle = NULL;
+		}else{
+			printf("Waiting to send ball msg.\r\n");
+			uint32_t backOffMax = pow(2,msg->flag)-1;
+			uint32_t backOffTime = rand_quad()%(backOffMax);
+			backOffTime*=50;
+			schedule_task(backOffTime, (arg_func_t)sendBallMsg, msg);
+		}
+		msg->flag += 1;
+	}else{
+		msg->flag = BALL_MSG_FLAG;
+		ir_send(ALL_DIRS, (char*)msg, sizeof(BallMsg));
+		lastBallMsg=get_time();
+		myFree(msg);
+		printf("Ball message sent.\r\n");
+		preppedMsgHandle = NULL;
+	}
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+		msgHandleLock = 1;
+	}
 }
 
 void handleBallMsg(BallMsg* msg, uint32_t arrivalTime){
-	BALL_DEBUG_PRINT("Got Ball! T: %lu\r\n\tPos: (%5.1f, %5.1f)   Vel: (%hd, %hd) | lastUpdate: %lu\r\n", get_time(), theBall.xPos, theBall.yPos, theBall.xVel, theBall.yVel, theBall.lastUpdate);
-	int16_t highX = (int16_t)(((int8_t)(msg->extraBits))>>5);
-	int16_t highY = (int16_t)((((int8_t)(msg->extraBits))<<3)>>5);
-	int16_t tempX = (int16_t)((highX<<8) | ((uint16_t)(msg->xPos)));
-	int16_t tempY = (int16_t)((highY<<8) | ((uint16_t)(msg->yPos)));
-	uint8_t id = ((msg->extraBits)&0x03) | (((msg->radius)&0x03)<<2);
-	if(id == 0x0F && theBall.id!=0x0F){
+	BALL_DEBUG_PRINT("Got Ball! T: %lu\r\n", get_time());
+	if(BALL_VALID()){
+		BALL_DEBUG_PRINT("\tBEFORE | Pos: (% 8.2f, % 8.2f)   Vel: (% 6.2f, % 6.2f) | lastUpdate: %lu\r\n", theBall.xPos, theBall.yPos, theBall.xVel, theBall.yVel, theBall.lastUpdate);
+	}
+	if(msg->id == 0x0F && theBall.id!=0x0F){
 		lastBallID = theBall.id;
 		set_rgb(255,0,0);
-		}else if(id == lastBallID && theBall.id==0x0F){
+	}else if(msg->id == lastBallID && theBall.id==0x0F){
 		return; //this is from someone who hasn't realized the ball is dead, yet.
 	}
-	theBall.xPos = tempX;
-	theBall.yPos = tempY;
-	theBall.id = id;
-	theBall.xVel = msg->xVel;
-	theBall.yVel = msg->yVel;
-	theBall.radius = ((msg->radius)&0xFC);
+	theBall.xPos = (float)msg->xPos;
+	theBall.yPos = (float)msg->yPos;
+	theBall.id = msg->id;
+	theBall.xVel = (float)msg->xVel;
+	theBall.yVel = (float)msg->yVel;
+	theBall.radius = (msg->radius);
 	theBall.lastUpdate = arrivalTime-4;
-	BALL_DEBUG_PRINT("\tPos: (%5.1f, %5.1f)   Vel: (%hd, %hd) | lastUpdate: %lu\r\n", theBall.xPos, theBall.yPos, theBall.xVel, theBall.yVel, theBall.lastUpdate);
+	BALL_DEBUG_PRINT("\t AFTER | Pos: (% 8.2f, % 8.2f)   Vel: (% 6.2f, % 6.2f) | lastUpdate: %lu\r\n", theBall.xPos, theBall.yPos, theBall.xVel, theBall.yVel, theBall.lastUpdate);
 }
 
 void sendBotPosMsg(){
@@ -322,7 +389,10 @@ void sendBotPosMsg(){
 }
 
 void handleBotPosMsg(BotPosMsg* msg, id_t senderID){
-	printf("%04X @ {%4d, %4d, % 4d}\r\n", senderID, (msg->pos).x, (msg->pos).y, (msg->pos).o);
+	OtherBot* otherBot = addOtherBot(senderID);
+	otherBot->id = senderID;
+	copyBotPos(&(msg->pos), &(otherBot->pos));
+	//printf("%04X @ {%4d, %4d, % 4d}\r\n", senderID, (msg->pos).x, (msg->pos).y, (msg->pos).o);
 }
 
 void sendPaddleMsg(){
@@ -432,21 +502,64 @@ void cleanOtherBot(OtherBot* other){
 	other->id = 0;
 }
 
-/*
- *	the function below is optional - commenting it in can be useful for debugging if you want to query
- *	user variables over a serial connection.
- */
+void printNearBots(){
+	printf_P(PSTR("\t                         Near Bots                        \r\n"));
+	printf_P(PSTR("\t ID  |   x  |   y  |   o\r\n"));
+	for(uint8_t i=0; i<NUM_TRACKED_BOTS+1; i++){
+		printOtherBot(&nearBots[i]);
+	}
+	printf("\r\n");
+}
+
+void printOtherBot(OtherBot* bot){
+	if(bot==NULL || !POS_DEFINED(&(bot->pos))) return;
+	BotPos*  pos = &(bot->pos);
+	printf("\t%04X | %4d | %4d | %4d\r\n", bot->id, pos->x, pos->y, pos->o);
+}
+
+void addHardEdge(int16_t fromX, int16_t fromY, int16_t toX, int16_t toY){
+	if(hardEdges==NULL){
+		hardEdges = (HardEdge*)myMalloc(sizeof(HardEdge));
+		hardEdges->xStart = fromX;
+		hardEdges->yStart = fromY;
+		hardEdges->xEnd = toX;
+		hardEdges->yEnd = toY;
+		hardEdges->next = NULL;
+	}else{
+		HardEdge* temp = hardEdges;
+		while(temp->next!=NULL){
+			temp = temp->next;
+		}
+		temp->next = (HardEdge*)myMalloc(sizeof(HardEdge));
+		temp->next->xStart = fromX;
+		temp->next->yStart = fromY;
+		temp->next->xEnd = toX;
+		temp->next->yEnd = toY;
+		temp->next->next = NULL;
+	}
+}
+
+void cleanHardEdges(){
+	HardEdge* temp;
+	while(hardEdges!=NULL){
+		temp = hardEdges->next;
+		myFree(hardEdges);
+		hardEdges = temp;
+	}
+}
+
 uint8_t user_handle_command(char* command_word, char* command_args){
 	if(strcmp_P(command_word,PSTR("ball"))==0){
 		if(POS_DEFINED(&myPos)){
 			const char delim[2] = " ";
 			char* token = strtok(command_args, delim);
-			int8_t vel = (token!=NULL) ? (int8_t)atoi(token) : 10;
+			int8_t vel = (token!=NULL) ? (int8_t)atoi(token) : 20;
 			token = strtok(NULL, delim);
-			uint8_t size = (token!=NULL) ? (uint8_t)atoi(token) : 60;
+			uint8_t size = (token!=NULL) ? (uint8_t)atoi(token) : (DROPLET_RADIUS+2);
 			theBall.xPos = myPos.x;
 			theBall.yPos = myPos.y;
-			int16_t randomdir = rand_short()%360;
+			token = strtok(NULL, delim);
+			int16_t randomdir = (token!=NULL) ? (int16_t)atoi(token) : ( ((int16_t)(rand_quad()%360)) - 180);
 			theBall.xVel = vel*cos(deg_to_rad(randomdir));
 			theBall.yVel = vel*sin(deg_to_rad(randomdir));
 			theBall.id = 1;

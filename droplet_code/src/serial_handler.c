@@ -139,7 +139,7 @@ static void handle_set_ir(char* command_args){
 	
 	char* token = strtok(command_args,delim);
 	uint16_t ir_val = (uint16_t)atoi(token);
-	
+
 	schedule_task(10, (arg_func_t)set_all_ir_powers, (void*)ir_val);
 }
 
@@ -243,7 +243,6 @@ static void handle_set_mm_per_kilostep(char* command_args){
 	uint16_t mm_per_kilostep = atoi(token);
 
 	set_mm_per_kilostep(direction, mm_per_kilostep);
-	
 }
 
 /*
@@ -334,7 +333,7 @@ static void handle_get_id(void){
  *     All receiving Droplets will act as if they had 'reset' typed to them over the terminal, and reset.
  */
 static void handle_cmd(char* command_args){
-	printf_P(PSTR("Broadcasting command: \"%s\", of length %i.\r\n"),(uint8_t*)command_args, strlen(command_args));
+	printf_P(PSTR("Broadcasting command: \"%s\", of length %i.\r\n"), (uint8_t*)command_args, strlen(command_args));
 	ir_cmd(ALL_DIRS, command_args,strlen(command_args));
 	//if(0==ir_send_command(0,(uint8_t*)command_args,strlen(command_args)))
 	//printf("\tSent command \"%s\", of length %i\r\n",command_args,strlen(command_args));
@@ -370,7 +369,7 @@ static void handle_targeted_cmd(char* command_args){
 	strcpy(cmdString, command_args+loc+1);
 	
 	uint16_t target = strtoul(targetString, NULL, 16);
-	printf_P(PSTR("command string: %s, length: %z\r\n"),cmdString, strlen(cmdString));
+	printf_P(PSTR("Broadcasting command to %04X: \"%s\", of length %i.\r\n"), target, (uint8_t*)cmdString, strlen(cmdString));
 	ir_targeted_cmd(ALL_DIRS, cmdString,strlen(cmdString), target);
 }
 

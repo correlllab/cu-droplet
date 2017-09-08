@@ -8,7 +8,7 @@
 
 //// Yang: test with large number of Droplets
 const BotPos SEED_POS[NUM_SEEDS] = {{0,0,0}, {450,0, 0},{0,450,0},{450,450,0}};
-const id_t   SEED_IDS[NUM_SEEDS] = {0x5264, 0x5F2D, 0x12AD, 0xD0AE};
+const id_t   SEED_IDS[NUM_SEEDS] = {0xD2D7, 0x2826, 0xAF6A, 0xA250};
 
 // Yang: test with 16 Droplets
 //const BotPos SEED_POS[NUM_SEEDS] = {{0,0,0}, {150,0, 0},{0,150,0},{150,150,0}};

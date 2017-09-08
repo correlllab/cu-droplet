@@ -213,7 +213,7 @@ void handleRNB(){
 
 void printPosColor(PosColor pos){
 	if(POS_C_DEFINED(&pos)){
-		printf("\t{% 4d, % 4d}: %hu\r\n", pos.x, pos.y, (uint8_t)unpackColorToBinary(pos.col));
+		printf("\t{% 4d, % 4d, %hu},\r\n", pos.x, pos.y, (uint8_t)unpackColorToBinary(pos.col));
 	}
 }
 

@@ -13,7 +13,7 @@
 #define PATTERN_MSG_FLAG	'P'
 #define TURING_MSG_FLAG		'T'
 #define BOT_POS_MSG_FLAG	'B'
-#define NUM_LOCALIZE		30 // 20
+#define NUM_LOCALIZE		40 // 20
 #define NUM_PREPARE			20 // 20
 #define NUM_GRADIENT		10 // 10
 #define NUM_CONSENSUS		10 // 10
@@ -149,7 +149,7 @@ typedef struct pattern_msg_struct{ //12 bytes
  * 80mm  seems quite safe to me.
  * John
  */
-#define NUM_TRACKED_BOTS 32
+#define NUM_TRACKED_BOTS 16
 
 #define POS_C_DEFINED(pos) ((((pos)->x)!=UNDF)&&(((pos)->y)!=UNDF))
 

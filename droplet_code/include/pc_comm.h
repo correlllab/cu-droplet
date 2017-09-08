@@ -7,4 +7,4 @@
 #define PC_USART USARTD1
 #define SRL_BUFFER_SIZE 64u
 
-void pc_comm_init(void);
+void pcCommInit(void);

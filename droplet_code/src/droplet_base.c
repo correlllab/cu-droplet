@@ -1,12 +1,12 @@
 #include "droplet_base.h"
 
-void delay_ms(uint16_t ms){
+void delayMS(uint16_t ms){
 	uint32_t cur_time, end_time;
-	cli(); cur_time = get_time(); sei();
+	cli(); cur_time = getTime(); sei();
 	end_time = cur_time + ms;
 	while (1){
 		cli();
-		if (get_time() >= end_time){
+		if (getTime() >= end_time){
 			sei();
 			return;
 		}

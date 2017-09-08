@@ -1,65 +1,66 @@
 #include "droplet_init.h"
 
-static void init_all_systems(void);
-static void calculate_id_number(void);
-static void enable_interrupts(void);
-static void check_messages(void);
+static void initAllSystems(void);
+static void calculateIdNumber(void);
+static void enableInterrupts(void);
+static void checkMessages(void);
 
 /**
  * \brief Initializes all the subsystems for this Droplet. This function MUST be called
  * by the user before using any other functions in the API.
  */ 
-static void init_all_systems(void){
+static void initAllSystems(void){
 	cli();
 	Config32MHzClock();
 	
-	calculate_id_number();
+	calculateIdNumber();
 	
-	scheduler_init();			INIT_DEBUG_PRINT("SCHEDULER INIT\r\n");
-	pc_comm_init();				INIT_DEBUG_PRINT("PC COM INIT\r\n");
-	rgb_led_init();				INIT_DEBUG_PRINT("LED INIT\r\n");
-	power_init();				INIT_DEBUG_PRINT("POWER INIT\r\n");
-	i2c_init();					INIT_DEBUG_PRINT("I2C INIT\r\n");
+	schedulerInit();			INIT_DEBUG_PRINT("SCHEDULER INIT\r\n");
+	pcCommInit();				INIT_DEBUG_PRINT("PC COM INIT\r\n");
+	rgbLEDinit();				INIT_DEBUG_PRINT("LED INIT\r\n");
+	powerInit();				INIT_DEBUG_PRINT("POWER INIT\r\n");
+	i2cInit();					INIT_DEBUG_PRINT("I2C INIT\r\n");
 	
-	enable_interrupts();	
+	enableInterrupts();	
 	
-	range_algs_init();			INIT_DEBUG_PRINT("RANGE ALGORITHMS INIT\r\n");
-	rgb_sensor_init();			INIT_DEBUG_PRINT("RGB SENSE INIT\r\n");
-	ir_led_init();				INIT_DEBUG_PRINT("IR LED INIT\r\n");
-	ir_sensor_init();			INIT_DEBUG_PRINT("IR SENSE INIT\r\n");
+	rangeAlgsInit();			INIT_DEBUG_PRINT("RANGE ALGORITHMS INIT\r\n");
+	rgbSensorInit();			INIT_DEBUG_PRINT("RGB SENSE INIT\r\n");
+	irLedInit();				INIT_DEBUG_PRINT("IR LED INIT\r\n");
+	irSensorInit();			INIT_DEBUG_PRINT("IR SENSE INIT\r\n");
 	
 	#ifdef AUDIO_DROPLET
-		speaker_init();			INIT_DEBUG_PRINT("SPEAKER INIT\r\n");
-		mic_init();				INIT_DEBUG_PRINT("MIC INIT\r\n"); //Must occur after ir_sensor_init.
+		speakerInit();			INIT_DEBUG_PRINT("SPEAKER INIT\r\n");
+		micInit();				INIT_DEBUG_PRINT("MIC INIT\r\n"); //Must occur after ir_sensor_init.
 	#endif
 	
-	motor_init();				INIT_DEBUG_PRINT("MOTOR INIT\r\n");
-	random_init();				INIT_DEBUG_PRINT("RAND INIT\r\n"); //This uses adc readings for a random seed, and so requires that the adcs have been initialized.
-	localization_init();		INIT_DEBUG_PRINT("LOCALIZATION INIT\r\n"); 
+	motorInit();				INIT_DEBUG_PRINT("MOTOR INIT\r\n");
+	randomInit();				INIT_DEBUG_PRINT("RAND INIT\r\n"); //This uses adc readings for a random seed, and so requires that the adcs have been initialized.
+	localizationInit();		INIT_DEBUG_PRINT("LOCALIZATION INIT\r\n"); 
 	
 	#ifdef SYNCHRONIZED
-		firefly_sync_init();
+		fireflySyncInit();
 	#endif
 
 
-	set_all_ir_powers(256);
+	setAllirPowers(256);
 
-	startup_light_sequence();
+	startupLightSequence();
 	
-	ir_comm_init();				INIT_DEBUG_PRINT("IR COM INIT\r\n");
+	irCommInit();				INIT_DEBUG_PRINT("IR COM INIT\r\n");
 }
 
 int main(void){
-	init_all_systems();
+	initAllSystems();
 	init();
 	while(1){
 		loop();
-		check_messages();
-		if(task_list_check()){
+		checkMessages();
+		if(taskListCheck()){
 			printf_P(PSTR("Error! We got ahead of the task list and now nothing will execute.\r\n"));
-			task_list_cleanup();
+			printTaskQueue();
+			taskListCleanup();
 		}
-		delay_ms(1);	
+		delayMS(1);	
 	}
 	return 0;
 }
@@ -69,45 +70,55 @@ int main(void){
  * to check messages.
  * For each message, it populates an ir_msg struct and calls handle_msg with it.
  */
-static void check_messages(void){
-	ir_msg* msg_struct;	
-	char actual_struct[sizeof(ir_msg)]; //It's like malloc, but on the stack.
-	char actual_msg[IR_BUFFER_SIZE+1];
-	msg_struct = (ir_msg*)actual_struct;
-	msg_struct->msg = actual_msg;
-	uint8_t i;
-	
-	if(user_facing_messages_ovf){
-		num_waiting_msgs=MAX_USER_FACING_MESSAGES;
-		user_facing_messages_ovf=0;
+static void checkMessages(void){
+	irMsg msgStruct;	
+
+	if(userFacingMessagesOvf){
+		numWaitingMsgs=MAX_USER_FACING_MESSAGES;
+		userFacingMessagesOvf=0;
 		printf_P(PSTR("Error: Messages overflow. Too many messages received. Try speeding up your loop if you see this a lot.\r\n"));
 	}
-	//if(num_waiting_msgs>0) printf("num_msgs: %hu\r\n",num_waiting_msgs);
-	while(num_waiting_msgs>0){
-		i=num_waiting_msgs-1;
-		//We don't want this block to be interrupted by perform_ir_upkeep because the 
-		//list of messages could get corrupted.
-		ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-			if(msg_node[i].msg_length==0){
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){ //We want to amke sure that this block doesn't get interrupted by stuff trying to add more messages to the buffer.
+		uint16_t crc;
+		while(incomingMsgHead != NULL){
+			MsgNode* node = (MsgNode*)incomingMsgHead;
+			if(node->length==0){
 				printf_P(PSTR("ERROR: Message length 0 for msg_node.\r\n"));
 			}
-			memcpy(msg_struct->msg, (const void*)msg_node[i].msg, msg_node[i].msg_length);
-			msg_struct->arrival_time					= msg_node[i].arrival_time;
-			msg_struct->sender_ID						= msg_node[i].sender_ID;
-			msg_struct->dir_received					= msg_node[i].arrival_dir;
-			msg_struct->length							= msg_node[i].msg_length;
-			msg_struct->wasTargeted						= msg_node[i].wasTargeted;
-			num_waiting_msgs--;
-		}			
-		msg_struct->msg[msg_node[i].msg_length]	= '\0';		
-
-
-
-		handle_msg(msg_struct);
+			char msgData[node->length];
+			memcpy(msgData, node->msg, node->length);
+			msgStruct.msg			= msgData;
+			msgStruct.arrivalTime	= node->arrivalTime;
+			msgStruct.senderID		= node->senderID;
+			msgStruct.length		= node->length;
+			crc						= node->crc;
+			//While we let user code handle the message we want interrupts to be back on. At this point everything relevant has been copied out of the buffer.
+			NONATOMIC_BLOCK(NONATOMIC_RESTORESTATE){ 
+				handleMsg(&msgStruct);
+			}
+			MsgNode* tmp = node;
+			MsgNode* deleteMe;
+			while(tmp->next !=NULL){
+				uint8_t crcMatches = (tmp->next->crc == crc);
+				uint8_t closeTimes = (abs((int32_t)(tmp->next->arrivalTime) - (int32_t)(msgStruct.arrivalTime))) < 15;
+				if(crcMatches && closeTimes){
+					deleteMe = tmp->next;
+					tmp->next = tmp->next->next;
+					memoryConsumedByBuffer -= (sizeof(MsgNode) + msgStruct.length);
+					numWaitingMsgs--;
+					myFree(deleteMe);
+				}
+				tmp = tmp->next;
+			}
+			incomingMsgHead = (volatile MsgNode*)(node->next);
+			numWaitingMsgs--;
+			memoryConsumedByBuffer -= (sizeof(MsgNode) + msgStruct.length);
+			myFree(node);
+		}
 	}
 }
 
-static void calculate_id_number(void){
+static void calculateIdNumber(void){
 	INIT_DEBUG_PRINT("get id number\r\n");
 
 	uint32_t pgm_bytes = 0;
@@ -130,7 +141,7 @@ static void calculate_id_number(void){
 	droplet_ID = crc;
 }
 
-static void enable_interrupts(void){
+static void enableInterrupts(void){
 	PMIC.CTRL |= PMIC_LOLVLEN_bm;	// enable low level interrupts
 	PMIC.CTRL |= PMIC_MEDLVLEN_bm;	// enable medium level interrupts	(e.g. TXCIF)
 	PMIC.CTRL |= PMIC_HILVLEN_bm;	// enable high level interrupts		(e.g. RTC_OVF)
@@ -138,13 +149,13 @@ static void enable_interrupts(void){
 	sei();
 }
 
-void startup_light_sequence(){
-	set_rgb(100,0,0); delay_ms(100); set_rgb(0,100,0); delay_ms(100); set_rgb(0,0,100); delay_ms(100); led_off();
-	set_rgb(100,0,0); delay_ms(100); set_rgb(0,100,0); delay_ms(100); set_rgb(0,0,100); delay_ms(100); led_off();
-	set_rgb(100,0,0); delay_ms(100); set_rgb(0,100,0); delay_ms(100); set_rgb(0,0,100); delay_ms(100); led_off();
+void startupLightSequence(){
+	setRGB(100,0,0); delayMS(100); setRGB(0,100,0); delayMS(100); setRGB(0,0,100); delayMS(100); ledOff();
+	setRGB(100,0,0); delayMS(100); setRGB(0,100,0); delayMS(100); setRGB(0,0,100); delayMS(100); ledOff();
+	setRGB(100,0,0); delayMS(100); setRGB(0,100,0); delayMS(100); setRGB(0,0,100); delayMS(100); ledOff();
 }
 
-uint8_t get_droplet_ord(id_t id){
+uint8_t getDropletOrd(id_t id){
 	switch(id){
 		case 0x0000: return 0;
 		case 0x0029: return 1;

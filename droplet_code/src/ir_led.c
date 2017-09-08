@@ -14,7 +14,7 @@ static uint8_t tx_pins[6] = {PIN3_bm, PIN7_bm, PIN3_bm, PIN3_bm, PIN7_bm, PIN3_b
 static PORT_t* uart_ch[6] = {&PORTC, &PORTC, &PORTD, &PORTE, &PORTE, &PORTF};
 static uint8_t saved_usart_ctrlb_vals[6] = {0,0,0,0,0,0};
 
-void ir_led_init()
+void irLedInit()
 {
 	/* Initialize carrier waves */
 	PORTF.DIRSET = ALL_EMITTERS_CARWAV_bm;
@@ -48,7 +48,7 @@ void ir_led_init()
 	
 }
 
-void ir_led_on(uint8_t direction)
+void irLedOn(uint8_t direction)
 {
 	//Turning on the light.
 	saved_usart_ctrlb_vals[direction]	  = channel[direction]->CTRLB;	// record the current state of the USART
@@ -61,7 +61,7 @@ void ir_led_on(uint8_t direction)
 
 }
 
-void ir_led_off(uint8_t direction)
+void irLedOff(uint8_t direction)
 {
 	//Turning off the light.
 	uart_ch[direction]->OUT  |=  tx_pins[direction];			// high signal on TX pin (turns IR blast OFF)
@@ -70,7 +70,7 @@ void ir_led_off(uint8_t direction)
 	TCF2.CTRLB			|=  carrier_wave_pins[direction];	// re-enable carrier wave output
 }
 
-void set_all_ir_powers(volatile uint16_t power){
+void setAllirPowers(volatile uint16_t power){
 	if(power>256) return;
 	if(curr_ir_power==power) return;
 	uint8_t power_high = (power>>8);

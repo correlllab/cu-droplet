@@ -80,7 +80,7 @@ static void TWI_MasterTransactionFinished(uint8_t result);
 
 static uint8_t waitForTWIReady(uint32_t startTime, char* callerDescr);
 
-void i2c_init(){
+void i2cInit(){
 	PORTB.DIRCLR = PIN5_bm; 
 	PORTB.PIN5CTRL = PORT_OPC_WIREDOR_gc;
 	
@@ -90,7 +90,7 @@ void i2c_init(){
 }
 
 uint8_t twiWriteWrapper(uint8_t addr, uint8_t* writeData, uint8_t bytesToWrite, char* callerDescr){
-	uint32_t startTime = get_time();
+	uint32_t startTime = getTime();
 	uint8_t result = 0;
 	uint8_t printed = 0;
 	while(!result){
@@ -104,7 +104,7 @@ uint8_t twiWriteWrapper(uint8_t addr, uint8_t* writeData, uint8_t bytesToWrite, 
 }
 
 uint8_t twiWriteReadWrapper(uint8_t addr, uint8_t* writeData, uint8_t bytesToWrite, uint8_t bytesToRead, char* callerDescr){
-	uint32_t startTime = get_time();
+	uint32_t startTime = getTime();
 	uint8_t result = 0;
 	uint8_t printed = 0;
 	while(!result){
@@ -120,15 +120,15 @@ uint8_t twiWriteReadWrapper(uint8_t addr, uint8_t* writeData, uint8_t bytesToWri
 static uint8_t waitForTWIReady(uint32_t startTime, char* callerDescr){
 	uint8_t printed = 0;
 	while(twi->status!=TWIM_STATUS_READY){
-		if((get_time()-startTime)>1000){
+		if((getTime()-startTime)>1000){
 			printf_P(PSTR("\tTWI timeout | %s\r\n"), callerDescr);
 			return 0;
-			}else if((get_time()-startTime)>100){
+			}else if((getTime()-startTime)>100){
 			if(!printed){
 				printf_P(PSTR("Waiting for TWI | %s\r\n"), callerDescr);
 				printed = 1;
 			}
-			delay_ms(10);
+			delayMS(10);
 		}
 	}
 	return 1 + printed;

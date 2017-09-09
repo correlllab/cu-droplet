@@ -11,6 +11,7 @@
 #include "range_algs.h"
 #include "scheduler.h"
 
+uint32_t return_value;
 
 //#include "firefly_sync.h"
 
@@ -63,11 +64,13 @@
 #define HEADER_POS_TARGET_ID_LOW 5
 #define HEADER_POS_TARGET_ID_HIGH 6
 #define HEADER_POS_SOURCE_DIR 7
-#define ms_droplet_comm_time 12
+#define MS_DROPLET_COMM_TIME 16
 
 #define HEADER_LEN 8U
 
 #define MAX_WAIT_FOR_IR_TIME (5*(IR_BUFFER_SIZE+HEADER_LEN))
+
+#define MSG_DUR(len) (((5*(len+HEADER_LEN))+1)/2)
 
 #ifdef AUDIO_DROPLET
 	extern ADC_CH_t* ir_sense_channels[6];
@@ -118,10 +121,11 @@ typedef struct NODE {
 	uint8_t cmd_flag;
 	uint8_t no_of_tries;
     struct NODE * next;
+	struct NODE * prev;
 } NODE;
 
-NODE * BUFFER_HEAD;
-NODE * BUFFER_TAIL;
+volatile NODE * BUFFER_HEAD;
+//NODE * BUFFER_TAIL;
 
 volatile uint32_t	cmd_arrival_time;
 volatile id_t		cmd_sender_id;

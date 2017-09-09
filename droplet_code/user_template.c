@@ -37,6 +37,8 @@ void loop(){
 		//sendMsg();
 		//sendMsg();
 		//sendMsg();
+		//sendMsg();
+		//sendMsg();
 		lastMessageSent = get_time();
 	}
 	
@@ -128,7 +130,7 @@ void loop(){
  */
 void handle_msg(ir_msg* msg_struct){
 	Msg* msg = (Msg*)(msg_struct->msg);
-	printf("%s (%u)\r\n", msg->text, msg->msgId);
+	printf("Got %6u\r\n", msg->msgId);
 	
 	
 	//for(uint8_t l=0;l<msg_struct->length;l++){

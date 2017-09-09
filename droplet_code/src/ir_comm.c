@@ -5,6 +5,8 @@
 static volatile uint8_t processing_cmd;
 static volatile uint8_t processing_ffsync_flag;
 
+
+
 static void clear_ir_buffer(uint8_t dir);
 static void perform_ir_upkeep(void);
 static uint8_t all_ir_sends(uint8_t dirs, char* data, uint8_t data_length, id_t target, uint8_t cmd_flag);
@@ -206,22 +208,59 @@ void send_msg(uint8_t dirs, char *data, uint8_t data_length, uint8_t hp_flag){
 
 uint32_t getExponentialBackoff(uint8_t c){
 	
-	uint32_t k;
-	uint32_t N;
-	N= (((uint32_t)1)<<c) - 1;
-	k = rand_quad()%N;
-	return (k*ms_droplet_comm_time);
+	volatile uint32_t k;
+	volatile uint32_t N;
 	
+	N= (((uint32_t)1)<<c);
+	
+	k = rand_quad()%N;
+	return ((k*MS_DROPLET_COMM_TIME)+10);///20000000;
+	
+}
+
+typedef struct msg_struct{
+	char text[3];
+	uint16_t msgId;
+}Msg;
+
+
+void removeHeadAndUpdate(){
+		NODE * tempNode=BUFFER_HEAD;
+		if(BUFFER_HEAD->next == BUFFER_HEAD){ //This means BUFFER_HEAD is only thing in list.
+			BUFFER_HEAD = NULL;
+		}else{
+			BUFFER_HEAD=BUFFER_HEAD->next;
+			BUFFER_HEAD->prev = tempNode->prev;
+			tempNode->prev->next = BUFFER_HEAD;
+		}
+		myFree(tempNode->data);
+		tempNode->data = NULL;
+		myFree(tempNode);
+		tempNode = NULL;
 }
 
 void tryAndSendMessage(){//void * msg_temp_node){
 	//Try and do:
 	NODE * msgNode;
-	NODE * tempNode;
+	volatile Msg* data;
 	//msgNode = (NODE *)msg_temp_node;
 	if(ir_is_busy(BUFFER_HEAD->channel_id)>0){// && (get_time()-first_attempt < timeout_PERIOD) && (BUFFER_HEAD->no_of_tries < 10)){
-		if(get_time()-first_attempt < timeout_PERIOD && BUFFER_HEAD->no_of_tries < 10)
-			schedule_task(getExponentialBackoff(BUFFER_HEAD->no_of_tries++), tryAndSendMessage, NULL);// (void *)BUFFER_HEAD);
+		if(BUFFER_HEAD->no_of_tries < 10){
+				uint32_t time_backoff = getExponentialBackoff(++BUFFER_HEAD->no_of_tries);
+				schedule_task(time_backoff, tryAndSendMessage, NULL);// (void *)BUFFER_HEAD);		
+				uint16_t msgID = ((Msg*)(BUFFER_HEAD->data))->msgId;
+				printf("%6u time for backoff : %10lu\r\n", msgID, time_backoff);
+			} // && get_time()-first_attempt < timeout_PERIOD)
+			
+		else{
+			data = (Msg*)(BUFFER_HEAD->data);
+			printf("\n\rERROR: VERY BUSY! MESSAGE NUMBER %u DISCARDED\n\r", data->msgId);
+			removeHeadAndUpdate();
+			if(BUFFER_HEAD){
+				schedule_task(100, tryAndSendMessage, NULL);// (void *)BUFFER_HEAD);
+			return 0;
+			}			
+		}
 	}else{
 		for(uint8_t dir=0;dir<6;dir++){
 			if(BUFFER_HEAD->channel_id&(1<<dir)){
@@ -232,20 +271,19 @@ void tryAndSendMessage(){//void * msg_temp_node){
 			}
 		}
 		send_msg(BUFFER_HEAD->channel_id, BUFFER_HEAD->data, BUFFER_HEAD->data_length, 0);
-		printf("\n\rsend success\n\r");
-		tempNode=BUFFER_HEAD;
-		BUFFER_HEAD=BUFFER_HEAD->next;
-		free(tempNode);//msgNode);
+		data = (Msg*)(BUFFER_HEAD->data);
+		printf("\n\rsend success (%u)\r\n", data->msgId);
+		uint32_t msgMSlen = MSG_DUR(BUFFER_HEAD->data_length);
+		removeHeadAndUpdate();
+		if(BUFFER_HEAD)
+			schedule_task(msgMSlen, tryAndSendMessage, NULL);// (void *)BUFFER_HEAD);
 	}
+
 }
 
-typedef struct msg_struct{
-	char text[3];
-	uint16_t msgId;
-}Msg;
 
 NODE* buffer_createNode(const char * str, uint8_t dir, uint8_t dataLength, id_t msgTarget, uint8_t cmdFlag){
-	NODE* bufferPointer = (NODE *) myMalloc(sizeof(NODE));
+	volatile NODE* bufferPointer = (NODE *) myMalloc(sizeof(NODE));
 	
 	//make sure there was enough memory
 	if(bufferPointer == NULL)
@@ -258,38 +296,58 @@ NODE* buffer_createNode(const char * str, uint8_t dir, uint8_t dataLength, id_t 
 	bufferPointer->data_length = dataLength;
 
 	//malloc for str
-	bufferPointer->data = myMalloc(strlen(str));
-	strcpy(bufferPointer->data, str);
-	//make sure enough space for the string to be copied
-	if(bufferPointer->data == NULL)
-	return NULL;
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+		bufferPointer->data = myMalloc(dataLength);
+		memcpy(bufferPointer->data, str, dataLength);
+		//make sure enough space for the string to be copied
+		if(bufferPointer->data == NULL)
+		return NULL;
+	}
 	
-	first_attempt = get_time();
 	
 	//printf("\n\rData = %s,Channel_ID = %u", bufferPointer->data, bufferPointer->channel_id);
 	Msg* msg = (Msg*)(str);
-	printf("%s (%u)\r\n", msg->text, msg->msgId);
+	printf("Adding (%u) at %p\r\n", msg->msgId,bufferPointer);
 	bufferPointer->no_of_tries = 0;
 	//tryAndSendMessage((void *)bufferPointer);
 	
 	//Linked list if required
 	
 	bufferPointer->next = NULL;
-	
-	if(BUFFER_HEAD == NULL)
-	{
-		BUFFER_HEAD = bufferPointer;
-		BUFFER_TAIL = bufferPointer;
+
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+		if(BUFFER_HEAD == NULL)
+		{
+			BUFFER_HEAD = bufferPointer;
+			BUFFER_HEAD->next = bufferPointer;
+			BUFFER_HEAD->prev = bufferPointer;
+			
+			tryAndSendMessage();//(void *)BUFFER_HEAD);//bufferPointer);
+		}
+		else
+		{
+			bufferPointer->next = BUFFER_HEAD;
+			bufferPointer->prev = BUFFER_HEAD->prev;
+			BUFFER_HEAD->prev->next = bufferPointer;
+			BUFFER_HEAD->prev = bufferPointer;
+			//if(bufferPointer->next> 0xa000){
+				//printf("!!\r\n!!!\r\n!!\r\n");
+			//}
+			printf("List contains:\r\n");
+			//For debugging:
+			uint16_t listLength = 0;
+			NODE* tmp = BUFFER_HEAD;
+			do{
+				listLength++;
+				printf("\t%p: %hu", tmp, ((Msg*)(tmp->data))->msgId);
+				printf("\t\tPREV: %p\tNEXT: %p\r\n", tmp->prev, tmp->next);
+				tmp = tmp->next;
+			}while(tmp!=BUFFER_HEAD);
+			printf("List Length: %u\r\n", listLength);
+		}
 	}
-	else
-	{
-		BUFFER_TAIL->next = bufferPointer;
-		BUFFER_TAIL = bufferPointer;
-		BUFFER_TAIL->next = BUFFER_HEAD;
-	}
-	
-	while(BUFFER_HEAD)
-		tryAndSendMessage();//(void *)BUFFER_HEAD);//bufferPointer);
+	//while(BUFFER_HEAD)
+		//tryAndSendMessage();//(void *)BUFFER_HEAD);//bufferPointer);
 	
 	return bufferPointer;
 	//bufferPointer;

@@ -1,13 +1,9 @@
 #include "localization.h"
 
-//#define NUM_SEEDS 4
-//
-//const BotPos SEED_POS[NUM_SEEDS] = {{50,50,0}, {200,50,0}, {50,200,0}, {200,200,0}};
-//const id_t   SEED_IDS[NUM_SEEDS] = {0x7EDF, 0x1361, 0x6C66, 0x9669};
 #define NUM_SEEDS 4
 
-const BotPos SEED_POS[NUM_SEEDS] = {{0,0,0}, {0,400,0},{400,0,0},{400,400,0}};
-const id_t   SEED_IDS[NUM_SEEDS] = {0x9669, 0xAF6A, 0x7EDF, 0x1361};
+const BotPos SEED_POS[NUM_SEEDS] = {{0,0,0}, {0,150,0},{150,0,0},{150,150,0}};
+const id_t   SEED_IDS[NUM_SEEDS] = {0xD913, 0xFFFF, 0xFFFF, 0x1361};
 
 //const BotPos SEEDS[NUM_SEEDS] = {{100, 600, 0}, {600, 600, 0}, {100, 100, 0}, {600, 100, 0}};
 

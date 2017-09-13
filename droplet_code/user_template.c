@@ -1,17 +1,75 @@
 #include "user_template.h"
 
+
+#define START_ID	0xD913
+#define END_ID		0x7EDF
+
 /*
  * any code in this function will be run once, when the robot starts.
  */
 void init(){
-
+	hopCount = 255;
+	startTime = get_time();
+	if(get_droplet_id()==START_ID){
+		hopCount = 0;
+		prepSpeedMsg();
+	}
 }
 
 /*
  * the code in this function will be called repeatedly, as fast as it can execute.
  */
 void loop(){
+	if(hopCount!=255){
+		set_hsv((hopCount%6)*60, 255, 150);
+	}
+	delay_ms(10);
+}
 
+uint32_t getExponentialBackoff(uint8_t c){	
+	volatile uint32_t k;
+	volatile uint32_t N;
+	
+	N= (((uint32_t)1)<<c);
+	
+	k = rand_quad()%N;
+	return ((k*16)+5);///20000000;
+	
+}
+
+void prepSpeedMsg(){
+	SpeedMsgNode* msgNode = (SpeedMsgNode*)myMalloc(sizeof(SpeedMsgNode));
+	msgNode->numTries = 0;
+	(msgNode->msg).flag = SPEED_MSG_FLAG;
+	sendSpeedMsg(msgNode);
+}
+
+void sendSpeedMsg(SpeedMsgNode* msgNode){
+	if(ir_is_busy(ALL_DIRS)){
+		if(msgNode->numTries>6){
+			myFree(msgNode);
+		}else{
+			schedule_task(getExponentialBackoff(msgNode->numTries), (arg_func_t)sendSpeedMsg, msgNode);
+		}
+		msgNode->numTries++;
+	}else{
+		(msgNode->msg).hopCount = (hopCount+1);
+		ir_send(ALL_DIRS, (char*)(&(msgNode->msg)), sizeof(SpeedMsg));
+		myFree(msgNode);
+	}
+}
+
+void handleSpeedMsg(SpeedMsg* msg){
+	if(msg->hopCount < hopCount){
+		hopCount = msg->hopCount;
+		if(get_droplet_id()==END_ID){
+			timeToCompletion = get_time() - startTime;
+			printf("{%lu, %hu},\r\n", timeToCompletion, hopCount);
+		}
+
+		prepSpeedMsg();
+		
+	}
 }
 
 /*
@@ -19,7 +77,9 @@ void loop(){
  * received, and calls this function once for each message.
  */
 void handle_msg(ir_msg* msg_struct){
-
+	if( msg_struct->length == sizeof(SpeedMsg) && ((SpeedMsg*)(msg_struct->msg))->flag==SPEED_MSG_FLAG 	){
+		 handleSpeedMsg((SpeedMsg*)(msg_struct->msg));
+	}
 }
 
 ///*

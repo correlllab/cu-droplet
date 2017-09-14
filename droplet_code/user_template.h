@@ -6,7 +6,7 @@
 
 
 uint8_t hopCount;
-uint32_t startTime;
+volatile uint32_t startTime;
 uint32_t timeToCompletion;
 
 typedef struct speed_msg_struct{
@@ -23,6 +23,7 @@ typedef struct speed_msg_node_struct{
 void		init(void);
 void		loop(void);
 
+void		noteStartTime(void);
 void		prepSpeedMsg(void);
 void		sendSpeedMsg(SpeedMsgNode* msgNode);
 uint32_t	getExponentialBackoff(uint8_t c);

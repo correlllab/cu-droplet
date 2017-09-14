@@ -2,18 +2,23 @@
 
 
 #define START_ID	0xD913
-#define END_ID		0x7EDF
+#define END_ID		0xCB64
 
 /*
  * any code in this function will be run once, when the robot starts.
  */
 void init(){
 	hopCount = 255;
-	startTime = get_time();
 	if(get_droplet_id()==START_ID){
 		hopCount = 0;
-		prepSpeedMsg();
+		schedule_task(100, prepSpeedMsg, NULL);
+	}else{
+		schedule_task(100, noteStartTime, NULL);
 	}
+}
+
+void noteStartTime(){
+	startTime = get_time();
 }
 
 /*

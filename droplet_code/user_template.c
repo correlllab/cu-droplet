@@ -11,9 +11,10 @@ void init(){
 	hopCount = 255;
 	if(get_droplet_id()==START_ID){
 		hopCount = 0;
-		schedule_task(100, prepSpeedMsg, NULL);
+		startTime = get_time();
+		schedule_task(1000, prepSpeedMsg, NULL);
 	}else{
-		schedule_task(100, noteStartTime, NULL);
+		schedule_task(1000, noteStartTime, NULL);
 	}
 }
 

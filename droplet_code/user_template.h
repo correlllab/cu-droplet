@@ -2,7 +2,7 @@
 
 #include "droplet_init.h"
 
-#define MSG_FILLER_LENGTH 3
+#define MSG_FILLER_LENGTH 24
 #define MSG_SEND_PERIOD 1000
 
 typedef struct test_msg_struct{
@@ -11,8 +11,14 @@ typedef struct test_msg_struct{
 }TestMsg;
 TestMsg testMsg;
 
-uint32_t lastMsgTime;
+typedef struct test_msg_node_struct{
+	TestMsg msg;
+	uint8_t numTries;
+}TestMsgNode;
 
 void		init(void);
 void		loop(void);
 void		handleMsg(irMsg* msg_struct);
+
+void prepTestMsg(void);
+void sendTestMsg(TestMsgNode* msgNode);

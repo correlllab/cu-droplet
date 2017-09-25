@@ -7,12 +7,14 @@ void init(){
 	for(uint8_t i=0;i<MSG_FILLER_LENGTH;i++){
 		testMsg.filler[i] = (char)(65+i);
 	}
-	if(getDropletID()==0x3B61){
-		testMsg.id = 0xFFFF0000;
-	}else if(getDropletID()==0x2826){
-		testMsg.id = 0x00000000;
+	if(getDropletID()==0x3B61 || getDropletID() == 0x2826){
+		if(getDropletID()==0x3B61){
+			testMsg.id = 0xFFFF0000;
+		}else if(getDropletID()==0x2826){
+			testMsg.id = 0x00000000;
+		}
+		scheduleTask(5000, prepTestMsg, NULL);
 	}
-	lastMsgTime = getTime();
 }
 
 
@@ -21,13 +23,6 @@ void init(){
  * the code in this function will be called repeatedly, as fast as it can execute.
  */
 void loop(){
-	if(getTime()-lastMsgTime > MSG_SEND_PERIOD){
-		if(getDropletID()==0x2826||getDropletID()==0x3B61){
-			irSend(ALL_DIRS, (char*)(&testMsg), sizeof(TestMsg));
-			testMsg.id++;
-			lastMsgTime = getTime();
-		}
-	}
 	delayMS(10);
 }
 
@@ -44,6 +39,43 @@ void handleMsg(irMsg* msg_struct){
 		}
 	}
 	printf("Received %08lX\r\n", msg->id);
+}
+
+uint32_t getExponentialBackoff(uint8_t c){
+	volatile uint32_t k;
+	volatile uint32_t N;
+	
+	N= (((uint32_t)1)<<c);
+	
+	k = randQuad()%N;
+	return ((k*16)+5);///20000000;
+	
+}
+
+void prepTestMsg(){
+	TestMsgNode* msgNode = (TestMsgNode*)myMalloc(sizeof(TestMsgNode));
+	msgNode->numTries = 0;
+	for(uint8_t i=0;i<MSG_FILLER_LENGTH;i++){
+		(msgNode->msg).filler[i] = testMsg.filler[i];
+	}
+	(msgNode->msg).id = testMsg.id;
+	testMsg.id++;
+	sendTestMsg(msgNode);
+	scheduleTask(MSG_SEND_PERIOD, prepTestMsg, NULL);
+}
+
+void sendTestMsg(TestMsgNode* msgNode){
+	if(irIsBusy(ALL_DIRS)){
+		if(msgNode->numTries>6){
+			myFree(msgNode);
+		}else{
+			scheduleTask(getExponentialBackoff(msgNode->numTries), (arg_func_t)sendTestMsg, msgNode);
+		}
+		msgNode->numTries++;
+	}else{
+		irSend(ALL_DIRS, (char*)(&(msgNode->msg)), sizeof(TestMsg));
+		myFree(msgNode);
+	}
 }
 
 ///*

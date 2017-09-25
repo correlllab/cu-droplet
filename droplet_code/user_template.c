@@ -1,8 +1,8 @@
 #include "user_template.h"
 
 
-#define START_ID	0xD913
-#define END_ID		0xCB64
+#define START_ID	0xDC9E
+#define END_ID		0xCCD1
 
 /*
  * any code in this function will be run once, when the robot starts.
@@ -29,7 +29,7 @@ void loop(){
 	if(hopCount!=255){
 		set_hsv((hopCount%6)*60, 255, 150);
 	}
-	delay_ms(10);
+	delay_ms(100);
 }
 
 uint32_t getExponentialBackoff(uint8_t c){	
@@ -66,7 +66,7 @@ void sendSpeedMsg(SpeedMsgNode* msgNode){
 }
 
 void handleSpeedMsg(SpeedMsg* msg){
-	if(msg->hopCount < hopCount){
+	if(hopCount==255){
 		hopCount = msg->hopCount;
 		if(get_droplet_id()==END_ID){
 			timeToCompletion = get_time() - startTime;

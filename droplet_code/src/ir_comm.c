@@ -258,7 +258,7 @@ static void addMsgToMsgQueue(uint8_t dir){
 	}else if(ir_rxtx[dir].data_length > IR_BUFFER_SIZE){
 		printf_P(PSTR("ERROR! Should NOT be adding a message with length greater than buffer size to queue.\r\n"));
 	}
-	volatile MsgNode* node;
+	volatile MsgNode* node = incomingMsgHead;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 		if(incomingMsgHead==NULL){
 			incomingMsgHead = (volatile MsgNode*)myMalloc(sizeof(MsgNode) + ir_rxtx[dir].data_length);

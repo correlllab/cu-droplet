@@ -7,7 +7,7 @@
 
 typedef struct test_msg_struct{
 	char filler[MSG_FILLER_LENGTH];
-	uint16_t id;
+	uint32_t id;
 }TestMsg;
 TestMsg testMsg;
 

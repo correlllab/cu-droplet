@@ -96,19 +96,22 @@ static void checkMessages(void){
 			NONATOMIC_BLOCK(NONATOMIC_RESTORESTATE){ 
 				handleMsg(&msgStruct);
 			}
+			
 			MsgNode* tmp = node;
 			MsgNode* deleteMe;
 			while(tmp->next !=NULL){
 				uint8_t crcMatches = (tmp->next->crc == crc);
-				uint8_t closeTimes = (abs((int32_t)(tmp->next->arrivalTime) - (int32_t)(msgStruct.arrivalTime))) < 15;
+				uint8_t closeTimes = (abs((int32_t)(tmp->next->arrivalTime) - (int32_t)(msgStruct.arrivalTime))) < 30;
 				if(crcMatches && closeTimes){
 					deleteMe = tmp->next;
 					tmp->next = tmp->next->next;
 					memoryConsumedByBuffer -= (sizeof(MsgNode) + msgStruct.length);
 					numWaitingMsgs--;
 					myFree(deleteMe);
+				}else{
+					tmp = tmp->next;
 				}
-				tmp = tmp->next;
+
 			}
 			incomingMsgHead = (volatile MsgNode*)(node->next);
 			numWaitingMsgs--;

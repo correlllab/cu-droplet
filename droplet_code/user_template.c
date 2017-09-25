@@ -7,7 +7,11 @@ void init(){
 	for(uint8_t i=0;i<MSG_FILLER_LENGTH;i++){
 		testMsg.filler[i] = (char)(65+i);
 	}
-	testMsg.id = 0;
+	if(getDropletID()==0x3B61){
+		testMsg.id = 0xFFFF0000;
+	}else if(getDropletID()==0x2826){
+		testMsg.id = 0x00000000;
+	}
 	lastMsgTime = getTime();
 }
 
@@ -18,7 +22,7 @@ void init(){
  */
 void loop(){
 	if(getTime()-lastMsgTime > MSG_SEND_PERIOD){
-		if(getDropletID()==0x6C66){
+		if(getDropletID()==0x2826||getDropletID()==0x3B61){
 			irSend(ALL_DIRS, (char*)(&testMsg), sizeof(TestMsg));
 			testMsg.id++;
 			lastMsgTime = getTime();
@@ -39,7 +43,7 @@ void handleMsg(irMsg* msg_struct){
 			return;
 		}
 	}
-	printf("Received %u\r\n", msg->id);
+	printf("Received %08lX\r\n", msg->id);
 }
 
 ///*

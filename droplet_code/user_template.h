@@ -18,7 +18,7 @@ typedef struct test_msg_node_struct{
 
 void		init(void);
 void		loop(void);
-void		handleMsg(irMsg* msg_struct);
+void		handleMsg(irMsg* msgStruct);
 
 void prepTestMsg(void);
 void sendTestMsg(TestMsgNode* msgNode);

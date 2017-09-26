@@ -39,7 +39,7 @@
 ## Functions
 
 ### Communication
-  These two functions are used for communicating with other Droplets. If these functions return '0', it means that your message did not get sent, probably because the ir equipment in at least one of the directions you wanted to send in was still busy sending the previous message you asked to be sent. Otherwise it returns '1'.
+  These two functions are used for sending messages to other Droplets. If these functions return '0', it means that your message did not get sent, probably because the ir equipment in at least one of the directions you wanted to send in was still busy sending the previous message you asked to be sent. Otherwise it returns '1'.
 
   `dir_mask`  
     A dir_mask as described in the IR Directions section at the bottom of this document. If you don't know what direction you want to communicate in, you should use `ALL_DIRS`.
@@ -56,6 +56,20 @@
 uint8_t ir_send(uint8_t dir_mask, char* data, uint8_t data_length);
 uint8_t ir_targeted_send(uint8_t dir_mask, char *data, uint16_t data_length, id_t target);
 ```
+
+  For each message a Droplet receives, the handle_msg function gets called. This can only happen after the code in loop() has run, and so it's important not to let loop() take too long, or messages will get backed up. handle_msg has a single argument, msg_struct, which contains the received message and other infornmation:
+  
+  `arrival_time`  
+    When the last byte of the message was received.
+  `sender_ID`  
+    The id of the Droplet which transmitted the message.
+  `length`  
+    The number of characters in the message.
+  `wasTargeted`
+    Whether or not the message was targeted at the receiver, or just a general broadcast.
+  `msg`
+    The address of the first byte in the message, or, equivalently, a pointer to the start of the message.
+    Note: This is NOT a null-terminated string.
 
 ### Light
   These functions set the intensity of the red, green, and blue LEDs respectively.

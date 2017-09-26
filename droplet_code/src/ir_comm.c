@@ -204,7 +204,6 @@ uint8_t irSend(uint8_t dirs, char *data, uint8_t dataLength){
 }
 
 static uint8_t all_hp_ir_cmds(uint8_t dirs, char* data, uint8_t dataLength, id_t target){
-    //perform_ir_upkeep();
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 		if(irIsBusy(dirs)>=4){
 			//printf_P(PSTR("HP send blocked by other HP. Should only see this rarely.\r\n"));

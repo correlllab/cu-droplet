@@ -8,7 +8,7 @@ static void clearIrBuffer(uint8_t dir);
 static uint8_t all_ir_sends(uint8_t dirs, char* data, uint8_t dataLength, id_t target, uint8_t cmdFlag);
 static uint8_t all_hp_ir_cmds(uint8_t dirs, char* data, uint8_t dataLength, id_t target);
 static void irReceive(uint8_t dir); //Called by Interrupt Handler Only
-static void received_ir_cmd(uint8_t dir);
+static void receivedIrCmd(uint8_t dir);
 static void addMsgToMsgQueue(uint8_t dir);
 static void handleCompletedMsg(uint8_t dir);
 static void receivedRnbCmd(uint8_t delay, id_t senderID, uint32_t lastByte);
@@ -354,7 +354,7 @@ static void irReceive(uint8_t dir){
 	}
 }
 
-static void received_ir_cmd(uint8_t dir){
+static void receivedIrCmd(uint8_t dir){
 	uint8_t processThisCommand = 0;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 		if(!processingCmdFlag){

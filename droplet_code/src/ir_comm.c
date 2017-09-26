@@ -254,34 +254,35 @@ void waitForTransmission(uint8_t dirs){
 static void addMsgToMsgQueue(uint8_t dir){
 	if(ir_rxtx[dir].data_length == 0){
 		printf_P(PSTR("ERROR! Should NOT be adding 0-length message to queue.\r\n"));
-		return;
 	}else if(ir_rxtx[dir].data_length > IR_BUFFER_SIZE){
 		printf_P(PSTR("ERROR! Should NOT be adding a message with length greater than buffer size to queue.\r\n"));
-	}
-	volatile MsgNode* node = incomingMsgHead;
-	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-		if(incomingMsgHead==NULL){
-			incomingMsgHead = (volatile MsgNode*)myMalloc(sizeof(MsgNode) + ir_rxtx[dir].data_length);
-			node = (MsgNode*)incomingMsgHead;
-		}else{
-			while(node->next != NULL){
+	}else if(memoryConsumedByBuffer > 500){
+		printf_P(PSTR("ERROR! Buffered incoming messages consuming too much memory. Allow handle_msg to be called more frequently.\r\n"));
+	}else{
+		volatile MsgNode* node = incomingMsgHead;
+		ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+			if(incomingMsgHead==NULL){
+				incomingMsgHead = (volatile MsgNode*)myMalloc(sizeof(MsgNode) + ir_rxtx[dir].data_length);
+				node = (MsgNode*)incomingMsgHead;
+				}else{
+				while(node->next != NULL){
+					node = node->next;
+				}
+				node->next = (MsgNode*)myMalloc(sizeof(MsgNode) + ir_rxtx[dir].data_length);
 				node = node->next;
 			}
-			node->next = (MsgNode*)myMalloc(sizeof(MsgNode) + ir_rxtx[dir].data_length);
-			node = node->next;
+			char* dataAddr = (char*)(node + sizeof(MsgNode));
+			memcpy(dataAddr, (const void*)ir_rxtx[dir].buf, ir_rxtx[dir].data_length);
+			node->msg			= dataAddr;
+			node->arrivalTime	= ir_rxtx[dir].last_byte;
+			node->length		= ir_rxtx[dir].data_length;
+			node->senderID		= ir_rxtx[dir].senderID;
+			node->crc			= ir_rxtx[dir].calc_crc;
+			node->next			= NULL;
+			memoryConsumedByBuffer += (sizeof(MsgNode) + ir_rxtx[dir].data_length);
+			numWaitingMsgs++;
 		}
-		char* dataAddr = (char*)(node + sizeof(MsgNode));
-		memcpy(dataAddr, (const void*)ir_rxtx[dir].buf, ir_rxtx[dir].data_length);
-		node->msg			= dataAddr;
-		node->arrivalTime	= ir_rxtx[dir].last_byte;
-		node->length		= ir_rxtx[dir].data_length;
-		node->senderID		= ir_rxtx[dir].senderID;
-		node->crc			= ir_rxtx[dir].calc_crc;
-		node->next			= NULL;
-		memoryConsumedByBuffer += (sizeof(MsgNode) + ir_rxtx[dir].data_length);
-		numWaitingMsgs++;
 	}
-	clearIrBuffer(dir);
 }
 
 static void handleCompletedMsg(uint8_t dir){
@@ -309,9 +310,8 @@ static void handleCompletedMsg(uint8_t dir){
 		}else{
 			addMsgToMsgQueue(dir);
 		}
-	}else{
-		clearIrBuffer(dir);
 	}
+	clearIrBuffer(dir);
 }
 
 

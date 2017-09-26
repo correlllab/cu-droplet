@@ -14,6 +14,8 @@ void init(){
 			testMsg.id = 0x00000000;
 		}
 		scheduleTask(5000, prepTestMsg, NULL);
+		scheduleTask(5025, prepTestMsg, NULL);
+		scheduleTask(5050, prepTestMsg, NULL);
 	}
 }
 
@@ -34,11 +36,15 @@ void handleMsg(irMsg* msg_struct){
 	TestMsg* msg = (TestMsg*)(msg_struct->msg);
 	for(uint8_t i=0;i<MSG_FILLER_LENGTH;i++){
 		if(msg->filler[i] != testMsg.filler[i]){
-			printf("ERROR! Unexpected message received.\r\n");
+			printf("ERROR! Unexpected message received. ( '");
+			for(uint8_t i=0;i<MSG_FILLER_LENGTH;i++){
+				printf("%c", msg->filler[i]);
+			}
+			printf("' )\r\n");
 			return;
 		}
 	}
-	printf("Received %08lX\r\n", msg->id);
+	printf("Received %08lX (%u)\r\n", msg->id, memoryConsumedByBuffer);
 }
 
 uint32_t getExponentialBackoff(uint8_t c){

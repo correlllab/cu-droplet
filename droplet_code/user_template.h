@@ -2,7 +2,7 @@
 
 #include "droplet_init.h"
 
-#define MSG_FILLER_LENGTH 24
+#define MSG_FILLER_LENGTH 36
 #define MSG_SEND_PERIOD 1000
 
 typedef struct test_msg_struct{

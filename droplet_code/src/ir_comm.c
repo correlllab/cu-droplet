@@ -270,7 +270,7 @@ static void addMsgToMsgQueue(uint8_t dir){
 			node->next = (MsgNode*)myMalloc(sizeof(MsgNode) + ir_rxtx[dir].data_length);
 			node = node->next;
 		}
-		char* dataAddr = (char*)(node + sizeof(MsgNode));
+		char* dataAddr =  ((char*)node + sizeof(MsgNode)); //We have to cast node to a char* first, otherwise the memory address addition will get scaled.
 		memcpy(dataAddr, (const void*)ir_rxtx[dir].buf, ir_rxtx[dir].data_length);
 		node->msg			= dataAddr;
 		node->arrivalTime	= ir_rxtx[dir].last_byte;

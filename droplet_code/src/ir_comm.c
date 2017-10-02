@@ -299,7 +299,7 @@ static void handleCompletedMsg(uint8_t dir){
 		}
 		if(ir_rxtx[dir].status & IR_STATUS_COMMAND_bm){
 			if(notTimed){
-				received_ir_cmd(dir);
+				receivedIrCmd(dir);
 			}else{
 				switch(ir_rxtx[dir].data_length){
 					case 0: receivedIrSyncCmd(ir_rxtx[dir].inc_dir, ir_rxtx[dir].senderID); break;

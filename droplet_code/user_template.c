@@ -9,7 +9,7 @@ uint32_t lastMessageSent;
 void init(){
 set_red_led(50);
 lastMessageSent = get_time();
-msgCount=0;
+msgCount=1000;
 }
 
 
@@ -20,7 +20,8 @@ void sendMsg(){
 	msg.text[2]='.';
 	
 	//msg.text="Hi.";
-	msg.msgId = msgCount++;
+	msgCount = (msgCount + 1)%2000;
+	msg.msgId = msgCount;//++;
 	//char* msg_str;
 	//sprintf(msg_str, "Message=%s, Message_ID=%d", msg.text, msg.msgId);
 	ir_send(ALL_DIRS, (char*)(&msg), sizeof(Msg));
@@ -34,9 +35,9 @@ void loop(){
 	float new_bearing, new_heading;
 	uint16_t new_steps;
 	if(get_time()-lastMessageSent > MSG_PERIOD){
-		//sendMsg();
-		//sendMsg();
-		//sendMsg();
+		sendMsg();
+		sendMsg();
+		sendMsg();
 		//sendMsg();
 		//sendMsg();
 		lastMessageSent = get_time();

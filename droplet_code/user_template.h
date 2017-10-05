@@ -4,4 +4,7 @@
 
 void		init(void);
 void		loop(void);
-void		handle_msg(ir_msg* msg_struct);
+void		handle_msg(irMsg* msgStruct);
+
+void		lightsOn(void);
+void		lightsOff(void);

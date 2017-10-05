@@ -72,7 +72,7 @@ BotPos        myPos;
 DensePosCovar myPosCovar;
 uint8_t		  seedFlag;
 
-void	localization_init(void);
+void	localizationInit(void);
 void	useRNBmeas(id_t id, uint16_t r, int16_t b, int16_t h);
 void	handleBotMeasMsg(BotMeasMsg* msg, id_t senderID __attribute__ ((unused)));
 
@@ -96,6 +96,6 @@ inline uint8_t dirFromAngle(int16_t angle){
 
 //This function converts a measurement from the measuring robot's perspective to the measured robot's perspective.
 inline void convertMeas(int16_t* newB, int16_t* newH, int16_t b, int16_t h){
-	*newB = pretty_angle_deg(b-h-180);
+	*newB = prettyAngleDeg(b-h-180);
 	*newH = -h;
 }

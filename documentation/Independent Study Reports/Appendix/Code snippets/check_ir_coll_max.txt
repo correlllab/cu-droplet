@@ -1,0 +1,34 @@
+//This function updates the maximum IR collision value and its corresponding side. 
+//The input parameters for this function are the input direction and 
+void check_ir_coll_max(uint8_t* input_dir, int16_t* input_val){
+		//get max in meas.
+		int16_t measured_vals[6];
+		uint8_t dirs=0;
+		//if(!ir_is_available(ALL_DIRS)){
+			//printf_P(PSTR("IR Hardware busy, probably sending a message? Can't check collisions.\r\n"));
+			//return;
+			//}
+		for(uint8_t i=0;i<6;i++) ir_rxtx[i].status = IR_STATUS_BUSY_bm;
+		uint16_t curr_power = get_all_ir_powers();
+		set_all_ir_powers(256);
+		
+		for(uint8_t i=0;i<6;i++) ir_led_on(i);
+		busy_delay_us(250);
+		get_ir_sensors(measured_vals, 5);
+		int16_t max_ir_value=-1000;
+		uint8_t max_value_dir;
+		for(uint8_t i=0;i<6;i++){
+			//printf("%4d ", measured_vals[i]);
+			if(measured_vals[i]>max_ir_value){
+				max_ir_value=measured_vals[i];
+				max_value_dir=i;
+				//printf("MAX %4d  DIR %d\n\r", max_ir_value,max_value_dir);
+			}
+		}
+		//printf("\r\n");
+		for(uint8_t i=0;i<6;i++) ir_led_off(i);
+		set_all_ir_powers(curr_power);
+		for(uint8_t i=0;i<6;i++) ir_rxtx[i].status = 0;
+		*input_dir= max_value_dir;
+		*input_val= max_ir_value;
+}

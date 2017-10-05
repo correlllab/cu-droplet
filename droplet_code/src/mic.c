@@ -6,7 +6,7 @@ static int16_t get_mic_reading(void);
 #endif
 
 //The code below assumes that ir_sensor_init() has already been called, which does some of the set up for ADCB.
-void mic_init(){
+void micInit(){
 	#ifdef AUDIO_DROPLET
 		PORTB.DIRCLR = PIN5_bm;
 		PORTB.PIN5CTRL = PORT_OPC_WIREDOR_gc | PORT_ISC_INPUT_DISABLE_gc;
@@ -35,7 +35,7 @@ static int16_t get_mic_reading(void){
 //Warning! I have not tested a sample rate higher than 10kHz.
 //Since each ADC measurement is 12 bits long, I'm packing 4 measurements in every 3 bytes, below.
 //Array length must be divisible by 3.
-void mic_recording(uint16_t* recording, uint16_t array_len, uint16_t sample_rate){
+void micRecording(uint16_t* recording, uint16_t array_len, uint16_t sample_rate){
 	if(array_len%3!=0) printf_P(PSTR("Array length must be divisible by 3.\r\n"));
 	uint16_t sample_delay = ((uint16_t)(((uint32_t)1000000)/((uint32_t)sample_rate)));
 	int16_t mic_reading_temp;
@@ -73,7 +73,7 @@ void unpackMicRecording(uint16_t* unpacked, uint16_t unpacked_len, uint16_t* pac
 	}	
 }
 
-void print_recording(uint16_t* recording, uint16_t array_len){
+void printRecording(uint16_t* recording, uint16_t array_len){
 	printf("{");
 	for(uint16_t i=0;i<array_len-3;i+=3){
 		printf_P(FORMATTED_PRINT_STRING,((0x0FFF&recording[i])<<4)>>4);

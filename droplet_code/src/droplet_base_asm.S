@@ -2,8 +2,8 @@
 
 .extern rtc_epoch
 ; Gets the time as an atomic operation
-.global get_time
-get_time:
+.global getTime
+getTime:
 	in		r0,_SFR_IO_ADDR(SREG)		; Save the state of the status register
 	cli									; Disable interrupts
 	lds		r22, RTC_CNT				; Load low byte into return value

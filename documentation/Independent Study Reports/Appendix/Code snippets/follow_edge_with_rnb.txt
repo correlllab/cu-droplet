@@ -1,0 +1,66 @@
+//The two functions below use RNB values to move a droplet towards a swarm and then do edge following to a desired position. 
+//move_to_closest move towards a particular swarm and follow_edge_withrnb does the edge following. The function also periodically checks if the
+//droplet is still within a close distance for the edge following. If not, it indicates that to the user using LEDs and moves closer to the swarm.
+
+void move_to_closest(){
+	if(rnb_updated){
+		printf("RANGE %u Bearing %d Heading %d ID: %04x\n\r",last_good_rnb.range,last_good_rnb.bearing,last_good_rnb.heading,last_good_rnb.id);
+		if(last_good_rnb.range<=70){
+				set_rgb(0,100,0);
+			follow_edge_withrnb(0);
+			can_follow_edge=1;
+		}
+		else{						// if range is too large, make bearing zero and move forward 
+			set_rgb(100,0,0);
+			if(((last_good_rnb.bearing>=0)&&(last_good_rnb.bearing<=20))||((last_good_rnb.bearing<0)&&(last_good_rnb.bearing>=(-20))))
+			move_steps(0,STEPS);
+			else if(last_good_rnb.bearing>20)// bearing positive means on left side of arrow, so move anticlockwise
+			move_steps(7,STEPS);
+			else if(last_good_rnb.bearing<-20)
+			move_steps(6,STEPS);
+		}
+		rnb_updated = 0; //Note! This line must be included for things to work properly.
+	}
+}
+void follow_edge_withrnb(int dir)
+{
+	//dir=0 ==> move in left direction using IR pair 1
+	//dir=1 ==> move in right direction using IR pair 4
+	
+	if(dir==0)
+	{
+		//check max ir coll dir
+		check_ir_coll_max(&max_value_dir,&max_ir_value);
+		if(max_value_dir==1)
+		{
+			move_steps(0,STEPS);
+		}
+		else if((max_value_dir==0)||(max_value_dir==5)){// if 0 or 5 , move anticlockwise
+			move_steps(7,STEPS);
+		}
+		else {
+			move_steps(6,STEPS);
+		}
+		while(is_moving()>0);
+	}
+	else if(dir==1)
+	{
+		check_ir_coll_max(&max_value_dir,&max_ir_value);
+		if(max_value_dir==4)
+		{
+			move_steps(0,STEPS);
+		}
+		else if((max_value_dir==0)||(max_value_dir==5)){// if 0 or 5 , move clockwise
+			move_steps(6,STEPS);
+		}
+		else {
+			move_steps(7,STEPS);
+		}
+		while(is_moving()>0);
+		
+	}
+	printf("max dir:%d max value:%d\n\r",max_value_dir,max_ir_value);
+	//check if dir 1 has max IR -> if yes, move fwd 10 steps
+	//									-> if no, move_anticlockwise 10 steps and check again
+}
+

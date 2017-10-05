@@ -42,24 +42,22 @@
 
 typedef struct ir_msg_struct
 {
-	uint32_t arrival_time;	// Time of message receipt.
-	uint16_t sender_ID;		// ID of sending robot.
+	uint32_t arrivalTime;	// Time of message receipt.
+	id_t senderID;		// ID of sending robot.
 	char* msg;				// The message.
-	uint8_t dir_received;	// Which side was this message received on?
 	uint8_t length;			// Message length.
-	uint8_t wasTargeted;
-} ir_msg;
+} irMsg;
 
 extern void init(void);
 extern void loop(void);
-extern void handle_msg(ir_msg* msg_struct);
-extern uint8_t user_handle_command(char* command_word, char* command_args);
+extern void handleMsg(irMsg* msg_struct);
+extern uint8_t userHandleCommand(char* commandWord, char* commandArgs);
 
-void startup_light_sequence(void);
-uint8_t get_droplet_ord(id_t id);
+void startupLightSequence(void);
+uint8_t getDropletOrd(id_t id);
 
 extern const id_t OrderedBotIDs[121];
 
-inline id_t get_id_from_ord(uint8_t ord){
+inline id_t getIdFromOrd(uint8_t ord){
 	return pgm_read_word(&OrderedBotIDs[ord]);
 }

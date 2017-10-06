@@ -5,7 +5,7 @@
 
 #define RTC_COMP_INT_LEVEL RTC_COMPINTLVL_LO_gc;
 #define MAX_NUM_SCHEDULED_TASKS 10
-#define MIN_TASK_TIME_IN_FUTURE 20
+#define MIN_TASK_TIME_IN_FUTURE 10
 
 typedef void (*arg_func_t)(void*);
 typedef void (*noarg_func_t)(void);

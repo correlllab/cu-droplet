@@ -19,7 +19,7 @@ void init(){
 	//set_sync_blink_color(0, 100, 0);
 	//set_sync_blink_duration(4000);
 	//set_rgb(0,0,150);
-	schedule_task(1000, lightsOn, NULL);
+	schedulePeriodicTask(2000, lightsOn, NULL);
 }
 
 
@@ -45,17 +45,16 @@ void loop(){
 	//if(!delayed){
 		//delay_ms(10);
 	//}
-	delay_ms(10);
+	delayMS(10);
 }
 
 void lightsOn(){
-	set_rgb(200,200,200);
-	schedule_task(1000, lightsOff, NULL);
+	setRGB(200,200,200);
+	scheduleTask(1000, lightsOff, NULL);
 }
 
-void lightOff(){
-	set_rgb(0,0,0);
-	schedule_task(1000, lightsOn, NULL);
+void lightsOff(){
+	setRGB(0,0,0);
 }
 
 /*

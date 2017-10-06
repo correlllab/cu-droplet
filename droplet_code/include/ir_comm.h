@@ -60,11 +60,10 @@
 #define HEADER_POS_CRC_LOW 2
 #define HEADER_POS_CRC_HIGH 3
 #define HEADER_POS_MSG_LENGTH 4
-#define HEADER_POS_TARGET_ID_LOW 5
-#define HEADER_POS_TARGET_ID_HIGH 6
-#define HEADER_POS_SOURCE_DIR 7
+#define HEADER_POS_TARGET_ID_HIGH 5
+#define HEADER_POS_TARGET_ID_LOW 6
 
-#define HEADER_LEN 8U
+#define HEADER_LEN 7U
 
 #define MAX_WAIT_FOR_IR_TIME (5*(IR_BUFFER_SIZE+HEADER_LEN))
 
@@ -85,11 +84,8 @@ volatile struct
 	volatile uint16_t calc_crc;
 	volatile char buf[IR_BUFFER_SIZE];		// Transmit / receive buffer		
 	volatile uint8_t  data_length;	
-	volatile int8_t inc_dir;
 	volatile uint8_t status;		// Transmit:
 } ir_rxtx[6];
-
-#define INC_DIR_KEY 0b11111000
 
 typedef struct msg_node{
 	uint32_t			arrivalTime;
@@ -110,7 +106,6 @@ volatile uint8_t userFacingMessagesOvf;
 volatile uint32_t	cmdArrivalTime;
 volatile id_t		cmdSenderId;
 volatile uint8_t	cmdArrivalDir;
-volatile uint8_t	cmdSenderDir;
 
 void irCommInit(void);
 

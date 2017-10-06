@@ -303,8 +303,6 @@ static int16_t processBrightMeas(void){
 
 void irRangeMeas(uint32_t rnbCmdSentTime){
 	//int32_t times[16] = {0};
-	cmdArrivalDir;
-	cmdSenderDir;
 	//times[0] = get_time();
 	while((getTime()-rnbCmdSentTime+8)<POST_BROADCAST_DELAY);
 	//times[1] = get_time();

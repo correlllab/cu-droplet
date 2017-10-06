@@ -41,19 +41,10 @@ void disableSyncBlink(){
 
 
 ISR(TCE0_CCA_vect){
-<<<<<<< HEAD
-	ffsync_blink_prev_r = get_red_led();
-	ffsync_blink_prev_g = get_green_led();
-	ffsync_blink_prev_b = get_blue_led();
-	set_red_led(ffsync_blink_r);
-	set_green_led(ffsync_blink_g);
-	set_blue_led(ffsync_blink_b);
-=======
 	ffsync_blink_prev_r = getRedLED();
 	ffsync_blink_prev_g = getGreenLED();
 	ffsync_blink_prev_b = getBlueLED();
 	setRGB(ffsync_blink_r,ffsync_blink_g,ffsync_blink_b);
->>>>>>> c4b319f021f0e2f025527b1e90e9d2b8505dc06b
 }
 
 ISR(TCE0_CCB_vect){
@@ -88,9 +79,10 @@ void fireflySyncInit()
 }
 
 ISR(TCE0_OVF_vect){
-	scheduleTask(randShort()%FFSYNC_D, (arg_func_t)sendPing, (void*)((uint16_t)(getTime()&0xFFFF)));
+	uint32_t randomWait = (randShort()%32)*20; //between 0 and 640ms
 	//sendPing( (void*)((uint16_t)(get_time()&0xFFFF)));
 	updateRTC();
+	scheduleTask(randomWait, (arg_func_t)sendPing, (void*)((uint16_t)(getTime()&0xFFFF)));
 	//printf("ovf @ %lu\r\n",get_time());
 }
 

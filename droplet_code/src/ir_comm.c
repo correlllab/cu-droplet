@@ -11,8 +11,8 @@ static void irReceive(uint8_t dir); //Called by Interrupt Handler Only
 static void receivedIrCmd(uint8_t dir);
 static void addMsgToMsgQueue(uint8_t dir);
 static void handleCompletedMsg(uint8_t dir);
-static void receivedRnbCmd(uint8_t delay, id_t senderID, uint32_t lastByte);
-static void receivedIrSyncCmd(uint8_t delay, id_t senderID);
+static void receivedRnbCmd(uint16_t delay, uint32_t lastByte, id_t senderID);
+static void receivedIrSyncCmd(uint16_t delay, uint32_t lastByte, id_t senderID);
 static void irTransmit(uint8_t dir);
 static void irTransmitComplete(uint8_t dir);
 
@@ -37,7 +37,6 @@ static void clearIrBuffer(uint8_t dir){
 	ir_rxtx[dir].curr_pos		= 0;
 	ir_rxtx[dir].calc_crc		= 0;
 	ir_rxtx[dir].data_length	= 0;	
-	ir_rxtx[dir].inc_dir 		= 0;
 	
 	ir_rxtx[dir].status			= 0;	
 	
@@ -116,7 +115,9 @@ void send_msg(uint8_t dirs, char *data, uint8_t dataLength, uint8_t hpFlag){
 	for(uint8_t dir=0; dir<6; dir++){
 		if(dirs&(1<<dir)){			
 			crc = _crc16_update(crc, (ir_rxtx[dir].status & IR_STATUS_CRC_BITS_bm));
-			crc = _crc16_update(crc, ir_rxtx[dir].target_ID);
+			if(!(ir_rxtx[dir].status&IR_STATUS_TIMED_bm)){
+				crc = _crc16_update(crc, ir_rxtx[dir].target_ID);
+			}
 			break;
 		}	
 	}
@@ -263,7 +264,7 @@ static void addMsgToMsgQueue(uint8_t dir){
 			if(incomingMsgHead==NULL){
 				incomingMsgHead = (volatile MsgNode*)myMalloc(sizeof(MsgNode) + ir_rxtx[dir].data_length);
 				node = (MsgNode*)incomingMsgHead;
-				}else{
+			}else{
 				while(node->next != NULL){
 					node = node->next;
 				}
@@ -292,18 +293,14 @@ static void handleCompletedMsg(uint8_t dir){
 	const uint8_t selfSender  = ir_rxtx[dir].senderID == getDropletID();
 	const uint8_t notTimed	  = !(ir_rxtx[dir].status & IR_STATUS_TIMED_bm);
 	const uint8_t wrongTarget = (notTimed && ir_rxtx[dir].target_ID && ir_rxtx[dir].target_ID!=getDropletID());
-	const uint8_t incDirErr	= 0;//(notTimed && (ir_rxtx[dir].inc_dir&INC_DIR_KEY)!=INC_DIR_KEY);
-	if(!((crcMismatch||nullCrc)||(selfSender||wrongTarget)||incDirErr)){
-		if(notTimed){
-			ir_rxtx[dir].inc_dir = ir_rxtx[dir].inc_dir&(~INC_DIR_KEY); //remove key bits.
-		}
+	if(!((crcMismatch||nullCrc)||(selfSender||wrongTarget))){
 		if(ir_rxtx[dir].status & IR_STATUS_COMMAND_bm){
 			if(notTimed){
 				receivedIrCmd(dir);
 			}else{
 				switch(ir_rxtx[dir].data_length){
-					case 0: receivedIrSyncCmd(ir_rxtx[dir].inc_dir, ir_rxtx[dir].senderID); break;
-					case 1: receivedRnbCmd(ir_rxtx[dir].inc_dir, ir_rxtx[dir].senderID, ir_rxtx[dir].last_byte); break;
+					case 0: receivedIrSyncCmd(ir_rxtx[dir].target_ID, ir_rxtx[dir].last_byte, ir_rxtx[dir].senderID); break;
+					case 1: receivedRnbCmd(ir_rxtx[dir].target_ID, ir_rxtx[dir].last_byte, ir_rxtx[dir].senderID); break;
 				}
 			}
 		}else{
@@ -341,9 +338,10 @@ static void irReceive(uint8_t dir){
 		case HEADER_POS_TARGET_ID_LOW:  ir_rxtx[dir].target_ID		= (uint16_t)in_byte;		break;
 		case HEADER_POS_TARGET_ID_HIGH:
 										ir_rxtx[dir].target_ID	   |= (((uint16_t)in_byte)<<8);
-										ir_rxtx[dir].calc_crc		= _crc16_update(ir_rxtx[dir].calc_crc, ir_rxtx[dir].target_ID);
-										break;
-		case HEADER_POS_SOURCE_DIR:		ir_rxtx[dir].inc_dir		= in_byte;				break;										
+										if(!(ir_rxtx[dir].status & IR_STATUS_TIMED_bm)){
+											ir_rxtx[dir].calc_crc		= _crc16_update(ir_rxtx[dir].calc_crc, ir_rxtx[dir].target_ID);
+										}
+										break;								
 		default:
 			ir_rxtx[dir].buf[ir_rxtx[dir].curr_pos-HEADER_LEN] = in_byte;
 			ir_rxtx[dir].calc_crc = _crc16_update(ir_rxtx[dir].calc_crc, in_byte);
@@ -365,7 +363,6 @@ static void receivedIrCmd(uint8_t dir){
 			cmdArrivalTime = ir_rxtx[dir].last_byte;	//This is a 'global' value, referenced by other *.c files.
 			cmdSenderId = ir_rxtx[dir].senderID;		//This is a 'global' value, referenced by other *.c files.
 			cmdArrivalDir = dir;
-			cmdSenderDir  = ir_rxtx[dir].inc_dir;
 			processingCmdFlag = 1;
 		}
 	}
@@ -379,13 +376,13 @@ static void receivedIrCmd(uint8_t dir){
 	}
 }
 
-static void receivedIrSyncCmd(uint8_t delay, id_t senderID){
+static void receivedIrSyncCmd(uint16_t delay, uint32_t last_byte, id_t senderID){
 	uint8_t processThisFFSync = 0;
 	uint16_t count;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 		if(!processingFFsyncFlag){
 			count = TCE0.CNT;
-			if(delay!=0xFF){
+			if(delay!=0xFFFF){
 				processThisFFSync = 1;
 				processingFFsyncFlag = 1;
 			}
@@ -393,6 +390,7 @@ static void receivedIrSyncCmd(uint8_t delay, id_t senderID){
 	}
 	if(processThisFFSync){
 		//printf("senderID: %04X\tdelay: %hu\r\n", ir_rxtx[dir].sender_ID, delay);
+		delay = delay+5+(getTime()-last_byte); //The time is measured right before sending and is the last two bytes of the message. Our baud rate means that it takes 5ms to send two bytes.
 		updateFireflyCounter(count, delay);
 		ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 			for(uint8_t dir=0;dir<6;dir++){
@@ -406,12 +404,12 @@ static void receivedIrSyncCmd(uint8_t delay, id_t senderID){
 	//printf("F\r\n");
 }
 
-static void receivedRnbCmd(uint8_t delay, id_t senderID, uint32_t last_byte){
+static void receivedRnbCmd(uint16_t delay, uint32_t last_byte, id_t senderID){
 	uint8_t processThisRNB = 0;
 	uint32_t rnbCmdSentTime = 0;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 		if(!processing_rnb_flag && (irIsBusy(ALL_DIRS)<8)){
-			if(delay!=0xFF){
+			if(delay!=0xFFFF){
 				rnbCmdID = senderID;
 				//printf("%04X: %hu\r\n", rnbCmdID, delay+5);			
 				if(delay<5) delay = 20-delay;
@@ -419,7 +417,6 @@ static void receivedRnbCmd(uint8_t delay, id_t senderID, uint32_t last_byte){
 				processThisRNB = 1;
 				processing_rnb_flag = 1;
 				hpIrBlock_bm = 0x3F;
-
 			}
 		}
 	}
@@ -445,28 +442,20 @@ static void receivedRnbCmd(uint8_t delay, id_t senderID, uint32_t last_byte){
 static volatile uint8_t next_byte;
 static void irTransmit(uint8_t dir){
 	switch(ir_rxtx[dir].curr_pos){
-		case HEADER_POS_SENDER_ID_LOW:  next_byte  = (uint8_t)(ir_rxtx[dir].senderID&0xFF);		break;
+		case HEADER_POS_SENDER_ID_LOW:  next_byte  = (uint8_t)(ir_rxtx[dir].senderID&0xFF);			break;
 		case HEADER_POS_SENDER_ID_HIGH: next_byte  = (uint8_t)((ir_rxtx[dir].senderID>>8)&0xFF);	break;	
 		case HEADER_POS_CRC_LOW:		next_byte  = (uint8_t)(ir_rxtx[dir].data_crc&0xFF);			break;
 		case HEADER_POS_CRC_HIGH:		next_byte  = (uint8_t)((ir_rxtx[dir].data_crc>>8)&0xFF);	break;	
 		case HEADER_POS_MSG_LENGTH:		next_byte  = ir_rxtx[dir].data_length & DATA_LEN_VAL_bm;
 										next_byte |= (ir_rxtx[dir].status & IR_STATUS_COMMAND_bm);
-										next_byte |= (ir_rxtx[dir].status & IR_STATUS_TIMED_bm); break;
-		case HEADER_POS_TARGET_ID_LOW:	next_byte  = (uint8_t)(ir_rxtx[dir].target_ID&0xFF);		break;
-		case HEADER_POS_TARGET_ID_HIGH:	next_byte  = (uint8_t)((ir_rxtx[dir].target_ID>>8)&0xFF);	break;
-		case HEADER_POS_SOURCE_DIR:	
-									if(!(ir_rxtx[dir].status&IR_STATUS_TIMED_bm)){
-										next_byte  = INC_DIR_KEY|dir;								
-									}else{
-										uint16_t diff = ((uint16_t)(getTime()&0xFFFF))-ir_rxtx[dir].target_ID;
-										//if(dir==0||dir==5) printf("(%hu) T: %u\r\n",dir, diff);
-										if(diff<255){
-											next_byte = (uint8_t)diff;
-										}else{
-											next_byte = 255;
+										next_byte |= (ir_rxtx[dir].status & IR_STATUS_TIMED_bm);	break;
+		case HEADER_POS_TARGET_ID_LOW:	if((ir_rxtx[dir].status&IR_STATUS_TIMED_bm)){
+											uint32_t truncatedTime = getTime()&0xFFFF;
+											uint16_t timeGap = (truncatedTime < ir_rxtx[dir].target_ID) ? ((truncatedTime+0x10000)-truncatedTime) : (truncatedTime-ir_rxtx[dir].target_ID);
+											ir_rxtx[dir].target_ID = (timeGap>30000) ? 0xFFFF0 : timeGap;
 										}
-									}
-									break;
+										next_byte  = (uint8_t)(ir_rxtx[dir].target_ID&0xFF);		break;
+		case HEADER_POS_TARGET_ID_HIGH:	next_byte = (uint8_t)((ir_rxtx[dir].target_ID>>8)&0xFF);	break;
 		default: next_byte = ir_rxtx[dir].buf[ir_rxtx[dir].curr_pos - HEADER_LEN];
 	}
 	channel[dir]->DATA = next_byte;
@@ -479,10 +468,8 @@ static void irTransmit(uint8_t dir){
 		//}
 		//printf("\r\n");
 		clearIrBuffer(dir);
-		channel[dir]->CTRLA &= ~USART_DREINTLVL_gm; //Turn off interrupt things.
-		
+		channel[dir]->CTRLA &= ~USART_DREINTLVL_gm; //Turn off interrupt things.	
 	}
-
 }
 
 // TO BE CALLED FROM INTERRUPT HANDLER ONLY

@@ -3,7 +3,7 @@
 #include "ir_comm.h"
 #include "random.h"
 
-#define FFSYNC_FULL_PERIOD_MS		5153
+#define FFSYNC_FULL_PERIOD_MS		8009
 
 #define FFSYNC_MS_CONVERSION_FACTOR 7.8125
 

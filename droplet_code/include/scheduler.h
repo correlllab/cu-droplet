@@ -43,7 +43,7 @@ void taskListCleanup(void);
  * time is number of milliseconds from present until function is executed
  * function is a function pointer to execute
  * arg is the argument to supply to function
- * Example: schedule_task(1000, foo, (void*)55)
+ * Example: scheduleTask(1000, foo, (void*)55)
  * will call foo(55) in one second
  * Returns a pointer to the task that can be used to remove the task from the queue
  */

@@ -37,7 +37,7 @@ uint32_t return_value;
 
 #define IR_BUFFER_SIZE			40u //bytes
 #define IR_UPKEEP_FREQUENCY		16 //Hz
-#define IR_MSG_TIMEOUT			16 //ms
+#define IR_MSG_TIMEOUT			4 //ms
 
 #define IR_STATUS_BUSY_bm				0x01	// 0000 0001				
 #define IR_STATUS_COMPLETE_bm			0x02	// 0000 0010
@@ -85,7 +85,7 @@ volatile struct
 {	
 	volatile uint32_t last_byte;			// TX time or RX time of last received byte	
 	volatile uint16_t data_crc;
-	volatile id_t sender_ID;
+	volatile id_t senderID;
 	volatile id_t target_ID;
 	volatile uint16_t curr_pos;				// Current position in buffer
 	volatile uint16_t calc_crc;
@@ -142,6 +142,39 @@ uint8_t ir_targeted_send(uint8_t dirs, char *data, uint8_t data_length, id_t tar
 uint8_t ir_send(uint8_t dirs, char *data, uint8_t data_length);
 uint8_t hp_ir_cmd(uint8_t dirs, char *data, uint8_t data_length);
 uint8_t hp_ir_targeted_cmd(uint8_t dirs, char *data, uint8_t data_length, id_t target);
+
+typedef struct msg_node{
+	uint32_t			arrivalTime;
+	id_t				senderID;
+	uint16_t			crc;
+	char*				msg;
+	struct msg_node*	next;
+	uint8_t				length;
+} MsgNode;
+volatile MsgNode* incomingMsgHead;
+
+uint16_t memoryConsumedByBuffer;
+
+volatile uint8_t hpIrBlock_bm;			//can only be set by other high priority ir things!
+volatile uint8_t numWaitingMsgs;
+volatile uint8_t userFacingMessagesOvf;
+
+volatile uint32_t	cmdArrivalTime;
+volatile id_t		cmdSenderId;
+volatile uint8_t	cmdArrivalDir;
+volatile uint8_t	cmdSenderDir;
+
+void irCommInit(void);
+
+void handleCmdWrapper(void);
+
+uint8_t irTargetedCmd(uint8_t dirs, char *data, uint8_t data_length, id_t target);
+uint8_t irCmd(uint8_t dirs, char *data, uint8_t data_length);
+uint8_t irTargetedSend(uint8_t dirs, char *data, uint8_t data_length, id_t target);
+uint8_t irSend(uint8_t dirs, char *data, uint8_t dataLength);
+uint8_t hpIrCmd(uint8_t dirs, char *data, uint8_t data_length);
+uint8_t hpIrTargetedCmd(uint8_t dirs, char *data, uint8_t data_length, id_t target);
+
 void waitForTransmission(uint8_t dirs);
 NODE* buffer_createNode(const char * str, uint8_t dir, uint8_t dataLength, id_t msgTarget, uint8_t cmdFlag);
 void tryAndSendMessage(void);//void * msg_temp_node);
@@ -157,5 +190,5 @@ void tryAndSendMessage(void);//void * msg_temp_node);
  * 
  * Using (ir_is_busy(dirs_mask)>1) is equivalent to the old (!ir_is_available(dirs_mask))
  */
-uint8_t ir_is_busy(uint8_t dirs_mask);
+uint8_t irIsBusy(uint8_t dirs_mask);
 //uint8_t wait_for_ir(uint8_t dirs);

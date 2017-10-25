@@ -15,7 +15,7 @@ typedef union{
 	float f;
 } u;
 
-void rgb_sensor_init()
+void rgbSensorInit()
 {
 	#ifdef AUDIO_DROPLET
 		uint8_t power_on_sequence[8] = {0x80, 0x01,  // Write 0x01 to ENABLE register, activating the device's oscillator.
@@ -56,15 +56,15 @@ void rgb_sensor_init()
 	
 		delay_us(50);
 		const int8_t num_samples = 3;
-		get_red_sensor(); get_blue_sensor(); get_green_sensor();
-		delay_ms(10);
+		getRedSensor(); getBlueSensor(); getGreenSensor();
+		delayMS(10);
 		int16_t r_avg=0, g_avg=0, b_avg=0;
 		for(uint8_t i=0; i<num_samples; i++)
 		{
-			r_avg+=get_red_sensor();
-			g_avg+=get_green_sensor();
-			b_avg+=get_blue_sensor();
-			delay_ms(10);
+			r_avg+=getRedSensor();
+			g_avg+=getGreenSensor();
+			b_avg+=getBlueSensor();
+			delayMS(10);
 			//printf("\r\n");
 		}
 		r_baseline= r_avg/num_samples;
@@ -79,7 +79,7 @@ void rgb_sensor_init()
 
 #ifndef AUDIO_DROPLET
 
-int16_t get_red_sensor(){
+int16_t getRedSensor(){
 	int16_t meas[RGB_MEAS_COUNT];
 	int16_t red_val;
 	//printf("R: ");
@@ -91,11 +91,11 @@ int16_t get_red_sensor(){
 		//printf("%6d ", meas[meas_count]);
 	}
 	//printf("\r\n");
-	red_val=meas_find_median(&meas[2], RGB_MEAS_COUNT-2);
+	red_val=measFindMedian(&meas[2], RGB_MEAS_COUNT-2);
 	return red_val;
 }
 
-int16_t get_green_sensor(){
+int16_t getGreenSensor(){
 	int16_t meas[RGB_MEAS_COUNT];
 	int16_t green_val;		
 	//printf("G: ");
@@ -107,12 +107,12 @@ int16_t get_green_sensor(){
 		//printf("%6d ", meas[meas_count]);
 	}
 	//printf("\r\n");
-	green_val=meas_find_median(&meas[2], RGB_MEAS_COUNT-2);
+	green_val=measFindMedian(&meas[2], RGB_MEAS_COUNT-2);
 
 	return green_val;
 }
 
-int16_t get_blue_sensor(){
+int16_t getBlueSensor(){
 	int16_t meas[RGB_MEAS_COUNT];
 	int16_t blue_val;
 	//printf("B: ");
@@ -124,7 +124,7 @@ int16_t get_blue_sensor(){
 		//printf("%6d ", meas[meas_count]);
 	}		
 	//printf("\r\n");
-	blue_val=meas_find_median(&meas[2], RGB_MEAS_COUNT-2);
+	blue_val=measFindMedian(&meas[2], RGB_MEAS_COUNT-2);
 		
 	return blue_val;
 }
@@ -132,7 +132,7 @@ int16_t get_blue_sensor(){
 #endif
 
 
-void get_rgb(int16_t *r, int16_t *g, int16_t *b)
+void getRGB(int16_t *r, int16_t *g, int16_t *b)
 {
 	#ifdef AUDIO_DROPLET
 		
@@ -152,9 +152,9 @@ void get_rgb(int16_t *r, int16_t *g, int16_t *b)
 	#else
 		int16_t rTemp,gTemp,bTemp;
 	
-		rTemp = get_red_sensor();
-		gTemp = get_green_sensor();
-		bTemp = get_blue_sensor();		
+		rTemp = getRedSensor();
+		gTemp = getGreenSensor();
+		bTemp = getBlueSensor();		
 		rTemp = rTemp - r_baseline;
 		gTemp = gTemp - g_baseline;
 		bTemp = bTemp - b_baseline;
@@ -169,7 +169,7 @@ void get_rgb(int16_t *r, int16_t *g, int16_t *b)
 
 // Finds the median of arr_len numbers by finding the max, finding the min, and returning the other value
 // WARNING! This function modifies the array!
-int16_t meas_find_median(int16_t* meas, uint8_t arr_len){
+int16_t measFindMedian(int16_t* meas, uint8_t arr_len){
 	if(arr_len==1) return meas[0];
 	else if(arr_len==2) return (meas[0]+meas[1])/2;
 	

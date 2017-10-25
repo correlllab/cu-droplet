@@ -13,4 +13,4 @@ uint16_t msgCount;
 
 void		init(void);
 void		loop(void);
-void		handle_msg(ir_msg* msg_struct);
+void		handleMsg(irMsg* msgStruct);

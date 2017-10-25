@@ -16,13 +16,13 @@
 #define FFSYNC_D				160
 #define FFSYNC_W				200
 
-void firefly_sync_init(void);
+void fireflySyncInit(void);
 
-void set_sync_blink_color(uint8_t r, uint8_t g, uint8_t b);
-void set_sync_blink_duration(uint16_t dur);
-void enable_sync_blink(uint16_t phase_offset_ms);
-uint8_t sync_blink_enabled(void);
-void disable_sync_blink(void);
+void setSyncBlinkColor(uint8_t r, uint8_t g, uint8_t b);
+void setSyncBlinkDuration(uint16_t dur);
+void enableSyncBlink(uint16_t phase_offset_ms);
+uint8_t syncBlinkEnabled(void);
+void disableSyncBlink(void);
 void processObsQueue(void);
 void sendPing(uint16_t val);
 
@@ -34,7 +34,7 @@ typedef struct obs_queue_struct{
 
 ObsQueue* obsStart;
 
-inline void update_firefly_counter(volatile uint16_t count, volatile uint8_t delay){
+inline void updateFireflyCounter(volatile uint16_t count, volatile uint8_t delay){
 	uint16_t theDelay = (delay+2)*FFSYNC_MS_CONVERSION_FACTOR;
 	uint16_t obs;
 	ObsQueue* node;

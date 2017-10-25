@@ -1,12 +1,12 @@
 #include "power.h"
 
-void power_init()
+void powerInit()
 {
-	cap_monitor_init();
-	leg_monitor_init();
+	capMonitorInit();
+	legMonitorInit();
 }
 
-void cap_monitor_init()
+void capMonitorInit()
 {
 	PORTB.DIRCLR = PIN0_bm | PIN1_bm;
 	
@@ -19,7 +19,7 @@ void cap_monitor_init()
 	ACB.WINCTRL = AC_WEN_bm;
 }
 
-void leg_monitor_init()
+void legMonitorInit()
 {
 	PORTA.DIRCLR = PIN0_bm | PIN1_bm | PIN2_bm | PIN3_bm | PIN4_bm;
 	
@@ -40,7 +40,7 @@ void leg_monitor_init()
 }
 
 
-uint8_t cap_status()
+uint8_t capStatus()
 {
 	switch (ACB.STATUS & AC_WSTATE_gm)
 	{
@@ -51,7 +51,7 @@ uint8_t cap_status()
 	return -2;
 }
 
-int8_t leg_status(uint8_t leg)
+int8_t legStatus(uint8_t leg)
 {
 	volatile uint8_t status;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
@@ -84,10 +84,10 @@ int8_t leg_status(uint8_t leg)
 	}
 }
 
-uint8_t legs_powered()
+uint8_t legsPowered()
 {
-	if ((leg_status(0) ==  1 || leg_status(1) ==  1 || leg_status(2) ==  1) &&
-		(leg_status(0) == -1 || leg_status(1) == -1 || leg_status(2) == -1))
+	if ((legStatus(0) ==  1 || legStatus(1) ==  1 || legStatus(2) ==  1) &&
+		(legStatus(0) == -1 || legStatus(1) == -1 || legStatus(2) == -1))
 		return 1;
 	return 0;
 }

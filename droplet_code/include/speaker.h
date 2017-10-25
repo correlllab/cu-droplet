@@ -2,20 +2,20 @@
 #include "droplet_base.h"
 #include "scheduler.h"
 
-void speaker_init(void);
+void speakerInit(void);
 
 #ifdef AUDIO_DROPLET
 
 #define MAX_NOTES_PER_SONG 128
 #define NOTE_SWITCH_DUR_MS 10
 
-void play_song(uint8_t* notes, uint16_t* durs, uint8_t song_len, uint8_t pauses);
+void playSong(uint8_t* notes, uint16_t* durs, uint8_t song_len, uint8_t pauses);
 
-void emit_sound(uint16_t period, uint32_t duration);
-void start_sound(uint8_t note);
-void switch_sound(void);
-void brief_pause(void);
-void stop_sound(void);
+void emitSound(uint16_t period, uint32_t duration);
+void startSound(uint8_t note);
+void switchSound(void);
+void briefPause(void);
+void stopSound(void);
 
 #define NOTE_B7		62
 #define NOTE_AS7	66

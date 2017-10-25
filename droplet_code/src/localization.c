@@ -1,17 +1,21 @@
 #include "localization.h"
 
+//#define NUM_SEEDS 4
+//
+//const BotPos SEED_POS[NUM_SEEDS] = {{50,50,0}, {200,50,0}, {50,200,0}, {200,200,0}};
+//const id_t   SEED_IDS[NUM_SEEDS] = {0x7EDF, 0x1361, 0x6C66, 0x9669};
 #define NUM_SEEDS 4
 
-const BotPos SEED_POS[NUM_SEEDS] = {{50,50,0}, {200,50,0}, {50,200,0}, {200,200,0}};
-const id_t   SEED_IDS[NUM_SEEDS] = {0x7EDF, 0x1361, 0x6C66, 0x9669};
+const BotPos SEED_POS[NUM_SEEDS] = {{0,0,0}, {-17,226, 0},{26,440,0},{0,0,0}};
+const id_t   SEED_IDS[NUM_SEEDS] = {0x6C66, 0xCCD1, 0x1361,0xFFFF};
 
 //const BotPos SEEDS[NUM_SEEDS] = {{100, 600, 0}, {600, 600, 0}, {100, 100, 0}, {600, 100, 0}};
 
 //The MIN and MAX values below are only needed for getPosColor.
 #define MIN_X 0
 #define MIN_Y 0
-#define MAX_X 250
-#define MAX_Y 250
+#define MAX_X 150
+#define MAX_Y 150
 
 static float	chooseOmega(Matrix* myPinv, Matrix* yourPinv);
 static float	mahalanobisDistance(Vector* a, Matrix* A, Vector* b, Matrix* B);
@@ -35,7 +39,7 @@ static const Matrix measCovarFar = {{2000, -5, -0.1}, {-5, 0.6, 0.5}, {-0.1, 0.5
 //static const Matrix xyMeasCovarMed = {{500, 100, -4}, {100, 500, -0.5}, {-4, -0.5, 0.2}};
 //static const Matrix xyMeasCovarFar = {{8000, -1000, -0.25}, {-1000, 8000, -10}, {-0.25, -10, 1}};
 
-void localization_init(){
+void localizationInit(){
 	myPos.x = UNDF;
 	myPos.y = UNDF;
 	myPos.o = UNDF;
@@ -44,7 +48,7 @@ void localization_init(){
 	}
 	seedFlag = 0;
 	for(uint8_t i=0;i<NUM_SEEDS;i++){
-		if(get_droplet_id()==SEED_IDS[i]){
+		if(getDropletID()==SEED_IDS[i]){
 			seedFlag = 1;
 			myPos.x = SEED_POS[i].x;
 			myPos.y = SEED_POS[i].y;
@@ -167,18 +171,23 @@ static void covarUnion(Vector* x, Matrix* U, Vector* a, Matrix* A, Vector* b, Ma
 }
 
 /*
+ * TODO:
+ * Experiment with Mahalanobis Distance Thresholds for intersection vs. union vs. outright rejection.
+ */
+
+/*
  * This function updates my position estimate based on a new position estimate.
  * pos is the new position estimate.
  * yourP is the new position estimate's covariance matrix.
  */
 static void updatePos(BotPos* pos, Matrix* yourP){
-	Vector xMe = {myPos.x, myPos.y, deg_to_rad(myPos.o)};
+	Vector xMe = {myPos.x, myPos.y, degToRad(myPos.o)};
 	if(!POS_DEFINED(pos)){
 		MY_POS_DEBUG_PRINT(" sent me an undefined position.\r\n");
 		return;
 	}
 	MY_POS_DEBUG_PRINT("thinks I'm at {%d, %d, %d}", pos->x, pos->y, pos->o);
-	Vector xMeFromYou = {pos->x, pos->y, deg_to_rad(pos->o)};
+	Vector xMeFromYou = {pos->x, pos->y, degToRad(pos->o)};
 	Matrix myP;
 	decompressP(&myP, &myPosCovar);
 	Matrix myNewP;
@@ -192,7 +201,7 @@ static void updatePos(BotPos* pos, Matrix* yourP){
 		//Based on cumulative chi-squared distribution.
 		MY_POS_DEBUG_PRINT(" but the mahalanobis distance (%5.2f) is too large.\r\n", mDist);
 		return;
-		}else if(mDist>1.0){
+	}else if(mDist>1.0){
 		//This mDist corresponds to a likelihood (of consistency..?) of ~80%
 		//Based on cumulative chi-squared distribution.
 		covarUnion(&myNewPos, &myNewP, &xMe, &myP, &xMeFromYou, yourP);
@@ -204,7 +213,7 @@ static void updatePos(BotPos* pos, Matrix* yourP){
 
 	myPos.x = myNewPos[0]>8191 ? 8191 : (myNewPos[0]<-8192 ? -8192 : myNewPos[0]);
 	myPos.y = myNewPos[1]>8191 ? 8191 : (myNewPos[1]<-8192 ? -8192 : myNewPos[1]);
-	myPos.o = (rad_to_deg(myNewPos[2]) + 0.5);
+	myPos.o = (radToDeg(myNewPos[2]) + 0.5);
 	MY_POS_DEBUG_PRINT(" giving pos {%d, %d, %d}.\r\n", myPos.x, myPos.y, myPos.o);
 	MY_POS_DEBUG_PRINT("\tMahalanobis Distance: %f\r\n", mDist);
 	#if defined(MY_POS_DEBUG_MODE) && defined(COVAR_DEBUG_MODE)
@@ -256,11 +265,11 @@ static void calcRelativePose(Vector* pose, Vector* meas){
 }
 
 void relativePosition(uint16_t r, int16_t b, int16_t h, BotPos* pos, Vector* myPos){
-	Vector x_you = {pos->x, pos->y, deg_to_rad(pos->o)};
+	Vector x_you = {pos->x, pos->y, degToRad(pos->o)};
 	int16_t otherBotB;
 	int16_t otherBotH;
 	convertMeas(&otherBotB, &otherBotH, b, h);
-	Vector meas = {r, deg_to_rad(otherBotB+90), deg_to_rad(otherBotH+90)};
+	Vector meas = {r, degToRad(otherBotB+90), degToRad(otherBotH+90)};
 	Matrix G;
 	populateGammaMatrix(&G, &x_you);
 	Vector z;
@@ -326,7 +335,7 @@ static void decompressP(Matrix* P, DensePosCovar* covar){
  * by Luic C. Carillo-Arce et. al.
  */
 void updateForMovement(__attribute__((unused)) uint8_t dir, __attribute__((unused)) uint16_t mag){
-	__attribute__((unused)) Vector curX = {myPos.x, myPos.y, deg_to_rad(myPos.o)};
+	__attribute__((unused)) Vector curX = {myPos.x, myPos.y, degToRad(myPos.o)};
 	__attribute__((unused)) Matrix curP;
 	decompressP(&curP, &myPosCovar);
 	__attribute__((unused)) Vector newX;
@@ -351,8 +360,8 @@ void useRNBmeas(id_t id, uint16_t r, int16_t b, int16_t h){
 		POS_CALC_DEBUG_PRINT("Can't adjust others' positions until I know where I am.\r\n");
 		return;
 	}
-	Vector x_me = {myPos.x, myPos.y, deg_to_rad(myPos.o)};
-	Vector meas = {r, deg_to_rad(b+90), deg_to_rad(h+90)};
+	Vector x_me = {myPos.x, myPos.y, degToRad(myPos.o)};
+	Vector meas = {r, degToRad(b+90), degToRad(h+90)};
 	Matrix myP;
 	decompressP(&myP, &myPosCovar);
 	Matrix G;
@@ -382,7 +391,7 @@ void useRNBmeas(id_t id, uint16_t r, int16_t b, int16_t h){
 	matrixAdd(&yourP, &tmp, &yourP);
 	
 	if(positiveDefiniteQ(&yourP)){
-		POS_CALC_DEBUG_PRINT("\t%04X @ {%6.1f, %6.1f, % 5.0f} from {% 4d, % 4d, % 4d}\r\n", id, x_you[0], x_you[1], (rad_to_deg(x_you[2]-M_PI_2)+0.5), r, b, h);
+		POS_CALC_DEBUG_PRINT("\t%04X @ {%6.1f, %6.1f, % 5.0f} from {% 4d, % 4d, % 4d}\r\n", id, x_you[0], x_you[1], (radToDeg(x_you[2]-M_PI_2)+0.5), r, b, h);
 		#if defined(POS_CALC_DEBUG_MODE) && defined(COVAR_DEBUG_MODE)
 		POS_CALC_DEBUG_PRINT("Calc'd Covar:\r\n");
 		printMatrixMathematica(&yourP);
@@ -390,7 +399,7 @@ void useRNBmeas(id_t id, uint16_t r, int16_t b, int16_t h){
 		BotPos pos;
 		pos.x = x_you[0]>8191 ? 8191 : (x_you[0]<-8192 ? -8192 : x_you[0]);
 		pos.y = x_you[1]>8191 ? 8191 : (x_you[1]<-8192 ? -8192 : x_you[1]);
-		pos.o = (rad_to_deg(x_you[2]-M_PI_2)+0.5);
+		pos.o = (radToDeg(x_you[2]-M_PI_2)+0.5);
 		DensePosCovar covar;
 		compressP(&yourP, &covar);
 		prepBotMeasMsg(id, r, b, &pos, &covar);
@@ -406,7 +415,7 @@ static void prepBotMeasMsg(id_t id, uint16_t r, int16_t b, BotPos* pos, DensePos
 	mNode->range = r;
 	mNode->dirMask = 0;
 	for(int8_t j=-45;j<90;j+=45){
-		mNode->dirMask |= 1<<dirFromAngle(pretty_angle_deg(b + j));
+		mNode->dirMask |= 1<<dirFromAngle(prettyAngleDeg(b + j));
 	}
 	mNode->msg.flag = BOT_MEAS_MSG_FLAG;
 	(mNode->msg).pos.x = pos->x;
@@ -421,16 +430,16 @@ static void prepBotMeasMsg(id_t id, uint16_t r, int16_t b, BotPos* pos, DensePos
 //Sends a BotMeasMsg using a poor man's CSMA protocol. Close-range measurements are biased to wait less 
 //long in exponential backoff.
 void sendBotMeasMsg(BotMeasMsgNode* mNode){
-	if(ir_is_busy(ALL_DIRS)){
+	if(irIsBusy(ALL_DIRS)){
 		if(mNode->numTries>5){
 			POS_MSG_DEBUG_PRINT("Giving up on msg to %04X after %hu tries.\r\n", mNode->tgt, mNode->numTries);
 			myFree(mNode);
 		}else{
-			schedule_task(getBackoffTime(mNode->numTries, mNode->range), (arg_func_t)sendBotMeasMsg, mNode);
+			scheduleTask(getBackoffTime(mNode->numTries, mNode->range), (arg_func_t)sendBotMeasMsg, mNode);
 		}
 		mNode->numTries++;
 	}else{
-		ir_targeted_send(mNode->dirMask, (char*)(&(mNode->msg)), sizeof(BotMeasMsg), mNode->tgt);
+		irTargetedSend(mNode->dirMask, (char*)(&(mNode->msg)), sizeof(BotMeasMsg), mNode->tgt);
 		POS_MSG_DEBUG_PRINT("%04X sent pos msg in dirs %02hX after %hu tries.\r\n", mNode->tgt, mNode->dirMask, mNode->numTries);
 		myFree(mNode);
 	}
@@ -472,7 +481,7 @@ void handleBotMeasMsg(BotMeasMsg* msg, id_t senderID __attribute__ ((unused))){
 static uint32_t getBackoffTime(uint8_t N, uint16_t r){
 	uint8_t randMax = (1<<N) - 1;
 	float totalValue = 0;
-	float chooser = rand_real();
+	float chooser = randReal();
 	//printf("Discrete Triangular:\r\n");
 	for(uint8_t i=0;i<randMax;i++){
 		totalValue += discreteTriangularPDF(i, randMax, r);
@@ -513,8 +522,13 @@ void getPosColor(uint8_t* r, uint8_t* g, uint8_t* b){
 	if(POS_DEFINED(&myPos)){
 		int16_t xRange = MAX_X-MIN_X;
 		int16_t yRange = MAX_Y-MIN_Y;
-		int16_t xColVal = (int16_t)(6.0*pow(41.0,(myPos.x-MIN_X)/((float)xRange))+9.0);
-		int16_t yColVal = (int16_t)(3.0*pow(84.0,(myPos.y-MIN_Y)/((float)yRange))+3.0);
+		float effX = (myPos.x-MIN_X)/(2.0*xRange);
+	    effX = 2.0*fabsf(floor(effX+0.5)-effX);
+		int16_t xColVal = (int16_t)(26*(pow(10.0,effX)-1)+1);
+		float effY = (myPos.y-MIN_Y)/(2.0*yRange);
+		effY = 2.0*fabsf(floor(effY+0.5)-effY);
+		int16_t yColVal = (int16_t)(20.0*(pow(10.0,effY)-1)+1);
+		//printf("{% 4d, %4d}->{%4.2f, %4.2f}->{%3d, %3d}\r\n", myPos.x, myPos.y, effX, effY, xColVal, yColVal);
 		*r = (uint8_t)(xColVal);
 		*g = (uint8_t)(yColVal);
 		*b = 0;

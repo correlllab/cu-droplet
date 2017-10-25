@@ -7,20 +7,20 @@ static uint16_t ffsync_blink_phase_offset_ms;
 
 static void updateRTC(void);
 
-void set_sync_blink_color(uint8_t r, uint8_t g, uint8_t b){
+void setSyncBlinkColor(uint8_t r, uint8_t g, uint8_t b){
 	ffsync_blink_r = r;
 	ffsync_blink_g = g;
 	ffsync_blink_b = b;
 }
 
-void set_sync_blink_duration(uint16_t dur){
+void setSyncBlinkDuration(uint16_t dur){
 	ffsync_blink_dur = dur;
 	if((TCE0.INTCTRLB & TC_CCAINTLVL_HI_gc) == TC_CCAINTLVL_HI_gc){
 		TCE0.CCA = TCE0.CCB - (uint16_t)(ffsync_blink_dur*FFSYNC_MS_CONVERSION_FACTOR);
 	}
 }
 
-void enable_sync_blink(uint16_t phase_offset){
+void enableSyncBlink(uint16_t phase_offset){
 	phase_offset = phase_offset%(((uint32_t)FFSYNC_FULL_PERIOD)/2);
 	uint16_t turn_off_cc = FFSYNC_FULL_PERIOD - phase_offset;
 	uint16_t turn_on_cc = turn_off_cc - (uint16_t)(ffsync_blink_dur*FFSYNC_MS_CONVERSION_FACTOR);
@@ -29,11 +29,11 @@ void enable_sync_blink(uint16_t phase_offset){
 	TCE0.INTCTRLB = TC_CCAINTLVL_HI_gc | TC_CCBINTLVL_HI_gc;
 }
 
-uint8_t sync_blink_enabled(){
+uint8_t syncBlinkEnabled(){
 	return (TCE0.INTCTRLB & (TC_CCAINTLVL_HI_gc | TC_CCBINTLVL_HI_gc)) == (TC_CCAINTLVL_HI_gc | TC_CCBINTLVL_HI_gc);
 }
 
-void disable_sync_blink(){
+void disableSyncBlink(){
 	TCE0.INTCTRLB = TC_CCAINTLVL_OFF_gc | TC_CCBINTLVL_OFF_gc;
 	TCE0.CCA = 0;
 	TCE0.CCB = 0;
@@ -41,17 +41,17 @@ void disable_sync_blink(){
 
 
 ISR(TCE0_CCA_vect){
-	ffsync_blink_prev_r = get_red_led();
-	ffsync_blink_prev_g = get_green_led();
-	ffsync_blink_prev_b = get_blue_led();
-	set_rgb(ffsync_blink_r,ffsync_blink_g,ffsync_blink_b);
+	ffsync_blink_prev_r = getRedLED();
+	ffsync_blink_prev_g = getGreenLED();
+	ffsync_blink_prev_b = getBlueLED();
+	setRGB(ffsync_blink_r,ffsync_blink_g,ffsync_blink_b);
 }
 
 ISR(TCE0_CCB_vect){
-	set_rgb(ffsync_blink_prev_r, ffsync_blink_prev_g, ffsync_blink_prev_b);	
+	setRGB(ffsync_blink_prev_r, ffsync_blink_prev_g, ffsync_blink_prev_b);	
 }
 
-void firefly_sync_init()
+void fireflySyncInit()
 {
 	ffsync_blink_r = 255;
 	ffsync_blink_g = 255;
@@ -79,7 +79,7 @@ void firefly_sync_init()
 }
 
 ISR(TCE0_OVF_vect){
-	schedule_task(rand_short()%FFSYNC_D, (arg_func_t)sendPing, (void*)((uint16_t)(get_time()&0xFFFF)));
+	scheduleTask(randShort()%FFSYNC_D, (arg_func_t)sendPing, (void*)((uint16_t)(getTime()&0xFFFF)));
 	//sendPing( (void*)((uint16_t)(get_time()&0xFFFF)));
 	updateRTC();
 	//printf("ovf @ %lu\r\n",get_time());
@@ -101,7 +101,7 @@ void processObsQueue(){
 	uint16_t theCount = TCE0.CNT;
 	
 	if(theCount<TCE0.CCB&&(theCount+(uint16_t)newStart)>TCE0.CCB){
-		set_rgb(ffsync_blink_prev_r, ffsync_blink_prev_g, ffsync_blink_prev_b);	
+		setRGB(ffsync_blink_prev_r, ffsync_blink_prev_g, ffsync_blink_prev_b);	
 	}
 	
 	if((theCount+(uint16_t)newStart)>=FFSYNC_FULL_PERIOD){
@@ -117,7 +117,7 @@ static void updateRTC(void){
 	uint16_t remainder;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 	{
-		uint32_t currTime = get_time();
+		uint32_t currTime = getTime();
 		uint16_t theCount = currTime&0xFFFF;		
 		remainder = (int16_t)(currTime%FFSYNC_FULL_PERIOD_MS);
 		//printf("%u.\r\n", remainder);
@@ -149,9 +149,9 @@ static void updateRTC(void){
 }
 
 void sendPing(uint16_t val){
-	/*uint8_t result = */hp_ir_targeted_cmd(ALL_DIRS, NULL, 64, val);
+	/*uint8_t result = */hpIrTargetedCmd(ALL_DIRS, NULL, 64, val);
 	//if(!result){
 		//printf_P(PSTR("Unable to send ff_sync ping due to other hp ir activity.\r\n"));
 	//}
-	schedule_task(FFSYNC_W, processObsQueue, NULL);
+	scheduleTask(FFSYNC_W, processObsQueue, NULL);
 }

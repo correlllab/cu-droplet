@@ -17,18 +17,18 @@
  * Direction macros are defined in droplet_init.h.
  *
  */
-void ir_sensor_init(void);
-void get_ir_sensors(int16_t* output_arr, uint8_t meas_per_ch);
+void irSensorInit(void);
+void getIrSensors(int16_t* output_arr, uint8_t meas_per_ch);
 
 //int16_t get_ir_sensor(uint8_t sensor_num, uint8_t ir_meas_count);
-void check_collision_values(int16_t meas[6]);
-uint8_t check_collisions(void);
-void initialize_ir_baselines(void);
-void update_ir_baselines(void);
+void checkCollisionValues(int16_t meas[6]);
+uint8_t checkCollisions(void);
+void initIrBaselines(void);
+void updateIrBaselines(void);
 
 #ifdef AUDIO_DROPLET
-	inline void ir_sensor_enable(void){ ADCA.CTRLA |= ADC_ENABLE_bm; ADCB.CTRLA |= ADC_ENABLE_bm; }
-	inline void ir_sensor_disable(void){ ADCA.CTRLA &= ~ADC_ENABLE_bm; ADCB.CTRLA &= ~ADC_ENABLE_bm; }
+	inline void irSensorEnable(void){ ADCA.CTRLA |= ADC_ENABLE_bm; ADCB.CTRLA |= ADC_ENABLE_bm; }
+	inline void irSensorDisable(void){ ADCA.CTRLA &= ~ADC_ENABLE_bm; ADCB.CTRLA &= ~ADC_ENABLE_bm; }
 #else
 	#define IR_SENSOR_PORT PORTB
 
@@ -48,6 +48,6 @@ void update_ir_baselines(void);
 	#define MUX_IR_SENSOR_5		ADC_CH_MUXPOS_PIN3_gc		// IR5 sensor on PB3
 	#define MUX_SENSOR_CLR		0b00000111
 
-	inline void ir_sensor_enable(void){ ADCB.CTRLA |= ADC_ENABLE_bm; }
-	inline void ir_sensor_disable(void){ ADCB.CTRLA &= ~ADC_ENABLE_bm; }
+	inline void irSensorEnable(void){ ADCB.CTRLA |= ADC_ENABLE_bm; }
+	inline void irSensorDisable(void){ ADCB.CTRLA &= ~ADC_ENABLE_bm; }
 #endif

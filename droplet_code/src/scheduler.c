@@ -1,5 +1,6 @@
 #include "scheduler.h"
 
+static volatile Task_t* schedule_task_absolute_time(uint32_t time, FlexFunction function, void* arg);
 static void add_task_to_list(volatile Task_t* task);
 static int8_t run_tasks(void);
 
@@ -76,12 +77,26 @@ void taskListCleanup(){
 	}
 }
 
-
 // Adds a new task to the task queue
 // time is number of milliseconds until function is executed
 // function is a function pointer to execute
 // arg is the argument to supply to function
 volatile Task_t* scheduleTask(uint32_t time, FlexFunction function, void* arg){
+	time = (time<MIN_TASK_TIME_IN_FUTURE) ? MIN_TASK_TIME_IN_FUTURE : time;
+	volatile Task_t* new_task = schedule_task_absolute_time(getTime()+time, function, arg);
+	new_task->period = 0;
+	return new_task;
+}
+
+volatile Task_t* schedulePeriodicTask(uint32_t period, FlexFunction function, void* arg){
+	period = (period<MIN_TASK_TIME_IN_FUTURE) ? MIN_TASK_TIME_IN_FUTURE : period;
+	uint32_t time = ((getTime()/period)+1)*period;
+	volatile Task_t* new_task = schedule_task_absolute_time(time, function, arg);
+	new_task->period = period;
+	return new_task;
+}
+
+volatile Task_t* schedule_task_absolute_time(uint32_t time, FlexFunction function, void* arg){
 	volatile Task_t* new_task;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 		new_task = scheduler_malloc();
@@ -89,27 +104,19 @@ volatile Task_t* scheduleTask(uint32_t time, FlexFunction function, void* arg){
 		else if(new_task == ((volatile Task_t*)0xFFFF)){
 			printf_P(PSTR("ERROR: No empty spot found in scheduler_malloc, but num_tasks wasn't greater than or equal max_tasks.\r\n"));
 			taskListCleanup();
-		}else if((new_task<task_storage_arr)||(new_task>(&(task_storage_arr[MAX_NUM_SCHEDULED_TASKS-1])))){
+			}else if((new_task<task_storage_arr)||(new_task>(&(task_storage_arr[MAX_NUM_SCHEDULED_TASKS-1])))){
 			printf_P(PSTR("ERROR: scheduler_malloc returned a new_task pointer outside of the task storage array.\r\n"));
+			}else if(time < getTime()){
+			printf_P(PSTR("ERROR: Task scheduled for a time in the past.\r\n"));
 		}
-
-		time+=MIN_TASK_TIME_IN_FUTURE*(time<MIN_TASK_TIME_IN_FUTURE);
-		new_task->scheduled_time = time + getTime();
+		new_task->scheduled_time = time;
 		new_task->arg = arg;
 		new_task->func = function;
-		new_task->period = 0;
 		new_task->next = NULL;
 	}
 	add_task_to_list(new_task);
 	//printf("Task (%X->%X) scheduled for %lu\t[%hhu]\r\n", new_task, (new_task->func).noarg_function, new_task->scheduled_time, num_tasks);
 
-	return new_task;
-}
-
-volatile Task_t* schedulePeriodicTask(uint32_t period, FlexFunction function, void* arg){
-	period+=MIN_TASK_TIME_IN_FUTURE*(period<MIN_TASK_TIME_IN_FUTURE);	
-	volatile Task_t* new_task = scheduleTask(period, function, arg);
-	new_task->period=period;
 	return new_task;
 }
 
@@ -244,7 +251,8 @@ int8_t run_tasks(){
 			}
 			
 			if(cur_task->period>0){
-				cur_task->scheduled_time+=cur_task->period;
+				uint32_t nextTime = (((cur_task->scheduled_time)/(cur_task->period))+1)*(cur_task->period);
+				cur_task->scheduled_time = nextTime;
 				cur_task->next=NULL;
 				num_tasks--;
 				add_task_to_list(cur_task);

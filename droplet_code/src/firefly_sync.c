@@ -79,9 +79,10 @@ void fireflySyncInit()
 }
 
 ISR(TCE0_OVF_vect){
-	scheduleTask(randShort()%FFSYNC_D, (arg_func_t)sendPing, (void*)((uint16_t)(getTime()&0xFFFF)));
+	uint32_t randomWait = (randShort()%32)*20; //between 0 and 640ms
 	//sendPing( (void*)((uint16_t)(get_time()&0xFFFF)));
 	updateRTC();
+	scheduleTask(randomWait, (arg_func_t)sendPing, (void*)((uint16_t)(getTime()&0xFFFF)));
 	//printf("ovf @ %lu\r\n",get_time());
 }
 

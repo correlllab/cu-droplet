@@ -1,7 +1,7 @@
 #pragma once
 
 //#define AUDIO_DROPLET
-//#define SYNCHRONIZED
+#define SYNCHRONIZED
 
 #include <avr/io.h>
 #include <avr/interrupt.h>

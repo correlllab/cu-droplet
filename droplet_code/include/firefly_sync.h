@@ -13,7 +13,7 @@
 
 #define FFSYNC_EPSILON			60.0
 
-#define FFSYNC_D				160
+#define FFSYNC_D				500
 #define FFSYNC_W				200
 
 void fireflySyncInit(void);
@@ -34,8 +34,9 @@ typedef struct obs_queue_struct{
 
 ObsQueue* obsStart;
 
-inline void updateFireflyCounter(volatile uint16_t count, volatile uint8_t delay){
-	uint16_t theDelay = (delay+2)*FFSYNC_MS_CONVERSION_FACTOR;
+inline void updateFireflyCounter(volatile uint16_t count, volatile uint16_t delay){
+	//printf("%u\r\n", delay);
+	uint16_t theDelay = delay*FFSYNC_MS_CONVERSION_FACTOR;
 	uint16_t obs;
 	ObsQueue* node;
 	if(count<=theDelay){

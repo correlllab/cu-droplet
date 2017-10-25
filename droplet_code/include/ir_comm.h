@@ -11,7 +11,6 @@
 #include "range_algs.h"
 #include "scheduler.h"
 
-uint32_t return_value;
 
 //#include "firefly_sync.h"
 
@@ -37,7 +36,7 @@ uint32_t return_value;
 
 #define IR_BUFFER_SIZE			40u //bytes
 #define IR_UPKEEP_FREQUENCY		16 //Hz
-#define IR_MSG_TIMEOUT			4 //ms
+#define IR_MSG_TIMEOUT			16 //ms
 
 #define IR_STATUS_BUSY_bm				0x01	// 0000 0001				
 #define IR_STATUS_COMPLETE_bm			0x02	// 0000 0010
@@ -50,8 +49,8 @@ uint32_t return_value;
 
 #define IR_STATUS_CRC_BITS_bm			0xC0	// SPECIAL or COMMAND
 
-#define DATA_LEN_VAL_bm		0x3F //data_length & DATA_LEN_VAL_bm 0b00111111
-#define DATA_LEN_SPCL_bm	0x40 //data_length & DATA_LEN_STATUS_BITS_bm 
+#define DATA_LEN_VAL_bm		0x3F
+#define DATA_LEN_SPCL_bm	0x40
 #define DATA_LEN_CMD_bm		0x80
 
 #define DATA_LEN_STATUS_BITS_bm			0xC0
@@ -61,24 +60,40 @@ uint32_t return_value;
 #define HEADER_POS_CRC_LOW 2
 #define HEADER_POS_CRC_HIGH 3
 #define HEADER_POS_MSG_LENGTH 4
-#define HEADER_POS_TARGET_ID_LOW 5
-#define HEADER_POS_TARGET_ID_HIGH 6
-#define HEADER_POS_SOURCE_DIR 7
-#define MS_DROPLET_COMM_TIME 16
+#define HEADER_POS_TARGET_ID_HIGH 5
+#define HEADER_POS_TARGET_ID_LOW 6
 
-#define HEADER_LEN 8U
+#define HEADER_LEN 7U
 
 #define MAX_WAIT_FOR_IR_TIME (5*(IR_BUFFER_SIZE+HEADER_LEN))
 
+#define MS_DROPLET_COMM_TIME 16
+
 #define MSG_DUR(len) (((5*(len+HEADER_LEN))+1)/2)
+
 
 #ifdef AUDIO_DROPLET
 	extern ADC_CH_t* ir_sense_channels[6];
 #endif
 
 extern USART_t* channel[6];
+volatile uint8_t busy_ch;
 
 
+
+/*Totally experimental attempt at creating dynamic buffer*/
+typedef struct NODE {
+	char* data;
+	uint8_t data_length;
+	uint8_t channel_id;
+	id_t target;
+	uint8_t cmd_flag;
+	uint8_t no_of_tries;
+	struct NODE * next;
+	struct NODE * prev;
+} NODE;
+
+volatile NODE * BUFFER_HEAD;
 
 
 volatile struct
@@ -91,57 +106,8 @@ volatile struct
 	volatile uint16_t calc_crc;
 	volatile char buf[IR_BUFFER_SIZE];		// Transmit / receive buffer		
 	volatile uint8_t  data_length;	
-	volatile int8_t inc_dir;
 	volatile uint8_t status;		// Transmit:
 } ir_rxtx[6];
-
-#define INC_DIR_KEY 0b11111000
-
-volatile struct
-{
-	volatile uint32_t	arrival_time;
-	volatile id_t		sender_ID;
-	volatile char		msg[IR_BUFFER_SIZE];		
-	volatile uint8_t	arrival_dir;
-	volatile uint8_t	msg_length;
-	volatile uint8_t	wasTargeted;
-} msg_node[MAX_USER_FACING_MESSAGES];
-
-volatile uint8_t hp_ir_block_bm;			//can only be set by other high priority ir things!
-volatile uint8_t num_waiting_msgs;
-volatile uint8_t user_facing_messages_ovf;
-volatile uint8_t busy_ch;
-
-/*Totally experimental attempt at creating dynamic buffer*/
-typedef struct NODE {				
-    char* data;
-	uint8_t data_length;
-	uint8_t channel_id;
-	id_t target;
-	uint8_t cmd_flag;
-	uint8_t no_of_tries;
-    struct NODE * next;
-	struct NODE * prev;
-} NODE;
-
-volatile NODE * BUFFER_HEAD;
-//NODE * BUFFER_TAIL;
-
-volatile uint32_t	cmd_arrival_time;
-volatile id_t		cmd_sender_id;
-volatile uint8_t	cmd_arrival_dir;
-volatile uint8_t	cmd_sender_dir;
-
-void ir_comm_init(void);
-
-void handle_cmd_wrapper(void);
-
-uint8_t ir_targeted_cmd(uint8_t dirs, char *data, uint8_t data_length, id_t target);
-uint8_t ir_cmd(uint8_t dirs, char *data, uint8_t data_length);
-uint8_t ir_targeted_send(uint8_t dirs, char *data, uint8_t data_length, id_t target);
-uint8_t ir_send(uint8_t dirs, char *data, uint8_t data_length);
-uint8_t hp_ir_cmd(uint8_t dirs, char *data, uint8_t data_length);
-uint8_t hp_ir_targeted_cmd(uint8_t dirs, char *data, uint8_t data_length, id_t target);
 
 typedef struct msg_node{
 	uint32_t			arrivalTime;
@@ -162,7 +128,6 @@ volatile uint8_t userFacingMessagesOvf;
 volatile uint32_t	cmdArrivalTime;
 volatile id_t		cmdSenderId;
 volatile uint8_t	cmdArrivalDir;
-volatile uint8_t	cmdSenderDir;
 
 void irCommInit(void);
 
@@ -174,7 +139,6 @@ uint8_t irTargetedSend(uint8_t dirs, char *data, uint8_t data_length, id_t targe
 uint8_t irSend(uint8_t dirs, char *data, uint8_t dataLength);
 uint8_t hpIrCmd(uint8_t dirs, char *data, uint8_t data_length);
 uint8_t hpIrTargetedCmd(uint8_t dirs, char *data, uint8_t data_length, id_t target);
-
 void waitForTransmission(uint8_t dirs);
 NODE* buffer_createNode(const char * str, uint8_t dir, uint8_t dataLength, id_t msgTarget, uint8_t cmdFlag);
 void tryAndSendMessage(void);//void * msg_temp_node);

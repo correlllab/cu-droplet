@@ -34,6 +34,7 @@ void sendMsg(){
  * the code in this function will be called repeatedly, as fast as it can execute.
  */
 void loop(){
+
 	
 	float new_bearing, new_heading;
 	uint16_t new_steps;
@@ -125,7 +126,7 @@ void loop(){
 		//delay_ms(100);
 		//broadcast_rnb_data();
 	//}
-	
+
 	delayMS(10);
 }
 

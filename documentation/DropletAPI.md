@@ -53,8 +53,8 @@
   Messages always have an eight-byte header, and take about 2.5ms per byte.  Thus, if your message's data length is 1, the message will take about 23ms. If its data length is 40, it will take about 120ms.
   
 ```C
-uint8_t ir_send(uint8_t dir_mask, char* data, uint8_t data_length);
-uint8_t ir_targeted_send(uint8_t dir_mask, char *data, uint16_t data_length, id_t target);
+uint8_t irSend(uint8_t dir_mask, char* data, uint8_t data_length);
+uint8_t irTargetedSend(uint8_t dir_mask, char *data, uint16_t data_length, id_t target);
 ```
 
   For each message a Droplet receives, the handle_msg function gets called. This can only happen after the code in loop() has run, and so it's important not to let loop() take too long, or messages will get backed up. handle_msg has a single argument, msg_struct, which contains the received message and other infornmation:
@@ -75,14 +75,14 @@ uint8_t ir_targeted_send(uint8_t dir_mask, char *data, uint16_t data_length, id_
   These functions set the intensity of the red, green, and blue LEDs respectively.
   '0' turns an LED off, '255' is full brightness.
 ```C
-void set_red_led(uint8_t intensity); 
-void set_green_led(uint8_t intensity);
-void set_blue_led(uint8_t intensity);
+void setRedLED(uint8_t intensity); 
+void setGreenLED(uint8_t intensity);
+void setBlueLED(uint8_t intensity);
 ```
 
   This function simply calls the three functions above with the values passed it. If r=g=b, the light will be white.
 ```C
-void set_rgb(uint8_t r, uint8_t g, uint8_t b);
+void setRGB(uint8_t r, uint8_t g, uint8_t b);
 ```
 
    This function simply calls set_rgb, after performing a color conversion from hsv color space to rgb color space. For more information on HSV color space, see: (http://www.wikipedia.org/wiki/HSL_and_HSV)  
@@ -90,45 +90,49 @@ void set_rgb(uint8_t r, uint8_t g, uint8_t b);
        s : Saturation. Should be between 0 (0%) and 255 (100%)  
        v :  Value, or Brightness. Should be beteen 0 (0%) and 255 (100%)
 ```C
-void set_hsv(uint16_t h, uint8_t s, uint8_t v);
+void setHSV(uint16_t h, uint8_t s, uint8_t v);
 ```
 
   These functions are used to get the intensity that the red, green, or blue LED is currently set to.
 ```C 
-uint8_t get_red_led(void);
-uint8_t get_green_led(void);
-uint8_t get_blue_led(void);
+uint8_t getRedLED(void);
+uint8_t getGreenLED(void);
+uint8_t getBlueLED(void);
 ```
 
 ### Color Sensing.
   This function returns the sensed red, green, and blue values. It is pass by reference: you should pass pointers to `int16_t`'s where thecolor measurement will be stored. For example:
 ```C
-void get_rgb(int16_t* r, int16_t* g, int16_t* b);
+void getRGB(int16_t* r, int16_t* g, int16_t* b);
 ```
 For Example:
 ```C
   int16_t r,g,b;
-  get_rgb(&r, &g, &b);
+  getRGB(&r, &g, &b);
  ```
 
 ### Range and Bearing
 ```C
-void broadcast_rnb_data(void); 
+void broadcastRnbData(void); 
 ```
   'rnb' is short for 'range and bearing', and getting this data is made a little bit more complicated because it requires two Droplets to do something in unison (one turning its IR lights on, the other making measurements). When you call broadcast_rnb_data() on a Droplet, it causes the Droplet do perform what we call an rnb broadcast: a carefully timed sequence of turning on its IR lights. Before it does so, it broadcasts a message so other Droplets know that this is going to happen. (If you call ir_send right before broadcast_rnb_data, the thing you tried to send probably won't get out because broadcast_rnb_data will stomp all over your message) As a result of the rnb broadcast, every other Droplet nearby will get new measurements of range, bearing, and heading for the Droplet which performed the broadcast. In general, the 'standard' way to use this system is to have every Droplet periodically call broadcast_rnb_data(). (You don't want to do this /too/ frequently. Try around every 5 seconds.) And, in every Droplet's loop(), have:
   ```C
-  if(get_time() - last_rnb_time > 5000){
-    broadcast_rnb_data();
-    last_rnb_time = get_time();
+  if(getTime() - lastRnbTime > 5000){
+    broadcastRnbData();
+    lastRnbTime = getTime();
   }
   
   if(rnb_updated){
      //new data in last_good_rnb, ie.:
-     last_good_rnb.id_number;
-     last_good_rnb.range;
-     last_good_rnb.bearing;
-     last_good_rnb.heading;
-     rnb_updated = 0; //Note! This line must be included for things to work properly.
+     id_t id = last_good_rnb.id;
+     uint16_t range = last_good_rnb.range;
+     int16_t bearing = last_good_rnb.bearing;
+     int16_t heading = last_good_rnb.heading;
+     /*
+      * Note! The line below must be included for things to work properly. 
+      * After this is set to '0', low-level code might modify the last_good_rnb struct in interrupts.
+      */
+      rnb_updated = 0;
   }
   ```
   If Droplets A,B,C, and D all have this in their code, and Droplet A does an rnb broadcast, Droplets B,C, and D will all get new rnb data for Droplet A.
@@ -138,7 +142,7 @@ void broadcast_rnb_data(void);
 ### Movement
   This function has the Droplet move in the specified direction for the specific number of 'steps'. There isn't a great way to map from steps to actual distances. Try 30-100 as a starting place.
   ```C
-  uint8_t	move_steps(uint8_t direction, uint16_t num_steps);
+  uint8_t	moveSteps(uint8_t direction, uint16_t num_steps);
   ```
 
   Droplets can be calibrated for how far they move each step. If they have been, this function lets you specify how far you want the robot to move and converts the distance in mm to a number of steps.
@@ -148,51 +152,51 @@ void broadcast_rnb_data(void);
 
   This function has the Droplet stop all movement.
   ```C
-  void stop_move(void);
+  void stopMove(void);
   ```
   This function returns '-1' (NOT '0') if the Droplet is not moving, and otherwise returns the direction the Droplet is moving in.
   ```C
-  int8_t is_moving(void);
+  int8_t isMoving(void);
   ```
   
 ### Power
   The functions below can be used to check power levels on each leg, and on the capacitor.
   ```C
-  uint8_t cap_status(void);
-  int8_t leg_status(uint8_t leg);
-  uint8_t legs_powered(void);
+  uint8_t capStatus(void);
+  int8_t legStatus(uint8_t leg);
+  uint8_t legsPowered(void);
   ```
 
 ### Utilities
   These functions return random values:
   ```C
-  uint8_t  rand_byte(void);  //from 0 to 255
-  uint16_t rand_short(void); //from 0 to 65535
-  uint32_t rand_quad(void);  //from 0 to 4294967295
-  float    rand_real(void);  //from 0.0 to 1.0
-  float    rand_norm(float mean, float stdDev); //normally-distributed random value with the specified properties.
+  uint8_t  randByte(void);  //from 0 to 255
+  uint16_t randShort(void); //from 0 to 65535
+  uint32_t randQuad(void);  //from 0 to 4294967295
+  float    randReal(void);  //from 0.0 to 1.0
+  float    randNorm(float mean, float stdDev); //normally-distributed random value with the specified properties.
   ```
   
   Every droplet has a unique, sixteen-bit ID number.
   This function returns the ID number of the Droplet which calls it.
   ```C
-  id_t get_droplet_id(void);
+  id_t getDropletID(void);
   ```
   
   Restart the Droplet:
   ```C
-  void droplet_reboot(void);
+  void dropletReboot(void);
   ```
   
 ### Time
   ```C
-  void delay_ms(uint16_t ms).
+  void delayMS(uint16_t ms).
   uint32_t get_time(void); //returns time in ms since Droplet started.
   ```
   
   schedule_task causes the Droplet to call the specified function, time milliseconds from now.
   ```C
-  volatile Task_t* schedule_task(uint32_t time, flex_function function, void* arg);
+  volatile Task_t* scheduleTask(uint32_t time, flex_function function, void* arg);
   ```
 
 ## IR Directions

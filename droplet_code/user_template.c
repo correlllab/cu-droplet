@@ -7,13 +7,10 @@ void init(){
 
 }
 
-
-
 /*
  * the code in this function will be called repeatedly, as fast as it can execute.
  */
 void loop(){
-
 	delayMS(10);
 }
 

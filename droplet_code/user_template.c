@@ -41,14 +41,10 @@ void sendMsg(){
 	irSend(ALL_DIRS, (char*)(&msg), sizeof(Msg));
 }
 
-
-
 /*
  * the code in this function will be called repeatedly, as fast as it can execute.
  */
-void loop(){
-
-	
+void loop(){	
 	//float new_bearing, new_heading;
 	//uint16_t new_steps;
 	if(getTime()-lastMessageSent > MSG_PERIOD){
@@ -141,7 +137,6 @@ void loop(){
 		//delay_ms(100);
 		//broadcast_rnb_data();
 	//}
-
 	delayMS(10);
 }
 

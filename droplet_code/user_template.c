@@ -4,13 +4,26 @@
 uint32_t lastMessageSent;
 #define MSG_PERIOD 200
 
+void sendMsg(void);
+
 /*
  * any code in this function will be run once, when the robot starts.
  */
 void init(){
 setRedLED(50);
 lastMessageSent = getTime();
-msgCount=1000;
+msgCount=0;
+//recvCount = 0;
+}
+
+uint16_t getBitMask(id_t id){
+	switch(id){
+		case 0xC806: return 0x8000;
+		case 0x7D78: return 0x4000;
+		case 0x4DB0: return 0x2000;
+		case 0x4177: return 0x1000;
+		default: return 0;
+	}
 }
 
 
@@ -21,8 +34,8 @@ void sendMsg(){
 	msg.text[2]='.';
 	
 	//msg.text="Hi.";
-	msgCount = (msgCount + 1)%2000;
-	msg.msgId = msgCount;//++;
+	msgCount = (msgCount + 1)%0x0FFF;/*%2000+4000;// + 2000;//65534;*/
+	msg.msgId = msgCount | getBitMask(getDropletID());//++;
 	//char* msg_str;
 	//sprintf(msg_str, "Message=%s, Message_ID=%d", msg.text, msg.msgId);
 	irSend(ALL_DIRS, (char*)(&msg), sizeof(Msg));
@@ -36,13 +49,15 @@ void sendMsg(){
 void loop(){
 
 	
-	float new_bearing, new_heading;
-	uint16_t new_steps;
+	//float new_bearing, new_heading;
+	//uint16_t new_steps;
 	if(getTime()-lastMessageSent > MSG_PERIOD){
-		//sendMsg();
-		//sendMsg();
-		//sendMsg();
-		//sendMsg();
+		if(getDropletID()!=0xC806){
+			sendMsg();
+			//sendMsg();
+			//sendMsg();
+			//sendMsg();
+		}
 		//sendMsg();
 		lastMessageSent = getTime();
 	
@@ -153,9 +168,13 @@ void loop(){
 void handleMsg(irMsg* msgStruct){
 	
 	
-
+//
 	Msg* msg = (Msg*)(msgStruct->msg);
-	printf("Got %6u at %" PRIu32 "\r\n", msg->msgId, getTime());
+	//recvArray[recvCount] = msg->msgId;
+	//recvCount = (recvCount + 1)%500;
+	uint8_t msgSender = (uint8_t)(log((msg->msgId)>>12)/log(2));
+	uint16_t msgID = (msg->msgId)&0x0FFF;
+	printf("Got %01hu %6u at %lu\r\n", msgSender, msgID, getTime());
 
 }
 

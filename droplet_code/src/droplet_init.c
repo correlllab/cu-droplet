@@ -92,6 +92,7 @@ static void checkMessages(void){
 			msgStruct.senderID		= node->senderID;
 			msgStruct.length		= node->length;
 			crc						= node->crc;
+			
 			//While we let user code handle the message we want interrupts to be back on. At this point everything relevant has been copied out of the buffer.
 			NONATOMIC_BLOCK(NONATOMIC_RESTORESTATE){ 
 				handleMsg(&msgStruct);

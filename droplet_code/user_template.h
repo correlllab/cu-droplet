@@ -10,6 +10,8 @@ typedef struct msg_struct{
 }Msg;
 
 uint16_t msgCount;
+//static volatile uint16_t recvArray[500];
+//static volatile uint16_t recvCount;
 
 void		init(void);
 void		loop(void);

@@ -35,8 +35,7 @@
 #define KEY_RIGHT		((uint16_t)0x46B9)
 
 #define IR_BUFFER_SIZE			40u //bytes
-#define IR_UPKEEP_FREQUENCY		16 //Hz
-#define IR_MSG_TIMEOUT			16 //ms
+#define IR_MSG_TIMEOUT			4 //ms
 
 #define IR_STATUS_BUSY_bm				0x01	// 0000 0001				
 #define IR_STATUS_COMPLETE_bm			0x02	// 0000 0010
@@ -69,7 +68,7 @@
 
 #define MS_DROPLET_COMM_TIME 16
 
-#define MSG_DUR(len) (((5*(len+HEADER_LEN))+1)/2)
+#define MSG_DUR(len) ((((5*(len+HEADER_LEN))+1)/2))
 
 
 #ifdef AUDIO_DROPLET
@@ -89,8 +88,8 @@ typedef struct NODE {
 	id_t target;
 	uint8_t cmd_flag;
 	uint8_t no_of_tries;
-	struct NODE * next;
-	struct NODE * prev;
+	volatile struct NODE * next;
+	volatile struct NODE * prev;
 } NODE;
 
 volatile NODE * BUFFER_HEAD;
@@ -133,15 +132,18 @@ void irCommInit(void);
 
 void handleCmdWrapper(void);
 
-uint8_t irTargetedCmd(uint8_t dirs, char *data, uint8_t data_length, id_t target);
-uint8_t irCmd(uint8_t dirs, char *data, uint8_t data_length);
-uint8_t irTargetedSend(uint8_t dirs, char *data, uint8_t data_length, id_t target);
-uint8_t irSend(uint8_t dirs, char *data, uint8_t dataLength);
+NODE* irTargetedCmd(uint8_t dirs, char *data, uint8_t data_length, id_t target);
+NODE* irCmd(uint8_t dirs, char *data, uint8_t data_length);
+NODE* irTargetedSend(uint8_t dirs, char *data, uint8_t data_length, id_t target);
+NODE* irSend(uint8_t dirs, char *data, uint8_t dataLength);
 uint8_t hpIrCmd(uint8_t dirs, char *data, uint8_t data_length);
 uint8_t hpIrTargetedCmd(uint8_t dirs, char *data, uint8_t data_length, id_t target);
 void waitForTransmission(uint8_t dirs);
 NODE* buffer_createNode(const char * str, uint8_t dir, uint8_t dataLength, id_t msgTarget, uint8_t cmdFlag);
+void removeHeadAndUpdate(void);
 void tryAndSendMessage(void);//void * msg_temp_node);
+
+void printMsgQueue(void);
 
 /*
  * dirs_mask specifies the directions a function caller is interested in.

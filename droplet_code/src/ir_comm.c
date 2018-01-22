@@ -8,7 +8,7 @@ static volatile uint8_t processingCmdFlag;
 static volatile uint8_t processingFFsyncFlag;
 
 static void clearIrBuffer(uint8_t dir);
-static uint8_t all_ir_sends(uint8_t dirs, char* data, uint8_t dataLength, id_t target, uint8_t cmdFlag);
+static NODE* all_ir_sends(uint8_t dirs, char* data, uint8_t dataLength, id_t target, uint8_t cmdFlag);
 static uint8_t all_hp_ir_cmds(uint8_t dirs, char* data, uint8_t dataLength, id_t target);
 static void irReceive(uint8_t dir); //Called by Interrupt Handler Only
 static void receivedIrCmd(uint8_t dir);
@@ -21,17 +21,20 @@ static void irTransmitComplete(uint8_t dir);
 
 static volatile uint16_t	cmdLength;
 static volatile char		cmdBuffer[SRL_BUFFER_SIZE];
-volatile uint8_t byte_array[200];
+volatile uint8_t byte_array[300];
 int rxbyte_count = 0;
 
 /* Hardware addresses for the port pins with the carrier wave */
 static uint8_t ir_carrier_bm[] = { PIN0_bm, PIN1_bm, PIN4_bm, PIN5_bm, PIN6_bm, PIN7_bm };
 	
-
+static volatile uint32_t last_return =0;
+static volatile uint32_t last_sched =0;
 uint32_t first_attempt;
 #define timeout_PERIOD 30000
 
-//#define HARDCORE_DEBUG_DIR 1
+static volatile uint16_t listSize=0;
+
+//#define HARDCORE_DEBUG_DIR 0x3F
 
 static void clearIrBuffer(uint8_t dir){
 	#ifdef AUDIO_DROPLET
@@ -170,11 +173,23 @@ uint32_t getExponentialBackoff(uint8_t c){
 	
 	volatile uint32_t k;
 	volatile uint32_t N;
+	uint32_t return_value;
 	
-	N= (((uint32_t)1)<<c);
+	N= (((uint32_t)1)<<c)-1;
 	
-	k = 3*(randQuad()%N);
-	return ((k*MS_DROPLET_COMM_TIME)+20);///20000000;
+	k = ((randQuad()%N)+1);
+	#ifdef ADDING_DELAYS
+		if(c == 1)
+		return_value = (25+last_return)%110;
+		else
+		return_value = k*MS_DROPLET_COMM_TIME;
+	#else
+		return_value = k*MS_DROPLET_COMM_TIME;
+	#endif
+	last_return = return_value;
+	
+	
+	return (return_value);///20000000;
 	
 }
 
@@ -185,7 +200,7 @@ typedef struct msg_struct{
 
 
 void removeHeadAndUpdate(){
-		NODE * tempNode=BUFFER_HEAD;
+		volatile NODE * tempNode=BUFFER_HEAD;
 		if(BUFFER_HEAD->next == BUFFER_HEAD){ //This means BUFFER_HEAD is only thing in list.
 			BUFFER_HEAD = NULL;
 		}else{
@@ -193,34 +208,37 @@ void removeHeadAndUpdate(){
 			BUFFER_HEAD->prev = tempNode->prev;
 			tempNode->prev->next = BUFFER_HEAD;
 		}
-		myFree(tempNode->data);
-		tempNode->data = NULL;
-		myFree(tempNode);
+		listSize = listSize - ( sizeof(NODE) + tempNode->data_length);
+		myFree((NODE*)tempNode);
 		tempNode = NULL;
 }
 
+/*
+ * TODO: 
+ *   Could extend this so that, if we are busy transmitting, we wait an amount of time based on
+ *   how much longer we expect the message to take to send, instead of the exponential backoff.
+ */
 void tryAndSendMessage(){//void * msg_temp_node){
-	//Try and do:
-	NODE * msgNode;
-	
-
 	volatile Msg* data;
 	//msgNode = (NODE *)msg_temp_node;
 	if(irIsBusy(BUFFER_HEAD->channel_id)>0){// && (get_time()-first_attempt < timeout_PERIOD) && (BUFFER_HEAD->no_of_tries < 10)){
 		if(BUFFER_HEAD->no_of_tries < 10){
-				uint32_t time_backoff = getExponentialBackoff(++BUFFER_HEAD->no_of_tries);
+			uint32_t time_backoff = getExponentialBackoff(BUFFER_HEAD->no_of_tries++);
+			#ifdef ADDING_DELAYS
+				scheduleTask(time_backoff+15, tryAndSendMessage, NULL);// (void *)BUFFER_HEAD);		
+			#else
 				scheduleTask(time_backoff, tryAndSendMessage, NULL);// (void *)BUFFER_HEAD);		
-				uint16_t msgID = ((Msg*)(BUFFER_HEAD->data))->msgId;
-				printf("%6u time for backoff : %10lu\r\n", msgID, time_backoff);
-			} // && get_time()-first_attempt < timeout_PERIOD)
-			
+			#endif
+			uint16_t msgID = ((Msg*)(BUFFER_HEAD->data))->msgId;
+			//printf("%6u time for backoff : %10lu\r\n", msgID, time_backoff);
+		} // && get_time()-first_attempt < timeout_PERIOD)
 		else{
 			data = (Msg*)(BUFFER_HEAD->data);
 			printf("\n\rERROR: VERY BUSY! MESSAGE NUMBER %u DISCARDED\n\r", data->msgId);
 			removeHeadAndUpdate();
 			if(BUFFER_HEAD){
 				scheduleTask(100, tryAndSendMessage, NULL);// (void *)BUFFER_HEAD);
-			return 0;
+				return;
 			}			
 		}
 	}else{
@@ -234,18 +252,50 @@ void tryAndSendMessage(){//void * msg_temp_node){
 		}
 		send_msg(BUFFER_HEAD->channel_id, BUFFER_HEAD->data, BUFFER_HEAD->data_length, 0);
 		data = (Msg*)(BUFFER_HEAD->data);
-		printf("\n\rsend success (%u) at %lu\r\n", data->msgId, getTime());
+		
+		uint8_t dataSender = (uint8_t)(log((data->msgId)>>12)/log(2));
+		uint16_t printID = (data->msgId)&0x0FFF;
+		printf("\n\rsend success %01hu %6u at %lu\r\n", dataSender, printID, getTime());
 		uint32_t msgMSlen = MSG_DUR(BUFFER_HEAD->data_length);
+		//uint32_t sched_now = (last_sched + msgMSlen)%115;
+		//last_sched = sched_now;
 		removeHeadAndUpdate();
 		if(BUFFER_HEAD)
-			scheduleTask(msgMSlen+4, tryAndSendMessage, NULL);// (void *)BUFFER_HEAD);
+			#ifdef ADDING_DELAYS
+			scheduleTask(msgMSlen+35, tryAndSendMessage, NULL);// (void *)BUFFER_HEAD);
+			#else
+			scheduleTask(msgMSlen+IR_MSG_TIMEOUT, tryAndSendMessage, NULL);// (void *)BUFFER_HEAD);
+			#endif
 	}
 
 }
 
 
-NODE* buffer_createNode(const char * str, uint8_t dir, uint8_t dataLength, id_t msgTarget, uint8_t cmdFlag){
-	volatile NODE* bufferPointer = (NODE *) myMalloc(sizeof(NODE));
+
+void printMsgQueue(){
+	//printf("Msg Queue contains:\r\n");
+	//For debugging:
+	uint16_t listLength = 0;
+	volatile NODE* tmp = BUFFER_HEAD;
+	do{
+		listLength++;
+		//printf("\t%p: %hu", tmp, ((Msg*)(tmp->data))->msgId);
+		//printf("\t\tPREV: %p\tNEXT: %p\r\n", tmp->prev, tmp->next);
+		tmp = tmp->next;
+	}while(tmp!=BUFFER_HEAD);
+	//printf("List Length: %u\r\n", listLength);
+}
+
+static NODE* all_ir_sends(uint8_t dir, char * str, uint8_t dataLength, id_t msgTarget, uint8_t cmdFlag){
+	
+	listSize += sizeof(NODE) + dataLength;
+	if(listSize> 500){
+		listSize = listSize - (sizeof(NODE) + dataLength);
+		return NULL;
+		
+	}
+	//printf("\n\rSize of list node = %d", listSize);
+	NODE* bufferPointer = (NODE *) myMalloc(sizeof(NODE)+dataLength);
 	
 	//make sure there was enough memory
 	if(bufferPointer == NULL)
@@ -256,21 +306,14 @@ NODE* buffer_createNode(const char * str, uint8_t dir, uint8_t dataLength, id_t 
 	bufferPointer->target = msgTarget;
 	bufferPointer->cmd_flag = cmdFlag;
 	bufferPointer->data_length = dataLength;
-
-	//malloc for str
-	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-		bufferPointer->data = myMalloc(dataLength);
-		memcpy(bufferPointer->data, str, dataLength);
-		//make sure enough space for the string to be copied
-		if(bufferPointer->data == NULL)
-		return NULL;
-	}
+	bufferPointer->data = (((char*)(bufferPointer)) + sizeof(NODE));
+	memcpy(bufferPointer->data, str, dataLength);
 	
 	
 	//printf("\n\rData = %s,Channel_ID = %u", bufferPointer->data, bufferPointer->channel_id);
 	Msg* msg = (Msg*)(str);
-	printf("Adding (%u) at %p\r\n", msg->msgId,bufferPointer);
-	bufferPointer->no_of_tries = 0;
+	//printf("Adding (%u) at %p\r\n", msg->msgId,bufferPointer);
+	bufferPointer->no_of_tries = 1;
 	//tryAndSendMessage((void *)bufferPointer);
 	
 	//Linked list if required
@@ -284,7 +327,13 @@ NODE* buffer_createNode(const char * str, uint8_t dir, uint8_t dataLength, id_t 
 			BUFFER_HEAD->next = bufferPointer;
 			BUFFER_HEAD->prev = bufferPointer;
 			
-			tryAndSendMessage();//(void *)BUFFER_HEAD);//bufferPointer);
+			//tryAndSendMessage();//(void *)BUFFER_HEAD);//bufferPointer);
+			uint32_t msgMSlen = MSG_DUR(BUFFER_HEAD->data_length);
+			#ifdef ADDING_DELAYS
+			scheduleTask(msgMSlen+50, tryAndSendMessage, NULL);
+			#else
+			scheduleTask(msgMSlen, tryAndSendMessage, NULL);
+			#endif
 		}
 		else
 		{
@@ -293,90 +342,37 @@ NODE* buffer_createNode(const char * str, uint8_t dir, uint8_t dataLength, id_t 
 			BUFFER_HEAD->prev->next = bufferPointer;
 			BUFFER_HEAD->prev = bufferPointer;
 			//if(bufferPointer->next> 0xa000){
-				//printf("!!\r\n!!!\r\n!!\r\n");
+			//printf("!!\r\n!!!\r\n!!\r\n");
 			//}
-			printf("List contains:\r\n");
-			//For debugging:
-			uint16_t listLength = 0;
-			NODE* tmp = BUFFER_HEAD;
-			do{
-				listLength++;
-				printf("\t%p: %hu", tmp, ((Msg*)(tmp->data))->msgId);
-				printf("\t\tPREV: %p\tNEXT: %p\r\n", tmp->prev, tmp->next);
-				tmp = tmp->next;
-			}while(tmp!=BUFFER_HEAD);
-			printf("List Length: %u\r\n", listLength);
+			
 		}
+		
+		//printf("\nSize of data = %d", sizeof(bufferPointer->data));
+		//listSize += sizeof(NODE) + dataLength;
+		//printf("\nSize of list node = %d", listSize);
+		printMsgQueue();
 	}
+	
 	//while(BUFFER_HEAD)
-		//tryAndSendMessage();//(void *)BUFFER_HEAD);//bufferPointer);
+	//tryAndSendMessage();//(void *)BUFFER_HEAD);//bufferPointer);
 	
 	return bufferPointer;
 	//bufferPointer;
 }
 
-
-
-/*
- * This function returns '0' if no message was sent because the channels were busy, and '1' if it was successful 
- * in claiming channels and starting the message send process. Note that this function returning '1' doesn't
- * guarantee a successful transmission, as it's still possible for something to go wrong with the send.
- */
-
-static uint8_t all_ir_sends(uint8_t dirs, char* data, uint8_t dataLength, id_t target, uint8_t cmd_flag){
-	buffer_createNode(data, dirs, dataLength, target, cmd_flag);
-	//uint8_t busy_status = ir_is_busy(dirs);
-	//
-	//if(busy_status>1){
-        //printf_P(PSTR("Aborting IR send [%02hx] while trying: "), busy_status);
-		//
-		//buffer_createNode(data, dirs, data_length, target, cmd_flag);
-		//
-		//
-		//uint8_t text = 1;
-		//for(uint8_t i=0;i<data_length;i++){
-			//if( (data[i] < 32) || (data[i] > 126) ){ //printable ASCII range.
-				//text = 0;
-				//break;
-			//}
-		//}
-	//
-		//for(uint8_t i=0;i<data_length;i++){
-			//if(!text){
-				//printf("%02hX ", data[i]);
-			//}else{
-				//printf("%c", data[i]);
-			//}
-		//}
-		//printf("\r\n");
-        //return 0;
-    //}        
-	//for(uint8_t dir=0;dir<6;dir++){
-		//if(dirs&(1<<dir)){		
-			//channel[dir]->CTRLB &= ~USART_RXEN_bm;
-			//ir_rxtx[dir].status = IR_STATUS_BUSY_bm;
-			//if(cmd_flag) ir_rxtx[dir].status |= IR_STATUS_COMMAND_bm;
-			//ir_rxtx[dir].target_ID=target;
-		//}
-	//}
-	//send_msg(dirs, data, data_length, 0);
-    //return 1;
-}
-
-
-uint8_t irTargetedCmd(uint8_t dirs, char *data, uint8_t dataLength, id_t target){
+NODE* irTargetedCmd(uint8_t dirs, char *data, uint8_t dataLength, id_t target){
 	return all_ir_sends(dirs, data, dataLength, target, 1);
 }
 
-uint8_t irCmd(uint8_t dirs, char *data, uint8_t dataLength){	
+NODE* irCmd(uint8_t dirs, char *data, uint8_t dataLength){	
 	return all_ir_sends(dirs, data, dataLength, 0, 1);
 }
 
-uint8_t irTargetedSend(uint8_t dirs, char *data, uint8_t dataLength, id_t target){
+NODE* irTargetedSend(uint8_t dirs, char *data, uint8_t dataLength, id_t target){
 	return all_ir_sends(dirs, data, dataLength, target, 0);
 }
 
-uint8_t irSend(uint8_t dirs, char *data, uint8_t dataLength){
+NODE* irSend(uint8_t dirs, char *data, uint8_t dataLength){
 	return all_ir_sends(dirs, data, dataLength, 0, 0);
 }
 
@@ -501,12 +497,12 @@ static void irReceive(uint8_t dir){
 	#ifdef HARDCORE_DEBUG_DIR
 		if(dir==HARDCORE_DEBUG_DIR){
 			 printf("%02hx ", in_byte); //Used for debugging - prints raw bytes as we get them.
-			 if(rxbyte_count<200){
+			 if(rxbyte_count<300){
 				byte_array[rxbyte_count]=in_byte;
 				++rxbyte_count;
 			 }
-			 if(rxbyte_count == 200){
-				 for(rxbyte_count=0; rxbyte_count< 200; rxbyte_count++)
+			 if(rxbyte_count == 300){
+				 for(rxbyte_count=0; rxbyte_count< 300; rxbyte_count++)
 				 printf("\n\rbyte_array[%d]=%02hx",rxbyte_count,byte_array[rxbyte_count]);
 			 }
 			} //printf("%02hx ", in_byte); //Used for debugging - prints raw bytes as we get them.
@@ -678,7 +674,11 @@ static void irTransmitComplete(uint8_t dir){
 		ir_rxtx[dir].curr_pos = 0;
 		ir_rxtx[dir].target_ID = 0;
 		ir_rxtx[dir].senderID = 0;
-	
+		
+		//The line below will keep irIsBusy from reporting that the communication medium is free immediately after a message has finished sending.
+		//This should ensure that the comm buffers of any receiving Droplets are ready for a new message.
+		ir_rxtx[dir].last_byte = getTime(); 
+		
 		channel[dir]->STATUS |= USART_TXCIF_bm;		// writing a 1 to this bit manually clears the TXCIF flag
 		channel[dir]->CTRLB |= USART_RXEN_bm;	// this enables receive on the USART
 	}

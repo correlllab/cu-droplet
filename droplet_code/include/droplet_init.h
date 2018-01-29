@@ -1,16 +1,6 @@
-/** \file *********************************************************************
- * \brief Droplet initialization routines and global macros are defin3d here.
- * 
- * It is highly recommended to include ONLY this header file in any user level
- * droplet rather than including header files for each of the subsystems
- * independently.
- * 
- *
- *****************************************************************************/
 #pragma once
 
 //#define INIT_DEBUG_MODE
-
 #ifdef INIT_DEBUG_MODE
 #define INIT_DEBUG_PRINT(x) printf(x)
 #else

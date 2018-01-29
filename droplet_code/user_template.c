@@ -39,11 +39,11 @@ void loop(){
 		}else if(myRole == KEYBOARD){
 			setRGB(0,0,0);
 		}else if(myRole == MOUSE){
-			setRGB(100,100,100);
+			setRGB(0,0,100);
 		}
 	}
 	if(rnb_updated){
-		RNB_DEBUG_PRINT("\t(RNB) ID: %04X | R: %4u B: %4d H: %4d\r\n", id, range, bearing, heading);
+		RNB_DEBUG_PRINT("\t(RNB) ID: %04X | R: %4u B: %4d H: %4d\r\n", last_good_rnb.id, last_good_rnb.range, last_good_rnb.bearing, last_good_rnb.heading);
 		if(myRole != MOUSE){
 			useRNBmeas(last_good_rnb.id, last_good_rnb.range, last_good_rnb.bearing, last_good_rnb.heading);
 		}
@@ -54,6 +54,7 @@ void loop(){
 
 void handleMsg(irMsg* msg_struct){
 	if(((BotMeasMsg*)(msg_struct->msg))->flag==BOT_MEAS_MSG_FLAG && msg_struct->length==sizeof(BotMeasMsg)){
+		printf("Got BotMeasMsg.\r\n");
 		if(myRole == MOUSE){
 			//TODO: Write a version of handleBotMeasMsg as if no prior information about my position.	
 		}else{

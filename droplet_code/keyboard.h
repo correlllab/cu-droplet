@@ -1,6 +1,6 @@
 #pragma once
 
-typedef enum keyboard_key{,
+typedef enum keyboard_key{
 	KEYBOARD_UNKNOWN,
 	KEYBOARD_ESCAPE,
 	KEYBOARD_TILDA,

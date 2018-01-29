@@ -17,15 +17,23 @@ void capMonitorInit(){
 	ACB.AC0MUXCTRL = AC_MUXPOS_PIN1_gc | AC_MUXNEG_SCALER_gc; //this sets the (-) part of the comparison to be a scaled value of Vcc (3.3V)
 	ACB.AC1MUXCTRL = AC_MUXPOS_PIN1_gc | AC_MUXNEG_SCALER_gc; //this sets the (-) part of the comparison to be a scaled value of Vcc (3.3V)
 
+	legCheckTask = NULL;
+	ACB.AC0CTRL = AC_ENABLE_bm;
+	ACB.AC1CTRL = AC_ENABLE_bm;
 	#ifdef FIX_UNPOWERED_STATE
-		legCheckTask = NULL;
-		ACB.AC0CTRL = AC_INTMODE_FALLING_gc | AC_INTLVL_HI_gc | AC_HYSMODE_NO_gc | AC_ENABLE_bm;
-		ACB.AC1CTRL = AC_INTMODE_RISING_gc | AC_INTLVL_HI_gc | AC_HYSMODE_NO_gc | AC_ENABLE_bm;
-	#else
-		ACB.AC0CTRL = AC_ENABLE_bm;
-		ACB.AC1CTRL = AC_ENABLE_bm;
+		scheduleTask(1000, enableLowPowerInterrupts, NULL); //If we turn these on right away then we get some initial vibrations as the cap is still charging up.
 	#endif
 	delay_us(1);
+}
+
+void enableLowPowerInterrupts(){
+	ACB.AC0CTRL |= AC_INTMODE_FALLING_gc | AC_INTLVL_HI_gc | AC_HYSMODE_NO_gc;
+	ACB.AC1CTRL |= AC_INTMODE_RISING_gc | AC_INTLVL_HI_gc | AC_HYSMODE_NO_gc;
+}
+
+void disableLowPowerInterrupts(){
+	ACB.AC0CTRL &= ~(AC_INTMODE_FALLING_gc | AC_INTLVL_HI_gc | AC_HYSMODE_NO_gc);
+	ACB.AC1CTRL &= ~(AC_INTMODE_RISING_gc | AC_INTLVL_HI_gc | AC_HYSMODE_NO_gc);
 }
 
 void legMonitorInit(){
@@ -130,16 +138,20 @@ void stopLowPowerMoveTask(){
 ISR( ACB_AC0_vect ){
 	moveSteps(6,50);
 	failedLegChecks = 0;
-	removeTask(legCheckTask);
-	legCheckTask = NULL;
+	if(legCheckTask != NULL){
+		removeTask(legCheckTask);
+		legCheckTask = NULL;
+	}
 	legCheckTask = scheduleTask(150, stopLowPowerMoveTask, NULL);
 	//setRedLED(100);
 }
 
 ISR( ACB_AC1_vect ){
 	stopMove();
-	removeTask(legCheckTask);
-	legCheckTask = NULL;
+	if(legCheckTask != NULL){
+		removeTask(legCheckTask);
+		legCheckTask = NULL;
+	}
 	//setRedLED(0);
 	failedLegChecks = 0;
 }

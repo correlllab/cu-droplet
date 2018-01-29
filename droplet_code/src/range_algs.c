@@ -132,7 +132,7 @@ void useRnbData(){
 		if(!isnanf(range)){
 			if(range<2*DROPLET_RADIUS) range=46;
 			error = calculate_error(range, bearing, heading);
-			//printf("\t[%04X] %4u % 4d % 4d | %6.2f", rnbCmdID, (uint16_t)range, (int16_t)rad_to_deg(bearing), (int16_t)rad_to_deg(heading), error);
+			//printf("\t[%04X] %4u % 4d % 4d | %6.2f", rnbCmdID, (uint16_t)range, (int16_t)radToDeg(bearing), (int16_t)radToDeg(heading), error);
 			if((range<110 && error>1.0) || (range<200 && error>1.5) || (range>200)){
 				ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 					processing_rnb_flag=0;

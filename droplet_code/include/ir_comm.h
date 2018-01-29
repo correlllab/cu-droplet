@@ -1,8 +1,5 @@
-/** \file *********************************************************************
- * \brief Droplet infrared communication subsystem functions are defined here.
- *
- *****************************************************************************/
 #pragma once
+
 #include "droplet_base.h"
 #include "ir_led.h"
 #include "ir_sensor.h"
@@ -60,8 +57,9 @@
 #define HEADER_POS_CRC_LOW 2
 #define HEADER_POS_CRC_HIGH 3
 #define HEADER_POS_MSG_LENGTH 4
-#define HEADER_POS_TARGET_ID_HIGH 5
-#define HEADER_POS_TARGET_ID_LOW 6
+#define HEADER_POS_TARGET_ID_LOW 5
+#define HEADER_POS_TARGET_ID_HIGH 6
+
 
 #define HEADER_LEN 7U
 
@@ -79,7 +77,7 @@ volatile struct
 	volatile uint32_t last_byte;			// TX time or RX time of last received byte	
 	volatile uint16_t data_crc;
 	volatile id_t senderID;
-	volatile id_t target_ID;
+	volatile id_t targetID;
 	volatile uint16_t curr_pos;				// Current position in buffer
 	volatile uint16_t calc_crc;
 	volatile char buf[IR_BUFFER_SIZE];		// Transmit / receive buffer		

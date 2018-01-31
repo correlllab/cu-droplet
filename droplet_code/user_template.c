@@ -4,6 +4,7 @@ void init(){
 	if((LOCALIZATION_DUR)>=SLOT_LENGTH_MS){
 		printf_P(PSTR("Error! Localization requires SLOT_LENGTH_MS to be greater than LOCALIZATION_DUR!\r\n"));
 	}
+	int16_t x = -1;
 	myRole = UNKNOWN;
 	myKey = KEYBOARD_UNKNOWN;
 	loopID = 0xFFFF;

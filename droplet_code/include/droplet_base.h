@@ -14,6 +14,7 @@
 #include <math.h>
 #include <avr/pgmspace.h>
 #include <string.h>
+#include <ctype.h>
 
 typedef uint16_t id_t;
 

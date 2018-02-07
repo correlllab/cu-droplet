@@ -109,11 +109,10 @@ uint8_t legsFloating(){
 
 void checkLegsTask(){
 	if(!legsPowered()){
+		legCheckTask = scheduleTask(150, stopLowPowerMoveTask, NULL);
 		if(failedLegChecks < 4){
-			scheduleTask(150, stopLowPowerMoveTask, NULL);
 			moveSteps(6,50);
 		}else if(failedLegChecks < 8){ //Assuming at this point that this Droplet hasn't been calibrated, so we're getting more drastic.
-			scheduleTask(150, stopLowPowerMoveTask, NULL);
 			int16_t adj0 = motorAdjusts[6][0];
 			int16_t adj1 = motorAdjusts[6][1];
 			int16_t adj2 = motorAdjusts[6][2];

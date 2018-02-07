@@ -3,6 +3,7 @@
 uint16_t micData[2100];
 
 void init(){
+	enableMicInterrupt();
 	if((LOCALIZATION_DUR)>=SLOT_LENGTH_MS){
 		printf_P(PSTR("Error! Localization requires SLOT_LENGTH_MS to be greater than LOCALIZATION_DUR!\r\n"));
 	}
@@ -113,6 +114,35 @@ void checkPosition(){
 		}
 		printf("Result Key: %hu\r\n", resultKey);
 }
+
+void userMicInterrupt(){
+	if(myKey!=KEYBOARD_SHIFT){
+		setRGB(0,80,120);
+		scheduleTask(150, ledOff, NULL);
+		if(myRole == KEYBOARD){
+			printf("Keyboard Key ");
+			if(isprint(myKey)){
+				printf("'%c'\r\n", (char)myKey);
+			}else{
+				printf("'\\%hu'\r\n", (uint8_t)myKey);
+			}
+		}else if(myRole == MOUSE){
+			printf("Mouse\r\n");
+		}else{
+			printf("Role Unknown\r\n");
+		}
+	}else{
+		printf("Keyboard Shift ");
+		if(getRedLED() || getGreenLED() || getBlueLED()){
+			printf("Off\r\n");
+			setRGB(0,0,0);
+		}else{
+			printf("On\r\n");
+			setRGB(0,80,120);
+		}
+	}
+}
+
 ///*
  //*	The function below is optional - commenting it in can be useful for debugging if you want to query
  //*	user variables over a serial connection.

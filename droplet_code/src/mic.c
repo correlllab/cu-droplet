@@ -1,9 +1,11 @@
 #include "mic.h"
 
 #ifdef AUDIO_DROPLET
-static const char FORMATTED_PRINT_STRING[] PROGMEM = "%4d, ";
-static int16_t get_mic_reading(void);
+	static const char FORMATTED_PRINT_STRING[] PROGMEM = "%4d, ";
+	static int16_t get_mic_reading(void);
+	
 #endif
+void userMicInterrupt(void) __attribute__((weak));
 
 //The code below assumes that ir_sensor_init() has already been called, which does some of the set up for ADCB.
 void micInit(){
@@ -23,7 +25,6 @@ void micInit(){
 
 		ACB.AC1MUXCTRL = AC_MUXPOS_PIN5_gc | AC_MUXNEG_DAC_gc;
 		ACB.AC1CTRL = AC_ENABLE_bm; 
-		enableMicInterrupt();
 		ADCB.CH3.CTRL = ADC_CH_INPUTMODE_DIFFWGAIN_gc | ADC_CH_GAIN_4X_gc;
 		ADCB.CH3.MUXCTRL = ADC_CH_MUXNEG_INTGND_MODE4_gc | ADC_CH_MUXPOS_PIN5_gc;
 	#else
@@ -32,7 +33,9 @@ void micInit(){
 }
 
 void enableMicInterrupt(){
-	ACB.AC1CTRL |= (AC_INTMODE_FALLING_gc | AC_HYSMODE_LARGE_gc | AC_INTLVL_MED_gc);
+	if(userMicInterrupt){ //Only enable mic interrupts if the user has defined a function to use them.
+		ACB.AC1CTRL |= (AC_INTMODE_FALLING_gc | AC_HYSMODE_LARGE_gc | AC_INTLVL_MED_gc);	
+	}
 }
 
 void disableMicInterrupt(){
@@ -109,8 +112,9 @@ void printRecording(uint16_t* recording, uint16_t array_len){
 }
 
 ISR( ACB_AC1_vect ){
-	setRGB(0,80,120);
-	scheduleTask(100,ledOff, NULL);
+	NONATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+		userMicInterrupt();
+	}
 }
 
 #endif

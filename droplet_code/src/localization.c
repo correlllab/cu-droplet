@@ -6,7 +6,7 @@
 //const id_t   SEED_IDS[NUM_SEEDS] = {0x7EDF, 0x1361, 0x6C66, 0x9669};
 #define NUM_SEEDS 4
 
-const BotPos SEED_POS[NUM_SEEDS] = {{51,68,0}, {67,203,0},{618,203,0},{602,68,0}};
+const BotPos SEED_POS[NUM_SEEDS] = {{25,220,0}, {500,160,0},{350,40,0},{75,100,0}};
 const id_t   SEED_IDS[NUM_SEEDS] = {0xD913, 0xAF6A, 0x3D6C,0x9261};
 
 //const BotPos SEEDS[NUM_SEEDS] = {{100, 600, 0}, {600, 600, 0}, {100, 100, 0}, {600, 100, 0}};

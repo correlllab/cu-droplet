@@ -21,6 +21,9 @@ void matrixInplaceTranspose(Matrix* A);
 
 uint8_t positiveDefiniteQ(Matrix* A);
 void choleskyDecomposition(Matrix* L, Matrix* A);
+
+//void multinormalSample(Vector* result, Vector* mean, Matrix* covar);
+
 //void ldlDecomposition(Matrix* L, Matrix* D, Matrix* A);
 void eigenvalues(Vector* eigVals, Matrix* A);
 void eigensystem(Vector* eigVals, Matrix* eigVecs, Matrix* A);

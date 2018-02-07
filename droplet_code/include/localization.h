@@ -76,6 +76,9 @@ void	localizationInit(void);
 void	useRNBmeas(id_t id, uint16_t r, int16_t b, int16_t h);
 void	handleBotMeasMsg(BotMeasMsg* msg, id_t senderID __attribute__ ((unused)));
 
+void		compressP(Matrix* P, DensePosCovar* covar);
+void		decompressP(Matrix* P, DensePosCovar* covar);
+
 //WARNING! This function hasn't yet been implemented; it's a stub to serve as a reminder/framework for future work.
 void	updateForMovement(uint8_t dir, uint16_t mag);
 

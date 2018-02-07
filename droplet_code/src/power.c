@@ -12,28 +12,23 @@ void capMonitorInit(){
 	PORTB.PIN0CTRL = PORT_ISC_INPUT_DISABLE_gc;
 	PORTB.PIN1CTRL = PORT_ISC_INPUT_DISABLE_gc;
 
-
 	ACB.CTRLB = 16; //This sets the scaling of Vcc used in the comparison, to roughly (ACB.CTRLB+1)*(0.26744 Volts)
 	ACB.AC0MUXCTRL = AC_MUXPOS_PIN1_gc | AC_MUXNEG_SCALER_gc; //this sets the (-) part of the comparison to be a scaled value of Vcc (3.3V)
-	ACB.AC1MUXCTRL = AC_MUXPOS_PIN1_gc | AC_MUXNEG_SCALER_gc; //this sets the (-) part of the comparison to be a scaled value of Vcc (3.3V)
 
 	legCheckTask = NULL;
 	ACB.AC0CTRL = AC_ENABLE_bm;
-	ACB.AC1CTRL = AC_ENABLE_bm;
 	#ifdef FIX_UNPOWERED_STATE
-		scheduleTask(1000, enableLowPowerInterrupts, NULL); //If we turn these on right away then we get some initial vibrations as the cap is still charging up.
+		scheduleTask(1000, enableLowPowerInterrupt, NULL);
 	#endif
 	delay_us(1);
 }
 
-void enableLowPowerInterrupts(){
-	ACB.AC0CTRL |= AC_INTMODE_FALLING_gc | AC_INTLVL_HI_gc | AC_HYSMODE_NO_gc;
-	ACB.AC1CTRL |= AC_INTMODE_RISING_gc | AC_INTLVL_HI_gc | AC_HYSMODE_NO_gc;
+void enableLowPowerInterrupt(){
+	ACB.AC0CTRL |= AC_INTMODE_BOTHEDGES_gc | AC_INTLVL_MED_gc | AC_HYSMODE_LARGE_gc;
 }
 
-void disableLowPowerInterrupts(){
-	ACB.AC0CTRL &= ~(AC_INTMODE_FALLING_gc | AC_INTLVL_HI_gc | AC_HYSMODE_NO_gc);
-	ACB.AC1CTRL &= ~(AC_INTMODE_RISING_gc | AC_INTLVL_HI_gc | AC_HYSMODE_NO_gc);
+void disableLowPowerInterrupt(){
+	ACB.AC0CTRL &= ~(AC_INTMODE_BOTHEDGES_gc | AC_INTLVL_MED_gc | AC_HYSMODE_LARGE_gc);
 }
 
 void legMonitorInit(){
@@ -103,6 +98,13 @@ uint8_t legsPowered(){
 	return (someLegsHigh && someLegsLow);
 }
 
+uint8_t legsFloating(){
+	int8_t leg0status = legStatus(0);
+	int8_t leg1status = legStatus(1);
+	int8_t leg2status = legStatus(2);
+	return !(leg0status || leg1status || leg2status);
+}
+
 #ifdef FIX_UNPOWERED_STATE
 
 void checkLegsTask(){
@@ -135,25 +137,33 @@ void stopLowPowerMoveTask(){
 	scheduleTask(50, checkLegsTask, NULL);
 }
 
-ISR( ACB_AC0_vect ){
-	moveSteps(6,50);
-	failedLegChecks = 0;
-	if(legCheckTask != NULL){
-		removeTask(legCheckTask);
-		legCheckTask = NULL;
+inline static void capFallingEdgeISR(void){
+	if(!(legsPowered() || legsFloating())){
+		moveSteps(6,50);
+		failedLegChecks = 0;
+		if(legCheckTask != NULL){
+			removeTask(legCheckTask);
+			legCheckTask = NULL;
+		}
+		legCheckTask = scheduleTask(150, stopLowPowerMoveTask, NULL);
 	}
-	legCheckTask = scheduleTask(150, stopLowPowerMoveTask, NULL);
-	//setRedLED(100);
 }
 
-ISR( ACB_AC1_vect ){
+inline static void capRisingEdgeISR(void){
 	stopMove();
 	if(legCheckTask != NULL){
 		removeTask(legCheckTask);
 		legCheckTask = NULL;
 	}
-	//setRedLED(0);
 	failedLegChecks = 0;
 }
 
+ISR( ACB_AC0_vect ){
+	//Triggers on both rising and falling edge, so check the current status to know what we have
+	if(capStatus()){
+		capRisingEdgeISR();
+	}else{
+		capFallingEdgeISR();
+	}
+}
 #endif

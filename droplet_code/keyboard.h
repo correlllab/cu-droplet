@@ -69,7 +69,7 @@ typedef enum keyboard_key{
 	KEYBOARD_RIGHT
 }KeyboardKey;
 
-inline KeyboardKey getKey_SPACEROW(int16_t x){
+inline KeyboardKey getKey_NUMBERROW(int16_t x){
 	uint8_t index = x/45; //KEY_WIDTH
 	switch(index){
 		case  0: return KEYBOARD_TILDA;
@@ -91,7 +91,7 @@ inline KeyboardKey getKey_SPACEROW(int16_t x){
 	}
 }
 
-inline KeyboardKey getKey_LOWERROW(int16_t x){
+inline KeyboardKey getKey_UPPERROW(int16_t x){
 	if(x<68) return KEYBOARD_TAB; //1.5*KEY_WIDTH
 	uint8_t index = (x-68)/45; //KEY_WIDTH
 	switch(index){
@@ -133,7 +133,8 @@ inline KeyboardKey getKey_HOMEROW(int16_t x){
 	}
 }
 
-inline KeyboardKey getKey_UPPERROW(int16_t x){
+inline KeyboardKey getKey_LOWERROW(int16_t x){
+	
 	if(x<102) return KEYBOARD_L_SHIFT; //2.25*KEY_WIDTH
 	uint8_t index = (x-102)/45; //KEY_WIDTH
 	switch(index){
@@ -153,7 +154,7 @@ inline KeyboardKey getKey_UPPERROW(int16_t x){
 	}
 }
 
-inline KeyboardKey getKey_NUMBERROW(int16_t x){
+inline KeyboardKey getKey_SPACEROW(int16_t x){
 	if(x<169){ //3.75*KEY_WIDTH
 		uint8_t index = x/56; //1.25*KEY_WIDTH
 		switch(index){

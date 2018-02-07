@@ -36,3 +36,16 @@ void		handleMsg(irMsg* msg_struct);
 static inline uint16_t getSlot(id_t id){
 	return (id%(SLOTS_PER_FRAME-1));
 }
+
+inline DropletRole getRoleFromPosition(BotPos* pos){
+	myKey = getKeyFromPosition(pos);
+	if(myKey != KEYBOARD_UNKNOWN){
+		return KEYBOARD;
+	}
+	if( (pos->x > 652) && (pos->y <= 225 ) && (pos->y > 0)){
+		return MOUSE;
+	}
+	return UNKNOWN;
+}
+
+void checkPosition(void);

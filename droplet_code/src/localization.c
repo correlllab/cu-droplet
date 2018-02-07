@@ -6,8 +6,8 @@
 //const id_t   SEED_IDS[NUM_SEEDS] = {0x7EDF, 0x1361, 0x6C66, 0x9669};
 #define NUM_SEEDS 4
 
-const BotPos SEED_POS[NUM_SEEDS] = {{0,0,0}, {0,180, 0},{0,0,0},{0,0,0}};
-const id_t   SEED_IDS[NUM_SEEDS] = {0x1F08, 0x3405, 0xFFFF,0xFFFF};
+const BotPos SEED_POS[NUM_SEEDS] = {{51,68,0}, {67,203,0},{618,203,0},{602,68,0}};
+const id_t   SEED_IDS[NUM_SEEDS] = {0xD913, 0xAF6A, 0x3D6C,0x9261};
 
 //const BotPos SEEDS[NUM_SEEDS] = {{100, 600, 0}, {600, 600, 0}, {100, 100, 0}, {600, 100, 0}};
 
@@ -26,8 +26,7 @@ static void		getMeasCovar(Matrix* R, Vector* meas);
 static void		calcRelativePose(Vector* pose, Vector* meas);
 static void		populateGammaMatrix(Matrix* G, Vector* pos);
 static void		populateHMatrix(Matrix* H, Vector* x_me, Vector* x_you);
-static void		compressP(Matrix* P, DensePosCovar* covar);
-static void		decompressP(Matrix* P, DensePosCovar* covar);
+
 static void		prepBotMeasMsg(id_t id, uint16_t r, int16_t b, BotPos* pos, DensePosCovar* covar);
 static uint32_t getBackoffTime(uint8_t N, uint16_t r);
 static float	discreteTriangularPDF(float x, uint8_t max, uint16_t r);
@@ -225,6 +224,18 @@ static void updatePos(BotPos* pos, Matrix* yourP){
 	compressP(&myNewP, &myPosCovar);
 }
 
+void multinormalSample(Vector* result, Vector* mean, Matrix* covar){
+	Vector eigValues;
+	Matrix eigVectors;
+	eigensystem(&eigValues, &eigVectors, covar);
+	Vector randNormSample = {randNorm(0,1), randNorm(0,1), randNorm(0,1)};
+	Matrix diagSqrtEigValues = {{sqrt(eigValues[0]), 0, 0}, {0, sqrt(eigValues[1]), 0}, {0, 0, sqrt(eigValues[2])}};
+	matrixTimesVector(result, &diagSqrtEigValues, &randNormSample);
+	Vector tmp;
+	matrixTimesVector(&tmp, &eigVectors, result);
+	vectorAdd(result, mean, &tmp);
+}
+
 /*
  * This function uses H, the Jacobian of the transformation matrix from an (r,b,h) measurement to 
  * a relative position estimate (deltaX, deltaY, deltaO).
@@ -296,7 +307,7 @@ static void populateHMatrix(Matrix* H, Vector* x_me, Vector* x_you){
 }
 
 //Takes covariance matrix P and packs it to a DensePosCovar covar.
-static void compressP(Matrix* P, DensePosCovar* covar){
+void compressP(Matrix* P, DensePosCovar* covar){
 	(*P)[0][0] = (1/8.0)*(*P)[0][0];    (*P)[0][1] = (1/16.0)*(*P)[0][1];    (*P)[0][2] =  16.0*(*P)[0][2];
 	(*P)[1][1] = (1/8.0)*(*P)[1][1];     (*P)[1][2] =  16.0*(*P)[1][2];
 	(*P)[2][2] = 256.0*(*P)[2][2];
@@ -316,7 +327,7 @@ static void compressP(Matrix* P, DensePosCovar* covar){
 }
 
 //Takes DensePosCovar covar and unpacks it to a covariance matrix P.
-static void decompressP(Matrix* P, DensePosCovar* covar){
+void decompressP(Matrix* P, DensePosCovar* covar){
 	(*P)[0][0] = (*covar)[0].u;    (*P)[0][1] = (*covar)[1].d;    (*P)[0][2] = (*covar)[2].d;
 	(*P)[1][1] = (*covar)[3].u;    (*P)[1][2] = (*covar)[4].d;
 	(*P)[2][2] = (*covar)[5].u;
@@ -533,9 +544,9 @@ void getPosColor(uint8_t* r, uint8_t* g, uint8_t* b){
 		*g = (uint8_t)(yColVal);
 		*b = 0;
 	}else{
-		*r = 25;
-		*g = 25;
-		*b = 25;
+		*r = 10;
+		*g = 10;
+		*b = 10;
 	}
 }
 

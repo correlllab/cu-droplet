@@ -1,4 +1,5 @@
 #pragma once
+#include "localization.h"
 
 typedef enum keyboard_key{
 	KEYBOARD_UNKNOWN	=    0,
@@ -64,6 +65,14 @@ typedef enum keyboard_key{
 	KEYBOARD_DOWN		=   40,
 	KEYBOARD_RIGHT      =   39
 }KeyboardKey;
+
+typedef struct keypress_msg_struct{
+	uint32_t	time;
+	id_t		src;
+	KeyboardKey key;
+	uint8_t		flag;
+}KeypressMsg;
+#define IS_KEYPRESS_MSG(msgStruct) ( (msgStruct->length==sizeof(KeypressMsg)) && (((KeypressMsg*)(msgStruct->msg))->flag==KEYPRESS_MSG_FLAG) )
 
 #define KEY_WIDTH 50
 #define KEY_HALFWIDTH (KEY_WIDTH/2)

@@ -52,6 +52,7 @@ typedef struct bot_meas_msg_struct{
 	DensePosCovar covar; //12 bytes
 	char flag;
 }BotMeasMsg;
+#define IS_BOT_MEAS_MSG(msgStruct) (((BotMeasMsg*)(msgStruct->msg))->flag==BOT_MEAS_MSG_FLAG && msgStruct->length==sizeof(BotMeasMsg))
 
 typedef struct bot_meas_msg_node_struct{
 	BotMeasMsg msg;

@@ -47,6 +47,9 @@ void		loop(void);
 void		handleMsg(irMsg* msg_struct);
 
 void handleKeypressMsg(KeypressMsg* msg);
+void checkPosition(void);
+
+void wireSleep(void);
 
 static inline uint16_t getSlot(id_t id){
 	return (id%(SLOTS_PER_FRAME-1));
@@ -63,8 +66,29 @@ inline DropletRole getRoleFromPosition(BotPos* pos){
 	return UNKNOWN;
 }
 
-void checkPosition(void);
+inline void wireTxKeypress(KeyboardKey key){
+	setRGB(50,0,0);
+	scheduleTask(150, ledOff, NULL);
+	printf("KeyboardKey ");
+	printf(isprint(key) ? "   '%c'\r\n" : "'\\%3hu'\r\n", key);
+}
 
-void sendKeypressMsg(void);
-void repeatKeypressMsg(KeypressMsg* msg);
-void wireSleep(void);
+inline void sendKeypressMsg(KeypressEvent* evt){
+	KeypressMsg msg;
+	msg.evt = *evt;
+	msg.flag = KEYPRESS_MSG_FLAG;
+	irSend(ALL_DIRS, (char*)(&msg), sizeof(KeypressMsg));
+}
+
+inline void buildKeypressEvent(KeypressEvent* evt){
+	printf("PRESSED: ");
+	printf(isprint(myKey) ? "   '%c'\r\n" : "'\\%3hu'\r\n", myKey);
+	evt->time = getTime();
+	evt->key = ( isShifted && isalpha(myKey) ) ? myKey : (myKey+32); //convert to lowercase if appropriate.
+	evt->src = getDropletID();
+}
+
+inline uint8_t repeatKeypressMsg(KeypressMsg* msg){
+	return irSend(ALL_DIRS, (char*)msg, sizeof(KeypressMsg));
+}
+

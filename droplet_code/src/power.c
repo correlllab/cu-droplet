@@ -12,12 +12,12 @@ void capMonitorInit(){
 	PORTB.PIN0CTRL = PORT_ISC_INPUT_DISABLE_gc;
 	PORTB.PIN1CTRL = PORT_ISC_INPUT_DISABLE_gc;
 
-	ACB.CTRLB = 16; //This sets the scaling of Vcc used in the comparison, to roughly (ACB.CTRLB+1)*(0.26744 Volts)
+	ACB.CTRLB = 14; //This sets the scaling of Vcc used in the comparison, to roughly (ACB.CTRLB+1)*(0.26744 Volts)
 	ACB.AC0MUXCTRL = AC_MUXPOS_PIN1_gc | AC_MUXNEG_SCALER_gc; //this sets the (-) part of the comparison to be a scaled value of Vcc (3.3V)
 
-	legCheckTask = NULL;
 	ACB.AC0CTRL = AC_ENABLE_bm;
 	#ifdef FIX_UNPOWERED_STATE
+		unpoweredFixActive = 0;
 		scheduleTask(1000, enableLowPowerInterrupt, NULL);
 	#endif
 	delay_us(1);
@@ -45,8 +45,8 @@ void legMonitorInit(){
 	ACA.AC0MUXCTRL = AC_MUXNEG_PIN0_gc; //VREF_HI
 	ACA.AC1MUXCTRL = AC_MUXNEG_PIN1_gc; //VREF_LO
 	
-	ACA.AC0CTRL = AC_ENABLE_bm; //The comparators take up to 500ns in low-power mode and up to 100ns in high-power mode. Since 500ns is plenty fast for me, I'm leaving them in low-power mode.
-	ACA.AC1CTRL = AC_ENABLE_bm;	//The comparators take up to 500ns in low-power mode and up to 100ns in high-power mode. Since 500ns is plenty fast for me, I'm leaving them in low-power mode.
+	ACA.AC0CTRL = AC_HSMODE_bm | AC_ENABLE_bm; //The comparators take up to 500ns in low-power mode and up to 100ns in high-power mode. Since 500ns is plenty fast for me, I'm leaving them in low-power mode.
+	ACA.AC1CTRL = AC_HSMODE_bm | AC_ENABLE_bm;	//The comparators take up to 500ns in low-power mode and up to 100ns in high-power mode. Since 500ns is plenty fast for me, I'm leaving them in low-power mode.
 	delay_us(1);
 	
 }
@@ -77,7 +77,8 @@ int8_t legStatus(uint8_t leg){
 	}
 	ACA.AC0MUXCTRL |= muxPinMask;
 	ACA.AC1MUXCTRL |= muxPinMask;
-	delay_us(1); //In low-power mode, the comparators take up to 500ns to update after changing the inputs.
+	busy_delay_ns(150); //In high-power mode, the comparators take up to 110ns to update after changing the inputs.
+	//busy_delay_ns(500); //In low-power mode, the comparators take up to 500ns to update after changing the inputs.
 	status = ACA.STATUS;
 	ACA.AC0MUXCTRL &= AC_MUXPOS_PIN0_gc;
 	ACA.AC1MUXCTRL &= AC_MUXPOS_PIN0_gc;
@@ -108,53 +109,70 @@ uint8_t legsFloating(){
 #ifdef FIX_UNPOWERED_STATE
 
 void checkLegsTask(){
-	if(!legsPowered()){
-		legCheckTask = scheduleTask(150, stopLowPowerMoveTask, NULL);
+	if(!unpoweredFixActive){
+		return;
+	}
+	if(legsPowered()){
+		unpoweredFixActive = 0; //Nothing left to do.
+	}else if(legsFloating()){
+		unpoweredFixActive = 0; //Problem isn't resolved, but it seems like we simply aren't on the floor at all anymore.
+	}else{
+		//Lets move the Droplet to try and fix things.
 		if(failedLegChecks < 4){
+			//At first, we're going to use the calibrated motor values:
 			moveSteps(6,50);
-		}else if(failedLegChecks < 8){ //Assuming at this point that this Droplet hasn't been calibrated, so we're getting more drastic.
-			int16_t adj0 = motorAdjusts[6][0];
-			int16_t adj1 = motorAdjusts[6][1];
-			int16_t adj2 = motorAdjusts[6][2];
-			//The equation below should cause the temporary motor adjustment values to alternate between positive and negative, and increase by 500 if that doesn't work.
-			motorAdjusts[6][0] = ((int16_t)pow(-1, failedLegChecks-5))*(1000 + (((failedLegChecks - 5)/2)*500));
-			motorAdjusts[6][1] = ((int16_t)pow(-1, failedLegChecks-5))*(1000 + (((failedLegChecks - 5)/2)*500));
-			motorAdjusts[6][2] = ((int16_t)pow(-1, failedLegChecks-5))*(1000 + (((failedLegChecks - 5)/2)*500));
+		}else if(failedLegChecks < 8){ 
+			//Assuming at this point that this Droplet hasn't been calibrated, so we're using progressively 
+			//larger and flipped guesses at calibrated motor values.
+			int16_t adj[3];
+			ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+				adj[0] = motorAdjusts[6][0];
+				adj[1] = motorAdjusts[6][1];
+				adj[2] = motorAdjusts[6][2];
+				//The equation below should cause the temporary motor adjustment values to alternate between positive and negative, and increase by 500 if that doesn't work.
+				motorAdjusts[6][0] = ((int16_t)pow(-1, failedLegChecks-5))*(1000 + (((failedLegChecks - 5)/2)*500));
+				motorAdjusts[6][1] = ((int16_t)pow(-1, failedLegChecks-5))*(1000 + (((failedLegChecks - 5)/2)*500));
+				motorAdjusts[6][2] = ((int16_t)pow(-1, failedLegChecks-5))*(1000 + (((failedLegChecks - 5)/2)*500));
+			}
 			moveSteps(6,50);
-			motorAdjusts[6][0] = adj0;
-			motorAdjusts[6][1] = adj1;
-			motorAdjusts[6][2] = adj2;
+			ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+				motorAdjusts[6][0] = adj[0];
+				motorAdjusts[6][1] = adj[1];
+				motorAdjusts[6][2] = adj[2];
+			}
 		}else{
-			//give up.
+			unpoweredFixActive = 0;
 		}
+		scheduleTask(150, stopLowPowerMoveTask, NULL);
 		failedLegChecks++;
 	}
 }
 
 void stopLowPowerMoveTask(){
 	stopMove();
+	if(!unpoweredFixActive){
+		return;
+	}	
 	scheduleTask(50, checkLegsTask, NULL);
 }
 
 inline static void capFallingEdgeISR(void){
-	if(!(legsPowered() || legsFloating())){
-		moveSteps(6,50);
-		failedLegChecks = 0;
-		if(legCheckTask != NULL){
-			removeTask(legCheckTask);
-			legCheckTask = NULL;
+	if(!unpoweredFixActive){
+		if(!(legsPowered() || legsFloating())){
+			unpoweredFixActive = 1;
+			moveSteps(6,50);
+			failedLegChecks = 0;
+			scheduleTask(150, stopLowPowerMoveTask, NULL);
 		}
-		legCheckTask = scheduleTask(150, stopLowPowerMoveTask, NULL);
 	}
 }
 
 inline static void capRisingEdgeISR(void){
-	stopMove();
-	if(legCheckTask != NULL){
-		removeTask(legCheckTask);
-		legCheckTask = NULL;
+	if(unpoweredFixActive){
+		stopMove();
+		failedLegChecks = 0;
+		unpoweredFixActive = 0;
 	}
-	failedLegChecks = 0;
 }
 
 ISR( ACB_AC0_vect ){

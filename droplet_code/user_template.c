@@ -1,7 +1,6 @@
 #include "user_template.h"
 
 void init(){
-	enableMicInterrupt();
 	if((LOCALIZATION_DUR)>=SLOT_LENGTH_MS){
 		printf_P(PSTR("Error! Localization requires SLOT_LENGTH_MS to be greater than LOCALIZATION_DUR!\r\n"));
 	}
@@ -19,6 +18,9 @@ void init(){
 	if(POS_DEFINED(&myPos)){
 		myRole = getRoleFromPosition(&myPos);
 	}
+	#ifdef AUDIO_DROPLET
+		enableMicInterrupt();
+	#endif	
 	//setAllirPowers(225);
 }
 
@@ -36,21 +38,21 @@ void loop(){
 				broadcastRnbData();
 			}
 		}else if(loopID==SLOTS_PER_FRAME-1){ //This is the end-of-frame slot.
-			if(POS_DEFINED(&myPos)){
+			if((myRole==UNKNOWN) && POS_DEFINED(&myPos)){
 				printf_P(PSTR("\tMy Pos: {%d, %d, %d}\r\n"), myPos.x, myPos.y, myPos.o);
 				printPosCovar(&myPosCovar);
 				printf("\r\n");
+				uint32_t before = getTime();
 				checkPosition();
+				printf("Check Position Took %lu ms for 100 runs.\r\n", getTime()-before);
 			}
 		}
 		if(myRole == UNKNOWN){
 			uint8_t newR = 0, newG = 0, newB = 0;
 			getPosColor(&newR, &newG, &newB);
 			setRGB(newR, newG, newB);
-		}else if(myRole == KEYBOARD){
-			setRGB(0,0,0);
-		}else if(myRole == MOUSE){
-			setRGB(0,0,10);
+		}else if(myRole == KEYBOARD || myRole == MOUSE){
+			setRGB(0,0,25);
 		}
 	}
 	if(rnb_updated){
@@ -74,38 +76,23 @@ void handleMsg(irMsg* msgStruct){
 }
 
 void handleKeypressMsg(KeypressMsg* msg){
-	int8_t result = addEvent(msg);
-	if(result==0){
-		//We've already seen this event, so nothing else to do.
-		return;
-	}else if(result == -1){
-		printf("Event queue error!\r\n");
-		return;
-	}
-	if(msg->key==KEYBOARD_SHIFT){
-		isShifted = !isShifted;
-		repeatKeypressMsg(msg);
-	}else{
-		if(isWired){
-			setRGB(50,0,0);
-			scheduleTask(150, ledOff, NULL);
-			printf("KeyboardKey ");	
-			if(isprint(myKey)){
-				printf("'%c'\r\n", (char)myKey);
-			}else{
-				printf("'\\%hu'\r\n", (uint8_t)myKey);
-			}
-		}else{
+	KeypressEvent* evt = &(msg->evt);
+	if(addEvent(evt)){
+		if(evt->key==KEYBOARD_SHIFT){
+			isShifted = !isShifted;
 			repeatKeypressMsg(msg);
+		}else{
+			if(isWired){
+				wireTxKeypress(evt->key);
+			}else{
+				repeatKeypressMsg(msg);
+			}
 		}
 	}
 }
 
-void repeatKeypressMsg(KeypressMsg* msg){
-	irSend(ALL_DIRS, (char*)msg, sizeof(KeypressMsg));
-}
-
-#define NUM_CHECK_SAMPLES 10
+//This seems to take 650us per sample.
+#define NUM_CHECK_SAMPLES 100
 void checkPosition(){
 		Matrix covar;
 		decompressP(&covar, &myPosCovar);
@@ -119,14 +106,7 @@ void checkPosition(){
 		Vector result;
 		BotPos resultPos;
 		resultPos.o = 0;
-		KeyboardKey resultKeys[NUM_CHECK_SAMPLES];
-		uint8_t resultCounts[NUM_CHECK_SAMPLES];
-		for(uint8_t i=0;i<NUM_CHECK_SAMPLES;i++){
-			resultKeys[i] = KEYBOARD_UNKNOWN;
-			resultCounts[i] = 0;
-		}
-		KeyboardKey resultKey;
-		uint8_t resultFound;
+		KeyboardKey resultKeys[(LARGEST_KEYBOARD_KEY+1)] = {0}; //according to internet, this initializes everything to 0.
 		for(uint8_t i=0;i<NUM_CHECK_SAMPLES;i++){
 			randNormSample[0] = randNorm(0,1);
 			randNormSample[1] = randNorm(0,1);
@@ -136,56 +116,20 @@ void checkPosition(){
 			//But, getKeyFromPosition doesn't care about the bot's orientation, so that's skipped.
 			resultPos.x = myPos.x + result[0];
 			resultPos.y = myPos.y + result[1];
-			resultKey = getKeyFromPosition(&resultPos);
-			
-			//This next bit tabulates the distributes of resulting keys.
-			resultFound = 0;
-			for(uint8_t j=0;j<=i;j++){
-				if(resultKeys[j]==resultKey){
-					resultFound=1;
-					resultCounts[j]++;
-					break;
-				}
-			}
-			if(!resultFound){
-				resultKeys[i] = resultKey;
-				resultCounts[i]++;
-			}
-			
+			resultKeys[getKeyFromPosition(&resultPos)]++;
 		}
-		uint8_t maxCount = 0;
-		resultKey = KEYBOARD_UNKNOWN;
-		printf("check_position_results= {");
-		for(uint8_t i=0;i<NUM_CHECK_SAMPLES;i++){
-			if(resultCounts[i]>0){
-				if(resultCounts[i]>maxCount){
-					resultKey = resultKeys[i];
-					maxCount = resultCounts[i];
-				}else if(resultCounts[i]==maxCount){
-					resultKey = KEYBOARD_UNKNOWN;
-				}
-				printf( isprint(resultKeys[i]) ? "{%c, %hu}" : "{%hu, %hu}", resultKeys[i], resultCounts[i]);
-				if(i!=(NUM_CHECK_SAMPLES-1)){
-					printf(",");
-				}
+		uint8_t maxKeyCount = 0;
+		KeyboardKey maxKey = KEYBOARD_UNKNOWN;
+		for(uint8_t i=0;i<=LARGEST_KEYBOARD_KEY;i++){
+			if(resultKeys[i]>maxKeyCount){
+				maxKeyCount = resultKeys[i];
+				maxKey = i;
 			}
 		}
-		printf("};\r\n");
-		if(maxCount>3 && resultKey!=KEYBOARD_UNKNOWN){
-			myKey = resultKey;
+		if(maxKeyCount>=60 && maxKey!=KEYBOARD_UNKNOWN){
+			myKey = maxKey;
 			myRole = KEYBOARD;
 		}
-}
-
-void sendKeypressMsg(){
-	KeypressMsg msg;
-	msg.time = getTime();
-	msg.src	 = getDropletID();
-	msg.key  = myKey;
-	msg.key = ( isShifted && isalpha(myKey) ) ? (myKey-32) : myKey; //convert to uppercase if appropriate.
-	msg.flag = KEYPRESS_MSG_FLAG;
-	addEvent(&msg);//This keeps us from repeating or otherwise responding to ourselves.
-	irSend(ALL_DIRS, (char*)(&msg), sizeof(KeypressMsg));
 }
 
 void userMicInterrupt(){
@@ -197,13 +141,15 @@ void userMicInterrupt(){
 		setRGB(0,80,120);
 		scheduleTask(150, ledOff, NULL);
 		if(myRole == KEYBOARD){
-			printf("PRESSED: ");
-			if(isprint(myKey)){
-				printf("'%c'\r\n", (char)myKey);
-			}else{
-				printf("'\\%hu'\r\n", (uint8_t)myKey);
+			KeypressEvent evt;
+			buildKeypressEvent(&evt);;
+			if(addEvent(&evt)){ //This keeps us from repeating or otherwise responding to ourselves.
+				if(isWired){
+					wireTxKeypress(evt.key);
+				}else{
+					sendKeypressMsg(&evt);
+				}
 			}
-			sendKeypressMsg();
 		}else if(myRole == MOUSE){
 			printf("Mouse\r\n");
 		}else{
@@ -223,10 +169,6 @@ void userMicInterrupt(){
 	}
 }
 
-void wireSleep(){
-	isWired = 0;
-}
-
 ///*
  //*	The function below is optional - commenting it in can be useful for debugging if you want to query
  //*	user variables over a serial connection.
@@ -242,4 +184,8 @@ uint8_t userHandleCommand(char* commandWord, char* commandArgs __attribute__ ((u
 	}else{
 		return 0;
 	}
+}
+
+void wireSleep(){
+	isWired = 0;
 }

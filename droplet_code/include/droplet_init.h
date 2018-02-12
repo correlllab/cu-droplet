@@ -42,9 +42,8 @@ extern void init(void);
 extern void loop(void);
 extern void handleMsg(irMsg* msg_struct);
 extern uint8_t userHandleCommand(char* commandWord, char* commandArgs);
-#ifdef AUDIO_DROPLET
-	extern void userMicInterrupt(void);
-#endif
+extern void userMicInterrupt(void);
+
 
 void startupLightSequence(void);
 uint8_t getDropletOrd(id_t id);

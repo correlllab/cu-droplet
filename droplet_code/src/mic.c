@@ -32,9 +32,10 @@ void micInit(){
 	#endif
 }
 
+#ifdef AUDIO_DROPLET
 void enableMicInterrupt(){
 	if(userMicInterrupt){ //Only enable mic interrupts if the user has defined a function to use them.
-		ACB.AC1CTRL |= (AC_INTMODE_FALLING_gc | AC_HYSMODE_LARGE_gc | AC_INTLVL_MED_gc);	
+		ACB.AC1CTRL |= (AC_INTMODE_FALLING_gc | AC_HYSMODE_LARGE_gc | AC_INTLVL_MED_gc);
 	}
 }
 
@@ -42,8 +43,6 @@ void disableMicInterrupt(){
 	ACB.AC1CTRL &= ~(AC_INTMODE_FALLING_gc | AC_HYSMODE_LARGE_gc | AC_INTLVL_MED_gc);
 }
 
-
-#ifdef AUDIO_DROPLET
 static int16_t get_mic_reading(void){
 		int16_t reading;
 		ATOMIC_BLOCK(ATOMIC_RESTORESTATE){

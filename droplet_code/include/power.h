@@ -1,6 +1,7 @@
 #pragma once
 #include "droplet_base.h"
 #include "rgb_led.h"
+#include "delay_x.h"
 #include "motor.h"
 
 void powerInit(void); //just calls cap_monitor and leg_monitor init
@@ -20,7 +21,7 @@ uint8_t legsFloating(void);
 
 #ifdef FIX_UNPOWERED_STATE
 	volatile uint8_t failedLegChecks;
-	volatile Task_t* legCheckTask;
+	volatile uint8_t unpoweredFixActive;
 	void stopLowPowerMoveTask(void);
 	void checkLegsTask(void);
 #endif

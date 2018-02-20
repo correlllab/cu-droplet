@@ -12,7 +12,7 @@
 
 /******************************************************New Code for write/read on flash********************************/
 // XMega 128A3 
-#define FLASH_PAGE_SIZE                     256 
+#define FLASH_PAGE_SIZE                     512UL 
 #define FLASH_FWORD_SIZE                    9 
 #define FRAZIONI_DI_PAGINA_FLASH            4 
 #define MAX_PAGE_NUMBER						256
@@ -61,6 +61,7 @@ uint32_t FLASH_ApplicationCRC(void);
 uint32_t FLASH_RangeCRC(uint32_t, uint32_t); 
 void FLASH_WaitForNVM(void); 
 void FLASH_ReadFlashPage(uint8_t *, uint32_t);
+void writeRead(uint8_t* WriteBuffer, uint32_t pageNumber);
 
 uint8_t WriteBuffer[FLASH_PAGE_SIZE];
 uint8_t ReadBuffer[FLASH_PAGE_SIZE]; 

@@ -240,7 +240,7 @@ uint8_t FLASH_ReadByte(uint32_t flash_address)
 
 void FLASH_ReadFlashPage(uint8_t *ram_buffer, uint32_t page_number)
 {
-	uint32_t base_address = page_number << FLASH_FWORD_SIZE;
+	uint32_t base_address = page_number*FLASH_PAGE_SIZE;
 	//printf("\n\rbase_address=%lx",base_address);
 	SP_ReadFlashPage(ram_buffer,base_address);
 	SP_WaitForSPM();
@@ -277,6 +277,7 @@ void writeRead(uint8_t* WriteBuffer, uint32_t pageNumber)
 		
 		SP_LoadFlashPage(WriteBuffer);
 		SP_WaitForSPM();
+		NVM.CMD = NVM_CMD_NO_OPERATION_gc;
 		
 		SP_EraseWriteApplicationPage(tableAddress);
 		NVM.CMD = NVM_CMD_ERASE_WRITE_APP_PAGE_gc;

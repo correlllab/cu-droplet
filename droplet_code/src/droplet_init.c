@@ -141,7 +141,9 @@ void handle_serial_comm(irMsg* msg_struct)
 
 uint8_t calculate_page_number(uint16_t addressFrmProgramming)
 {
-	return addressFrmProgramming/512;
+	uint8_t calc_page_number = (addressFrmProgramming/FLASH_PAGE_SIZE);
+	
+	return calc_page_number;
 }
 
 

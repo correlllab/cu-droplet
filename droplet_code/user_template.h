@@ -31,6 +31,13 @@ typedef enum droplet_role{
 	MOUSE	
 }DropletRole;
 
+typedef uint8_t LEDStore[3];
+
+typedef struct keypress_msg_node_struct{
+	KeypressMsg msg;
+	uint8_t numTries;
+}KeypressMsgNode;
+
 uint32_t	frameCount;
 uint32_t	frameStart;
 uint32_t	lastKeypress;
@@ -38,6 +45,8 @@ uint16_t	mySlot;
 uint16_t	loopID;
 uint8_t		isWired;
 uint8_t		isShifted;
+volatile LEDStore keypressBlinkLEDStore;
+volatile LEDStore wiredBlinkLEDStore;
 DropletRole myRole;
 KeyboardKey myKey;
 volatile Task_t* wireSleepTask;
@@ -46,10 +55,16 @@ void		init(void);
 void		loop(void);
 void		handleMsg(irMsg* msg_struct);
 
+void prepKeypressMsg(KeypressEvent* evt);
+void sendKeypressMsg(KeypressMsgNode* msgNode);
 void handleKeypressMsg(KeypressMsg* msg);
 void checkPosition(void);
+void restoreLED(volatile LEDStore* vals);
 
 void wireSleep(void);
+
+
+uint32_t getExponentialBackoff(uint8_t c);
 
 static inline uint16_t getSlot(id_t id){
 	return (id%(SLOTS_PER_FRAME-1));
@@ -66,23 +81,24 @@ inline DropletRole getRoleFromPosition(BotPos* pos){
 	return UNKNOWN;
 }
 
-inline void wireTxKeypress(KeyboardKey key){
-	setRGB(50,0,0);
-	scheduleTask(150, ledOff, NULL);
-	printf("KeyboardKey ");
-	printf(isprint(key) ? "   '%c'\r\n" : "'\\%3hu'\r\n", key);
+inline void storeLED(volatile LEDStore* vals){
+	(*vals)[0] = getRedLED();
+	(*vals)[1] = getGreenLED();
+	(*vals)[2] = getBlueLED();
 }
 
-inline void sendKeypressMsg(KeypressEvent* evt){
-	KeypressMsg msg;
-	msg.evt = *evt;
-	msg.flag = KEYPRESS_MSG_FLAG;
-	irSend(ALL_DIRS, (char*)(&msg), sizeof(KeypressMsg));
+inline void wireTxKeypress(KeyboardKey key){
+	storeLED(&wiredBlinkLEDStore);
+	setRGB(50,0,0);
+	scheduleTask(150, (arg_func_t)restoreLED, (void*)&wiredBlinkLEDStore);
+	printf("KeyboardKey ");
+	printf(isprint(key) ? "   '%c'\r\n" : "'\\%03hu'\r\n", key);
 }
 
 inline void buildKeypressEvent(KeypressEvent* evt){
+	
 	printf("PRESSED: ");
-	printf(isprint(myKey) ? "   '%c'\r\n" : "'\\%3hu'\r\n", myKey);
+	printf(isprint(myKey) ? "   '%c'\r\n" : "'\\%03hu'\r\n", myKey);
 	evt->time = getTime();
 	evt->key = ( isShifted && isalpha(myKey) ) ? myKey : (myKey+32); //convert to lowercase if appropriate.
 	evt->src = getDropletID();

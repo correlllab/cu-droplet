@@ -119,6 +119,21 @@ void broadcastRnbData(){
 	}
 }
 
+uint8_t checkErrorAndPrint(float range, float bearing, float heading){
+	float error = calculate_error(range, bearing, heading);
+	//printf("\t[%04X] %4u % 4d % 4d | %6.2f", rnbCmdID, (uint16_t)range, (int16_t)radToDeg(bearing), (int16_t)radToDeg(heading), error);
+	if((range<110 && error>1.0) || (range<200 && error>1.5) || (range>200)){
+		ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+			processing_rnb_flag=0;
+		}
+		//printf(" <!>\r\n");
+		return 0;
+	}else{
+		//printf("\r\n");
+		return 1;
+	}
+}
+
 void useRnbData(){
 	//uint32_t start = get_time();
 	int16_t matrixSum = processBrightMeas();
@@ -131,24 +146,14 @@ void useRnbData(){
 		float range = calculate_range(initialRange, bearing, heading);
 		if(!isnanf(range)){
 			if(range<2*DROPLET_RADIUS) range=46;
-			error = calculate_error(range, bearing, heading);
-			//printf("\t[%04X] %4u % 4d % 4d | %6.2f", rnbCmdID, (uint16_t)range, (int16_t)radToDeg(bearing), (int16_t)radToDeg(heading), error);
-			if((range<110 && error>1.0) || (range<200 && error>1.5) || (range>200)){
-				ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-					processing_rnb_flag=0;
-				}
-				//printf(" <!>\r\n");
-				return;
-			}else{
-				//printf("\r\n");
+			if(checkErrorAndPrint(range, bearing, heading)){
+				last_good_rnb.id = rnbCmdID;
+				last_good_rnb.range		= (uint16_t)(range);
+				last_good_rnb.bearing	= (int16_t)radToDeg(bearing);
+				last_good_rnb.heading	= (int16_t)radToDeg(heading);
+				//print_brightMeas();
+				rnb_updated=1;
 			}
-			
-			last_good_rnb.id = rnbCmdID;
-			last_good_rnb.range		= (uint16_t)(range);
-			last_good_rnb.bearing	= (int16_t)radToDeg(bearing);
-			last_good_rnb.heading	= (int16_t)radToDeg(heading);
-			//print_brightMeas();
-			rnb_updated=1;
 		}
 	}
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){

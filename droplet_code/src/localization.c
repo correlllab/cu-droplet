@@ -9,7 +9,7 @@
 //const BotPos SEED_POS[NUM_SEEDS] = {{225,220,0}, {500,160,0},{350,40,0},{75,100,0}};
 //const id_t   SEED_IDS[NUM_SEEDS] = {0xD913, 0xAF6A, 0x3D6C,0x9261};
 	const BotPos SEED_POS[NUM_SEEDS] = {{225,220,0}, {500,160,0},{350,40,0},{75,100,0}};
-	const id_t   SEED_IDS[NUM_SEEDS] = {/*0xD913*/0x2B4E, 0xAF6A, 0x3D6C,0x9261};
+	const id_t   SEED_IDS[NUM_SEEDS] = {0xD913, 0x3D6C, 0xAF6A, 0x9261};
 
 //const BotPos SEEDS[NUM_SEEDS] = {{100, 600, 0}, {600, 600, 0}, {100, 100, 0}, {600, 100, 0}};
 
@@ -20,7 +20,7 @@
 #define MAX_Y 150
 
 static float	chooseOmega(Matrix* myPinv, Matrix* yourPinv);
-static float	mahalanobisDistance(Vector* a, Matrix* A, Vector* b, Matrix* B);
+static float	bhattacharyyaDistance(Vector* a, Matrix* A, Vector* b, Matrix* B);
 static void		covarIntersection(Vector* x, Matrix* P, Vector* a, Matrix* A, Vector* b, Matrix* B);
 static void		covarUnion(Vector* x, Matrix* P, Vector* a, Matrix* A, Vector* b, Matrix* B);
 static void		updatePos(BotPos* pos, Matrix* yourP);
@@ -33,12 +33,12 @@ static void		prepBotMeasMsg(id_t id, uint16_t r, int16_t b, BotPos* pos, DensePo
 static uint32_t getBackoffTime(uint8_t N, uint16_t r);
 static float	discreteTriangularPDF(float x, uint8_t max, uint16_t r);
 
-static const Matrix measCovarClose  = {{100, -0.75, 0.1}, {-0.75, 0.03, 0.025}, {0.1, 0.025, 0.1}};
-static const Matrix measCovarMed = {{450, 0.15, 0.75}, {0.15, 0.05, 0.1}, {0.75, 0.1, 0.25}};
-static const Matrix measCovarFar = {{2000, -5, -0.1}, {-5, 0.6, 0.5}, {-0.1, 0.5, 1.0}};
-//static const Matrix xyMeasCovarClose  = {{100, 2, 0.5}, {2, 100, 0.75}, {0.5, 0.75, 0.05}};
-//static const Matrix xyMeasCovarMed = {{500, 100, -4}, {100, 500, -0.5}, {-4, -0.5, 0.2}};
-//static const Matrix xyMeasCovarFar = {{8000, -1000, -0.25}, {-1000, 8000, -10}, {-0.25, -10, 1}};
+static const Matrix measCovarClose  = {{ 100, -0.75,   0.1}, {-0.75, 0.03, 0.025}, { 0.1, 0.025,  0.1}}; //46-80mm
+static const Matrix    measCovarMed = {{ 450,  0.15,  0.75}, { 0.15, 0.05,   0.1}, {0.75,   0.1, 0.25}}; //80-140mm
+static const Matrix    measCovarFar = {{2000,    -5,  -0.1}, {   -5,  0.6,   0.5}, {-0.1,   0.5,  1.0}}; //140-200mm
+//static const Matrix measCovarClose  = {{100, -0.75, 0.1}, {-0.75, 0.03, 0.025}, {0.1, 0.025, 0.1}}; //50-80mm
+//static const Matrix measCovarMed = {{450, 0.15, 0.75}, {0.15, 0.05, 0.1}, {0.75, 0.1, 0.25}}; //80-140mm
+//static const Matrix measCovarFar = {{2000, -5, -0.1}, {-5, 0.6, 0.5}, {-0.1, 0.5, 1.0}}; //140-210mm	
 
 void localizationInit(){
 	myPos.x = UNDF;
@@ -81,20 +81,26 @@ static float chooseOmega(Matrix* myPinv, Matrix* yourPinv){
 	return omega;
 }
 
-static float mahalanobisDistance(Vector* a, Matrix* A, Vector* b, Matrix* B){
+static float bhattacharyyaDistance(Vector* a, Matrix* A, Vector* b, Matrix* B){
 	Vector a_sub_b;
 	vectorSubtract(&a_sub_b, a, b);
-	Matrix A_plus_B_inv;
-	matrixAdd(&A_plus_B_inv, A, B);
-	matrixInplaceInverse(&A_plus_B_inv);
+	Matrix Sigma;
+	matrixAdd(&Sigma, A, B);
+	matrixScale(&Sigma, 0.5);
+	float detSigma = matrixDet(&Sigma);
+	float detA     = matrixDet(A);
+	float detB	   = matrixDet(B);
+	matrixInplaceInverse(&Sigma);
 	Vector a_sub_b_normed;
-	matrixTimesVector(&a_sub_b_normed, &A_plus_B_inv, &a_sub_b);
+	matrixTimesVector(&a_sub_b_normed, &Sigma, &a_sub_b);
 	//Now, a_sub_b_normed = (A+B)^{-1} X (a-b)
 	float distance = a_sub_b[0]*a_sub_b_normed[0] + a_sub_b[1]*a_sub_b_normed[1] + a_sub_b[2]*a_sub_b_normed[2];
-	//Now, distance = (a-b)^{tr} X (A+B)^{-1} X (a-b)
+	distance = distance/8.0;
+	//Now, distance = (1/8) * ( (a-b)^{tr} X (A+B)^{-1} X (a-b) );
+	float logTerm = detSigma/sqrtf(detA*detB);
+	distance = distance + 0.5*log(logTerm);
 	return distance;
 }
-
 /*
  * P is covar matrix resulting from CI of A & B (with means a & b, respectively)
  * x is resulting mean.
@@ -194,15 +200,14 @@ static void updatePos(BotPos* pos, Matrix* yourP){
 	Matrix myNewP;
 	Vector myNewPos;
 
-	float mDist = mahalanobisDistance(&xMe, &myP, &xMeFromYou, yourP);
-	mDist = sqrtf(mDist); //The way this value scales, taking the square root seems reasonable.
+	float bDist = bhattacharyyaDistance(&xMe, &myP, &xMeFromYou, yourP);
 	covarIntersection(&myNewPos, &myNewP, &xMe, &myP, &xMeFromYou, yourP);
-	if(mDist>4.0){
+	if(bDist>4.0){
 		//This mDist corresponds to a likelihood (of consistency..?) of ~0.1%
 		//Based on cumulative chi-squared distribution.
-		MY_POS_DEBUG_PRINT(" but the mahalanobis distance (%5.2f) is too large.\r\n", mDist);
+		MY_POS_DEBUG_PRINT(" but the bhattacharyya distance (%5.2f) is too large.\r\n", bDist);
 		return;
-	}else if(mDist>1.0){
+	}else if(bDist>1.0){
 		//This mDist corresponds to a likelihood (of consistency..?) of ~80%
 		//Based on cumulative chi-squared distribution.
 		covarUnion(&myNewPos, &myNewP, &xMe, &myP, &xMeFromYou, yourP);
@@ -216,7 +221,7 @@ static void updatePos(BotPos* pos, Matrix* yourP){
 	myPos.y = myNewPos[1]>8191 ? 8191 : (myNewPos[1]<-8192 ? -8192 : myNewPos[1]);
 	myPos.o = (radToDeg(myNewPos[2]) + 0.5);
 	MY_POS_DEBUG_PRINT(" giving pos {%d, %d, %d}.\r\n", myPos.x, myPos.y, myPos.o);
-	MY_POS_DEBUG_PRINT("\tMahalanobis Distance: %f\r\n", mDist);
+	MY_POS_DEBUG_PRINT("\tBhattacharyya Distance: %f\r\n", bDist);
 	#if defined(MY_POS_DEBUG_MODE) && defined(COVAR_DEBUG_MODE)
 		MY_POS_DEBUG_PRINT("Your Update Covar:\r\n");
 		printMatrixMathematica(yourP);
@@ -226,17 +231,18 @@ static void updatePos(BotPos* pos, Matrix* yourP){
 	compressP(&myNewP, &myPosCovar);
 }
 
-void multinormalSample(Vector* result, Vector* mean, Matrix* covar){
-	Vector eigValues;
-	Matrix eigVectors;
-	eigensystem(&eigValues, &eigVectors, covar);
-	Vector randNormSample = {randNorm(0,1), randNorm(0,1), randNorm(0,1)};
-	Matrix diagSqrtEigValues = {{sqrt(eigValues[0]), 0, 0}, {0, sqrt(eigValues[1]), 0}, {0, 0, sqrt(eigValues[2])}};
-	matrixTimesVector(result, &diagSqrtEigValues, &randNormSample);
-	Vector tmp;
-	matrixTimesVector(&tmp, &eigVectors, result);
-	vectorAdd(result, mean, &tmp);
-}
+//Leaving this here for reference:
+//void multinormalSample(Vector* result, Vector* mean, Matrix* covar){
+	//Vector eigValues;
+	//Matrix eigVectors;
+	//eigensystem(&eigValues, &eigVectors, covar);
+	//Vector randNormSample = {randNorm(0,1), randNorm(0,1), randNorm(0,1)};
+	//Matrix diagSqrtEigValues = {{sqrt(eigValues[0]), 0, 0}, {0, sqrt(eigValues[1]), 0}, {0, 0, sqrt(eigValues[2])}};
+	//matrixTimesVector(result, &diagSqrtEigValues, &randNormSample);
+	//Vector tmp;
+	//matrixTimesVector(&tmp, &eigVectors, result);
+	//vectorAdd(result, mean, &tmp);
+//}
 
 /*
  * This function uses H, the Jacobian of the transformation matrix from an (r,b,h) measurement to 

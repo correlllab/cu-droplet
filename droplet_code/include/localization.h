@@ -8,8 +8,8 @@
 
 //#define POS_CALC_DEBUG_MODE
 //#define POS_MSG_DEBUG_MODE
-//#define MY_POS_DEBUG_MODE
-//#define COVAR_DEBUG_MODE
+#define MY_POS_DEBUG_MODE
+#define COVAR_DEBUG_MODE
 
 #ifdef POS_CALC_DEBUG_MODE
 #define POS_CALC_DEBUG_PRINT(format, ...) printf_P(PSTR(format), ##__VA_ARGS__)
@@ -37,9 +37,9 @@
 typedef union flex_byte_union{
 	uint16_t u;
 	int16_t d;
-}FlexByte;
+}FlexWord;
 
-typedef FlexByte DensePosCovar[6];
+typedef FlexWord DensePosCovar[6];
 
 typedef struct bot_pos_struct{
 	int16_t x;

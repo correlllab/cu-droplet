@@ -1,7 +1,7 @@
 #pragma once
 #include "droplet_base.h"
 #include "scheduler.h"
-#include "flash_api.h"
+#include "eeprom_driver.h"
 
 #define MOTOR_STATUS_DIRECTION		0x07
 #define MOTOR_STATUS_ON				0x80

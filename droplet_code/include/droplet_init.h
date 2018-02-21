@@ -29,6 +29,7 @@
 #include "ir_led.h"
 #include "ir_sensor.h"
 #include "ir_comm.h"
+#include "nvm.h"
 #include "speaker.h"
 #include "mic.h"
 #include "motor.h"
@@ -41,7 +42,7 @@
 #define CMD_DROPLET_ID	0x8F6D
 
 uint8_t reprogramming;
-
+void handle_reprogramming(void);// __attribute__ ((section (".BOOT")));
 
 typedef struct ir_msg_struct
 {

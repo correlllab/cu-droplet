@@ -10,6 +10,7 @@
 #include <util/crc16.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include <math.h>
 #include <avr/pgmspace.h>
 #include <string.h>

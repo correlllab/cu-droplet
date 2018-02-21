@@ -5,6 +5,7 @@ static void calculateIdNumber(void);
 static void enableInterrupts(void);
 static void checkMessages(void);
 uint8_t calculate_page_number(uint16_t addressFrmProgramming);
+uint8_t flashBufferPos=0;
 /**
  * \brief Initializes all the subsystems for this Droplet. This function MUST be called
  * by the user before using any other functions in the API.
@@ -146,6 +147,124 @@ uint8_t calculate_page_number(uint16_t addressFrmProgramming)
 	return calc_page_number;
 }
 
+void handle_reprogramming(void)
+{
+	
+	irMsg *msg_struct;
+	char actual_struct[sizeof(irMsg)]; //It's like malloc, but on the stack.
+	char actual_msg[IR_BUFFER_SIZE+1];
+	msg_struct = (irMsg*)actual_struct;
+	msg_struct->msg = actual_msg;
+	strncpy(msg_struct->msg, "1012200196811532E0930781F740E060E08FEF8F", 21 );
+	uint16_t startaddr[32];
+	char str[5];//, str1[3];
+	
+	int i=0;
+	for(i=0; i<4; i++)
+	{
+		str[i] = msg_struct->msg[i+2];
+	}
+	str[i] = '\0';
+	 startaddr[0] = strtoul(str, NULL, 16);
+	 uint16_t addrstart = startaddr[0];
+	printf("page start : %u\n",addrstart);
+	uint32_t pagenumber=0;
+	pagenumber = calculate_page_number(addrstart);	
+	printf("pageNumber %lu\n\r\n\r", pagenumber);
+	
+	uint32_t page_address = pagenumber*FLASH_PAGE_SIZE;
+	flashBufferPos = 38;
+	printf("buffer position offset page address to change: %hu\r\n\r\n ", flashBufferPos);
+	uint8_t FlashBuffer[4];
+	
+	
+	
+	uint32_t targetAddr = 0x10c2UL;
+	nvm_flash_read_buffer(targetAddr, FlashBuffer, 4);
+	for(int j=0; j<4; j++)
+	{
+		printf("%02hx ", FlashBuffer[j]);
+		//if((j+1)%16==0){
+			//printf("\r\n");
+		//}	
+	}
+	printf("\r\n");
+	
+	
+	// keep on filling the buffer
+	/*for(uint8_t i=6;i<37;i+=2)    // 0-5 are length and address, the last two char (1 byte) is for checksum
+	{
+		//convert pair of chars to byte.
+		str1[0] = msg_struct->msg[i];
+		str1[1] = msg_struct->msg[i+1];
+		str1[2] = '\0';
+		FlashBuffer[flashBufferPos] = strtoul(str1, NULL, 16);
+		flashBufferPos = flashBufferPos + 1;
+		// Converting string to hex value is done successfully
+	}*/
+	
+	//str1[0] = '6';
+	//str1[1] = 'F';
+	//str1[2] = '\0';
+	//FlashBuffer[90] = strtoul(str1, NULL, 16);
+	//flashBufferPos = flashBufferPos + 1;
+	FlashBuffer[0]=0x6F;
+	
+	//str1[0] = 'E';
+	//str1[1] = 'F';
+	//str1[2] = '\0';
+	//FlashBuffer[91] = strtoul(str1, NULL, 16);
+	//flashBufferPos = flashBufferPos + 1;
+	FlashBuffer[1]=0xEF;
+	
+	//str1[0] = '8';
+	//str1[1] = '0';
+	//str1[2] = '\0';
+	//FlashBuffer[92] = strtoul(str1, NULL, 16);
+	//flashBufferPos = flashBufferPos + 1;
+	FlashBuffer[2]=0x80;
+	
+	//str1[0] = 'E';
+	//str1[1] = '0';
+	//str1[2] = '\0';
+	//FlashBuffer[93] = strtoul(str1, NULL, 16);
+	FlashBuffer[3]=0xE0;
+	
+	
+	
+	printf("Printing written FlashBuffer:\r\n\r\n");
+	for(int l=0; l<4; l++)
+	{
+		printf("%02hx ", FlashBuffer[l]);
+		//if((l+1)%16==0){
+			//printf("\r\n");
+		//}
+	}
+	printf("\r\n");
+	
+	//if (NumOfDataBtyes != 16){
+		// Indicates that page has ended
+		// write the page
+		//flashBufferPos = 0;
+		uint32_t tableAddress = (pagenumber * FLASH_PAGE_SIZE);
+		nvm_flash_flush_buffer();
+		//printf("About to write. Page Number: %lu, FlashBuffer: %p\r\n\r\n\r\n", pagenumber, FlashBuffer);
+		printf("About to write. Address: %lu\r\n\r\n\r\n", targetAddr);
+		nvm_flash_erase_and_write_buffer(targetAddr, FlashBuffer, 4, 1);
+		
+		nvm_flash_read_buffer(targetAddr, FlashBuffer, 4);
+		for(int j=0; j<4; j++)
+		{
+			printf("%02hx ", FlashBuffer[j]);
+			//if((j+1)%16==0){
+				//printf("\r\n");
+			//}
+		}
+		printf("\r\n");
+		//delayMS(20000);
+		//setRGB(0,0,255);
+		dropletReboot();
+}
 
 static void calculateIdNumber(void){
 	INIT_DEBUG_PRINT("get id number\r\n");

@@ -61,9 +61,7 @@ void handleSerialCommand(char* command, uint16_t command_length){
 																		printMotorValues();
 																		printDistPerStep();																	
 		}else if(strcmp_P(command_word,PSTR("reprog_begin"))==0){
-		delayMS(1000);
-		setRGB(0,0,250);
-		reprogramming = 1;
+		handle_reprogramming();
 		
 		}else if(userHandleCommand){ //First, make sure the function is defined
 			if(!userHandleCommand(command_word, command_args))	printf_P(CMD_NOT_RECOGNIZED_STR,command_word);

@@ -229,12 +229,12 @@ void tryAndSendMessage(){//void * msg_temp_node){
 			#else
 				scheduleTask(time_backoff, tryAndSendMessage, NULL);// (void *)BUFFER_HEAD);		
 			#endif
-			uint16_t msgID = ((Msg*)(BUFFER_HEAD->data))->msgId;
+			uint32_t msgID = ((Msg*)(BUFFER_HEAD->data))->msgId;
 			//printf("%6u time for backoff : %10lu\r\n", msgID, time_backoff);
 		} // && get_time()-first_attempt < timeout_PERIOD)
 		else{
 			data = (Msg*)(BUFFER_HEAD->data);
-			printf("\n\rERROR: VERY BUSY! MESSAGE NUMBER %u DISCARDED\n\r", data->msgId);
+			printf("\n\rERROR: VERY BUSY! MESSAGE NUMBER %lu DISCARDED\n\r", data->msgId);
 			removeHeadAndUpdate();
 			if(BUFFER_HEAD){
 				scheduleTask(100, tryAndSendMessage, NULL);// (void *)BUFFER_HEAD);
@@ -283,7 +283,7 @@ void printMsgQueue(){
 		//printf("\t\tPREV: %p\tNEXT: %p\r\n", tmp->prev, tmp->next);
 		tmp = tmp->next;
 	}while(tmp!=BUFFER_HEAD);
-	//printf("List Length: %u\r\n", listLength);
+	printf("List Length: %u\r\n", listLength);
 }
 
 static NODE* all_ir_sends(uint8_t dir, char * str, uint8_t dataLength, id_t msgTarget, uint8_t cmdFlag){

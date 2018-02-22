@@ -21,6 +21,7 @@
 //		8 KB SRAM (temporary variables)
 
 #define MAX_USER_FACING_MESSAGES 6
+//#define MSG_PERIOD 400
 
 #define KEY_POWER		((uint16_t)0x40BF)
 #define KEY_CH_UP		((uint16_t)0x48B7)
@@ -35,7 +36,7 @@
 #define KEY_RIGHT		((uint16_t)0x46B9)
 
 #define IR_BUFFER_SIZE			40u //bytes
-#define IR_MSG_TIMEOUT			4 //ms
+#define IR_MSG_TIMEOUT			4 // ms  //RIYA
 
 #define IR_STATUS_BUSY_bm				0x01	// 0000 0001				
 #define IR_STATUS_COMPLETE_bm			0x02	// 0000 0010
@@ -93,6 +94,8 @@ typedef struct NODE {
 } NODE;
 
 volatile NODE * BUFFER_HEAD;
+
+uint32_t MSG_PERIOD;
 
 
 volatile struct

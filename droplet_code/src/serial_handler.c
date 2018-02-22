@@ -22,6 +22,7 @@ static void handle_msg_test(char* command_args);
 static void handle_target(char* command_args);
 static void handle_reset(void);
 static void get_command_word_and_args(char* command, uint16_t command_length, char* command_word, char* command_args);
+static void handle_setMsgPeriod(char* command_args);
 
 uint8_t userHandleCommand(char* command_word, char* command_args) __attribute__((weak));
 
@@ -70,6 +71,17 @@ void handleSerialCommand(char* command, uint16_t command_length){
  * No arguments.
  * Prints each direction in which a collision was detected, or None.
  */
+
+
+handle_setMsgPeriod(char* command_args){
+		const char delim[2] = " ";
+		
+		char* token = strtok(command_args,delim);
+		uint32_t periodValue = (uint32_t)atoi(token);
+		
+		setMsgPeriod(periodValue);
+}
+
 static void handle_check_collisions(void){
 	uint8_t dirs = checkCollisions();
 	uint8_t found=0;

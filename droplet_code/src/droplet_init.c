@@ -155,115 +155,82 @@ void handle_reprogramming(void)
 	char actual_msg[IR_BUFFER_SIZE+1];
 	msg_struct = (irMsg*)actual_struct;
 	msg_struct->msg = actual_msg;
-	strncpy(msg_struct->msg, "1012200196811532E0930781F740E060E08FEF8F", 21 );
-	uint16_t startaddr[32];
-	char str[5];//, str1[3];
-	
+	printf("came here\r\n");
+	strcpy(msg_struct->msg, "1010C040E06FEF80E00E94522FDC5FCDBFDEBFBB");
+	uint16_t startaddr[2];
+	uint8_t Numberofbytes;
+	char str[3], str1[5];
 	int i=0;
-	for(i=0; i<4; i++)
+	for(i=0; i<2; i++)
 	{
-		str[i] = msg_struct->msg[i+2];
+		str[i] = msg_struct->msg[i];
 	}
-	str[i] = '\0';
-	 startaddr[0] = strtoul(str, NULL, 16);
+	str[2] = '\0';
+	Numberofbytes = strtoul(str, NULL, 16);
+	printf("Number of data bytes = %d\r\n", Numberofbytes);
+	for(i=2; i<6; i++)
+	{
+		str1[i-2] = msg_struct->msg[i];
+	}
+	str1[4] = '\0';
+	 startaddr[0] = strtoul(str1, NULL, 16);
 	 uint16_t addrstart = startaddr[0];
 	printf("page start : %u\n",addrstart);
-	uint32_t pagenumber=0;
-	pagenumber = calculate_page_number(addrstart);	
-	printf("pageNumber %lu\n\r\n\r", pagenumber);
 	
-	uint32_t page_address = pagenumber*FLASH_PAGE_SIZE;
-	flashBufferPos = 38;
-	printf("buffer position offset page address to change: %hu\r\n\r\n ", flashBufferPos);
-	uint8_t FlashBuffer[4];
-	
-	
-	
-	uint32_t targetAddr = 0x10c2UL;
-	nvm_flash_read_buffer(targetAddr, FlashBuffer, 4);
-	for(int j=0; j<4; j++)
+	uint8_t FlashBuffer[Numberofbytes];
+	uint32_t targetAddr =addrstart;
+	nvm_flash_read_buffer(targetAddr, FlashBuffer, Numberofbytes);
+	for(int j=0; j<Numberofbytes; j++)
 	{
 		printf("%02hx ", FlashBuffer[j]);
-		//if((j+1)%16==0){
-			//printf("\r\n");
-		//}	
+
 	}
 	printf("\r\n");
 	
 	
 	// keep on filling the buffer
-	/*for(uint8_t i=6;i<37;i+=2)    // 0-5 are length and address, the last two char (1 byte) is for checksum
+	for(uint8_t i=6;i<38;i+=2)    // 0-5 are length and address, the last two char (1 byte) is for checksum
 	{
 		//convert pair of chars to byte.
-		str1[0] = msg_struct->msg[i];
-		str1[1] = msg_struct->msg[i+1];
-		str1[2] = '\0';
-		FlashBuffer[flashBufferPos] = strtoul(str1, NULL, 16);
+		str[0] = msg_struct->msg[i];
+		str[1] = msg_struct->msg[i+1];
+		str[2] = '\0';
+		FlashBuffer[flashBufferPos] = strtoul(str, NULL, 16);
 		flashBufferPos = flashBufferPos + 1;
 		// Converting string to hex value is done successfully
-	}*/
+	}
 	
-	//str1[0] = '6';
-	//str1[1] = 'F';
-	//str1[2] = '\0';
-	//FlashBuffer[90] = strtoul(str1, NULL, 16);
-	//flashBufferPos = flashBufferPos + 1;
-	FlashBuffer[0]=0x6F;
-	
-	//str1[0] = 'E';
-	//str1[1] = 'F';
-	//str1[2] = '\0';
-	//FlashBuffer[91] = strtoul(str1, NULL, 16);
-	//flashBufferPos = flashBufferPos + 1;
+
+	/*FlashBuffer[0]=0x6F;
+
 	FlashBuffer[1]=0xEF;
 	
-	//str1[0] = '8';
-	//str1[1] = '0';
-	//str1[2] = '\0';
-	//FlashBuffer[92] = strtoul(str1, NULL, 16);
-	//flashBufferPos = flashBufferPos + 1;
 	FlashBuffer[2]=0x80;
 	
-	//str1[0] = 'E';
-	//str1[1] = '0';
-	//str1[2] = '\0';
-	//FlashBuffer[93] = strtoul(str1, NULL, 16);
-	FlashBuffer[3]=0xE0;
+	FlashBuffer[3]=0xE0;*/
 	
 	
 	
 	printf("Printing written FlashBuffer:\r\n\r\n");
-	for(int l=0; l<4; l++)
+	for(int l=0; l<Numberofbytes; l++)
 	{
 		printf("%02hx ", FlashBuffer[l]);
-		//if((l+1)%16==0){
-			//printf("\r\n");
-		//}
+	
 	}
 	printf("\r\n");
 	
-	//if (NumOfDataBtyes != 16){
-		// Indicates that page has ended
-		// write the page
-		//flashBufferPos = 0;
-		uint32_t tableAddress = (pagenumber * FLASH_PAGE_SIZE);
-		nvm_flash_flush_buffer();
-		//printf("About to write. Page Number: %lu, FlashBuffer: %p\r\n\r\n\r\n", pagenumber, FlashBuffer);
 		printf("About to write. Address: %lu\r\n\r\n\r\n", targetAddr);
-		nvm_flash_erase_and_write_buffer(targetAddr, FlashBuffer, 4, 1);
+		nvm_flash_erase_and_write_buffer(targetAddr, FlashBuffer, Numberofbytes, 1);
 		
 		nvm_flash_read_buffer(targetAddr, FlashBuffer, 4);
-		for(int j=0; j<4; j++)
+		for(int j=0; j<Numberofbytes; j++)
 		{
 			printf("%02hx ", FlashBuffer[j]);
-			//if((j+1)%16==0){
-				//printf("\r\n");
-			//}
 		}
 		printf("\r\n");
 		//delayMS(20000);
 		//setRGB(0,0,255);
-		dropletReboot();
+		dropletReboot(); 
 }
 
 static void calculateIdNumber(void){

@@ -34,7 +34,7 @@ void loop(){
 }
 
 /*
- * after each pass through loop(), the robot checks for all messages it has 
+ * after each pass through loop(), the robot checks for all mes sages it has 
  * received, and calls this function once for each message.
  */
 void handleMsg(irMsg* msgStruct){

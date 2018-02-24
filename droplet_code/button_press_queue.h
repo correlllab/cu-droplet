@@ -7,7 +7,7 @@
 #define EVENT_MAX_ADD_AGE		2000
 #define EVENT_MAX_TRACK_AGE		5000
 
-ButtonPressEvent keypressLog[NUM_LOGGED_EVENTS];
+volatile ButtonPressEvent keypressLog[NUM_LOGGED_EVENTS];
 
 void queueInit(void);
 uint8_t addEvent(ButtonPressEvent* keypress);

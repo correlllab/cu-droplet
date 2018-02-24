@@ -12,6 +12,7 @@ void init(){
 	lastKeypress = 0;
 	wireSleepTask = NULL;
 	isWired = 0;
+	mouseBroadcastTask = NULL;
 	for(uint8_t i=0;i<3;i++){
 		wiredBlinkLEDStore[i] = 0;
 		buttonPressBlinkLEDStore[i] = 0;
@@ -63,6 +64,14 @@ void loop(){
 		if(myRole != MOUSE){
 			useRNBmeas(last_good_rnb.id, last_good_rnb.range, last_good_rnb.bearing, last_good_rnb.heading);
 		}
+		//TODO: set leftMouseID to be the ID of the most-recent BUTTON_L_CLICK event source.
+		//if(last_good_rnb.id == leftMouseID){
+			//TODO: calculate mouse's global coordinate system position based on this measurement and myPos.
+			//TODO: make a 'MousePositionUpdateMsg', and broadcast it.
+			//TODO, MAYBE: if you're wired, wait a bit and average together a few different received positions?
+			//TODO, MAYBE: in an attempt to help the message get out, maybe tie any mouse-click messages to 
+			//				always go out 100ms before rnb broadcast?
+		//}
 		rnb_updated=0;
 	}
 	delayMS(LOOP_DELAY_MS);
@@ -151,12 +160,15 @@ void checkPosition(){
 	//printf("' (%hu)\r\n", secondMaxKeyCount);		
 	if(maxButtonCount>targetMaxCount() && maxButton!=BUTTON_UNKNOWN){
 		myButton = maxButton;
-		myRole = KEYBOARD;
-		setRGB(0,0,15);
+		if( (myButton!=BUTTON_L_CLICK) && (myButton!=BUTTON_R_CLICK) ){
+			myRole = KEYBOARD;
+			setRGB(0,0,15);
+		}else{
+			myRole = MOUSE;
+			setRGB(10,0,15);
+		}
 	} 
 }
-
-
 
 void restoreLED(volatile LEDStore* vals){
 	setRGB((*vals)[0], (*vals)[1], (*vals)[2]);
@@ -189,6 +201,11 @@ void userMicInterrupt(){
 	ButtonPressEvent evt;
 	buildButtonPressEvent(&evt);
 	if(addEvent(&evt)){ //This keeps us from repeating or otherwise responding to ourselves.
+		if(myButton == BUTTON_L_CLICK){
+			if(mouseBroadcastTask==NULL){
+				mouseBroadcastTask = schedulePeriodicTask(500, broadcastRnbData, NULL);
+			}
+		}
 		if(isWired){
 			wireTxButtonPress(evt.key);
 		}else{

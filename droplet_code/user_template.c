@@ -5,7 +5,7 @@ void init(){
 		printf_P(PSTR("Error! Localization requires SLOT_LENGTH_MS to be greater than LOCALIZATION_DUR!\r\n"));
 	}
 	myRole = UNKNOWN;
-	myKey = KEYBOARD_UNKNOWN;
+	myButton = BUTTON_UNKNOWN;
 	loopID = 0xFFFF;
 	isShifted = 0;
 	frameCount = 0;
@@ -14,7 +14,7 @@ void init(){
 	isWired = 0;
 	for(uint8_t i=0;i<3;i++){
 		wiredBlinkLEDStore[i] = 0;
-		keypressBlinkLEDStore[i] = 0;
+		buttonPressBlinkLEDStore[i] = 0;
 	}
 	frameStart = getTime();
 	mySlot = getSlot(getDropletID());
@@ -73,24 +73,21 @@ void handleMsg(irMsg* msgStruct){
 		if(myRole != MOUSE){ //mouse will be moving too much to participate in localization.
 			handleBotMeasMsg((BotMeasMsg*)(msgStruct->msg), msgStruct->senderID);
 		}
-	}else if(IS_KEYPRESS_MSG(msgStruct)){
-		handleKeypressMsg((KeypressMsg*)(msgStruct->msg));
+	}else if(IS_BUTTON_PRESS_MSG(msgStruct)){
+		handleButtonPressMsg((ButtonPressMsg*)(msgStruct->msg));
 	}
 }
 
-void handleKeypressMsg(KeypressMsg* msg){
-	KeypressEvent* evt = &(msg->evt);
+void handleButtonPressMsg(ButtonPressMsg* msg){
+	ButtonPressEvent* evt = &(msg->evt);
 	if(addEvent(evt)){
-		if(evt->key==KEYBOARD_SHIFT){
+		if(evt->key==BUTTON_SHIFT){
 			isShifted = !isShifted;
-			repeatKeypressMsg(msg);
-		}else{
-			if(isWired){
-				wireTxKeypress(evt->key);
-			}else{
-				repeatKeypressMsg(msg);
-			}
+			prepButtonPressMsg(&(msg->evt));
+		}else if(isWired){
+			wireTxButtonPress(evt->key);
 		}
+		prepButtonPressMsg(&(msg->evt));
 	}
 }
 
@@ -99,9 +96,8 @@ void handleKeypressMsg(KeypressMsg* msg){
 //This seems to take ~600us per sample.
 #define NUM_CHECK_SAMPLES 100
 inline static uint8_t targetMaxCount(void){
-	if(getTime()<120000) return (uint8_t)(0.8*NUM_CHECK_SAMPLES); //Very high for the first two minutes.
-	if(getTime()<240000) return (uint8_t)(0.6*NUM_CHECK_SAMPLES); //Less high for 2-4 minutes
-	if(getTime()<480000) return (uint8_t)(0.5*NUM_CHECK_SAMPLES); //Down to 50 for 4-6 minutes.
+	if(getTime()<120000) return 255; //Impossible for the first two minutes.
+	if(getTime()<600000) return (uint8_t)(0.5*NUM_CHECK_SAMPLES); //Less high for 2-10 minutes
 	return (uint8_t)(0.33*NUM_CHECK_SAMPLES);
 }
 
@@ -119,7 +115,7 @@ void checkPosition(){
 	Vector result;
 	BotPos resultPos;
 	resultPos.o = 0;
-	KeyboardKey resultKeys[(LARGEST_KEYBOARD_KEY+1)] = {0}; //according to internet, this initializes everything to 0.
+	Button resultKeys[(LARGEST_KEYBOARD_KEY+1)] = {0}; //according to internet, this initializes everything to 0.
 	for(uint8_t i=0;i<NUM_CHECK_SAMPLES;i++){
 		randNormSample[0] = randNorm(0,1);
 		randNormSample[1] = randNorm(0,1);
@@ -127,34 +123,34 @@ void checkPosition(){
 		matrixTimesVector(&result, &diagSqrtEigValues, &randNormSample);
 		resultPos.x = myPos.x + result[0];
 		resultPos.y = myPos.y + result[1];
-		resultKeys[getKeyFromPosition(&resultPos)]++;
+		resultKeys[getButtonFromPosition(&resultPos)]++;
 	}
-	uint8_t maxKeyCount = 0;
-	KeyboardKey maxKey = KEYBOARD_UNKNOWN;
+	uint8_t maxButtonCount = 0;
+	Button maxButton = BUTTON_UNKNOWN;
 	for(uint8_t i=0;i<=LARGEST_KEYBOARD_KEY;i++){
-		if(resultKeys[i]>maxKeyCount){
-			maxKeyCount = resultKeys[i];
-			maxKey = i;
+		if(resultKeys[i]>maxButtonCount){
+			maxButtonCount = resultKeys[i];
+			maxButton = i;
 		}
 	}
 	printf("       Max Key: '");
-	printf(isprint(maxKey) ? "%c" : "\\%hu", maxKey);
-	printf("' (%hu)\r\n", maxKeyCount);
-	uint8_t secondMaxKeyCount = 0;
-	KeyboardKey secondMaxKey = KEYBOARD_UNKNOWN;
-	for(uint8_t i=0;i<=LARGEST_KEYBOARD_KEY;i++){
-		if(i!=maxKey){
-			if(resultKeys[i]>secondMaxKeyCount){
-				secondMaxKeyCount = resultKeys[i];
-				secondMaxKey = i;
-			}
-		}
-	}
-	printf("Second Max Key: '");
-	printf(isprint(secondMaxKey) ? "%c" : "\\%hu", secondMaxKey);
-	printf("' (%hu)\r\n", secondMaxKeyCount);		
-	if(maxKeyCount>targetMaxCount() && maxKey!=KEYBOARD_UNKNOWN){
-		myKey = maxKey;
+	printf(isprint(maxButton) ? "%c" : "\\%hu", maxButton);
+	printf("' (%hu)\r\n", maxButtonCount);
+	//uint8_t secondMaxKeyCount = 0;
+	//KeyboardKey secondMaxKey = KEYBOARD_UNKNOWN;
+	//for(uint8_t i=0;i<=LARGEST_KEYBOARD_KEY;i++){
+		//if(i!=maxKey){
+			//if(resultKeys[i]>secondMaxKeyCount){
+				//secondMaxKeyCount = resultKeys[i];
+				//secondMaxKey = i;
+			//}
+		//}
+	//}
+	//printf("Second Max Key: '");
+	//printf(isprint(secondMaxKey) ? "%c" : "\\%hu", secondMaxKey);
+	//printf("' (%hu)\r\n", secondMaxKeyCount);		
+	if(maxButtonCount>targetMaxCount() && maxButton!=BUTTON_UNKNOWN){
+		myButton = maxButton;
 		myRole = KEYBOARD;
 		setRGB(0,0,15);
 	} 
@@ -170,37 +166,33 @@ void userMicInterrupt(){
 	if( (getTime()-lastKeypress) < MIN_MULTIPRESS_DELAY){
 		return;
 	}
+	if(myRole==UNKNOWN){
+		return;
+	}
 	lastKeypress = getTime();
-	if(myKey!=KEYBOARD_SHIFT){
-		storeLED(&keypressBlinkLEDStore);
-		setRGB(0,80,120);
-		scheduleTask(150, (arg_func_t)restoreLED, (void*)&keypressBlinkLEDStore);
-		if(myRole == KEYBOARD){
-			KeypressEvent evt;
-			buildKeypressEvent(&evt);;
-			if(addEvent(&evt)){ //This keeps us from repeating or otherwise responding to ourselves.
-				if(isWired){
-					wireTxKeypress(evt.key);
-				}else{
-					prepKeypressMsg(&evt);
-				}
-			}
-		}else if(myRole == MOUSE){
-			printf("Mouse\r\n");
-		}else{
-			printf("Role Unknown\r\n");
+	if(myButton!=BUTTON_SHIFT){
+		if(storeAndSetLED(0, 80, 120, &buttonPressBlinkLEDStore)){
+			scheduleTask(150, (arg_func_t)restoreLED, (void*)&buttonPressBlinkLEDStore);
 		}
 	}else{
 		printf("KeyboardShift ");
 		if(isShifted){
-			printf("Off\r\n");			
+			printf("Off\r\n");
 			isShifted = 0;
-			restoreLED(&keypressBlinkLEDStore);
+			restoreLED(&buttonPressBlinkLEDStore);
 		}else{
 			printf("On\r\n");
 			isShifted = 1;
-			storeLED(&keypressBlinkLEDStore);
-			setRGB(0,80,120);
+			storeAndSetLED(0, 80, 120, &buttonPressBlinkLEDStore);
+		}
+	}
+	ButtonPressEvent evt;
+	buildButtonPressEvent(&evt);
+	if(addEvent(&evt)){ //This keeps us from repeating or otherwise responding to ourselves.
+		if(isWired){
+			wireTxButtonPress(evt.key);
+		}else{
+			prepButtonPressMsg(&evt);
 		}
 	}
 }
@@ -222,7 +214,7 @@ uint8_t userHandleCommand(char* commandWord, char* commandArgs __attribute__ ((u
 		if(charPressed == '\0'){
 			return 0;
 		}else if(isprint(charPressed)){
-			KeypressEvent evt;
+			ButtonPressEvent evt;
 			if( (uint8_t)(charPressed-97) < 26  ){
 				charPressed -= 32;
 			}
@@ -232,7 +224,7 @@ uint8_t userHandleCommand(char* commandWord, char* commandArgs __attribute__ ((u
 			printf("PRESSED: ");
 			printf(isprint(evt.key) ? "   '%c'\r\n" : "'\\%03hu'\r\n", evt.key);
 			if(addEvent(&evt)){
-				prepKeypressMsg(&evt);	
+				prepButtonPressMsg(&evt);	
 			}
 		}
 		return 1;	
@@ -241,26 +233,26 @@ uint8_t userHandleCommand(char* commandWord, char* commandArgs __attribute__ ((u
 	}
 }
 
-void prepKeypressMsg(KeypressEvent* evt){
-	KeypressMsg msg;
+void prepButtonPressMsg(ButtonPressEvent* evt){
+	ButtonPressMsg msg;
 	msg.evt = *evt;
 	msg.flag = KEYPRESS_MSG_FLAG;
-	KeypressMsgNode* msgNode = (KeypressMsgNode*)myMalloc(sizeof(KeypressMsgNode));
+	ButtonPressMsgNode* msgNode = (ButtonPressMsgNode*)myMalloc(sizeof(ButtonPressMsgNode));
 	msgNode->numTries = 0;
 	msgNode->msg = msg;
-	sendKeypressMsg(msgNode);
+	sendButtonPressMsg(msgNode);
 }
 
-void sendKeypressMsg(KeypressMsgNode* msgNode){
+void sendButtonPressMsg(ButtonPressMsgNode* msgNode){
 	if(irIsBusy(ALL_DIRS)){
 		if(msgNode->numTries>6 || ((getTime() - (msgNode->msg).evt.time)>5000) ){
 			myFree(msgNode);
 		}else{
-			scheduleTask(getExponentialBackoff(msgNode->numTries), (arg_func_t)sendKeypressMsg, (void*)msgNode);
+			scheduleTask(getExponentialBackoff(msgNode->numTries), (arg_func_t)sendButtonPressMsg, (void*)msgNode);
 		}
 		msgNode->numTries++;
 	}else{
-		irSend(ALL_DIRS, (char*)(&(msgNode->msg)), sizeof(KeypressMsg));
+		irSend(ALL_DIRS, (char*)(&(msgNode->msg)), sizeof(ButtonPressMsg));
 		myFree(msgNode);
 	}
 }

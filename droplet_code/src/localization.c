@@ -20,7 +20,7 @@
 #define MAX_Y 150
 
 static float	chooseOmega(Matrix* myPinv, Matrix* yourPinv);
-static float	bhattacharyyaDistance(Vector* a, Matrix* A, Vector* b, Matrix* B);
+static float	updateDistance(Vector* a, Matrix* A, Vector* b, Matrix* B);
 static void		covarIntersection(Vector* x, Matrix* P, Vector* a, Matrix* A, Vector* b, Matrix* B);
 static void		covarUnion(Vector* x, Matrix* P, Vector* a, Matrix* A, Vector* b, Matrix* B);
 static void		updatePos(BotPos* pos, Matrix* yourP);
@@ -81,26 +81,46 @@ static float chooseOmega(Matrix* myPinv, Matrix* yourPinv){
 	return omega;
 }
 
-static float bhattacharyyaDistance(Vector* a, Matrix* A, Vector* b, Matrix* B){
+//NOT Mahalanobis Distance
+//But.. closer to that than something else?
+static float updateDistance(Vector* a, Matrix* A, Vector* b, Matrix* B){
 	Vector a_sub_b;
 	vectorSubtract(&a_sub_b, a, b);
-	Matrix Sigma;
-	matrixAdd(&Sigma, A, B);
-	matrixScale(&Sigma, 0.5);
-	float detSigma = matrixDet(&Sigma);
-	float detA     = matrixDet(A);
-	float detB	   = matrixDet(B);
-	matrixInplaceInverse(&Sigma);
+	a_sub_b[2] = prettyAngle(a_sub_b[2]);
+	Matrix A_plus_B_inv;
+	matrixAdd(&A_plus_B_inv, A, B);
+	matrixInplaceInverse(&A_plus_B_inv);
 	Vector a_sub_b_normed;
-	matrixTimesVector(&a_sub_b_normed, &Sigma, &a_sub_b);
+	matrixTimesVector(&a_sub_b_normed, &A_plus_B_inv, &a_sub_b);
 	//Now, a_sub_b_normed = (A+B)^{-1} X (a-b)
 	float distance = a_sub_b[0]*a_sub_b_normed[0] + a_sub_b[1]*a_sub_b_normed[1] + a_sub_b[2]*a_sub_b_normed[2];
-	distance = distance/8.0;
-	//Now, distance = (1/8) * ( (a-b)^{tr} X (A+B)^{-1} X (a-b) );
-	float logTerm = detSigma/sqrtf(detA*detB);
-	distance = distance + 0.5*log(logTerm);
-	return distance;
+	//Now, distance = (a-b)^{tr} X (A+B)^{-1} X (a-b)
+	return sqrtf(distance);
 }
+
+//Bhattacharyya Distance
+//static float updateDistance(Vector* a, Matrix* A, Vector* b, Matrix* B){
+	//Vector a_sub_b;
+	//vectorSubtract(&a_sub_b, a, b);
+	//a_sub_b[2] = prettyAngle(a_sub_b[2]);
+	//Matrix Sigma;
+	//matrixAdd(&Sigma, A, B);
+	//matrixScale(&Sigma, 0.5);
+	//float detSigma = matrixDet(&Sigma);
+	//float detA     = matrixDet(A);
+	//float detB	   = matrixDet(B);
+	//matrixInplaceInverse(&Sigma);
+	//Vector a_sub_b_normed;
+	//matrixTimesVector(&a_sub_b_normed, &Sigma, &a_sub_b);
+	////Now, a_sub_b_normed = (A+B)^{-1} X (a-b)
+	//float distance = a_sub_b[0]*a_sub_b_normed[0] + a_sub_b[1]*a_sub_b_normed[1] + a_sub_b[2]*a_sub_b_normed[2];
+	//distance = distance/8.0;
+	////Now, distance = (1/8) * ( (a-b)^{tr} X (A+B)^{-1} X (a-b) );
+	//float logTerm = detSigma/sqrtf(detA*detB);
+	//distance = distance + 0.5*log(logTerm);
+	//return distance;
+//}
+
 /*
  * P is covar matrix resulting from CI of A & B (with means a & b, respectively)
  * x is resulting mean.
@@ -137,12 +157,14 @@ static void covarIntersection(Vector* x, Matrix* P, Vector* a, Matrix* A, Vector
 static void covarUnion(Vector* x, Matrix* U, Vector* a, Matrix* A, Vector* b, Matrix* B){
 	Vector a_dist;
 	vectorSubtract(&a_dist, x, a);
+	a_dist[2]=prettyAngle(a_dist[2]);
 	Matrix U_a;
 	vectorSquare(&U_a, &a_dist);
 	matrixAdd(&U_a, A, &U_a);
 
 	Vector b_dist;
 	vectorSubtract(&b_dist, x, b);
+	b_dist[2]=prettyAngle(b_dist[2]);
 	Matrix U_b;
 	vectorSquare(&U_b, &b_dist);
 	matrixAdd(&U_b, B, &U_b);
@@ -200,14 +222,19 @@ static void updatePos(BotPos* pos, Matrix* yourP){
 	Matrix myNewP;
 	Vector myNewPos;
 
-	float bDist = bhattacharyyaDistance(&xMe, &myP, &xMeFromYou, yourP);
+
 	covarIntersection(&myNewPos, &myNewP, &xMe, &myP, &xMeFromYou, yourP);
-	if(bDist>4.0){
+	if(!positiveDefiniteQ(&myNewP)){
+		MY_POS_DEBUG_PRINT(" but covar intersection resulted in non-positive-definite P.\r\n");
+		return;
+	}
+	float updateDist = updateDistance(&xMe, &myP, &xMeFromYou, yourP);
+	if(updateDist>4.0){
 		//This mDist corresponds to a likelihood (of consistency..?) of ~0.1%
 		//Based on cumulative chi-squared distribution.
-		MY_POS_DEBUG_PRINT(" but the bhattacharyya distance (%5.2f) is too large.\r\n", bDist);
+		MY_POS_DEBUG_PRINT(" but the update distance (%5.2f) is too large.\r\n", updateDist);
 		return;
-	}else if(bDist>1.0){
+	}else if(updateDist>1.0){
 		//This mDist corresponds to a likelihood (of consistency..?) of ~80%
 		//Based on cumulative chi-squared distribution.
 		covarUnion(&myNewPos, &myNewP, &xMe, &myP, &xMeFromYou, yourP);
@@ -221,7 +248,7 @@ static void updatePos(BotPos* pos, Matrix* yourP){
 	myPos.y = myNewPos[1]>8191 ? 8191 : (myNewPos[1]<-8192 ? -8192 : myNewPos[1]);
 	myPos.o = (radToDeg(myNewPos[2]) + 0.5);
 	MY_POS_DEBUG_PRINT(" giving pos {%d, %d, %d}.\r\n", myPos.x, myPos.y, myPos.o);
-	MY_POS_DEBUG_PRINT("\tBhattacharyya Distance: %f\r\n", bDist);
+	MY_POS_DEBUG_PRINT("\tUpdate Distance: %f\r\n", updateDist);
 	#if defined(MY_POS_DEBUG_MODE) && defined(COVAR_DEBUG_MODE)
 		MY_POS_DEBUG_PRINT("Your Update Covar:\r\n");
 		printMatrixMathematica(yourP);

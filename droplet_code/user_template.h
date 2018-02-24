@@ -1,8 +1,8 @@
 #pragma once
 
 #include "droplet_init.h"
-#include "keyboard.h"
-#include "keypress_queue.h"
+#include "button.h"
+#include "button_press_queue.h"
 
 #define KEYPRESS_MSG_FLAG 'K'
 
@@ -34,9 +34,9 @@ typedef enum droplet_role{
 typedef uint8_t LEDStore[3];
 
 typedef struct keypress_msg_node_struct{
-	KeypressMsg msg;
+	ButtonPressMsg msg;
 	uint8_t numTries;
-}KeypressMsgNode;
+}ButtonPressMsgNode;
 
 uint32_t	frameCount;
 uint32_t	frameStart;
@@ -45,19 +45,19 @@ uint16_t	mySlot;
 uint16_t	loopID;
 uint8_t		isWired;
 uint8_t		isShifted;
-volatile LEDStore keypressBlinkLEDStore;
+volatile LEDStore buttonPressBlinkLEDStore;
 volatile LEDStore wiredBlinkLEDStore;
 DropletRole myRole;
-KeyboardKey myKey;
+Button myButton;
 volatile Task_t* wireSleepTask;
 
 void		init(void);
 void		loop(void);
 void		handleMsg(irMsg* msg_struct);
 
-void prepKeypressMsg(KeypressEvent* evt);
-void sendKeypressMsg(KeypressMsgNode* msgNode);
-void handleKeypressMsg(KeypressMsg* msg);
+void prepButtonPressMsg(ButtonPressEvent* evt);
+void sendButtonPressMsg(ButtonPressMsgNode* msgNode);
+void handleButtonPressMsg(ButtonPressMsg* msg);
 void checkPosition(void);
 void restoreLED(volatile LEDStore* vals);
 
@@ -71,8 +71,8 @@ static inline uint16_t getSlot(id_t id){
 }
 
 inline DropletRole getRoleFromPosition(BotPos* pos){
-	myKey = getKeyFromPosition(pos);
-	if(myKey != KEYBOARD_UNKNOWN){
+	myButton = getKeyFromPosition(pos);
+	if(myButton != BUTTON_UNKNOWN){
 		return KEYBOARD;
 	}
 	if( (pos->x > 652) && (pos->y <= 225 ) && (pos->y > 0)){
@@ -81,30 +81,28 @@ inline DropletRole getRoleFromPosition(BotPos* pos){
 	return UNKNOWN;
 }
 
-inline void storeLED(volatile LEDStore* vals){
-	(*vals)[0] = getRedLED();
-	(*vals)[1] = getGreenLED();
-	(*vals)[2] = getBlueLED();
+inline uint8_t storeAndSetLED(uint8_t r, uint8_t g, uint8_t b, volatile LEDStore* vals){
+	if( (getRedLED()!=r) || (getGreenLED()!=g) || (getBlueLED()!=b) ){
+		(*vals)[0] = getRedLED();
+		(*vals)[1] = getGreenLED();
+		(*vals)[2] = getBlueLED();
+		return 1;
+	}else{
+		return 0;
+	}
 }
 
-inline void wireTxKeypress(KeyboardKey key){
-	storeLED(&wiredBlinkLEDStore);
-	setRGB(50,0,0);
+inline void wireTxButtonPress(Button key){
+	storeAndSetLED(50, 0, 0, &wiredBlinkLEDStore);
 	scheduleTask(150, (arg_func_t)restoreLED, (void*)&wiredBlinkLEDStore);
-	printf("KeyboardKey ");
+	printf("ButtonPress ");
 	printf(isprint(key) ? "   '%c'\r\n" : "'\\%03hu'\r\n", key);
 }
 
-inline void buildKeypressEvent(KeypressEvent* evt){
-	
+inline void buildButtonPressEvent(ButtonPressEvent* evt){
 	printf("PRESSED: ");
-	printf(isprint(myKey) ? "   '%c'\r\n" : "'\\%03hu'\r\n", myKey);
+	printf(isprint(myButton) ? "   '%c'\r\n" : "'\\%03hu'\r\n", myButton);
 	evt->time = getTime();
-	evt->key = ( isShifted && isalpha(myKey) ) ? myKey : (myKey+32); //convert to lowercase if appropriate.
+	evt->key = ( !isShifted && isupper(myButton) ) ? (myButton+32) : myButton; //convert to lowercase if appropriate.
 	evt->src = getDropletID();
 }
-
-inline uint8_t repeatKeypressMsg(KeypressMsg* msg){
-	return irSend(ALL_DIRS, (char*)msg, sizeof(KeypressMsg));
-}
-

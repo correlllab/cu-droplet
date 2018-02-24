@@ -8,8 +8,8 @@
 
 //#define POS_CALC_DEBUG_MODE
 //#define POS_MSG_DEBUG_MODE
-#define MY_POS_DEBUG_MODE
-#define COVAR_DEBUG_MODE
+//#define MY_POS_DEBUG_MODE
+//#define COVAR_DEBUG_MODE
 
 #ifdef POS_CALC_DEBUG_MODE
 #define POS_CALC_DEBUG_PRINT(format, ...) printf_P(PSTR(format), ##__VA_ARGS__)

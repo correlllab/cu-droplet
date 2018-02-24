@@ -20,7 +20,7 @@ ATMEL_STUDIO_PATH = "C:/Program Files (x86)/Atmel/Studio/7.0/"
 
 # List your user C source file(s) here.
 USER_FILE = ../user_template.c \
-../keypress_queue.c
+../button_press_queue.c
 
 
 #----------------------------------------------------------------------------

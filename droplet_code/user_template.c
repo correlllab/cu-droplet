@@ -13,6 +13,7 @@ void init(){
 	wireSleepTask = NULL;
 	isWired = 0;
 	mouseBroadcastTask = NULL;
+	leftMouseID = 0xFFFF;
 	for(uint8_t i=0;i<3;i++){
 		wiredBlinkLEDStore[i] = 0;
 		buttonPressBlinkLEDStore[i] = 0;
@@ -64,14 +65,13 @@ void loop(){
 		if(myRole != MOUSE){
 			useRNBmeas(last_good_rnb.id, last_good_rnb.range, last_good_rnb.bearing, last_good_rnb.heading);
 		}
-		//TODO: set leftMouseID to be the ID of the most-recent BUTTON_L_CLICK event source.
-		//if(last_good_rnb.id == leftMouseID){
+		if(last_good_rnb.id == leftMouseID){
 			//TODO: calculate mouse's global coordinate system position based on this measurement and myPos.
 			//TODO: make a 'MousePositionUpdateMsg', and broadcast it.
 			//TODO, MAYBE: if you're wired, wait a bit and average together a few different received positions?
 			//TODO, MAYBE: in an attempt to help the message get out, maybe tie any mouse-click messages to 
 			//				always go out 100ms before rnb broadcast?
-		//}
+		}
 		rnb_updated=0;
 	}
 	delayMS(LOOP_DELAY_MS);
@@ -89,6 +89,9 @@ void handleMsg(irMsg* msgStruct){
 
 void handleButtonPressMsg(ButtonPressMsg* msg){
 	ButtonPressEvent* evt = &(msg->evt);
+	if(evt->key == BUTTON_L_CLICK){
+		leftMouseID == evt->src;
+	}
 	if(addEvent(evt)){
 		if(evt->key==BUTTON_SHIFT){
 			isShifted = !isShifted;

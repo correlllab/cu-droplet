@@ -66,8 +66,8 @@ typedef enum keyboard_key{
 	BUTTON_LEFT			= 37,
 	BUTTON_DOWN			= 40,
 	BUTTON_RIGHT		= 39,
-	BUTTON_L_CLICK		= 129,
-	BUTTON_R_CLICK		= 130
+	BUTTON_L_CLICK		= 60,
+	BUTTON_R_CLICK		= 62
 }Button;
 
 typedef struct keypress_event_struct{

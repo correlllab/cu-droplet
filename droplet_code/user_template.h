@@ -46,6 +46,7 @@ uint16_t	loopID;
 uint8_t		isWired;
 uint8_t		isShifted;
 Task_t*		mouseBroadcastTask;
+id_t		leftMouseID;
 volatile LEDStore buttonPressBlinkLEDStore;
 volatile LEDStore wiredBlinkLEDStore;
 DropletRole myRole;

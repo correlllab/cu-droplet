@@ -63,15 +63,20 @@ void loop(){
 	if(rnb_updated){
 		RNB_DEBUG_PRINT("\t(RNB) ID: %04X | R: %4u B: %4d H: %4d\r\n", last_good_rnb.id, last_good_rnb.range, last_good_rnb.bearing, last_good_rnb.heading);
 		if(myRole != MOUSE){
-			useRNBmeas(last_good_rnb.id, last_good_rnb.range, last_good_rnb.bearing, last_good_rnb.heading);
+			if(last_good_rnb.id == leftMouseID){
+				BotPos pos;
+				DensePosCovar covar;
+				calcOtherBotPosFromMeas(&pos, &covar, &last_good_rnb);
+				//TODO: calculate mouse's global coordinate system position based on this measurement and myPos.
+				//TODO: make a 'MousePositionUpdateMsg', and broadcast it.
+				//TODO, MAYBE: if you're wired, wait a bit and average together a few different received positions?
+				//TODO, MAYBE: in an attempt to help the message get out, maybe tie any mouse-click messages to
+				//				always go out 100ms before rnb broadcast?
+			}else{
+				useRNBmeas(&last_good_rnb);
+			}
 		}
-		if(last_good_rnb.id == leftMouseID){
-			//TODO: calculate mouse's global coordinate system position based on this measurement and myPos.
-			//TODO: make a 'MousePositionUpdateMsg', and broadcast it.
-			//TODO, MAYBE: if you're wired, wait a bit and average together a few different received positions?
-			//TODO, MAYBE: in an attempt to help the message get out, maybe tie any mouse-click messages to 
-			//				always go out 100ms before rnb broadcast?
-		}
+
 		rnb_updated=0;
 	}
 	delayMS(LOOP_DELAY_MS);

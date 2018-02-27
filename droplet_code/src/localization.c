@@ -401,13 +401,23 @@ void updateForMovement(__attribute__((unused)) uint8_t dir, __attribute__((unuse
  * droplet based on this droplet's position and position covariance, and the measurement.
  * It then prepares a message to be sent to the measured droplet, conveying this information.
  */
-void useRNBmeas(id_t id, uint16_t r, int16_t b, int16_t h){
+void useRNBmeas(rnb* meas){
+	BotPos pos;
+	DensePosCovar covar;
+	uint8_t result = calcOtherBotPosFromMeas(&pos, &covar, meas);
+	if(result){
+		prepBotMeasMsg(meas->id, meas->range, meas->bearing, &pos, &covar);	
+	}
+}
+
+//returns '1' if successful, '0' otherwise.
+uint8_t calcOtherBotPosFromMeas(BotPos* pos, DensePosCovar* covar, rnb* measStruct){
 	if(!POS_DEFINED(&myPos)){
 		POS_CALC_DEBUG_PRINT("Can't adjust others' positions until I know where I am.\r\n");
-		return;
+		return 0;
 	}
 	Vector x_me = {myPos.x, myPos.y, degToRad(myPos.o)};
-	Vector meas = {r, degToRad(b+90), degToRad(h+90)};
+	Vector meas = {measStruct->range, degToRad(measStruct->bearing+90), degToRad(measStruct->heading+90)};
 	Matrix myP;
 	decompressP(&myP, &myPosCovar);
 	Matrix G;
@@ -437,7 +447,7 @@ void useRNBmeas(id_t id, uint16_t r, int16_t b, int16_t h){
 	matrixAdd(&yourP, &tmp, &yourP);
 	
 	if(positiveDefiniteQ(&yourP)){
-		POS_CALC_DEBUG_PRINT("\t%04X @ {%6.1f, %6.1f, % 5.0f} from {% 4d, % 4d, % 4d}\r\n", id, x_you[0], x_you[1], (radToDeg(x_you[2]-M_PI_2)+0.5), r, b, h);
+		POS_CALC_DEBUG_PRINT("\t%04X @ {%6.1f, %6.1f, % 5.0f} from {% 4d, % 4d, % 4d}\r\n", measStruct->id, x_you[0], x_you[1], (radToDeg(x_you[2]-M_PI_2)+0.5), r, b, h);
 		#if defined(POS_CALC_DEBUG_MODE) && defined(COVAR_DEBUG_MODE)
 		POS_CALC_DEBUG_PRINT("Calc'd Covar:\r\n");
 		printMatrixMathematica(&yourP);
@@ -448,7 +458,9 @@ void useRNBmeas(id_t id, uint16_t r, int16_t b, int16_t h){
 		pos.o = (radToDeg(x_you[2]-M_PI_2)+0.5);
 		DensePosCovar covar;
 		compressP(&yourP, &covar);
-		prepBotMeasMsg(id, r, b, &pos, &covar);
+		return 1;
+	}else{
+		return 0;
 	}
 }
 

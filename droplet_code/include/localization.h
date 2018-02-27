@@ -74,7 +74,8 @@ DensePosCovar myPosCovar;
 uint8_t		  seedFlag;
 
 void	localizationInit(void);
-void	useRNBmeas(id_t id, uint16_t r, int16_t b, int16_t h);
+void	useRNBmeas(rnb* meas);
+uint8_t calcOtherBotPosFromMeas(BotPos* pos, DensePosCovar* covar, rnb* newMeas);
 void	handleBotMeasMsg(BotMeasMsg* msg, id_t senderID __attribute__ ((unused)));
 
 void		compressP(Matrix* P, DensePosCovar* covar);

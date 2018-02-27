@@ -66,12 +66,11 @@ void loop(){
 			if(last_good_rnb.id == leftMouseID){
 				BotPos pos;
 				DensePosCovar covar;
-				calcOtherBotPosFromMeas(&pos, &covar, &last_good_rnb);
-				//TODO: calculate mouse's global coordinate system position based on this measurement and myPos.
-				//TODO: make a 'MousePositionUpdateMsg', and broadcast it.
-				//TODO, MAYBE: if you're wired, wait a bit and average together a few different received positions?
-				//TODO, MAYBE: in an attempt to help the message get out, maybe tie any mouse-click messages to
-				//				always go out 100ms before rnb broadcast?
+				
+				uint8_t result = calcOtherBotPosFromMeas(&pos, &covar, &last_good_rnb);
+				if(result){
+					prepMouseMoveMsg(&pos, &covar);
+				}
 			}else{
 				useRNBmeas(&last_good_rnb);
 			}
@@ -89,6 +88,8 @@ void handleMsg(irMsg* msgStruct){
 		}
 	}else if(IS_BUTTON_PRESS_MSG(msgStruct)){
 		handleButtonPressMsg((ButtonPressMsg*)(msgStruct->msg));
+	}else if(IS_MOUSE_MOVE_MSG(msgStruct)){
+		handleMouseMoveMsg((MouseMoveMsg*)(msgStruct->msg));
 	}
 }
 
@@ -108,7 +109,9 @@ void handleButtonPressMsg(ButtonPressMsg* msg){
 	}
 }
 
-
+void handleMouseMoveMsg(MouseMoveMsg* msg){
+	
+}
 
 //This seems to take ~600us per sample.
 #define NUM_CHECK_SAMPLES 100
@@ -211,7 +214,7 @@ void userMicInterrupt(){
 	if(addEvent(&evt)){ //This keeps us from repeating or otherwise responding to ourselves.
 		if(myButton == BUTTON_L_CLICK){
 			if(mouseBroadcastTask==NULL){
-				mouseBroadcastTask = schedulePeriodicTask(500, broadcastRnbData, NULL);
+				mouseBroadcastTask = schedulePeriodicTask(MOUSE_RNB_BROADCAST_PERIOD, broadcastRnbData, NULL);
 			}
 		}
 		if(isWired){
@@ -258,6 +261,32 @@ uint8_t userHandleCommand(char* commandWord, char* commandArgs __attribute__ ((u
 	}
 }
 
+void prepMouseMoveMsg(BotPos* pos, DensePosCovar* covar){
+	MouseMoveMsg msg;
+	msg.pos = *pos;
+	msg.covar = *covar;
+	msg.time = getTime();
+	msg.flag = MOUSE_MOVE_MSG_FLAG;
+	MouseMoveMsgNode* msgNode = (MouseMoveMsgNode*)myMalloc(sizeof(MouseMoveMsgNode));
+	msgNode->numTries = 0;
+	msgNode->msg = msg;
+	sendButtonPressMsg(msgNode);
+}
+
+void sendMouseMoveMsg(MouseMoveMsgNode* msgNode){
+	if(irIsBusy(ALL_DIRS)){
+		if( msgNode->numTries > 6 || (getTime() - msgNode->msg.time > 3000) ){
+			myFree(msgNode);
+		}else{
+			scheduleTask(getExponentialBackoff(msgNode->numTries), (arg_func_t)sendButtonPressMsg, (void*)msgNode);
+		}
+		msgNode->numTries++;
+	}else{
+		irSend(ALL_DIRS, (char*)(&(msgNode->msg)), sizeof(MouseMoveMsg));
+		myFree(msgNode);
+	}
+}
+
 void prepButtonPressMsg(ButtonPressEvent* evt){
 	ButtonPressMsg msg;
 	msg.evt = *evt;
@@ -270,10 +299,20 @@ void prepButtonPressMsg(ButtonPressEvent* evt){
 
 void sendButtonPressMsg(ButtonPressMsgNode* msgNode){
 	if(irIsBusy(ALL_DIRS)){
-		if(msgNode->numTries>6 || ((getTime() - (msgNode->msg).evt.time)>5000) ){
+		if(msgNode->numTries>6 || ((getTime() - (msgNode->msg).evt.time)>3000) ){
 			myFree(msgNode);
 		}else{
-			scheduleTask(getExponentialBackoff(msgNode->numTries), (arg_func_t)sendButtonPressMsg, (void*)msgNode);
+			uint32_t whenSend;
+			if( (myButton!=BUTTON_L_CLICK) || (mouseBroadcastTask==NULL)){
+				whenSend = getExponentialBackoff(msgNode->numTries);
+			}else{
+				whenSend = mouseBroadcastTask->scheduled_time;
+				if(whenSend <= (getTime()+100)){
+					whenSend += MOUSE_RNB_BROADCAST_PERIOD;
+				}
+				whenSend -= 100;		
+			}
+			scheduleTask(whenSend, (arg_func_t)sendButtonPressMsg, (void*)msgNode);
 		}
 		msgNode->numTries++;
 	}else{

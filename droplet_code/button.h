@@ -76,13 +76,6 @@ typedef struct keypress_event_struct{
 	Button		key;
 }ButtonPressEvent;
 
-typedef struct keypress_msg_struct{
-	ButtonPressEvent	evt;
-	uint8_t			flag;
-}ButtonPressMsg;
-
-#define IS_BUTTON_PRESS_MSG(msgStruct) ( (msgStruct->length==sizeof(ButtonPressMsg)) && (((ButtonPressMsg*)(msgStruct->msg))->flag==KEYPRESS_MSG_FLAG) )
-
 #define BUTTON_WIDTH 50
 #define BUTTON_HALFWIDTH (BUTTON_WIDTH/2)
 #define BUTTON_HEIGHT 60

@@ -81,8 +81,23 @@ static float chooseOmega(Matrix* myPinv, Matrix* yourPinv){
 	return omega;
 }
 
-//NOT Mahalanobis Distance
-//But.. closer to that than something else?
+/*
+ * NOT Mahalanobis Distance
+ * But.. closer to that than something else?
+ * The Bhattacharyya distance might be more 'accurate' in some sense, but
+ * has the property that, given one  distribution with very large covariance
+ * and one distribution with much smaller covariance, somewhere within the
+ * region of the first distribution, the Bhattacharyya distance is quite large.
+ * This makes sense, because the distributions are, indeed, quite different.
+ * In that scenario, however, the not-Mahalabonis distance metric used below
+ * gives a small distance. THIS makes sense, too, becaus the two distributions
+ * are consistent, ie. not mutually incompatible.
+ * I had problems with covariance matrices blowing up because in the above
+ * scenario, the large distance means my method uses covariance union to fuse
+ * the two measurements, which grows the overall covariance. A small distance,
+ * on the other hand, results in covariance intersection, shrinking the overall
+ * covariance. 
+ */
 static float updateDistance(Vector* a, Matrix* A, Vector* b, Matrix* B){
 	Vector a_sub_b;
 	vectorSubtract(&a_sub_b, a, b);

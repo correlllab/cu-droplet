@@ -5,6 +5,9 @@
 #include "button_press_queue.h"
 
 #define KEYPRESS_MSG_FLAG 'K'
+#define MOUSE_MOVE_MSG_FLAG 'M'
+
+#define MOUSE_RNB_BROADCAST_PERIOD 500
 
 //#define KEYBOARD_DEBUG_MODE
 #ifdef KEYBOARD_DEBUG_MODE
@@ -33,10 +36,29 @@ typedef enum droplet_role{
 
 typedef uint8_t LEDStore[3];
 
-typedef struct keypress_msg_node_struct{
+typedef struct mouse_move_msg_node_struct{
+	MouseMoveMsg msg;
+	uint8_t numTries;
+}MouseMoveMsgNode;
+
+typedef struct mouse_move_msg_struct{
+	BotPos		  pos;
+	DensePosCovar covar;
+	uint32_t	  time;
+	uint8_t	      flag;
+}MouseMoveMsg;
+#define IS_MOUSE_MOVE_MSG(msgStruct) ( (msgStruct->length==sizeof(MouseMoveMsg)) && (((MouseMoveMsg*)(msgStruct->msg))->flag==MOUSE_MOVE_MSG_FLAG) )
+
+typedef struct button_press_msg_node_struct{
 	ButtonPressMsg msg;
 	uint8_t numTries;
 }ButtonPressMsgNode;
+
+typedef struct button_press_msg_struct{
+	ButtonPressEvent	evt;
+	uint8_t			flag;
+}ButtonPressMsg;
+#define IS_BUTTON_PRESS_MSG(msgStruct) ( (msgStruct->length==sizeof(ButtonPressMsg)) && (((ButtonPressMsg*)(msgStruct->msg))->flag==KEYPRESS_MSG_FLAG) )
 
 uint32_t	frameCount;
 uint32_t	frameStart;
@@ -57,9 +79,12 @@ void		init(void);
 void		loop(void);
 void		handleMsg(irMsg* msg_struct);
 
+void prepMouseMoveMsg(ButtonPressEvent* evt);
+void sendMouseMoveMsg(MouseMoveMsgNode* msgNode);
 void prepButtonPressMsg(ButtonPressEvent* evt);
 void sendButtonPressMsg(ButtonPressMsgNode* msgNode);
 void handleButtonPressMsg(ButtonPressMsg* msg);
+void handleMouseMoveMsg(MouseMoveMsg* msg);
 void checkPosition(void);
 void restoreLED(volatile LEDStore* vals);
 

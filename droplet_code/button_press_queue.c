@@ -1,11 +1,17 @@
 #include "button_press_queue.h"
 
-static inline uint8_t sameEvent(ButtonPressEvent* evtA, ButtonPressEvent* evtB){
-	return ((evtA->src == evtB->src) && (evtA->key == evtB->key) && ((evtA->time - evtB->time) < MIN_MULTIPRESS_DELAY));
+static inline uint8_t sameEvent(GenericEvent* a, GenericEvent* b){
+	EitherEvent* evtA = (a->both);
+	EitherEvent* evtB = (b->both);
+	uint8_t concurrent			= (evtA->time - evtB->time) < MIN_MULTIPRESS_DELAY;
+	uint8_t sameIDorDelta		= evtA->idOrDelta == evtB->idOrDelta;
+	uint8_t sameButtonOrMarker	= evtA->buttonOrMarker == evtB->buttonOrMarker;
+	return concurrent && sameIDorDelta && sameButtonOrMarker;
 }
 
-static inline uint8_t isEventInit(ButtonPressEvent* evt){
-	return !((evt->key == BUTTON_UNKNOWN) && (evt->src == 0xFFFF));
+static inline uint8_t isEventInit(GenericEvent* e){
+	EitherEvent* evt = (e->both);
+	return !((evt->buttonOrMarker == BUTTON_UNKNOWN) && (evt->idOrDelta == 0xFFFF));
 }
 
 void queueInit(){
@@ -18,7 +24,7 @@ void queueInit(){
 
 //Returns '1' if an event was added (meaning that the Droplet should follow up)
 //Returns '0' if an event wasn't added (meaning that the Droplet shouldn't follow up)
-uint8_t  addEvent(ButtonPressEvent* evt){
+uint8_t  addEvent(GenericEvent* evt){
 	uint8_t openIdx = 0xFF;
 	uint32_t smallestEventTime = 0xFFFFFFFF;
 	uint8_t smallestEventIdx = 0xFF;
@@ -53,7 +59,7 @@ void printKeypressLog(){
 		ButtonPressEvent* thisEvt = &(keypressLog[i]);
 		if(isEventInit(thisEvt)){
 			printf("\t(%hu) %04X: '", i, thisEvt->src);
-			printf((isprint(thisEvt->key) ? "   %c" : "\\%3hu"), thisEvt->key);
+			printf((isprint(thisEvt->button) ? "   %c" : "\\%3hu"), thisEvt->button);
 			printf("' @ %lu\r\n", thisEvt->time);			
 		}
 	}

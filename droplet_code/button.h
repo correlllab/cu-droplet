@@ -70,12 +70,6 @@ typedef enum keyboard_key{
 	BUTTON_R_CLICK		= 62
 }Button;
 
-typedef struct keypress_event_struct{
-	uint32_t	time;
-	id_t		src;
-	Button		key;
-}ButtonPressEvent;
-
 #define BUTTON_WIDTH 50
 #define BUTTON_HALFWIDTH (BUTTON_WIDTH/2)
 #define BUTTON_HEIGHT 60

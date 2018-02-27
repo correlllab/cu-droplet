@@ -63,17 +63,7 @@ void loop(){
 	if(rnb_updated){
 		RNB_DEBUG_PRINT("\t(RNB) ID: %04X | R: %4u B: %4d H: %4d\r\n", last_good_rnb.id, last_good_rnb.range, last_good_rnb.bearing, last_good_rnb.heading);
 		if(myRole != MOUSE){
-			if(last_good_rnb.id == leftMouseID){
-				BotPos pos;
-				DensePosCovar covar;
-				
-				uint8_t result = calcOtherBotPosFromMeas(&pos, &covar, &last_good_rnb);
-				if(result){
-					prepMouseMoveMsg(&pos, &covar);
-				}
-			}else{
-				useRNBmeas(&last_good_rnb);
-			}
+			useRNBmeas(&last_good_rnb);
 		}
 
 		rnb_updated=0;
@@ -85,7 +75,14 @@ void handleMsg(irMsg* msgStruct){
 	if(IS_BOT_MEAS_MSG(msgStruct)){
 		if(myRole != MOUSE){ //mouse will be moving too much to participate in localization.
 			handleBotMeasMsg((BotMeasMsg*)(msgStruct->msg), msgStruct->senderID);
-		}
+		}else if(myButton == BUTTON_L_CLICK){
+			// TODO:			
+			// The left mouse button needs to update its position based on this measurement, 
+			// or possibly a series of measurements, but we probably shouldn't just be using the
+			//standard position fusion code, since that assumes that the Droplet isn't moving at all?
+			//Or, heck, maybe it will work.
+			
+		}//The right mouse button isn't going to worry about its position at all.
 	}else if(IS_BUTTON_PRESS_MSG(msgStruct)){
 		handleButtonPressMsg((ButtonPressMsg*)(msgStruct->msg));
 	}else if(IS_MOUSE_MOVE_MSG(msgStruct)){
@@ -95,22 +92,33 @@ void handleMsg(irMsg* msgStruct){
 
 void handleButtonPressMsg(ButtonPressMsg* msg){
 	ButtonPressEvent* evt = &(msg->evt);
-	if(evt->key == BUTTON_L_CLICK){
+	if(evt->button == BUTTON_L_CLICK){
 		leftMouseID == evt->src;
 	}
 	if(addEvent(evt)){
-		if(evt->key==BUTTON_SHIFT){
+		if(evt->button==BUTTON_SHIFT){
 			isShifted = !isShifted;
 			prepButtonPressMsg(&(msg->evt));
 		}else if(isWired){
-			wireTxButtonPress(evt->key);
+			wireTxButtonPress(evt->button);
 		}
 		prepButtonPressMsg(&(msg->evt));
 	}
 }
 
 void handleMouseMoveMsg(MouseMoveMsg* msg){
-	
+	MouseMoveEvent evt;
+	evt.time = msg->time;
+	evt.deltaX = msg->deltaX;
+	evt.deltaY = msg->deltaY;
+	evt.mouseEventMarker = MOUSE_EVENT_MARKER_FLAG;
+	if(addEvent(&evt)){
+		if(isWired){
+			wireMouseMove(evt->deltaX, evt->deltaY);
+		}else{
+			prepMouseMoveMsg(&evt);
+		}
+	}
 }
 
 //This seems to take ~600us per sample.
@@ -218,7 +226,7 @@ void userMicInterrupt(){
 			}
 		}
 		if(isWired){
-			wireTxButtonPress(evt.key);
+			wireTxButtonPress(evt.button);
 		}else{
 			prepButtonPressMsg(&evt);
 		}
@@ -247,10 +255,10 @@ uint8_t userHandleCommand(char* commandWord, char* commandArgs __attribute__ ((u
 				charPressed -= 32;
 			}
 			evt.time = getTime();
-			evt.key = charPressed;
+			evt.button = charPressed;
 			evt.src = getDropletID();			
 			printf("PRESSED: ");
-			printf(isprint(evt.key) ? "   '%c'\r\n" : "'\\%03hu'\r\n", evt.key);
+			printf(isprint(evt.button) ? "   '%c'\r\n" : "'\\%03hu'\r\n", evt.button);
 			if(addEvent(&evt)){
 				prepButtonPressMsg(&evt);	
 			}
@@ -261,11 +269,11 @@ uint8_t userHandleCommand(char* commandWord, char* commandArgs __attribute__ ((u
 	}
 }
 
-void prepMouseMoveMsg(BotPos* pos, DensePosCovar* covar){
+void prepMouseMoveMsg(MouseMoveEvent* evt){
 	MouseMoveMsg msg;
-	msg.pos = *pos;
-	msg.covar = *covar;
-	msg.time = getTime();
+	msg.time   = evt->time;
+	msg.deltaX = evt->deltaX;
+	msg.deltaY = evt->deltaY;
 	msg.flag = MOUSE_MOVE_MSG_FLAG;
 	MouseMoveMsgNode* msgNode = (MouseMoveMsgNode*)myMalloc(sizeof(MouseMoveMsgNode));
 	msgNode->numTries = 0;

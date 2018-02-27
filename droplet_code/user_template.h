@@ -42,9 +42,9 @@ typedef struct mouse_move_msg_node_struct{
 }MouseMoveMsgNode;
 
 typedef struct mouse_move_msg_struct{
-	BotPos		  pos;
-	DensePosCovar covar;
 	uint32_t	  time;
+	int8_t		deltaX;
+	int8_t		deltaY;
 	uint8_t	      flag;
 }MouseMoveMsg;
 #define IS_MOUSE_MOVE_MSG(msgStruct) ( (msgStruct->length==sizeof(MouseMoveMsg)) && (((MouseMoveMsg*)(msgStruct->msg))->flag==MOUSE_MOVE_MSG_FLAG) )
@@ -79,7 +79,7 @@ void		init(void);
 void		loop(void);
 void		handleMsg(irMsg* msg_struct);
 
-void prepMouseMoveMsg(ButtonPressEvent* evt);
+void prepMouseMoveMsg(MouseMoveEvent* evt);
 void sendMouseMoveMsg(MouseMoveMsgNode* msgNode);
 void prepButtonPressMsg(ButtonPressEvent* evt);
 void sendButtonPressMsg(ButtonPressMsgNode* msgNode);
@@ -126,10 +126,16 @@ inline void wireTxButtonPress(Button key){
 	printf(isprint(key) ? "   '%c'\r\n" : "'\\%03hu'\r\n", key);
 }
 
+inline void wireMouseMove(int8_t deltaX, int8_t deltaY){
+	storeAndSetLED(50, 50, 0, &wiredBlinkLEDStore);
+	scheduleTask(150, (arg_func_t)restoreLED, (void*)&wiredBlinkLEDStore);
+	printf("MouseMove % 4hd % 4hd\r\n", deltaX, deltaY);
+}
+
 inline void buildButtonPressEvent(ButtonPressEvent* evt){
 	printf("PRESSED: ");
 	printf(isprint(myButton) ? "   '%c'\r\n" : "'\\%03hu'\r\n", myButton);
 	evt->time = getTime();
-	evt->key = ( !isShifted && isupper(myButton) ) ? (myButton+32) : myButton; //convert to lowercase if appropriate.
+	evt->button = ( !isShifted && isupper(myButton) ) ? (myButton+32) : myButton; //convert to lowercase if appropriate.
 	evt->src = getDropletID();
 }

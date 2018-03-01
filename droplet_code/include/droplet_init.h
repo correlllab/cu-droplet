@@ -42,7 +42,10 @@
 #define CMD_DROPLET_ID	0x8F6D
 
 uint8_t reprogramming;
-void handle_reprogramming(void);// __attribute__ ((section (".BOOT")));
+
+void send_hex(void);
+
+char dataHEX[64];
 
 typedef struct ir_msg_struct
 {
@@ -51,10 +54,10 @@ typedef struct ir_msg_struct
 	char* msg;				// The message.
 	uint8_t length;			// Message length.
 } irMsg;
-
+void handle_reprogramming(irMsg *msg_struct_hex);// __attribute__ ((section (".BOOT")));
 void handle_serial_comm(irMsg *msg_struct);
 
-extern void init(void);
+extern void init(void)  __attribute__ ((section (".USERCODE")));
 extern void loop(void);
 extern void handleMsg(irMsg* msg_struct);
 extern uint8_t userHandleCommand(char* commandWord, char* commandArgs);

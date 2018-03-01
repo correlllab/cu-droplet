@@ -16,11 +16,11 @@ uint8_t byte;
 void init(){
 		
 	//delayMS(5000);
-	volatile int dummyArray[512];
-	memset(dummyArray, 0x55, 512);
+	//volatile int dummyArray[512];
+	//memset(dummyArray, 0x55, 512);
 	
-	for (int i= 0;i<512;i++)
-	dummyArray[i] = i;
+	//for (int i= 0;i<512;i++)
+	//dummyArray[i] = i;
 	setRGB(255,0,0);
 	
 }

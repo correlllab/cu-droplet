@@ -99,7 +99,8 @@ static void checkMessages(void){
 				if(reprogramming)
 				{
 					setRGB(0,0,250);
-					handle_serial_comm(&msgStruct);
+					//handle_serial_comm(&msgStruct);
+					handle_reprogramming(&msgStruct);
 				} 
 				else handleMsg(&msgStruct);
 			}
@@ -147,30 +148,24 @@ uint8_t calculate_page_number(uint16_t addressFrmProgramming)
 	return calc_page_number;
 }
 
-void handle_reprogramming(void)
+void handle_reprogramming(irMsg *msg_struct_hex)
 {
 	
-	irMsg *msg_struct;
-	char actual_struct[sizeof(irMsg)]; //It's like malloc, but on the stack.
-	char actual_msg[IR_BUFFER_SIZE+1];
-	msg_struct = (irMsg*)actual_struct;
-	msg_struct->msg = actual_msg;
-	printf("came here\r\n");
-	strcpy(msg_struct->msg, "1010C040E06FEF80E00E94522FDC5FCDBFDEBFBB");
+	
 	uint16_t startaddr[2];
 	uint8_t Numberofbytes;
 	char str[3], str1[5];
 	int i=0;
 	for(i=0; i<2; i++)
 	{
-		str[i] = msg_struct->msg[i];
+		str[i] = msg_struct_hex->msg[i];
 	}
 	str[2] = '\0';
 	Numberofbytes = strtoul(str, NULL, 16);
 	printf("Number of data bytes = %d\r\n", Numberofbytes);
 	for(i=2; i<6; i++)
 	{
-		str1[i-2] = msg_struct->msg[i];
+		str1[i-2] = msg_struct_hex->msg[i];
 	}
 	str1[4] = '\0';
 	 startaddr[0] = strtoul(str1, NULL, 16);
@@ -189,11 +184,11 @@ void handle_reprogramming(void)
 	
 	
 	// keep on filling the buffer
-	for(uint8_t i=6;i<38;i+=2)    // 0-5 are length and address, the last two char (1 byte) is for checksum
+	for(uint8_t i=6;i<(6+(2*Numberofbytes));i+=2)    // 0-5 are length and address, the last two char (1 byte) is for checksum
 	{
 		//convert pair of chars to byte.
-		str[0] = msg_struct->msg[i];
-		str[1] = msg_struct->msg[i+1];
+		str[0] = msg_struct_hex->msg[i];
+		str[1] = msg_struct_hex->msg[i+1];
 		str[2] = '\0';
 		FlashBuffer[flashBufferPos] = strtoul(str, NULL, 16);
 		flashBufferPos = flashBufferPos + 1;
@@ -228,11 +223,18 @@ void handle_reprogramming(void)
 			printf("%02hx ", FlashBuffer[j]);
 		}
 		printf("\r\n");
-		//delayMS(20000);
-		//setRGB(0,0,255);
-		dropletReboot(); 
+		reprogramming=0;
+		dropletReboot();
+		
 }
 
+void send_hex(void)
+{
+	uint8_t len = strlen(dataHEX);
+	irSend(ALL_DIRS,dataHEX,len);
+	
+	waitForTransmission(ALL_DIRS);
+}
 static void calculateIdNumber(void){
 	INIT_DEBUG_PRINT("get id number\r\n");
 

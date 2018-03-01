@@ -61,8 +61,17 @@ void handleSerialCommand(char* command, uint16_t command_length){
 																		printMotorValues();
 																		printDistPerStep();																	
 		}else if(strcmp_P(command_word,PSTR("reprog_begin"))==0){
-		handle_reprogramming();
-		
+		//handle_reprogramming();
+			reprogramming=1;
+		}else if(strcmp_P(command_word,PSTR("r_start"))==0){
+			//handle_reprogramming();
+		}else if(command_word[0] == 'M' && command_word[1] == 0){
+			strcpy(dataHEX, command_args);
+			irCmd(ALL_DIRS, "reprog_begin", 12);
+			//delayMS(3000);
+			scheduleTask(100, send_hex, NULL );
+			printf("Done");
+			
 		}else if(userHandleCommand){ //First, make sure the function is defined
 			if(!userHandleCommand(command_word, command_args))	printf_P(CMD_NOT_RECOGNIZED_STR,command_word);
 		}

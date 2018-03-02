@@ -3,6 +3,8 @@
 #include "rgb_led.h"
 #include "motor.h"
 
+
+
 void powerInit(void); //just calls cap_monitor and leg_monitor init
 void capMonitorInit(void);
 void legMonitorInit(void);
@@ -20,3 +22,6 @@ uint8_t legsPowered(void);
 	void stopLowPowerMoveTask(void);
 	void checkLegsTask(void);
 #endif
+
+void enableLowPowerInterrupts(void);
+void disableLowPowerInterrupts(void);

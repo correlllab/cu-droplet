@@ -19,7 +19,6 @@
 #define MOTOR_ON_TIME			20
 #define MOTOR_OFF_TIME			40
 
-
 int16_t motorAdjusts[8][3];
 uint16_t mmPerKilostep[8]; //For the spin directions, this is degrees per kilostep.
 

@@ -1,12 +1,14 @@
 #include "power.h"
 
-void powerInit()
+
+
+void powerInit(void)
 {
 	capMonitorInit();
 	legMonitorInit();
 }
 
-void capMonitorInit(){
+void capMonitorInit(void){
 	PORTB.DIRCLR = PIN0_bm | PIN1_bm;
 
 	PORTB.PIN0CTRL = PORT_ISC_INPUT_DISABLE_gc;
@@ -17,26 +19,27 @@ void capMonitorInit(){
 	ACB.AC0MUXCTRL = AC_MUXPOS_PIN1_gc | AC_MUXNEG_SCALER_gc; //this sets the (-) part of the comparison to be a scaled value of Vcc (3.3V)
 	ACB.AC1MUXCTRL = AC_MUXPOS_PIN1_gc | AC_MUXNEG_SCALER_gc; //this sets the (-) part of the comparison to be a scaled value of Vcc (3.3V)
 
-	legCheckTask = NULL;
+	
 	ACB.AC0CTRL = AC_ENABLE_bm;
 	ACB.AC1CTRL = AC_ENABLE_bm;
 	#ifdef FIX_UNPOWERED_STATE
+		legCheckTask = NULL;
 		scheduleTask(1000, enableLowPowerInterrupts, NULL); //If we turn these on right away then we get some initial vibrations as the cap is still charging up.
 	#endif
 	delay_us(1);
 }
 
-void enableLowPowerInterrupts(){
+void enableLowPowerInterrupts(void){
 	ACB.AC0CTRL |= AC_INTMODE_FALLING_gc | AC_INTLVL_HI_gc | AC_HYSMODE_NO_gc;
 	ACB.AC1CTRL |= AC_INTMODE_RISING_gc | AC_INTLVL_HI_gc | AC_HYSMODE_NO_gc;
 }
 
-void disableLowPowerInterrupts(){
+void disableLowPowerInterrupts(void){
 	ACB.AC0CTRL &= ~(AC_INTMODE_FALLING_gc | AC_INTLVL_HI_gc | AC_HYSMODE_NO_gc);
 	ACB.AC1CTRL &= ~(AC_INTMODE_RISING_gc | AC_INTLVL_HI_gc | AC_HYSMODE_NO_gc);
 }
 
-void legMonitorInit(){
+void legMonitorInit(void){
 	PORTA.DIRCLR = PIN0_bm | PIN1_bm | PIN2_bm | PIN3_bm | PIN4_bm;
 	
 	PORTA.PIN0CTRL = PORT_ISC_INPUT_DISABLE_gc;
@@ -57,7 +60,7 @@ void legMonitorInit(){
 }
 
 //Returns '1' if cap is powered, and '0' otherwise.
-uint8_t capStatus(){
+uint8_t capStatus(void){
 	
 	return ((ACB.STATUS & AC_AC0STATE_bm)>>4);
 /*
@@ -94,7 +97,7 @@ int8_t legStatus(uint8_t leg){
 	}
 }
 
-uint8_t legsPowered(){
+uint8_t legsPowered(void){
 	int8_t leg0status = legStatus(0);
 	int8_t leg1status = legStatus(1);
 	int8_t leg2status = legStatus(2);
@@ -105,7 +108,7 @@ uint8_t legsPowered(){
 
 #ifdef FIX_UNPOWERED_STATE
 
-void checkLegsTask(){
+void checkLegsTask(void){
 	if(!legsPowered()){
 		if(failedLegChecks < 4){
 			scheduleTask(150, stopLowPowerMoveTask, NULL);
@@ -130,7 +133,7 @@ void checkLegsTask(){
 	}
 }
 
-void stopLowPowerMoveTask(){
+void stopLowPowerMoveTask(void){
 	stopMove();
 	scheduleTask(50, checkLegsTask, NULL);
 }

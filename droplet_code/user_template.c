@@ -75,13 +75,16 @@ void handleMsg(irMsg* msgStruct){
 	if(IS_BOT_MEAS_MSG(msgStruct)){
 		if(myRole != MOUSE){ //mouse will be moving too much to participate in localization.
 			handleBotMeasMsg((BotMeasMsg*)(msgStruct->msg), msgStruct->senderID);
-		}else if(myButton == BUTTON_L_CLICK){
-			// TODO:			
-			// The left mouse button needs to update its position based on this measurement, 
-			// or possibly a series of measurements, but we probably shouldn't just be using the
-			//standard position fusion code, since that assumes that the Droplet isn't moving at all?
-			//Or, heck, maybe it will work.
-			
+		}else if(myButton == BUTTON_L_CLICK && mouseBroadcastTask != NULL){
+			int16_t prevX = myPos.x;
+			int16_t prevY = myPos.y;
+			handleBotMeasMsg((BotMeasMsg*)(msgStruct->msg), msgStruct->senderID);
+			MouseMoveEvent evt;
+			evt.deltaX = myPos.x - prevX;
+			evt.deltaY = myPos.y - prevY;
+			evt.mouseEventMarker=0xFF;
+			evt.time = getTime();
+			prepMouseMoveMsg(&evt);
 		}//The right mouse button isn't going to worry about its position at all.
 	}else if(IS_BUTTON_PRESS_MSG(msgStruct)){
 		handleButtonPressMsg((ButtonPressMsg*)(msgStruct->msg));
@@ -93,7 +96,7 @@ void handleMsg(irMsg* msgStruct){
 void handleButtonPressMsg(ButtonPressMsg* msg){
 	ButtonPressEvent* evt = &(msg->evt);
 	if(evt->button == BUTTON_L_CLICK){
-		leftMouseID == evt->src;
+		leftMouseID = evt->src;
 	}
 	if(addEvent(evt)){
 		if(evt->button==BUTTON_SHIFT){
@@ -114,7 +117,7 @@ void handleMouseMoveMsg(MouseMoveMsg* msg){
 	evt.mouseEventMarker = MOUSE_EVENT_MARKER_FLAG;
 	if(addEvent(&evt)){
 		if(isWired){
-			wireMouseMove(evt->deltaX, evt->deltaY);
+			wireMouseMove(evt.deltaX, evt.deltaY);
 		}else{
 			prepMouseMoveMsg(&evt);
 		}
@@ -278,7 +281,7 @@ void prepMouseMoveMsg(MouseMoveEvent* evt){
 	MouseMoveMsgNode* msgNode = (MouseMoveMsgNode*)myMalloc(sizeof(MouseMoveMsgNode));
 	msgNode->numTries = 0;
 	msgNode->msg = msg;
-	sendButtonPressMsg(msgNode);
+	sendMouseMoveMsg(msgNode);
 }
 
 void sendMouseMoveMsg(MouseMoveMsgNode* msgNode){

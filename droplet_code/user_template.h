@@ -36,11 +36,6 @@ typedef enum droplet_role{
 
 typedef uint8_t LEDStore[3];
 
-typedef struct mouse_move_msg_node_struct{
-	MouseMoveMsg msg;
-	uint8_t numTries;
-}MouseMoveMsgNode;
-
 typedef struct mouse_move_msg_struct{
 	uint32_t	  time;
 	int8_t		deltaX;
@@ -48,17 +43,20 @@ typedef struct mouse_move_msg_struct{
 	uint8_t	      flag;
 }MouseMoveMsg;
 #define IS_MOUSE_MOVE_MSG(msgStruct) ( (msgStruct->length==sizeof(MouseMoveMsg)) && (((MouseMoveMsg*)(msgStruct->msg))->flag==MOUSE_MOVE_MSG_FLAG) )
-
-typedef struct button_press_msg_node_struct{
-	ButtonPressMsg msg;
+typedef struct mouse_move_msg_node_struct{
+	MouseMoveMsg msg;
 	uint8_t numTries;
-}ButtonPressMsgNode;
+}MouseMoveMsgNode;
 
 typedef struct button_press_msg_struct{
 	ButtonPressEvent	evt;
 	uint8_t			flag;
 }ButtonPressMsg;
 #define IS_BUTTON_PRESS_MSG(msgStruct) ( (msgStruct->length==sizeof(ButtonPressMsg)) && (((ButtonPressMsg*)(msgStruct->msg))->flag==KEYPRESS_MSG_FLAG) )
+typedef struct button_press_msg_node_struct{
+	ButtonPressMsg msg;
+	uint8_t numTries;
+}ButtonPressMsgNode;
 
 uint32_t	frameCount;
 uint32_t	frameStart;
@@ -67,13 +65,14 @@ uint16_t	mySlot;
 uint16_t	loopID;
 uint8_t		isWired;
 uint8_t		isShifted;
-Task_t*		mouseBroadcastTask;
+
 id_t		leftMouseID;
 volatile LEDStore buttonPressBlinkLEDStore;
 volatile LEDStore wiredBlinkLEDStore;
 DropletRole myRole;
 Button myButton;
 volatile Task_t* wireSleepTask;
+volatile Task_t* mouseBroadcastTask;
 
 void		init(void);
 void		loop(void);

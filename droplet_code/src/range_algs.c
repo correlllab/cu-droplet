@@ -139,7 +139,6 @@ void useRnbData(){
 	int16_t matrixSum = processBrightMeas();
 	//if(rand_byte()%2) broadcastBrightMeas();
 	float bearing, heading;
-	float error;
 	calculate_bearing_and_heading(&bearing, &heading);
 	float initialRange = magicRangeFunc(matrixSum/2.0739212652);
 	if(initialRange!=0&&!isnanf(initialRange)){	

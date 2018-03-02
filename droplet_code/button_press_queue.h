@@ -27,14 +27,14 @@ typedef struct either_event_struct{
 	uint8_t		buttonOrMarker;
 }EitherEvent;
 
-typedef union __attribute__ ((__transparent_union__)) generic_event_union{
-	ButtonPressEvent	buttonPress;
-	MouseMoveEvent		mouseMove;
-	EitherEvent			both;
-}GenericEvent;
+typedef union generic_event_union{
+	ButtonPressEvent	*buttonPress;
+	MouseMoveEvent		*mouseMove;
+	EitherEvent			*both;
+}GenericEvent  __attribute__ ((__transparent_union__));
 
-volatile GenericEvent keypressLog[NUM_LOGGED_EVENTS];
+volatile EitherEvent eventLog[NUM_LOGGED_EVENTS];
 
 void queueInit(void);
-uint8_t addEvent(GenericEvent* keypress);
-void printKeypressLog(void);
+uint8_t addEvent(GenericEvent keypress);
+void printEventLog(void);

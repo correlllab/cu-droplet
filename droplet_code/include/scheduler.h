@@ -10,11 +10,11 @@
 typedef void (*arg_func_t)(void*);
 typedef void (*noarg_func_t)(void);
 
-typedef union __attribute__ ((__transparent_union__)) flex_function_union
+typedef union flex_function_union
 {
 	arg_func_t arg_function;
 	noarg_func_t noarg_func;
-} FlexFunction;
+} FlexFunction __attribute__ ((__transparent_union__)) ;
 
 // A task is a function, possibly with an argument, to be called at a specific time
 // scheduled_time is the 32-bit global time when the function should be called

@@ -467,12 +467,10 @@ uint8_t calcOtherBotPosFromMeas(BotPos* pos, DensePosCovar* covar, rnb* measStru
 		POS_CALC_DEBUG_PRINT("Calc'd Covar:\r\n");
 		printMatrixMathematica(&yourP);
 		#endif
-		BotPos pos;
-		pos.x = x_you[0]>8191 ? 8191 : (x_you[0]<-8192 ? -8192 : x_you[0]);
-		pos.y = x_you[1]>8191 ? 8191 : (x_you[1]<-8192 ? -8192 : x_you[1]);
-		pos.o = (radToDeg(x_you[2]-M_PI_2)+0.5);
-		DensePosCovar covar;
-		compressP(&yourP, &covar);
+		pos->x = x_you[0]>8191 ? 8191 : (x_you[0]<-8192 ? -8192 : x_you[0]);
+		pos->y = x_you[1]>8191 ? 8191 : (x_you[1]<-8192 ? -8192 : x_you[1]);
+		pos->o = (radToDeg(x_you[2]-M_PI_2)+0.5);
+		compressP(&yourP, covar);
 		return 1;
 	}else{
 		return 0;

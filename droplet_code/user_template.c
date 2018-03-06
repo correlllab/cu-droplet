@@ -30,7 +30,9 @@ void init(){
  * the code in this function will be called repeatedly, as fast as it can execute.
  */
 void loop(){
-
+	//if(getTime()%2000<1000){
+	//	setHSV()
+	//}
 }
 
 /*

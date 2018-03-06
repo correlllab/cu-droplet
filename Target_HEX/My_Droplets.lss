@@ -3,35 +3,35 @@ My_Droplets.elf:     file format elf32-avr
 
 Sections:
 Idx Name          Size      VMA       LMA       File off  Algn
-  0 .BOOT         00000044  00020000  00020000  0000a6b2  2**0
+  0 .BOOT         00000044  00020000  00020000  0000a6d2  2**0
                   CONTENTS, ALLOC, LOAD, READONLY, CODE
-  1 .USERCODE     0000000a  0000c000  0000c000  0000a6a8  2**0
+  1 .USERCODE     0000002a  0000c000  0000c000  0000a6a8  2**0
                   CONTENTS, ALLOC, LOAD, READONLY, CODE
   2 .text         0000a2f8  00000000  00000000  000000d4  2**1
                   CONTENTS, ALLOC, LOAD, READONLY, CODE
   3 .data         000002dc  00802000  0000a2f8  0000a3cc  2**0
                   CONTENTS, ALLOC, LOAD, DATA
-  4 .bss          000003bf  008022dc  008022dc  0000a6f6  2**0
+  4 .bss          000003bf  008022dc  008022dc  0000a716  2**0
                   ALLOC
-  5 .comment      0000005c  00000000  00000000  0000a6f6  2**0
+  5 .comment      0000005c  00000000  00000000  0000a716  2**0
                   CONTENTS, READONLY
-  6 .note.gnu.avr.deviceinfo 00000040  00000000  00000000  0000a754  2**2
+  6 .note.gnu.avr.deviceinfo 00000040  00000000  00000000  0000a774  2**2
                   CONTENTS, READONLY
-  7 .debug_aranges 00000708  00000000  00000000  0000a798  2**3
+  7 .debug_aranges 00000708  00000000  00000000  0000a7b8  2**3
                   CONTENTS, READONLY, DEBUGGING
-  8 .debug_info   0001ba3e  00000000  00000000  0000aea0  2**0
+  8 .debug_info   0001ba81  00000000  00000000  0000aec0  2**0
                   CONTENTS, READONLY, DEBUGGING
-  9 .debug_abbrev 000072e5  00000000  00000000  000268de  2**0
+  9 .debug_abbrev 00007321  00000000  00000000  00026941  2**0
                   CONTENTS, READONLY, DEBUGGING
- 10 .debug_line   000076d7  00000000  00000000  0002dbc3  2**0
+ 10 .debug_line   000076fb  00000000  00000000  0002dc62  2**0
                   CONTENTS, READONLY, DEBUGGING
- 11 .debug_frame  000027b8  00000000  00000000  0003529c  2**2
+ 11 .debug_frame  000027c4  00000000  00000000  00035360  2**2
                   CONTENTS, READONLY, DEBUGGING
- 12 .debug_str    0000750f  00000000  00000000  00037a54  2**0
+ 12 .debug_str    0000750f  00000000  00000000  00037b24  2**0
                   CONTENTS, READONLY, DEBUGGING
- 13 .debug_loc    0000e56b  00000000  00000000  0003ef63  2**0
+ 13 .debug_loc    0000e5be  00000000  00000000  0003f033  2**0
                   CONTENTS, READONLY, DEBUGGING
- 14 .debug_ranges 00001230  00000000  00000000  0004d4d0  2**3
+ 14 .debug_ranges 00001230  00000000  00000000  0004d5f8  2**3
                   CONTENTS, READONLY, DEBUGGING
 
 Disassembly of section .BOOT:
@@ -111,16 +111,50 @@ wait_nvm:
 Disassembly of section .USERCODE:
 
 0000c000 <init>:
+ */
+
+
+
+
+void init(){
+    c000:	cf 93       	push	r28
+    c002:	df 93       	push	r29
 	//volatile int dummyArray[512];
 	//memset(dummyArray, 0x55, 512);
 	
 	//for (int i= 0;i<512;i++)
 	//dummyArray[i] = i;
-	setRGB(255,0,0);
-    c000:	40 e0       	ldi	r20, 0x00	; 0
-    c002:	60 e0       	ldi	r22, 0x00	; 0
-    c004:	8f ef       	ldi	r24, 0xFF	; 255
-    c006:	0c 94 6e 2f 	jmp	0x5edc	; 0x5edc <setRGB>
+	for(uint16_t i=0;i<360;i++){
+    c004:	c0 e0       	ldi	r28, 0x00	; 0
+    c006:	d0 e0       	ldi	r29, 0x00	; 0
+		setHSV(i,255,200);	
+    c008:	48 ec       	ldi	r20, 0xC8	; 200
+    c00a:	6f ef       	ldi	r22, 0xFF	; 255
+    c00c:	ce 01       	movw	r24, r28
+    c00e:	0e 94 2e 31 	call	0x625c	; 0x625c <setHSV>
+		delayMS(50);
+    c012:	82 e3       	ldi	r24, 0x32	; 50
+    c014:	90 e0       	ldi	r25, 0x00	; 0
+    c016:	0e 94 4f 08 	call	0x109e	; 0x109e <delayMS>
+	//volatile int dummyArray[512];
+	//memset(dummyArray, 0x55, 512);
+	
+	//for (int i= 0;i<512;i++)
+	//dummyArray[i] = i;
+	for(uint16_t i=0;i<360;i++){
+    c01a:	21 96       	adiw	r28, 0x01	; 1
+    c01c:	c8 36       	cpi	r28, 0x68	; 104
+    c01e:	81 e0       	ldi	r24, 0x01	; 1
+    c020:	d8 07       	cpc	r29, r24
+    c022:	91 f7       	brne	.-28     	; 0xc008 <init+0x8>
+		setHSV(i,255,200);	
+		delayMS(50);
+	}
+	
+}
+    c024:	df 91       	pop	r29
+    c026:	cf 91       	pop	r28
+    c028:	08 95       	ret
 
 Disassembly of section .text:
 
@@ -371,32 +405,32 @@ Disassembly of section .text:
      2e4:	00 00       	nop
 
 000002e6 <__trampolines_start>:
-     2e6:	0c 94 ab 15 	jmp	0x2b56	; 0x2b56 <irReceive+0x256>
-     2ea:	0c 94 ec 38 	jmp	0x71d8	; 0x71d8 <sendID>
-     2ee:	0c 94 f8 1e 	jmp	0x3df0	; 0x3df0 <stopMove>
-     2f2:	0c 94 e6 2e 	jmp	0x5dcc	; 0x5dcc <broadcastRnbData>
-     2f6:	0c 94 e3 09 	jmp	0x13c6	; 0x13c6 <send_hex>
-     2fa:	0c 94 df 15 	jmp	0x2bbe	; 0x2bbe <irReceive+0x2be>
-     2fe:	0c 94 e5 10 	jmp	0x21ca	; 0x21ca <irTransmit+0x17e>
-     302:	0c 94 44 0c 	jmp	0x1888	; 0x1888 <processObsQueue>
-     306:	0c 94 9d 15 	jmp	0x2b3a	; 0x2b3a <irReceive+0x23a>
-     30a:	0c 94 1f 1c 	jmp	0x383e	; 0x383e <setAllirPowers>
-     30e:	0c 94 6d 2b 	jmp	0x56da	; 0x56da <useRnbData>
-     312:	0c 94 1a 16 	jmp	0x2c34	; 0x2c34 <irReceive+0x334>
-     316:	0c 94 75 1d 	jmp	0x3aea	; 0x3aea <initIrBaselines>
-     31a:	0c 94 98 10 	jmp	0x2130	; 0x2130 <irTransmit+0xe4>
-     31e:	0c 94 cb 10 	jmp	0x2196	; 0x2196 <irTransmit+0x14a>
-     322:	0c 94 90 15 	jmp	0x2b20	; 0x2b20 <irReceive+0x220>
-     326:	0c 94 ee 0f 	jmp	0x1fdc	; 0x1fdc <handleCmdWrapper>
-     32a:	0c 94 0d 16 	jmp	0x2c1a	; 0x2c1a <irReceive+0x31a>
-     32e:	0c 94 d8 10 	jmp	0x21b0	; 0x21b0 <irTransmit+0x164>
-     332:	0c 94 83 15 	jmp	0x2b06	; 0x2b06 <irReceive+0x206>
-     336:	0c 94 f2 10 	jmp	0x21e4	; 0x21e4 <irTransmit+0x198>
+     2e6:	0c 94 4d 23 	jmp	0x469a	; 0x469a <pc_comm_putchar>
+     2ea:	0c 94 be 10 	jmp	0x217c	; 0x217c <irTransmit+0x130>
+     2ee:	0c 94 ee 0f 	jmp	0x1fdc	; 0x1fdc <handleCmdWrapper>
+     2f2:	0c 94 ec 38 	jmp	0x71d8	; 0x71d8 <sendID>
+     2f6:	0c 94 ab 15 	jmp	0x2b56	; 0x2b56 <irReceive+0x256>
+     2fa:	0c 94 f2 10 	jmp	0x21e4	; 0x21e4 <irTransmit+0x198>
+     2fe:	0c 94 cb 10 	jmp	0x2196	; 0x2196 <irTransmit+0x14a>
+     302:	0c 94 1f 1c 	jmp	0x383e	; 0x383e <setAllirPowers>
+     306:	0c 94 df 15 	jmp	0x2bbe	; 0x2bbe <irReceive+0x2be>
+     30a:	0c 94 ca 0c 	jmp	0x1994	; 0x1994 <sendPing>
+     30e:	0c 94 e3 09 	jmp	0x13c6	; 0x13c6 <send_hex>
+     312:	0c 94 0d 16 	jmp	0x2c1a	; 0x2c1a <irReceive+0x31a>
+     316:	0c 94 83 15 	jmp	0x2b06	; 0x2b06 <irReceive+0x206>
+     31a:	0c 94 1a 16 	jmp	0x2c34	; 0x2c34 <irReceive+0x334>
+     31e:	0c 94 6d 2b 	jmp	0x56da	; 0x56da <useRnbData>
+     322:	0c 94 7a 1d 	jmp	0x3af4	; 0x3af4 <updateIrBaselines>
+     326:	0c 94 90 15 	jmp	0x2b20	; 0x2b20 <irReceive+0x220>
+     32a:	0c 94 e5 10 	jmp	0x21ca	; 0x21ca <irTransmit+0x17e>
+     32e:	0c 94 e6 2e 	jmp	0x5dcc	; 0x5dcc <broadcastRnbData>
+     332:	0c 94 f8 1e 	jmp	0x3df0	; 0x3df0 <stopMove>
+     336:	0c 94 d8 10 	jmp	0x21b0	; 0x21b0 <irTransmit+0x164>
      33a:	0c 94 a5 10 	jmp	0x214a	; 0x214a <irTransmit+0xfe>
-     33e:	0c 94 ca 0c 	jmp	0x1994	; 0x1994 <sendPing>
-     342:	0c 94 4d 23 	jmp	0x469a	; 0x469a <pc_comm_putchar>
-     346:	0c 94 be 10 	jmp	0x217c	; 0x217c <irTransmit+0x130>
-     34a:	0c 94 7a 1d 	jmp	0x3af4	; 0x3af4 <updateIrBaselines>
+     33e:	0c 94 44 0c 	jmp	0x1888	; 0x1888 <processObsQueue>
+     342:	0c 94 9d 15 	jmp	0x2b3a	; 0x2b3a <irReceive+0x23a>
+     346:	0c 94 75 1d 	jmp	0x3aea	; 0x3aea <initIrBaselines>
+     34a:	0c 94 98 10 	jmp	0x2130	; 0x2130 <irTransmit+0xe4>
 
 0000034e <__trampolines_end>:
      34e:	6e 61       	ori	r22, 0x1E	; 30

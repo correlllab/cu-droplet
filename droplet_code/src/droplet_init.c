@@ -228,12 +228,12 @@ void handle_reprogramming(irMsg *msg_struct_hex)
 		
 }
 
-void send_hex(void)
-{
+void send_hex(void){
 	uint8_t len = strlen(dataHEX);
 	irSend(ALL_DIRS,dataHEX,len);
-	
-	waitForTransmission(ALL_DIRS);
+	NONATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+		waitForTransmission(ALL_DIRS);
+	}
 }
 static void calculateIdNumber(void){
 	INIT_DEBUG_PRINT("get id number\r\n");

@@ -57,7 +57,7 @@ typedef struct ir_msg_struct
 void handle_reprogramming(irMsg *msg_struct_hex);// __attribute__ ((section (".BOOT")));
 void handle_serial_comm(irMsg *msg_struct);
 
-extern void init(void)  __attribute__ ((section (".USERCODE")));
+extern void init(void);  __attribute__ ((section (".USERCODE")));
 extern void loop(void);
 extern void handleMsg(irMsg* msg_struct);
 extern uint8_t userHandleCommand(char* commandWord, char* commandArgs);

@@ -72,10 +72,13 @@ uint32_t getBitMask(id_t id){
 void setMsgPeriod(uint32_t value){
 	MSG_PERIOD = value;
 	
-	if(value >= 600)
+	if(value>= 700){
+		setHSV((value/10),250,50);
+	}
+	else if(value >= 600)
 	setHSV(50,250,50);
 	else if(value >= 500)
-	setHSV(100,250,50);
+	setHSV(25,250,50);
 	else if(value >= 400)
 	setHSV(0,250,50);
 }
@@ -101,7 +104,7 @@ void loop(){
 	//float new_bearing, new_heading;
 	//uint16_t new_steps;
 	if(getTime()-lastMessageSent > MSG_PERIOD){
-		if(getDropletID()!=0x73AF){
+		if(getDropletID()!=0x3F9D){
 			sendMsg();
 			//sendMsg();
 			//sendMsg();
@@ -136,7 +139,7 @@ void handleMsg(irMsg* msgStruct){
 	//uint8_t dataSender = (uint8_t)(log((data->msgId)>>12)/log(2));
 
 	
-	if(getDropletID()==0x73AF){
+	if(getDropletID()==0x3F9D){
 		printf("Got %01hu %6u at %lu\r\n", msgSender, msgID, getTime());
 		
 		
@@ -175,7 +178,7 @@ void handleMsg(irMsg* msgStruct){
 				
 				if(msgLog[i].msgCount>0){
 					msgLog[i].success_rate = (float)msgLog[i].msgCount/(float)((msgLog[i].finalMsgID-msgLog[i].initMsgID) + 1);
-					printf("Sender: %u,Success rate: %f ", i, msgLog[i].success_rate);
+					printf("%u, %f ", i, msgLog[i].success_rate);
 				}
 				
 			}

@@ -34,7 +34,8 @@ typedef enum keyboard_key{
 	BUTTON_L_BRACKET	= 91,
 	BUTTON_R_BRACKET	= 93,
 	BUTTON_BACKSLASH	= 92,
-	BUTTON_CAPSLOCK		= 20,
+	BUTTON_CAPSLOCK_ON	= 20,
+	BUTTON_CAPSLOCK_OFF = 21,
 	BUTTON_A		    = 65,
 	BUTTON_S		    = 83,
 	BUTTON_D		    = 68,
@@ -141,14 +142,14 @@ inline Button getButton_SPACEROW(int16_t x){
 }
 
 inline Button checkMouseCircle(BotPos* pos){
-	int16_t xDiff = pos->x - MOUSE_CIRCLE_X;
-	int16_t yDiff = pos->y - MOUSE_CIRCLE_Y;
-	int32_t distSquared = xDiff*xDiff + yDiff*yDiff;
-	if(distSquared > (MOUSE_CIRCLE_R*MOUSE_CIRCLE_R)){
-		return BUTTON_UNKNOWN;
-	}else{
-		return (xDiff>0) ? BUTTON_R_CLICK : BUTTON_L_CLICK;
+	if(pos->y > (MOUSE_CIRCLE_Y-MOUSE_CIRCLE_R) && pos->y < (MOUSE_CIRCLE_Y+MOUSE_CIRCLE_R)){
+		if(pos->x < MOUSE_CIRCLE_X){
+			return BUTTON_L_CLICK;
+		}else if(pos->x < MOUSE_CIRCLE_X+MOUSE_CIRCLE_R){
+			return BUTTON_R_CLICK;
+		}
 	}
+	return BUTTON_UNKNOWN;
 }
 
 inline Button getKeyFromPosition(BotPos* pos){

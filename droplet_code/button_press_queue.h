@@ -4,11 +4,9 @@
 
 #define NUM_LOGGED_EVENTS		  20
 #define MIN_MULTIPRESS_DELAY	 150
-#define EVENT_MAX_ADD_AGE		2000
-#define EVENT_MAX_TRACK_AGE		5000
 #define MOUSE_EVENT_MARKER_FLAG	0xFF //Important that this not be a member of the Button enum.
 
-typedef struct keypress_event_struct{
+typedef struct button_press_event_struct{
 	uint32_t	time;
 	id_t		src;
 	Button		button;

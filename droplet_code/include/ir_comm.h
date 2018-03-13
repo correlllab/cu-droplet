@@ -32,8 +32,7 @@
 #define KEY_RIGHT		((uint16_t)0x46B9)
 
 #define IR_BUFFER_SIZE			40u //bytes
-#define IR_UPKEEP_FREQUENCY		16 //Hz
-#define IR_MSG_TIMEOUT			16 //ms
+#define IR_MSG_TIMEOUT			6 //ms
 
 #define IR_STATUS_BUSY_bm				0x01	// 0000 0001				
 #define IR_STATUS_COMPLETE_bm			0x02	// 0000 0010

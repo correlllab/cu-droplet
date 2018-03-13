@@ -3,7 +3,7 @@
 static inline uint8_t sameEvent(GenericEvent a, GenericEvent b){
 	EitherEvent* evtA = a.both;
 	EitherEvent* evtB = b.both;
-	uint8_t concurrent			= (evtA->time - evtB->time) < MIN_MULTIPRESS_DELAY;
+	uint8_t concurrent			= ((evtA->time)%MIN_MULTIPRESS_DELAY) == ((evtB->time)%MIN_MULTIPRESS_DELAY);
 	uint8_t sameIDorDelta		= evtA->idOrDelta == evtB->idOrDelta;
 	uint8_t sameButtonOrMarker	= evtA->buttonOrMarker == evtB->buttonOrMarker;
 	return concurrent && sameIDorDelta && sameButtonOrMarker;
@@ -25,11 +25,12 @@ void queueInit(){
 //Returns '1' if an event was added (meaning that the Droplet should follow up)
 //Returns '0' if an event wasn't added (meaning that the Droplet shouldn't follow up)
 uint8_t  addEvent(GenericEvent evt){
+	//printEventLog();
 	uint8_t openIdx = 0xFF;
 	uint32_t smallestEventTime = 0xFFFFFFFF;
 	uint8_t smallestEventIdx = 0xFF;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-		for(uint8_t i=0;i<NUM_LOGGED_EVENTS;i++){
+		for(int8_t i=(NUM_LOGGED_EVENTS-1);i>=0;i--){
 			EitherEvent* thisEvt = &(eventLog[i]);
 			if(!isEventInit(thisEvt)){ //This spot is available.
 				openIdx = i;
@@ -63,12 +64,12 @@ void printEventLog(){
 			if(isEventInit(thisEvt)){		
 				if(eventLog[i].buttonOrMarker==0xFF){ //This is a mouse move event.
 					MouseMoveEvent* evt = thisEvt.mouseMove;
-					printf("\t(%hu) % 4hd, % 4hd @ %lu\r\n", i, evt->deltaX, evt->deltaY, evt->time);
+					printf("\t(%2hu)  % 5hd, % 5hd @ %lu\r\n", i, evt->deltaX, evt->deltaY, evt->time);
 				}else{ //This is a button press event.
 					ButtonPressEvent* evt = thisEvt.buttonPress;
-					printf("\t(%hu) %04X: '", i, evt->src);
-					printf((isprint(evt->button) ? "   %c" : "\\%3hu"), evt->button);
-					printf("' @ %lu\r\n", evt->time);
+					printf("\t(%2hu) %04X: ", i, evt->src);
+					printf((isprint(evt->button) ? "   `%c'" : "\\%3hu "), evt->button);
+					printf(" @ %lu\r\n", evt->time);
 				}
 			}
 		}

@@ -1,9 +1,12 @@
 #include "user_template.h"
 
+
+
 void init(){
 	if((LOCALIZATION_DUR)>=SLOT_LENGTH_MS){
 		printf_P(PSTR("Error! Localization requires SLOT_LENGTH_MS to be greater than LOCALIZATION_DUR!\r\n"));
 	}
+	queueInit();
 	myRole = UNKNOWN;
 	myButton = BUTTON_UNKNOWN;
 	loopID = 0xFFFF;
@@ -14,17 +17,24 @@ void init(){
 	isWired = 0;
 	mouseBroadcastTask = NULL;
 	leftMouseID = 0xFFFF;
-	for(uint8_t i=0;i<3;i++){
-		wiredBlinkLEDStore[i] = 0;
-		buttonPressBlinkLEDStore[i] = 0;
-	}
 	frameStart = getTime();
 	mySlot = getSlot(getDropletID());
-	printf("mySlot: %u, frame_length: %lu\r\n\r\n", mySlot, FRAME_LENGTH_MS);
-	if(POS_DEFINED(&myPos)){
-		myRole = getRoleFromPosition(&myPos);
-		setRGB(0,0,15);
+	//printf("mySlot: %u, frame_length: %lu\r\n\r\n", mySlot, FRAME_LENGTH_MS);
+	if(!POS_DEFINED(&myPos)){
+		//BotPos tmpPos;
+		//tmpPos.x = (BUTTON_HALFWIDTH + BUTTON_WIDTH*(randShort()%10));
+		//tmpPos.y = 10 + ((randShort()%3)+1)*BUTTON_HEIGHT;
+		//setRoleAndButton(getButtonFromPosition(&tmpPos));
+		//printf("%d, %d, %hu, %hu\r\n", tmpPos.x, tmpPos.y, myRole, myButton);
+	}else{
+		setRoleAndButton(getButtonFromPosition(&myPos));
+		printf("%d, %d, %hu, %hu\r\n", myPos.x, myPos.y, myRole, myButton);
 	}
+
+	
+	//if(POS_DEFINED(&myPos)){
+	//	setRoleAndButton(getButtonFromPosition(&myPos));
+	//}
 	#ifdef AUDIO_DROPLET
 		enableMicInterrupt();
 	#endif	
@@ -82,9 +92,11 @@ void handleMsg(irMsg* msgStruct){
 			MouseMoveEvent evt;
 			evt.deltaX = myPos.x - prevX;
 			evt.deltaY = myPos.y - prevY;
-			evt.mouseEventMarker=0xFF;
-			evt.time = getTime();
-			prepMouseMoveMsg(&evt);
+			if(evt.deltaX!=0 || evt.deltaY!=0){
+				evt.mouseEventMarker=0xFF;
+				evt.time = getTime();
+				prepMouseMoveMsg(&evt);
+			}
 		}//The right mouse button isn't going to worry about its position at all.
 	}else if(IS_BUTTON_PRESS_MSG(msgStruct)){
 		handleButtonPressMsg((ButtonPressMsg*)(msgStruct->msg));
@@ -95,23 +107,28 @@ void handleMsg(irMsg* msgStruct){
 
 void handleButtonPressMsg(ButtonPressMsg* msg){
 	ButtonPressEvent* evt = &(msg->evt);
+	evt->time = (getTime()/MIN_MULTIPRESS_DELAY)*MIN_MULTIPRESS_DELAY + ((evt->time)%MIN_MULTIPRESS_DELAY);
 	if(evt->button == BUTTON_L_CLICK){
 		leftMouseID = evt->src;
 	}
 	if(addEvent(evt)){
-		if(evt->button==BUTTON_SHIFT){
-			isShifted = !isShifted;
+		if(evt->button==BUTTON_CAPSLOCK_ON){
+			isShifted = 1;
+			setGreenLED(5);
+			prepButtonPressMsg(&(msg->evt));
+		}else if(evt->button==BUTTON_CAPSLOCK_OFF){
+			isShifted = 0;
+			setGreenLED(0);
 			prepButtonPressMsg(&(msg->evt));
 		}else if(isWired){
-			wireTxButtonPress(evt->button);
+			wireTxButtonPress(evt->button);		
 		}
-		prepButtonPressMsg(&(msg->evt));
 	}
 }
 
 void handleMouseMoveMsg(MouseMoveMsg* msg){
 	MouseMoveEvent evt;
-	evt.time = msg->time;
+	evt.time = (getTime()/MIN_MULTIPRESS_DELAY)*MIN_MULTIPRESS_DELAY + ((msg->time)%MIN_MULTIPRESS_DELAY);
 	evt.deltaX = msg->deltaX;
 	evt.deltaY = msg->deltaY;
 	evt.mouseEventMarker = MOUSE_EVENT_MARKER_FLAG;
@@ -119,7 +136,7 @@ void handleMouseMoveMsg(MouseMoveMsg* msg){
 		if(isWired){
 			wireMouseMove(evt.deltaX, evt.deltaY);
 		}else{
-			prepMouseMoveMsg(&evt);
+			//prepMouseMoveMsg(&evt);
 		}
 	}
 }
@@ -167,62 +184,26 @@ void checkPosition(){
 	printf("       Max Key: '");
 	printf(isprint(maxButton) ? "%c" : "\\%hu", maxButton);
 	printf("' (%hu)\r\n", maxButtonCount);
-	//uint8_t secondMaxKeyCount = 0;
-	//KeyboardKey secondMaxKey = KEYBOARD_UNKNOWN;
-	//for(uint8_t i=0;i<=LARGEST_KEYBOARD_KEY;i++){
-		//if(i!=maxKey){
-			//if(resultKeys[i]>secondMaxKeyCount){
-				//secondMaxKeyCount = resultKeys[i];
-				//secondMaxKey = i;
-			//}
-		//}
-	//}
-	//printf("Second Max Key: '");
-	//printf(isprint(secondMaxKey) ? "%c" : "\\%hu", secondMaxKey);
-	//printf("' (%hu)\r\n", secondMaxKeyCount);		
 	if(maxButtonCount>targetMaxCount() && maxButton!=BUTTON_UNKNOWN){
-		myButton = maxButton;
-		if( (myButton!=BUTTON_L_CLICK) && (myButton!=BUTTON_R_CLICK) ){
-			myRole = KEYBOARD;
-			setRGB(0,0,15);
-		}else{
-			myRole = MOUSE;
-			setRGB(10,0,15);
-		}
+		setRoleAndButton(maxButton);
 	} 
 }
 
-void restoreLED(volatile LEDStore* vals){
-	setRGB((*vals)[0], (*vals)[1], (*vals)[2]);
-}
+
 
 void userMicInterrupt(){
-	if( (getTime()-lastKeypress) < MIN_MULTIPRESS_DELAY){
-		return;
-	}
-	if(myRole==UNKNOWN){
+	if(myRole==UNKNOWN || getTime()<1500 || ( (getTime()-lastKeypress) < MIN_MULTIPRESS_DELAY ) ){
 		return;
 	}
 	lastKeypress = getTime();
-	if(myButton!=BUTTON_SHIFT){
-		if(storeAndSetLED(0, 80, 120, &buttonPressBlinkLEDStore)){
-			scheduleTask(150, (arg_func_t)restoreLED, (void*)&buttonPressBlinkLEDStore);
-		}
-	}else{
-		printf("KeyboardShift ");
-		if(isShifted){
-			printf("Off\r\n");
-			isShifted = 0;
-			restoreLED(&buttonPressBlinkLEDStore);
-		}else{
-			printf("On\r\n");
-			isShifted = 1;
-			storeAndSetLED(0, 80, 120, &buttonPressBlinkLEDStore);
-		}
-	}
 	ButtonPressEvent evt;
 	buildButtonPressEvent(&evt);
 	if(addEvent(&evt)){ //This keeps us from repeating or otherwise responding to ourselves.
+		blinkLED(2, 100);	
+		if(myButton==BUTTON_SHIFT){
+			isShifted = handleShiftPressed();
+			evt.button =  isShifted ? BUTTON_CAPSLOCK_ON : BUTTON_CAPSLOCK_OFF;
+		}
 		if(myButton == BUTTON_L_CLICK){
 			if(mouseBroadcastTask==NULL){
 				mouseBroadcastTask = schedulePeriodicTask(MOUSE_RNB_BROADCAST_PERIOD, broadcastRnbData, NULL);
@@ -254,14 +235,16 @@ uint8_t userHandleCommand(char* commandWord, char* commandArgs __attribute__ ((u
 			return 0;
 		}else if(isprint(charPressed)){
 			ButtonPressEvent evt;
-			if( (uint8_t)(charPressed-97) < 26  ){
-				charPressed -= 32;
+			if(isupper(charPressed) && !isShifted){
+				evt.button = tolower(charPressed);
+			}else if(islower(charPressed) && isShifted){
+				evt.button = toupper(charPressed);
+			}else{
+				evt.button = charPressed;
 			}
 			evt.time = getTime();
-			evt.button = charPressed;
 			evt.src = getDropletID();			
-			printf("PRESSED: ");
-			printf(isprint(evt.button) ? "   '%c'\r\n" : "'\\%03hu'\r\n", evt.button);
+			printf("PRESSED:    '%c'\r\n", evt.button);
 			if(addEvent(&evt)){
 				prepButtonPressMsg(&evt);	
 			}
@@ -286,12 +269,14 @@ void prepMouseMoveMsg(MouseMoveEvent* evt){
 
 void sendMouseMoveMsg(MouseMoveMsgNode* msgNode){
 	if(irIsBusy(ALL_DIRS)){
-		if( msgNode->numTries > 6 || (getTime() - msgNode->msg.time > 3000) ){
-			myFree(msgNode);
-		}else{
-			scheduleTask(getExponentialBackoff(msgNode->numTries), (arg_func_t)sendButtonPressMsg, (void*)msgNode);
+		ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+			if( msgNode->numTries > 10 || (getTime() - msgNode->msg.time > MAX_EVENT_MSG_AGE) ){
+				myFree(msgNode);
+			}else{
+				scheduleTask(getExponentialBackoff(msgNode->numTries), (arg_func_t)sendButtonPressMsg, (void*)msgNode);
+			}
+			msgNode->numTries++;
 		}
-		msgNode->numTries++;
 	}else{
 		irSend(ALL_DIRS, (char*)(&(msgNode->msg)), sizeof(MouseMoveMsg));
 		myFree(msgNode);
@@ -310,25 +295,22 @@ void prepButtonPressMsg(ButtonPressEvent* evt){
 
 void sendButtonPressMsg(ButtonPressMsgNode* msgNode){
 	if(irIsBusy(ALL_DIRS)){
-		if(msgNode->numTries>6 || ((getTime() - (msgNode->msg).evt.time)>3000) ){
-			myFree(msgNode);
-		}else{
-			uint32_t whenSend;
-			if( (myButton!=BUTTON_L_CLICK) || (mouseBroadcastTask==NULL)){
-				whenSend = getExponentialBackoff(msgNode->numTries);
+		ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+			if(msgNode->numTries>10 || ((getTime() - (msgNode->msg).evt.time)>MAX_EVENT_MSG_AGE) ){
+				myFree(msgNode);
 			}else{
-				whenSend = mouseBroadcastTask->scheduled_time;
-				if(whenSend <= (getTime()+100)){
-					whenSend += MOUSE_RNB_BROADCAST_PERIOD;
-				}
-				whenSend -= 100;		
+				scheduleTask(getExponentialBackoff(msgNode->numTries), (arg_func_t)sendButtonPressMsg, (void*)msgNode);
 			}
-			scheduleTask(whenSend, (arg_func_t)sendButtonPressMsg, (void*)msgNode);
+			msgNode->numTries++;
 		}
-		msgNode->numTries++;
 	}else{
 		irSend(ALL_DIRS, (char*)(&(msgNode->msg)), sizeof(ButtonPressMsg));
-		myFree(msgNode);
+		if(rebroadcastButton(((msgNode->msg).evt).button)){
+			msgNode->numTries = 0;
+			scheduleTask(200, (arg_func_t)sendButtonPressMsg, (void*)msgNode);
+		}else{
+			myFree(msgNode);
+		}
 	}
 }
 
@@ -343,5 +325,5 @@ uint32_t getExponentialBackoff(uint8_t c){
 	N= (((uint32_t)1)<<c);
 
 	k = randQuad()%N;
-	return ((k*16)+5);///20000000;
+	return ((k*IR_MSG_TIMEOUT));
 }

@@ -6,8 +6,10 @@
 
 #define KEYPRESS_MSG_FLAG 'K'
 #define MOUSE_MOVE_MSG_FLAG 'M'
+#define ACK_MSG_FLAG 'A'
 
-#define MOUSE_RNB_BROADCAST_PERIOD 500
+#define MOUSE_RNB_BROADCAST_PERIOD 2000
+#define MAX_EVENT_MSG_AGE 2000
 
 //#define KEYBOARD_DEBUG_MODE
 #ifdef KEYBOARD_DEBUG_MODE
@@ -34,7 +36,16 @@ typedef enum droplet_role{
 	MOUSE	
 }DropletRole;
 
-typedef uint8_t LEDStore[3];
+typedef struct ack_msg_struct{
+	uint32_t time;
+	uint8_t flag;
+}AckMsg;
+#define IS_ACK_MSG(msgStruct) ( (msgStruct->length==sizeof(AckMsg)) && (((AckMsg*)(msgStruct->msg))->flag==ACK_MSG_FLAG) )
+typedef struct ack_msg_node_struct{
+	AckMsg msg;
+	id_t target;
+	uint8_t numTries;
+}AckMsgNode;
 
 typedef struct mouse_move_msg_struct{
 	uint32_t	  time;
@@ -67,8 +78,6 @@ uint8_t		isWired;
 uint8_t		isShifted;
 
 id_t		leftMouseID;
-volatile LEDStore buttonPressBlinkLEDStore;
-volatile LEDStore wiredBlinkLEDStore;
 DropletRole myRole;
 Button myButton;
 volatile Task_t* wireSleepTask;
@@ -85,7 +94,6 @@ void sendButtonPressMsg(ButtonPressMsgNode* msgNode);
 void handleButtonPressMsg(ButtonPressMsg* msg);
 void handleMouseMoveMsg(MouseMoveMsg* msg);
 void checkPosition(void);
-void restoreLED(volatile LEDStore* vals);
 
 void wireSleep(void);
 
@@ -96,38 +104,67 @@ static inline uint16_t getSlot(id_t id){
 	return (id%(SLOTS_PER_FRAME-1));
 }
 
-inline DropletRole getRoleFromPosition(BotPos* pos){
-	myButton = getKeyFromPosition(pos);
-	if(myButton != BUTTON_UNKNOWN){
-		return KEYBOARD;
+inline void setRoleAndButton(Button button){
+	if(button == BUTTON_UNKNOWN){
+		myRole = UNKNOWN;	
+	}else if( (button!=BUTTON_L_CLICK) && (button!=BUTTON_R_CLICK) ){
+		myRole = KEYBOARD;
+		setRGB(0,0,15);
+	}else{
+		myRole = MOUSE;
+		setRGB(10,0,15);
 	}
-	if( (pos->x > 652) && (pos->y <= 225 ) && (pos->y > 0)){
-		return MOUSE;
-	}
-	return UNKNOWN;
+	myButton = button;
 }
 
-inline uint8_t storeAndSetLED(uint8_t r, uint8_t g, uint8_t b, volatile LEDStore* vals){
-	if( (getRedLED()!=r) || (getGreenLED()!=g) || (getBlueLED()!=b) ){
-		(*vals)[0] = getRedLED();
-		(*vals)[1] = getGreenLED();
-		(*vals)[2] = getBlueLED();
-		return 1;
-	}else{
+void restoreRedLED(uint16_t val){
+	setRedLED((uint8_t)val);
+}
+void restoreGreenLED(uint16_t val){
+	setGreenLED((uint8_t)val);
+}
+void restoreBlueLED(uint16_t val){
+	setBlueLED((uint8_t)val);
+}
+
+//colorSelect 0: red, 1: green, 2: blue
+inline uint8_t blinkLED(uint8_t whichColor, uint8_t val){
+	uint8_t currentValue;
+	switch(whichColor){
+		case 0: currentValue = getRedLED(); break;
+		case 1: currentValue = getGreenLED(); break;
+		case 2: currentValue = getBlueLED(); break;
+		default: return 0;
+	}
+	if(currentValue == val){
 		return 0;
+	}
+	switch(whichColor){
+		case 0: setRedLED(val);    scheduleTask(100, (arg_func_t)restoreRedLED, (void*)((uint16_t)currentValue)); break;
+		case 1: setGreenLED(val);  scheduleTask(100, (arg_func_t)restoreGreenLED, (void*)((uint16_t)currentValue)); break;
+		case 2: setBlueLED(val);   scheduleTask(100, (arg_func_t)restoreBlueLED, (void*)((uint16_t)currentValue)); break;
+		default: return 0;
+	}
+	return 1;
+}
+
+inline uint8_t rebroadcastButton(Button key){
+	if(key == BUTTON_SHIFT){
+		return 0;
+	}else{
+		return 1;
 	}
 }
 
 inline void wireTxButtonPress(Button key){
-	storeAndSetLED(50, 0, 0, &wiredBlinkLEDStore);
-	scheduleTask(150, (arg_func_t)restoreLED, (void*)&wiredBlinkLEDStore);
+	blinkLED(0,200);
 	printf("ButtonPress ");
 	printf(isprint(key) ? "   '%c'\r\n" : "'\\%03hu'\r\n", key);
 }
 
 inline void wireMouseMove(int8_t deltaX, int8_t deltaY){
-	storeAndSetLED(50, 50, 0, &wiredBlinkLEDStore);
-	scheduleTask(150, (arg_func_t)restoreLED, (void*)&wiredBlinkLEDStore);
+	blinkLED(0,200);
+	blinkLED(1,200);
 	printf("MouseMove % 4hd % 4hd\r\n", deltaX, deltaY);
 }
 
@@ -137,4 +174,17 @@ inline void buildButtonPressEvent(ButtonPressEvent* evt){
 	evt->time = getTime();
 	evt->button = ( !isShifted && isupper(myButton) ) ? (myButton+32) : myButton; //convert to lowercase if appropriate.
 	evt->src = getDropletID();
+}
+
+inline uint8_t handleShiftPressed(void){
+	printf("KeyboardShift ");
+	if(isShifted){
+		printf("Off\r\n");
+		setGreenLED(0);
+		return 0;
+	}else{
+		printf("On\r\n");
+		setGreenLED(5);
+		return 1;
+	}
 }

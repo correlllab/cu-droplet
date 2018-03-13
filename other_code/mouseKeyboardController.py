@@ -9,7 +9,8 @@ class MouseKeyboard:
         self.keyboard = KeyboardController()
         self.mouse = MouseController()
         self.controlKeys = {37:self.keyLeft, 38:self.keyUp, 39:self.keyRight, 
-                            40:self.keyDown, 60:self.leftClick, 62:self.rightClick}
+                            40:self.keyDown, 60:self.leftClick, 62:self.rightClick,
+                            8:self.keyBksp, 13:self.keyEnter}
                             
     def handleButtonPress(self, key):
         key = key.strip("'\\")
@@ -35,25 +36,44 @@ class MouseKeyboard:
             yVal = int(yStr)
         except ValueError:
             print("Got MouseMove but x, y string format unexpected: '{}', '{}'".format(xStr, yStr))
+        print("Mouse Moving by: {}, {}".format(xVal,yVal))
         self.mouse.move(xVal,yVal)
                 
     def keyUp(self):
         self.keyboard.press(Key.up)
+        self.keyboard.release(Key.up)
         
     def keyLeft(self):
         self.keyboard.press(Key.left)
+        self.keyboard.release(Key.left)        
 
     def keyRight(self):
         self.keyboard.press(Key.right)
+        self.keyboard.release(Key.right)        
 
     def keyDown(self):
         self.keyboard.press(Key.down)
+        self.keyboard.release(Key.down)        
+        
+    def keyBksp(self):
+        self.keyboard.press(Key.backspace)
+        self.keyboard.release(Key.backspace)        
+
+    def keySpace(self):
+        self.keyboard.press(Key.space)
+        self.keyboard.release(Key.space)    
+        
+    def keyEnter(self):
+        self.keyboard.press(Key.enter)
+        self.keyboard.release(Key.enter)
         
     def leftClick(self):
         self.mouse.click(Button.left)
     
     def rightClick(self):
         self.mouse.click(Button.right)
+    
+
         
 class SerialThread:
 
@@ -78,7 +98,10 @@ class SerialThread:
         while True:
             while self.serialPort.inWaiting() > 0:
                 dat = self.serialPort.readline()
-                dat = dat.decode().strip()
+                try:
+                    dat = dat.decode().strip()
+                except UnicodeDecodeError:
+                    continue
                 try:
                     (keyword, key) = dat.split(maxsplit=1)
                 except ValueError:

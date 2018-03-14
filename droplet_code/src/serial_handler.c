@@ -1,5 +1,6 @@
 #include "serial_handler.h"
 #include "droplet_init.h"
+#include <string.h>
 
 static const char CMD_NOT_RECOGNIZED_STR[] PROGMEM = "\tCommand ( %s ) not recognized.\r\n";
 
@@ -60,18 +61,26 @@ void handleSerialCommand(char* command, uint16_t command_length){
 		else if(strcmp_P(command_word,PSTR("print_motor_settings"))==0){
 																		printMotorValues();
 																		printDistPerStep();																	
-		}else if(strcmp_P(command_word,PSTR("reprog_begin"))==0){
-		//handle_reprogramming();
+		}else if(command_word[0] == 'S'){
+			setRGB(0,0,255);
+			char *str12;
+			str12 = command_word;
+			str12++;
+			number_of_hex = atoi(str12);
 			reprogramming=1;
-		}else if(strcmp_P(command_word,PSTR("r_start"))==0){
-			//handle_reprogramming();
+			//delayMS(20000);
+		}else if(command_word[0] == 'R' && command_word[1] == 0){
+			strcat(initial_msg, "S");
+			strcat(initial_msg, command_args);
+			int length = strlen(initial_msg);
+			setRGB(255,0,0);
+			//delayMS(3000);
+			//strcpy(initial_msg, "start");
+			irCmd(ALL_DIRS, initial_msg, length);
 		}else if(command_word[0] == 'M' && command_word[1] == 0){
 			strcpy(dataHEX, command_args);
-			irCmd(ALL_DIRS, "reprog_begin", 12);
-			//delayMS(3000);
 			scheduleTask(100, send_hex, NULL );
-			printf("Done");
-			
+		
 		}else if(userHandleCommand){ //First, make sure the function is defined
 			if(!userHandleCommand(command_word, command_args))	printf_P(CMD_NOT_RECOGNIZED_STR,command_word);
 		}

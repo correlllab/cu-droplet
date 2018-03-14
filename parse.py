@@ -19,7 +19,7 @@ def my_func(Port):
 	#Port.write("reprog_begin\n")
 	#time.sleep(1)
 	rec = []
-	with open('C:/Users/niharika/Documents/Atmel Studio/7.0/cu-droplet-master/Target_HEX/My_Droplets.lss','r') as ref:
+	with open('C:/Users/niharika/Documents/Atmel Studio/7.0/cu-droplet-master/droplet_code/build/My_Droplets.lss','r') as ref:
 		for linesLSS in ref:
 			if ".USERCODE" in linesLSS:
 				store = linesLSS.split()
@@ -32,17 +32,33 @@ def my_func(Port):
 				size = int(size, 16)
 				if (size <= 16):
 					offset = 1
-				else :
+					print(offset)
+				elif (size%16 == 0) :
 					offset = size/16
+					print(offset)
+				else : 
+					offset = size/16 + 1
+					print(offset)
 				break
-				
-	with open('C:/Users/niharika/Documents/Atmel Studio/7.0/cu-droplet-master/Target_HEX/My_Droplets.hex','r') as hexFile:
+		
+	first_msg = 'R ' + str(offset) + '\n'
+	Port.write(first_msg)	
+	time.sleep(0.4)
+	
+	with open('C:/Users/niharika/Documents/Atmel Studio/7.0/cu-droplet-master/droplet_code/build/My_Droplets.hex','r') as hexFile:
 		for linesHEX in hexFile:
 			linesHEX = linesHEX.strip(':')
 			if (linesHEX[2:6] == start_address):
-				linesHEX = 'M ' + linesHEX[0:6] + linesHEX[8:]
-				Port.write(linesHEX)
-				time.sleep(0.2)
+				while(offset > 0):
+					linesHEX = 'M ' + linesHEX[0:6] + linesHEX[8:]
+					Port.write(linesHEX)
+					time.sleep(0.2)
+					offset = offset - 1
+					linesHEX = hexFile.next()
+					linesHEX = linesHEX.strip(':')
+					if(offset == 0) :
+						break
+					
 
 				while(rec != 'Done'):
 					while(Port.inWaiting() > 0):

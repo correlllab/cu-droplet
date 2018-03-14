@@ -6,7 +6,7 @@
 uint8_t read_data[512];
 uint32_t address =0x0004;
 uint8_t byte;
-/*
+ *
  * any code in this function will be run once, when the robot starts.
  */
 
@@ -19,9 +19,13 @@ void init(){
 	//volatile int dummyArray[512];
 	//memset(dummyArray, 0x55, 512);
 	
-	//for (int i= 0;i<512;i++)
+	for (int i= 0;i<20;i++)
+	{
+		setHSV(i*20,200,100);
+		delayMS(2000);
+	}
 	//dummyArray[i] = i;
-	setRGB(255,0,0);
+	//setRGB(255,0,0);
 	
 }
 

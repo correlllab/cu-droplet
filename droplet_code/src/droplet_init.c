@@ -151,7 +151,7 @@ uint8_t calculate_page_number(uint16_t addressFrmProgramming)
 void handle_reprogramming(irMsg *msg_struct_hex)
 {
 	
-	
+	number_of_hex--;
 	uint16_t startaddr[2];
 	uint8_t Numberofbytes;
 	char str[3], str1[5];
@@ -162,7 +162,7 @@ void handle_reprogramming(irMsg *msg_struct_hex)
 	}
 	str[2] = '\0';
 	Numberofbytes = strtoul(str, NULL, 16);
-	printf("Number of data bytes = %d\r\n", Numberofbytes);
+	//printf("Number of data bytes = %d\r\n", Numberofbytes);
 	for(i=2; i<6; i++)
 	{
 		str1[i-2] = msg_struct_hex->msg[i];
@@ -170,17 +170,17 @@ void handle_reprogramming(irMsg *msg_struct_hex)
 	str1[4] = '\0';
 	 startaddr[0] = strtoul(str1, NULL, 16);
 	 uint16_t addrstart = startaddr[0];
-	printf("page start : %u\n",addrstart);
+	//printf("page start : %u\n",addrstart);
 	
 	uint8_t FlashBuffer[Numberofbytes];
 	uint32_t targetAddr =addrstart;
 	nvm_flash_read_buffer(targetAddr, FlashBuffer, Numberofbytes);
-	for(int j=0; j<Numberofbytes; j++)
+	/*for(int j=0; j<Numberofbytes; j++)
 	{
 		printf("%02hx ", FlashBuffer[j]);
 
 	}
-	printf("\r\n");
+	printf("\r\n");*/
 	
 	
 	// keep on filling the buffer
@@ -206,15 +206,15 @@ void handle_reprogramming(irMsg *msg_struct_hex)
 	
 	
 	
-	printf("Printing written FlashBuffer:\r\n\r\n");
-	for(int l=0; l<Numberofbytes; l++)
+	//printf("Printing written FlashBuffer:\r\n\r\n");
+	/*for(int l=0; l<Numberofbytes; l++)
 	{
 		printf("%02hx ", FlashBuffer[l]);
 	
 	}
-	printf("\r\n");
+	printf("\r\n");*/
 	
-		printf("About to write. Address: %lu\r\n\r\n\r\n", targetAddr);
+		//printf("About to write. Address: %lu\r\n\r\n\r\n", targetAddr);
 		nvm_flash_erase_and_write_buffer(targetAddr, FlashBuffer, Numberofbytes, 1);
 		
 		nvm_flash_read_buffer(targetAddr, FlashBuffer, 4);
@@ -223,14 +223,25 @@ void handle_reprogramming(irMsg *msg_struct_hex)
 			printf("%02hx ", FlashBuffer[j]);
 		}
 		printf("\r\n");
-		reprogramming=0;
-		dropletReboot();
-		
+		if(number_of_hex == 0)
+		{
+			reprogramming=0;
+			dropletReboot();
+			printf("Done");
+		}
 }
 
 void send_hex(void){
 	uint8_t len = strlen(dataHEX);
 	irSend(ALL_DIRS,dataHEX,len);
+	NONATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+		waitForTransmission(ALL_DIRS);
+	}
+}
+
+void send_initial(void){
+	uint8_t len = strlen(initial_msg);
+	irSend(ALL_DIRS,initial_msg,len);
 	NONATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 		waitForTransmission(ALL_DIRS);
 	}

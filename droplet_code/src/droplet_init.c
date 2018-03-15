@@ -53,7 +53,7 @@ int main(void){
 	initAllSystems();
 	init();
 	while(1){
-		loop();
+		loop ();
 		checkMessages();
 		if(taskListCheck()){
 			printf_P(PSTR("Error! We got ahead of the task list and now nothing will execute.\r\n"));

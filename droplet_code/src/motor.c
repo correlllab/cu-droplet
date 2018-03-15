@@ -177,6 +177,9 @@ void walk(uint8_t direction, uint16_t mm)
 
 void stopMove()
 {
+	if(isMoving()<0){ //If we have already stopped.
+		return;
+	}
 	//printf("Stopping.\r\n");
 	
 	#ifndef AUDIO_DROPLET

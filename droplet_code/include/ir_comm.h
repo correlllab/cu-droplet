@@ -88,9 +88,9 @@ typedef struct msg_node{
 	uint32_t			arrivalTime;
 	id_t				senderID;
 	uint16_t			crc;
-	char*				msg;
 	struct msg_node*	next;
 	uint8_t				length;
+	char				msg[0];
 } MsgNode;
 volatile MsgNode* incomingMsgHead;
 

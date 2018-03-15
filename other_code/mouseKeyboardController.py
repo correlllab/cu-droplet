@@ -25,8 +25,11 @@ class MouseKeyboard:
         if keyNum in self.controlKeys.keys():
             self.controlKeys[keyNum]()
         else:
-            self.keyboard.press(key)
-            self.keyboard.release(key)
+            try:
+                self.keyboard.press(key)
+                self.keyboard.release(key)
+            except ValueError:
+                print("Failed to press {}: ValueError.".format(key))
             
     def handleMouseMove(self, key):
         key = key.strip("'\\")
@@ -84,8 +87,6 @@ class SerialThread:
         except serial.SerialException:
            print("ERROR: Port " + portName + " is already open!\n")
            return
-        self.eventBuffer = []
-        self.eventBufferLock = threading.Lock()
         self.serialLock      = threading.Lock()
         self.readThread = threading.Thread(target=self.serialReader)
         self.wakerThread = threading.Thread(target=self.serialWaker)
@@ -94,26 +95,32 @@ class SerialThread:
         self.wakerThread.start()
         self.writerThread.start()
            
+    def checkAnythingToRead(self):
+        with self.serialLock:
+            return (self.serialPort.inWaiting() > 0)
+            
+    def serialReadLine(self):
+        try:
+            with self.serialLock:
+                dat = self.serialPort.readline()
+            dat = dat.decode().strip()
+            (keyword, key) = dat.split(maxsplit=1)
+            if keyword == 'ButtonPress':
+                self.output.handleButtonPress(key)
+            elif keyword == 'MouseMove':
+                self.output.handleMouseMove(key)
+        except (UnicodeDecodeError, OSError, ValueError):
+            return    
+            
     def serialReader(self):
         while True:
-            while self.serialPort.inWaiting() > 0:
-                dat = self.serialPort.readline()
-                try:
-                    dat = dat.decode().strip()
-                except UnicodeDecodeError:
-                    continue
-                try:
-                    (keyword, key) = dat.split(maxsplit=1)
-                except ValueError:
-                    continue
-                if keyword == 'ButtonPress':
-                    self.output.handleButtonPress(key)
-                elif keyword == 'MouseMove':
-                    self.output.handleMouseMove(key)
+            while self.checkAnythingToRead():
+                self.serialReadLine()
             
     def serialWaker(self):
         while True:
-            self.serialPort.write("WAKE\n".encode())
+            with self.serialLock:
+                self.serialPort.write("WAKE\n".encode())
             time.sleep(5)
      
     def serialWriter(self):
@@ -121,7 +128,8 @@ class SerialThread:
             userInput = input('>')
             if(len(userInput.strip()) > 0):
                 userInput = userInput.strip() + '\n'
-                self.serialPort.write(userInput.encode())
+                with self.serialLock:
+                    self.serialPort.write(userInput.encode())
 
 output = MouseKeyboard()
 mySerial = SerialThread("Com3", output)

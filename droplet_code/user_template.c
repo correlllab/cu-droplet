@@ -15,7 +15,7 @@ void init(){
 	lastKeypress = 0;
 	wireSleepTask = NULL;
 	isWired = 0;
-	mouseBroadcastTask = NULL;
+	periodicMouseBroadcast = 0;
 	leftMouseID = 0xFFFF;
 	frameStart = getTime();
 	mySlot = getSlot(getDropletID());
@@ -52,6 +52,7 @@ void loop(){
 		loopID = frameTime/SLOT_LENGTH_MS;
 		if(loopID==mySlot){ //This is my slot.
 			if(myRole == UNKNOWN){
+				blinkLED(1,30);
 				broadcastRnbData();
 			}
 		}else if(loopID==SLOTS_PER_FRAME-1){ //This is the end-of-frame slot.
@@ -70,6 +71,27 @@ void loop(){
 			setRGB(newR, newG, newB);
 		}
 	}
+	if(periodicMouseBroadcast && myButton==BUTTON_L_CLICK && (getTime()-lastBroadcast > MOUSE_RNB_BROADCAST_PERIOD)){
+		blinkLED(1,30);
+		int16_t prevX = myPos.x;
+		int16_t prevY = myPos.y;
+		uint8_t posChanged = combineBotMeasEvents();
+		
+		int16_t deltaX = myPos.x-prevX;
+		int16_t deltaY = myPos.y-prevY;
+		
+		broadcastRnbData();
+		lastBroadcast=getTime();
+		if(posChanged){
+			waitForTransmission(ALL_DIRS);
+			MouseMoveEvent evt;
+			evt.deltaX = deltaX;
+			evt.deltaY = deltaY;
+			evt.mouseEventMarker = MOUSE_EVENT_MARKER_FLAG;
+			evt.time = getTime();
+			prepMouseMoveMsg(&evt);
+		}
+	}
 	if(rnb_updated){
 		RNB_DEBUG_PRINT("\t(RNB) ID: %04X | R: %4u B: %4d H: %4d\r\n", last_good_rnb.id, last_good_rnb.range, last_good_rnb.bearing, last_good_rnb.heading);
 		if(myRole != MOUSE){
@@ -81,21 +103,47 @@ void loop(){
 	delayMS(LOOP_DELAY_MS);
 }
 
+uint8_t combineBotMeasEvents(){
+	int16_t deltaX=0;
+	int16_t deltaY=0;
+	uint8_t numEncountered = 0;
+	for(uint8_t i=0;i<NUM_LOGGED_EVENTS;i++){
+		MouseMoveEvent* evt = &(eventLog[i]);
+		if(evt->mouseEventMarker==MOUSE_EVENT_MARKER_FLAG && evt->time > lastBroadcast){
+			numEncountered++;
+			deltaX+=evt->deltaX;
+			deltaY+=evt->deltaY;
+		}
+	}
+	if(numEncountered>0){
+		deltaX = deltaX/numEncountered;
+		deltaY = deltaY/numEncountered;
+		myPos.x += deltaX;
+		myPos.y += deltaY;
+		return 1;
+	}else{
+		return 0;
+	}
+}
+
 void handleMsg(irMsg* msgStruct){
 	if(IS_BOT_MEAS_MSG(msgStruct)){
 		if(myRole != MOUSE){ //mouse will be moving too much to participate in localization.
 			handleBotMeasMsg((BotMeasMsg*)(msgStruct->msg), msgStruct->senderID);
-		}else if(myButton == BUTTON_L_CLICK && mouseBroadcastTask != NULL){
-			int16_t prevX = myPos.x;
-			int16_t prevY = myPos.y;
-			handleBotMeasMsg((BotMeasMsg*)(msgStruct->msg), msgStruct->senderID);
-			MouseMoveEvent evt;
-			evt.deltaX = myPos.x - prevX;
-			evt.deltaY = myPos.y - prevY;
-			if(evt.deltaX!=0 || evt.deltaY!=0){
-				evt.mouseEventMarker=0xFF;
-				evt.time = getTime();
-				prepMouseMoveMsg(&evt);
+		}else if(myButton == BUTTON_L_CLICK && periodicMouseBroadcast){
+			BotMeasMsg* botMeas = (BotMeasMsg*)(msgStruct->msg);
+			BotPos* pos = (BotPos*)(&(botMeas->pos));
+			if(POS_DEFINED(pos)){
+				int16_t prevX = myPos.x;
+				int16_t prevY = myPos.y;
+				MouseMoveEvent evt;
+				evt.deltaX = myPos.x - myPos.x;
+				evt.deltaY = myPos.y - myPos.y;
+				if(evt.deltaX!=0 || evt.deltaY!=0){
+					evt.mouseEventMarker=0xFF;
+					evt.time = getTime();
+					addEvent(&evt);
+				}
 			}
 		}//The right mouse button isn't going to worry about its position at all.
 	}else if(IS_BUTTON_PRESS_MSG(msgStruct)){
@@ -189,7 +237,11 @@ void checkPosition(){
 	} 
 }
 
-
+void rnbBroadcastDebugWrapper(){
+	printf("Pre Broadcast\r\n");
+	broadcastRnbData();
+	printf("Post Broadcast\r\n");
+}
 
 void userMicInterrupt(){
 	if(myRole==UNKNOWN || getTime()<1500 || ( (getTime()-lastKeypress) < MIN_MULTIPRESS_DELAY ) ){
@@ -205,11 +257,10 @@ void userMicInterrupt(){
 			evt.button =  isShifted ? BUTTON_CAPSLOCK_ON : BUTTON_CAPSLOCK_OFF;
 		}
 		if(myButton == BUTTON_L_CLICK){
-			if(mouseBroadcastTask==NULL){
-				mouseBroadcastTask = schedulePeriodicTask(MOUSE_RNB_BROADCAST_PERIOD, broadcastRnbData, NULL);
-			}
+			periodicMouseBroadcast = 1;
+			lastBroadcast=getTime();
 		}
-		if(isWired){
+		if(isWired && myButton != BUTTON_SHIFT){
 			wireTxButtonPress(evt.button);
 		}else{
 			prepButtonPressMsg(&evt);
@@ -250,21 +301,29 @@ uint8_t userHandleCommand(char* commandWord, char* commandArgs __attribute__ ((u
 			}
 		}
 		return 1;	
+	}else if(strcmp(commandWord,"set_role")==0){
+		Button button = atoi(commandArgs);
+		setRoleAndButton(button);		
+		return 1;
 	}else{
 		return 0;
 	}
 }
 
 void prepMouseMoveMsg(MouseMoveEvent* evt){
-	MouseMoveMsg msg;
-	msg.time   = evt->time;
-	msg.deltaX = evt->deltaX;
-	msg.deltaY = evt->deltaY;
-	msg.flag = MOUSE_MOVE_MSG_FLAG;
-	MouseMoveMsgNode* msgNode = (MouseMoveMsgNode*)myMalloc(sizeof(MouseMoveMsgNode));
-	msgNode->numTries = 0;
-	msgNode->msg = msg;
-	sendMouseMoveMsg(msgNode);
+	if(isWired){
+		wireMouseMove(evt->deltaX, evt->deltaY);
+	}else{
+		MouseMoveMsg msg;
+		msg.time   = evt->time;
+		msg.deltaX = evt->deltaX;
+		msg.deltaY = evt->deltaY;
+		msg.flag = MOUSE_MOVE_MSG_FLAG;
+		MouseMoveMsgNode* msgNode = (MouseMoveMsgNode*)myMalloc(sizeof(MouseMoveMsgNode));
+		msgNode->numTries = 0;
+		msgNode->msg = msg;
+		sendMouseMoveMsg(msgNode);
+	}
 }
 
 void sendMouseMoveMsg(MouseMoveMsgNode* msgNode){

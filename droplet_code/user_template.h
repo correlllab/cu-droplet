@@ -81,12 +81,14 @@ id_t		leftMouseID;
 DropletRole myRole;
 Button myButton;
 volatile Task_t* wireSleepTask;
-volatile Task_t* mouseBroadcastTask;
+uint8_t periodicMouseBroadcast;
+uint32_t lastBroadcast;
 
 void		init(void);
 void		loop(void);
 void		handleMsg(irMsg* msg_struct);
 
+uint8_t combineBotMeasEvents(void);
 void prepMouseMoveMsg(MouseMoveEvent* evt);
 void sendMouseMoveMsg(MouseMoveMsgNode* msgNode);
 void prepButtonPressMsg(ButtonPressEvent* evt);
@@ -94,7 +96,7 @@ void sendButtonPressMsg(ButtonPressMsgNode* msgNode);
 void handleButtonPressMsg(ButtonPressMsg* msg);
 void handleMouseMoveMsg(MouseMoveMsg* msg);
 void checkPosition(void);
-
+void rnbBroadcastDebugWrapper(void);
 void wireSleep(void);
 
 

@@ -262,8 +262,8 @@ static void addMsgToMsgQueue(uint8_t dir){
 	}else if(memoryConsumedByBuffer > 500){
 		printf_P(PSTR("ERROR! Buffered incoming messages consuming too much memory. Allow handle_msg to be called more frequently.\r\n"));
 	}else{
-		volatile MsgNode* node = incomingMsgHead;
 		ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+			MsgNode* node = incomingMsgHead;
 			if(incomingMsgHead==NULL){
 				incomingMsgHead = (volatile MsgNode*)myMalloc(sizeof(MsgNode) + ir_rxtx[dir].data_length);
 				node = (MsgNode*)incomingMsgHead;
@@ -274,9 +274,7 @@ static void addMsgToMsgQueue(uint8_t dir){
 				node->next = (MsgNode*)myMalloc(sizeof(MsgNode) + ir_rxtx[dir].data_length);
 				node = node->next;
 			}
-			char* dataAddr = ((char*)node + sizeof(MsgNode));
-			memcpy(dataAddr, (const void*)ir_rxtx[dir].buf, ir_rxtx[dir].data_length);
-			node->msg			= dataAddr;
+			memcpy(node->msg, (const void*)ir_rxtx[dir].buf, ir_rxtx[dir].data_length);
 			node->arrivalTime	= ir_rxtx[dir].last_byte;
 			node->length		= ir_rxtx[dir].data_length;
 			node->senderID		= ir_rxtx[dir].senderID;

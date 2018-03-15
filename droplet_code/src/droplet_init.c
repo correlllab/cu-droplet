@@ -78,7 +78,7 @@ static void checkMessages(void){
 		userFacingMessagesOvf=0;
 		printf_P(PSTR("Error: Messages overflow. Too many messages received. Try speeding up your loop if you see this a lot.\r\n"));
 	}
-	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){ //We want to amke sure that this block doesn't get interrupted by stuff trying to add more messages to the buffer.
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){ //We want to maxxke sure that this block doesn't get interrupted by stuff trying to add more messages to the buffer.
 		uint16_t crc;
 		while(incomingMsgHead != NULL){
 			MsgNode* node = (MsgNode*)incomingMsgHead;
@@ -92,11 +92,11 @@ static void checkMessages(void){
 			msgStruct.senderID		= node->senderID;
 			msgStruct.length		= node->length;
 			crc						= node->crc;
-			//While we let user code handle the message we want interrupts to be back on. At this point everything relevant has been copied out of the buffer.
-			NONATOMIC_BLOCK(NONATOMIC_RESTORESTATE){ 
-				handleMsg(&msgStruct);
-			}
-			
+			/*
+			 * At this point everything relevant has been copied out of the buffer. To avoid
+			 * problems caused by the changes to the queue while handling the message, we
+			 * remove the current node and update the structure before calling handleMsg.
+			 */
 			MsgNode* tmp = node;
 			MsgNode* deleteMe;
 			while(tmp->next !=NULL){
@@ -111,12 +111,16 @@ static void checkMessages(void){
 				}else{
 					tmp = tmp->next;
 				}
-
 			}
 			incomingMsgHead = (volatile MsgNode*)(node->next);
+			myFree(node);
+			//While we let user code handle the message we want interrupts to be back on. 
+
+			NONATOMIC_BLOCK(NONATOMIC_RESTORESTATE){ 
+				handleMsg(&msgStruct);
+			}
 			numWaitingMsgs--;
 			memoryConsumedByBuffer -= (sizeof(MsgNode) + msgStruct.length);
-			myFree(node);
 		}
 	}
 }

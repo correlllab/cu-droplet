@@ -4,6 +4,8 @@
 
 const BotPos SEED_POS[NUM_SEEDS] = {{225,220,0}, {500,160,0},{350,40,0},{75,100,0}};
 const id_t   SEED_IDS[NUM_SEEDS] = {0xD913, 0x3D6C, 0xAF6A, 0x9261};
+//const BotPos SEED_POS[NUM_SEEDS] = {{225,220,0}, {500,160,0},{350,40,0},{100,100,0}};
+//const id_t   SEED_IDS[NUM_SEEDS] = {0xD913, 0x3D6C, 0xAF6A, 0x7EDF};
 
 //The MIN and MAX values below are only needed for getPosColor.
 #define MIN_X 0
@@ -494,7 +496,7 @@ static void prepBotMeasMsg(id_t id, uint16_t r, int16_t b, BotPos* pos, DensePos
 //long in exponential backoff.
 void sendBotMeasMsg(BotMeasMsgNode* mNode){
 	if(irIsBusy(ALL_DIRS)){
-		if(mNode->numTries>5){
+		if(mNode->numTries>6){
 			POS_MSG_DEBUG_PRINT("Giving up on msg to %04X after %hu tries.\r\n", mNode->tgt, mNode->numTries);
 			myFree(mNode);
 		}else{
@@ -550,7 +552,7 @@ static uint32_t getBackoffTime(uint8_t N, uint16_t r){
 		totalValue += discreteTriangularPDF(i, randMax, r);
 		//printf("\t%f\r\n", totalValue);
 		if(chooser<=totalValue){
-			return ((uint32_t)i)*16;
+			return ((uint32_t)i)*IR_MSG_TIMEOUT;
 		}
 	}
 	return randMax*16;

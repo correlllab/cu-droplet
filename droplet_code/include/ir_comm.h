@@ -92,13 +92,12 @@ typedef struct msg_node{
 	uint8_t				length;
 	char				msg[0];
 } MsgNode;
-volatile MsgNode* incomingMsgHead;
+volatile MsgNode* incMsgHead;
 
-uint16_t memoryConsumedByBuffer;
+uint16_t memoryConsumedByMsgBuffer;
 
 volatile uint8_t hpIrBlock_bm;			//can only be set by other high priority ir things!
 volatile uint8_t numWaitingMsgs;
-volatile uint8_t userFacingMessagesOvf;
 
 volatile uint32_t	cmdArrivalTime;
 volatile id_t		cmdSenderId;

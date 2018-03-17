@@ -410,7 +410,7 @@ void updateForMovement(__attribute__((unused)) uint8_t dir, __attribute__((unuse
  * droplet based on this droplet's position and position covariance, and the measurement.
  * It then prepares a message to be sent to the measured droplet, conveying this information.
  */
-void useRNBmeas(rnb* meas){
+void useRNBmeas(Rnb* meas){
 	BotPos pos;
 	DensePosCovar covar;
 	uint8_t result = calcOtherBotPosFromMeas(&pos, &covar, meas);
@@ -420,7 +420,7 @@ void useRNBmeas(rnb* meas){
 }
 
 //returns '1' if successful, '0' otherwise.
-uint8_t calcOtherBotPosFromMeas(BotPos* pos, DensePosCovar* covar, rnb* measStruct){
+uint8_t calcOtherBotPosFromMeas(BotPos* pos, DensePosCovar* covar, Rnb* measStruct){
 	if(!POS_DEFINED(&myPos)){
 		POS_CALC_DEBUG_PRINT("Can't adjust others' positions until I know where I am.\r\n");
 		return 0;

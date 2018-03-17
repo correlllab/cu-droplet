@@ -92,14 +92,6 @@ void loop(){
 			prepMouseMoveMsg(&evt);
 		}
 	}
-	if(rnb_updated){
-		RNB_DEBUG_PRINT("\t(RNB) ID: %04X | R: %4u B: %4d H: %4d\r\n", last_good_rnb.id, last_good_rnb.range, last_good_rnb.bearing, last_good_rnb.heading);
-		if(myRole != MOUSE){
-			useRNBmeas(&last_good_rnb);
-		}
-
-		rnb_updated=0;
-	}
 	delayMS(LOOP_DELAY_MS);
 }
 
@@ -107,12 +99,14 @@ uint8_t combineBotMeasEvents(){
 	int16_t deltaX=0;
 	int16_t deltaY=0;
 	uint8_t numEncountered = 0;
-	for(uint8_t i=0;i<NUM_LOGGED_EVENTS;i++){
-		MouseMoveEvent* evt = &(eventLog[i]);
-		if(evt->mouseEventMarker==MOUSE_EVENT_MARKER_FLAG && evt->time > lastBroadcast){
-			numEncountered++;
-			deltaX+=evt->deltaX;
-			deltaY+=evt->deltaY;
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+		for(uint8_t i=0;i<NUM_LOGGED_EVENTS;i++){
+			MouseMoveEvent* evt = (MouseMoveEvent*)&(eventLog[i]);
+			if(evt->mouseEventMarker==MOUSE_EVENT_MARKER_FLAG && evt->time > lastBroadcast){
+				numEncountered++;
+				deltaX+=evt->deltaX;
+				deltaY+=evt->deltaY;
+			}
 		}
 	}
 	if(numEncountered>0){
@@ -126,6 +120,13 @@ uint8_t combineBotMeasEvents(){
 	}
 }
 
+void handleMeas(Rnb* meas){
+	RNB_DEBUG_PRINT("\t(RNB) ID: %04X | R: %4u B: %4d H: %4d\r\n", last_good_rnb.id, last_good_rnb.range, last_good_rnb.bearing, last_good_rnb.heading);
+	if(myRole != MOUSE){
+		useRNBmeas(meas);
+	}
+}
+
 void handleMsg(irMsg* msgStruct){
 	if(IS_BOT_MEAS_MSG(msgStruct)){
 		if(myRole != MOUSE){ //mouse will be moving too much to participate in localization.
@@ -134,8 +135,6 @@ void handleMsg(irMsg* msgStruct){
 			BotMeasMsg* botMeas = (BotMeasMsg*)(msgStruct->msg);
 			BotPos* pos = (BotPos*)(&(botMeas->pos));
 			if(POS_DEFINED(pos)){
-				int16_t prevX = myPos.x;
-				int16_t prevY = myPos.y;
 				MouseMoveEvent evt;
 				evt.deltaX = myPos.x - myPos.x;
 				evt.deltaY = myPos.y - myPos.y;

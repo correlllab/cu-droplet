@@ -9,7 +9,7 @@
 //#define POS_CALC_DEBUG_MODE
 //#define POS_MSG_DEBUG_MODE
 #define MY_POS_DEBUG_MODE
-#define COVAR_DEBUG_MODE
+//#define COVAR_DEBUG_MODE
 
 #ifdef POS_CALC_DEBUG_MODE
 #define POS_CALC_DEBUG_PRINT(format, ...) printf_P(PSTR(format), ##__VA_ARGS__)
@@ -74,8 +74,8 @@ DensePosCovar myPosCovar;
 uint8_t		  seedFlag;
 
 void	localizationInit(void);
-void	useRNBmeas(rnb* meas);
-uint8_t calcOtherBotPosFromMeas(BotPos* pos, DensePosCovar* covar, rnb* newMeas);
+void	useRNBmeas(Rnb* meas);
+uint8_t calcOtherBotPosFromMeas(BotPos* pos, DensePosCovar* covar, Rnb* newMeas);
 void	handleBotMeasMsg(BotMeasMsg* msg, id_t senderID __attribute__ ((unused)));
 
 void		compressP(Matrix* P, DensePosCovar* covar);

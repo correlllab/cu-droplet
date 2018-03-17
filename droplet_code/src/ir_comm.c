@@ -83,11 +83,10 @@ void irCommInit(){
 
 	cmdArrivalTime=0;
 	numWaitingMsgs=0;
-	userFacingMessagesOvf=0;
 	processingCmdFlag = 0;
 	processingFFsyncFlag = 0;
-	incomingMsgHead = NULL;
-	memoryConsumedByBuffer = 0;
+	incMsgHead = NULL;
+	memoryConsumedByMsgBuffer = 0;
 	for(uint8_t dir=0; dir<6; dir++) clearIrBuffer(dir); //this initializes the buffer's values to 0.
 
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
@@ -259,14 +258,14 @@ static void addMsgToMsgQueue(uint8_t dir){
 		printf_P(PSTR("ERROR! Should NOT be adding 0-length message to queue.\r\n"));
 	}else if(ir_rxtx[dir].data_length > IR_BUFFER_SIZE){
 		printf_P(PSTR("ERROR! Should NOT be adding a message with length greater than buffer size to queue.\r\n"));
-	}else if(memoryConsumedByBuffer > 500){
-		printf_P(PSTR("ERROR! Buffered incoming messages consuming too much memory. Allow handle_msg to be called more frequently.\r\n"));
+	}else if(memoryConsumedByMsgBuffer > 500){
+		printf_P(PSTR("ERROR! Buffered incoming messages consuming too much memory. Allow loop to return more frequently.\r\n"));
 	}else{
 		ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-			MsgNode* node = incomingMsgHead;
-			if(incomingMsgHead==NULL){
-				incomingMsgHead = (volatile MsgNode*)myMalloc(sizeof(MsgNode) + ir_rxtx[dir].data_length);
-				node = (MsgNode*)incomingMsgHead;
+			MsgNode* node = (MsgNode*)incMsgHead;
+			if(incMsgHead==NULL){
+				incMsgHead = (volatile MsgNode*)myMalloc(sizeof(MsgNode) + ir_rxtx[dir].data_length);
+				node = (MsgNode*)incMsgHead;
 			}else{
 				while(node->next != NULL){
 					node = node->next;
@@ -280,7 +279,7 @@ static void addMsgToMsgQueue(uint8_t dir){
 			node->senderID		= ir_rxtx[dir].senderID;
 			node->crc			= ir_rxtx[dir].calc_crc;
 			node->next			= NULL;
-			memoryConsumedByBuffer += (sizeof(MsgNode) + ir_rxtx[dir].data_length);
+			memoryConsumedByMsgBuffer += (sizeof(MsgNode) + ir_rxtx[dir].data_length);
 			numWaitingMsgs++;
 		}
 	}

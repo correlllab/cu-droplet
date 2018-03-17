@@ -31,7 +31,7 @@ uint8_t  addEvent(GenericEvent evt){
 	uint8_t smallestEventIdx = 0xFF;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 		for(int8_t i=(NUM_LOGGED_EVENTS-1);i>=0;i--){
-			EitherEvent* thisEvt = &(eventLog[i]);
+			EitherEvent* thisEvt = (EitherEvent*)&(eventLog[i]);
 			if(!isEventInit(thisEvt)){ //This spot is available.
 				openIdx = i;
 			}else if(sameEvent(evt, thisEvt)){
@@ -59,14 +59,12 @@ void printEventLog(){
 	printf("Keypress Log:\r\n");
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){	
 		for(uint8_t i=0;i<NUM_LOGGED_EVENTS;i++){
-			GenericEvent thisEvt;
-			thisEvt.both = &(eventLog[i]);
-			if(isEventInit(thisEvt)){		
+			if(isEventInit((EitherEvent*)&(eventLog[i]))){		
 				if(eventLog[i].buttonOrMarker==0xFF){ //This is a mouse move event.
-					MouseMoveEvent* evt = thisEvt.mouseMove;
+					MouseMoveEvent* evt = (MouseMoveEvent*)(&(eventLog[i]));
 					printf("\t(%2hu)  % 5hd, % 5hd @ %lu\r\n", i, evt->deltaX, evt->deltaY, evt->time);
 				}else{ //This is a button press event.
-					ButtonPressEvent* evt = thisEvt.buttonPress;
+					ButtonPressEvent* evt = (ButtonPressEvent*)(&(eventLog[i]));
 					printf("\t(%2hu) %04X: ", i, evt->src);
 					printf((isprint(evt->button) ? "   `%c'" : "\\%3hu "), evt->button);
 					printf(" @ %lu\r\n", evt->time);

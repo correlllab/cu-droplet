@@ -68,6 +68,7 @@ float calculate_error(float r, float b, float h);
 static int16_t processBrightMeas(void);
 
 static float magicRangeFunc(float a);
+static void addMeasToMeasQueue(Rnb* meas);
 //static float invMagicRangeFunc(float r);
 
 //static void print_brightMeas(void);
@@ -80,6 +81,9 @@ void rangeAlgsInit(){
 		}
 	}
 	rnbCmdID=0;
+	incMeasHead = NULL;
+	numWaitingMeas = 0;
+	memoryConsumedByMeasBuffer = 0;
 	processing_rnb_flag=0;
 }
 
@@ -146,17 +150,42 @@ void useRnbData(){
 		if(!isnanf(range)){
 			if(range<2*DROPLET_RADIUS) range=46;
 			if(checkErrorAndPrint(range, bearing, heading)){
-				last_good_rnb.id = rnbCmdID;
-				last_good_rnb.range		= (uint16_t)(range);
-				last_good_rnb.bearing	= (int16_t)radToDeg(bearing);
-				last_good_rnb.heading	= (int16_t)radToDeg(heading);
-				//print_brightMeas();
-				rnb_updated=1;
+				Rnb meas;
+				
+				meas.id = rnbCmdID;
+				meas.range		= (uint16_t)(range);
+				meas.bearing	= (int16_t)radToDeg(bearing);
+				meas.heading	= (int16_t)radToDeg(heading);
+				addMeasToMeasQueue(&meas);
 			}
 		}
 	}
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 		processing_rnb_flag=0;
+	}
+}
+
+static void addMeasToMeasQueue(Rnb* meas){
+	if(memoryConsumedByMeasBuffer > 100){
+		printf_P(PSTR("ERROR! Buffered incoming measurements consuming too much memory. Allow loop() to return more frequently!\r\n"), memoryConsumedByMeasBuffer);
+	}else{
+		ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+			MeasNode* node = (MeasNode*)incMeasHead;
+			if(incMeasHead==NULL){
+				incMeasHead = (volatile MeasNode*)myMalloc(sizeof(MeasNode));
+				node = (MeasNode*)incMeasHead;
+			}else{
+				while(node->next != NULL){
+					node = node->next;
+				}
+				node->next = (MeasNode*)myMalloc(sizeof(MeasNode));
+				node = node->next;
+			}
+			node->meas = *meas;
+			node->next = NULL;
+			memoryConsumedByMeasBuffer += (sizeof(MeasNode));
+			numWaitingMeas++;
+		}
 	}
 }
 

@@ -22,6 +22,21 @@ void queueInit(){
 	}
 }
 
+void checkForEvent(uint32_t minTime, uint32_t maxTime, GenericEvent evtPtr){
+	(evtPtr.both)->buttonOrMarker = 0;
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+		for(uint8_t i=0;i<NUM_LOGGED_EVENTS;i++){
+			EitherEvent* evt = (EitherEvent*)&(eventLog[i]);
+			uint8_t evtNotTooOld = evt->time > minTime;
+			uint8_t evtNotTooYoung = evt->time <= maxTime;
+			if(evtNotTooOld && evtNotTooYoung){
+				*(evtPtr.both) = *evt;
+				return;
+			}
+		}
+	}
+}
+
 //Returns '1' if an event was added (meaning that the Droplet should follow up)
 //Returns '0' if an event wasn't added (meaning that the Droplet shouldn't follow up)
 uint8_t  addEvent(GenericEvent evt){

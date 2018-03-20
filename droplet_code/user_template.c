@@ -14,6 +14,9 @@ void init(){
 	lastKeypress = 0;
 	wireSleepTask = NULL;
 	isWired = 0;
+	newPos.x = UNDF;
+	newPos.y = UNDF;
+	newPos.o = UNDF;
 	periodicMouseBroadcast = 0;
 	isBlinking = 0;
 	leftMouseID = 0xFFFF;
@@ -77,21 +80,36 @@ static void mouseLoop(void){
 	}
 	if(loopID!=(frameTime/MK_SLOT_LENGTH)){
 		loopID = frameTime/MK_SLOT_LENGTH;
-		if(loopID==0){
+		if(loopID==0 && periodicMouseBroadcast){
 			blinkLED(1,30);
 			broadcastRnbData();
 		}else if(loopID==MK_SLOTS_PER_FRAME-2){
-			int16_t prevX = myPos.x;
-			int16_t prevY = myPos.y;
-			uint8_t posChanged = combineBotMeasEvents();
-			if(posChanged){
+			if(POS_DEFINED(&newPos)){
 				MouseMoveEvent evt;
-				evt.deltaX = myPos.x-prevX;
-				evt.deltaY = myPos.y-prevY;
+				evt.deltaX = newPos.x - myPos.x;
+				evt.deltaY = newPos.y - myPos.y;
 				evt.mouseEventMarker = MOUSE_EVENT_MARKER_FLAG;
 				evt.time = getTime();
+				printf("(% 5d, % 5d) -> (% 5d, % 5d)\r\n", myPos.x, myPos.y, newPos.x, newPos.y);								
 				prepMouseMoveMsg(&evt);
+				myPos = newPos;
+				newPos.x = UNDF;
+				newPos.y = UNDF;
+				newPos.o = UNDF;
+			}
+		}else{
+			ButtonPressEvent thisEvt;
+			checkForEvent(frameStart+MK_SLOT_LENGTH*prevLoopID, frameStart+MK_SLOT_LENGTH*loopID, &thisEvt);
+			if(thisEvt.button!=BUTTON_UNKNOWN && thisEvt.button!=MOUSE_EVENT_MARKER_FLAG){
+				if(thisEvt.src == getDropletID()){
+					if(isWired){
+						wireTxButtonPress(thisEvt.button);
+					}else{
+						prepButtonPressMsg(&thisEvt);
+					}
+				}
 			}		
+			prevLoopID = loopID;
 		}
 		if(!isBlinking){
 			setRGB(5,0, 15);
@@ -107,44 +125,26 @@ static void keyboardLoop(void){
 	}
 	if(loopID!=(frameTime/MK_SLOT_LENGTH)){
 		loopID = frameTime/MK_SLOT_LENGTH;
-		Button button = BUTTON_UNKNOWN;
 		ButtonPressEvent thisEvt;
-		uint8_t selfSrc;
-		ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-			for(uint8_t i=0;i<NUM_LOGGED_EVENTS;i++){
-				ButtonPressEvent* evt = (ButtonPressEvent*)&(eventLog[i]);
-				uint8_t evtIsNotMouse = evt->button!=MOUSE_EVENT_MARKER_FLAG;
-				uint8_t evtNotTooOld = evt->time > (frameStart+MK_SLOT_LENGTH*(loopID-1));
-				uint8_t evtNotTooYoung = evt->time <= (frameStart+MK_SLOT_LENGTH*loopID);
-				if(evtIsNotMouse && evtNotTooOld && evtNotTooYoung){
-					button = evt->button;
-					thisEvt = *evt;
-					selfSrc = evt->src == getDropletID();
-					break;
-				}
-			}
-		}
-		if(button!=BUTTON_UNKNOWN){
-		if(selfSrc){
-			if(myButton == BUTTON_SHIFT){
+		checkForEvent(frameStart+MK_SLOT_LENGTH*(loopID-1), frameStart+MK_SLOT_LENGTH*loopID, &thisEvt);
+		if(thisEvt.button!=BUTTON_UNKNOWN && thisEvt.button!=MOUSE_EVENT_MARKER_FLAG){
+			if(thisEvt.src == getDropletID()){
+				if(myButton == BUTTON_SHIFT){
 					isShifted = handleShiftPressed();
 					thisEvt.button = isShifted ? BUTTON_CAPSLOCK_ON : BUTTON_CAPSLOCK_OFF;
 				}
 				if(isWired){
-					wireTxButtonPress(button);
-					}else{
-					prepButtonPressMsg(&thisEvt);
-				}
-				if(myButton == BUTTON_L_CLICK){
-					periodicMouseBroadcast = 1;
-				}
+					wireTxButtonPress(thisEvt.button);
 				}else{
-				if(isWired){
-					wireTxButtonPress(button);
-					}else if(button==BUTTON_SHIFT){
 					prepButtonPressMsg(&thisEvt);
 				}
-			}	
+			}else{
+				if(isWired){
+					wireTxButtonPress(thisEvt.button);
+				}else if(thisEvt.button==BUTTON_SHIFT){
+					prepButtonPressMsg(&thisEvt);
+				}
+			}
 		}
 		if(!isBlinking){
 			setRGB(0,0, 15);
@@ -161,31 +161,6 @@ void loop(){
 	delayMS(LOOP_DELAY_MS);
 }
 
-uint8_t combineBotMeasEvents(){
-	int16_t deltaX=0;
-	int16_t deltaY=0;
-	uint8_t numEncountered = 0;
-	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-		for(uint8_t i=0;i<NUM_LOGGED_EVENTS;i++){
-			MouseMoveEvent* evt = (MouseMoveEvent*)&(eventLog[i]);
-			if(evt->mouseEventMarker==MOUSE_EVENT_MARKER_FLAG && evt->time > lastBroadcast){
-				numEncountered++;
-				deltaX+=evt->deltaX;
-				deltaY+=evt->deltaY;
-			}
-		}
-	}
-	if(numEncountered>0){
-		deltaX = deltaX/numEncountered;
-		deltaY = deltaY/numEncountered;
-		myPos.x += deltaX;
-		myPos.y += deltaY;
-		return 1;
-	}else{
-		return 0;
-	}
-}
-
 void handleMeas(Rnb* meas){
 	RNB_DEBUG_PRINT("\t(RNB) ID: %04X | R: %4u B: %4d H: %4d\r\n", last_good_rnb.id, last_good_rnb.range, last_good_rnb.bearing, last_good_rnb.heading);
 	if(myRole != MOUSE){
@@ -197,19 +172,8 @@ void handleMsg(irMsg* msgStruct){
 	if(IS_BOT_MEAS_MSG(msgStruct)){
 		if(myRole != MOUSE){ //mouse will be moving too much to participate in localization.
 			handleBotMeasMsg((BotMeasMsg*)(msgStruct->msg), msgStruct->senderID);
-		}else if(myButton == BUTTON_L_CLICK && periodicMouseBroadcast){
-			BotMeasMsg* botMeas = (BotMeasMsg*)(msgStruct->msg);
-			BotPos* pos = (BotPos*)(&(botMeas->pos));
-			if(POS_DEFINED(pos)){
-				MouseMoveEvent evt;
-				evt.deltaX = myPos.x - myPos.x;
-				evt.deltaY = myPos.y - myPos.y;
-				if(evt.deltaX!=0 || evt.deltaY!=0){
-					evt.mouseEventMarker=0xFF;
-					evt.time = getTime();
-					addEvent(&evt);
-				}
-			}
+		}else if(myRole == MOUSE && periodicMouseBroadcast){
+			mouseHandleBotMeasMsg((BotMeasMsg*)(msgStruct->msg));
 		}//The right mouse button isn't going to worry about its position at all.
 	}else if(IS_BUTTON_PRESS_MSG(msgStruct)){
 		handleButtonPressMsg((ButtonPressMsg*)(msgStruct->msg));
@@ -217,6 +181,51 @@ void handleMsg(irMsg* msgStruct){
 		handleMouseMoveMsg((MouseMoveMsg*)(msgStruct->msg));
 	}
 }
+
+static void mouseUpdatePos(BotPos* pos, Matrix* yourP){
+	Vector xMe = {newPos.x, newPos.y, degToRad(newPos.o)};
+	Vector xMeFromYou = {pos->x, pos->y, degToRad(pos->o)};
+	Matrix myP;
+	decompressP(&myP, &newPosCovar);
+	Matrix myNewP;
+	Vector myNewPos;
+
+	covarIntersection(&myNewPos, &myNewP, &xMe, &myP, &xMeFromYou, yourP);
+	if(!positiveDefiniteQ(&myNewP)){
+		return;
+	}
+	float updateDist = updateDistance(&xMe, &myP, &xMeFromYou, yourP);
+	if(updateDist>4.0){
+		return;
+	}else if(updateDist>1.0){
+		covarUnion(&myNewPos, &myNewP, &xMe, &myP, &xMeFromYou, yourP);
+		if(!positiveDefiniteQ(&myNewP)){
+			return;
+		}
+	}
+
+	newPos.x = myNewPos[0]>8191 ? 8191 : (myNewPos[0]<-8192 ? -8192 : myNewPos[0]);
+	newPos.y = myNewPos[1]>8191 ? 8191 : (myNewPos[1]<-8192 ? -8192 : myNewPos[1]);
+	newPos.o = (radToDeg(myNewPos[2]) + 0.5);
+	compressP(&myNewP, &newPosCovar);
+}
+
+void mouseHandleBotMeasMsg(BotMeasMsg* msg){
+	if(!POS_DEFINED(&(msg->pos))){
+		return;
+	}
+	Matrix covar;
+	decompressP(&covar, &(msg->covar));
+	if(!POS_DEFINED(&newPos)){
+		newPos = msg->pos;
+		for(uint8_t i=0;i<6;i++){
+			newPosCovar[i].u = msg->covar[i].u;
+		}
+	}else{
+		mouseUpdatePos(&(msg->pos), &covar);
+	}
+}
+
 
 void handleButtonPressMsg(ButtonPressMsg* msg){
 	ButtonPressEvent* evt = &(msg->evt);
@@ -321,6 +330,9 @@ void userMicInterrupt(){
 	lastKeypress = getTime();
 	ButtonPressEvent evt;
 	buildButtonPressEvent(&evt);
+	if(myButton == BUTTON_L_CLICK){
+		periodicMouseBroadcast = 1;
+	}
 	if(addEvent(&evt)){ //This keeps us from repeating or otherwise responding to ourselves.
 		blinkLED(2, 100);	
 	}
@@ -354,9 +366,7 @@ uint8_t userHandleCommand(char* commandWord, char* commandArgs __attribute__ ((u
 			evt.time = getTime();
 			evt.src = getDropletID();			
 			printf("PRESSED:    '%c'\r\n", evt.button);
-			if(addEvent(&evt)){
-				prepButtonPressMsg(&evt);	
-			}
+			addEvent(&evt);
 		}
 		return 1;	
 	}else if(strcmp(commandWord,"set_role")==0){

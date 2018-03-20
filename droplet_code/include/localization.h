@@ -77,6 +77,9 @@ void	localizationInit(void);
 void	useRNBmeas(Rnb* meas);
 uint8_t calcOtherBotPosFromMeas(BotPos* pos, DensePosCovar* covar, Rnb* newMeas);
 void	handleBotMeasMsg(BotMeasMsg* msg, id_t senderID __attribute__ ((unused)));
+float	updateDistance(Vector* a, Matrix* A, Vector* b, Matrix* B);
+void	covarIntersection(Vector* x, Matrix* P, Vector* a, Matrix* A, Vector* b, Matrix* B);
+void	covarUnion(Vector* x, Matrix* P, Vector* a, Matrix* A, Vector* b, Matrix* B);
 
 void		compressP(Matrix* P, DensePosCovar* covar);
 void		decompressP(Matrix* P, DensePosCovar* covar);

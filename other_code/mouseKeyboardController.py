@@ -40,7 +40,7 @@ class MouseKeyboard:
         except ValueError:
             print("Got MouseMove but x, y string format unexpected: '{}', '{}'".format(xStr, yStr))
         print("Mouse Moving by: {}, {}".format(xVal,yVal))
-        self.mouse.move(xVal,yVal)
+        self.mouse.move(xVal*8,yVal*8)
                 
     def keyUp(self):
         self.keyboard.press(Key.up)

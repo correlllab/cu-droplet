@@ -4,8 +4,6 @@
 
 const BotPos SEED_POS[NUM_SEEDS] = {{225,220,0}, {500,160,0},{350,40,0},{75,100,0}};
 const id_t   SEED_IDS[NUM_SEEDS] = {0xD913, 0x3D6C, 0xAF6A, 0x9261};
-//const BotPos SEED_POS[NUM_SEEDS] = {{225,220,0}, {500,160,0},{350,40,0},{100,100,0}};
-//const id_t   SEED_IDS[NUM_SEEDS] = {0xD913, 0x3D6C, 0xAF6A, 0x7EDF};
 
 //The MIN and MAX values below are only needed for getPosColor.
 #define MIN_X 0
@@ -14,9 +12,7 @@ const id_t   SEED_IDS[NUM_SEEDS] = {0xD913, 0x3D6C, 0xAF6A, 0x9261};
 #define MAX_Y 150
 
 static float	chooseOmega(Matrix* myPinv, Matrix* yourPinv);
-static float	updateDistance(Vector* a, Matrix* A, Vector* b, Matrix* B);
-static void		covarIntersection(Vector* x, Matrix* P, Vector* a, Matrix* A, Vector* b, Matrix* B);
-static void		covarUnion(Vector* x, Matrix* P, Vector* a, Matrix* A, Vector* b, Matrix* B);
+
 static void		updatePos(BotPos* pos, Matrix* yourP);
 static void		getMeasCovar(Matrix* R, Vector* meas);
 static void		calcRelativePose(Vector* pose, Vector* meas);
@@ -92,7 +88,7 @@ static float chooseOmega(Matrix* myPinv, Matrix* yourPinv){
  * on the other hand, results in covariance intersection, shrinking the overall
  * covariance. 
  */
-static float updateDistance(Vector* a, Matrix* A, Vector* b, Matrix* B){
+float updateDistance(Vector* a, Matrix* A, Vector* b, Matrix* B){
 	Vector a_sub_b;
 	vectorSubtract(&a_sub_b, a, b);
 	a_sub_b[2] = prettyAngle(a_sub_b[2]);
@@ -137,7 +133,7 @@ static float updateDistance(Vector* a, Matrix* A, Vector* b, Matrix* B){
  * "Decentralized Multi-robot Cooperative Localization using Covariance Intersection"
  * by Luic C. Carillo-Arce et. al.
  */
-static void covarIntersection(Vector* x, Matrix* P, Vector* a, Matrix* A, Vector* b, Matrix* B){
+void covarIntersection(Vector* x, Matrix* P, Vector* a, Matrix* A, Vector* b, Matrix* B){
 	Matrix A_inv;
 	matrixInverse(&A_inv, A);
 	Matrix B_inv;
@@ -163,7 +159,7 @@ static void covarIntersection(Vector* x, Matrix* P, Vector* a, Matrix* A, Vector
  * "Generalized Covariance Union: A Unified Approach to Hypothesis Merging in Tracking"
  * by Steven Reece and Stephen Roberts
  */
-static void covarUnion(Vector* x, Matrix* U, Vector* a, Matrix* A, Vector* b, Matrix* B){
+void covarUnion(Vector* x, Matrix* U, Vector* a, Matrix* A, Vector* b, Matrix* B){
 	Vector a_dist;
 	vectorSubtract(&a_dist, x, a);
 	a_dist[2]=prettyAngle(a_dist[2]);

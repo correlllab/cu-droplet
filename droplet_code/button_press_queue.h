@@ -34,5 +34,6 @@ typedef union generic_event_union{
 volatile EitherEvent eventLog[NUM_LOGGED_EVENTS];
 
 void queueInit(void);
+void checkForEvent(uint32_t minTime, uint32_t maxTime, GenericEvent evtPtr);
 uint8_t addEvent(GenericEvent keypress);
 void printEventLog(void);

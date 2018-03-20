@@ -76,32 +76,34 @@ uint32_t	frameStart;
 uint32_t	lastKeypress;
 uint16_t	mySlot;
 uint16_t	loopID;
+uint16_t	prevLoopID;
 uint8_t		isWired;
 uint8_t		isShifted;
 
 id_t		leftMouseID;
 DropletRole myRole;
 Button myButton;
+BotPos newPos;
+DensePosCovar newPosCovar;
 volatile Task_t* wireSleepTask;
 uint8_t periodicMouseBroadcast;
-uint32_t lastBroadcast;
 uint8_t isBlinking;
 
 void		init(void);
 void		loop(void);
 void		handleMsg(irMsg* msg_struct);
 
-uint8_t combineBotMeasEvents(void);
+uint8_t combineBotMeasEvents(uint32_t);
 void prepMouseMoveMsg(MouseMoveEvent* evt);
 void sendMouseMoveMsg(MouseMoveMsgNode* msgNode);
 void prepButtonPressMsg(ButtonPressEvent* evt);
 void sendButtonPressMsg(ButtonPressMsgNode* msgNode);
+void mouseHandleBotMeasMsg(BotMeasMsg* msg);
 void handleButtonPressMsg(ButtonPressMsg* msg);
 void handleMouseMoveMsg(MouseMoveMsg* msg);
 void checkPosition(void);
 void rnbBroadcastDebugWrapper(void);
 void wireSleep(void);
-
 
 uint32_t getExponentialBackoff(uint8_t c);
 

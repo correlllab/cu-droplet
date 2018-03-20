@@ -555,7 +555,7 @@ static uint32_t getBackoffTime(uint8_t N, uint16_t r){
 			return ((uint32_t)i)*IR_MSG_TIMEOUT;
 		}
 	}
-	return randMax*16;
+	return randMax*IR_MSG_TIMEOUT;
 }
 
 static float discreteTriangularPDF(float x, uint8_t max, uint16_t r){

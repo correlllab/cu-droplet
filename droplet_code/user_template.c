@@ -11,11 +11,11 @@ void init(){
 	myButton = BUTTON_UNKNOWN;
 	loopID = 0xFFFF;
 	isShifted = 0;
-	frameCount = 0;
 	lastKeypress = 0;
 	wireSleepTask = NULL;
 	isWired = 0;
 	periodicMouseBroadcast = 0;
+	isBlinking = 0;
 	leftMouseID = 0xFFFF;
 	frameStart = getTime();
 	mySlot = getSlot(getDropletID());
@@ -41,56 +41,122 @@ void init(){
 	//setAllirPowers(225);
 }
 
-void loop(){
+static void roleUnknownLoop(void){
 	uint32_t frameTime = getTime()-frameStart;
 	if(frameTime>FRAME_LENGTH_MS){
 		frameTime = frameTime - FRAME_LENGTH_MS;
 		frameStart += FRAME_LENGTH_MS;
-		frameCount++;
 	}
 	if(loopID!=(frameTime/SLOT_LENGTH_MS)){ //This is a new slot.
 		loopID = frameTime/SLOT_LENGTH_MS;
 		if(loopID==mySlot){ //This is my slot.
-			if(myRole == UNKNOWN){
-				blinkLED(1,30);
-				broadcastRnbData();
-			}
-		}else if(loopID==SLOTS_PER_FRAME-1){ //This is the end-of-frame slot.
-			if((myRole==UNKNOWN) && POS_DEFINED(&myPos)){
-				printf_P(PSTR("\tMy Pos: {%d, %d, %d}\r\n"), myPos.x, myPos.y, myPos.o);
+			blinkLED(1,30);
+			broadcastRnbData();
+		}else if(loopID==SLOTS_PER_FRAME-1){
+			printf("%lu\r\n", getTime());
+			if(POS_DEFINED(&myPos)){
+				printf("\tMy Pos: {%d, %d, %d}\r\n", myPos.x, myPos.y, myPos.o);
 				printPosCovar(&myPosCovar);
 				printf("\r\n");
-				uint32_t before = getTime();
 				checkPosition();
-				printf("Check Position Took %lu ms for 100 runs.\r\n", getTime()-before);
 			}
 		}
-		if(myRole == UNKNOWN){
+		if(!isBlinking){
 			uint8_t newR = 0, newG = 0, newB = 0;
 			getPosColor(&newR, &newG, &newB);
 			setRGB(newR, newG, newB);
 		}
 	}
-	if(periodicMouseBroadcast && myButton==BUTTON_L_CLICK && (getTime()-lastBroadcast > MOUSE_RNB_BROADCAST_PERIOD)){
-		blinkLED(1,30);
-		int16_t prevX = myPos.x;
-		int16_t prevY = myPos.y;
-		uint8_t posChanged = combineBotMeasEvents();
-		
-		int16_t deltaX = myPos.x-prevX;
-		int16_t deltaY = myPos.y-prevY;
-		
-		broadcastRnbData();
-		lastBroadcast=getTime();
-		if(posChanged){
-			waitForTransmission(ALL_DIRS);
-			MouseMoveEvent evt;
-			evt.deltaX = deltaX;
-			evt.deltaY = deltaY;
-			evt.mouseEventMarker = MOUSE_EVENT_MARKER_FLAG;
-			evt.time = getTime();
-			prepMouseMoveMsg(&evt);
+}
+
+static void mouseLoop(void){
+	uint32_t frameTime = getTime()-frameStart;
+	if(frameTime>MK_FRAME_LENGTH){
+		frameTime = frameTime-MK_FRAME_LENGTH;
+		frameStart += MK_FRAME_LENGTH;
+	}
+	if(loopID!=(frameTime/MK_SLOT_LENGTH)){
+		loopID = frameTime/MK_SLOT_LENGTH;
+		if(loopID==0){
+			blinkLED(1,30);
+			broadcastRnbData();
+		}else if(loopID==MK_SLOTS_PER_FRAME-2){
+			int16_t prevX = myPos.x;
+			int16_t prevY = myPos.y;
+			uint8_t posChanged = combineBotMeasEvents();
+			if(posChanged){
+				MouseMoveEvent evt;
+				evt.deltaX = myPos.x-prevX;
+				evt.deltaY = myPos.y-prevY;
+				evt.mouseEventMarker = MOUSE_EVENT_MARKER_FLAG;
+				evt.time = getTime();
+				prepMouseMoveMsg(&evt);
+			}		
 		}
+		if(!isBlinking){
+			setRGB(5,0, 15);
+		}		
+	}
+}
+
+static void keyboardLoop(void){
+	uint32_t frameTime = getTime()-frameStart;
+	if(frameTime>MK_FRAME_LENGTH){
+		frameTime = frameTime-MK_FRAME_LENGTH;
+		frameStart += MK_FRAME_LENGTH;
+	}
+	if(loopID!=(frameTime/MK_SLOT_LENGTH)){
+		loopID = frameTime/MK_SLOT_LENGTH;
+		Button button = BUTTON_UNKNOWN;
+		ButtonPressEvent thisEvt;
+		uint8_t selfSrc;
+		ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+			for(uint8_t i=0;i<NUM_LOGGED_EVENTS;i++){
+				ButtonPressEvent* evt = (ButtonPressEvent*)&(eventLog[i]);
+				uint8_t evtIsNotMouse = evt->button!=MOUSE_EVENT_MARKER_FLAG;
+				uint8_t evtNotTooOld = evt->time > (frameStart+MK_SLOT_LENGTH*(loopID-1));
+				uint8_t evtNotTooYoung = evt->time <= (frameStart+MK_SLOT_LENGTH*loopID);
+				if(evtIsNotMouse && evtNotTooOld && evtNotTooYoung){
+					button = evt->button;
+					thisEvt = *evt;
+					selfSrc = evt->src == getDropletID();
+					break;
+				}
+			}
+		}
+		if(button!=BUTTON_UNKNOWN){
+		if(selfSrc){
+			if(myButton == BUTTON_SHIFT){
+					isShifted = handleShiftPressed();
+					thisEvt.button = isShifted ? BUTTON_CAPSLOCK_ON : BUTTON_CAPSLOCK_OFF;
+				}
+				if(isWired){
+					wireTxButtonPress(button);
+					}else{
+					prepButtonPressMsg(&thisEvt);
+				}
+				if(myButton == BUTTON_L_CLICK){
+					periodicMouseBroadcast = 1;
+				}
+				}else{
+				if(isWired){
+					wireTxButtonPress(button);
+					}else if(button==BUTTON_SHIFT){
+					prepButtonPressMsg(&thisEvt);
+				}
+			}	
+		}
+		if(!isBlinking){
+			setRGB(0,0, 15);
+		}
+	}
+}
+
+void loop(){
+	switch(myRole){
+		case  UNKNOWN: roleUnknownLoop(); break;
+		case    MOUSE: mouseLoop(); break;
+		case KEYBOARD: keyboardLoop(); break;
 	}
 	delayMS(LOOP_DELAY_MS);
 }
@@ -162,13 +228,9 @@ void handleButtonPressMsg(ButtonPressMsg* msg){
 		if(evt->button==BUTTON_CAPSLOCK_ON){
 			isShifted = 1;
 			setGreenLED(5);
-			prepButtonPressMsg(&(msg->evt));
 		}else if(evt->button==BUTTON_CAPSLOCK_OFF){
 			isShifted = 0;
 			setGreenLED(0);
-			prepButtonPressMsg(&(msg->evt));
-		}else if(isWired){
-			wireTxButtonPress(evt->button);		
 		}
 	}
 }
@@ -196,7 +258,7 @@ inline static uint8_t targetMaxCount(void){
 	return (uint8_t)(0.33*NUM_CHECK_SAMPLES);
 }
 
-
+#define NUM_MAXIMUMS_TRACKED 6
 void checkPosition(){
 	Matrix covar;
 	decompressP(&covar, &myPosCovar);
@@ -220,19 +282,29 @@ void checkPosition(){
 		resultPos.y = myPos.y + result[1];
 		resultKeys[getButtonFromPosition(&resultPos)]++;
 	}
-	uint8_t maxButtonCount = 0;
-	Button maxButton = BUTTON_UNKNOWN;
+	Button maxButtons[NUM_MAXIMUMS_TRACKED] = {BUTTON_UNKNOWN};
+	uint8_t maxButtonCounts[NUM_MAXIMUMS_TRACKED] = {0};	
 	for(uint8_t i=0;i<=LARGEST_KEYBOARD_KEY;i++){
-		if(resultKeys[i]>maxButtonCount){
-			maxButtonCount = resultKeys[i];
-			maxButton = i;
+		for(uint8_t j=0;j<NUM_MAXIMUMS_TRACKED;j++){
+			if(resultKeys[i]>maxButtonCounts[j]){
+				for(uint8_t k=(NUM_MAXIMUMS_TRACKED-1);k>j;k--){
+					maxButtons[k] = maxButtons[k-1];
+					maxButtonCounts[k] = maxButtonCounts[k-1];
+				}
+				maxButtons[j] = i;
+				maxButtonCounts[j] = resultKeys[i];
+				break;
+			}
 		}
 	}
-	printf("       Max Key: '");
-	printf(isprint(maxButton) ? "%c" : "\\%hu", maxButton);
-	printf("' (%hu)\r\n", maxButtonCount);
-	if(maxButtonCount>targetMaxCount() && maxButton!=BUTTON_UNKNOWN){
-		setRoleAndButton(maxButton);
+	printf("Max Keys:\r\n");
+	printf(isprint(maxButtons[0]) ? "'%c' (%hu)" : "\\%2hu (%hu)", maxButtons[0], maxButtonCounts[0]);
+	for(uint8_t i=1;i<NUM_MAXIMUMS_TRACKED;i++){
+		printf(isprint(maxButtons[i]) ? ", '%c' (%hu)" : ", \\%2hu (%hu)", maxButtons[i], maxButtonCounts[i]);
+	}
+	printf("\r\n");
+	if(maxButtonCounts[0]>targetMaxCount() && maxButtons[0]!=BUTTON_UNKNOWN){
+		setRoleAndButton(maxButtons[0]);
 	} 
 }
 
@@ -251,19 +323,6 @@ void userMicInterrupt(){
 	buildButtonPressEvent(&evt);
 	if(addEvent(&evt)){ //This keeps us from repeating or otherwise responding to ourselves.
 		blinkLED(2, 100);	
-		if(myButton==BUTTON_SHIFT){
-			isShifted = handleShiftPressed();
-			evt.button =  isShifted ? BUTTON_CAPSLOCK_ON : BUTTON_CAPSLOCK_OFF;
-		}
-		if(myButton == BUTTON_L_CLICK){
-			periodicMouseBroadcast = 1;
-			lastBroadcast=getTime();
-		}
-		if(isWired && myButton != BUTTON_SHIFT){
-			wireTxButtonPress(evt.button);
-		}else{
-			prepButtonPressMsg(&evt);
-		}
 	}
 }
 
@@ -328,7 +387,7 @@ void prepMouseMoveMsg(MouseMoveEvent* evt){
 void sendMouseMoveMsg(MouseMoveMsgNode* msgNode){
 	if(irIsBusy(ALL_DIRS)){
 		ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-			if( msgNode->numTries > 10 || (getTime() - msgNode->msg.time > MAX_EVENT_MSG_AGE) ){
+			if( msgNode->numTries > 6 ){
 				myFree(msgNode);
 			}else{
 				scheduleTask(getExponentialBackoff(msgNode->numTries), (arg_func_t)sendButtonPressMsg, (void*)msgNode);
@@ -354,7 +413,7 @@ void prepButtonPressMsg(ButtonPressEvent* evt){
 void sendButtonPressMsg(ButtonPressMsgNode* msgNode){
 	if(irIsBusy(ALL_DIRS)){
 		ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-			if(msgNode->numTries>10 || ((getTime() - (msgNode->msg).evt.time)>MAX_EVENT_MSG_AGE) ){
+			if(msgNode->numTries>6){
 				myFree(msgNode);
 			}else{
 				scheduleTask(getExponentialBackoff(msgNode->numTries), (arg_func_t)sendButtonPressMsg, (void*)msgNode);
@@ -363,12 +422,13 @@ void sendButtonPressMsg(ButtonPressMsgNode* msgNode){
 		}
 	}else{
 		irSend(ALL_DIRS, (char*)(&(msgNode->msg)), sizeof(ButtonPressMsg));
-		if(rebroadcastButton(((msgNode->msg).evt).button)){
-			msgNode->numTries = 0;
-			scheduleTask(200, (arg_func_t)sendButtonPressMsg, (void*)msgNode);
-		}else{
-			myFree(msgNode);
-		}
+		myFree(msgNode);
+		//if(rebroadcastButton(((msgNode->msg).evt).button)){
+			//msgNode->numTries = 0;
+			//scheduleTask(200, (arg_func_t)sendButtonPressMsg, (void*)msgNode);
+		//}else{
+			//myFree(msgNode);
+		//}
 	}
 }
 

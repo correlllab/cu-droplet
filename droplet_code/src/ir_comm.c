@@ -304,7 +304,9 @@ static void handleCompletedMsg(uint8_t dir){
 				}
 			}
 		}else{
-			addMsgToMsgQueue(dir);
+			if(ir_rxtx[dir].data_length){
+				addMsgToMsgQueue(dir);
+			}
 		}
 	}else{
 		//printf("Message completed, but something wrong (%hu).\r\n", crcMismatch | nullCrc<<1 | selfSender<<2 | notTimed<<3 | wrongTarget<<4);

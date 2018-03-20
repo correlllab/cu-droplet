@@ -8,8 +8,6 @@
 #define MOUSE_MOVE_MSG_FLAG 'M'
 #define ACK_MSG_FLAG 'A'
 
-#define MOUSE_RNB_BROADCAST_PERIOD 2000
-#define MAX_EVENT_MSG_AGE 2000
 
 //#define KEYBOARD_DEBUG_MODE
 #ifdef KEYBOARD_DEBUG_MODE
@@ -28,7 +26,12 @@
 #define SLOT_LENGTH_MS			397
 #define SLOTS_PER_FRAME			38
 #define FRAME_LENGTH_MS			(((uint32_t)SLOT_LENGTH_MS)*((uint32_t)SLOTS_PER_FRAME))
-#define LOOP_DELAY_MS			17
+#define LOOP_DELAY_MS			11
+
+
+#define MK_SLOT_LENGTH 300
+#define MK_FRAME_LENGTH 3000
+#define MK_SLOTS_PER_FRAME (MK_FRAME_LENGTH/MK_SLOT_LENGTH)
 
 typedef enum droplet_role{
 	UNKNOWN,
@@ -69,7 +72,6 @@ typedef struct button_press_msg_node_struct{
 	uint8_t numTries;
 }ButtonPressMsgNode;
 
-uint32_t	frameCount;
 uint32_t	frameStart;
 uint32_t	lastKeypress;
 uint16_t	mySlot;
@@ -83,6 +85,7 @@ Button myButton;
 volatile Task_t* wireSleepTask;
 uint8_t periodicMouseBroadcast;
 uint32_t lastBroadcast;
+uint8_t isBlinking;
 
 void		init(void);
 void		loop(void);
@@ -111,22 +114,23 @@ inline void setRoleAndButton(Button button){
 		myRole = UNKNOWN;	
 	}else if( (button!=BUTTON_L_CLICK) && (button!=BUTTON_R_CLICK) ){
 		myRole = KEYBOARD;
-		setRGB(0,0,15);
 	}else{
 		myRole = MOUSE;
-		setRGB(10,0,15);
 	}
 	myButton = button;
 }
 
 void restoreRedLED(uint16_t val){
 	setRedLED((uint8_t)val);
+	isBlinking = 0;
 }
 void restoreGreenLED(uint16_t val){
 	setGreenLED((uint8_t)val);
+	isBlinking = 0;
 }
 void restoreBlueLED(uint16_t val){
 	setBlueLED((uint8_t)val);
+	isBlinking = 0;
 }
 
 //colorSelect 0: red, 1: green, 2: blue
@@ -147,6 +151,7 @@ inline uint8_t blinkLED(uint8_t whichColor, uint8_t val){
 		case 2: setBlueLED(val);   scheduleTask(100, (arg_func_t)restoreBlueLED, (void*)((uint16_t)currentValue)); break;
 		default: return 0;
 	}
+	isBlinking = 1;
 	return 1;
 }
 

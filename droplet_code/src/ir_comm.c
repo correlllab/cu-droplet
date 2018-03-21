@@ -529,6 +529,9 @@ static void irReceive(uint8_t dir){
 			ir_rxtx[dir].buf[ir_rxtx[dir].curr_pos-HEADER_LEN] = in_byte;
 			ir_rxtx[dir].calc_crc = _crc16_update(ir_rxtx[dir].calc_crc, in_byte);
 	}
+	if(ir_rxtx[dir].curr_pos<HEADER_LEN){
+		ir_rxtx[dir].buf[0] = in_byte;
+	}
 	ir_rxtx[dir].curr_pos++;
 	if(ir_rxtx[dir].curr_pos>=(ir_rxtx[dir].data_length+HEADER_LEN)){
 		handleCompletedMsg(dir);
@@ -624,6 +627,21 @@ static void receivedRnbCmd(uint16_t delay, uint32_t last_byte, id_t senderID){
 // DO NOT CALL
 static volatile uint8_t next_byte;
 static void irTransmit(uint8_t dir){
+		for(uint8_t i=0;i<6;i++){
+			if((getTime() - ir_rxtx[i].last_byte) < IR_MSG_TIMEOUT){
+				char lastByteFromThisDir;
+				if((ir_rxtx[i].curr_pos-1)<HEADER_LEN){
+					lastByteFromThisDir = ir_rxtx[i].buf[0];
+				}else{
+					lastByteFromThisDir = ir_rxtx[i].buf[ir_rxtx[i].curr_pos-1-HEADER_LEN];
+				}
+				char lastByteISent = channel[dir]->DATA; //Might not be able to read from channel[dir]->data?
+				if(lastByteFromThisDir!=lastByteISent){ //This MIGHT indicate that someone else is trying to send simultaneously.
+					//Abort send and try again later?
+				}
+			}
+		}
+
 	switch(ir_rxtx[dir].curr_pos){
 		case HEADER_POS_SENDER_ID_LOW:  next_byte  = (uint8_t)(ir_rxtx[dir].senderID&0xFF);			break;
 		case HEADER_POS_SENDER_ID_HIGH: next_byte  = (uint8_t)((ir_rxtx[dir].senderID>>8)&0xFF);	break;	

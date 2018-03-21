@@ -6,6 +6,7 @@ extern uint32_t return_value;
 
 typedef struct msg_struct{
 	char text[3];
+	uint32_t time;
 	uint16_t msgId;
 }Msg;
 

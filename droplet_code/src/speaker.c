@@ -16,7 +16,7 @@ static uint8_t song_playing;
 volatile uint16_t curr_song_idx;
 #endif
 
-void speaker_init()
+void speakerInit()
 {
 	#ifdef AUDIO_DROPLET
 	PORTC.DIRSET =  PIN0_bm | PIN1_bm;
@@ -33,7 +33,7 @@ void speaker_init()
 
 #ifdef AUDIO_DROPLET
 
-void play_song(uint8_t* notes, uint16_t* durs, uint8_t song_len, uint8_t pauses){
+void playSong(uint8_t* notes, uint16_t* durs, uint8_t song_len, uint8_t pauses){
 	if(song_playing) return; //do nothing
 	auto_pause = pauses;
 	song_playing = 1;
@@ -44,12 +44,12 @@ void play_song(uint8_t* notes, uint16_t* durs, uint8_t song_len, uint8_t pauses)
 		local_durs[i]=durs[i];
 		local_notes[i]=notes[i];
 	}
-	start_sound(notes[0]);
-	if(auto_pause) schedule_task(durs[0]-NOTE_SWITCH_DUR_MS, brief_pause, NULL);
-	schedule_task(durs[0], switch_sound, NULL);
+	startSound(notes[0]);
+	if(auto_pause) scheduleTask(durs[0]-NOTE_SWITCH_DUR_MS, briefPause, NULL);
+	scheduleTask(durs[0], switchSound, NULL);
 }
 
-void start_sound(uint8_t note){
+void startSound(uint8_t note){
 	TCC0.CNT = 0;	
 	if(note==0xFF)	{
 		TCC0.CCA = 0;
@@ -63,10 +63,10 @@ void start_sound(uint8_t note){
 	TCC0.CTRLB |= TC0_CCBEN_bm;
 }
 
-void switch_sound(){
+void switchSound(){
 	if(curr_song_idx>=curr_song_len){
 		song_playing=0;
-		stop_sound();
+		stopSound();
 		return;
 	}	
 	uint8_t note = local_notes[curr_song_idx];
@@ -81,16 +81,16 @@ void switch_sound(){
 		TCC0.CCA = note_values[note>>4][note&0x0F];
 		TCC0.CCB = note_values[note>>4][note&0x0F];
 		PORTC.OUTSET = PIN0_bm;
-		if(auto_pause) schedule_task(dur-NOTE_SWITCH_DUR_MS, brief_pause, NULL);			
+		if(auto_pause) scheduleTask(dur-NOTE_SWITCH_DUR_MS, briefPause, NULL);			
 	}
-	schedule_task(dur, switch_sound, NULL);
+	scheduleTask(dur, switchSound, NULL);
 }
 
-void brief_pause(){
+void briefPause(){
 	PORTC.OUTCLR = PIN0_bm;
 }
 
-void stop_sound(){
+void stopSound(){
 	//printf("P:%lu\r\n",get_time());	
 	TCC0.CTRLB = TC_WGMODE_FRQ_gc;
 	PORTC.OUTCLR = PIN0_bm;

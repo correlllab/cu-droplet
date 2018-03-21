@@ -1,6 +1,6 @@
 #include "rgb_led.h"
 
-void rgb_led_init()
+void rgbLEDinit()
 {
 	// LED Pins as output
 	PORTE.DIRSET = LED_R_PIN_bm | LED_G_PIN_bm;
@@ -21,18 +21,18 @@ void rgb_led_init()
 	TCD1.CTRLB = TC_WGMODE_SS_gc | TC1_CCAEN_bm;	
 }
 
-void led_off()
+void ledOff()
 { 
 	TCE1.CCABUF = 0;
 	TCE1.CCBBUF = 0;
 	TCD1.CCABUF = 0;	
 }
 
-void set_rgb(uint8_t r, uint8_t g, uint8_t b) 
+void setRGB(uint8_t r, uint8_t g, uint8_t b) 
 {
-	set_red_led(r); 
-	set_green_led(g); 
-	set_blue_led(b);
+	setRedLED(r); 
+	setGreenLED(g); 
+	setBlueLED(b);
 }
 
 /*
@@ -40,15 +40,15 @@ Hue should be between 0 and 360 (though it gets modulo'd with 360, so should be 
 Saturation and value can be between 0 and 255, where 255 is brightest/most saturated,
 and 0 is dimmest/least saturated.
 */
-void set_hsv(uint16_t h, uint8_t s, uint8_t v)
+void setHSV(uint16_t h, uint8_t s, uint8_t v)
 {
 	uint8_t r,g,b;
-	hsv_to_rgb(h,s,v,&r,&g,&b);
-	set_rgb(r,g,b);
+	hsvToRGB(h,s,v,&r,&g,&b);
+	setRGB(r,g,b);
 }
 
 //Adapted from cs.rit.edu/~ncs/color/t_convert.html
-void hsv_to_rgb(uint16_t hue, uint8_t saturation, uint8_t val, uint8_t* red, uint8_t* green, uint8_t* blue)
+void hsvToRGB(uint16_t hue, uint8_t saturation, uint8_t val, uint8_t* red, uint8_t* green, uint8_t* blue)
 {
 	float h = (hue%360)*1.0;
 	float s = (1.0*saturation)/255.0;

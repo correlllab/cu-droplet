@@ -107,7 +107,7 @@ typedef struct TWI_Master {
 TWI_Master_t twiMaster;
 TWI_Master_t* twi;
 
-void i2c_init(void);
+void i2cInit(void);
 
 uint8_t twiWriteWrapper(uint8_t addr, uint8_t* writeData, uint8_t bytesToWrite, char* callerDescr);
 uint8_t twiWriteReadWrapper(uint8_t addr, uint8_t* writeData, uint8_t bytesToWrite, uint8_t bytesToRead, char* callerDescr);

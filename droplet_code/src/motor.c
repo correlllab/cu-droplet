@@ -35,7 +35,7 @@ static inline void motor_backward(uint8_t num)
 }
 
 
-void motor_init()
+void motorInit()
 {
 	#ifdef AUDIO_DROPLET
 		PORTC.DIRSET = PIN4_bm | PIN5_bm;
@@ -75,15 +75,15 @@ void motor_init()
 	motor_on_time = MOTOR_ON_TIME;
 	motor_off_time = MOTOR_OFF_TIME;
 	
-	read_motor_settings();
+	readMotorSettings();
 }
 
-uint8_t move_steps(uint8_t direction, uint16_t num_steps)
+uint8_t moveSteps(uint8_t direction, uint16_t num_steps)
 {
 	#ifdef AUDIO_DROPLET
-		motor_adjusts[direction][0]=0;
+		motorAdjusts[direction][0]=0;
 	#endif
-	if(is_moving()>=0) return 0;
+	if(isMoving()>=0) return 0;
 	motor_status = MOTOR_STATUS_ON | (direction & MOTOR_STATUS_DIRECTION);
 	
 	uint16_t mot_durs[3]; //This is how long we want each motor to be on for.
@@ -92,7 +92,7 @@ uint8_t move_steps(uint8_t direction, uint16_t num_steps)
 	
 	for(uint8_t mot=0 ; mot<3 ; mot++)
 	{	
-		if(motor_adjusts[direction][mot]==0)
+		if(motorAdjusts[direction][mot]==0)
 		{
 			mot_durs[mot] = 0;
 			mot_dirs[mot] = 0;
@@ -100,8 +100,8 @@ uint8_t move_steps(uint8_t direction, uint16_t num_steps)
 		}
 		else
 		{
-			mot_durs[mot] = 32*motor_on_time + abs(motor_adjusts[direction][mot]);			
-			mot_dirs[mot] = ((((motor_adjusts[direction][mot]>>15)&0x1)*-2)+1)/**motor_signs[direction][mot]*/;
+			mot_durs[mot] = 32*motor_on_time + abs(motorAdjusts[direction][mot]);			
+			mot_dirs[mot] = ((((motorAdjusts[direction][mot]>>15)&0x1)*-2)+1)/**motor_signs[direction][mot]*/;
 			total_time += mot_durs[mot] + 32*motor_off_time;
 		}
 	}
@@ -151,14 +151,14 @@ uint8_t move_steps(uint8_t direction, uint16_t num_steps)
 	}
 	uint32_t total_movement_duration = (((uint32_t)total_time)*((uint32_t)num_steps))/32;
 	//printf("Total duration: %lu ms.\r\n\n",total_movement_duration);
-	current_motor_task = schedule_task(total_movement_duration, stop_move, NULL);
+	current_motor_task = scheduleTask(total_movement_duration, stopMove, NULL);
 	if(current_motor_task==NULL) printf_P(PSTR("Error! Failed to schedule stop_move task."));
 	return 1;
 }
 
 void walk(uint8_t direction, uint16_t mm)
 {
-	uint16_t mm_per_kilostep = get_mm_per_kilostep(direction);
+	uint16_t mm_per_kilostep = getMMperKilostep(direction);
 	if(abs((0xFFFF-((uint32_t)mm_per_kilostep)))<1000){
 		printf_P(PSTR("Error: Don't have calibrated values for this direction.\r\n"));
 		if(direction>5){
@@ -169,13 +169,13 @@ void walk(uint8_t direction, uint16_t mm)
 	}
 	float mm_per_step = (1.0*mm_per_kilostep)/1000.0;
 	float steps = (1.0*mm)/mm_per_step;
-	delay_ms(10);
+	delayMS(10);
 	printf_P(PSTR("In order to go in direction %hu for %u mm, taking %u steps.\r\n"),direction, mm, (uint16_t)steps);
-	delay_ms(10);
-	move_steps(direction, (uint16_t)steps);
+	delayMS(10);
+	moveSteps(direction, (uint16_t)steps);
 }
 
-void stop_move()
+void stopMove()
 {
 	//printf("Stopping.\r\n");
 	
@@ -196,11 +196,11 @@ void stop_move()
 	PORTD.OUTCLR = PIN0_bm | PIN1_bm; 
 	
 	motor_status = 0;
-	remove_task((Task_t*)current_motor_task);
+	removeTask((Task_t*)current_motor_task);
 	current_motor_task = NULL;
 }
 
-int8_t is_moving() // returns -1 if droplet is not moving, movement dir otherwise.
+int8_t isMoving() // returns -1 if droplet is not moving, movement dir otherwise.
 {
 	if (motor_status & MOTOR_STATUS_ON){
 		return (motor_status & MOTOR_STATUS_DIRECTION);
@@ -208,39 +208,39 @@ int8_t is_moving() // returns -1 if droplet is not moving, movement dir otherwis
 	return -1;
 }
 
-uint16_t get_mm_per_kilostep(uint8_t direction)
+uint16_t getMMperKilostep(uint8_t direction)
 {
-	return mm_per_kilostep[direction];
+	return mmPerKilostep[direction];
 }
 
-void set_mm_per_kilostep(uint8_t direction, uint16_t dist)
+void setMMperKilostep(uint8_t direction, uint16_t dist)
 {
-	mm_per_kilostep[direction] = dist;	
+	mmPerKilostep[direction] = dist;	
 }
 
-void read_motor_settings()
+void readMotorSettings()
 {
 	for (uint8_t direction = 0; direction < 8; direction++)
 	{
 		for (uint8_t motor_num = 0; motor_num < 3 ; motor_num++)
 		{
-			motor_adjusts[direction][motor_num] = ((((int16_t)EEPROM_read_byte(0x10 + 6*direction + 2*motor_num + 0))<<8) | ((int16_t)EEPROM_read_byte(0x10 + 6*direction + 2*motor_num + 1)));
+			motorAdjusts[direction][motor_num] = ((((int16_t)EEPROM_read_byte(0x10 + 6*direction + 2*motor_num + 0))<<8) | ((int16_t)EEPROM_read_byte(0x10 + 6*direction + 2*motor_num + 1)));
 		}
 
 	}
 	for (uint8_t direction = 0; direction < 8 ; direction++)
 	{
-		mm_per_kilostep[direction] =(uint16_t)EEPROM_read_byte(0x40 + 2*direction + 0)<<8 | (uint16_t)EEPROM_read_byte(0x40 + 2*direction + 1);
+		mmPerKilostep[direction] =(uint16_t)EEPROM_read_byte(0x40 + 2*direction + 0)<<8 | (uint16_t)EEPROM_read_byte(0x40 + 2*direction + 1);
 	}
 }
 
-void write_motor_settings()
+void writeMotorSettings()
 {
 	for (uint8_t direction = 0; direction < 8; direction++)
 	{
 		for (uint8_t motor_num = 0; motor_num < 3 ; motor_num++)
 		{
-			int16_t temp = motor_adjusts[direction][motor_num];
+			int16_t temp = motorAdjusts[direction][motor_num];
 			EEPROM_write_byte(0x10 + 6*direction + 2*motor_num + 0, (uint8_t)((temp>>8)&0xFF));
 			EEPROM_write_byte(0x10 + 6*direction + 2*motor_num + 1, (uint8_t)(temp&0xFF));
 		}
@@ -248,13 +248,13 @@ void write_motor_settings()
 	
 	for (uint8_t direction = 0; direction < 8; direction++)
 	{
-		uint16_t temp = mm_per_kilostep[direction];
+		uint16_t temp = mmPerKilostep[direction];
 		EEPROM_write_byte(0x40 + 2*direction + 0, (uint8_t)((temp>>8)&0xFF));
 		EEPROM_write_byte(0x40 + 2*direction + 1, (uint8_t)(temp&0xFF));
 	}
 }
 
-void print_motor_values()
+void printMotorValues()
 {
 	printf_P(PSTR("Motor Values\r\n"));
 	for(uint8_t direction=0;direction<8;direction++)
@@ -262,22 +262,22 @@ void print_motor_values()
 		printf_P(PSTR("\tdir: %hu\t"),direction);
 		for(uint8_t motor=0;motor<3;motor++)
 		{
-			printf("%d\t", motor_adjusts[direction][motor]);
+			printf("%d\t", motorAdjusts[direction][motor]);
 		}
 		printf("\r\n");
 	}
 	printf("\r\n");
 }
-void broadcast_motor_adjusts()
+void broadcastMotorAdjusts()
 {
 	// TODO: Deprecated?
 }
 
-void print_dist_per_step()
+void printDistPerStep()
 {
 	printf_P(PSTR("Dist (mm) per kilostep\r\n"));
 	for(uint8_t direction = 0 ; direction<8; direction++)
 	{
-		printf_P(PSTR("\t%hu\t%u\r\n"), direction, mm_per_kilostep[direction]);	
+		printf_P(PSTR("\t%hu\t%u\r\n"), direction, mmPerKilostep[direction]);	
 	}
 }

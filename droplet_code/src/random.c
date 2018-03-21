@@ -6,7 +6,7 @@ static uint8_t r_position;
 static uint8_t randNormHasSaved;
 static float randNormSavedValue;
 
-void random_init(){
+void randomInit(){
 	// Advanced Encryption Standard (AES) crypto module [one of two Onboard Crypto Engines]
 
 	// Xmega AU Manual, p. 316:
@@ -84,7 +84,7 @@ void random_init(){
 	randNormHasSaved = 0;
 }
 
-uint8_t rand_byte(){
+uint8_t randByte(){
 	uint8_t r;
 	if (r_position == 0) while (!(AES.STATUS & AES_SRIF_bm));
 	r = AES.STATE;
@@ -97,26 +97,26 @@ uint8_t rand_byte(){
 	return r;
 }
 
-uint16_t rand_short(){
-	return ((uint16_t)rand_byte()<<8)|((uint16_t)rand_byte());
+uint16_t randShort(){
+	return ((uint16_t)randByte()<<8)|((uint16_t)randByte());
 }
 
-uint32_t rand_quad(){
-	return ((uint32_t)rand_short()<<16)|((uint32_t)rand_short());
+uint32_t randQuad(){
+	return ((uint32_t)randShort()<<16)|((uint32_t)randShort());
 }
 
-float rand_real(){
-	return (((float)rand_quad())/4294967295.0);
+float randReal(){
+	return (((float)randQuad())/4294967295.0);
 }
 
-float rand_norm(float mean, float stdDev){
+float randNorm(float mean, float stdDev){
 	float uA, uB, r, th;
 	if(randNormHasSaved){
 		randNormHasSaved = 0;
 		return stdDev*randNormSavedValue + mean;
 	}else{
-		uA = rand_real();
-		uB = rand_real();
+		uA = randReal();
+		uB = randReal();
 		r = sqrtf(-2*log(uA));
 		th = 2.0*M_PI*uB;
 		randNormSavedValue = r*sinf(th);

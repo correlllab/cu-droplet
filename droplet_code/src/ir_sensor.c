@@ -9,7 +9,7 @@
 static int16_t  ir_sense_baseline[6];
 
 // IR sensors use ADCB channel 0, all the time
-void ir_sensor_init(){
+void irSensorInit(){
 	#ifdef AUDIO_DROPLET
 		/* SET INPUT PINS AS INPUTS */
 		PORTA.DIRCLR = PIN5_bm | PIN6_bm | PIN7_bm;
@@ -82,36 +82,36 @@ void ir_sensor_init(){
 	for(uint8_t dir=0;dir<6;dir++){
 		ir_sense_baseline[dir]=0;
 	}
-	schedule_task(1000,initialize_ir_baselines,NULL);
-	schedule_periodic_task(5407, update_ir_baselines, NULL);
+	scheduleTask(1000,initIrBaselines,NULL);
+	schedulePeriodicTask(5407, updateIrBaselines, NULL);
 }
 
-void initialize_ir_baselines(){
-	get_ir_sensors(ir_sense_baseline, 13);
+void initIrBaselines(){
+	getIrSensors(ir_sense_baseline, 13);
 }
 
-void update_ir_baselines(){
+void updateIrBaselines(){
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-		if(ir_is_busy(ALL_DIRS)){
+		if(irIsBusy(ALL_DIRS)){
 			return;
 		}
-		hp_ir_block_bm=0x3F;
+		hpIrBlock_bm=0x3F;
 	}
 	int16_t prevBaselines[6];
 	for(uint8_t dir=0; dir<6; dir++){
 		prevBaselines[dir] = ir_sense_baseline[dir]; //zeroing the baseline array.
 		ir_sense_baseline[dir] = 0;
 	}
-	get_ir_sensors(ir_sense_baseline, 13);
+	getIrSensors(ir_sense_baseline, 13);
 	for(uint8_t dir=0;dir<6;dir++){
 		ir_sense_baseline[dir] = (ir_sense_baseline[dir]+prevBaselines[dir])/2;
 	}
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-		hp_ir_block_bm = 0;
+		hpIrBlock_bm = 0;
 	}
 }
 
-void get_ir_sensors(int16_t* output_arr, uint8_t meas_per_ch){			
+void getIrSensors(int16_t* output_arr, uint8_t meas_per_ch){			
 	int16_t meas[6][meas_per_ch];	
 	#ifdef AUDIO_DROPLET
 		for(uint8_t meas_count=0;meas_count<meas_per_ch;meas_count++){
@@ -142,12 +142,12 @@ void get_ir_sensors(int16_t* output_arr, uint8_t meas_per_ch){
 	
 	for(uint8_t dir=0;dir<6;dir++){
 		if(meas_per_ch>2){
-			int16_t median = meas_find_median(&(meas[dir][2]),meas_per_ch-2);
+			int16_t median = measFindMedian(&(meas[dir][2]),meas_per_ch-2);
 			//printf("%d ",median);
 			output_arr[dir] = median-ir_sense_baseline[dir];
 		}			
 		else if(meas_per_ch==2)
-			output_arr[dir] = meas_find_median(&(meas[dir][1]),meas_per_ch-1)-ir_sense_baseline[dir];
+			output_arr[dir] = measFindMedian(&(meas[dir][1]),meas_per_ch-1)-ir_sense_baseline[dir];
 		else
 			output_arr[dir] = meas[dir][0];
 	}
@@ -155,41 +155,41 @@ void get_ir_sensors(int16_t* output_arr, uint8_t meas_per_ch){
 	//printf("\r\n");	
 }
 
-uint8_t check_collisions(){
+uint8_t checkCollisions(){
 	int16_t meas[6];
 	uint8_t dirs = 0;
-	check_collision_values(meas);
+	checkCollisionValues(meas);
 	for(uint8_t i=0;i<6;i++){
 		dirs |=  (((meas[i]+ir_sense_baseline[i])>=IR_SENSE_MAX)<<i);
 	}
 	return dirs;
 }
 
-void check_collision_values(int16_t meas[6]){
+void checkCollisionValues(int16_t meas[6]){
 	int16_t baseline_meas[6];
 	int16_t measured_vals[6];
 	//uint8_t dirs=0;
-	if(ir_is_busy(ALL_DIRS)){
+	if(irIsBusy(ALL_DIRS)){
 		printf_P(PSTR("IR Hardware busy. Can't check collisions.\r\n"));
 		return;
 	}
 	for(uint8_t i=0;i<6;i++) ir_rxtx[i].status = IR_STATUS_BUSY_bm;	
-	uint16_t curr_power = get_all_ir_powers();
-	set_all_ir_powers(256);
-	get_ir_sensors(baseline_meas, 5);
+	uint16_t curr_power = getAllirPowers();
+	setAllirPowers(256);
+	getIrSensors(baseline_meas, 5);
 	//printf("Coll    base: ");
 	//for(uint8_t i=0;i<6;i++) printf("%4d ", baseline_meas[i]);
 	//printf("\r\n");
-	for(uint8_t i=0;i<6;i++) ir_led_on(i);
+	for(uint8_t i=0;i<6;i++) irLedOn(i);
 	delay_us(250);	
-	get_ir_sensors(measured_vals, 5);
+	getIrSensors(measured_vals, 5);
 	//printf("Coll results: ");
 	//for(uint8_t i=0;i<6;i++) printf("%4d ", measured_vals[i]);
 	//printf("\r\n");
-	for(uint8_t i=0;i<6;i++) ir_led_off(i);
+	for(uint8_t i=0;i<6;i++) irLedOff(i);
 	for(uint8_t i=0;i<6;i++){
 		meas[i] = (measured_vals[i]-baseline_meas[i]);
 	}
-	set_all_ir_powers(curr_power);
+	setAllirPowers(curr_power);
 	for(uint8_t i=0;i<6;i++) ir_rxtx[i].status = 0;		
 }	

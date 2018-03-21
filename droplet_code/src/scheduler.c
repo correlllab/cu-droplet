@@ -1,5 +1,6 @@
 #include "scheduler.h"
 
+static volatile Task_t* schedule_task_absolute_time(uint32_t time, FlexFunction function, void* arg);
 static void add_task_to_list(volatile Task_t* task);
 static int8_t run_tasks(void);
 
@@ -20,8 +21,8 @@ static volatile Task_t* scheduler_malloc(void){
 static void scheduler_free(volatile Task_t* tgt){
 	if((tgt<task_storage_arr)||(tgt>(&(task_storage_arr[MAX_NUM_SCHEDULED_TASKS])))){
 		printf_P(PSTR("ERROR: In scheduler_free, tgt (%X) was outside valid Task* range.\r\n"),tgt);
-		set_rgb(0,0,255);
-		delay_ms(60000);
+		setRGB(0,0,255);
+		delayMS(60000);
 	}
 	tgt->arg = 0;
 	tgt->period = 0;
@@ -30,7 +31,7 @@ static void scheduler_free(volatile Task_t* tgt){
 	tgt->next = NULL;
 }
 
-void scheduler_init(){
+void schedulerInit(){
 	task_list = NULL;
 	num_tasks = 0;
 	task_executing = 0;
@@ -50,11 +51,11 @@ void scheduler_init(){
 }
 
 //This function checks for errors or inconsistencies in the task list, and attempts to correct them.
-void task_list_cleanup(){
+void taskListCleanup(){
 	printf_P(PSTR("\tAttempting to restore task_list.\r\n\tIf you only see this message rarely, don't worry too much.\r\n"));
 	volatile Task_t* cur_task = task_list;
 	//volatile Task_t* prev_task;
-	uint32_t nextTime = get_time()+500;
+	uint32_t nextTime = getTime()+500;
 	uint8_t first = 1;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 		RTC.INTCTRL &= ~RTC_COMP_INT_LEVEL;
@@ -76,40 +77,46 @@ void task_list_cleanup(){
 	}
 }
 
-
 // Adds a new task to the task queue
 // time is number of milliseconds until function is executed
 // function is a function pointer to execute
 // arg is the argument to supply to function
-volatile Task_t* schedule_task(uint32_t time, flex_function function, void* arg){
+volatile Task_t* scheduleTask(uint32_t time, FlexFunction function, void* arg){
+	time = (time<MIN_TASK_TIME_IN_FUTURE) ? MIN_TASK_TIME_IN_FUTURE : time;
+	volatile Task_t* new_task = schedule_task_absolute_time(getTime()+time, function, arg);
+	new_task->period = 0;
+	return new_task;
+}
+
+volatile Task_t* schedulePeriodicTask(uint32_t period, FlexFunction function, void* arg){
+	period = (period<MIN_TASK_TIME_IN_FUTURE) ? MIN_TASK_TIME_IN_FUTURE : period;
+	uint32_t time = ((getTime()/period)+1)*period;
+	volatile Task_t* new_task = schedule_task_absolute_time(time, function, arg);
+	new_task->period = period;
+	return new_task;
+}
+
+volatile Task_t* schedule_task_absolute_time(uint32_t time, FlexFunction function, void* arg){
 	volatile Task_t* new_task;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 		new_task = scheduler_malloc();
 		if (new_task == NULL) return NULL;
 		else if(new_task == ((volatile Task_t*)0xFFFF)){
 			printf_P(PSTR("ERROR: No empty spot found in scheduler_malloc, but num_tasks wasn't greater than or equal max_tasks.\r\n"));
-			task_list_cleanup();
-		}else if((new_task<task_storage_arr)||(new_task>(&(task_storage_arr[MAX_NUM_SCHEDULED_TASKS-1])))){
+			taskListCleanup();
+			}else if((new_task<task_storage_arr)||(new_task>(&(task_storage_arr[MAX_NUM_SCHEDULED_TASKS-1])))){
 			printf_P(PSTR("ERROR: scheduler_malloc returned a new_task pointer outside of the task storage array.\r\n"));
+			}else if(time < getTime()){
+			printf_P(PSTR("ERROR: Task scheduled for a time in the past.\r\n"));
 		}
-
-		time+=MIN_TASK_TIME_IN_FUTURE*(time<MIN_TASK_TIME_IN_FUTURE);
-		new_task->scheduled_time = time + get_time();
+		new_task->scheduled_time = time;
 		new_task->arg = arg;
 		new_task->func = function;
-		new_task->period = 0;
 		new_task->next = NULL;
 	}
 	add_task_to_list(new_task);
 	//printf("Task (%X->%X) scheduled for %lu\t[%hhu]\r\n", new_task, (new_task->func).noarg_function, new_task->scheduled_time, num_tasks);
 
-	return new_task;
-}
-
-volatile Task_t* schedule_periodic_task(uint32_t period, flex_function function, void* arg){
-	period+=MIN_TASK_TIME_IN_FUTURE*(period<MIN_TASK_TIME_IN_FUTURE);	
-	volatile Task_t* new_task = schedule_task(period, function, arg);
-	new_task->period=period;
 	return new_task;
 }
 
@@ -140,8 +147,8 @@ static void add_task_to_list(volatile Task_t* task){
 				if(tmp_task_ptr->next==tmp_task_ptr){
 					//set_rgb(255, 50, 0);
 					printf_P(PSTR("ERROR! Task list has self-reference.\r\n"));
-					printf_P(PSTR("New Task %p (%p) scheduled at %lu with period %lu, %lu current\r\n"), task, (task->func).noarg_func, task->scheduled_time, task->period, get_time());
-					print_task_queue();
+					printf_P(PSTR("New Task %p (%p) scheduled at %lu with period %lu, %lu current\r\n"), task, (task->func).noarg_func, task->scheduled_time, task->period, getTime());
+					printTaskQueue();
 					return;				
 				}
 				tmp_task_ptr = tmp_task_ptr->next;
@@ -166,7 +173,7 @@ static void add_task_to_list(volatile Task_t* task){
 }
 
 // Remove a task from the task queue
-void remove_task(volatile Task_t* task){
+void removeTask(volatile Task_t* task){
 	if((task<task_storage_arr)||(task>(&(task_storage_arr[MAX_NUM_SCHEDULED_TASKS-1])))){
 		printf("ERROR: Asked to remove_task for task pointer outside the bounds of task_storage_arr.\r\n");
 		return;
@@ -190,7 +197,7 @@ void remove_task(volatile Task_t* task){
 	}
 }
 
-void print_task_queue(){
+void printTaskQueue(){
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){  // Disable interrupts during printing
 		volatile Task_t* cur_task = task_list;
 		
@@ -198,7 +205,7 @@ void print_task_queue(){
 		
 		// Iterate through the list of tasks, printing name, function, and scheduled time of each
 		while (cur_task != NULL){
-			printf_P(PSTR("\tTask %p (%p) scheduled at %lu with period %lu, %lu current\r\n"), cur_task, (cur_task->func).noarg_func, cur_task->scheduled_time, cur_task->period, get_time());
+			printf_P(PSTR("\tTask %p (%p) scheduled at %lu with period %lu, %lu current\r\n"), cur_task, (cur_task->func).noarg_func, cur_task->scheduled_time, cur_task->period, getTime());
 			if(cur_task==cur_task->next) break;
 			cur_task = cur_task->next;
 		}
@@ -212,7 +219,7 @@ int8_t run_tasks(){
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){ // Disable interrupts
 		// Run all tasks that are scheduled to execute in the next 2ms
 		// (The RTC compare register takes 2 RTC clock cycles to update)
-		while (task_list != NULL && task_list->scheduled_time <= get_time() + 2){
+		while (task_list != NULL && task_list->scheduled_time <= getTime() + 2){
 			uint8_t num_slots_used = 0;
 			for(uint8_t i=0;i<MAX_NUM_SCHEDULED_TASKS;i++){
 				if(((uint16_t)(task_storage_arr[i].func.noarg_func))!=0){
@@ -221,7 +228,7 @@ int8_t run_tasks(){
 					if((next_ptr!=0)&&((next_ptr<task_storage_arr)||(next_ptr>(&(task_storage_arr[MAX_NUM_SCHEDULED_TASKS-1]))))){
 						printf_P(PSTR("Pre-call, task has next_ptr pointing outside of array.\r\n"));
 						printf("\t%X\r\n",((uint16_t)(&(task_storage_arr[i]))));
-						delay_ms(10);
+						delayMS(10);
 					}
 				}
 			}
@@ -244,7 +251,8 @@ int8_t run_tasks(){
 			}
 			
 			if(cur_task->period>0){
-				cur_task->scheduled_time+=cur_task->period;
+				uint32_t nextTime = (((cur_task->scheduled_time)/(cur_task->period))+1)*(cur_task->period);
+				cur_task->scheduled_time = nextTime;
 				cur_task->next=NULL;
 				num_tasks--;
 				add_task_to_list(cur_task);
@@ -261,7 +269,7 @@ int8_t run_tasks(){
 					volatile Task_t* next_ptr = task_storage_arr[i].next;
 					if((next_ptr!=0)&&((next_ptr<task_storage_arr)||(next_ptr>(&(task_storage_arr[MAX_NUM_SCHEDULED_TASKS-1]))))){
 						printf_P(PSTR("Post-call, task %X has next_ptr pointing outside of array.\r\n"),task_storage_arr[i]);
-						delay_ms(10);
+						delayMS(10);
 					}
 				}
 			}
@@ -301,7 +309,7 @@ ISR( RTC_OVF_vect ){
 		// If the next task to run is in the current epoch, update the RTC compare value and interrupt
 		if (task_list != NULL && task_list->scheduled_time < ((((uint32_t)rtc_epoch) << 16) | (uint32_t)RTC.PER)){
 			if(!task_executing){
-				if(task_list->scheduled_time < get_time()){
+				if(task_list->scheduled_time < getTime()){
 					//printf("In overflow, tasks need to have been executed!\r\n");
 					//print_task_queue();
 				}else{		
@@ -311,7 +319,7 @@ ISR( RTC_OVF_vect ){
 				}
 			}
 		}else{
-			printf("Next task not in current epoch. Task executing: %hu. Next task scheduled time: %lu. Time: %lu.\r\n", task_executing, task_list->scheduled_time, get_time());
+			printf("Next task not in current epoch. Task executing: %hu. Next task scheduled time: %lu. Time: %lu.\r\n", task_executing, task_list->scheduled_time, getTime());
 		}
 	}
 }

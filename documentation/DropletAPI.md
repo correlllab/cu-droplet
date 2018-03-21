@@ -34,7 +34,7 @@
     
     Note: For consistency with Droplets' labels, I strongly recommend you always print out Droplet IDs with `%04X`.
 
-  Also: you may see printf_P(PSTR("some format string"), ...) in the code. This changes the printf to store the string argument in program memory instead of data memory, since the former is much more spacious. In general, users shouldn't need to worry about this, but if your code gets long and complex, and you start running low on memory, it can help to do this yourself.
+  Also: you may see `printf_P(PSTR("some format string"), ...)` in the code. This changes the `printf()` to store the string argument in program memory instead of data memory, since the former is much more spacious. In general, users shouldn't need to worry about this, but if your code gets long and complex, and you start running low on memory, it can help to do this yourself.
 
 ## Functions
 
@@ -50,14 +50,14 @@
   `target`
     The ID of the Droplet the message is targeted to. Only that Droplet will get this message.  
 
-  Messages always have an eight-byte header, and take about 2.5ms per byte.  Thus, if your message's data length is 1, the message will take about 23ms. If its data length is 40, it will take about 120ms.
+  Messages always have a seven-byte header, and take about 2.5ms per byte.  Thus, if your message's data length is 1, the message will take about 20ms. If its data length is 40, it will take about 120ms.
   
 ```C
 uint8_t irSend(uint8_t dir_mask, char* data, uint8_t data_length);
 uint8_t irTargetedSend(uint8_t dir_mask, char *data, uint16_t data_length, id_t target);
 ```
 
-  For each message a Droplet receives, the handle_msg function gets called. This can only happen after the code in loop() has run, and so it's important not to let loop() take too long, or messages will get backed up. handle_msg has a single argument, msg_struct, which contains the received message and other infornmation:
+  For each message a Droplet receives, the handleMsg function gets called. This can only happen after the code in loop() has run, and so it's important not to let loop() take too long, or messages will get backed up. handle_msg has a single argument, msg_struct, which contains the received message and other infornmation:
   
   `arrival_time`  
     When the last byte of the message was received.
@@ -112,32 +112,15 @@ For Example:
  ```
 
 ### Range and Bearing
+  'rnb' is short for 'range and bearing', and getting this data is made a little bit more complicated because it requires two Droplets to do something in unison (one turning its IR lights on, the other making measurements). When you call `broadcastRnbData()` on a Droplet, it causes the Droplet do perform an an 'rnb broadcast': a carefully timed sequence of turning on its IR lights. Before it does so, it broadcasts a message so other Droplets know that this is going to happen. (If you call `irSend` right before `broadcastRnbData`, the thing you tried to send probably won't get out because broadcast_rnb_data will stomp all over your message) As a result of the rnb broadcast, every other Droplet nearby will get new measurements of range, bearing, and heading for the Droplet which performed the broadcast. In general, the 'standard' way to use this system is to have every Droplet periodically call `broadcastRnbData()`. (You don't want to do this /too/ frequently. Try around every 5 seconds.)
+  
+  When a Droplet gets a good range and bearing measurement, the measurement is queued in the background until the next time loop returns. Then, the user-defined `handleMeas` function will be called once for each queued measurement.
+  
+  Note: An rnb broadcast takes ~150ms.
 ```C
 void broadcastRnbData(void); 
 ```
-  'rnb' is short for 'range and bearing', and getting this data is made a little bit more complicated because it requires two Droplets to do something in unison (one turning its IR lights on, the other making measurements). When you call broadcast_rnb_data() on a Droplet, it causes the Droplet do perform what we call an rnb broadcast: a carefully timed sequence of turning on its IR lights. Before it does so, it broadcasts a message so other Droplets know that this is going to happen. (If you call ir_send right before broadcast_rnb_data, the thing you tried to send probably won't get out because broadcast_rnb_data will stomp all over your message) As a result of the rnb broadcast, every other Droplet nearby will get new measurements of range, bearing, and heading for the Droplet which performed the broadcast. In general, the 'standard' way to use this system is to have every Droplet periodically call broadcast_rnb_data(). (You don't want to do this /too/ frequently. Try around every 5 seconds.) And, in every Droplet's loop(), have:
-  ```C
-  if(getTime() - lastRnbTime > 5000){
-    broadcastRnbData();
-    lastRnbTime = getTime();
-  }
-  
-  if(rnb_updated){
-     //new data in last_good_rnb, ie.:
-     id_t id = last_good_rnb.id;
-     uint16_t range = last_good_rnb.range;
-     int16_t bearing = last_good_rnb.bearing;
-     int16_t heading = last_good_rnb.heading;
-     /*
-      * Note! The line below must be included for things to work properly. 
-      * After this is set to '0', low-level code might modify the last_good_rnb struct in interrupts.
-      */
-      rnb_updated = 0;
-  }
-  ```
-  If Droplets A,B,C, and D all have this in their code, and Droplet A does an rnb broadcast, Droplets B,C, and D will all get new rnb data for Droplet A.
 
-  Note: An rnb broadcast takes ~142ms.
 
 ### Movement
   This function has the Droplet move in the specified direction for the specific number of 'steps'. There isn't a great way to map from steps to actual distances. Try 30-100 as a starting place.
@@ -194,10 +177,30 @@ void broadcastRnbData(void);
   uint32_t get_time(void); //returns time in ms since Droplet started.
   ```
   
-  schedule_task causes the Droplet to call the specified function, time milliseconds from now.
+  `scheduleTask` causes the Droplet to call the specified function.
+  
+  `time`: The number of ms in the future function will be called.
+  `function`: The name of the function to be called. This function must take either no argument, or one argument which is two bytes wide. (ie, `uint16_t`). You'll get a warning unless you cast your function to the type `arg_func_t` or `noarg_func_t`, as appropriate. If function has an argument, you'll get a different warning, unless the type of that argument is `void*`. There's no way for `function` to return anything.
+  `arg`: The argument you want to be passed to `function`, when it is called. If `function` has no arguments, use `NULL`. You'll get a warning unless you cast `arg` to type `void*`.
+  
+  Note that `scheduleTask` returns a `Task_t` pointer. This is a pointer to the one of the elements in the task queue; specifically the one which corresponds to the requested scheduled task. There are two reasons you might want this return value:
+  If the returned `Task_t` pointer is null, it indicates that there was an error and the task was not scheduled. And, if you might want to `cancel' the scheduled task, before it is run, you can do that by calling `removeTask` and passing the `Task_t` pointer this function returns. 
   ```C
   volatile Task_t* scheduleTask(uint32_t time, flex_function function, void* arg);
   ```
+  
+  `schedulePeriodicTask` causes the Droplet to call the specified function periodically.
+  The arguments and return value for `schedulePeriodicTask` are identical to those of `scheduleTask`, with one exception:
+  
+  `period`: The specified `function` will be called first `period` ms in the future, and then every `period` ms after that, forever. It is particularly important to store the returned `Task_t` pointer if you might want to stop periodically calling the task at some point.
+  ```C
+  volatile Task_t* scheduleTask(uint32_t period, flex_function function, void* arg);
+  ```  
+  
+  `removeTask` removes a task from the list of scheduled tasks. The argument should be the `Task_t` pointer which the associated call to `scheduleTask` returned.
+  ```C
+  void removeTask(volatile Task_t*);
+  ```  
 
 ## IR Directions
   For several different IR functions, we use a 'dir mask', a single byte (ie, uint8_t) which can mark each of the six directions as 'on' or 'off'. A few values are defined in the code to make using these dir_masks easier. There is a direction for each set of IR hardware. To help describe each direction unambiguously, imagine the top of a Droplet as a 12-hour clock face, with the arrow on the shell at 12 o'clock. With this, each direction has the hour position on the clock which corresponds with that direction.

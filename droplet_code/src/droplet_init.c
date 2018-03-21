@@ -3,6 +3,7 @@
 static void initAllSystems(void);
 static void calculateIdNumber(void);
 static void enableInterrupts(void);
+static void checkMeasurements(void);
 static void checkMessages(void);
 
 /**
@@ -32,7 +33,7 @@ static void initAllSystems(void){
 		speakerInit();			INIT_DEBUG_PRINT("SPEAKER INIT\r\n");
 		micInit();				INIT_DEBUG_PRINT("MIC INIT\r\n"); //Must occur after ir_sensor_init.
 	#endif
-	
+		
 	motorInit();				INIT_DEBUG_PRINT("MOTOR INIT\r\n");
 	randomInit();				INIT_DEBUG_PRINT("RAND INIT\r\n"); //This uses adc readings for a random seed, and so requires that the adcs have been initialized.
 	localizationInit();		INIT_DEBUG_PRINT("LOCALIZATION INIT\r\n"); 
@@ -41,12 +42,13 @@ static void initAllSystems(void){
 		fireflySyncInit();
 	#endif
 
-
 	setAllirPowers(256);
-
 	startupLightSequence();
 	
 	irCommInit();				INIT_DEBUG_PRINT("IR COM INIT\r\n");
+	#ifdef AUDIO_DROPLET
+		enableMicInterrupt();
+	#endif
 }
 
 int main(void){
@@ -54,6 +56,7 @@ int main(void){
 	init();
 	while(1){
 		loop();
+		checkMeasurements();
 		checkMessages();
 		if(taskListCheck()){
 			printf_P(PSTR("Error! We got ahead of the task list and now nothing will execute.\r\n"));
@@ -66,22 +69,39 @@ int main(void){
 }
 
 /*
+ * This function loops through all range and bearing measurements this robot has 
+ * received since the last call to checkMeasurements.
+ * For each message, it populates an Rnb struct and calls handleMeas with it.
+ */
+static void checkMeasurements(void){
+	Rnb meas;
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){ //We want to make sure that this block doesn't get interrupted by stuff trying to add more messages to the buffer.
+		while(incMeasHead != NULL){
+			MeasNode* node = (MeasNode*)incMeasHead;
+			meas = (node->meas);
+			incMeasHead = (volatile MeasNode*)(node->next);
+			myFree(node);
+			numWaitingMeas--;
+			memoryConsumedByMeasBuffer -= sizeof(MeasNode);
+			//While we let user code handle the measurement we want interrupts to be back on. 
+			NONATOMIC_BLOCK(NONATOMIC_RESTORESTATE){ 
+				handleMeas(&meas);
+			}
+		}
+	}
+}
+
+/*
  * This function loops through all messages this robot has received since the last call
  * to check messages.
- * For each message, it populates an ir_msg struct and calls handle_msg with it.
+ * For each message, it populates an irMsg struct and calls handleMsg with it.
  */
 static void checkMessages(void){
 	irMsg msgStruct;	
-
-	if(userFacingMessagesOvf){
-		numWaitingMsgs=MAX_USER_FACING_MESSAGES;
-		userFacingMessagesOvf=0;
-		printf_P(PSTR("Error: Messages overflow. Too many messages received. Try speeding up your loop if you see this a lot.\r\n"));
-	}
-	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){ //We want to amke sure that this block doesn't get interrupted by stuff trying to add more messages to the buffer.
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){ //We want to make sure that this block doesn't get interrupted by stuff trying to add more messages to the buffer.
 		uint16_t crc;
-		while(incomingMsgHead != NULL){
-			MsgNode* node = (MsgNode*)incomingMsgHead;
+		while(incMsgHead != NULL){
+			MsgNode* node = (MsgNode*)incMsgHead;
 			if(node->length==0){
 				printf_P(PSTR("ERROR: Message length 0 for msg_node.\r\n"));
 			}
@@ -92,11 +112,11 @@ static void checkMessages(void){
 			msgStruct.senderID		= node->senderID;
 			msgStruct.length		= node->length;
 			crc						= node->crc;
-			//While we let user code handle the message we want interrupts to be back on. At this point everything relevant has been copied out of the buffer.
-			NONATOMIC_BLOCK(NONATOMIC_RESTORESTATE){ 
-				handleMsg(&msgStruct);
-			}
-			
+			/*
+			 * At this point everything relevant has been copied out of the buffer. To avoid
+			 * problems caused by the changes to the queue while handling the message, we
+			 * remove the current node and update the structure before calling handleMsg.
+			 */
 			MsgNode* tmp = node;
 			MsgNode* deleteMe;
 			while(tmp->next !=NULL){
@@ -105,18 +125,22 @@ static void checkMessages(void){
 				if(crcMatches && closeTimes){
 					deleteMe = tmp->next;
 					tmp->next = tmp->next->next;
-					memoryConsumedByBuffer -= (sizeof(MsgNode) + msgStruct.length);
-					numWaitingMsgs--;
 					myFree(deleteMe);
+					memoryConsumedByMsgBuffer -= (sizeof(MsgNode) + msgStruct.length);
+					numWaitingMsgs--;
 				}else{
 					tmp = tmp->next;
 				}
-
 			}
-			incomingMsgHead = (volatile MsgNode*)(node->next);
+			incMsgHead = (volatile MsgNode*)(node->next);
+			memoryConsumedByMsgBuffer -= (sizeof(MsgNode) + msgStruct.length);
 			numWaitingMsgs--;
-			memoryConsumedByBuffer -= (sizeof(MsgNode) + msgStruct.length);
 			myFree(node);
+
+			//While we let user code handle the message we want interrupts to be back on. 
+			NONATOMIC_BLOCK(NONATOMIC_RESTORESTATE){ 
+				handleMsg(&msgStruct);
+			}
 		}
 	}
 }

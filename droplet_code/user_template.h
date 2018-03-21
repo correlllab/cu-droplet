@@ -4,4 +4,5 @@
 
 void		init(void);
 void		loop(void);
-void		handleMsg(irMsg* msgStruct);
+void		handleMeas(Rnb* meas);
+void		handleMsg(irMsg* msg_struct);

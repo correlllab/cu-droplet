@@ -83,11 +83,10 @@ void irCommInit(){
 
 	cmdArrivalTime=0;
 	numWaitingMsgs=0;
-	userFacingMessagesOvf=0;
 	processingCmdFlag = 0;
 	processingFFsyncFlag = 0;
-	incomingMsgHead = NULL;
-	memoryConsumedByBuffer = 0;
+	incMsgHead = NULL;
+	memoryConsumedByMsgBuffer = 0;
 	for(uint8_t dir=0; dir<6; dir++) clearIrBuffer(dir); //this initializes the buffer's values to 0.
 
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
@@ -259,14 +258,14 @@ static void addMsgToMsgQueue(uint8_t dir){
 		printf_P(PSTR("ERROR! Should NOT be adding 0-length message to queue.\r\n"));
 	}else if(ir_rxtx[dir].data_length > IR_BUFFER_SIZE){
 		printf_P(PSTR("ERROR! Should NOT be adding a message with length greater than buffer size to queue.\r\n"));
-	}else if(memoryConsumedByBuffer > 500){
-		printf_P(PSTR("ERROR! Buffered incoming messages consuming too much memory. Allow handle_msg to be called more frequently.\r\n"));
+	}else if(memoryConsumedByMsgBuffer > 500){
+		printf_P(PSTR("ERROR! Buffered incoming messages consuming too much memory. Allow loop to return more frequently.\r\n"));
 	}else{
-		volatile MsgNode* node = incomingMsgHead;
 		ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-			if(incomingMsgHead==NULL){
-				incomingMsgHead = (volatile MsgNode*)myMalloc(sizeof(MsgNode) + ir_rxtx[dir].data_length);
-				node = (MsgNode*)incomingMsgHead;
+			MsgNode* node = (MsgNode*)incMsgHead;
+			if(incMsgHead==NULL){
+				incMsgHead = (volatile MsgNode*)myMalloc(sizeof(MsgNode) + ir_rxtx[dir].data_length);
+				node = (MsgNode*)incMsgHead;
 			}else{
 				while(node->next != NULL){
 					node = node->next;
@@ -274,15 +273,13 @@ static void addMsgToMsgQueue(uint8_t dir){
 				node->next = (MsgNode*)myMalloc(sizeof(MsgNode) + ir_rxtx[dir].data_length);
 				node = node->next;
 			}
-			char* dataAddr = ((char*)node + sizeof(MsgNode));
-			memcpy(dataAddr, (const void*)ir_rxtx[dir].buf, ir_rxtx[dir].data_length);
-			node->msg			= dataAddr;
+			memcpy(node->msg, (const void*)ir_rxtx[dir].buf, ir_rxtx[dir].data_length);
 			node->arrivalTime	= ir_rxtx[dir].last_byte;
 			node->length		= ir_rxtx[dir].data_length;
 			node->senderID		= ir_rxtx[dir].senderID;
 			node->crc			= ir_rxtx[dir].calc_crc;
 			node->next			= NULL;
-			memoryConsumedByBuffer += (sizeof(MsgNode) + ir_rxtx[dir].data_length);
+			memoryConsumedByMsgBuffer += (sizeof(MsgNode) + ir_rxtx[dir].data_length);
 			numWaitingMsgs++;
 		}
 	}
@@ -307,7 +304,9 @@ static void handleCompletedMsg(uint8_t dir){
 				}
 			}
 		}else{
-			addMsgToMsgQueue(dir);
+			if(ir_rxtx[dir].data_length){
+				addMsgToMsgQueue(dir);
+			}
 		}
 	}else{
 		//printf("Message completed, but something wrong (%hu).\r\n", crcMismatch | nullCrc<<1 | selfSender<<2 | notTimed<<3 | wrongTarget<<4);
@@ -445,7 +444,7 @@ static void receivedRnbCmd(uint16_t delay, uint32_t lastByte, id_t senderID){
 // TO BE CALLED FROM INTERRUPT HANDLER ONLY
 // DO NOT CALL
 static volatile uint8_t next_byte;
-static void irTransmit(uint8_t dir){
+static void irTransmit(uint8_t dir){	
 	switch(ir_rxtx[dir].curr_pos){
 		case HEADER_POS_SENDER_ID_LOW:  next_byte  = (uint8_t)(ir_rxtx[dir].senderID&0xFF);			break;
 		case HEADER_POS_SENDER_ID_HIGH: next_byte  = (uint8_t)((ir_rxtx[dir].senderID>>8)&0xFF);	break;	
@@ -467,6 +466,8 @@ static void irTransmit(uint8_t dir){
 	}
 	channel[dir]->DATA = next_byte;
 	ir_rxtx[dir].curr_pos++;
+	
+	
 	/* CHECK TO SEE IF MESSAGE IS COMPLETE */
 	if(ir_rxtx[dir].curr_pos >= (ir_rxtx[dir].data_length+HEADER_LEN)){
 		//printf("transmit of %hu-byte long message completed on dir %hu.\r\n\t", ir_rxtx[dir].data_length & DATA_LEN_VAL_bm, dir);

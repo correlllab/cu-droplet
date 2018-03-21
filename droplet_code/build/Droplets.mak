@@ -19,7 +19,7 @@ TARGET = Droplets
 ATMEL_STUDIO_PATH = "C:/Program Files (x86)/Atmel/Studio/7.0/"
 
 # List your user C source file(s) here.
-USER_FILE = ../user_template.c \
+USER_FILE = ../user_template.c 
 
 
 #----------------------------------------------------------------------------
@@ -87,8 +87,8 @@ C_INCLUDE_DIRS = \
 -I ../droplet_programs
 
 SYS_INCLUDE_DIRS = \
--I $(ATMEL_STUDIO_PATH)Packs/atmel/XMEGAA_DFP/1.1.68/include \
--B $(ATMEL_STUDIO_PATH)Packs/atmel/XMEGAA_DFP/1.1.68/gcc/dev/atxmega128a3u
+-I $(ATMEL_STUDIO_PATH)packs/atmel/XMEGAA_DFP/1.1.68/include \
+-B $(ATMEL_STUDIO_PATH)packs/atmel/XMEGAA_DFP/1.1.68/gcc/dev/atxmega128a3u
 
 # Debugging format.
 #     Native formats for AVR-GCC's -g are dwarf-2 [default] or stabs.
@@ -127,9 +127,9 @@ CFLAGS += -Wextra
 CFLAGS += -Wstrict-prototypes
 #CFLAGS += -mshort-calls
 #CFLAGS += -fno-unit-at-a-time
-#CFLAGS += -Wundef
-#CFLAGS += -Wunreachable-code
-#CFLAGS += -Wsign-compare
+CFLAGS += -Wundef
+CFLAGS += -Wunreachable-code
+CFLAGS += -Wsign-compare
 CFLAGS += -Wa,-adhlns=$(<:%.c=$(OBJDIR)/%.lst)
 CFLAGS += $(CSTANDARD)
 
@@ -158,7 +158,7 @@ SCANF_LIB = $(SCANF_LIB_FLOAT)
 
 MATH_LIB = -lm
 
-BOOTSECTIONSTART = 0x20000
+BOOTSECTIONSTART = 0x10000
 
 #---------------- Linker Options ----------------
 #  -Wl,...:     tell GCC to pass this to linker.

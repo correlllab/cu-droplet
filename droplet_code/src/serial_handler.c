@@ -62,29 +62,31 @@ void handleSerialCommand(char* command, uint16_t command_length){
 																		printMotorValues();
 																		printDistPerStep();																	
 		}else if(command_word[0] == 'S'){
-			setRGB(0,0,255);
+			
 			char *str12;
 			str12 = command_word;
 			str12++;
 			number_of_hex = atoi(str12);
 			reprogramming=1;
+			
 			//delayMS(20000);
 		}else if(command_word[0] == 'R' && command_word[1] == 0){
+			
 			strcat(initial_msg, "S");
 			strcat(initial_msg, command_args);
 			int length = strlen(initial_msg);
-			setRGB(255,0,0);
-			//delayMS(3000);
-			//strcpy(initial_msg, "start");
 			irCmd(ALL_DIRS, initial_msg, length);
+			
 		}else if(command_word[0] == 'M' && command_word[1] == 0){
+			
 			strcpy(dataHEX, command_args);
 			scheduleTask(100, send_hex, NULL );
-		
+			delayMS(500);
+			
 		}else if(userHandleCommand){ //First, make sure the function is defined
 			if(!userHandleCommand(command_word, command_args))	printf_P(CMD_NOT_RECOGNIZED_STR,command_word);
 		}
-		else														printf_P(CMD_NOT_RECOGNIZED_STR,command_word);
+		else printf_P(CMD_NOT_RECOGNIZED_STR,command_word);
 	}
 }
 

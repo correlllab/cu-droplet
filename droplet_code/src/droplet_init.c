@@ -4,8 +4,15 @@ static void initAllSystems(void);
 static void calculateIdNumber(void);
 static void enableInterrupts(void);
 static void checkMessages(void);
+uint8_t Numberofbytes, message_bytes;
 uint8_t calculate_page_number(uint16_t addressFrmProgramming);
 uint8_t flashBufferPos=0;
+uint32_t tgadd1=0;
+uint16_t addrstart;
+uint32_t targetAddr;
+uint8_t FlashBuffer[512];
+
+uint8_t firstmessage_flag =0;
 /**
  * \brief Initializes all the subsystems for this Droplet. This function MUST be called
  * by the user before using any other functions in the API.
@@ -153,7 +160,6 @@ void handle_reprogramming(irMsg *msg_struct_hex)
 	
 	number_of_hex--;
 	uint16_t startaddr[2];
-	uint8_t Numberofbytes;
 	char str[3], str1[5];
 	int i=0;
 	for(i=0; i<2; i++)
@@ -161,20 +167,23 @@ void handle_reprogramming(irMsg *msg_struct_hex)
 		str[i] = msg_struct_hex->msg[i];
 	}
 	str[2] = '\0';
-	Numberofbytes = strtoul(str, NULL, 16);
-	//printf("Number of data bytes = %d\r\n", Numberofbytes);
+	message_bytes = strtoul(str, NULL, 16); 
+	Numberofbytes += message_bytes;
+	printf("Got message number = %d\r\n", number_of_hex);
 	for(i=2; i<6; i++)
 	{
 		str1[i-2] = msg_struct_hex->msg[i];
 	}
 	str1[4] = '\0';
 	 startaddr[0] = strtoul(str1, NULL, 16);
-	 uint16_t addrstart = startaddr[0];
-	//printf("page start : %u\n",addrstart);
+	 if((firstmessage_flag == 0) && (number_of_hex >0))
+	 {
+		 addrstart = startaddr[0];
+		 targetAddr =addrstart;
+		 firstmessage_flag = 1;			//condition indicating first message is already received. following messages won't hold starting address
+	 }
 	
-	uint8_t FlashBuffer[Numberofbytes];
-	uint32_t targetAddr =addrstart;
-	nvm_flash_read_buffer(targetAddr, FlashBuffer, Numberofbytes);
+	//nvm_flash_read_buffer(targetAddr, FlashBuffer, Numberofbytes);
 	/*for(int j=0; j<Numberofbytes; j++)
 	{
 		printf("%02hx ", FlashBuffer[j]);
@@ -184,7 +193,7 @@ void handle_reprogramming(irMsg *msg_struct_hex)
 	
 	
 	// keep on filling the buffer
-	for(uint8_t i=6;i<(6+(2*Numberofbytes));i+=2)    // 0-5 are length and address, the last two char (1 byte) is for checksum
+	for(uint8_t i=6;i<(6+(2*message_bytes));i+=2)    // 0-5 are length and address, the last two char (1 byte) is for checksum
 	{
 		//convert pair of chars to byte.
 		str[0] = msg_struct_hex->msg[i];
@@ -196,39 +205,36 @@ void handle_reprogramming(irMsg *msg_struct_hex)
 	}
 	
 
-	/*FlashBuffer[0]=0x6F;
-
-	FlashBuffer[1]=0xEF;
-	
-	FlashBuffer[2]=0x80;
-	
-	FlashBuffer[3]=0xE0;*/
-	
-	
-	
-	//printf("Printing written FlashBuffer:\r\n\r\n");
-	/*for(int l=0; l<Numberofbytes; l++)
+	if(number_of_hex == 0)
 	{
-		printf("%02hx ", FlashBuffer[l]);
-	
-	}
-	printf("\r\n");*/
-	
-		//printf("About to write. Address: %lu\r\n\r\n\r\n", targetAddr);
-		nvm_flash_erase_and_write_buffer(targetAddr, FlashBuffer, Numberofbytes, 1);
-		
-		nvm_flash_read_buffer(targetAddr, FlashBuffer, 4);
+		printf("The whole buffer before writing in memory : \r\n\r\n");
 		for(int j=0; j<Numberofbytes; j++)
 		{
 			printf("%02hx ", FlashBuffer[j]);
+			if((j%16 == 0)&&(j != 0)) printf("\r\n");
 		}
 		printf("\r\n");
-		if(number_of_hex == 0)
+		printf("About to write. Address: %lu and line num : %d\r\n\r\n\r\n", targetAddr, number_of_hex);
+		nvm_flash_erase_and_write_buffer(targetAddr, FlashBuffer, Numberofbytes, 1);
+		
+		nvm_flash_read_buffer(targetAddr, FlashBuffer, Numberofbytes);
+		for(int j=0; j<Numberofbytes; j++)
 		{
-			reprogramming=0;
-			dropletReboot();
-			printf("Done");
+			printf("%02hx ", FlashBuffer[j]);
+			if((j%16 == 0)&&(j != 0)) printf("\r\n");
 		}
+		printf("\r\n");
+		printf("Done");
+		delayMS(500);
+		reprogramming=0;
+		printf("Came in num hex is zero!!!!!!!!!!!!!!!!!!!!");
+		firstmessage_flag =0;			// Done with all messages
+		Numberofbytes=0;
+		flashBufferPos=0;
+		memset(FlashBuffer, 0, 512);
+		dropletReboot();
+		
+	}
 }
 
 void send_hex(void){

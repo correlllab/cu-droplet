@@ -19,7 +19,7 @@ TARGET = My_Droplets
 ATMEL_STUDIO_PATH = "C:/Program Files (x86)/Atmel/Studio/7.0/"
 
 # List your user C source file(s) here.
-USER_SRC = ../user_template.c \
+USER_FILE = ../user_template.c \
 
 
 #----------------------------------------------------------------------------
@@ -52,7 +52,8 @@ FORMAT = ihex
 OBJDIR = .
 
 # List C source files here. (C dependencies are automatically generated.)
-SRC = ../src/droplet_base.c \
+SRC = $(USER_FILE) \
+../src/droplet_base.c \
 ../src/droplet_init.c \
 ../src/eeprom_driver.c \
 ../src/firefly_sync.c \
@@ -125,9 +126,9 @@ CFLAGS += -Wextra
 CFLAGS += -Wstrict-prototypes
 #CFLAGS += -mshort-calls
 #CFLAGS += -fno-unit-at-a-time
-#CFLAGS += -Wundef
-#CFLAGS += -Wunreachable-code
-#CFLAGS += -Wsign-compare
+CFLAGS += -Wundef
+CFLAGS += -Wunreachable-code
+CFLAGS += -Wsign-compare
 CFLAGS += -Wa,-adhlns=$(<:%.c=$(OBJDIR)/%.lst)
 CFLAGS += $(CSTANDARD)
 
@@ -156,9 +157,11 @@ SCANF_LIB = $(SCANF_LIB_FLOAT)
 
 MATH_LIB = -lm
 
-BOOTSECTIONSTART = 0x20000
-USERCODESECTIONSTART = 0xc000
-LINKERSCRIPTFILE = DropletsLinkerScript.x
+BOOTSECTIONSTART = 0x10000
+
+#LINK_SCRIPT = $(ATMEL_STUDIO_PATH)toolchain/avr8/avr8-gnu-toolchain/avr/lib/ldscripts/avrxmega1.x
+#LINK_SCRIPT = ../build/avrxmega1_copy.x
+LINK_SCRIPT = ../build/DropletsLinkerScript.x
 
 #---------------- Linker Options ----------------
 #  -Wl,...:     tell GCC to pass this to linker.
@@ -167,8 +170,11 @@ LINKERSCRIPTFILE = DropletsLinkerScript.x
 LDFLAGS = -Wl,-Map=$(TARGET).map,--cref
 LDFLAGS += $(EXTMEMOPTS)
 LDFLAGS += $(PRINTF_LIB) $(SCANF_LIB) $(MATH_LIB)
-LDFLAGS += -Wl,--gc-sections -Wl,-section-start=.BOOT=$(BOOTSECTIONSTART) 
-#LDFLAGS += -section-start=.USERCODE=$(USERCODESECTIONSTART) 
+LDFLAGS += -Wl,--gc-sections 
+LDFLAGS += -Wl,-section-start=.BOOT=$(BOOTSECTIONSTART)
+LDFLAGS += -Wl,-section-start=.USERCODE=0xc000 
+LDFLAGS += -T $(LINK_SCRIPT)
+
 
 # Define programs and commands.
 SHELL       = cmd
@@ -212,12 +218,9 @@ gccversion :
 
 # Define all object files.
 OBJ = $(SRC:%.c=$(OBJDIR)/%.o) $(ASRC:%.S=$(OBJDIR)/%.o)
-USER_OBJ = $(USER_SRC:%.c=$(OBJDIR)/%.o)
-
 
 # Define all listing files.
 LST = $(SRC:%.c=$(OBJDIR)/%.lst) $(ASRC:%.s=$(OBJDIR)/%.lst) 
-USER_LIST = $(USER_SRC:%.c=$(OBJDIR)/%.lst) 
 
 # Compiler flags to generate dependency files.
 GENDEPFLAGS = -MMD -MP -MF .dep/$(@F:%.o=%.d)
@@ -282,29 +285,14 @@ end:
 	@echo $(MSG_SYMBOL_TABLE) $@
 	$(NM) -n $< > $@
 
-
-.SECONDARY : $(TARGET)).elf
-.PRECIOUS : $(TARGET).all_o $(TARGET).user_o
-%.elf: $(TARGET).all_o $(TARGET).user_o
-	$(CC) $(ALL_CFLAGS) $^ --output $@ $(LDFLAGS)
-	.SECONDARY : $(TARGET).elf
-	
 # Link: create ELF output file from object files.
-.SECONDARY : $(TARGET)).all_o
+.SECONDARY : $(TARGET).elf
 .PRECIOUS : $(OBJ)
-%.all_o: $(OBJ)
+%.elf: $(OBJ)
 	@printf "\t\n"
 	@echo $(MSG_LINKING) $@
 	$(CC) $(ALL_CFLAGS) $^ --output $@ $(LDFLAGS)
-	.SECONDARY : $(TARGET).all_o
 
-.SECONDARY : $(TARGET).user_o
-.PRECIOUS : $(USER_OBJ)
-%.user_o: $(USER_OBJ)
-	@printf "\t\n"
-	@echo $(MSG_LINKING) $@
-	$(CC) $(ALL_CFLAGS) $^ --output $@ $(LDFLAGS)
-	.SECONDARY : $(TARGET).user_o
 
 # Compile: create object files from C source files.
 $(OBJDIR)/%.o : %.c
@@ -344,9 +332,6 @@ clean_list :
 	$(REMOVE) $(SRC:.c=.s)
 	$(REMOVE) $(SRC:.c=.d)
 	$(REMOVE) $(SRC:.c=.i)
-	$(REMOVE) $(USER_SRC:.c=.i)
-	$(REMOVE) $(USER_SRC:.c=.i)
-	$(REMOVE) $(USER_SRC:.c=.i)
 	$(REMOVE) $(ASRC:.S=.d)
 	$(REMOVE) $(ASRC:.S=.i)
 	$(REMOVEDIR) .dep

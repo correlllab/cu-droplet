@@ -18,8 +18,8 @@ void init(){
 	//delayMS(5000);
 	//volatile int dummyArray[512];
 	//memset(dummyArray, 0x55, 512);
-	
-	for (int i= 0;i<20;i++)
+
+	for (int i= 0;i<18;i++)
 	{
 		setHSV(i*20,200,100);
 		delayMS(2000);

@@ -2,7 +2,7 @@ from __future__ import print_function
 import serial
 import time
 
-port = "COM4"
+port = "COM3"
 baud = 115200
 
 ser = serial.Serial(port, baud, bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE,timeout=2)
@@ -43,7 +43,7 @@ def my_func(Port):
 		
 	first_msg = 'R ' + str(offset) + '\n'
 	Port.write(first_msg)	
-	time.sleep(0.4)
+	time.sleep(1)
 	
 	with open('C:/Users/niharika/Documents/Atmel Studio/7.0/cu-droplet-master/droplet_code/build/My_Droplets.hex','r') as hexFile:
 		for linesHEX in hexFile:
@@ -52,7 +52,7 @@ def my_func(Port):
 				while(offset > 0):
 					linesHEX = 'M ' + linesHEX[0:6] + linesHEX[8:]
 					Port.write(linesHEX)
-					time.sleep(0.2)
+					time.sleep(1)
 					offset = offset - 1
 					linesHEX = hexFile.next()
 					linesHEX = linesHEX.strip(':')

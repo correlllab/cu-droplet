@@ -4,7 +4,7 @@
    are permitted in any medium without royalty provided the copyright
    notice and this notice are preserved.  */
 OUTPUT_FORMAT("elf32-avr","elf32-avr","elf32-avr")
-OUTPUT_ARCH(avr:101)
+OUTPUT_ARCH(avr:106)
 __TEXT_REGION_LENGTH__ = DEFINED(__TEXT_REGION_LENGTH__) ? __TEXT_REGION_LENGTH__ : 1024K;
 __DATA_REGION_LENGTH__ = DEFINED(__DATA_REGION_LENGTH__) ? __DATA_REGION_LENGTH__ : 0xffa0;
 __EEPROM_REGION_LENGTH__ = DEFINED(__EEPROM_REGION_LENGTH__) ? __EEPROM_REGION_LENGTH__ : 64K;
@@ -15,6 +15,7 @@ __USER_SIGNATURE_REGION_LENGTH__ = DEFINED(__USER_SIGNATURE_REGION_LENGTH__) ? _
 MEMORY
 {
   text   (rx)   : ORIGIN = 0, LENGTH = __TEXT_REGION_LENGTH__
+  usrtxt (rx)   : ORIGIN = 0x200000, LENGTH = 100K
   data   (rw!x) : ORIGIN = 0x802000, LENGTH = __DATA_REGION_LENGTH__
   eeprom (rw!x) : ORIGIN = 0x810000, LENGTH = __EEPROM_REGION_LENGTH__
   fuse      (rw!x) : ORIGIN = 0x820000, LENGTH = __FUSE_REGION_LENGTH__
@@ -82,7 +83,89 @@ SECTIONS
   .rel.plt       : { *(.rel.plt)		}
   .rela.plt      : { *(.rela.plt)		}
   /* Internal text space or external memory.  */
-  .text   :
+  .usrtxt   :
+  {
+    ../user_template.o(.vectors)
+    KEEP(../user_template.o(.vectors))
+    /* For data that needs to reside in the lower 64k of progmem.  */
+     ../user_template.o(.progmem.gcc*)
+    /* PR 13812: Placing the trampolines here gives a better chance
+       that they will be in range of the code that uses them.  */
+    . = ALIGN(2);
+     __trampolines_start = . ;
+    /* The jump trampolines for the 16-bit limited relocs will reside here.  */
+    ../user_template.o(.trampolines)
+     ../user_template.o(.trampolines*)
+     __trampolines_end = . ;
+    /* avr-libc expects these data to reside in lower 64K. */
+     *libprintf_flt.a:../user_template.o(.progmem.data)
+     *libc.a:../user_template.o(.progmem.data)
+     ../user_template.o(.progmem*)
+    . = ALIGN(2);
+    /* For future tablejump instruction arrays for 3 byte pc devices.
+       We don't relax jump/call instructions within these sections.  */
+    ../user_template.o(.jumptables)
+     ../user_template.o(.jumptables*)
+    /* For code that needs to reside in the lower 128k progmem.  */
+    ../user_template.o(.lowtext)
+     ../user_template.o(.lowtext*)
+     __ctors_start = . ;
+     ../user_template.o(.ctors)
+     __ctors_end = . ;
+     __dtors_start = . ;
+     ../user_template.o(.dtors)
+     __dtors_end = . ;
+    KEEP(SORT(*)(.ctors))
+    KEEP(SORT(*)(.dtors))
+    /* From this point on, we don't bother about wether the insns are
+       below or above the 16 bits boundary.  */
+    ../user_template.o(.init0)  /* Start here after reset.  */
+    KEEP (../user_template.o(.init0))
+    ../user_template.o(.init1)
+    KEEP (../user_template.o(.init1))
+    ../user_template.o(.init2)  /* Clear __zero_reg__, set up stack pointer.  */
+    KEEP (../user_template.o(.init2))
+    ../user_template.o(.init3)
+    KEEP (../user_template.o(.init3))
+    ../user_template.o(.init4)  /* Initialize data and BSS.  */
+    KEEP (../user_template.o(.init4))
+    ../user_template.o(.init5)
+    KEEP (../user_template.o(.init5))
+    ../user_template.o(.init6)  /* C++ constructors.  */
+    KEEP (../user_template.o(.init6))
+    ../user_template.o(.init7)
+    KEEP (../user_template.o(.init7))
+    ../user_template.o(.init8)
+    KEEP (../user_template.o(.init8))
+    ../user_template.o(.init9)  /* Call main().  */
+    KEEP (../user_template.o(.init9))
+    ../user_template.o(.text)
+    . = ALIGN(2);
+     ../user_template.o(.text.*)
+    . = ALIGN(2);
+    ../user_template.o(.fini9)  /* _exit() starts here.  */
+    KEEP (../user_template.o(.fini9))
+    ../user_template.o(.fini8)
+    KEEP (../user_template.o(.fini8))
+    ../user_template.o(.fini7)
+    KEEP (../user_template.o(.fini7))
+    ../user_template.o(.fini6)  /* C++ destructors.  */
+    KEEP (../user_template.o(.fini6))
+    ../user_template.o(.fini5)
+    KEEP (../user_template.o(.fini5))
+    ../user_template.o(.fini4)
+    KEEP (../user_template.o(.fini4))
+    ../user_template.o(.fini3)
+    KEEP (../user_template.o(.fini3))
+    ../user_template.o(.fini2)
+    KEEP (../user_template.o(.fini2))
+    ../user_template.o(.fini1)
+    KEEP (../user_template.o(.fini1))
+    ../user_template.o(.fini0)  /* Infinite loop after program termination.  */
+    KEEP (../user_template.o(.fini0))
+     _etext = . ;
+  }  > usrtxt
+.text   :
   {
     *(.vectors)
     KEEP(*(.vectors))
@@ -164,6 +247,7 @@ SECTIONS
     KEEP (*(.fini0))
      _etext = . ;
   }  > text
+   
   .data          :
   {
      PROVIDE (__data_start = .) ;

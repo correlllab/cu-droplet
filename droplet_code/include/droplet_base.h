@@ -9,6 +9,7 @@
 #include <util/atomic.h>
 #include <util/delay.h>
 #include <util/crc16.h>
+#include <stdfix.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>

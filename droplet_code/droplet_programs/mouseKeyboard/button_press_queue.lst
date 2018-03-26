@@ -1,0 +1,1320 @@
+   1               		.file	"button_press_queue.c"
+   2               	__SP_H__ = 0x3e
+   3               	__SP_L__ = 0x3d
+   4               	__SREG__ = 0x3f
+   5               	__RAMPZ__ = 0x3b
+   6               	__CCP__ = 0x34
+   7               	__tmp_reg__ = 0
+   8               	__zero_reg__ = 1
+   9               		.text
+  10               	.Ltext0:
+  11               		.cfi_sections	.debug_frame
+  12               		.section	.text.queueInit,"ax",@progbits
+  13               	.global	queueInit
+  15               	queueInit:
+  16               	.LFB56:
+  17               		.file 1 "../droplet_programs/mouseKeyboard/button_press_queue.c"
+   1:../droplet_programs/mouseKeyboard/button_press_queue.c **** #include "button_press_queue.h"
+   2:../droplet_programs/mouseKeyboard/button_press_queue.c **** 
+   3:../droplet_programs/mouseKeyboard/button_press_queue.c **** static inline uint8_t sameEvent(GenericEvent a, GenericEvent b){
+   4:../droplet_programs/mouseKeyboard/button_press_queue.c **** 	EitherEvent* evtA = a.both;
+   5:../droplet_programs/mouseKeyboard/button_press_queue.c **** 	EitherEvent* evtB = b.both;
+   6:../droplet_programs/mouseKeyboard/button_press_queue.c **** 	uint8_t concurrent			= ((evtA->time)%MIN_MULTIPRESS_DELAY) == ((evtB->time)%MIN_MULTIPRESS_DELAY);
+   7:../droplet_programs/mouseKeyboard/button_press_queue.c **** 	uint8_t sameIDorDelta		= evtA->idOrDelta == evtB->idOrDelta;
+   8:../droplet_programs/mouseKeyboard/button_press_queue.c **** 	uint8_t sameButtonOrMarker	= evtA->buttonOrMarker == evtB->buttonOrMarker;
+   9:../droplet_programs/mouseKeyboard/button_press_queue.c **** 	return concurrent && sameIDorDelta && sameButtonOrMarker;
+  10:../droplet_programs/mouseKeyboard/button_press_queue.c **** }
+  11:../droplet_programs/mouseKeyboard/button_press_queue.c **** 
+  12:../droplet_programs/mouseKeyboard/button_press_queue.c **** static inline uint8_t isEventInit(GenericEvent e){
+  13:../droplet_programs/mouseKeyboard/button_press_queue.c **** 	EitherEvent* evt = e.both;
+  14:../droplet_programs/mouseKeyboard/button_press_queue.c **** 	return !((evt->buttonOrMarker == BUTTON_UNKNOWN) && (evt->idOrDelta == 0xFFFF));
+  15:../droplet_programs/mouseKeyboard/button_press_queue.c **** }
+  16:../droplet_programs/mouseKeyboard/button_press_queue.c **** 
+  17:../droplet_programs/mouseKeyboard/button_press_queue.c **** void queueInit(){
+  18               		.loc 1 17 0
+  19               		.cfi_startproc
+  20               	/* prologue: function */
+  21               	/* frame size = 0 */
+  22               	/* stack size = 0 */
+  23               	.L__stack_usage = 0
+  24               	.LVL0:
+  25               		.loc 1 17 0
+  26 0000 80E0      		ldi r24,0
+  27 0002 90E0      		ldi r25,0
+  28               	.LBB34:
+  18:../droplet_programs/mouseKeyboard/button_press_queue.c **** 	for(uint8_t i=0;i<NUM_LOGGED_EVENTS;i++){
+  19:../droplet_programs/mouseKeyboard/button_press_queue.c **** 		eventLog[i].time = 0;
+  20:../droplet_programs/mouseKeyboard/button_press_queue.c **** 		eventLog[i].idOrDelta = 0xFFFF;
+  29               		.loc 1 20 0
+  30 0004 2FEF      		ldi r18,lo8(-1)
+  31 0006 3FEF      		ldi r19,lo8(-1)
+  32               	.LVL1:
+  33               	.L2:
+  19:../droplet_programs/mouseKeyboard/button_press_queue.c **** 		eventLog[i].idOrDelta = 0xFFFF;
+  34               		.loc 1 19 0 discriminator 3
+  35 0008 FC01      		movw r30,r24
+  36 000a EE0F      		lsl r30
+  37 000c FF1F      		rol r31
+  38 000e EE0F      		lsl r30
+  39 0010 FF1F      		rol r31
+  40 0012 EE0F      		lsl r30
+  41 0014 FF1F      		rol r31
+  42 0016 E81B      		sub r30,r24
+  43 0018 F90B      		sbc r31,r25
+  44 001a E050      		subi r30,lo8(-(eventLog))
+  45 001c F040      		sbci r31,hi8(-(eventLog))
+  46 001e 1082      		st Z,__zero_reg__
+  47 0020 1182      		std Z+1,__zero_reg__
+  48 0022 1282      		std Z+2,__zero_reg__
+  49 0024 1382      		std Z+3,__zero_reg__
+  50               		.loc 1 20 0 discriminator 3
+  51 0026 2483      		std Z+4,r18
+  52 0028 3583      		std Z+5,r19
+  21:../droplet_programs/mouseKeyboard/button_press_queue.c **** 		eventLog[i].buttonOrMarker = BUTTON_UNKNOWN;
+  53               		.loc 1 21 0 discriminator 3
+  54 002a 1682      		std Z+6,__zero_reg__
+  55               	.LVL2:
+  56 002c 0196      		adiw r24,1
+  57               	.LVL3:
+  18:../droplet_programs/mouseKeyboard/button_press_queue.c **** 	for(uint8_t i=0;i<NUM_LOGGED_EVENTS;i++){
+  58               		.loc 1 18 0 discriminator 3
+  59 002e 8431      		cpi r24,20
+  60 0030 9105      		cpc r25,__zero_reg__
+  61 0032 01F4      		brne .L2
+  62               	/* epilogue start */
+  63               	.LBE34:
+  22:../droplet_programs/mouseKeyboard/button_press_queue.c **** 	}
+  23:../droplet_programs/mouseKeyboard/button_press_queue.c **** }
+  64               		.loc 1 23 0
+  65 0034 0895      		ret
+  66               		.cfi_endproc
+  67               	.LFE56:
+  69               		.section	.text.checkForEvent,"ax",@progbits
+  70               	.global	checkForEvent
+  72               	checkForEvent:
+  73               	.LFB57:
+  24:../droplet_programs/mouseKeyboard/button_press_queue.c **** 
+  25:../droplet_programs/mouseKeyboard/button_press_queue.c **** void checkForEvent(uint32_t minTime, uint32_t maxTime, GenericEvent evtPtr){
+  74               		.loc 1 25 0
+  75               		.cfi_startproc
+  76               	.LVL4:
+  77 0000 8F92      		push r8
+  78               	.LCFI0:
+  79               		.cfi_def_cfa_offset 4
+  80               		.cfi_offset 8, -3
+  81 0002 9F92      		push r9
+  82               	.LCFI1:
+  83               		.cfi_def_cfa_offset 5
+  84               		.cfi_offset 9, -4
+  85 0004 AF92      		push r10
+  86               	.LCFI2:
+  87               		.cfi_def_cfa_offset 6
+  88               		.cfi_offset 10, -5
+  89 0006 BF92      		push r11
+  90               	.LCFI3:
+  91               		.cfi_def_cfa_offset 7
+  92               		.cfi_offset 11, -6
+  93 0008 CF92      		push r12
+  94               	.LCFI4:
+  95               		.cfi_def_cfa_offset 8
+  96               		.cfi_offset 12, -7
+  97 000a DF92      		push r13
+  98               	.LCFI5:
+  99               		.cfi_def_cfa_offset 9
+ 100               		.cfi_offset 13, -8
+ 101 000c EF92      		push r14
+ 102               	.LCFI6:
+ 103               		.cfi_def_cfa_offset 10
+ 104               		.cfi_offset 14, -9
+ 105 000e FF92      		push r15
+ 106               	.LCFI7:
+ 107               		.cfi_def_cfa_offset 11
+ 108               		.cfi_offset 15, -10
+ 109 0010 0F93      		push r16
+ 110               	.LCFI8:
+ 111               		.cfi_def_cfa_offset 12
+ 112               		.cfi_offset 16, -11
+ 113 0012 1F93      		push r17
+ 114               	.LCFI9:
+ 115               		.cfi_def_cfa_offset 13
+ 116               		.cfi_offset 17, -12
+ 117               	/* prologue: function */
+ 118               	/* frame size = 0 */
+ 119               	/* stack size = 10 */
+ 120               	.L__stack_usage = 10
+ 121 0014 6B01      		movw r12,r22
+ 122 0016 7C01      		movw r14,r24
+ 123 0018 4901      		movw r8,r18
+ 124 001a 5A01      		movw r10,r20
+ 125 001c D801      		movw r26,r16
+ 126               	.LVL5:
+  26:../droplet_programs/mouseKeyboard/button_press_queue.c **** 	(evtPtr.both)->buttonOrMarker = 0;
+ 127               		.loc 1 26 0
+ 128 001e 1696      		adiw r26,6
+ 129 0020 1C92      		st X,__zero_reg__
+ 130 0022 1697      		sbiw r26,6
+ 131               	.LBB35:
+  27:../droplet_programs/mouseKeyboard/button_press_queue.c **** 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+ 132               		.loc 1 27 0
+ 133 0024 2FB7      		in r18,__SREG__
+ 134               	.LVL6:
+ 135               	.LBB36:
+ 136               	.LBB37:
+ 137               		.file 2 "c:\\program files (x86)\\atmel\\studio\\7.0\\toolchain\\avr8\\avr8-gnu-toolchain\\avr\\in
+   1:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** /* Copyright (c) 2007 Dean Camera
+   2:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****    All rights reserved.
+   3:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** 
+   4:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****    Redistribution and use in source and binary forms, with or without
+   5:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****    modification, are permitted provided that the following conditions are met:
+   6:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** 
+   7:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****    * Redistributions of source code must retain the above copyright
+   8:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****      notice, this list of conditions and the following disclaimer.
+   9:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** 
+  10:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****    * Redistributions in binary form must reproduce the above copyright
+  11:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****      notice, this list of conditions and the following disclaimer in
+  12:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****      the documentation and/or other materials provided with the
+  13:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****      distribution.
+  14:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** 
+  15:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****    * Neither the name of the copyright holders nor the names of
+  16:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****      contributors may be used to endorse or promote products derived
+  17:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****      from this software without specific prior written permission.
+  18:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** 
+  19:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+  20:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****   AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+  21:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****   IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+  22:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****   ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+  23:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****   LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+  24:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****   CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+  25:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****   SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+  26:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****   INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+  27:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****   CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+  28:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****   ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+  29:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****   POSSIBILITY OF SUCH DAMAGE.
+  30:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** */
+  31:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** 
+  32:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** /* $Id$ */
+  33:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** 
+  34:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** #ifndef _UTIL_ATOMIC_H_
+  35:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** #define _UTIL_ATOMIC_H_ 1
+  36:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** 
+  37:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** #include <avr/io.h>
+  38:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** #include <avr/interrupt.h>
+  39:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** 
+  40:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** #if !defined(__DOXYGEN__)
+  41:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** /* Internal helper functions. */
+  42:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** static __inline__ uint8_t __iSeiRetVal(void)
+  43:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** {
+  44:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     sei();
+  45:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     return 1;
+  46:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** }
+  47:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** 
+  48:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** static __inline__ uint8_t __iCliRetVal(void)
+  49:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** {
+  50:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     cli();
+ 138               		.loc 2 50 0
+ 139               	/* #APP */
+ 140               	 ;  50 "c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\
+ 141 0026 F894      		cli
+ 142               	 ;  0 "" 2
+ 143               	.LVL7:
+ 144               	/* #NOAPP */
+ 145 0028 E0E0      		ldi r30,lo8(eventLog)
+ 146 002a F0E0      		ldi r31,hi8(eventLog)
+ 147 002c 80E0      		ldi r24,0
+ 148 002e 90E0      		ldi r25,0
+ 149               	.LVL8:
+ 150               	.L8:
+ 151               	.LBE37:
+ 152               	.LBE36:
+ 153               	.LBB38:
+ 154               	.LBB39:
+  28:../droplet_programs/mouseKeyboard/button_press_queue.c **** 		for(uint8_t i=0;i<NUM_LOGGED_EVENTS;i++){
+  29:../droplet_programs/mouseKeyboard/button_press_queue.c **** 			EitherEvent* evt = (EitherEvent*)&(eventLog[i]);
+  30:../droplet_programs/mouseKeyboard/button_press_queue.c **** 			uint8_t evtNotTooOld = evt->time > minTime;
+ 155               		.loc 1 30 0
+ 156 0030 4081      		ld r20,Z
+ 157 0032 5181      		ldd r21,Z+1
+ 158 0034 6281      		ldd r22,Z+2
+ 159 0036 7381      		ldd r23,Z+3
+ 160               	.LVL9:
+  31:../droplet_programs/mouseKeyboard/button_press_queue.c **** 			uint8_t evtNotTooYoung = evt->time <= maxTime;
+  32:../droplet_programs/mouseKeyboard/button_press_queue.c **** 			if(evtNotTooOld && evtNotTooYoung){
+ 161               		.loc 1 32 0
+ 162 0038 C416      		cp r12,r20
+ 163 003a D506      		cpc r13,r21
+ 164 003c E606      		cpc r14,r22
+ 165 003e F706      		cpc r15,r23
+ 166 0040 00F4      		brsh .L6
+ 167               		.loc 1 32 0 is_stmt 0 discriminator 1
+ 168 0042 8416      		cp r8,r20
+ 169 0044 9506      		cpc r9,r21
+ 170 0046 A606      		cpc r10,r22
+ 171 0048 B706      		cpc r11,r23
+ 172 004a 00F4      		brsh .L10
+ 173               	.L6:
+ 174               	.LVL10:
+ 175 004c 0196      		adiw r24,1
+ 176               	.LVL11:
+ 177 004e 3796      		adiw r30,7
+ 178               	.LBE39:
+  28:../droplet_programs/mouseKeyboard/button_press_queue.c **** 		for(uint8_t i=0;i<NUM_LOGGED_EVENTS;i++){
+ 179               		.loc 1 28 0 is_stmt 1 discriminator 2
+ 180 0050 8431      		cpi r24,20
+ 181 0052 9105      		cpc r25,__zero_reg__
+ 182 0054 01F4      		brne .L8
+ 183               	.LVL12:
+ 184               	.LBE38:
+ 185               	.LBB41:
+ 186               	.LBB42:
+  51:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     return 1;
+  52:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** }
+  53:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** 
+  54:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** static __inline__ void __iSeiParam(const uint8_t *__s)
+  55:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** {
+  56:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     sei();
+  57:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     __asm__ volatile ("" ::: "memory");
+  58:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     (void)__s;
+  59:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** }
+  60:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** 
+  61:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** static __inline__ void __iCliParam(const uint8_t *__s)
+  62:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** {
+  63:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     cli();
+  64:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     __asm__ volatile ("" ::: "memory");
+  65:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     (void)__s;
+  66:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** }
+  67:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** 
+  68:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** static __inline__ void __iRestore(const  uint8_t *__s)
+  69:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h **** {
+  70:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     SREG = *__s;
+ 187               		.loc 2 70 0 discriminator 3
+ 188 0056 2FBF      		out __SREG__,r18
+  71:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     __asm__ volatile ("" ::: "memory");
+ 189               		.loc 2 71 0 discriminator 3
+ 190               	.LVL13:
+ 191               	.LBE42:
+ 192               	.LBE41:
+ 193 0058 00C0      		rjmp .L5
+ 194               	.LVL14:
+ 195               	.L10:
+ 196               	.LBB43:
+ 197               	.LBB40:
+  33:../droplet_programs/mouseKeyboard/button_press_queue.c **** 				*(evtPtr.both) = *evt;
+ 198               		.loc 1 33 0
+ 199 005a FC01      		movw r30,r24
+ 200 005c EE0F      		lsl r30
+ 201 005e FF1F      		rol r31
+ 202 0060 EE0F      		lsl r30
+ 203 0062 FF1F      		rol r31
+ 204 0064 EE0F      		lsl r30
+ 205 0066 FF1F      		rol r31
+ 206 0068 E81B      		sub r30,r24
+ 207 006a F90B      		sbc r31,r25
+ 208 006c E050      		subi r30,lo8(-(eventLog))
+ 209 006e F040      		sbci r31,hi8(-(eventLog))
+ 210 0070 87E0      		ldi r24,lo8(7)
+ 211               	.LVL15:
+ 212               		0:
+ 213 0072 0190      		ld r0,Z+
+ 214 0074 0D92      		st X+,r0
+ 215 0076 8A95      		dec r24
+ 216 0078 01F4      		brne 0b
+ 217               	.LVL16:
+ 218               	.LBE40:
+ 219               	.LBE43:
+ 220               	.LBB44:
+ 221               	.LBB45:
+  70:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     __asm__ volatile ("" ::: "memory");
+ 222               		.loc 2 70 0
+ 223 007a 2FBF      		out __SREG__,r18
+ 224               		.loc 2 71 0
+ 225               	.LVL17:
+ 226               	.L5:
+ 227               	/* epilogue start */
+ 228               	.LBE45:
+ 229               	.LBE44:
+ 230               	.LBE35:
+  34:../droplet_programs/mouseKeyboard/button_press_queue.c **** 				return;
+  35:../droplet_programs/mouseKeyboard/button_press_queue.c **** 			}
+  36:../droplet_programs/mouseKeyboard/button_press_queue.c **** 		}
+  37:../droplet_programs/mouseKeyboard/button_press_queue.c **** 	}
+  38:../droplet_programs/mouseKeyboard/button_press_queue.c **** }
+ 231               		.loc 1 38 0
+ 232 007c 1F91      		pop r17
+ 233 007e 0F91      		pop r16
+ 234               	.LVL18:
+ 235 0080 FF90      		pop r15
+ 236 0082 EF90      		pop r14
+ 237 0084 DF90      		pop r13
+ 238 0086 CF90      		pop r12
+ 239 0088 BF90      		pop r11
+ 240 008a AF90      		pop r10
+ 241 008c 9F90      		pop r9
+ 242 008e 8F90      		pop r8
+ 243               	.LVL19:
+ 244 0090 0895      		ret
+ 245               		.cfi_endproc
+ 246               	.LFE57:
+ 248               		.section	.rodata.str1.1,"aMS",@progbits,1
+ 249               	.LC0:
+ 250 0000 2020 2060 		.string	"   `%c'"
+ 250      2563 2700 
+ 251               	.LC1:
+ 252 0008 5C25 3368 		.string	"\\%3hu "
+ 252      7520 00
+ 253               	.LC2:
+ 254 000f 4B65 7970 		.string	"Keypress Log:\r"
+ 254      7265 7373 
+ 254      204C 6F67 
+ 254      3A0D 00
+ 255               	.LC3:
+ 256 001e 0928 2532 		.string	"\t(%2hu)  % 5hd, % 5hd @ %lu\r\n"
+ 256      6875 2920 
+ 256      2025 2035 
+ 256      6864 2C20 
+ 256      2520 3568 
+ 257               	.LC4:
+ 258 003c 0928 2532 		.string	"\t(%2hu) %04X: "
+ 258      6875 2920 
+ 258      2530 3458 
+ 258      3A20 00
+ 259               	.LC5:
+ 260 004b 2040 2025 		.string	" @ %lu\r\n"
+ 260      6C75 0D0A 
+ 260      00
+ 261               	.LC6:
+ 262 0054 0D00      		.string	"\r"
+ 263               		.section	.text.printEventLog,"ax",@progbits
+ 264               	.global	printEventLog
+ 266               	printEventLog:
+ 267               	.LFB59:
+  39:../droplet_programs/mouseKeyboard/button_press_queue.c **** 
+  40:../droplet_programs/mouseKeyboard/button_press_queue.c **** //Returns '1' if an event was added (meaning that the Droplet should follow up)
+  41:../droplet_programs/mouseKeyboard/button_press_queue.c **** //Returns '0' if an event wasn't added (meaning that the Droplet shouldn't follow up)
+  42:../droplet_programs/mouseKeyboard/button_press_queue.c **** uint8_t  addEvent(GenericEvent evt){
+  43:../droplet_programs/mouseKeyboard/button_press_queue.c **** 	//printEventLog();
+  44:../droplet_programs/mouseKeyboard/button_press_queue.c **** 	uint8_t openIdx = 0xFF;
+  45:../droplet_programs/mouseKeyboard/button_press_queue.c **** 	uint32_t smallestEventTime = 0xFFFFFFFF;
+  46:../droplet_programs/mouseKeyboard/button_press_queue.c **** 	uint8_t smallestEventIdx = 0xFF;
+  47:../droplet_programs/mouseKeyboard/button_press_queue.c **** 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+  48:../droplet_programs/mouseKeyboard/button_press_queue.c **** 		for(int8_t i=(NUM_LOGGED_EVENTS-1);i>=0;i--){
+  49:../droplet_programs/mouseKeyboard/button_press_queue.c **** 			EitherEvent* thisEvt = (EitherEvent*)&(eventLog[i]);
+  50:../droplet_programs/mouseKeyboard/button_press_queue.c **** 			if(!isEventInit(thisEvt)){ //This spot is available.
+  51:../droplet_programs/mouseKeyboard/button_press_queue.c **** 				openIdx = i;
+  52:../droplet_programs/mouseKeyboard/button_press_queue.c **** 			}else if(sameEvent(evt, thisEvt)){
+  53:../droplet_programs/mouseKeyboard/button_press_queue.c **** 				return 0;	
+  54:../droplet_programs/mouseKeyboard/button_press_queue.c **** 			}else if(thisEvt->time < smallestEventTime){
+  55:../droplet_programs/mouseKeyboard/button_press_queue.c **** 					smallestEventTime = thisEvt->time;
+  56:../droplet_programs/mouseKeyboard/button_press_queue.c **** 					smallestEventIdx = i;
+  57:../droplet_programs/mouseKeyboard/button_press_queue.c **** 			}	
+  58:../droplet_programs/mouseKeyboard/button_press_queue.c **** 		}
+  59:../droplet_programs/mouseKeyboard/button_press_queue.c **** 		//if we got here, then this new event isn't already queued.
+  60:../droplet_programs/mouseKeyboard/button_press_queue.c **** 		if(openIdx != 0xFF){ //This means that our array still has an open slot, so we can put the new ev
+  61:../droplet_programs/mouseKeyboard/button_press_queue.c **** 			eventLog[openIdx] = *(evt.both);
+  62:../droplet_programs/mouseKeyboard/button_press_queue.c **** 			return 1;
+  63:../droplet_programs/mouseKeyboard/button_press_queue.c **** 		}else if(smallestEventIdx != 0xFF){ //otherwise, put the new event over the oldest existing event
+  64:../droplet_programs/mouseKeyboard/button_press_queue.c **** 			eventLog[smallestEventIdx] = *(evt.both);
+  65:../droplet_programs/mouseKeyboard/button_press_queue.c **** 			return 1;
+  66:../droplet_programs/mouseKeyboard/button_press_queue.c **** 		}
+  67:../droplet_programs/mouseKeyboard/button_press_queue.c **** 	}
+  68:../droplet_programs/mouseKeyboard/button_press_queue.c **** 	printf("Event log error!\r\n");
+  69:../droplet_programs/mouseKeyboard/button_press_queue.c **** 	printEventLog();
+  70:../droplet_programs/mouseKeyboard/button_press_queue.c **** 	return 0;
+  71:../droplet_programs/mouseKeyboard/button_press_queue.c **** }
+  72:../droplet_programs/mouseKeyboard/button_press_queue.c **** 
+  73:../droplet_programs/mouseKeyboard/button_press_queue.c **** void printEventLog(){
+ 268               		.loc 1 73 0
+ 269               		.cfi_startproc
+ 270 0000 8F92      		push r8
+ 271               	.LCFI10:
+ 272               		.cfi_def_cfa_offset 4
+ 273               		.cfi_offset 8, -3
+ 274 0002 9F92      		push r9
+ 275               	.LCFI11:
+ 276               		.cfi_def_cfa_offset 5
+ 277               		.cfi_offset 9, -4
+ 278 0004 AF92      		push r10
+ 279               	.LCFI12:
+ 280               		.cfi_def_cfa_offset 6
+ 281               		.cfi_offset 10, -5
+ 282 0006 BF92      		push r11
+ 283               	.LCFI13:
+ 284               		.cfi_def_cfa_offset 7
+ 285               		.cfi_offset 11, -6
+ 286 0008 CF92      		push r12
+ 287               	.LCFI14:
+ 288               		.cfi_def_cfa_offset 8
+ 289               		.cfi_offset 12, -7
+ 290 000a DF92      		push r13
+ 291               	.LCFI15:
+ 292               		.cfi_def_cfa_offset 9
+ 293               		.cfi_offset 13, -8
+ 294 000c EF92      		push r14
+ 295               	.LCFI16:
+ 296               		.cfi_def_cfa_offset 10
+ 297               		.cfi_offset 14, -9
+ 298 000e FF92      		push r15
+ 299               	.LCFI17:
+ 300               		.cfi_def_cfa_offset 11
+ 301               		.cfi_offset 15, -10
+ 302 0010 0F93      		push r16
+ 303               	.LCFI18:
+ 304               		.cfi_def_cfa_offset 12
+ 305               		.cfi_offset 16, -11
+ 306 0012 1F93      		push r17
+ 307               	.LCFI19:
+ 308               		.cfi_def_cfa_offset 13
+ 309               		.cfi_offset 17, -12
+ 310 0014 CF93      		push r28
+ 311               	.LCFI20:
+ 312               		.cfi_def_cfa_offset 14
+ 313               		.cfi_offset 28, -13
+ 314 0016 DF93      		push r29
+ 315               	.LCFI21:
+ 316               		.cfi_def_cfa_offset 15
+ 317               		.cfi_offset 29, -14
+ 318               	/* prologue: function */
+ 319               	/* frame size = 0 */
+ 320               	/* stack size = 12 */
+ 321               	.L__stack_usage = 12
+  74:../droplet_programs/mouseKeyboard/button_press_queue.c **** 	printf("Keypress Log:\r\n");
+ 322               		.loc 1 74 0
+ 323 0018 80E0      		ldi r24,lo8(.LC2)
+ 324 001a 90E0      		ldi r25,hi8(.LC2)
+ 325 001c 0E94 0000 		call puts
+ 326               	.LBB46:
+  75:../droplet_programs/mouseKeyboard/button_press_queue.c **** 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){	
+ 327               		.loc 1 75 0
+ 328 0020 9FB6      		in r9,__SREG__
+ 329               	.LBB47:
+ 330               	.LBB48:
+  50:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     return 1;
+ 331               		.loc 2 50 0
+ 332               	/* #APP */
+ 333               	 ;  50 "c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\
+ 334 0022 F894      		cli
+ 335               	 ;  0 "" 2
+ 336               	/* #NOAPP */
+ 337 0024 C0E0      		ldi r28,lo8(eventLog)
+ 338 0026 D0E0      		ldi r29,hi8(eventLog)
+ 339 0028 00E0      		ldi r16,0
+ 340 002a 10E0      		ldi r17,0
+ 341               	.LBE48:
+ 342               	.LBE47:
+ 343               	.LBB49:
+ 344               	.LBB50:
+  76:../droplet_programs/mouseKeyboard/button_press_queue.c **** 		for(uint8_t i=0;i<NUM_LOGGED_EVENTS;i++){
+  77:../droplet_programs/mouseKeyboard/button_press_queue.c **** 			if(isEventInit((EitherEvent*)&(eventLog[i]))){		
+  78:../droplet_programs/mouseKeyboard/button_press_queue.c **** 				if(eventLog[i].buttonOrMarker==0xFF){ //This is a mouse move event.
+  79:../droplet_programs/mouseKeyboard/button_press_queue.c **** 					MouseMoveEvent* evt = (MouseMoveEvent*)(&(eventLog[i]));
+  80:../droplet_programs/mouseKeyboard/button_press_queue.c **** 					printf("\t(%2hu)  % 5hd, % 5hd @ %lu\r\n", i, evt->deltaX, evt->deltaY, evt->time);
+  81:../droplet_programs/mouseKeyboard/button_press_queue.c **** 				}else{ //This is a button press event.
+  82:../droplet_programs/mouseKeyboard/button_press_queue.c **** 					ButtonPressEvent* evt = (ButtonPressEvent*)(&(eventLog[i]));
+  83:../droplet_programs/mouseKeyboard/button_press_queue.c **** 					printf("\t(%2hu) %04X: ", i, evt->src);
+ 345               		.loc 1 83 0
+ 346 002c 90E0      		ldi r25,lo8(.LC4)
+ 347 002e C92E      		mov r12,r25
+ 348 0030 90E0      		ldi r25,hi8(.LC4)
+ 349 0032 D92E      		mov r13,r25
+  84:../droplet_programs/mouseKeyboard/button_press_queue.c **** 					printf((isprint(evt->button) ? "   `%c'" : "\\%3hu "), evt->button);
+  85:../droplet_programs/mouseKeyboard/button_press_queue.c **** 					printf(" @ %lu\r\n", evt->time);
+ 350               		.loc 1 85 0
+ 351 0034 20E0      		ldi r18,lo8(.LC5)
+ 352 0036 E22E      		mov r14,r18
+ 353 0038 20E0      		ldi r18,hi8(.LC5)
+ 354 003a F22E      		mov r15,r18
+ 355               	.LBE50:
+ 356               	.LBB51:
+  80:../droplet_programs/mouseKeyboard/button_press_queue.c **** 				}else{ //This is a button press event.
+ 357               		.loc 1 80 0
+ 358 003c 30E0      		ldi r19,lo8(.LC3)
+ 359 003e A32E      		mov r10,r19
+ 360 0040 30E0      		ldi r19,hi8(.LC3)
+ 361 0042 B32E      		mov r11,r19
+ 362 0044 00C0      		rjmp .L15
+ 363               	.L20:
+ 364               	.LBE51:
+ 365               	.LBB52:
+  83:../droplet_programs/mouseKeyboard/button_press_queue.c **** 					printf((isprint(evt->button) ? "   `%c'" : "\\%3hu "), evt->button);
+ 366               		.loc 1 83 0
+ 367 0046 8D81      		ldd r24,Y+5
+ 368 0048 8F93      		push r24
+ 369               	.LCFI22:
+ 370               		.cfi_def_cfa_offset 16
+ 371 004a 8C81      		ldd r24,Y+4
+ 372 004c 8F93      		push r24
+ 373               	.LCFI23:
+ 374               		.cfi_def_cfa_offset 17
+ 375 004e 1F93      		push r17
+ 376               	.LCFI24:
+ 377               		.cfi_def_cfa_offset 18
+ 378 0050 0F93      		push r16
+ 379               	.LCFI25:
+ 380               		.cfi_def_cfa_offset 19
+ 381 0052 DF92      		push r13
+ 382               	.LCFI26:
+ 383               		.cfi_def_cfa_offset 20
+ 384 0054 CF92      		push r12
+ 385               	.LCFI27:
+ 386               		.cfi_def_cfa_offset 21
+ 387 0056 0E94 0000 		call printf
+  84:../droplet_programs/mouseKeyboard/button_press_queue.c **** 					printf((isprint(evt->button) ? "   `%c'" : "\\%3hu "), evt->button);
+ 388               		.loc 1 84 0
+ 389 005a 8E80      		ldd r8,Y+6
+ 390 005c 882D      		mov r24,r8
+ 391 005e 90E0      		ldi r25,0
+ 392 0060 0E94 0000 		call isprint
+ 393 0064 0F90      		pop __tmp_reg__
+ 394 0066 0F90      		pop __tmp_reg__
+ 395 0068 0F90      		pop __tmp_reg__
+ 396 006a 0F90      		pop __tmp_reg__
+ 397 006c 0F90      		pop __tmp_reg__
+ 398 006e 0F90      		pop __tmp_reg__
+ 399               	.LCFI28:
+ 400               		.cfi_def_cfa_offset 15
+ 401 0070 892B      		or r24,r25
+ 402 0072 01F0      		breq .+2
+ 403 0074 00C0      		rjmp .L18
+ 404 0076 80E0      		ldi r24,lo8(.LC1)
+ 405 0078 90E0      		ldi r25,hi8(.LC1)
+ 406               	.L14:
+  84:../droplet_programs/mouseKeyboard/button_press_queue.c **** 					printf((isprint(evt->button) ? "   `%c'" : "\\%3hu "), evt->button);
+ 407               		.loc 1 84 0 is_stmt 0 discriminator 4
+ 408 007a 1F92      		push __zero_reg__
+ 409               	.LCFI29:
+ 410               		.cfi_def_cfa_offset 16
+ 411 007c 8F92      		push r8
+ 412               	.LCFI30:
+ 413               		.cfi_def_cfa_offset 17
+ 414 007e 9F93      		push r25
+ 415               	.LCFI31:
+ 416               		.cfi_def_cfa_offset 18
+ 417 0080 8F93      		push r24
+ 418               	.LCFI32:
+ 419               		.cfi_def_cfa_offset 19
+ 420 0082 0E94 0000 		call printf
+ 421               		.loc 1 85 0 is_stmt 1 discriminator 4
+ 422 0086 8B81      		ldd r24,Y+3
+ 423 0088 8F93      		push r24
+ 424               	.LCFI33:
+ 425               		.cfi_def_cfa_offset 20
+ 426 008a 8A81      		ldd r24,Y+2
+ 427 008c 8F93      		push r24
+ 428               	.LCFI34:
+ 429               		.cfi_def_cfa_offset 21
+ 430 008e 8981      		ldd r24,Y+1
+ 431 0090 8F93      		push r24
+ 432               	.LCFI35:
+ 433               		.cfi_def_cfa_offset 22
+ 434 0092 8881      		ld r24,Y
+ 435 0094 8F93      		push r24
+ 436               	.LCFI36:
+ 437               		.cfi_def_cfa_offset 23
+ 438 0096 FF92      		push r15
+ 439               	.LCFI37:
+ 440               		.cfi_def_cfa_offset 24
+ 441 0098 EF92      		push r14
+ 442               	.LCFI38:
+ 443               		.cfi_def_cfa_offset 25
+ 444 009a 0E94 0000 		call printf
+ 445 009e 8DB7      		in r24,__SP_L__
+ 446 00a0 9EB7      		in r25,__SP_H__
+ 447 00a2 0A96      		adiw r24,10
+ 448 00a4 8DBF      		out __SP_L__,r24
+ 449 00a6 9EBF      		out __SP_H__,r25
+ 450               	.LCFI39:
+ 451               		.cfi_def_cfa_offset 15
+ 452               	.L13:
+ 453 00a8 0F5F      		subi r16,-1
+ 454 00aa 1F4F      		sbci r17,-1
+ 455 00ac 2796      		adiw r28,7
+ 456               	.LBE52:
+  76:../droplet_programs/mouseKeyboard/button_press_queue.c **** 			if(isEventInit((EitherEvent*)&(eventLog[i]))){		
+ 457               		.loc 1 76 0 discriminator 2
+ 458 00ae 0431      		cpi r16,20
+ 459 00b0 1105      		cpc r17,__zero_reg__
+ 460 00b2 01F0      		breq .L22
+ 461               	.L15:
+ 462               	.LBB53:
+ 463               	.LBB54:
+  14:../droplet_programs/mouseKeyboard/button_press_queue.c **** }
+ 464               		.loc 1 14 0
+ 465 00b4 8E81      		ldd r24,Y+6
+ 466 00b6 8111      		cpse r24,__zero_reg__
+ 467 00b8 00C0      		rjmp .L12
+ 468 00ba 8C81      		ldd r24,Y+4
+ 469 00bc 9D81      		ldd r25,Y+5
+ 470 00be 0196      		adiw r24,1
+ 471 00c0 01F0      		breq .L13
+ 472               	.L12:
+ 473               	.LBE54:
+ 474               	.LBE53:
+  78:../droplet_programs/mouseKeyboard/button_press_queue.c **** 					MouseMoveEvent* evt = (MouseMoveEvent*)(&(eventLog[i]));
+ 475               		.loc 1 78 0
+ 476 00c2 F801      		movw r30,r16
+ 477 00c4 EE0F      		lsl r30
+ 478 00c6 FF1F      		rol r31
+ 479 00c8 EE0F      		lsl r30
+ 480 00ca FF1F      		rol r31
+ 481 00cc EE0F      		lsl r30
+ 482 00ce FF1F      		rol r31
+ 483 00d0 E01B      		sub r30,r16
+ 484 00d2 F10B      		sbc r31,r17
+ 485 00d4 E050      		subi r30,lo8(-(eventLog))
+ 486 00d6 F040      		sbci r31,hi8(-(eventLog))
+ 487 00d8 8681      		ldd r24,Z+6
+ 488 00da 8F3F      		cpi r24,lo8(-1)
+ 489 00dc 01F0      		breq .+2
+ 490 00de 00C0      		rjmp .L20
+ 491               	.LBB55:
+  80:../droplet_programs/mouseKeyboard/button_press_queue.c **** 				}else{ //This is a button press event.
+ 492               		.loc 1 80 0
+ 493 00e0 8B81      		ldd r24,Y+3
+ 494 00e2 8F93      		push r24
+ 495               	.LCFI40:
+ 496               		.cfi_def_cfa_offset 16
+ 497 00e4 8A81      		ldd r24,Y+2
+ 498 00e6 8F93      		push r24
+ 499               	.LCFI41:
+ 500               		.cfi_def_cfa_offset 17
+ 501 00e8 8981      		ldd r24,Y+1
+ 502 00ea 8F93      		push r24
+ 503               	.LCFI42:
+ 504               		.cfi_def_cfa_offset 18
+ 505 00ec 8881      		ld r24,Y
+ 506 00ee 8F93      		push r24
+ 507               	.LCFI43:
+ 508               		.cfi_def_cfa_offset 19
+ 509 00f0 8D81      		ldd r24,Y+5
+ 510 00f2 282F      		mov r18,r24
+ 511 00f4 082E      		mov __tmp_reg__,r24
+ 512 00f6 000C      		lsl r0
+ 513 00f8 330B      		sbc r19,r19
+ 514 00fa 3F93      		push r19
+ 515               	.LCFI44:
+ 516               		.cfi_def_cfa_offset 20
+ 517 00fc 8F93      		push r24
+ 518               	.LCFI45:
+ 519               		.cfi_def_cfa_offset 21
+ 520 00fe 8C81      		ldd r24,Y+4
+ 521 0100 282F      		mov r18,r24
+ 522 0102 082E      		mov __tmp_reg__,r24
+ 523 0104 000C      		lsl r0
+ 524 0106 330B      		sbc r19,r19
+ 525 0108 3F93      		push r19
+ 526               	.LCFI46:
+ 527               		.cfi_def_cfa_offset 22
+ 528 010a 8F93      		push r24
+ 529               	.LCFI47:
+ 530               		.cfi_def_cfa_offset 23
+ 531 010c 1F93      		push r17
+ 532               	.LCFI48:
+ 533               		.cfi_def_cfa_offset 24
+ 534 010e 0F93      		push r16
+ 535               	.LCFI49:
+ 536               		.cfi_def_cfa_offset 25
+ 537 0110 BF92      		push r11
+ 538               	.LCFI50:
+ 539               		.cfi_def_cfa_offset 26
+ 540 0112 AF92      		push r10
+ 541               	.LCFI51:
+ 542               		.cfi_def_cfa_offset 27
+ 543 0114 0E94 0000 		call printf
+ 544               	.LBE55:
+ 545 0118 8DB7      		in r24,__SP_L__
+ 546 011a 9EB7      		in r25,__SP_H__
+ 547 011c 0C96      		adiw r24,12
+ 548 011e 8DBF      		out __SP_L__,r24
+ 549 0120 9EBF      		out __SP_H__,r25
+ 550               	.LCFI52:
+ 551               		.cfi_def_cfa_offset 15
+ 552 0122 0F5F      		subi r16,-1
+ 553 0124 1F4F      		sbci r17,-1
+ 554 0126 2796      		adiw r28,7
+  76:../droplet_programs/mouseKeyboard/button_press_queue.c **** 			if(isEventInit((EitherEvent*)&(eventLog[i]))){		
+ 555               		.loc 1 76 0
+ 556 0128 0431      		cpi r16,20
+ 557 012a 1105      		cpc r17,__zero_reg__
+ 558 012c 01F4      		brne .L15
+ 559               	.L22:
+ 560               	.LBE49:
+ 561               	.LBB57:
+ 562               	.LBB58:
+  70:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     __asm__ volatile ("" ::: "memory");
+ 563               		.loc 2 70 0 discriminator 3
+ 564 012e 9FBE      		out __SREG__,r9
+ 565               		.loc 2 71 0 discriminator 3
+ 566               	.LBE58:
+ 567               	.LBE57:
+ 568               	.LBE46:
+  86:../droplet_programs/mouseKeyboard/button_press_queue.c **** 				}
+  87:../droplet_programs/mouseKeyboard/button_press_queue.c **** 			}
+  88:../droplet_programs/mouseKeyboard/button_press_queue.c **** 		}
+  89:../droplet_programs/mouseKeyboard/button_press_queue.c **** 	}
+  90:../droplet_programs/mouseKeyboard/button_press_queue.c **** 	printf("\r\n");
+ 569               		.loc 1 90 0 discriminator 3
+ 570 0130 80E0      		ldi r24,lo8(.LC6)
+ 571 0132 90E0      		ldi r25,hi8(.LC6)
+ 572               	/* epilogue start */
+  91:../droplet_programs/mouseKeyboard/button_press_queue.c **** }...
+ 573               		.loc 1 91 0 discriminator 3
+ 574 0134 DF91      		pop r29
+ 575 0136 CF91      		pop r28
+ 576 0138 1F91      		pop r17
+ 577 013a 0F91      		pop r16
+ 578 013c FF90      		pop r15
+ 579 013e EF90      		pop r14
+ 580 0140 DF90      		pop r13
+ 581 0142 CF90      		pop r12
+ 582 0144 BF90      		pop r11
+ 583 0146 AF90      		pop r10
+ 584 0148 9F90      		pop r9
+ 585 014a 8F90      		pop r8
+  90:../droplet_programs/mouseKeyboard/button_press_queue.c **** 	printf("\r\n");
+ 586               		.loc 1 90 0 discriminator 3
+ 587 014c 0C94 0000 		jmp puts
+ 588               	.L18:
+ 589               	.LBB60:
+ 590               	.LBB59:
+ 591               	.LBB56:
+  84:../droplet_programs/mouseKeyboard/button_press_queue.c **** 					printf((isprint(evt->button) ? "   `%c'" : "\\%3hu "), evt->button);
+ 592               		.loc 1 84 0
+ 593 0150 80E0      		ldi r24,lo8(.LC0)
+ 594 0152 90E0      		ldi r25,hi8(.LC0)
+ 595 0154 00C0      		rjmp .L14
+ 596               	.LBE56:
+ 597               	.LBE59:
+ 598               	.LBE60:
+ 599               		.cfi_endproc
+ 600               	.LFE59:
+ 602               		.section	.rodata.str1.1
+ 603               	.LC7:
+ 604 0056 4576 656E 		.string	"Event log error!\r"
+ 604      7420 6C6F 
+ 604      6720 6572 
+ 604      726F 7221 
+ 604      0D00 
+ 605               		.section	.text.addEvent,"ax",@progbits
+ 606               	.global	addEvent
+ 608               	addEvent:
+ 609               	.LFB58:
+  42:../droplet_programs/mouseKeyboard/button_press_queue.c **** uint8_t  addEvent(GenericEvent evt){
+ 610               		.loc 1 42 0
+ 611               		.cfi_startproc
+ 612               	.LVL20:
+ 613 0000 2F92      		push r2
+ 614               	.LCFI53:
+ 615               		.cfi_def_cfa_offset 4
+ 616               		.cfi_offset 2, -3
+ 617 0002 3F92      		push r3
+ 618               	.LCFI54:
+ 619               		.cfi_def_cfa_offset 5
+ 620               		.cfi_offset 3, -4
+ 621 0004 4F92      		push r4
+ 622               	.LCFI55:
+ 623               		.cfi_def_cfa_offset 6
+ 624               		.cfi_offset 4, -5
+ 625 0006 5F92      		push r5
+ 626               	.LCFI56:
+ 627               		.cfi_def_cfa_offset 7
+ 628               		.cfi_offset 5, -6
+ 629 0008 6F92      		push r6
+ 630               	.LCFI57:
+ 631               		.cfi_def_cfa_offset 8
+ 632               		.cfi_offset 6, -7
+ 633 000a 7F92      		push r7
+ 634               	.LCFI58:
+ 635               		.cfi_def_cfa_offset 9
+ 636               		.cfi_offset 7, -8
+ 637 000c 8F92      		push r8
+ 638               	.LCFI59:
+ 639               		.cfi_def_cfa_offset 10
+ 640               		.cfi_offset 8, -9
+ 641 000e 9F92      		push r9
+ 642               	.LCFI60:
+ 643               		.cfi_def_cfa_offset 11
+ 644               		.cfi_offset 9, -10
+ 645 0010 AF92      		push r10
+ 646               	.LCFI61:
+ 647               		.cfi_def_cfa_offset 12
+ 648               		.cfi_offset 10, -11
+ 649 0012 BF92      		push r11
+ 650               	.LCFI62:
+ 651               		.cfi_def_cfa_offset 13
+ 652               		.cfi_offset 11, -12
+ 653 0014 CF92      		push r12
+ 654               	.LCFI63:
+ 655               		.cfi_def_cfa_offset 14
+ 656               		.cfi_offset 12, -13
+ 657 0016 DF92      		push r13
+ 658               	.LCFI64:
+ 659               		.cfi_def_cfa_offset 15
+ 660               		.cfi_offset 13, -14
+ 661 0018 EF92      		push r14
+ 662               	.LCFI65:
+ 663               		.cfi_def_cfa_offset 16
+ 664               		.cfi_offset 14, -15
+ 665 001a FF92      		push r15
+ 666               	.LCFI66:
+ 667               		.cfi_def_cfa_offset 17
+ 668               		.cfi_offset 15, -16
+ 669 001c 0F93      		push r16
+ 670               	.LCFI67:
+ 671               		.cfi_def_cfa_offset 18
+ 672               		.cfi_offset 16, -17
+ 673 001e 1F93      		push r17
+ 674               	.LCFI68:
+ 675               		.cfi_def_cfa_offset 19
+ 676               		.cfi_offset 17, -18
+ 677 0020 CF93      		push r28
+ 678               	.LCFI69:
+ 679               		.cfi_def_cfa_offset 20
+ 680               		.cfi_offset 28, -19
+ 681 0022 DF93      		push r29
+ 682               	.LCFI70:
+ 683               		.cfi_def_cfa_offset 21
+ 684               		.cfi_offset 29, -20
+ 685 0024 CDB7      		in r28,__SP_L__
+ 686 0026 DEB7      		in r29,__SP_H__
+ 687               	.LCFI71:
+ 688               		.cfi_def_cfa_register 28
+ 689 0028 2C97      		sbiw r28,12
+ 690               	.LCFI72:
+ 691               		.cfi_def_cfa_offset 33
+ 692 002a CDBF      		out __SP_L__,r28
+ 693 002c DEBF      		out __SP_H__,r29
+ 694               	/* prologue: function */
+ 695               	/* frame size = 12 */
+ 696               	/* stack size = 30 */
+ 697               	.L__stack_usage = 30
+ 698 002e 8A83      		std Y+2,r24
+ 699 0030 9B83      		std Y+3,r25
+ 700               	.LVL21:
+ 701               	.LBB61:
+  47:../droplet_programs/mouseKeyboard/button_press_queue.c **** 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+ 702               		.loc 1 47 0
+ 703 0032 2FB7      		in r18,__SREG__
+ 704 0034 2A87      		std Y+10,r18
+ 705               	.LVL22:
+ 706               	.LBB62:
+ 707               	.LBB63:
+  50:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     return 1;
+ 708               		.loc 2 50 0
+ 709               	/* #APP */
+ 710               	 ;  50 "c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\
+ 711 0036 F894      		cli
+ 712               	 ;  0 "" 2
+ 713               	.LVL23:
+ 714               	/* #NOAPP */
+ 715 0038 90E0      		ldi r25,lo8(eventLog+133)
+ 716 003a 292E      		mov r2,r25
+ 717 003c 90E0      		ldi r25,hi8(eventLog+133)
+ 718 003e 392E      		mov r3,r25
+ 719 0040 83E1      		ldi r24,lo8(19)
+ 720 0042 90E0      		ldi r25,0
+ 721               	.LVL24:
+ 722 0044 8B87      		std Y+11,r24
+ 723 0046 9C87      		std Y+12,r25
+ 724 0048 9FEF      		ldi r25,lo8(-1)
+ 725 004a 9987      		std Y+9,r25
+ 726 004c 8FEF      		ldi r24,lo8(-1)
+ 727 004e 9FEF      		ldi r25,lo8(-1)
+ 728 0050 DC01      		movw r26,r24
+ 729 0052 8C83      		std Y+4,r24
+ 730 0054 9D83      		std Y+5,r25
+ 731 0056 AE83      		std Y+6,r26
+ 732 0058 BF83      		std Y+7,r27
+ 733 005a 9FEF      		ldi r25,lo8(-1)
+ 734 005c 9887      		std Y+8,r25
+ 735               	.LBE63:
+ 736               	.LBE62:
+ 737               	.LBB64:
+ 738               	.LBB65:
+ 739               	.LBB66:
+ 740               	.LBB67:
+   9:../droplet_programs/mouseKeyboard/button_press_queue.c **** 	return concurrent && sameIDorDelta && sameButtonOrMarker;
+ 741               		.loc 1 9 0
+ 742 005e 26E9      		ldi r18,lo8(-106)
+ 743 0060 822E      		mov r8,r18
+ 744 0062 912C      		mov r9,__zero_reg__
+ 745 0064 A12C      		mov r10,__zero_reg__
+ 746 0066 B12C      		mov r11,__zero_reg__
+ 747               	.LVL25:
+ 748 0068 00C0      		rjmp .L29
+ 749               	.LVL26:
+ 750               	.L45:
+ 751               	.LBE67:
+ 752               	.LBE66:
+ 753               	.LBB70:
+ 754               	.LBB71:
+  14:../droplet_programs/mouseKeyboard/button_press_queue.c **** 	return !((evt->buttonOrMarker == BUTTON_UNKNOWN) && (evt->idOrDelta == 0xFFFF));
+ 755               		.loc 1 14 0
+ 756 006a F101      		movw r30,r2
+ 757 006c 0481      		ldd r16,Z+4
+ 758 006e 1581      		ldd r17,Z+5
+ 759 0070 0F3F      		cpi r16,-1
+ 760 0072 FFEF      		ldi r31,-1
+ 761 0074 1F07      		cpc r17,r31
+ 762 0076 01F4      		brne .+2
+ 763 0078 00C0      		rjmp .L43
+ 764               	.L25:
+ 765               	.LVL27:
+ 766               	.LBE71:
+ 767               	.LBE70:
+ 768               	.LBB73:
+ 769               	.LBB68:
+   6:../droplet_programs/mouseKeyboard/button_press_queue.c **** 	uint8_t concurrent			= ((evtA->time)%MIN_MULTIPRESS_DELAY) == ((evtB->time)%MIN_MULTIPRESS_DELAY);
+ 770               		.loc 1 6 0
+ 771 007a D101      		movw r26,r2
+ 772 007c CD90      		ld r12,X+
+ 773 007e DD90      		ld r13,X+
+ 774 0080 ED90      		ld r14,X+
+ 775 0082 FC90      		ld r15,X
+ 776               	.LVL28:
+   9:../droplet_programs/mouseKeyboard/button_press_queue.c **** 	return concurrent && sameIDorDelta && sameButtonOrMarker;
+ 777               		.loc 1 9 0
+ 778 0084 EA81      		ldd r30,Y+2
+ 779 0086 FB81      		ldd r31,Y+3
+ 780 0088 6081      		ld r22,Z
+ 781 008a 7181      		ldd r23,Z+1
+ 782 008c 8281      		ldd r24,Z+2
+ 783 008e 9381      		ldd r25,Z+3
+ 784 0090 A501      		movw r20,r10
+ 785 0092 9401      		movw r18,r8
+ 786 0094 0E94 0000 		call __udivmodsi4
+ 787 0098 2B01      		movw r4,r22
+ 788 009a 3C01      		movw r6,r24
+ 789 009c C701      		movw r24,r14
+ 790 009e B601      		movw r22,r12
+ 791 00a0 A501      		movw r20,r10
+ 792 00a2 9401      		movw r18,r8
+ 793 00a4 0E94 0000 		call __udivmodsi4
+ 794 00a8 4616      		cp r4,r22
+ 795 00aa 5706      		cpc r5,r23
+ 796 00ac 6806      		cpc r6,r24
+ 797 00ae 7906      		cpc r7,r25
+ 798 00b0 01F0      		breq .L34
+ 799               	.L27:
+ 800               	.LVL29:
+ 801               	.LBE68:
+ 802               	.LBE73:
+  54:../droplet_programs/mouseKeyboard/button_press_queue.c **** 			}else if(thisEvt->time < smallestEventTime){
+ 803               		.loc 1 54 0
+ 804 00b2 8C81      		ldd r24,Y+4
+ 805 00b4 9D81      		ldd r25,Y+5
+ 806 00b6 AE81      		ldd r26,Y+6
+ 807 00b8 BF81      		ldd r27,Y+7
+ 808 00ba C816      		cp r12,r24
+ 809 00bc D906      		cpc r13,r25
+ 810 00be EA06      		cpc r14,r26
+ 811 00c0 FB06      		cpc r15,r27
+ 812 00c2 00F4      		brsh .L33
+ 813               	.LVL30:
+  56:../droplet_programs/mouseKeyboard/button_press_queue.c **** 					smallestEventIdx = i;
+ 814               		.loc 1 56 0
+ 815 00c4 EB85      		ldd r30,Y+11
+ 816 00c6 E987      		std Y+9,r30
+ 817               	.LVL31:
+ 818 00c8 CC82      		std Y+4,r12
+ 819 00ca DD82      		std Y+5,r13
+ 820 00cc EE82      		std Y+6,r14
+ 821 00ce FF82      		std Y+7,r15
+ 822               	.LVL32:
+ 823               	.L33:
+ 824 00d0 F7E0      		ldi r31,7
+ 825 00d2 2F1A      		sub r2,r31
+ 826 00d4 3108      		sbc r3,__zero_reg__
+ 827 00d6 8B85      		ldd r24,Y+11
+ 828 00d8 9C85      		ldd r25,Y+12
+ 829 00da 0197      		sbiw r24,1
+ 830 00dc 8B87      		std Y+11,r24
+ 831 00de 9C87      		std Y+12,r25
+ 832               	.LVL33:
+ 833               	.LBE65:
+  48:../droplet_programs/mouseKeyboard/button_press_queue.c **** 		for(int8_t i=(NUM_LOGGED_EVENTS-1);i>=0;i--){
+ 834               		.loc 1 48 0 discriminator 2
+ 835 00e0 0196      		adiw r24,1
+ 836 00e2 01F4      		brne .+2
+ 837 00e4 00C0      		rjmp .L44
+ 838               	.LVL34:
+ 839               	.L29:
+ 840               	.LBB76:
+ 841               	.LBB74:
+ 842               	.LBB72:
+  14:../droplet_programs/mouseKeyboard/button_press_queue.c **** 	return !((evt->buttonOrMarker == BUTTON_UNKNOWN) && (evt->idOrDelta == 0xFFFF));
+ 843               		.loc 1 14 0
+ 844 00e6 D101      		movw r26,r2
+ 845 00e8 1696      		adiw r26,6
+ 846 00ea BC91      		ld r27,X
+ 847 00ec B983      		std Y+1,r27
+ 848 00ee BB23      		tst r27
+ 849 00f0 01F4      		brne .+2
+ 850 00f2 00C0      		rjmp .L45
+ 851 00f4 EB85      		ldd r30,Y+11
+ 852 00f6 FC85      		ldd r31,Y+12
+ 853 00f8 EE0F      		lsl r30
+ 854 00fa FF1F      		rol r31
+ 855 00fc EE0F      		lsl r30
+ 856 00fe FF1F      		rol r31
+ 857 0100 EE0F      		lsl r30
+ 858 0102 FF1F      		rol r31
+ 859 0104 8B85      		ldd r24,Y+11
+ 860 0106 9C85      		ldd r25,Y+12
+ 861 0108 E81B      		sub r30,r24
+ 862 010a F90B      		sbc r31,r25
+ 863 010c E050      		subi r30,lo8(-(eventLog))
+ 864 010e F040      		sbci r31,hi8(-(eventLog))
+ 865 0110 0481      		ldd r16,Z+4
+ 866 0112 1581      		ldd r17,Z+5
+ 867 0114 00C0      		rjmp .L25
+ 868               	.L43:
+ 869               	.LVL35:
+ 870               	.LBE72:
+ 871               	.LBE74:
+  51:../droplet_programs/mouseKeyboard/button_press_queue.c **** 				openIdx = i;
+ 872               		.loc 1 51 0
+ 873 0116 AB85      		ldd r26,Y+11
+ 874 0118 A887      		std Y+8,r26
+ 875               	.LVL36:
+ 876 011a 00C0      		rjmp .L33
+ 877               	.LVL37:
+ 878               	.L34:
+ 879               	.LBB75:
+ 880               	.LBB69:
+   9:../droplet_programs/mouseKeyboard/button_press_queue.c **** 	return concurrent && sameIDorDelta && sameButtonOrMarker;
+ 881               		.loc 1 9 0
+ 882 011c AA81      		ldd r26,Y+2
+ 883 011e BB81      		ldd r27,Y+3
+ 884 0120 1496      		adiw r26,4
+ 885 0122 8D91      		ld r24,X+
+ 886 0124 9C91      		ld r25,X
+ 887 0126 1597      		sbiw r26,4+1
+ 888 0128 8017      		cp r24,r16
+ 889 012a 9107      		cpc r25,r17
+ 890 012c 01F4      		brne .L27
+ 891 012e 1696      		adiw r26,6
+ 892 0130 8C91      		ld r24,X
+ 893 0132 B981      		ldd r27,Y+1
+ 894 0134 B813      		cpse r27,r24
+ 895 0136 00C0      		rjmp .L27
+ 896               	.LBE69:
+ 897               	.LBE75:
+  53:../droplet_programs/mouseKeyboard/button_press_queue.c **** 				return 0;	
+ 898               		.loc 1 53 0
+ 899 0138 80E0      		ldi r24,0
+ 900               	.LVL38:
+ 901               	.L28:
+ 902               	.LBE76:
+ 903               	.LBE64:
+ 904               	.LBB77:
+ 905               	.LBB78:
+  70:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     __asm__ volatile ("" ::: "memory");
+ 906               		.loc 2 70 0
+ 907 013a 9A85      		ldd r25,Y+10
+ 908 013c 9FBF      		out __SREG__,r25
+ 909               	.LVL39:
+ 910               		.loc 2 71 0
+ 911               	.LVL40:
+ 912               	.L39:
+ 913               	/* epilogue start */
+ 914               	.LBE78:
+ 915               	.LBE77:
+ 916               	.LBE61:
+  71:../droplet_programs/mouseKeyboard/button_press_queue.c **** }
+ 917               		.loc 1 71 0
+ 918 013e 2C96      		adiw r28,12
+ 919 0140 CDBF      		out __SP_L__,r28
+ 920 0142 DEBF      		out __SP_H__,r29
+ 921 0144 DF91      		pop r29
+ 922 0146 CF91      		pop r28
+ 923 0148 1F91      		pop r17
+ 924 014a 0F91      		pop r16
+ 925 014c FF90      		pop r15
+ 926 014e EF90      		pop r14
+ 927 0150 DF90      		pop r13
+ 928 0152 CF90      		pop r12
+ 929 0154 BF90      		pop r11
+ 930 0156 AF90      		pop r10
+ 931 0158 9F90      		pop r9
+ 932 015a 8F90      		pop r8
+ 933 015c 7F90      		pop r7
+ 934 015e 6F90      		pop r6
+ 935 0160 5F90      		pop r5
+ 936 0162 4F90      		pop r4
+ 937 0164 3F90      		pop r3
+ 938 0166 2F90      		pop r2
+ 939 0168 0895      		ret
+ 940               	.LVL41:
+ 941               	.L44:
+ 942               	.LBB81:
+  60:../droplet_programs/mouseKeyboard/button_press_queue.c **** 		if(openIdx != 0xFF){ //This means that our array still has an open slot, so we can put the new ev
+ 943               		.loc 1 60 0
+ 944 016a B885      		ldd r27,Y+8
+ 945 016c BF3F      		cpi r27,lo8(-1)
+ 946 016e 01F4      		brne .L46
+  63:../droplet_programs/mouseKeyboard/button_press_queue.c **** 		}else if(smallestEventIdx != 0xFF){ //otherwise, put the new event over the oldest existing event
+ 947               		.loc 1 63 0
+ 948 0170 F985      		ldd r31,Y+9
+ 949 0172 FF3F      		cpi r31,lo8(-1)
+ 950 0174 01F4      		brne .L47
+ 951               	.LVL42:
+ 952               	.LBB79:
+ 953               	.LBB80:
+  70:c:\program files (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\util\atomic.h ****     __asm__ volatile ("" ::: "memory");
+ 954               		.loc 2 70 0 discriminator 3
+ 955 0176 8A85      		ldd r24,Y+10
+ 956 0178 8FBF      		out __SREG__,r24
+ 957               	.LVL43:
+ 958               		.loc 2 71 0 discriminator 3
+ 959               	.LBE80:
+ 960               	.LBE79:
+ 961               	.LBE81:
+  68:../droplet_programs/mouseKeyboard/button_press_queue.c **** 	printf("Event log error!\r\n");
+ 962               		.loc 1 68 0 discriminator 3
+ 963 017a 80E0      		ldi r24,lo8(.LC7)
+ 964 017c 90E0      		ldi r25,hi8(.LC7)
+ 965 017e 0E94 0000 		call puts
+ 966               	.LVL44:
+  69:../droplet_programs/mouseKeyboard/button_press_queue.c **** 	printEventLog();
+ 967               		.loc 1 69 0 discriminator 3
+ 968 0182 0E94 0000 		call printEventLog
+ 969               	.LVL45:
+  70:../droplet_programs/mouseKeyboard/button_press_queue.c **** 	return 0;
+ 970               		.loc 1 70 0 discriminator 3
+ 971 0186 80E0      		ldi r24,0
+ 972 0188 00C0      		rjmp .L39
+ 973               	.LVL46:
+ 974               	.L47:
+ 975               	.LBB82:
+  64:../droplet_programs/mouseKeyboard/button_press_queue.c **** 			eventLog[smallestEventIdx] = *(evt.both);
+ 976               		.loc 1 64 0
+ 977 018a 27E0      		ldi r18,lo8(7)
+ 978 018c F29F      		mul r31,r18
+ 979 018e D001      		movw r26,r0
+ 980 0190 1124      		clr __zero_reg__
+ 981               	.L40:
+ 982 0192 A050      		subi r26,lo8(-(eventLog))
+ 983 0194 B040      		sbci r27,hi8(-(eventLog))
+ 984 0196 87E0      		ldi r24,lo8(7)
+ 985 0198 EA81      		ldd r30,Y+2
+ 986 019a FB81      		ldd r31,Y+3
+ 987               		0:
+ 988 019c 0190      		ld r0,Z+
+ 989 019e 0D92      		st X+,r0
+ 990 01a0 8A95      		dec r24
+ 991 01a2 01F4      		brne 0b
+  65:../droplet_programs/mouseKeyboard/button_press_queue.c **** 			return 1;
+ 992               		.loc 1 65 0
+ 993 01a4 81E0      		ldi r24,lo8(1)
+ 994 01a6 00C0      		rjmp .L28
+ 995               	.L46:
+  61:../droplet_programs/mouseKeyboard/button_press_queue.c **** 			eventLog[openIdx] = *(evt.both);
+ 996               		.loc 1 61 0
+ 997 01a8 E7E0      		ldi r30,lo8(7)
+ 998 01aa BE9F      		mul r27,r30
+ 999 01ac D001      		movw r26,r0
+ 1000 01ae 1124      		clr __zero_reg__
+ 1001 01b0 00C0      		rjmp .L40
+ 1002               	.LBE82:
+ 1003               		.cfi_endproc
+ 1004               	.LFE58:
+ 1006               		.comm	eventLog,140,1
+ 1007               		.comm	seedFlag,1,1
+ 1008               		.comm	myPosCovar,12,1
+ 1009               		.comm	myPos,6,1
+ 1010               		.comm	processing_rnb_flag,1,1
+ 1011               		.comm	rnbCmdID,2,1
+ 1012               		.comm	numWaitingMeas,1,1
+ 1013               		.comm	memoryConsumedByMeasBuffer,2,1
+ 1014               		.comm	incMeasHead,2,1
+ 1015               		.comm	cmdArrivalDir,1,1
+ 1016               		.comm	cmdSenderId,2,1
+ 1017               		.comm	cmdArrivalTime,4,1
+ 1018               		.comm	numWaitingMsgs,1,1
+ 1019               		.comm	hpIrBlock_bm,1,1
+ 1020               		.comm	memoryConsumedByMsgBuffer,2,1
+ 1021               		.comm	incMsgHead,2,1
+ 1022               		.comm	ir_rxtx,336,1
+ 1023               		.comm	obsStart,2,1
+ 1024               		.comm	mmPerKilostep,16,1
+ 1025               		.comm	motorAdjusts,48,1
+ 1026               		.comm	curr_ir_power,2,1
+ 1027               		.comm	twi,2,1
+ 1028               		.comm	twiMaster,25,1
+ 1029               		.section	.bss.task_storage_arr,"aw",@nobits
+ 1032               	task_storage_arr:
+ 1033 0000 0000 0000 		.zero	140
+ 1033      0000 0000 
+ 1033      0000 0000 
+ 1033      0000 0000 
+ 1033      0000 0000 
+ 1034               		.comm	task_executing,1,1
+ 1035               		.comm	num_tasks,1,1
+ 1036               		.comm	task_list,2,1
+ 1037               		.comm	rtc_epoch,2,1
+ 1038               		.comm	droplet_ID,2,1
+ 1039               		.text
+ 1040               	.Letext0:
+ 1041               		.file 3 "c:\\program files (x86)\\atmel\\studio\\7.0\\toolchain\\avr8\\avr8-gnu-toolchain\\avr\\in
+ 1042               		.file 4 "C:/Program Files (x86)/Atmel/Studio/7.0/packs/atmel/XMEGAA_DFP/1.1.68/include/avr/iox128a
+ 1043               		.file 5 "../include/droplet_base.h"
+ 1044               		.file 6 "../include/scheduler.h"
+ 1045               		.file 7 "../include/i2c.h"
+ 1046               		.file 8 "../include/firefly_sync.h"
+ 1047               		.file 9 "../include/ir_comm.h"
+ 1048               		.file 10 "../include/range_algs.h"
+ 1049               		.file 11 "../include/localization.h"
+ 1050               		.file 12 "../droplet_programs/mouseKeyboard/button.h"
+ 1051               		.file 13 "../droplet_programs/mouseKeyboard/button_press_queue.h"
+ 1052               		.file 14 "../include/ir_led.h"
+ 1053               		.file 15 "../include/motor.h"
+ 1054               		.file 16 "<built-in>"
+DEFINED SYMBOLS
+                            *ABS*:00000000 button_press_queue.c
+C:\Users\John\AppData\Local\Temp\ccKCJd1t.s:2      *ABS*:0000003e __SP_H__
+C:\Users\John\AppData\Local\Temp\ccKCJd1t.s:3      *ABS*:0000003d __SP_L__
+C:\Users\John\AppData\Local\Temp\ccKCJd1t.s:4      *ABS*:0000003f __SREG__
+C:\Users\John\AppData\Local\Temp\ccKCJd1t.s:5      *ABS*:0000003b __RAMPZ__
+C:\Users\John\AppData\Local\Temp\ccKCJd1t.s:6      *ABS*:00000034 __CCP__
+C:\Users\John\AppData\Local\Temp\ccKCJd1t.s:7      *ABS*:00000000 __tmp_reg__
+C:\Users\John\AppData\Local\Temp\ccKCJd1t.s:8      *ABS*:00000001 __zero_reg__
+C:\Users\John\AppData\Local\Temp\ccKCJd1t.s:15     .text.queueInit:00000000 queueInit
+                            *COM*:0000008c eventLog
+C:\Users\John\AppData\Local\Temp\ccKCJd1t.s:72     .text.checkForEvent:00000000 checkForEvent
+C:\Users\John\AppData\Local\Temp\ccKCJd1t.s:266    .text.printEventLog:00000000 printEventLog
+C:\Users\John\AppData\Local\Temp\ccKCJd1t.s:608    .text.addEvent:00000000 addEvent
+                            *COM*:00000001 seedFlag
+                            *COM*:0000000c myPosCovar
+                            *COM*:00000006 myPos
+                            *COM*:00000001 processing_rnb_flag
+                            *COM*:00000002 rnbCmdID
+                            *COM*:00000001 numWaitingMeas
+                            *COM*:00000002 memoryConsumedByMeasBuffer
+                            *COM*:00000002 incMeasHead
+                            *COM*:00000001 cmdArrivalDir
+                            *COM*:00000002 cmdSenderId
+                            *COM*:00000004 cmdArrivalTime
+                            *COM*:00000001 numWaitingMsgs
+                            *COM*:00000001 hpIrBlock_bm
+                            *COM*:00000002 memoryConsumedByMsgBuffer
+                            *COM*:00000002 incMsgHead
+                            *COM*:00000150 ir_rxtx
+                            *COM*:00000002 obsStart
+                            *COM*:00000010 mmPerKilostep
+                            *COM*:00000030 motorAdjusts
+                            *COM*:00000002 curr_ir_power
+                            *COM*:00000002 twi
+                            *COM*:00000019 twiMaster
+C:\Users\John\AppData\Local\Temp\ccKCJd1t.s:1032   .bss.task_storage_arr:00000000 task_storage_arr
+                            *COM*:00000001 task_executing
+                            *COM*:00000001 num_tasks
+                            *COM*:00000002 task_list
+                            *COM*:00000002 rtc_epoch
+                            *COM*:00000002 droplet_ID
+
+UNDEFINED SYMBOLS
+puts
+printf
+isprint
+__udivmodsi4
+__do_copy_data
+__do_clear_bss

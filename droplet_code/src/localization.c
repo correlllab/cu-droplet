@@ -1,15 +1,9 @@
 #include "localization.h"
 
-//#define NUM_SEEDS 4
-//
-//const BotPos SEED_POS[NUM_SEEDS] = {{50,50,0}, {200,50,0}, {50,200,0}, {200,200,0}};
-//const id_t   SEED_IDS[NUM_SEEDS] = {0x7EDF, 0x1361, 0x6C66, 0x9669};
 #define NUM_SEEDS 4
 
-const BotPos SEED_POS[NUM_SEEDS] = {{0,0,0}, {-17,226, 0},{26,440,0},{0,0,0}};
-const id_t   SEED_IDS[NUM_SEEDS] = {0x6C66, 0xCCD1, 0x1361,0xFFFF};
-
-//const BotPos SEEDS[NUM_SEEDS] = {{100, 600, 0}, {600, 600, 0}, {100, 100, 0}, {600, 100, 0}};
+const BotPos SEED_POS[NUM_SEEDS] = {{225,220,0}, {500,160,0},{350,40,0},{75,100,0}};
+const id_t   SEED_IDS[NUM_SEEDS] = {0xD913, 0x3D6C, 0xAF6A, 0x9261};
 
 //The MIN and MAX values below are only needed for getPosColor.
 #define MIN_X 0
@@ -18,26 +12,23 @@ const id_t   SEED_IDS[NUM_SEEDS] = {0x6C66, 0xCCD1, 0x1361,0xFFFF};
 #define MAX_Y 150
 
 static float	chooseOmega(Matrix* myPinv, Matrix* yourPinv);
-static float	mahalanobisDistance(Vector* a, Matrix* A, Vector* b, Matrix* B);
-static void		covarIntersection(Vector* x, Matrix* P, Vector* a, Matrix* A, Vector* b, Matrix* B);
-static void		covarUnion(Vector* x, Matrix* P, Vector* a, Matrix* A, Vector* b, Matrix* B);
+
 static void		updatePos(BotPos* pos, Matrix* yourP);
 static void		getMeasCovar(Matrix* R, Vector* meas);
 static void		calcRelativePose(Vector* pose, Vector* meas);
 static void		populateGammaMatrix(Matrix* G, Vector* pos);
 static void		populateHMatrix(Matrix* H, Vector* x_me, Vector* x_you);
-static void		compressP(Matrix* P, DensePosCovar* covar);
-static void		decompressP(Matrix* P, DensePosCovar* covar);
+
 static void		prepBotMeasMsg(id_t id, uint16_t r, int16_t b, BotPos* pos, DensePosCovar* covar);
 static uint32_t getBackoffTime(uint8_t N, uint16_t r);
 static float	discreteTriangularPDF(float x, uint8_t max, uint16_t r);
 
-static const Matrix measCovarClose  = {{100, -0.75, 0.1}, {-0.75, 0.03, 0.025}, {0.1, 0.025, 0.1}};
-static const Matrix measCovarMed = {{450, 0.15, 0.75}, {0.15, 0.05, 0.1}, {0.75, 0.1, 0.25}};
-static const Matrix measCovarFar = {{2000, -5, -0.1}, {-5, 0.6, 0.5}, {-0.1, 0.5, 1.0}};
-//static const Matrix xyMeasCovarClose  = {{100, 2, 0.5}, {2, 100, 0.75}, {0.5, 0.75, 0.05}};
-//static const Matrix xyMeasCovarMed = {{500, 100, -4}, {100, 500, -0.5}, {-4, -0.5, 0.2}};
-//static const Matrix xyMeasCovarFar = {{8000, -1000, -0.25}, {-1000, 8000, -10}, {-0.25, -10, 1}};
+static const Matrix measCovarClose  = {{ 100, -0.75,   0.1}, {-0.75, 0.03, 0.025}, { 0.1, 0.025,  0.1}}; //46-80mm
+static const Matrix    measCovarMed = {{ 450,  0.15,  0.75}, { 0.15, 0.05,   0.1}, {0.75,   0.1, 0.25}}; //80-140mm
+static const Matrix    measCovarFar = {{2000,    -5,  -0.1}, {   -5,  0.6,   0.5}, {-0.1,   0.5,  1.0}}; //140-200mm
+//static const Matrix measCovarClose  = {{100, -0.75, 0.1}, {-0.75, 0.03, 0.025}, {0.1, 0.025, 0.1}}; //50-80mm
+//static const Matrix measCovarMed = {{450, 0.15, 0.75}, {0.15, 0.05, 0.1}, {0.75, 0.1, 0.25}}; //80-140mm
+//static const Matrix measCovarFar = {{2000, -5, -0.1}, {-5, 0.6, 0.5}, {-0.1, 0.5, 1.0}}; //140-210mm	
 
 void localizationInit(){
 	myPos.x = UNDF;
@@ -80,9 +71,27 @@ static float chooseOmega(Matrix* myPinv, Matrix* yourPinv){
 	return omega;
 }
 
-static float mahalanobisDistance(Vector* a, Matrix* A, Vector* b, Matrix* B){
+/*
+ * NOT Mahalanobis Distance
+ * But.. closer to that than something else?
+ * The Bhattacharyya distance might be more 'accurate' in some sense, but
+ * has the property that, given one  distribution with very large covariance
+ * and one distribution with much smaller covariance, somewhere within the
+ * region of the first distribution, the Bhattacharyya distance is quite large.
+ * This makes sense, because the distributions are, indeed, quite different.
+ * In that scenario, however, the not-Mahalabonis distance metric used below
+ * gives a small distance. THIS makes sense, too, becaus the two distributions
+ * are consistent, ie. not mutually incompatible.
+ * I had problems with covariance matrices blowing up because in the above
+ * scenario, the large distance means my method uses covariance union to fuse
+ * the two measurements, which grows the overall covariance. A small distance,
+ * on the other hand, results in covariance intersection, shrinking the overall
+ * covariance. 
+ */
+float updateDistance(Vector* a, Matrix* A, Vector* b, Matrix* B){
 	Vector a_sub_b;
 	vectorSubtract(&a_sub_b, a, b);
+	a_sub_b[2] = prettyAngle(a_sub_b[2]);
 	Matrix A_plus_B_inv;
 	matrixAdd(&A_plus_B_inv, A, B);
 	matrixInplaceInverse(&A_plus_B_inv);
@@ -91,8 +100,31 @@ static float mahalanobisDistance(Vector* a, Matrix* A, Vector* b, Matrix* B){
 	//Now, a_sub_b_normed = (A+B)^{-1} X (a-b)
 	float distance = a_sub_b[0]*a_sub_b_normed[0] + a_sub_b[1]*a_sub_b_normed[1] + a_sub_b[2]*a_sub_b_normed[2];
 	//Now, distance = (a-b)^{tr} X (A+B)^{-1} X (a-b)
-	return distance;
+	return sqrtf(distance);
 }
+
+//Bhattacharyya Distance
+//static float updateDistance(Vector* a, Matrix* A, Vector* b, Matrix* B){
+	//Vector a_sub_b;
+	//vectorSubtract(&a_sub_b, a, b);
+	//a_sub_b[2] = prettyAngle(a_sub_b[2]);
+	//Matrix Sigma;
+	//matrixAdd(&Sigma, A, B);
+	//matrixScale(&Sigma, 0.5);
+	//float detSigma = matrixDet(&Sigma);
+	//float detA     = matrixDet(A);
+	//float detB	   = matrixDet(B);
+	//matrixInplaceInverse(&Sigma);
+	//Vector a_sub_b_normed;
+	//matrixTimesVector(&a_sub_b_normed, &Sigma, &a_sub_b);
+	////Now, a_sub_b_normed = (A+B)^{-1} X (a-b)
+	//float distance = a_sub_b[0]*a_sub_b_normed[0] + a_sub_b[1]*a_sub_b_normed[1] + a_sub_b[2]*a_sub_b_normed[2];
+	//distance = distance/8.0;
+	////Now, distance = (1/8) * ( (a-b)^{tr} X (A+B)^{-1} X (a-b) );
+	//float logTerm = detSigma/sqrtf(detA*detB);
+	//distance = distance + 0.5*log(logTerm);
+	//return distance;
+//}
 
 /*
  * P is covar matrix resulting from CI of A & B (with means a & b, respectively)
@@ -101,7 +133,7 @@ static float mahalanobisDistance(Vector* a, Matrix* A, Vector* b, Matrix* B){
  * "Decentralized Multi-robot Cooperative Localization using Covariance Intersection"
  * by Luic C. Carillo-Arce et. al.
  */
-static void covarIntersection(Vector* x, Matrix* P, Vector* a, Matrix* A, Vector* b, Matrix* B){
+void covarIntersection(Vector* x, Matrix* P, Vector* a, Matrix* A, Vector* b, Matrix* B){
 	Matrix A_inv;
 	matrixInverse(&A_inv, A);
 	Matrix B_inv;
@@ -127,15 +159,17 @@ static void covarIntersection(Vector* x, Matrix* P, Vector* a, Matrix* A, Vector
  * "Generalized Covariance Union: A Unified Approach to Hypothesis Merging in Tracking"
  * by Steven Reece and Stephen Roberts
  */
-static void covarUnion(Vector* x, Matrix* U, Vector* a, Matrix* A, Vector* b, Matrix* B){
+void covarUnion(Vector* x, Matrix* U, Vector* a, Matrix* A, Vector* b, Matrix* B){
 	Vector a_dist;
 	vectorSubtract(&a_dist, x, a);
+	a_dist[2]=prettyAngle(a_dist[2]);
 	Matrix U_a;
 	vectorSquare(&U_a, &a_dist);
 	matrixAdd(&U_a, A, &U_a);
 
 	Vector b_dist;
 	vectorSubtract(&b_dist, x, b);
+	b_dist[2]=prettyAngle(b_dist[2]);
 	Matrix U_b;
 	vectorSquare(&U_b, &b_dist);
 	matrixAdd(&U_b, B, &U_b);
@@ -193,15 +227,19 @@ static void updatePos(BotPos* pos, Matrix* yourP){
 	Matrix myNewP;
 	Vector myNewPos;
 
-	float mDist = mahalanobisDistance(&xMe, &myP, &xMeFromYou, yourP);
-	mDist = sqrtf(mDist); //The way this value scales, taking the square root seems reasonable.
+
 	covarIntersection(&myNewPos, &myNewP, &xMe, &myP, &xMeFromYou, yourP);
-	if(mDist>4.0){
+	if(!positiveDefiniteQ(&myNewP)){
+		MY_POS_DEBUG_PRINT(" but covar intersection resulted in non-positive-definite P.\r\n");
+		return;
+	}
+	float updateDist = updateDistance(&xMe, &myP, &xMeFromYou, yourP);
+	if(updateDist>4.0){
 		//This mDist corresponds to a likelihood (of consistency..?) of ~0.1%
 		//Based on cumulative chi-squared distribution.
-		MY_POS_DEBUG_PRINT(" but the mahalanobis distance (%5.2f) is too large.\r\n", mDist);
+		MY_POS_DEBUG_PRINT(" but the update distance (%5.2f) is too large.\r\n", updateDist);
 		return;
-	}else if(mDist>1.0){
+	}else if(updateDist>1.0){
 		//This mDist corresponds to a likelihood (of consistency..?) of ~80%
 		//Based on cumulative chi-squared distribution.
 		covarUnion(&myNewPos, &myNewP, &xMe, &myP, &xMeFromYou, yourP);
@@ -215,7 +253,7 @@ static void updatePos(BotPos* pos, Matrix* yourP){
 	myPos.y = myNewPos[1]>8191 ? 8191 : (myNewPos[1]<-8192 ? -8192 : myNewPos[1]);
 	myPos.o = (radToDeg(myNewPos[2]) + 0.5);
 	MY_POS_DEBUG_PRINT(" giving pos {%d, %d, %d}.\r\n", myPos.x, myPos.y, myPos.o);
-	MY_POS_DEBUG_PRINT("\tMahalanobis Distance: %f\r\n", mDist);
+	MY_POS_DEBUG_PRINT("\tUpdate Distance: %f\r\n", updateDist);
 	#if defined(MY_POS_DEBUG_MODE) && defined(COVAR_DEBUG_MODE)
 		MY_POS_DEBUG_PRINT("Your Update Covar:\r\n");
 		printMatrixMathematica(yourP);
@@ -224,6 +262,19 @@ static void updatePos(BotPos* pos, Matrix* yourP){
 	#endif
 	compressP(&myNewP, &myPosCovar);
 }
+
+//Leaving this here for reference:
+//void multinormalSample(Vector* result, Vector* mean, Matrix* covar){
+	//Vector eigValues;
+	//Matrix eigVectors;
+	//eigensystem(&eigValues, &eigVectors, covar);
+	//Vector randNormSample = {randNorm(0,1), randNorm(0,1), randNorm(0,1)};
+	//Matrix diagSqrtEigValues = {{sqrt(eigValues[0]), 0, 0}, {0, sqrt(eigValues[1]), 0}, {0, 0, sqrt(eigValues[2])}};
+	//matrixTimesVector(result, &diagSqrtEigValues, &randNormSample);
+	//Vector tmp;
+	//matrixTimesVector(&tmp, &eigVectors, result);
+	//vectorAdd(result, mean, &tmp);
+//}
 
 /*
  * This function uses H, the Jacobian of the transformation matrix from an (r,b,h) measurement to 
@@ -296,7 +347,7 @@ static void populateHMatrix(Matrix* H, Vector* x_me, Vector* x_you){
 }
 
 //Takes covariance matrix P and packs it to a DensePosCovar covar.
-static void compressP(Matrix* P, DensePosCovar* covar){
+void compressP(Matrix* P, DensePosCovar* covar){
 	(*P)[0][0] = (1/8.0)*(*P)[0][0];    (*P)[0][1] = (1/16.0)*(*P)[0][1];    (*P)[0][2] =  16.0*(*P)[0][2];
 	(*P)[1][1] = (1/8.0)*(*P)[1][1];     (*P)[1][2] =  16.0*(*P)[1][2];
 	(*P)[2][2] = 256.0*(*P)[2][2];
@@ -316,7 +367,7 @@ static void compressP(Matrix* P, DensePosCovar* covar){
 }
 
 //Takes DensePosCovar covar and unpacks it to a covariance matrix P.
-static void decompressP(Matrix* P, DensePosCovar* covar){
+void decompressP(Matrix* P, DensePosCovar* covar){
 	(*P)[0][0] = (*covar)[0].u;    (*P)[0][1] = (*covar)[1].d;    (*P)[0][2] = (*covar)[2].d;
 	(*P)[1][1] = (*covar)[3].u;    (*P)[1][2] = (*covar)[4].d;
 	(*P)[2][2] = (*covar)[5].u;
@@ -355,13 +406,23 @@ void updateForMovement(__attribute__((unused)) uint8_t dir, __attribute__((unuse
  * droplet based on this droplet's position and position covariance, and the measurement.
  * It then prepares a message to be sent to the measured droplet, conveying this information.
  */
-void useRNBmeas(id_t id, uint16_t r, int16_t b, int16_t h){
+void useRNBmeas(Rnb* meas){
+	BotPos pos;
+	DensePosCovar covar;
+	uint8_t result = calcOtherBotPosFromMeas(&pos, &covar, meas);
+	if(result){
+		prepBotMeasMsg(meas->id, meas->range, meas->bearing, &pos, &covar);	
+	}
+}
+
+//returns '1' if successful, '0' otherwise.
+uint8_t calcOtherBotPosFromMeas(BotPos* pos, DensePosCovar* covar, Rnb* measStruct){
 	if(!POS_DEFINED(&myPos)){
 		POS_CALC_DEBUG_PRINT("Can't adjust others' positions until I know where I am.\r\n");
-		return;
+		return 0;
 	}
 	Vector x_me = {myPos.x, myPos.y, degToRad(myPos.o)};
-	Vector meas = {r, degToRad(b+90), degToRad(h+90)};
+	Vector meas = {measStruct->range, degToRad(measStruct->bearing+90), degToRad(measStruct->heading+90)};
 	Matrix myP;
 	decompressP(&myP, &myPosCovar);
 	Matrix G;
@@ -391,18 +452,18 @@ void useRNBmeas(id_t id, uint16_t r, int16_t b, int16_t h){
 	matrixAdd(&yourP, &tmp, &yourP);
 	
 	if(positiveDefiniteQ(&yourP)){
-		POS_CALC_DEBUG_PRINT("\t%04X @ {%6.1f, %6.1f, % 5.0f} from {% 4d, % 4d, % 4d}\r\n", id, x_you[0], x_you[1], (radToDeg(x_you[2]-M_PI_2)+0.5), r, b, h);
+		POS_CALC_DEBUG_PRINT("\t%04X @ {%6.1f, %6.1f, % 5.0f} from {% 4d, % 4d, % 4d}\r\n", measStruct->id, x_you[0], x_you[1], (radToDeg(x_you[2]-M_PI_2)+0.5), r, b, h);
 		#if defined(POS_CALC_DEBUG_MODE) && defined(COVAR_DEBUG_MODE)
 		POS_CALC_DEBUG_PRINT("Calc'd Covar:\r\n");
 		printMatrixMathematica(&yourP);
 		#endif
-		BotPos pos;
-		pos.x = x_you[0]>8191 ? 8191 : (x_you[0]<-8192 ? -8192 : x_you[0]);
-		pos.y = x_you[1]>8191 ? 8191 : (x_you[1]<-8192 ? -8192 : x_you[1]);
-		pos.o = (radToDeg(x_you[2]-M_PI_2)+0.5);
-		DensePosCovar covar;
-		compressP(&yourP, &covar);
-		prepBotMeasMsg(id, r, b, &pos, &covar);
+		pos->x = x_you[0]>8191 ? 8191 : (x_you[0]<-8192 ? -8192 : x_you[0]);
+		pos->y = x_you[1]>8191 ? 8191 : (x_you[1]<-8192 ? -8192 : x_you[1]);
+		pos->o = (radToDeg(x_you[2]-M_PI_2)+0.5);
+		compressP(&yourP, covar);
+		return 1;
+	}else{
+		return 0;
 	}
 }
 
@@ -431,7 +492,7 @@ static void prepBotMeasMsg(id_t id, uint16_t r, int16_t b, BotPos* pos, DensePos
 //long in exponential backoff.
 void sendBotMeasMsg(BotMeasMsgNode* mNode){
 	if(irIsBusy(ALL_DIRS)){
-		if(mNode->numTries>5){
+		if(mNode->numTries>6){
 			POS_MSG_DEBUG_PRINT("Giving up on msg to %04X after %hu tries.\r\n", mNode->tgt, mNode->numTries);
 			myFree(mNode);
 		}else{
@@ -487,10 +548,10 @@ static uint32_t getBackoffTime(uint8_t N, uint16_t r){
 		totalValue += discreteTriangularPDF(i, randMax, r);
 		//printf("\t%f\r\n", totalValue);
 		if(chooser<=totalValue){
-			return ((uint32_t)i)*16;
+			return ((uint32_t)i)*IR_MSG_TIMEOUT;
 		}
 	}
-	return randMax*16;
+	return randMax*IR_MSG_TIMEOUT;
 }
 
 static float discreteTriangularPDF(float x, uint8_t max, uint16_t r){
@@ -533,9 +594,9 @@ void getPosColor(uint8_t* r, uint8_t* g, uint8_t* b){
 		*g = (uint8_t)(yColVal);
 		*b = 0;
 	}else{
-		*r = 25;
-		*g = 25;
-		*b = 25;
+		*r = 10;
+		*g = 10;
+		*b = 10;
 	}
 }
 

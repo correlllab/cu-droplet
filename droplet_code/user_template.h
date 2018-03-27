@@ -13,8 +13,13 @@ uint16_t msgCount;
 
 void		init(void);
 void		loop(void);
+
 void		handleMsg(irMsg* msgStruct);
 
 void startListening(void);
 
 void startTransmitting(void);
+
+void		handleMeas(Rnb* meas);
+void		handleMsg(irMsg* msg_struct);
+

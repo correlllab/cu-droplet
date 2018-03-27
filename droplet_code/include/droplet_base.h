@@ -1,7 +1,9 @@
 #pragma once
 
+
 //#define AUDIO_DROPLET
 //#define SYNCHRONIZED
+
 #define FIX_UNPOWERED_STATE
 
 #include <avr/io.h>
@@ -14,6 +16,7 @@
 #include <math.h>
 #include <avr/pgmspace.h>
 #include <string.h>
+#include <ctype.h>
 
 typedef uint16_t id_t;
 

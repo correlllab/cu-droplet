@@ -46,7 +46,7 @@ static void clearIrBuffer(uint8_t dir){
 	ir_rxtx[dir].data_crc		= 0;
 	ir_rxtx[dir].senderID		= 0;
 	
-	ir_rxtx[dir].target_ID		= 0;	
+	ir_rxtx[dir].targetID		= 0;	
 	ir_rxtx[dir].curr_pos		= 0;
 	ir_rxtx[dir].calc_crc		= 0;
 	ir_rxtx[dir].data_length	= 0;	
@@ -96,11 +96,10 @@ void irCommInit(){
 
 	cmdArrivalTime=0;
 	numWaitingMsgs=0;
-	userFacingMessagesOvf=0;
 	processingCmdFlag = 0;
 	processingFFsyncFlag = 0;
-	incomingMsgHead = NULL;
-	memoryConsumedByBuffer = 0;
+	incMsgHead = NULL;
+	memoryConsumedByMsgBuffer = 0;
 	for(uint8_t dir=0; dir<6; dir++) clearIrBuffer(dir); //this initializes the buffer's values to 0.
 
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
@@ -129,7 +128,7 @@ void send_msg(uint8_t dirs, char *data, uint8_t dataLength, uint8_t hpFlag){
 		if(dirs&(1<<dir)){			
 			crc = _crc16_update(crc, (ir_rxtx[dir].status & IR_STATUS_CRC_BITS_bm));
 			if(!(ir_rxtx[dir].status&IR_STATUS_TIMED_bm)){
-				crc = _crc16_update(crc, ir_rxtx[dir].target_ID);
+				crc = _crc16_update(crc, ir_rxtx[dir].targetID);
 			}
 			break;
 		}	
@@ -193,6 +192,12 @@ uint32_t getExponentialBackoff(uint8_t c){
 	
 }
 
+typedef struct msg_struct{
+	char text[3];
+	uint16_t msgId;
+}Msg;
+
+
 void removeHeadAndUpdate(){
 		volatile NODE * tempNode=BUFFER_HEAD;
 		if(BUFFER_HEAD->next == BUFFER_HEAD){ //This means BUFFER_HEAD is only thing in list.
@@ -213,7 +218,7 @@ void removeHeadAndUpdate(){
  *   how much longer we expect the message to take to send, instead of the exponential backoff.
  */
 void tryAndSendMessage(){//void * msg_temp_node){
-	volatile TestMsg* data;
+	volatile Msg* data;
 	//msgNode = (NODE *)msg_temp_node;
 	if(irIsBusy(BUFFER_HEAD->channel_id)>0){// && (get_time()-first_attempt < timeout_PERIOD) && (BUFFER_HEAD->no_of_tries < 10)){
 		if(BUFFER_HEAD->no_of_tries < 10){
@@ -223,17 +228,17 @@ void tryAndSendMessage(){//void * msg_temp_node){
 			#else
 				scheduleTask(time_backoff, tryAndSendMessage, NULL);// (void *)BUFFER_HEAD);		
 			#endif
-			//uint16_t msgID = ((TestMsg*)(BUFFER_HEAD->data))->msgId;
+			uint32_t msgID = ((Msg*)(BUFFER_HEAD->data))->msgId;
 			//printf("%6u time for backoff : %10lu\r\n", msgID, time_backoff);
 		} // && get_time()-first_attempt < timeout_PERIOD)
 		else{
-			data = (TestMsg*)(BUFFER_HEAD->data);
+			data = (Msg*)(BUFFER_HEAD->data);
 			printf("\n\rERROR: VERY BUSY! MESSAGE NUMBER %u DISCARDED\n\r", data->msgId);
 			removeHeadAndUpdate();
 			if(BUFFER_HEAD){
 				scheduleTask(100, tryAndSendMessage, NULL);// (void *)BUFFER_HEAD);
 				return;
-			}
+			}			
 		}
 	}else{
 		for(uint8_t dir=0;dir<6;dir++){
@@ -241,11 +246,11 @@ void tryAndSendMessage(){//void * msg_temp_node){
 				channel[dir]->CTRLB &= ~USART_RXEN_bm;
 				ir_rxtx[dir].status = IR_STATUS_BUSY_bm;
 				if(BUFFER_HEAD->cmd_flag) ir_rxtx[dir].status |= IR_STATUS_COMMAND_bm;
-				ir_rxtx[dir].target_ID=BUFFER_HEAD->target;
+				ir_rxtx[dir].targetID=BUFFER_HEAD->target;
 			}
 		}
 		send_msg(BUFFER_HEAD->channel_id, BUFFER_HEAD->data, BUFFER_HEAD->data_length, 0);
-		data = (TestMsg*)(BUFFER_HEAD->data);
+		data = (Msg*)(BUFFER_HEAD->data);
 		
 		uint8_t dataSender = (uint8_t)(log((data->msgId)>>12)/log(2));
 		uint16_t printID = (data->msgId)&0x0FFF;
@@ -305,7 +310,7 @@ static NODE* all_ir_sends(uint8_t dir, char * str, uint8_t dataLength, id_t msgT
 	
 	
 	//printf("\n\rData = %s,Channel_ID = %u", bufferPointer->data, bufferPointer->channel_id);
-	//TestMsg* msg = (TestMsg*)(str);
+	Msg* msg = (Msg*)(str);
 	//printf("Adding (%u) at %p\r\n", msg->msgId,bufferPointer);
 	bufferPointer->no_of_tries = 1;
 	//tryAndSendMessage((void *)bufferPointer);
@@ -386,7 +391,7 @@ static uint8_t all_hp_ir_cmds(uint8_t dirs, char* data, uint8_t dataLength, id_t
 				channel[dir]->CTRLB &= ~USART_RXEN_bm;
 				ir_rxtx[dir].status = IR_STATUS_BUSY_bm | IR_STATUS_COMMAND_bm;
 				ir_rxtx[dir].status |= (timed ? IR_STATUS_TIMED_bm : 0);
-				ir_rxtx[dir].target_ID=target;
+				ir_rxtx[dir].targetID=target;
 			}
 		}
 	}
@@ -422,14 +427,14 @@ static void addMsgToMsgQueue(uint8_t dir){
 		printf_P(PSTR("ERROR! Should NOT be adding 0-length message to queue.\r\n"));
 	}else if(ir_rxtx[dir].data_length > IR_BUFFER_SIZE){
 		printf_P(PSTR("ERROR! Should NOT be adding a message with length greater than buffer size to queue.\r\n"));
-	}else if(memoryConsumedByBuffer > 500){
+	}else if(memoryConsumedByMsgBuffer > 500){
 		printf_P(PSTR("ERROR! Buffered incoming messages consuming too much memory. Allow handle_msg to be called more frequently.\r\n"));
 	}else{
-		volatile MsgNode* node = incomingMsgHead;
+		volatile MsgNode* node = incMsgHead;
 		ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-			if(incomingMsgHead==NULL){
-				incomingMsgHead = (volatile MsgNode*)myMalloc(sizeof(MsgNode)+ ir_rxtx[dir].data_length);
-				node = (MsgNode*)incomingMsgHead;
+			if(incMsgHead==NULL){
+				incMsgHead = (volatile MsgNode*)myMalloc(sizeof(MsgNode) + ir_rxtx[dir].data_length);
+				node = (MsgNode*)incMsgHead;
 			}else{
 				while(node->next != NULL){
 					node = node->next;
@@ -437,37 +442,34 @@ static void addMsgToMsgQueue(uint8_t dir){
 				node->next = (MsgNode*)myMalloc(sizeof(MsgNode) + ir_rxtx[dir].data_length);
 				node = node->next;
 			}
-			//char* dataAddr = ((char*)node + sizeof(MsgNode));
-			//memcpy(dataAddr, (const void*)ir_rxtx[dir].buf, ir_rxtx[dir].data_length);
 			memcpy(node->msg, (const void*)ir_rxtx[dir].buf, ir_rxtx[dir].data_length);
-			//node->msg			= dataAddr;
 			node->arrivalTime	= ir_rxtx[dir].last_byte;
 			node->length		= ir_rxtx[dir].data_length;
 			node->senderID		= ir_rxtx[dir].senderID;
 			node->crc			= ir_rxtx[dir].calc_crc;
 			node->next			= NULL;
-			memoryConsumedByBuffer += (sizeof(MsgNode) + ir_rxtx[dir].data_length);
+			memoryConsumedByMsgBuffer += (sizeof(MsgNode) + ir_rxtx[dir].data_length);
 			numWaitingMsgs++;
 		}
 	}
 }
 
 static void handleCompletedMsg(uint8_t dir){
-	ir_rxtx[dir].status |= ir_rxtx[dir].target_ID ? IR_STATUS_TARGETED_bm : 0;
+	ir_rxtx[dir].status |= ir_rxtx[dir].targetID ? IR_STATUS_TARGETED_bm : 0;
 	//pre checks.
 	const uint8_t crcMismatch = ir_rxtx[dir].calc_crc!=ir_rxtx[dir].data_crc;
 	const uint8_t nullCrc	  = ir_rxtx[dir].calc_crc==0;
 	const uint8_t selfSender  = ir_rxtx[dir].senderID == getDropletID();
 	const uint8_t notTimed	  = !(ir_rxtx[dir].status & IR_STATUS_TIMED_bm);
-	const uint8_t wrongTarget = (notTimed && ir_rxtx[dir].target_ID && ir_rxtx[dir].target_ID!=getDropletID());
+	const uint8_t wrongTarget = (notTimed && ir_rxtx[dir].targetID && ir_rxtx[dir].targetID!=getDropletID());
 	if(!((crcMismatch||nullCrc)||(selfSender||wrongTarget))){
 		if(ir_rxtx[dir].status & IR_STATUS_COMMAND_bm){
 			if(notTimed){
 				receivedIrCmd(dir);
 			}else{
 				switch(ir_rxtx[dir].data_length){
-					case 0: receivedIrSyncCmd(ir_rxtx[dir].target_ID, ir_rxtx[dir].last_byte, ir_rxtx[dir].senderID); break;
-					case 1: receivedRnbCmd(ir_rxtx[dir].target_ID, ir_rxtx[dir].last_byte, ir_rxtx[dir].senderID); break;
+					case 0: receivedIrSyncCmd(ir_rxtx[dir].targetID, ir_rxtx[dir].last_byte, ir_rxtx[dir].senderID); break;
+					case 1: receivedRnbCmd(ir_rxtx[dir].targetID, ir_rxtx[dir].last_byte, ir_rxtx[dir].senderID); break;
 				}
 			}
 		}else{
@@ -487,14 +489,7 @@ static void irReceive(uint8_t dir){
 	#endif	
 	
 	uint32_t now = getTime();
-	if(now-ir_rxtx[dir].last_byte > IR_MSG_TIMEOUT){
-		clearIrBuffer(dir);	
-		//if(in_byte==RTS_BYTE){
-			//TODO MAYBE?
-			//are we getting something on another channel?
-			//If so, transmit a single ANTI_CTS_BYTE in this direction.
-		//}
-	}
+	if(now-ir_rxtx[dir].last_byte > IR_MSG_TIMEOUT)	clearIrBuffer(dir);	
 	ir_rxtx[dir].last_byte = now;
 	#ifdef HARDCORE_DEBUG_DIR
 		if(dir==HARDCORE_DEBUG_DIR){
@@ -520,16 +515,19 @@ static void irReceive(uint8_t dir){
 										ir_rxtx[dir].data_length	= in_byte&DATA_LEN_VAL_bm;
 										if(ir_rxtx[dir].data_length>IR_BUFFER_SIZE) ir_rxtx[dir].data_length=1; //basically, this will cause the message to get aborted.
 																								break;
-		case HEADER_POS_TARGET_ID_LOW:  ir_rxtx[dir].target_ID		= (uint16_t)in_byte;		break;
+		case HEADER_POS_TARGET_ID_LOW:  ir_rxtx[dir].targetID		= (uint16_t)in_byte;		break;
 		case HEADER_POS_TARGET_ID_HIGH:
-										ir_rxtx[dir].target_ID	   |= (((uint16_t)in_byte)<<8);
+										ir_rxtx[dir].targetID	   |= (((uint16_t)in_byte)<<8);
 										if(!(ir_rxtx[dir].status & IR_STATUS_TIMED_bm)){
-											ir_rxtx[dir].calc_crc		= _crc16_update(ir_rxtx[dir].calc_crc, ir_rxtx[dir].target_ID);
+											ir_rxtx[dir].calc_crc		= _crc16_update(ir_rxtx[dir].calc_crc, ir_rxtx[dir].targetID);
 										}
 										break;								
 		default:
 			ir_rxtx[dir].buf[ir_rxtx[dir].curr_pos-HEADER_LEN] = in_byte;
 			ir_rxtx[dir].calc_crc = _crc16_update(ir_rxtx[dir].calc_crc, in_byte);
+	}
+	if(ir_rxtx[dir].curr_pos<HEADER_LEN){
+		ir_rxtx[dir].buf[0] = in_byte;
 	}
 	ir_rxtx[dir].curr_pos++;
 	if(ir_rxtx[dir].curr_pos>=(ir_rxtx[dir].data_length+HEADER_LEN)){
@@ -626,6 +624,21 @@ static void receivedRnbCmd(uint16_t delay, uint32_t last_byte, id_t senderID){
 // DO NOT CALL
 static volatile uint8_t next_byte;
 static void irTransmit(uint8_t dir){
+		for(uint8_t i=0;i<6;i++){
+			if((getTime() - ir_rxtx[i].last_byte) < IR_MSG_TIMEOUT){
+				char lastByteFromThisDir;
+				if((ir_rxtx[i].curr_pos-1)<HEADER_LEN){
+					lastByteFromThisDir = ir_rxtx[i].buf[0];
+				}else{
+					lastByteFromThisDir = ir_rxtx[i].buf[ir_rxtx[i].curr_pos-1-HEADER_LEN];
+				}
+				char lastByteISent = channel[dir]->DATA; //Might not be able to read from channel[dir]->data?
+				if(lastByteFromThisDir!=lastByteISent){ //This MIGHT indicate that someone else is trying to send simultaneously.
+					//Abort send and try again later?
+				}
+			}
+		}
+
 	switch(ir_rxtx[dir].curr_pos){
 		case HEADER_POS_SENDER_ID_LOW:  next_byte  = (uint8_t)(ir_rxtx[dir].senderID&0xFF);			break;
 		case HEADER_POS_SENDER_ID_HIGH: next_byte  = (uint8_t)((ir_rxtx[dir].senderID>>8)&0xFF);	break;	
@@ -636,11 +649,11 @@ static void irTransmit(uint8_t dir){
 										next_byte |= (ir_rxtx[dir].status & IR_STATUS_TIMED_bm);	break;
 		case HEADER_POS_TARGET_ID_LOW:	if((ir_rxtx[dir].status&IR_STATUS_TIMED_bm)){
 											uint32_t truncatedTime = getTime()&0xFFFF;
-											uint16_t timeGap = (truncatedTime < ir_rxtx[dir].target_ID) ? ((truncatedTime+0x10000)-truncatedTime) : (truncatedTime-ir_rxtx[dir].target_ID);
-											ir_rxtx[dir].target_ID = (timeGap>30000) ? 0xFFFF0 : timeGap;
+											uint16_t timeGap = (truncatedTime < ir_rxtx[dir].targetID) ? ((truncatedTime+0x10000)-truncatedTime) : (truncatedTime-ir_rxtx[dir].targetID);
+											ir_rxtx[dir].targetID = (timeGap>30000) ? 0xFFFF0 : timeGap;
 										}
-										next_byte  = (uint8_t)(ir_rxtx[dir].target_ID&0xFF);		break;
-		case HEADER_POS_TARGET_ID_HIGH:	next_byte = (uint8_t)((ir_rxtx[dir].target_ID>>8)&0xFF);	break;
+										next_byte  = (uint8_t)(ir_rxtx[dir].targetID&0xFF);		break;
+		case HEADER_POS_TARGET_ID_HIGH:	next_byte = (uint8_t)((ir_rxtx[dir].targetID>>8)&0xFF);	break;
 		default: next_byte = ir_rxtx[dir].buf[ir_rxtx[dir].curr_pos - HEADER_LEN];
 	}
 	channel[dir]->DATA = next_byte;
@@ -674,7 +687,7 @@ static void irTransmitComplete(uint8_t dir){
 		ir_rxtx[dir].status = 0;
 		ir_rxtx[dir].data_length = 0;
 		ir_rxtx[dir].curr_pos = 0;
-		ir_rxtx[dir].target_ID = 0;
+		ir_rxtx[dir].targetID = 0;
 		ir_rxtx[dir].senderID = 0;
 		
 		//The line below will keep irIsBusy from reporting that the communication medium is free immediately after a message has finished sending.

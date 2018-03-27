@@ -11,6 +11,10 @@
 #include "range_algs.h"
 #include "scheduler.h"
 
+typedef struct msg_struct{
+	char text[3];
+	uint16_t msgId;
+}TestMsg;
 
 //#include "firefly_sync.h"
 
@@ -36,7 +40,7 @@
 #define KEY_RIGHT		((uint16_t)0x46B9)
 
 #define IR_BUFFER_SIZE			40u //bytes
-#define IR_MSG_TIMEOUT			4 // ms  //RIYA
+#define IR_MSG_TIMEOUT			5 // ms  //RIYA //4 seems to be absolute minimum for any sending to work.
 
 #define IR_STATUS_BUSY_bm				0x01	// 0000 0001				
 #define IR_STATUS_COMPLETE_bm			0x02	// 0000 0010
@@ -67,7 +71,7 @@
 
 #define MAX_WAIT_FOR_IR_TIME (5*(IR_BUFFER_SIZE+HEADER_LEN))
 
-#define MS_DROPLET_COMM_TIME 16
+//#define MS_DROPLET_COMM_TIME 12
 
 #define MSG_DUR(len) ((((5*(len+HEADER_LEN))+1)/2))
 
@@ -95,9 +99,6 @@ typedef struct NODE {
 
 volatile NODE * BUFFER_HEAD;
 
-uint32_t MSG_PERIOD;
-
-
 volatile struct
 {	
 	volatile uint32_t last_byte;			// TX time or RX time of last received byte	
@@ -115,9 +116,10 @@ typedef struct msg_node{
 	uint32_t			arrivalTime;
 	id_t				senderID;
 	uint16_t			crc;
-	char*				msg;
+	//char*				msg;
 	struct msg_node*	next;
 	uint8_t				length;
+	char				msg[0];
 } MsgNode;
 volatile MsgNode* incomingMsgHead;
 
@@ -130,6 +132,8 @@ volatile uint8_t userFacingMessagesOvf;
 volatile uint32_t	cmdArrivalTime;
 volatile id_t		cmdSenderId;
 volatile uint8_t	cmdArrivalDir;
+
+uint32_t MS_DROPLET_COMM_TIME;
 
 void irCommInit(void);
 

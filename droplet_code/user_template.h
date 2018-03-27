@@ -1,13 +1,11 @@
 #pragma once
-
 #include "droplet_init.h"
 
-extern uint32_t return_value;
+#define RECEIVER_ID 0x3F9D
 
-typedef struct msg_struct{
-	char text[3];
-	uint16_t msgId;
-}Msg;
+uint32_t MSG_PERIOD;
+uint8_t dataCollecting;
+uint8_t startSending;
 
 uint16_t msgCount;
 //static volatile uint16_t recvArray[500];
@@ -16,3 +14,7 @@ uint16_t msgCount;
 void		init(void);
 void		loop(void);
 void		handleMsg(irMsg* msgStruct);
+
+void startListening(void);
+
+void startTransmitting(void);

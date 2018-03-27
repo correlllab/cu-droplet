@@ -193,12 +193,6 @@ uint32_t getExponentialBackoff(uint8_t c){
 	
 }
 
-typedef struct msg_struct{
-	char text[3];
-	uint16_t msgId;
-}Msg;
-
-
 void removeHeadAndUpdate(){
 		volatile NODE * tempNode=BUFFER_HEAD;
 		if(BUFFER_HEAD->next == BUFFER_HEAD){ //This means BUFFER_HEAD is only thing in list.
@@ -219,7 +213,7 @@ void removeHeadAndUpdate(){
  *   how much longer we expect the message to take to send, instead of the exponential backoff.
  */
 void tryAndSendMessage(){//void * msg_temp_node){
-	volatile Msg* data;
+	volatile TestMsg* data;
 	//msgNode = (NODE *)msg_temp_node;
 	if(irIsBusy(BUFFER_HEAD->channel_id)>0){// && (get_time()-first_attempt < timeout_PERIOD) && (BUFFER_HEAD->no_of_tries < 10)){
 		if(BUFFER_HEAD->no_of_tries < 10){
@@ -229,17 +223,17 @@ void tryAndSendMessage(){//void * msg_temp_node){
 			#else
 				scheduleTask(time_backoff, tryAndSendMessage, NULL);// (void *)BUFFER_HEAD);		
 			#endif
-			uint32_t msgID = ((Msg*)(BUFFER_HEAD->data))->msgId;
+			//uint16_t msgID = ((TestMsg*)(BUFFER_HEAD->data))->msgId;
 			//printf("%6u time for backoff : %10lu\r\n", msgID, time_backoff);
 		} // && get_time()-first_attempt < timeout_PERIOD)
 		else{
-			data = (Msg*)(BUFFER_HEAD->data);
-			printf("\n\rERROR: VERY BUSY! MESSAGE NUMBER %lu DISCARDED\n\r", data->msgId);
+			data = (TestMsg*)(BUFFER_HEAD->data);
+			printf("\n\rERROR: VERY BUSY! MESSAGE NUMBER %u DISCARDED\n\r", data->msgId);
 			removeHeadAndUpdate();
 			if(BUFFER_HEAD){
 				scheduleTask(100, tryAndSendMessage, NULL);// (void *)BUFFER_HEAD);
 				return;
-			}			
+			}
 		}
 	}else{
 		for(uint8_t dir=0;dir<6;dir++){
@@ -251,7 +245,7 @@ void tryAndSendMessage(){//void * msg_temp_node){
 			}
 		}
 		send_msg(BUFFER_HEAD->channel_id, BUFFER_HEAD->data, BUFFER_HEAD->data_length, 0);
-		data = (Msg*)(BUFFER_HEAD->data);
+		data = (TestMsg*)(BUFFER_HEAD->data);
 		
 		uint8_t dataSender = (uint8_t)(log((data->msgId)>>12)/log(2));
 		uint16_t printID = (data->msgId)&0x0FFF;
@@ -311,7 +305,7 @@ static NODE* all_ir_sends(uint8_t dir, char * str, uint8_t dataLength, id_t msgT
 	
 	
 	//printf("\n\rData = %s,Channel_ID = %u", bufferPointer->data, bufferPointer->channel_id);
-	Msg* msg = (Msg*)(str);
+	//TestMsg* msg = (TestMsg*)(str);
 	//printf("Adding (%u) at %p\r\n", msg->msgId,bufferPointer);
 	bufferPointer->no_of_tries = 1;
 	//tryAndSendMessage((void *)bufferPointer);
@@ -434,7 +428,7 @@ static void addMsgToMsgQueue(uint8_t dir){
 		volatile MsgNode* node = incomingMsgHead;
 		ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 			if(incomingMsgHead==NULL){
-				incomingMsgHead = (volatile MsgNode*)myMalloc(sizeof(MsgNode) + ir_rxtx[dir].data_length);
+				incomingMsgHead = (volatile MsgNode*)myMalloc(sizeof(MsgNode)+ ir_rxtx[dir].data_length);
 				node = (MsgNode*)incomingMsgHead;
 			}else{
 				while(node->next != NULL){
@@ -443,9 +437,10 @@ static void addMsgToMsgQueue(uint8_t dir){
 				node->next = (MsgNode*)myMalloc(sizeof(MsgNode) + ir_rxtx[dir].data_length);
 				node = node->next;
 			}
-			char* dataAddr = ((char*)node + sizeof(MsgNode));
-			memcpy(dataAddr, (const void*)ir_rxtx[dir].buf, ir_rxtx[dir].data_length);
-			node->msg			= dataAddr;
+			//char* dataAddr = ((char*)node + sizeof(MsgNode));
+			//memcpy(dataAddr, (const void*)ir_rxtx[dir].buf, ir_rxtx[dir].data_length);
+			memcpy(node->msg, (const void*)ir_rxtx[dir].buf, ir_rxtx[dir].data_length);
+			//node->msg			= dataAddr;
 			node->arrivalTime	= ir_rxtx[dir].last_byte;
 			node->length		= ir_rxtx[dir].data_length;
 			node->senderID		= ir_rxtx[dir].senderID;
@@ -492,7 +487,14 @@ static void irReceive(uint8_t dir){
 	#endif	
 	
 	uint32_t now = getTime();
-	if(now-ir_rxtx[dir].last_byte > IR_MSG_TIMEOUT)	clearIrBuffer(dir);	
+	if(now-ir_rxtx[dir].last_byte > IR_MSG_TIMEOUT){
+		clearIrBuffer(dir);	
+		//if(in_byte==RTS_BYTE){
+			//TODO MAYBE?
+			//are we getting something on another channel?
+			//If so, transmit a single ANTI_CTS_BYTE in this direction.
+		//}
+	}
 	ir_rxtx[dir].last_byte = now;
 	#ifdef HARDCORE_DEBUG_DIR
 		if(dir==HARDCORE_DEBUG_DIR){

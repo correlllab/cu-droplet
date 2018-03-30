@@ -11,7 +11,7 @@
 
 # Target file name (without extension).
 # This should match your AtmelStudio Project Name
-TARGET = droplet_riya
+TARGET = Droplets
 
 # The base directory of your Atmel Studio installation folder.
 # This serves as the base location for accessing key #include files.

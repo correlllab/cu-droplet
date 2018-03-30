@@ -9,8 +9,14 @@
 #include "pc_comm.h"
 #include "firefly_sync.h"
 #include "range_algs.h"
+#include "rgb_led.h"
 #include "scheduler.h"
 
+typedef struct msg_struct{
+	char text[3];
+	uint32_t time;
+	uint16_t msgId;
+}Msg;
 
 //#include "firefly_sync.h"
 
@@ -37,6 +43,10 @@
 
 #define IR_BUFFER_SIZE			40u //bytes
 #define IR_MSG_TIMEOUT			4 // ms  //RIYA
+#define IR_MAX_MSG_TRIES		10
+
+#define IR_MAX_MSG_ATTEMPT_DUR   (((1<<(IR_MAX_MSG_TRIES+1))-2)*IR_MSG_TIMEOUT)
+#define IR_EXP_MSG_ATTEMPT_DUR   (((1<<IR_MAX_MSG_TRIES) - 1 + (IR_MAX_MSG_TRIES>>1))*IR_MSG_TIMEOUT)
 
 #define IR_STATUS_BUSY_bm				0x01	// 0000 0001				
 #define IR_STATUS_COMPLETE_bm			0x02	// 0000 0010
@@ -65,10 +75,6 @@
 
 #define HEADER_LEN 7U
 
-#define MAX_WAIT_FOR_IR_TIME (5*(IR_BUFFER_SIZE+HEADER_LEN))
-
-#define MS_DROPLET_COMM_TIME 16
-
 #define MSG_DUR(len) ((((5*(len+HEADER_LEN))+1)/2))
 
 
@@ -83,14 +89,14 @@ volatile uint8_t busy_ch;
 
 /*Totally experimental attempt at creating dynamic buffer*/
 typedef struct NODE {
-	char* data;
-	uint8_t data_length;
-	uint8_t channel_id;
 	id_t target;
 	uint8_t cmd_flag;
 	uint8_t no_of_tries;
 	volatile struct NODE * next;
 	volatile struct NODE * prev;
+	uint8_t data_length;
+	uint8_t channel_id;	
+	char data[0];
 } NODE;
 
 volatile NODE * BUFFER_HEAD;

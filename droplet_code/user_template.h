@@ -12,6 +12,7 @@ uint8_t rxEnabled;
 
 uint16_t histogram[NUM_HISTOGRAM_BINS];
 uint16_t numSenders;
+uint8_t senderThisTime;
 uint16_t msgCount;
 //static volatile uint16_t recvArray[500];
 //static volatile uint16_t recvCount;
@@ -23,3 +24,4 @@ void		handleMsg(irMsg* msgStruct);
 void		printHistogram(void);
 void		processResults(void);
 void		printResults(void);
+

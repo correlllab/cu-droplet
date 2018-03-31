@@ -159,6 +159,11 @@ void send_msg(uint8_t dirs, char *data, uint8_t dataLength, uint8_t hpFlag){
 	/* The whole transmission will now occur in interrupts. */
 }
 
+void sendRtsByte(){
+//If this function ever actually gets pushed to master, should probably set and clear the hpIr semaphore.	
+	hpIrTargetedCmd(ALL_DIRS, ".", 66, 0);//Super hacky!
+}
+
 //dirs_to_send = 0b00111111;
 //busy_dirs = 0b00111001;
 //dirs_to_send & ~busy_dirs //== 0b00000110;
@@ -233,7 +238,6 @@ void tryAndSendMessage(){//void * msg_temp_node){
 		}
 		send_msg(BUFFER_HEAD->channel_id, BUFFER_HEAD->data, BUFFER_HEAD->data_length, 0);
 
-		
 		//uint8_t dataSender = (uint8_t)(log((data->msgId)>>12)/log(2));
 		//uint16_t printID = (data->msgId)&0x0FFF;
 		//printf("\n\rsend success %01hu %6u at %lu\r\n", dataSender, printID, getTime());
@@ -447,7 +451,12 @@ static void irReceive(uint8_t dir){
 	#endif	
 	
 	uint32_t now = getTime();
-	if(now-ir_rxtx[dir].last_byte > IR_MSG_TIMEOUT)	clearIrBuffer(dir);	
+	if(now-ir_rxtx[dir].last_byte > IR_MSG_TIMEOUT){
+		if(in_byte==RTS_BYTE){
+			printf("!");
+		}
+		clearIrBuffer(dir);	
+	}
 	ir_rxtx[dir].last_byte = now;
 	#ifdef HARDCORE_DEBUG_DIR
 		if(dir==HARDCORE_DEBUG_DIR){
@@ -576,22 +585,6 @@ static void receivedRnbCmd(uint16_t delay, uint32_t last_byte, id_t senderID){
 // DO NOT CALL
 static volatile uint8_t next_byte;
 static void irTransmit(uint8_t dir){
-	for(uint8_t i=0;i<6;i++){
-		if((getTime() - ir_rxtx[i].last_byte) < IR_MSG_TIMEOUT){
-			char lastByteFromThisDir;
-			if((ir_rxtx[i].curr_pos-1)<HEADER_LEN){
-				lastByteFromThisDir = ir_rxtx[i].buf[0];
-			}else{
-				lastByteFromThisDir = ir_rxtx[i].buf[ir_rxtx[i].curr_pos-1-HEADER_LEN];
-			}
-			uint8_t lastSent = (uint8_t)ir_rxtx[dir].last_byte;
-			printf("%hu <-> %hu\r\n", (uint8_t)lastByteFromThisDir, (uint8_t)lastSent);
-			if(lastByteFromThisDir!=lastSent){ //This MIGHT indicate that someone else is trying to send simultaneously.
-				//Abort send and try again later?
-			}
-		}
-	}
-
 	switch(ir_rxtx[dir].curr_pos){
 		case HEADER_POS_SENDER_ID_LOW:  next_byte  = (uint8_t)(ir_rxtx[dir].senderID&0xFF);			break;
 		case HEADER_POS_SENDER_ID_HIGH: next_byte  = (uint8_t)((ir_rxtx[dir].senderID>>8)&0xFF);	break;	
@@ -609,9 +602,12 @@ static void irTransmit(uint8_t dir){
 		case HEADER_POS_TARGET_ID_HIGH:	next_byte = (uint8_t)((ir_rxtx[dir].target_ID>>8)&0xFF);	break;
 		default: next_byte = ir_rxtx[dir].buf[ir_rxtx[dir].curr_pos - HEADER_LEN];
 	}
-	channel[dir]->DATA = next_byte;
-	ir_rxtx[dir].last_byte<<=8;
-	ir_rxtx[dir].last_byte |= next_byte;
+	if((ir_rxtx[dir].status & IR_STATUS_TIMED_bm) && (ir_rxtx[dir].status & IR_STATUS_COMMAND_bm) && ir_rxtx[dir].data_length==2){ //SUPER HACKY WAY TO SEND ONE BYTE.
+		channel[dir]->DATA = RTS_BYTE;
+		ir_rxtx[dir].curr_pos=(IR_BUFFER_SIZE+HEADER_LEN); //This will force the if statement below to 'true', so the message ends and is cleaned up appropriately.
+	}else{
+		channel[dir]->DATA = next_byte;
+	}
 	ir_rxtx[dir].curr_pos++;
 	/* CHECK TO SEE IF MESSAGE IS COMPLETE */
 	if(ir_rxtx[dir].curr_pos >= (ir_rxtx[dir].data_length+HEADER_LEN)){

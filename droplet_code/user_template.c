@@ -22,7 +22,6 @@ void init(){
 	printf("IR_EXP_MSG_ATTEMPT_DUR: %8u\r\n", IR_EXP_MSG_ATTEMPT_DUR);
 	printf("   HISTOGRAM_BIN_WIDTH: %8u\r\n", HISTOGRAM_BIN_WIDTH);
 	printf("\r\n");
-	setRedLED(50);
 	lastMessageSent = getTime();
 	rxEnabled = 0;
 	msgCount = 0;
@@ -32,8 +31,13 @@ void init(){
 	for(uint16_t i=0;i<NUM_HISTOGRAM_BINS;i++){
 		histogram[i] = 0;
 	}
-
-	MSG_PERIOD = 800;
+	senderThisTime= (getDropletID()==RCVR_ID) ? 1 : (randReal()<=(0./16.));
+	if(senderThisTime){
+		setRedLED(50);
+	}else{
+		setBlueLED(50);
+	}
+	MSG_PERIOD = 600;
 
 }
 
@@ -66,8 +70,9 @@ void loop(){
 	//float new_bearing, new_heading;
 	//uint16_t new_steps;
 	if(getTime()-lastMessageSent > MSG_PERIOD){
-		if(getDropletID()!=RCVR_ID){
-			sendMsg();
+		if(senderThisTime){
+			sendRtsByte();
+			//sendMsg();
 		}
 		lastMessageSent = getTime();
 	}

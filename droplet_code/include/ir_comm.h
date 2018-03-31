@@ -18,6 +18,8 @@ typedef struct msg_struct{
 	uint16_t msgId;
 }Msg;
 
+#define RTS_BYTE 0xCC
+
 //#include "firefly_sync.h"
 
 // FYI, the XMEGA128A3U has:
@@ -151,7 +153,7 @@ void waitForTransmission(uint8_t dirs);
 NODE* buffer_createNode(const char * str, uint8_t dir, uint8_t dataLength, id_t msgTarget, uint8_t cmdFlag);
 void removeHeadAndUpdate(void);
 void tryAndSendMessage(void);//void * msg_temp_node);
-
+void		sendRtsByte(void);
 void printMsgQueue(void);
 
 /*

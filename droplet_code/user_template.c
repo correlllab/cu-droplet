@@ -19,6 +19,14 @@ typedef struct droplet_messages_struct{
 }DropletMessages;
 DropletMessages msgLog[121];
 
+typedef struct messageTime{
+	
+	uint16_t timedMsgID;
+	id_t timedMsgSender;
+	uint32_t timeToSend;		
+}timedMessages;
+timedMessages timedMessage[1000];
+
 void startListening(){
 	dataCollecting = 1;
 }
@@ -70,6 +78,7 @@ void sendMsg(){
 	msg.msgId = msgCount; //| getBitMask(getDropletID());//++;					//RIYA
 	//char* msg_str;
 	//sprintf(msg_str, "Message=%s, Message_ID=%d", msg.text, msg.msgId);
+	msg.timeScheduled = getTime();
 	irSend(ALL_DIRS, (char*)(&msg), sizeof(TestMsg));
 }
 
@@ -110,11 +119,13 @@ void handleMeas(Rnb* meas){
  */
 void handleMsg(irMsg* msgStruct){
 	TestMsg* msg = (TestMsg*)(msgStruct->msg);
-
+	
+	
 	volatile uint8_t msgSender = 0;
 	//msgSender = (uint8_t)(log((msg->msgId)>>12)/log(2));
 	msgSender = getDropletOrd(msgStruct->senderID);
 	uint16_t msgID = (msg->msgId)&0x0FFF;
+	
 	
 	//uint8_t dataSender = (uint8_t)(log((data->msgId)>>12)/log(2));
 	if(!dataCollecting){
@@ -130,8 +141,14 @@ void handleMsg(irMsg* msgStruct){
 	thisDropletLog->finalMsgID = msgID;
 	
 	if(thisDropletLog->msgCount == 1) thisDropletLog->initMsgID = msgID;
-		
-	recvCount++;
+	
+	timedMessage[recvCount].timedMsgID = msgID;
+	timedMessage[recvCount].timedMsgSender = msgStruct->senderID;
+	timedMessage[recvCount].timeToSend = msg->timeSent - msg->timeScheduled;
+	
+	histogram[(msg->timeSent-msg->timeScheduled)/HISTOGRAM_BIN_WIDTH]++;
+	
+	recvCount++;										
 	if(thisDropletLog->msgCount == MAX_RECV_COUNT)
 	{ 
 		float meanSuccessRate = 0;
@@ -141,7 +158,7 @@ void handleMsg(irMsg* msgStruct){
 			//msgLog[i].msgCount = 0;
 		
 		printf("<|");
-		for(int i=0; i<121; i++){
+		for(uint8_t i=0; i<recvCount; i++){
 				
 			if(msgLog[i].msgCount>0){
 				numSenders++;
@@ -154,8 +171,18 @@ void handleMsg(irMsg* msgStruct){
 		}
 		
 		printf("|>");
-		meanSuccessRate /= numSenders;
-		//printf(",\r\n %f}\r\n",meanSuccessRate);
+		
+		
+		printf("\n<|");
+		for(uint8_t i=0; i<recvCount; i++){
+			
+				printf("\"%04hX %u\"-> %lu, ", timedMessage->timedMsgSender, timedMessage->timedMsgID,timedMessage->timeToSend);
+			}
+			
+		
+		printf("|>");
+		
+
 		dataCollecting = 0;
 	}
 	

@@ -10,6 +10,8 @@
 
 typedef struct test_msg_struct{
 	char text[3];
+	uint32_t timeScheduled;
+	uint32_t timeSent;
 	uint16_t msgId;
 }TestMsg;
 

@@ -194,6 +194,8 @@ uint32_t getExponentialBackoff(uint8_t c){
 
 typedef struct msg_struct{
 	char text[3];
+	uint32_t timeScheduled;
+	uint32_t timeSent;
 	uint16_t msgId;
 }Msg;
 
@@ -249,11 +251,14 @@ void tryAndSendMessage(){//void * msg_temp_node){
 				ir_rxtx[dir].targetID=BUFFER_HEAD->target;
 			}
 		}
+		
+		data->timeSent = getTime();
 		send_msg(BUFFER_HEAD->channel_id, BUFFER_HEAD->data, BUFFER_HEAD->data_length, 0);
 		data = (Msg*)(BUFFER_HEAD->data);
 		
 		uint8_t dataSender = (uint8_t)(log((data->msgId)>>12)/log(2));
 		uint16_t printID = (data->msgId)&0x0FFF;
+		
 		printf("\n\rsend success %01hu %6u at %lu\r\n", dataSender, printID, getTime());
 		uint32_t msgMSlen = MSG_DUR(BUFFER_HEAD->data_length);
 		//uint32_t sched_now = (last_sched + msgMSlen)%115;

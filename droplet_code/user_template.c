@@ -31,7 +31,7 @@ void init(){
 	for(uint16_t i=0;i<NUM_HISTOGRAM_BINS;i++){
 		histogram[i] = 0;
 	}
-	senderThisTime= (getDropletID()==RCVR_ID) ? 1 : (randReal()<=(0./16.));
+	senderThisTime= (getDropletID()==RCVR_ID) ? 0 : (randReal()<=(8./16.));
 	if(senderThisTime){
 		setRedLED(50);
 	}else{
@@ -71,8 +71,8 @@ void loop(){
 	//uint16_t new_steps;
 	if(getTime()-lastMessageSent > MSG_PERIOD){
 		if(senderThisTime){
-			sendRtsByte();
-			//sendMsg();
+			//sendRtsByte();
+			sendMsg();
 		}
 		lastMessageSent = getTime();
 	}

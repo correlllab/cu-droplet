@@ -1,19 +1,26 @@
+/** \file *********************************************************************
+ * \brief Droplet infrared communication subsystem functions are defined here.
+ *
+ *****************************************************************************/
 #pragma once
-
 #include "droplet_base.h"
 #include "ir_led.h"
 #include "ir_sensor.h"
 #include "pc_comm.h"
 #include "firefly_sync.h"
 #include "range_algs.h"
+#include "rgb_led.h"
 #include "scheduler.h"
 
-typedef struct test_msg_struct{
-	char text[3];
-	uint32_t timeScheduled;
-	uint32_t timeSent;
+typedef struct msg_struct{
+	char text[2];
+	//uint32_t time_scheduled;
+	//uint32_t time_sent;
+	uint8_t attempts;
 	uint16_t msgId;
-}TestMsg;
+}Msg;
+
+#define RTS_BYTE 0xCC
 
 //#include "firefly_sync.h"
 
@@ -22,7 +29,6 @@ typedef struct test_msg_struct{
 //		8 KB flash (bootloader memory)
 //		2 KB EEPROM	(permanent variables)
 //		8 KB SRAM (temporary variables)
-
 
 #define MAX_USER_FACING_MESSAGES 6
 //#define MSG_PERIOD 400
@@ -40,9 +46,12 @@ typedef struct test_msg_struct{
 #define KEY_RIGHT		((uint16_t)0x46B9)
 
 #define IR_BUFFER_SIZE			40u //bytes
+#define IR_MSG_TIMEOUT			4 // ms  //RIYA
+#define IR_MIN_PACKET_LENGTH 30
+#define IR_MAX_MSG_TRIES		6
 
-#define IR_MSG_TIMEOUT			5 // ms  //RIYA //4 seems to be absolute minimum for any sending to work.
-
+#define IR_MAX_MSG_ATTEMPT_DUR   (((1<<(IR_MAX_MSG_TRIES+1))-2)*IR_MSG_TIMEOUT)
+#define IR_EXP_MSG_ATTEMPT_DUR   (((1<<IR_MAX_MSG_TRIES) - 1 + (IR_MAX_MSG_TRIES>>1))*IR_MSG_TIMEOUT)
 
 #define IR_STATUS_BUSY_bm				0x01	// 0000 0001				
 #define IR_STATUS_COMPLETE_bm			0x02	// 0000 0010
@@ -66,15 +75,10 @@ typedef struct test_msg_struct{
 #define HEADER_POS_CRC_LOW 2
 #define HEADER_POS_CRC_HIGH 3
 #define HEADER_POS_MSG_LENGTH 4
-#define HEADER_POS_TARGET_ID_LOW 5
-#define HEADER_POS_TARGET_ID_HIGH 6
-
+#define HEADER_POS_TARGET_ID_HIGH 5
+#define HEADER_POS_TARGET_ID_LOW 6
 
 #define HEADER_LEN 7U
-
-#define MAX_WAIT_FOR_IR_TIME (5*(IR_BUFFER_SIZE+HEADER_LEN))
-
-//#define MS_DROPLET_COMM_TIME 12
 
 #define MSG_DUR(len) ((((5*(len+HEADER_LEN))+1)/2))
 
@@ -90,7 +94,7 @@ volatile uint8_t busy_ch;
 
 /*Totally experimental attempt at creating dynamic buffer*/
 typedef struct NODE {
-	char* data;
+	//char* data;
 	uint8_t data_length;
 	uint8_t channel_id;
 	id_t target;
@@ -98,16 +102,21 @@ typedef struct NODE {
 	uint8_t no_of_tries;
 	volatile struct NODE * next;
 	volatile struct NODE * prev;
+	char data[0];
 } NODE;
 
 volatile NODE * BUFFER_HEAD;
+
+uint32_t MSG_PERIOD;
+uint32_t MS_DROPLET_COMM_TIME;
+
 
 volatile struct
 {	
 	volatile uint32_t last_byte;			// TX time or RX time of last received byte	
 	volatile uint16_t data_crc;
 	volatile id_t senderID;
-	volatile id_t targetID;
+	volatile id_t target_ID;
 	volatile uint16_t curr_pos;				// Current position in buffer
 	volatile uint16_t calc_crc;
 	volatile char buf[IR_BUFFER_SIZE];		// Transmit / receive buffer		
@@ -119,22 +128,21 @@ typedef struct msg_node{
 	uint32_t			arrivalTime;
 	id_t				senderID;
 	uint16_t			crc;
+	char*				msg;
 	struct msg_node*	next;
 	uint8_t				length;
-	char				msg[0];
 } MsgNode;
-volatile MsgNode* incMsgHead;
+volatile MsgNode* incomingMsgHead;
 
-uint16_t memoryConsumedByMsgBuffer;
+uint16_t memoryConsumedByBuffer;
 
 volatile uint8_t hpIrBlock_bm;			//can only be set by other high priority ir things!
 volatile uint8_t numWaitingMsgs;
+volatile uint8_t userFacingMessagesOvf;
 
 volatile uint32_t	cmdArrivalTime;
 volatile id_t		cmdSenderId;
 volatile uint8_t	cmdArrivalDir;
-
-uint32_t MS_DROPLET_COMM_TIME;
 
 void irCommInit(void);
 
@@ -150,8 +158,10 @@ void waitForTransmission(uint8_t dirs);
 NODE* buffer_createNode(const char * str, uint8_t dir, uint8_t dataLength, id_t msgTarget, uint8_t cmdFlag);
 void removeHeadAndUpdate(void);
 void tryAndSendMessage(void);//void * msg_temp_node);
-
+void		sendRtsByte(void);
 void printMsgQueue(void);
+uint32_t getExponentialBackoff(uint8_t c);
+
 
 /*
  * dirs_mask specifies the directions a function caller is interested in.

@@ -156,24 +156,6 @@ void choleskyDecomposition(Matrix* L, Matrix* A){
 	(*L)[2][2] = sqrtf( (*A)[2][2] - powf((*L)[0][2],2) - powf((*L)[1][2],2) );
 }
 
-/*
- * Basic idea of the following function:
- *     Take a vector of 3 values sampled from a standard normal distribution, and then use
- * eigendecomposition to rotate, scale, and translate those values as needed by our actual
- * distribution. 
- */
-//void multinormalSample(Vector* result, Vector* mean, Matrix* covar){
-	//Vector eigValues;
-	//Matrix eigVectors;
-	//eigensystem(&eigValues, &eigVectors, covar);
-	//Vector randNormSample = {randNorm(0,1), randNorm(0,1), randNorm(0,1)};
-	//Matrix diagSqrtEigValues = {{sqrt(eigValues[0]), 0, 0}, {0, sqrt(eigValues[1]), 0}, {0, 0, sqrt(eigValues[2])}};
-	//matrixTimesVector(result, &diagSqrtEigValues, &randNormSample);
-	//Vector tmp;
-	//matrixTimesVector(&tmp, &eigVectors, result);
-	//vectorAdd(result, mean, &tmp);
-//}
-
 //This function assumes that the input Matrix, A, is symmetric.
 //Algorithm from "Eigenvalues of a Symmetric 3x3 Matrix", by Oliver K. Smith
 void eigenvalues(Vector* eigVals, Matrix* A){

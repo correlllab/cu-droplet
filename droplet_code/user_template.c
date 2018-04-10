@@ -1,6 +1,6 @@
 #include "user_template.h"
-//#include <inttypes.h>
-//#include <stdio.h>
+#include <inttypes.h>
+#include <stdio.h>
 
 
 uint32_t lastMessageSent;
@@ -9,7 +9,28 @@ uint32_t lastMessageSent;
 
 void sendMsg(void);
 
+// uint16_t msg028C;
+// uint16_t msgFCD0;
+// uint16_t msg8625;
+// uint16_t msg6C6F;
+// uint16_t msg5161;
+// 
+// uint16_t msgID028Cinit;
+// uint16_t msgID028Cfinal;
+// uint16_t msgID5161init;
+// uint16_t msgID5161final;
+// uint16_t msgIDFCD0init;
+// uint16_t msgIDFCD0final;
+// uint16_t msgID8625init;
+// uint16_t msgID8625final;
+// uint16_t msgID6C6Finit;
+// uint16_t msgID6C6Ffinal;
+
 uint16_t recvCount;
+//uint8_t backoffCount;
+
+uint8_t bincounts[10];
+uint8_t bins;
 
 typedef struct droplet_messages_struct{
 	uint16_t initMsgID;
@@ -19,16 +40,11 @@ typedef struct droplet_messages_struct{
 }DropletMessages;
 DropletMessages msgLog[121];
 
-typedef struct messageTime{
-	
-	uint16_t timedMsgID;
-	id_t timedMsgSender;
-	uint32_t timeToSend;		
-}timedMessages;
-timedMessages timedMessage[1000];
+
 
 void startListening(){
 	dataCollecting = 1;
+	setRGB(20,100,100);
 }
 
 void startTransmitting(){
@@ -36,7 +52,9 @@ void startTransmitting(){
 	setRGB(20,20,20);
 }
 
-//This function is called once, after all of the Droplet's systems have been initialized.
+/*
+ * any code in this function will be run once, when the robot starts.
+ */
 void init(){
 	setRedLED(50);
 	lastMessageSent = getTime();
@@ -45,54 +63,72 @@ void init(){
 	startSending=0;
 	scheduleTask(3000,startTransmitting,NULL);
 	for(int i=0; i<121; i++)
-		msgLog[i].msgCount = 0;
-		
+	msgLog[i].msgCount = 0;
+	
 	recvCount = 0;
-	MSG_PERIOD = 1100;
+	MSG_PERIOD = 800;
 	MS_DROPLET_COMM_TIME = 8;
+	//backoffCount = 1;
+	bins = 10;
+	for(int i=0; i<bins; i++)
+		bincounts[i] = 0;
 
 }
+
+uint32_t getBitMask(id_t id){
+	switch(id){
+		//case 0x73AF: return 0x10000;
+		case 0x028C: return 0x00010000;
+		case 0x5161: return 0x00008000;
+		case 0xFCD0: return 0x00004000;
+		case 0x8625: return 0x00002000;
+		case 0x6C6F: return 0x00001000;
+		default: return 0;
+	}
+}
+
 
 void setMsgPeriod(uint32_t value){
 	MSG_PERIOD = value;
 	
-	if(value>= 700){
-		setHSV((value/10),250,50);
-	}
-	else if(value >= 600)
+	if(value >= 600)
 	setHSV(50,250,50);
 	else if(value >= 500)
-	setHSV(25,250,50);
+	setHSV(100,250,50);
 	else if(value >= 400)
 	setHSV(0,250,50);
 }
 
 void sendMsg(){
-	TestMsg msg;
+	Msg msg;
 	msg.text[0]= 'H';
 	msg.text[1]='i';
-	msg.text[2]='.';
+	//msg.text[2]='.';
 	
 	//msg.text="Hi.";
 	msgCount = (msgCount + 1)%0x0FFF;/*%2000+4000;// + 2000;//65534;*/
 	msg.msgId = msgCount; //| getBitMask(getDropletID());//++;					//RIYA
 	//char* msg_str;
 	//sprintf(msg_str, "Message=%s, Message_ID=%d", msg.text, msg.msgId);
-	msg.timeScheduled = getTime();
-	irSend(ALL_DIRS, (char*)(&msg), sizeof(TestMsg));
+	//msg.time_scheduled = getTime();
+	msg.attempts = 0;
+	irSend(ALL_DIRS, (char*)(&msg), sizeof(Msg));
 }
 
 /*
- * This function is called repeatedly, as fast as it can. Note that this droplet can only
- * receive new rnb measurements or ir messages after this function returns. Things work
- * better if you let it return frequently.
+ * the code in this function will be called repeatedly, as fast as it can execute.
  */
+
+
+
 void loop(){
 
 	if(startSending){
 		if(getTime()-lastMessageSent > MSG_PERIOD){
 			//if(getDropletID()!=RECEIVER_ID){
-				sendMsg();
+			sendMsg();
+			//if(backoffCount<10)
+				//printf("\n\rMaximum backoff = %u",getExponentialBackoff(backoffCount++));
 			
 			//}
 			lastMessageSent = getTime();
@@ -105,20 +141,14 @@ void loop(){
 }
 
 /*
- * This function is called once for every range and bearing measurement this droplet has
- * received since the last time loop returned.
+ * after each pass through loop(), the robot checks for all messages it has 
+ * received, and calls this function once for each message.
  */
-void handleMeas(Rnb* meas){
-
-}
 
 
-/*
- * This function is called once for every message this droplet has received since the last
- * time loop returned, after handleMeas is called for any rnb measurements received.
- */
+
 void handleMsg(irMsg* msgStruct){
-	TestMsg* msg = (TestMsg*)(msgStruct->msg);
+	Msg* msg = (Msg*)(msgStruct->msg);
 	
 	
 	volatile uint8_t msgSender = 0;
@@ -132,9 +162,12 @@ void handleMsg(irMsg* msgStruct){
 		return;
 	}
 	//if(getDropletID()!=RECEIVER_ID){
-		//return;
+	//return;
 	//}
-	printf("Got %04hX %6u at %lu\r\n", getIdFromOrd(msgSender), msgID, getTime());
+
+	//printf("\n\rGot %04hX %6u at %lu\r\n. Time scheduled: %lu, time sent: %lu", getIdFromOrd(msgSender), msgID, getTime(), msg->time_scheduled, msg->time_sent);
+	printf("Got %04hX %6u at %lu. Attempt no.:%u\r\n", getIdFromOrd(msgSender), msgID, getTime(),msg->attempts);
+	bincounts[msg->attempts]++;
 	DropletMessages *thisDropletLog = &msgLog[getDropletOrd(msgStruct->senderID)];
 
 	thisDropletLog->msgCount++;
@@ -142,24 +175,20 @@ void handleMsg(irMsg* msgStruct){
 	
 	if(thisDropletLog->msgCount == 1) thisDropletLog->initMsgID = msgID;
 	
-	timedMessage[recvCount].timedMsgID = msgID;
-	timedMessage[recvCount].timedMsgSender = msgStruct->senderID;
-	timedMessage[recvCount].timeToSend = msg->timeSent - msg->timeScheduled;
 	
-	histogram[(msg->timeSent-msg->timeScheduled)/HISTOGRAM_BIN_WIDTH]++;
 	
-	recvCount++;										
+	recvCount++;
 	if(thisDropletLog->msgCount == MAX_RECV_COUNT)
-	{ 
+	{
 		float meanSuccessRate = 0;
 		uint8_t numSenders =0;
 		
 		//for(int i=0; i<121; i++)
-			//msgLog[i].msgCount = 0;
+		//msgLog[i].msgCount = 0;
 		
 		printf("<|");
-		for(uint8_t i=0; i<recvCount; i++){
-				
+		for(uint8_t i=0; i<121; i++){
+			
 			if(msgLog[i].msgCount>0){
 				numSenders++;
 				msgLog[i].success_rate = (float)msgLog[i].msgCount/(float)((msgLog[i].finalMsgID-msgLog[i].initMsgID) + 1);
@@ -167,21 +196,16 @@ void handleMsg(irMsg* msgStruct){
 				//printf("{%04hX, %f}, ", getIdFromOrd(i), msgLog[i].success_rate);
 				printf("\"%04hX\"-> %f, ", getIdFromOrd(i), msgLog[i].success_rate);
 			}
-				
+			
 		}
 		
 		printf("|>");
 		
-		
-		printf("\n<|");
-		for(uint8_t i=0; i<recvCount; i++){
-			
-				printf("\"%04hX %u\"-> %lu, ", timedMessage->timedMsgSender, timedMessage->timedMsgID,timedMessage->timeToSend);
-			}
-			
-		
-		printf("|>");
-		
+		printf("\n\rbincounts3 = {");
+		for(int i=0;i<bins-1;i++)
+			printf("%u,",bincounts[i]);
+		printf("%u};",bincounts[bins-1]);
+		printf("\n\rbins3 = Range[0,%u];",bins-1);
 
 		dataCollecting = 0;
 	}
@@ -232,23 +256,6 @@ uint8_t userHandleCommand(char* command_word, char* command_args){
 	}
 	return 0;
 }
-/* The two functions below are optional; they do not have to be defined. If they are defined, 
- * they will be called in response to the appropriate events.
- 
- optional - commenting it in can be useful for debugging if you want to query
- *	user variables over a serial connection.
- */
 
-/* If defined, this function will be called when the microphone detects a sharp rising edge.
- * In practice, this works well for things like detecting claps or someone tapping on the 
- * Droplet's shell.
- */
-//void userMicInterrupt(){}
 
-/*
- * If defined, this function will be called with any serial commandWords that do not match
- * other commands serial_handler.c checks for. See the serial_handler documentation for
- * details on commandWord and commandArgs.
- */
-//uint8_t userHandleCommand(char* commandWord, char* commandArgs){}
-
+//WROTE THIS RIGHT NOW

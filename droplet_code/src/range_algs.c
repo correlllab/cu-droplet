@@ -68,7 +68,6 @@ float calculate_error(float r, float b, float h);
 static int16_t processBrightMeas(void);
 
 static float magicRangeFunc(float a);
-static void addMeasToMeasQueue(Rnb* meas);
 //static float invMagicRangeFunc(float r);
 
 //static void print_brightMeas(void);
@@ -81,9 +80,6 @@ void rangeAlgsInit(){
 		}
 	}
 	rnbCmdID=0;
-	incMeasHead = NULL;
-	numWaitingMeas = 0;
-	memoryConsumedByMeasBuffer = 0;
 	processing_rnb_flag=0;
 }
 
@@ -123,69 +119,40 @@ void broadcastRnbData(){
 	}
 }
 
-uint8_t checkErrorAndPrint(float range, float bearing, float heading){
-	float error = calculate_error(range, bearing, heading);
-	//printf("\t[%04X] %4u % 4d % 4d | %6.2f", rnbCmdID, (uint16_t)range, (int16_t)radToDeg(bearing), (int16_t)radToDeg(heading), error);
-	if((range<110 && error>1.0) || (range<200 && error>1.5) || (range>200)){
-		ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-			processing_rnb_flag=0;
-		}
-		//printf(" <!>\r\n");
-		return 0;
-	}else{
-		//printf("\r\n");
-		return 1;
-	}
-}
-
 void useRnbData(){
 	//uint32_t start = get_time();
 	int16_t matrixSum = processBrightMeas();
 	//if(rand_byte()%2) broadcastBrightMeas();
 	float bearing, heading;
+	float error;
 	calculate_bearing_and_heading(&bearing, &heading);
 	float initialRange = magicRangeFunc(matrixSum/2.0739212652);
 	if(initialRange!=0&&!isnanf(initialRange)){	
 		float range = calculate_range(initialRange, bearing, heading);
 		if(!isnanf(range)){
 			if(range<2*DROPLET_RADIUS) range=46;
-			if(checkErrorAndPrint(range, bearing, heading)){
-				Rnb meas;
-				
-				meas.id = rnbCmdID;
-				meas.range		= (uint16_t)(range);
-				meas.bearing	= (int16_t)radToDeg(bearing);
-				meas.heading	= (int16_t)radToDeg(heading);
-				addMeasToMeasQueue(&meas);
+			error = calculate_error(range, bearing, heading);
+			//printf("\t[%04X] %4u % 4d % 4d | %6.2f", rnbCmdID, (uint16_t)range, (int16_t)rad_to_deg(bearing), (int16_t)rad_to_deg(heading), error);
+			if((range<110 && error>1.0) || (range<200 && error>1.5) || (range>200)){
+				ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+					processing_rnb_flag=0;
+				}
+				//printf(" <!>\r\n");
+				return;
+			}else{
+				//printf("\r\n");
 			}
+			
+			last_good_rnb.id = rnbCmdID;
+			last_good_rnb.range		= (uint16_t)(range);
+			last_good_rnb.bearing	= (int16_t)radToDeg(bearing);
+			last_good_rnb.heading	= (int16_t)radToDeg(heading);
+			//print_brightMeas();
+			rnb_updated=1;
 		}
 	}
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 		processing_rnb_flag=0;
-	}
-}
-
-static void addMeasToMeasQueue(Rnb* meas){
-	if(memoryConsumedByMeasBuffer > 100){
-		printf_P(PSTR("ERROR! Buffered incoming measurements consuming too much memory. Allow loop() to return more frequently!\r\n"), memoryConsumedByMeasBuffer);
-	}else{
-		ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-			MeasNode* node = (MeasNode*)incMeasHead;
-			if(incMeasHead==NULL){
-				incMeasHead = (volatile MeasNode*)myMalloc(sizeof(MeasNode));
-				node = (MeasNode*)incMeasHead;
-			}else{
-				while(node->next != NULL){
-					node = node->next;
-				}
-				node->next = (MeasNode*)myMalloc(sizeof(MeasNode));
-				node = node->next;
-			}
-			node->meas = *meas;
-			node->next = NULL;
-			memoryConsumedByMeasBuffer += (sizeof(MeasNode));
-			numWaitingMeas++;
-		}
 	}
 }
 

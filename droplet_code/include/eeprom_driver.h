@@ -1,4 +1,3 @@
-#pragma once
 /** \file *********************************************************************
 * XMEGA EEPROM Driver                                                  
 *                                                                      
@@ -29,7 +28,14 @@
 * SOFTWARE.                                                            
 *                                                                      
 ************************************************************************/
-#include "droplet_base.h"
+#pragma once
+
+#include <avr/io.h>
+#include <avr/interrupt.h>
+
+#ifndef __AVR_XMEGA__
+#include <avr/eeprom.h>
+#endif // __AVR_XMEGA__
 
 #ifndef EEPROM_PAGE_SIZE
 #define EEPROM_PAGE_SIZE E2PAGESIZE

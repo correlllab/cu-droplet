@@ -175,7 +175,7 @@ static void add_task_to_list(volatile Task_t* task){
 // Remove a task from the task queue
 void removeTask(volatile Task_t* task){
 	if((task<task_storage_arr)||(task>(&(task_storage_arr[MAX_NUM_SCHEDULED_TASKS-1])))){
-		printf("ERROR: Asked to removeTask for task pointer outside the bounds of task_storage_arr.\r\n");
+		printf("ERROR: Asked to remove_task for task pointer outside the bounds of task_storage_arr.\r\n");
 		return;
 	}
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){

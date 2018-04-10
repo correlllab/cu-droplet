@@ -9,8 +9,6 @@
 #define DROPLET_RADIUS_SQ 484U //mm
 #define DROPLET_DIAMETER 44 //mm
 
-#define MAX_USER_FACING_MEASUREMENTS 6
-
 //Synchronization Timing Constants:
 #define POST_BROADCAST_DELAY			30U
 #define TIME_FOR_SET_IR_POWERS			2U
@@ -38,17 +36,11 @@ typedef struct rnb_data {
 	int16_t bearing;
 	int16_t heading;
 	id_t id;
-}Rnb;
+} rnb;
 
-typedef struct rnb_data_node{
-	Rnb					  meas;
-	struct rnb_data_node* next;
-} MeasNode;
-volatile MeasNode* incMeasHead;
 
-uint16_t memoryConsumedByMeasBuffer;
-
-uint8_t numWaitingMeas;
+rnb last_good_rnb;
+volatile uint8_t rnb_updated;
 volatile id_t rnbCmdID;
 volatile uint8_t processing_rnb_flag;
 

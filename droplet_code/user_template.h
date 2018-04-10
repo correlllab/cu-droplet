@@ -1,29 +1,38 @@
 #pragma once
+
 #include "droplet_init.h"
 
-#define RECEIVER_ID 0x3F9D
+extern uint32_t return_value;
 
-#define MSG_MAX_TIME 8192 
-#define HISTOGRAM_BINS 256
-#define HISTOGRAM_BIN_WIDTH (MSG_MAX_TIME/HISTOGRAM_BINS)
+uint8_t rxEnabled;
 
-uint32_t MSG_PERIOD;
+
 uint8_t dataCollecting;
 uint8_t startSending;
-uint8_t histogram[HISTOGRAM_BINS];
+
+//typedef struct msg_struct{
+	//char text[3];
+	//uint16_t msgId;
+//}testMsg;
+
+#define HISTOGRAM_SLOTS 32
+#define NUM_HISTOGRAM_BINS (HISTOGRAM_SLOTS+2)
+#define HISTOGRAM_BIN_WIDTH ((IR_MAX_MSG_ATTEMPT_DUR+(2*IR_MSG_TIMEOUT))/HISTOGRAM_SLOTS)
+
+uint16_t histogram[NUM_HISTOGRAM_BINS];
+uint16_t numSenders;
+uint8_t senderThisTime;
 uint16_t msgCount;
 //static volatile uint16_t recvArray[500];
 //static volatile uint16_t recvCount;
 
 void		init(void);
 void		loop(void);
-
+void		handleMsgTime(uint32_t time);
 void		handleMsg(irMsg* msgStruct);
-
-void startListening(void);
+void		printHistogram(void);
+void		processResults(void);
+void		printResults(void);
 
 void startTransmitting(void);
-
-void		handleMeas(Rnb* meas);
-void		handleMsg(irMsg* msg_struct);
-
+void setMsgPeriod(uint32_t value);

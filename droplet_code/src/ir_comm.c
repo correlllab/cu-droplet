@@ -168,7 +168,7 @@ void sendRtsByte(){
 //busy_dirs = 0b00111001;
 //dirs_to_send & ~busy_dirs //== 0b00000110;
 
-
+//Random back-off at beginning of each slot if channel busy. If channel idle, transmission with 100% probability.
 
 uint32_t getExponentialBackoff(uint8_t c){
 	

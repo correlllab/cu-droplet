@@ -81,7 +81,7 @@ static void checkMessages(void){
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){ //We want to amke sure that this block doesn't get interrupted by stuff trying to add more messages to the buffer.
 		uint16_t crc;
 		while(incomingMsgHead != NULL){
-			MsgNode* node = (MsgNode*)incomingMsgHead;
+			IncMsgNode* node = (IncMsgNode*)incomingMsgHead;
 			if(node->length==0){
 				printf_P(PSTR("ERROR: Message length 0 for msg_node.\r\n"));
 			}
@@ -93,20 +93,15 @@ static void checkMessages(void){
 			msgStruct.length		= node->length;
 			crc						= node->crc;
 			
-			//While we let user code handle the message we want interrupts to be back on. At this point everything relevant has been copied out of the buffer.
-			NONATOMIC_BLOCK(NONATOMIC_RESTORESTATE){ 
-				handleMsg(&msgStruct);
-			}
-			
-			MsgNode* tmp = node;
-			MsgNode* deleteMe;
+			IncMsgNode* tmp = node;
+			IncMsgNode* deleteMe;
 			while(tmp->next !=NULL){
 				uint8_t crcMatches = (tmp->next->crc == crc);
 				uint8_t closeTimes = (abs((int32_t)(tmp->next->arrivalTime) - (int32_t)(msgStruct.arrivalTime))) < 30;
 				if(crcMatches && closeTimes){
 					deleteMe = tmp->next;
 					tmp->next = tmp->next->next;
-					memoryConsumedByBuffer -= (sizeof(MsgNode) + msgStruct.length);
+					memoryConsumedByBuffer -= (sizeof(IncMsgNode) + msgStruct.length);
 					numWaitingMsgs--;
 					myFree(deleteMe);
 				}else{
@@ -114,10 +109,16 @@ static void checkMessages(void){
 				}
 
 			}
-			incomingMsgHead = (volatile MsgNode*)(node->next);
+			incomingMsgHead = (volatile IncMsgNode*)(node->next);
 			numWaitingMsgs--;
-			memoryConsumedByBuffer -= (sizeof(MsgNode) + msgStruct.length);
+			memoryConsumedByBuffer -= (sizeof(IncMsgNode) + msgStruct.length);
+			printf("checkMessages(): memoryConsumedByBuffer=%u and  Data length = %hu\r\n",memoryConsumedByBuffer, msgStruct.length);	//RIYA
 			myFree(node);
+			
+			//While we let user code handle the message we want interrupts to be back on. At this point everything relevant has been copied out of the buffer.
+			NONATOMIC_BLOCK(NONATOMIC_RESTORESTATE){
+				handleMsg(&msgStruct);
+			}
 		}
 	}
 }

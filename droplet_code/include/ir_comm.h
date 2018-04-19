@@ -13,11 +13,12 @@
 #include "scheduler.h"
 
 typedef struct msg_struct{
-	char text[2];
+	//char text[2];
 	//uint32_t time_scheduled;
 	//uint32_t time_sent;
 	uint8_t attempts;
 	uint16_t msgId;
+	char text[];
 }Msg;
 
 #define RTS_BYTE 0xCC
@@ -45,7 +46,7 @@ typedef struct msg_struct{
 #define KEY_LEFT		((uint16_t)0xA659)
 #define KEY_RIGHT		((uint16_t)0x46B9)
 
-#define IR_BUFFER_SIZE			40u //bytes
+#define IR_BUFFER_SIZE			41u //bytes
 #define IR_MSG_TIMEOUT			4 // ms  //RIYA
 #define IR_MIN_PACKET_LENGTH 30
 #define IR_MAX_MSG_TRIES		6
@@ -80,9 +81,6 @@ typedef struct msg_struct{
 
 #define HEADER_LEN 7U
 
-#define MSG_DUR(len) ((((5*(len+HEADER_LEN))+1)/2))
-
-
 #ifdef AUDIO_DROPLET
 	extern ADC_CH_t* ir_sense_channels[6];
 #endif
@@ -93,26 +91,27 @@ volatile uint8_t busy_ch;
 
 
 /*Totally experimental attempt at creating dynamic buffer*/
-typedef struct NODE {
+typedef struct out_msg_node_struct {
 	//char* data;
 	uint8_t data_length;
 	uint8_t channel_id;
 	id_t target;
 	uint8_t cmd_flag;
 	uint8_t no_of_tries;
-	volatile struct NODE * next;
-	volatile struct NODE * prev;
+	struct out_msg_node_struct * next;
+	struct out_msg_node_struct * prev;
 	char data[0];
-} NODE;
+} OutMsgNode;
 
-volatile NODE * BUFFER_HEAD;
+OutMsgNode * outgoingMsgHead;
 
 uint32_t MSG_PERIOD;
 uint32_t MS_DROPLET_COMM_TIME;
 
 
-volatile struct
-{	
+//If we want to consume less RAM, we could tweak how ir_rxtx stores messages.. 
+//especially for outgoing messages, we're often storing six copies of the same thing.
+volatile struct{
 	volatile uint32_t last_byte;			// TX time or RX time of last received byte	
 	volatile uint16_t data_crc;
 	volatile id_t senderID;
@@ -131,8 +130,8 @@ typedef struct msg_node{
 	char*				msg;
 	struct msg_node*	next;
 	uint8_t				length;
-} MsgNode;
-volatile MsgNode* incomingMsgHead;
+} IncMsgNode;
+volatile IncMsgNode* incomingMsgHead;
 
 uint16_t memoryConsumedByBuffer;
 
@@ -148,14 +147,14 @@ void irCommInit(void);
 
 void handleCmdWrapper(void);
 
-NODE* irTargetedCmd(uint8_t dirs, char *data, uint8_t data_length, id_t target);
-NODE* irCmd(uint8_t dirs, char *data, uint8_t data_length);
-NODE* irTargetedSend(uint8_t dirs, char *data, uint8_t data_length, id_t target);
-NODE* irSend(uint8_t dirs, char *data, uint8_t dataLength);
+OutMsgNode* irTargetedCmd(uint8_t dirs, char *data, uint8_t data_length, id_t target);
+OutMsgNode* irCmd(uint8_t dirs, char *data, uint8_t data_length);
+OutMsgNode* irTargetedSend(uint8_t dirs, char *data, uint8_t data_length, id_t target);
+OutMsgNode* irSend(uint8_t dirs, char *data, uint8_t dataLength);
 uint8_t hpIrCmd(uint8_t dirs, char *data, uint8_t data_length);
 uint8_t hpIrTargetedCmd(uint8_t dirs, char *data, uint8_t data_length, id_t target);
 void waitForTransmission(uint8_t dirs);
-NODE* buffer_createNode(const char * str, uint8_t dir, uint8_t dataLength, id_t msgTarget, uint8_t cmdFlag);
+OutMsgNode* buffer_createNode(const char * str, uint8_t dir, uint8_t dataLength, id_t msgTarget, uint8_t cmdFlag);
 void removeHeadAndUpdate(void);
 void tryAndSendMessage(void);//void * msg_temp_node);
 void		sendRtsByte(void);

@@ -42,12 +42,12 @@ DropletMessages msgLog[121];
 
 
 
-void startListening(){
+void startListening(void){
 	dataCollecting = 1;
 	setRGB(20,100,100);
 }
 
-void startTransmitting(){
+void startTransmitting(void){
 	startSending = 1;
 	setRGB(20,20,20);
 }
@@ -101,18 +101,20 @@ void setMsgPeriod(uint32_t value){
 
 void sendMsg(){
 	Msg msg;
-	msg.text[0]= 'H';
-	msg.text[1]='i';
-	//msg.text[2]='.';
+	//msg.text[0]= 'H';
+	//msg.text[1]='i';
+	////msg.text[2]='.';
 	
 	//msg.text="Hi.";
+	memcpy(msg.text, "Hi", 3);
+	
 	msgCount = (msgCount + 1)%0x0FFF;/*%2000+4000;// + 2000;//65534;*/
 	msg.msgId = msgCount; //| getBitMask(getDropletID());//++;					//RIYA
 	//char* msg_str;
 	//sprintf(msg_str, "Message=%s, Message_ID=%d", msg.text, msg.msgId);
 	//msg.time_scheduled = getTime();
 	msg.attempts = 0;
-	irSend(ALL_DIRS, (char*)(&msg), sizeof(Msg));
+	irSend(ALL_DIRS, (char*)(&msg), sizeof(Msg)+3);
 }
 
 /*
@@ -232,6 +234,7 @@ uint8_t userHandleCommand(char* command_word, char* command_args){
 		startSending = 1;	
 		return 1;
 	}else if(strcmp_P(command_word,PSTR("start_listen"))==0){
+		setRGB(0,0,20);
 		dataCollecting = 1;
 		return 1;
 	}else if(strcmp_P(command_word,PSTR("stop_send"))==0){

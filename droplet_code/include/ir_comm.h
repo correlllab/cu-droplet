@@ -1,8 +1,5 @@
-/** \file *********************************************************************
- * \brief Droplet infrared communication subsystem functions are defined here.
- *
- *****************************************************************************/
 #pragma once
+
 #include "droplet_base.h"
 #include "ir_led.h"
 #include "ir_sensor.h"
@@ -27,10 +24,6 @@ typedef struct msg_struct{
 //		8 KB flash (bootloader memory)
 //		2 KB EEPROM	(permanent variables)
 //		8 KB SRAM (temporary variables)
-
-#define MAX_USER_FACING_MESSAGES 6
-//#define MSG_PERIOD 400
-
 #define KEY_POWER		((uint16_t)0x40BF)
 #define KEY_CH_UP		((uint16_t)0x48B7)
 #define KEY_CH_DOWN		((uint16_t)0xC837)
@@ -44,11 +37,9 @@ typedef struct msg_struct{
 #define KEY_RIGHT		((uint16_t)0x46B9)
 
 #define IR_BUFFER_SIZE			40u //bytes
+
 #define IR_MSG_TIMEOUT			4 // ms  //RIYA
 #define IR_MAX_MSG_TRIES		10
-
-#define IR_MAX_MSG_ATTEMPT_DUR   (((1<<(IR_MAX_MSG_TRIES+1))-2)*IR_MSG_TIMEOUT)
-#define IR_EXP_MSG_ATTEMPT_DUR   (((1<<IR_MAX_MSG_TRIES) - 1 + (IR_MAX_MSG_TRIES>>1))*IR_MSG_TIMEOUT)
 
 #define IR_STATUS_BUSY_bm				0x01	// 0000 0001				
 #define IR_STATUS_COMPLETE_bm			0x02	// 0000 0010
@@ -72,8 +63,9 @@ typedef struct msg_struct{
 #define HEADER_POS_CRC_LOW 2
 #define HEADER_POS_CRC_HIGH 3
 #define HEADER_POS_MSG_LENGTH 4
-#define HEADER_POS_TARGET_ID_HIGH 5
-#define HEADER_POS_TARGET_ID_LOW 6
+#define HEADER_POS_TARGET_ID_LOW 5
+#define HEADER_POS_TARGET_ID_HIGH 6
+
 
 #define HEADER_LEN 7U
 
@@ -111,7 +103,7 @@ volatile struct
 	volatile uint32_t last_byte;			// TX time or RX time of last received byte	
 	volatile uint16_t data_crc;
 	volatile id_t senderID;
-	volatile id_t target_ID;
+	volatile id_t targetID;
 	volatile uint16_t curr_pos;				// Current position in buffer
 	volatile uint16_t calc_crc;
 	volatile char buf[IR_BUFFER_SIZE];		// Transmit / receive buffer		
@@ -123,17 +115,16 @@ typedef struct msg_node{
 	uint32_t			arrivalTime;
 	id_t				senderID;
 	uint16_t			crc;
-	char*				msg;
 	struct msg_node*	next;
 	uint8_t				length;
+	char				msg[0];
 } MsgNode;
-volatile MsgNode* incomingMsgHead;
+volatile MsgNode* incMsgHead;
 
-uint16_t memoryConsumedByBuffer;
+uint16_t memoryConsumedByMsgBuffer;
 
 volatile uint8_t hpIrBlock_bm;			//can only be set by other high priority ir things!
 volatile uint8_t numWaitingMsgs;
-volatile uint8_t userFacingMessagesOvf;
 
 volatile uint32_t	cmdArrivalTime;
 volatile id_t		cmdSenderId;

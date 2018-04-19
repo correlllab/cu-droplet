@@ -1,16 +1,6 @@
-/** \file *********************************************************************
- * \brief Droplet initialization routines and global macros are defin3d here.
- * 
- * It is highly recommended to include ONLY this header file in any user level
- * droplet rather than including header files for each of the subsystems
- * independently.
- * 
- *
- *****************************************************************************/
 #pragma once
 
 //#define INIT_DEBUG_MODE
-
 #ifdef INIT_DEBUG_MODE
 #define INIT_DEBUG_PRINT(x) printf(x)
 #else
@@ -51,7 +41,10 @@ typedef struct ir_msg_struct
 extern void init(void);
 extern void loop(void);
 extern void handleMsg(irMsg* msg_struct);
+extern void handleMeas(Rnb* meas);
 extern uint8_t userHandleCommand(char* commandWord, char* commandArgs);
+extern void userMicInterrupt(void);
+
 
 void startupLightSequence(void);
 uint8_t getDropletOrd(id_t id);

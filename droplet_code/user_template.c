@@ -15,7 +15,7 @@ uint8_t loop_count = 0;
 uint8_t stopmsg_sent = 0;
 uint8_t averaged = 0;
 
-int16_t last_heading;
+float last_heading;
 int32_t last_x;
 int32_t last_y;
 int8_t receive_count = 0;
@@ -24,6 +24,8 @@ int32_t average_x = 0;
 int32_t average_y = 0;
 
 int32_t avg_range = 0;
+
+int8_t move_count = 0;
 
 void curve_fit_check(uint8_t count){
 	//if((getDropletID() == ORIGIN_DROPLET_ID) && (loop_count == 0)){
@@ -91,6 +93,7 @@ void sendSpeedMsg(SpeedMsgNode* msgNode){
 	}else{
 		irSend(ALL_DIRS, (char*)(&(msgNode->msg)), sizeof(radiusCenterStruct));
 		myFree(msgNode);
+		lastMessageTime = getTime();
 		printf("Message Sent!\r\n");
 	}
 }
@@ -151,7 +154,8 @@ void handleMsg(irMsg* msgStruct){
 				avg_range/=read_count;
 				calculate_Center(measLog, read_count);
 				calculate_Radius(measLog, read_count);
-				change_axes();
+				calculate_heading(measLog);
+				change_axes(measLog);
 				printf("\nCenter and Radius calculations done. \r\n");
 
 				//send_Radius_Center(&radius_center_calc_struct);
@@ -222,9 +226,10 @@ void take_Rnb_Reading(CircleMeas *meas_log){
 	last_heading = last_good_rnb.heading;
 	//last_update->y = meas_log->y;
 	//last_update->x = meas_log->x;
+	
 	avg_range += last_good_rnb.range;
-	last_x = meas_log->x;
-	last_y = meas_log->y;
+//	last_x = meas_log->x;
+//	last_y = meas_log->y;
 	printf("{{%u, %d, %d}, {%ld, %ld}, %lu},\r\n",last_good_rnb.range, last_good_rnb.bearing, last_good_rnb.heading, meas_log->x, meas_log->y, time_data);
 	//printf("\r\nReading %hu\tCoordinates (%d,%d)\tTime - %lu\r\n",read_count,meas_log->x,meas_log->y,time_data);
 	//printf("%d, (%ld, %ld), (%ld, %ld)\r\n", last_heading, last_x, last_y, meas_log->x, meas_log->y);
@@ -330,19 +335,67 @@ void calculate_Radius(CircleMeas* meas_log, uint8_t count){
 	
 }
 
-void change_axes(void){
+void calculate_heading(CircleMeas *meas_log){
+	
+	float heading = 0 , head_check = 0, pi = 3.141;
+	printf("Last heading: %f\n\r", degToRad(last_heading));
+	
+	printf("{%d, %d}, {%ld, %ld}, {%ld, %ld}\n\r", radius_center_calc_struct.center_x, radius_center_calc_struct.center_y, meas_log[read_count-1].x, meas_log[read_count -1].y, meas_log[read_count-2].x, meas_log[read_count-2].y );	
+	
+	float tan_slope1 = ((float)( radius_center_calc_struct.center_x - meas_log[read_count-1].x))/((float)(meas_log[read_count - 1].y - radius_center_calc_struct.center_y));
+	float tan_slope2 = ((float)( meas_log[read_count-2].y - meas_log[read_count-1].y))/((float)( meas_log[read_count-2].x - meas_log[read_count-1].x));
+	printf("tan_slope1: %f\n\r", tan_slope1);	
+	printf("tan_slope2: %f\n\r", tan_slope2);	
+	heading = atan(tan_slope1);
+	head_check = atan(tan_slope2);
+
+	
+	if(heading < 0)
+			heading = pi + heading;
+	if(head_check < 0)
+		head_check = pi + head_check;		
+	
+	printf("Heading: %f\n\r", (heading));
+	printf("Head check: %f\n\r", (head_check));		
+	
+	if(head_check > heading){
+		if((head_check - heading) < (float)pi/2 )
+			last_heading = pi + heading;
+		else 
+			last_heading = heading; 
+	}
+	else{
+		if((heading - head_check) < (float)pi/2)
+			last_heading = pi + heading;
+		else
+			last_heading = heading;
+	}		
+	/*if ((((head_check - heading) < (float)(pi/2)) && ((head_check - heading) > 0)) || (((heading - head_check) < (float)(pi/2))  && ((heading - head_check) >0 )) )
+		last_heading = heading;
+	else
+		last_heading = pi - heading;*/
+	
+
+	//printf("read_count: %d\n\r", read_count);	
+	printf("Last heading: %f\n\r", (float)(last_heading));	
+								
+							
+}
+
+void change_axes(CircleMeas *meas_log){
 	float a1, b1, a2, b2;
 	int32_t prev_x = radius_center_calc_struct.center_x;
 	int32_t prev_y = radius_center_calc_struct.center_y;
 	
-	float cos_val = cos(degToRad(last_heading));
-	float sin_val = sin(degToRad(last_heading));
-	a1 = ((prev_x - last_x)*cos_val);
-	b1 = ((prev_y - last_y)*sin_val);
-	a2 = ((last_x - prev_x)*sin_val);
-	b2 = ((prev_y - last_y)*cos_val);
+	float cos_val = cos(last_heading);
+	float sin_val = sin(last_heading);
+	a1 = ((prev_x - meas_log[read_count-1].x)*cos_val);
+	b1 = ((prev_y - meas_log[read_count-1].y)*sin_val);
+	a2 = ((meas_log[read_count-1].x - prev_x)*sin_val);
+	b2 = ((prev_y - meas_log[read_count-1].x)*cos_val);
 	radius_center_calc_struct.center_x = (int32_t)(a1+b1);
 	radius_center_calc_struct.center_y = (int32_t)(a2+b2);
+	printf("(%ld, %ld), (%ld, %ld), %f, (%f, %f), (%f, %f), (%f, %f)\n\r", meas_log[read_count-1].x, meas_log[read_count-1].y, prev_x, prev_y, last_heading, cos_val, sin_val, a1, b1, a2, b2);
 	printf("New coordinates:(%d, %d)\n\r", radius_center_calc_struct.center_x, radius_center_calc_struct.center_y);
 }
 
@@ -357,7 +410,7 @@ void send_message(char msgFlag){
 void startMove(uint8_t dir, uint16_t numSteps){
 	send_message(START_MESSAGE_FLAG);
 	waitForTransmission(ALL_DIRS);
-	moveSteps(dir, numSteps);
+	//moveSteps(dir, numSteps);
 	scheduleTask(90000, stopMove, NULL);
 }
 
@@ -373,8 +426,7 @@ void init(void){
 	last_heading = 100 ;
 	
 	change_axes();
-*/	
-	
+*/		
 	if( getDropletID() == MOVING_DROPLET_ID ){
 		lastMessageTime = 0;
 		
@@ -399,7 +451,7 @@ void init(void){
 			motorAdjusts[0][2] = -1000;
 		}
 
-		startMove(0,150);
+		begun = 0;
 		setRGB(100,0,0);
 	}else{
 		read_count = 0;		
@@ -413,28 +465,36 @@ void loop(void){
 
 	/********************** MOVING_DROPLET LOOP CODE ******************/
 	if(( getDropletID() == MOVING_DROPLET_ID )){
-		if(stop_time!=0){
+		if(!begun && (getTime() > 2000)){
+			startMove(0,150);
+			begun = 1;
+		}
+		
+
+		if(isMoving() == -1 && move_count <20){
+			
+			if(getTime()-lastBroadcastTime > RNB_BROADCAST_PERIOD){
+				setRGB(0,100,0);
+				broadcastRnbData();
+				lastBroadcastTime = getTime();
+				move_count++;
+				moveSteps(0,5);
+			}
+		}else if(!irIsBusy(ALL_DIRS) && move_count == 20){
+			if(getTime()-lastMessageTime > MESSAGE_PERIOD && stopmsg_sent < 20){
+				send_message(STOP_MESSAGE_FLAG);
+				setRGB(0,0,100);
+				stopmsg_sent++;
+				stop_time = getTime();
+			}
+		
 			if((getTime() - stop_time) > WAIT_TIME && averaged == 0){
 				printf("Averaging..\r\n");
 				average_cicfit();
 				averaged = 1;
 			}
 		}
-		if(isMoving() != -1){
-			if(getTime()-lastBroadcastTime > RNB_BROADCAST_PERIOD){
-				setRGB(0,100,0);
-				broadcastRnbData();
-				lastBroadcastTime = getTime();
-			}
-		}else if(!irIsBusy(ALL_DIRS)){
-			if(getTime()-lastMessageTime > MESSAGE_PERIOD && stopmsg_sent < 5){
-				send_message(STOP_MESSAGE_FLAG);
-				setRGB(0,0,100);
-				lastMessageTime = getTime();
-				stopmsg_sent++;
-				stop_time = getTime();
-			}
-		}
+
 	}else{
 	/******************** ORIGIN_DROPLET LOOP CODE ******************/		
 		if((start_msg == START_MESSAGE_FLAG) && (stop_msg == 0)){

@@ -46,7 +46,7 @@ typedef struct speed_msg_node_struct{
 	uint8_t numTries;
 }SpeedMsgNode;
 
-
+uint8_t begun;
 uint32_t lastMessageTime;
 CircleMeas measLog[MAX_NUM_MEAS]; //initialize to UNDF
 radiusCenterStruct radius_center_struct; // struct for receiving radius and center.
@@ -60,11 +60,12 @@ void calculate_Radius(CircleMeas* meas_log, uint8_t count);
 void send_message(char msgFlag);
 void startMove(uint8_t dir, uint16_t numSteps);
 void curve_fit_check(uint8_t count);
-void change_axes(void);
+void change_axes(CircleMeas *meas_log);
 void average_cicfit(void);
 void sendSpeedMsg(SpeedMsgNode* msgNode);
 void prepSpeedMsg(void);
 uint32_t getExponentialBackoff(uint8_t c);
+void calculate_heading(CircleMeas *meas_log);
 
 void init(void);
 void loop(void);

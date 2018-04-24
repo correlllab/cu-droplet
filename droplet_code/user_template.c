@@ -345,7 +345,7 @@ void calculate_heading(CircleMeas *meas_log){
 	float tan_slope1 = ((float)( radius_center_calc_struct.center_x - meas_log[read_count-1].x))/((float)(meas_log[read_count - 1].y - radius_center_calc_struct.center_y));
 	float tan_slope2 = ((float)( meas_log[read_count-2].y - meas_log[read_count-1].y))/((float)( meas_log[read_count-2].x - meas_log[read_count-1].x));
 	printf("tan_slope1: %f\n\r", tan_slope1);	
-	printf("tan_slope2: %f\n\r", tan_slope2);	
+	printf("tan_slope2: %f\n\r", tan_slope2);
 	heading = atan(tan_slope1);
 	head_check = atan(tan_slope2);
 
@@ -381,6 +381,7 @@ void calculate_heading(CircleMeas *meas_log){
 								
 							
 }
+
 
 void change_axes(CircleMeas *meas_log){
 	float a1, b1, a2, b2;

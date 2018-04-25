@@ -58,11 +58,22 @@ static void initAllSystems(void){
 	irCommInit();				INIT_DEBUG_PRINT("IR COM INIT\r\n");
 }
 
+void initWrapper(void){
+	init();
+}
+
+void loopWrapper(void){
+	loop();
+}
+void handleMsgWrapper(irMsg* msg_struct){
+	handleMsg(msg_struct);
+}
+
 int main(void){
 	initAllSystems();
-	init();
+	initWrapper();
 	while(1){
-		loop();
+		loopWrapper();
 		checkMessages();
 		if(taskListCheck()){
 			printf_P(PSTR("Error! We got ahead of the task list and now nothing will execute.\r\n"));
@@ -73,6 +84,8 @@ int main(void){
 	}
 	return 0;
 }
+
+
 
 /*
  * This function loops through all messages this robot has received since the last call
@@ -109,7 +122,7 @@ static void checkMessages(void){
 					//handle_serial_comm(&msgStruct);
 					handle_reprogramming(&msgStruct);
 				} 
-				else handleMsg(&msgStruct);
+				else handleMsgWrapper(&msgStruct);
 			}
 			
 			MsgNode* tmp = node;
@@ -211,21 +224,20 @@ void handle_reprogramming(irMsg *msg_struct_hex)
 		for(int j=0; j<Numberofbytes; j++)
 		{
 			printf("%02hx ", FlashBuffer[j]);
-			if((j%16 == 0)&&(j != 0)) printf("\r\n");
+			if((j%15 == 0)&&(j != 0)) printf("\r\n");
 		}
 		printf("\r\n");
 		printf("About to write. Address: %lu and line num : %d\r\n\r\n\r\n", targetAddr, number_of_hex);
 		nvm_flash_erase_and_write_buffer(targetAddr, FlashBuffer, Numberofbytes, 1);
-		
+		delayMS(500);
 		nvm_flash_read_buffer(targetAddr, FlashBuffer, Numberofbytes);
 		for(int j=0; j<Numberofbytes; j++)
 		{
 			printf("%02hx ", FlashBuffer[j]);
-			if((j%16 == 0)&&(j != 0)) printf("\r\n");
+			if((j%15 == 0)&&(j != 0)) printf("\r\n");
 		}
 		printf("\r\n");
-		printf("Done");
-		delayMS(500);
+		
 		reprogramming=0;
 		printf("Came in num hex is zero!!!!!!!!!!!!!!!!!!!!");
 		firstmessage_flag =0;			// Done with all messages

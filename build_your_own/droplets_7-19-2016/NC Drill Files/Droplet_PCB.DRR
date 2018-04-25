@@ -1,0 +1,19 @@
+----------------------------------------------------------------------------------------------------------------------------------
+NCDrill File Report For: Droplet_PCB.PcbDoc   7/19/2016  2:46:44 PM
+----------------------------------------------------------------------------------------------------------------------------------
+
+Layer Pair : Component Side to Solder Side
+ASCII RoundHoles File : Droplet_PCB.TXT
+
+Tool       Hole Size               Hole Tolerance               Hole Type       Hole Count   Plated         Tool Travel
+----------------------------------------------------------------------------------------------------------------------------------
+T1      8mil (0.203mm)                                            Round             195       PTH        17.24inch (437.98mm)
+T2      24mil (0.6mm)                                             Round             8         PTH        2.94inch (74.61mm)
+T3      32mil (0.813mm)                                           Round             18        PTH        3.71inch (94.21mm)
+T4      35mil (0.9mm)                                             Round             4         PTH        0.30inch (7.62mm)
+T5      49mil (1.25mm)                                            Round             2         PTH        0.21inch (5.30mm)
+T6      67mil (1.7mm)                                             Round             3         PTH        2.06inch (52.35mm)
+----------------------------------------------------------------------------------------------------------------------------------
+Totals                                                                              230
+
+Total Processing Time (hh:mm:ss) : 00:00:00

@@ -166,7 +166,7 @@ BOOTSECTIONSTART = 0x20000
 LDFLAGS = -Wl,-Map=$(TARGET).map,--cref
 LDFLAGS += $(EXTMEMOPTS)
 LDFLAGS += $(PRINTF_LIB) $(SCANF_LIB) $(MATH_LIB)
-LDFLAGS += -Wl,--gc-sections -Wl,-section-start=.BOOT=$(BOOTSECTIONSTART),-section-start=.USERCODE=0xc000 
+LDFLAGS += -Wl,--gc-sections -Wl,-section-start=.BOOT=$(BOOTSECTIONSTART),-section-start=.usrtxt=0xc000 
 
 
 

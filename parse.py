@@ -2,7 +2,7 @@ from __future__ import print_function
 import serial
 import time
 
-port = "COM3"
+port = "COM14"
 baud = 115200
 
 ser = serial.Serial(port, baud, bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE,timeout=2)
@@ -19,9 +19,9 @@ def my_func(Port):
 	#Port.write("reprog_begin\n")
 	#time.sleep(1)
 	rec = []
-	with open('C:/Users/niharika/Documents/Atmel Studio/7.0/cu-droplet-master/droplet_code/build/My_Droplets.lss','r') as ref:
+	with open('C:/Users/niharika/Documents/Atmel Studio/7.0/cu-droplet-master/droplet_code/build/Droplets_1.lss','r') as ref:
 		for linesLSS in ref:
-			if ".USERCODE" in linesLSS:
+			if ".usrtxt" in linesLSS:
 				store = linesLSS.split()
 				section = store[1]
 				size = store[2]
@@ -45,7 +45,7 @@ def my_func(Port):
 	Port.write(first_msg)	
 	time.sleep(1)
 	
-	with open('C:/Users/niharika/Documents/Atmel Studio/7.0/cu-droplet-master/droplet_code/build/My_Droplets.hex','r') as hexFile:
+	with open('C:/Users/niharika/Documents/Atmel Studio/7.0/cu-droplet-master/droplet_code/build/Droplets_1.hex','r') as hexFile:
 		for linesHEX in hexFile:
 			linesHEX = linesHEX.strip(':')
 			if (linesHEX[2:6] == start_address):

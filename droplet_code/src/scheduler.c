@@ -1,5 +1,7 @@
 #include "scheduler.h"
 
+static volatile Task_t task_storage_arr[MAX_NUM_SCHEDULED_TASKS];
+
 static volatile Task_t* schedule_task_absolute_time(uint32_t time, FlexFunction function, void* arg);
 static void add_task_to_list(volatile Task_t* task);
 static int8_t run_tasks(void);

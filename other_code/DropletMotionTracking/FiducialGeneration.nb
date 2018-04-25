@@ -1,0 +1,668 @@
+(* Content-type: application/vnd.wolfram.mathematica *)
+
+(*** Wolfram Notebook File ***)
+(* http://www.wolfram.com/nb *)
+
+(* CreatedBy='Mathematica 11.0' *)
+
+(*CacheID: 234*)
+(* Internal cache information:
+NotebookFileLineBreakTest
+NotebookFileLineBreakTest
+NotebookDataPosition[       158,          7]
+NotebookDataLength[     26696,        660]
+NotebookOptionsPosition[     25384,        611]
+NotebookOutlinePosition[     25997,        635]
+CellTagsIndexPosition[     25954,        632]
+WindowFrame->Normal*)
+
+(* Beginning of Notebook Content *)
+Notebook[{
+
+Cell[CellGroupData[{
+Cell[BoxData[
+ RowBox[{"SetOptions", "[", 
+  RowBox[{"Graphics", ",", 
+   RowBox[{"BaseStyle", "\[Rule]", 
+    RowBox[{"{", 
+     RowBox[{
+      RowBox[{"FontFamily", "\[Rule]", "\"\<Braciola MS Extrabold\>\""}], ",", 
+      RowBox[{"FontSize", "\[Rule]", "85"}]}], "}"}]}], ",", 
+   RowBox[{"PlotRangePadding", "\[Rule]", "None"}], ",", 
+   RowBox[{"ImagePadding", "\[Rule]", "None"}], ",", 
+   RowBox[{"ImageSize", "\[Rule]", "168"}], ",", 
+   RowBox[{"PlotRange", "\[Rule]", 
+    RowBox[{"{", 
+     RowBox[{
+      RowBox[{"{", 
+       RowBox[{
+        RowBox[{"-", "0.6"}], ",", "0.6"}], "}"}], ",", 
+      RowBox[{"{", 
+       RowBox[{
+        RowBox[{"-", "0.6"}], ",", "0.6"}], "}"}]}], "}"}]}]}], 
+  "]"}]], "Input",
+ CellChangeTimes->{{3.6882578130966873`*^9, 3.6882578523021545`*^9}, {
+  3.688258798574046*^9, 3.6882587987502146`*^9}, {3.6882597196783495`*^9, 
+  3.6882597202939377`*^9}, {3.6882598620627604`*^9, 3.688259867750196*^9}, {
+  3.6882599045985765`*^9, 3.68825991263826*^9}, {3.6882599630864716`*^9, 
+  3.688259963182564*^9}, {3.688260217694121*^9, 3.6882602199743*^9}, {
+  3.6882602649753075`*^9, 3.6882602653346496`*^9}, {3.6882602958388023`*^9, 
+  3.6882603114937625`*^9}, {3.6882603594786158`*^9, 3.688260371261876*^9}, {
+  3.688260418294219*^9, 3.6882604508623433`*^9}, {3.688261523022196*^9, 
+  3.6882615680942698`*^9}, {3.688261697805724*^9, 3.688261768758531*^9}, {
+  3.6882619060468698`*^9, 3.688261937278688*^9}}],
+
+Cell[BoxData[
+ RowBox[{"{", 
+  RowBox[{
+   RowBox[{"AlignmentPoint", "\[Rule]", "Center"}], ",", 
+   RowBox[{"AspectRatio", "\[Rule]", "Automatic"}], ",", 
+   RowBox[{"Axes", "\[Rule]", "False"}], ",", 
+   RowBox[{"AxesLabel", "\[Rule]", "None"}], ",", 
+   RowBox[{"AxesOrigin", "\[Rule]", "Automatic"}], ",", 
+   RowBox[{"AxesStyle", "\[Rule]", 
+    RowBox[{"{", "}"}]}], ",", 
+   RowBox[{"Background", "\[Rule]", "None"}], ",", 
+   RowBox[{"BaselinePosition", "\[Rule]", "Automatic"}], ",", 
+   RowBox[{"BaseStyle", "\[Rule]", 
+    RowBox[{"{", 
+     RowBox[{
+      RowBox[{"FontFamily", "\[Rule]", "\<\"Braciola MS Extrabold\"\>"}], ",", 
+      RowBox[{"FontSize", "\[Rule]", "85"}]}], "}"}]}], ",", 
+   RowBox[{"ColorOutput", "\[Rule]", "Automatic"}], ",", 
+   RowBox[{"ContentSelectable", "\[Rule]", "Automatic"}], ",", 
+   RowBox[{"CoordinatesToolOptions", "\[Rule]", "Automatic"}], ",", 
+   RowBox[{"DisplayFunction", "\[RuleDelayed]", "$DisplayFunction"}], ",", 
+   RowBox[{"Epilog", "\[Rule]", 
+    RowBox[{"{", "}"}]}], ",", 
+   RowBox[{"FormatType", "\[RuleDelayed]", "TraditionalForm"}], ",", 
+   RowBox[{"Frame", "\[Rule]", "False"}], ",", 
+   RowBox[{"FrameLabel", "\[Rule]", "None"}], ",", 
+   RowBox[{"FrameStyle", "\[Rule]", 
+    RowBox[{"{", "}"}]}], ",", 
+   RowBox[{"FrameTicks", "\[Rule]", "Automatic"}], ",", 
+   RowBox[{"FrameTicksStyle", "\[Rule]", 
+    RowBox[{"{", "}"}]}], ",", 
+   RowBox[{"GridLines", "\[Rule]", "None"}], ",", 
+   RowBox[{"GridLinesStyle", "\[Rule]", 
+    RowBox[{"{", "}"}]}], ",", 
+   RowBox[{"ImageMargins", "\[Rule]", "0.`"}], ",", 
+   RowBox[{"ImagePadding", "\[Rule]", "None"}], ",", 
+   RowBox[{"ImageSize", "\[Rule]", "168"}], ",", 
+   RowBox[{"ImageSizeRaw", "\[Rule]", "Automatic"}], ",", 
+   RowBox[{"LabelStyle", "\[Rule]", 
+    RowBox[{"{", "}"}]}], ",", 
+   RowBox[{"Method", "\[Rule]", "Automatic"}], ",", 
+   RowBox[{"PlotLabel", "\[Rule]", "None"}], ",", 
+   RowBox[{"PlotRange", "\[Rule]", 
+    RowBox[{"{", 
+     RowBox[{
+      RowBox[{"{", 
+       RowBox[{
+        RowBox[{"-", "0.6`"}], ",", "0.6`"}], "}"}], ",", 
+      RowBox[{"{", 
+       RowBox[{
+        RowBox[{"-", "0.6`"}], ",", "0.6`"}], "}"}]}], "}"}]}], ",", 
+   RowBox[{"PlotRangeClipping", "\[Rule]", "False"}], ",", 
+   RowBox[{"PlotRangePadding", "\[Rule]", "None"}], ",", 
+   RowBox[{"PlotRegion", "\[Rule]", "Automatic"}], ",", 
+   RowBox[{"PreserveImageOptions", "\[Rule]", "Automatic"}], ",", 
+   RowBox[{"Prolog", "\[Rule]", 
+    RowBox[{"{", "}"}]}], ",", 
+   RowBox[{"RotateLabel", "\[Rule]", "True"}], ",", 
+   RowBox[{"Ticks", "\[Rule]", "Automatic"}], ",", 
+   RowBox[{"TicksStyle", "\[Rule]", 
+    RowBox[{"{", "}"}]}]}], "}"}]], "Output",
+ CellChangeTimes->{{3.6882615632286196`*^9, 3.6882615689801164`*^9}, {
+   3.6882617028835764`*^9, 3.6882617180590796`*^9}, {3.688261750261854*^9, 
+   3.6882617691328893`*^9}, {3.6882619280288467`*^9, 3.688261937620013*^9}, 
+   3.688319063315797*^9}]
+}, Open  ]],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"creamColor", "=", 
+   RowBox[{"Lighter", "[", 
+    RowBox[{"RGBColor", "[", 
+     RowBox[{
+      RowBox[{"{", 
+       RowBox[{"255", ",", "248", ",", "209"}], "}"}], "/", "255"}], "]"}], 
+    "]"}]}], ";"}]], "Input",
+ CellChangeTimes->{{3.688318950715274*^9, 3.6883190053523808`*^9}, {
+  3.6883191090085707`*^9, 3.6883191355444407`*^9}, {3.6883192277364855`*^9, 
+  3.6883192296403894`*^9}}],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{
+   RowBox[{"GenerateFid", "[", "id_", "]"}], ":=", 
+   RowBox[{"With", "[", 
+    RowBox[{
+     RowBox[{"{", 
+      RowBox[{
+       RowBox[{"idChars", "=", 
+        RowBox[{"Characters", "[", "id", "]"}]}], ",", 
+       RowBox[{"ofst", "=", "0.19"}], ",", 
+       RowBox[{"col", "=", "White"}]}], "}"}], ",", "\[IndentingNewLine]", 
+     RowBox[{"Graphics", "[", 
+      RowBox[{"{", 
+       RowBox[{"col", ",", 
+        RowBox[{"Rectangle", "[", 
+         RowBox[{
+          RowBox[{"{", 
+           RowBox[{
+            RowBox[{"-", "0.6"}], ",", 
+            RowBox[{"-", "0.6"}]}], "}"}], ",", 
+          RowBox[{"{", 
+           RowBox[{"0.6", ",", "0.6"}], "}"}]}], "]"}], ",", "Black", ",", 
+        RowBox[{"Rectangle", "[", 
+         RowBox[{
+          RowBox[{"{", 
+           RowBox[{
+            RowBox[{"-", "0.5"}], ",", 
+            RowBox[{"-", "0.5"}]}], "}"}], ",", 
+          RowBox[{"{", 
+           RowBox[{"0.5", ",", "0.5"}], "}"}]}], "]"}], ",", "col", ",", 
+        RowBox[{"Rectangle", "[", 
+         RowBox[{
+          RowBox[{"{", 
+           RowBox[{
+            RowBox[{"-", "0.4"}], ",", 
+            RowBox[{"-", "0.4"}]}], "}"}], ",", 
+          RowBox[{"{", 
+           RowBox[{"0.4", ",", "0.4"}], "}"}]}], "]"}], ",", "Black", ",", 
+        RowBox[{"Text", "[", 
+         RowBox[{
+          RowBox[{
+          "idChars", "\[LeftDoubleBracket]", "1", "\[RightDoubleBracket]"}], 
+          ",", 
+          RowBox[{"{", 
+           RowBox[{
+            RowBox[{"-", "ofst"}], ",", "ofst"}], "}"}]}], "]"}], ",", 
+        RowBox[{"Text", "[", 
+         RowBox[{
+          RowBox[{
+          "idChars", "\[LeftDoubleBracket]", "2", "\[RightDoubleBracket]"}], 
+          ",", 
+          RowBox[{"{", 
+           RowBox[{"ofst", ",", "ofst"}], "}"}]}], "]"}], ",", 
+        RowBox[{"Text", "[", 
+         RowBox[{
+          RowBox[{
+          "idChars", "\[LeftDoubleBracket]", "3", "\[RightDoubleBracket]"}], 
+          ",", 
+          RowBox[{"{", 
+           RowBox[{
+            RowBox[{"-", "ofst"}], ",", 
+            RowBox[{"-", "ofst"}]}], "}"}]}], "]"}], ",", 
+        RowBox[{"Text", "[", 
+         RowBox[{
+          RowBox[{
+          "idChars", "\[LeftDoubleBracket]", "4", "\[RightDoubleBracket]"}], 
+          ",", 
+          RowBox[{"{", 
+           RowBox[{"ofst", ",", 
+            RowBox[{"-", "ofst"}]}], "}"}]}], "]"}]}], "}"}], "]"}]}], 
+    "\[IndentingNewLine]", "]"}]}], ";"}]], "Input",
+ CellChangeTimes->{{3.688257855469181*^9, 3.688257890549707*^9}, {
+  3.688257923165877*^9, 3.688257989766526*^9}, {3.68831901283282*^9, 
+  3.688319052545105*^9}, {3.6883192914486885`*^9, 3.6883192920903206`*^9}}],
+
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"ids", "=", 
+   RowBox[{"{", 
+    RowBox[{
+    "\"\<896F\>\"", ",", "\"\<CB64\>\"", ",", "\"\<FA6F\>\"", ",", 
+     "\"\<DF64\>\"", ",", "\"\<9261\>\"", ",", "\"\<B41B\>\"", ",", 
+     "\"\<BD2D\>\"", ",", "\"\<4327\>\"", ",", "\"\<6B6F\>\"", ",", 
+     "\"\<6C66\>\"", ",", "\"\<0029\>\"", ",", "\"\<BCB5\>\"", ",", 
+     "\"\<9669\>\"", ",", "\"\<    \>\"", ",", "\"\<    \>\"", ",", 
+     "\"\<    \>\""}], "}"}]}], ";"}]], "Input",
+ CellChangeTimes->{{3.6882579959354205`*^9, 3.6882580371818385`*^9}, {
+  3.688258259614319*^9, 3.6882582630856366`*^9}, {3.688260562821864*^9, 
+  3.6882605647977524`*^9}, {3.6883243035196657`*^9, 3.6883243246225524`*^9}}],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[{
+ RowBox[{
+  RowBox[{"fids", "=", 
+   RowBox[{"GenerateFid", "/@", "ids"}]}], ";"}], "\[IndentingNewLine]", 
+ RowBox[{"fids", "\[LeftDoubleBracket]", "1", 
+  "\[RightDoubleBracket]"}]}], "Input",
+ CellChangeTimes->{{3.6882583979997945`*^9, 3.6882584027983804`*^9}, {
+  3.688261754646044*^9, 3.6882617572134976`*^9}}],
+
+Cell[BoxData[
+ GraphicsBox[{
+   {GrayLevel[1], RectangleBox[{-0.6, -0.6}, {0.6, 0.6}]}, 
+   {GrayLevel[0], RectangleBox[{-0.5, -0.5}]}, 
+   {GrayLevel[1], RectangleBox[{-0.4, -0.4}, {0.4, 0.4}]}, 
+   {GrayLevel[0], InsetBox["\<\"8\"\>", {-0.19, 0.19}], 
+    InsetBox["\<\"9\"\>", {0.19, 0.19}], 
+    InsetBox["\<\"6\"\>", {-0.19, -0.19}], 
+    InsetBox["\<\"F\"\>", {0.19, -0.19}]}},
+  BaseStyle->{FontFamily -> "Braciola MS Extrabold", FontSize -> 85},
+  ImagePadding->None,
+  ImageSize->168,
+  PlotRange->{{-0.6, 0.6}, {-0.6, 0.6}},
+  PlotRangePadding->None]], "Output",
+ CellChangeTimes->{{3.6882617580783243`*^9, 3.688261771364021*^9}, {
+   3.688261933809372*^9, 3.6882619392645416`*^9}, {3.6883190603798733`*^9, 
+   3.6883190738752775`*^9}, 3.688319138892744*^9, 3.688319294306018*^9, 
+   3.688319958181371*^9, 3.6883243201451225`*^9}]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[{
+ RowBox[{
+  RowBox[{"Function", "[", 
+   RowBox[{"id", ",", 
+    RowBox[{"Export", "[", 
+     RowBox[{
+      RowBox[{
+      "\"\<C:\\\\Users\\\\John \
+K\\\\Documents\\\\GitHub\\\\cu-droplet\\\\other_code\\\\DropletMotionTracking\
+\\\\fids4\\\\\>\"", "<>", "id", "<>", "\"\<.bmp\>\""}], ",", 
+      RowBox[{"GenerateFid", "[", "id", "]"}]}], "]"}]}], "]"}], "/@", 
+  RowBox[{"ids", "\[LeftDoubleBracket]", 
+   RowBox[{";;", 
+    RowBox[{"-", "4"}]}], "\[RightDoubleBracket]"}]}], "\[IndentingNewLine]", 
+ RowBox[{"Export", "[", 
+  RowBox[{
+   RowBox[{
+   "\"\<C:\\\\Users\\\\John \
+K\\\\Documents\\\\GitHub\\\\cu-droplet\\\\other_code\\\\DropletMotionTracking\
+\\\\fids4\\\\\>\"", "<>", "\"\<ROOT\>\"", "<>", "\"\<.bmp\>\""}], ",", 
+   RowBox[{"GenerateFid", "[", "\"\<    \>\"", "]"}]}], "]"}]}], "Input",
+ CellChangeTimes->{{3.6882593459705544`*^9, 3.688259374958257*^9}, {
+  3.6882594113740587`*^9, 3.6882594298377037`*^9}, {3.6882602769977956`*^9, 
+  3.6882602844298983`*^9}, {3.6882605672460923`*^9, 3.688260567373214*^9}, {
+  3.6882615850624857`*^9, 3.688261585134555*^9}, {3.6883242932635145`*^9, 
+  3.688324293318567*^9}, {3.6883243283672433`*^9, 3.688324353599287*^9}}],
+
+Cell[BoxData[
+ RowBox[{"{", 
+  RowBox[{"\<\"C:\\\\Users\\\\John \
+K\\\\Documents\\\\GitHub\\\\cu-droplet\\\\other_code\\\\DropletMotionTracking\
+\\\\fids4\\\\896F.bmp\"\>", 
+   ",", "\<\"C:\\\\Users\\\\John \
+K\\\\Documents\\\\GitHub\\\\cu-droplet\\\\other_code\\\\DropletMotionTracking\
+\\\\fids4\\\\CB64.bmp\"\>", 
+   ",", "\<\"C:\\\\Users\\\\John \
+K\\\\Documents\\\\GitHub\\\\cu-droplet\\\\other_code\\\\DropletMotionTracking\
+\\\\fids4\\\\FA6F.bmp\"\>", 
+   ",", "\<\"C:\\\\Users\\\\John \
+K\\\\Documents\\\\GitHub\\\\cu-droplet\\\\other_code\\\\DropletMotionTracking\
+\\\\fids4\\\\DF64.bmp\"\>", 
+   ",", "\<\"C:\\\\Users\\\\John \
+K\\\\Documents\\\\GitHub\\\\cu-droplet\\\\other_code\\\\DropletMotionTracking\
+\\\\fids4\\\\9261.bmp\"\>", 
+   ",", "\<\"C:\\\\Users\\\\John \
+K\\\\Documents\\\\GitHub\\\\cu-droplet\\\\other_code\\\\DropletMotionTracking\
+\\\\fids4\\\\B41B.bmp\"\>", 
+   ",", "\<\"C:\\\\Users\\\\John \
+K\\\\Documents\\\\GitHub\\\\cu-droplet\\\\other_code\\\\DropletMotionTracking\
+\\\\fids4\\\\BD2D.bmp\"\>", 
+   ",", "\<\"C:\\\\Users\\\\John \
+K\\\\Documents\\\\GitHub\\\\cu-droplet\\\\other_code\\\\DropletMotionTracking\
+\\\\fids4\\\\4327.bmp\"\>", 
+   ",", "\<\"C:\\\\Users\\\\John \
+K\\\\Documents\\\\GitHub\\\\cu-droplet\\\\other_code\\\\DropletMotionTracking\
+\\\\fids4\\\\6B6F.bmp\"\>", 
+   ",", "\<\"C:\\\\Users\\\\John \
+K\\\\Documents\\\\GitHub\\\\cu-droplet\\\\other_code\\\\DropletMotionTracking\
+\\\\fids4\\\\6C66.bmp\"\>", 
+   ",", "\<\"C:\\\\Users\\\\John \
+K\\\\Documents\\\\GitHub\\\\cu-droplet\\\\other_code\\\\DropletMotionTracking\
+\\\\fids4\\\\0029.bmp\"\>", 
+   ",", "\<\"C:\\\\Users\\\\John \
+K\\\\Documents\\\\GitHub\\\\cu-droplet\\\\other_code\\\\DropletMotionTracking\
+\\\\fids4\\\\BCB5.bmp\"\>", 
+   ",", "\<\"C:\\\\Users\\\\John \
+K\\\\Documents\\\\GitHub\\\\cu-droplet\\\\other_code\\\\DropletMotionTracking\
+\\\\fids4\\\\9669.bmp\"\>"}], "}"}]], "Output",
+ CellChangeTimes->{
+  3.6882594454165916`*^9, 3.688259731176338*^9, 3.688259927242216*^9, 
+   3.688259970209278*^9, 3.688260027581107*^9, 3.6882602264404793`*^9, {
+   3.6882602706947727`*^9, 3.688260285264696*^9}, 3.6882604357569075`*^9, 
+   3.688260570507209*^9, 3.688261532491245*^9, 3.6882616043203764`*^9, 
+   3.6882619429630775`*^9, {3.688319142968783*^9, 3.6883191497675095`*^9}, 
+   3.6883192379942117`*^9, 3.688319296893078*^9, 3.6883199602234006`*^9, {
+   3.6883242943666134`*^9, 3.6883243090751495`*^9}, 3.6883243568294845`*^9}],
+
+Cell[BoxData["\<\"C:\\\\Users\\\\John \
+K\\\\Documents\\\\GitHub\\\\cu-droplet\\\\other_code\\\\DropletMotionTracking\
+\\\\fids4\\\\ROOT.bmp\"\>"], "Output",
+ CellChangeTimes->{
+  3.6882594454165916`*^9, 3.688259731176338*^9, 3.688259927242216*^9, 
+   3.688259970209278*^9, 3.688260027581107*^9, 3.6882602264404793`*^9, {
+   3.6882602706947727`*^9, 3.688260285264696*^9}, 3.6882604357569075`*^9, 
+   3.688260570507209*^9, 3.688261532491245*^9, 3.6882616043203764`*^9, 
+   3.6882619429630775`*^9, {3.688319142968783*^9, 3.6883191497675095`*^9}, 
+   3.6883192379942117`*^9, 3.688319296893078*^9, 3.6883199602234006`*^9, {
+   3.6883242943666134`*^9, 3.6883243090751495`*^9}, 3.6883243569055586`*^9}]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[""], "Input",
+ CellChangeTimes->{{3.6882593806376853`*^9, 3.6882594094382086`*^9}}],
+
+Cell[BoxData["\<\"C:\\\\Users\\\\John \
+K\\\\Documents\\\\GitHub\\\\cu-droplet\\\\other_code\\\\DropletMotionTracking\
+\\\\Fids4\\\\896F.bmp\"\>"], "Output",
+ CellChangeTimes->{{3.688259390546154*^9, 3.6882593971514664`*^9}}]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"allFids", "=", 
+  RowBox[{"Grid", "[", 
+   RowBox[{
+    RowBox[{"Partition", "[", 
+     RowBox[{"fids", ",", "4"}], "]"}], ",", 
+    RowBox[{"Dividers", "\[Rule]", "All"}], ",", 
+    RowBox[{"FrameStyle", "\[Rule]", 
+     RowBox[{"Directive", "[", 
+      RowBox[{"{", 
+       RowBox[{"Dashed", ",", 
+        RowBox[{"Opacity", "[", "0.5", "]"}]}], "}"}], "]"}]}], ",", 
+    RowBox[{"Spacings", "\[Rule]", 
+     RowBox[{"{", 
+      RowBox[{"0", ",", "0"}], "}"}]}]}], "]"}]}]], "Input",
+ CellChangeTimes->{{3.688263126192421*^9, 3.688263129125224*^9}}],
+
+Cell[BoxData[
+ TagBox[GridBox[{
+    {
+     GraphicsBox[{
+       {GrayLevel[0], RectangleBox[{-0.5, -0.5}]}, 
+       {GrayLevel[1], RectangleBox[{-0.4, -0.4}, {0.4, 0.4}]}, 
+       {GrayLevel[0], InsetBox["\<\"8\"\>", {-0.19, 0.19}], 
+        InsetBox["\<\"9\"\>", {0.19, 0.19}], 
+        InsetBox["\<\"6\"\>", {-0.19, -0.19}], 
+        InsetBox["\<\"F\"\>", {0.19, -0.19}]}},
+      BaseStyle->{FontFamily -> "Braciola MS Extrabold", FontSize -> 85},
+      ImagePadding->None,
+      ImageSize->168,
+      PlotRange->{{-0.6, 0.6}, {-0.6, 0.6}},
+      PlotRangePadding->None], 
+     GraphicsBox[{
+       {GrayLevel[0], RectangleBox[{-0.5, -0.5}]}, 
+       {GrayLevel[1], RectangleBox[{-0.4, -0.4}, {0.4, 0.4}]}, 
+       {GrayLevel[0], InsetBox["\<\"C\"\>", {-0.19, 0.19}], 
+        InsetBox["\<\"B\"\>", {0.19, 0.19}], 
+        InsetBox["\<\"6\"\>", {-0.19, -0.19}], 
+        InsetBox["\<\"4\"\>", {0.19, -0.19}]}},
+      BaseStyle->{FontFamily -> "Braciola MS Extrabold", FontSize -> 85},
+      ImagePadding->None,
+      ImageSize->168,
+      PlotRange->{{-0.6, 0.6}, {-0.6, 0.6}},
+      PlotRangePadding->None], 
+     GraphicsBox[{
+       {GrayLevel[0], RectangleBox[{-0.5, -0.5}]}, 
+       {GrayLevel[1], RectangleBox[{-0.4, -0.4}, {0.4, 0.4}]}, 
+       {GrayLevel[0], InsetBox["\<\"F\"\>", {-0.19, 0.19}], 
+        InsetBox["\<\"A\"\>", {0.19, 0.19}], 
+        InsetBox["\<\"6\"\>", {-0.19, -0.19}], 
+        InsetBox["\<\"F\"\>", {0.19, -0.19}]}},
+      BaseStyle->{FontFamily -> "Braciola MS Extrabold", FontSize -> 85},
+      ImagePadding->None,
+      ImageSize->168,
+      PlotRange->{{-0.6, 0.6}, {-0.6, 0.6}},
+      PlotRangePadding->None], 
+     GraphicsBox[{
+       {GrayLevel[0], RectangleBox[{-0.5, -0.5}]}, 
+       {GrayLevel[1], RectangleBox[{-0.4, -0.4}, {0.4, 0.4}]}, 
+       {GrayLevel[0], InsetBox["\<\"D\"\>", {-0.19, 0.19}], 
+        InsetBox["\<\"F\"\>", {0.19, 0.19}], 
+        InsetBox["\<\"6\"\>", {-0.19, -0.19}], 
+        InsetBox["\<\"4\"\>", {0.19, -0.19}]}},
+      BaseStyle->{FontFamily -> "Braciola MS Extrabold", FontSize -> 85},
+      ImagePadding->None,
+      ImageSize->168,
+      PlotRange->{{-0.6, 0.6}, {-0.6, 0.6}},
+      PlotRangePadding->None]},
+    {
+     GraphicsBox[{
+       {GrayLevel[0], RectangleBox[{-0.5, -0.5}]}, 
+       {GrayLevel[1], RectangleBox[{-0.4, -0.4}, {0.4, 0.4}]}, 
+       {GrayLevel[0], InsetBox["\<\"9\"\>", {-0.19, 0.19}], 
+        InsetBox["\<\"2\"\>", {0.19, 0.19}], 
+        InsetBox["\<\"6\"\>", {-0.19, -0.19}], 
+        InsetBox["\<\"1\"\>", {0.19, -0.19}]}},
+      BaseStyle->{FontFamily -> "Braciola MS Extrabold", FontSize -> 85},
+      ImagePadding->None,
+      ImageSize->168,
+      PlotRange->{{-0.6, 0.6}, {-0.6, 0.6}},
+      PlotRangePadding->None], 
+     GraphicsBox[{
+       {GrayLevel[0], RectangleBox[{-0.5, -0.5}]}, 
+       {GrayLevel[1], RectangleBox[{-0.4, -0.4}, {0.4, 0.4}]}, 
+       {GrayLevel[0], InsetBox["\<\"B\"\>", {-0.19, 0.19}], 
+        InsetBox["\<\"4\"\>", {0.19, 0.19}], 
+        InsetBox["\<\"1\"\>", {-0.19, -0.19}], 
+        InsetBox["\<\"B\"\>", {0.19, -0.19}]}},
+      BaseStyle->{FontFamily -> "Braciola MS Extrabold", FontSize -> 85},
+      ImagePadding->None,
+      ImageSize->168,
+      PlotRange->{{-0.6, 0.6}, {-0.6, 0.6}},
+      PlotRangePadding->None], 
+     GraphicsBox[{
+       {GrayLevel[0], RectangleBox[{-0.5, -0.5}]}, 
+       {GrayLevel[1], RectangleBox[{-0.4, -0.4}, {0.4, 0.4}]}, 
+       {GrayLevel[0], InsetBox["\<\"B\"\>", {-0.19, 0.19}], 
+        InsetBox["\<\"D\"\>", {0.19, 0.19}], 
+        InsetBox["\<\"2\"\>", {-0.19, -0.19}], 
+        InsetBox["\<\"D\"\>", {0.19, -0.19}]}},
+      BaseStyle->{FontFamily -> "Braciola MS Extrabold", FontSize -> 85},
+      ImagePadding->None,
+      ImageSize->168,
+      PlotRange->{{-0.6, 0.6}, {-0.6, 0.6}},
+      PlotRangePadding->None], 
+     GraphicsBox[{
+       {GrayLevel[0], RectangleBox[{-0.5, -0.5}]}, 
+       {GrayLevel[1], RectangleBox[{-0.4, -0.4}, {0.4, 0.4}]}, 
+       {GrayLevel[0], InsetBox["\<\"4\"\>", {-0.19, 0.19}], 
+        InsetBox["\<\"3\"\>", {0.19, 0.19}], 
+        InsetBox["\<\"2\"\>", {-0.19, -0.19}], 
+        InsetBox["\<\"7\"\>", {0.19, -0.19}]}},
+      BaseStyle->{FontFamily -> "Braciola MS Extrabold", FontSize -> 85},
+      ImagePadding->None,
+      ImageSize->168,
+      PlotRange->{{-0.6, 0.6}, {-0.6, 0.6}},
+      PlotRangePadding->None]},
+    {
+     GraphicsBox[{
+       {GrayLevel[0], RectangleBox[{-0.5, -0.5}]}, 
+       {GrayLevel[1], RectangleBox[{-0.4, -0.4}, {0.4, 0.4}]}, 
+       {GrayLevel[0], InsetBox["\<\"6\"\>", {-0.19, 0.19}], 
+        InsetBox["\<\"B\"\>", {0.19, 0.19}], 
+        InsetBox["\<\"6\"\>", {-0.19, -0.19}], 
+        InsetBox["\<\"F\"\>", {0.19, -0.19}]}},
+      BaseStyle->{FontFamily -> "Braciola MS Extrabold", FontSize -> 85},
+      ImagePadding->None,
+      ImageSize->168,
+      PlotRange->{{-0.6, 0.6}, {-0.6, 0.6}},
+      PlotRangePadding->None], 
+     GraphicsBox[{
+       {GrayLevel[0], RectangleBox[{-0.5, -0.5}]}, 
+       {GrayLevel[1], RectangleBox[{-0.4, -0.4}, {0.4, 0.4}]}, 
+       {GrayLevel[0], InsetBox["\<\"6\"\>", {-0.19, 0.19}], 
+        InsetBox["\<\"C\"\>", {0.19, 0.19}], 
+        InsetBox["\<\"6\"\>", {-0.19, -0.19}], 
+        InsetBox["\<\"6\"\>", {0.19, -0.19}]}},
+      BaseStyle->{FontFamily -> "Braciola MS Extrabold", FontSize -> 85},
+      ImagePadding->None,
+      ImageSize->168,
+      PlotRange->{{-0.6, 0.6}, {-0.6, 0.6}},
+      PlotRangePadding->None], 
+     GraphicsBox[{
+       {GrayLevel[0], RectangleBox[{-0.5, -0.5}]}, 
+       {GrayLevel[1], RectangleBox[{-0.4, -0.4}, {0.4, 0.4}]}, 
+       {GrayLevel[0], InsetBox["\<\"0\"\>", {-0.19, 0.19}], 
+        InsetBox["\<\"0\"\>", {0.19, 0.19}], 
+        InsetBox["\<\"2\"\>", {-0.19, -0.19}], 
+        InsetBox["\<\"9\"\>", {0.19, -0.19}]}},
+      BaseStyle->{FontFamily -> "Braciola MS Extrabold", FontSize -> 85},
+      ImagePadding->None,
+      ImageSize->168,
+      PlotRange->{{-0.6, 0.6}, {-0.6, 0.6}},
+      PlotRangePadding->None], 
+     GraphicsBox[{
+       {GrayLevel[0], RectangleBox[{-0.5, -0.5}]}, 
+       {GrayLevel[1], RectangleBox[{-0.4, -0.4}, {0.4, 0.4}]}, 
+       {GrayLevel[0], InsetBox["\<\"B\"\>", {-0.19, 0.19}], 
+        InsetBox["\<\"C\"\>", {0.19, 0.19}], 
+        InsetBox["\<\"B\"\>", {-0.19, -0.19}], 
+        InsetBox["\<\"5\"\>", {0.19, -0.19}]}},
+      BaseStyle->{FontFamily -> "Braciola MS Extrabold", FontSize -> 85},
+      ImagePadding->None,
+      ImageSize->168,
+      PlotRange->{{-0.6, 0.6}, {-0.6, 0.6}},
+      PlotRangePadding->None]},
+    {
+     GraphicsBox[{
+       {GrayLevel[0], RectangleBox[{-0.5, -0.5}]}, 
+       {GrayLevel[1], RectangleBox[{-0.4, -0.4}, {0.4, 0.4}]}, 
+       {GrayLevel[0], InsetBox["\<\"9\"\>", {-0.19, 0.19}], 
+        InsetBox["\<\"6\"\>", {0.19, 0.19}], 
+        InsetBox["\<\"6\"\>", {-0.19, -0.19}], 
+        InsetBox["\<\"9\"\>", {0.19, -0.19}]}},
+      BaseStyle->{FontFamily -> "Braciola MS Extrabold", FontSize -> 85},
+      ImagePadding->None,
+      ImageSize->168,
+      PlotRange->{{-0.6, 0.6}, {-0.6, 0.6}},
+      PlotRangePadding->None], 
+     GraphicsBox[{
+       {GrayLevel[0], RectangleBox[{-0.5, -0.5}]}, 
+       {GrayLevel[1], RectangleBox[{-0.4, -0.4}, {0.4, 0.4}]}, 
+       {GrayLevel[0], InsetBox["\<\" \"\>", {-0.19, 0.19}], 
+        InsetBox["\<\" \"\>", {0.19, 0.19}], 
+        InsetBox["\<\" \"\>", {-0.19, -0.19}], 
+        InsetBox["\<\" \"\>", {0.19, -0.19}]}},
+      BaseStyle->{FontFamily -> "Braciola MS Extrabold", FontSize -> 85},
+      ImagePadding->None,
+      ImageSize->168,
+      PlotRange->{{-0.6, 0.6}, {-0.6, 0.6}},
+      PlotRangePadding->None], 
+     GraphicsBox[{
+       {GrayLevel[0], RectangleBox[{-0.5, -0.5}]}, 
+       {GrayLevel[1], RectangleBox[{-0.4, -0.4}, {0.4, 0.4}]}, 
+       {GrayLevel[0], InsetBox["\<\" \"\>", {-0.19, 0.19}], 
+        InsetBox["\<\" \"\>", {0.19, 0.19}], 
+        InsetBox["\<\" \"\>", {-0.19, -0.19}], 
+        InsetBox["\<\" \"\>", {0.19, -0.19}]}},
+      BaseStyle->{FontFamily -> "Braciola MS Extrabold", FontSize -> 85},
+      ImagePadding->None,
+      ImageSize->168,
+      PlotRange->{{-0.6, 0.6}, {-0.6, 0.6}},
+      PlotRangePadding->None], 
+     GraphicsBox[{
+       {GrayLevel[0], RectangleBox[{-0.5, -0.5}]}, 
+       {GrayLevel[1], RectangleBox[{-0.4, -0.4}, {0.4, 0.4}]}, 
+       {GrayLevel[0], InsetBox["\<\" \"\>", {-0.19, 0.19}], 
+        InsetBox["\<\" \"\>", {0.19, 0.19}], 
+        InsetBox["\<\" \"\>", {-0.19, -0.19}], 
+        InsetBox["\<\" \"\>", {0.19, -0.19}]}},
+      BaseStyle->{FontFamily -> "Braciola MS Extrabold", FontSize -> 85},
+      ImagePadding->None,
+      ImageSize->168,
+      PlotRange->{{-0.6, 0.6}, {-0.6, 0.6}},
+      PlotRangePadding->None]}
+   },
+   AutoDelete->False,
+   FrameStyle->Directive[{
+      Dashing[{Small, Small}], 
+      Opacity[0.5]}],
+   GridBoxDividers->{"Columns" -> {{True}}, "Rows" -> {{True}}},
+   GridBoxItemSize->{"Columns" -> {{Automatic}}, "Rows" -> {{Automatic}}},
+   GridBoxSpacings->{"Columns" -> {{0}}, "Rows" -> {{0}}}],
+  "Grid"]], "Output",
+ CellChangeTimes->{3.6882631295326138`*^9}]
+}, Open  ]],
+
+Cell[CellGroupData[{
+
+Cell[BoxData[
+ RowBox[{"Export", "[", 
+  RowBox[{
+  "\"\<C:\\\\Users\\\\John \
+K\\\\Documents\\\\GitHub\\\\cu-droplet\\\\other_code\\\\DropletMotionTracking\
+\\\\test.pdf\>\"", ",", "allFids"}], "]"}]], "Input",
+ CellChangeTimes->{{3.688258151663478*^9, 3.6882581746854796`*^9}, {
+  3.688258204847171*^9, 3.688258213206159*^9}, {3.6882582809827404`*^9, 
+  3.688258407878235*^9}, {3.6882590060942926`*^9, 3.688259013669532*^9}, {
+  3.6882591636140156`*^9, 3.688259190133359*^9}, {3.6882604701337605`*^9, 
+  3.688260554453867*^9}, {3.688262869309496*^9, 3.6882628703054476`*^9}, {
+  3.688262932397862*^9, 3.6882629548943615`*^9}, {3.6882631231735363`*^9, 
+  3.6882631361899776`*^9}}],
+
+Cell[BoxData["\<\"C:\\\\Users\\\\John \
+K\\\\Documents\\\\GitHub\\\\cu-droplet\\\\other_code\\\\DropletMotionTracking\
+\\\\test.pdf\"\>"], "Output",
+ CellChangeTimes->{{3.688260528822372*^9, 3.6882605815307436`*^9}, 
+   3.6882628091633043`*^9, 3.688262870846966*^9, 3.6882629561815915`*^9}]
+}, Open  ]]
+},
+WindowSize->{1904, 1117},
+WindowMargins->{{-8, Automatic}, {Automatic, 0}},
+PrintingCopies->1,
+PrintingPageRange->{1, 32000},
+PrintingOptions->{"Magnification"->1.,
+"PaperOrientation"->"Portrait",
+"PaperSize"->{612, 792},
+"PrintCellBrackets"->False,
+"PrintMultipleHorizontalPages"->False,
+"PrintRegistrationMarks"->False,
+"PrintingMargins"->36},
+FrontEndVersion->"11.0 for Microsoft Windows (64-bit) (July 28, 2016)",
+StyleDefinitions->"Default.nb"
+]
+(* End of Notebook Content *)
+
+(* Internal cache information *)
+(*CellTagsOutline
+CellTagsIndex->{}
+*)
+(*CellTagsIndex
+CellTagsIndex->{}
+*)
+(*NotebookFileOutline
+Notebook[{
+Cell[CellGroupData[{
+Cell[580, 22, 1443, 30, 30, "Input"],
+Cell[2026, 54, 2932, 64, 88, "Output"]
+}, Open  ]],
+Cell[4973, 121, 426, 11, 30, "Input"],
+Cell[5402, 134, 2688, 74, 88, "Input"],
+Cell[8093, 210, 691, 13, 30, "Input"],
+Cell[CellGroupData[{
+Cell[8809, 227, 330, 7, 50, "Input"],
+Cell[9142, 236, 840, 17, 183, "Output"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[10019, 258, 1192, 25, 50, "Input"],
+Cell[11214, 285, 2447, 48, 145, "Output"],
+Cell[13664, 335, 696, 10, 30, "Output"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[14397, 350, 96, 1, 30, "Input"],
+Cell[14496, 353, 225, 3, 30, "Output"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[14758, 361, 575, 15, 30, "Input"],
+Cell[15336, 378, 9021, 207, 691, "Output"]
+}, Open  ]],
+Cell[CellGroupData[{
+Cell[24394, 590, 681, 12, 30, "Input"],
+Cell[25078, 604, 290, 4, 30, "Output"]
+}, Open  ]]
+}
+]
+*)
+

@@ -14,9 +14,10 @@ __SIGNATURE_REGION_LENGTH__ = DEFINED(__SIGNATURE_REGION_LENGTH__) ? __SIGNATURE
 __USER_SIGNATURE_REGION_LENGTH__ = DEFINED(__USER_SIGNATURE_REGION_LENGTH__) ? __USER_SIGNATURE_REGION_LENGTH__ : 1K;
 MEMORY
 {
-  text   (rx)   : ORIGIN = 0, LENGTH = __TEXT_REGION_LENGTH__
-  usrtxt (rx)   : ORIGIN = 0x200000, LENGTH = 100K
+  text   (rx)   : ORIGIN = 0x0, LENGTH = __TEXT_REGION_LENGTH__
+  usrtxt (rx)   : ORIGIN = 0xB000, LENGTH = 0xff00
   data   (rw!x) : ORIGIN = 0x802000, LENGTH = __DATA_REGION_LENGTH__
+  usrdata (rw!x): ORIGIN = 0x808000, LENGTH = 0xff00
   eeprom (rw!x) : ORIGIN = 0x810000, LENGTH = __EEPROM_REGION_LENGTH__
   fuse      (rw!x) : ORIGIN = 0x820000, LENGTH = __FUSE_REGION_LENGTH__
   lock      (rw!x) : ORIGIN = 0x830000, LENGTH = __LOCK_REGION_LENGTH__
@@ -26,64 +27,74 @@ MEMORY
 SECTIONS
 {
   /* Read-only sections, merged into text segment: */
-  .hash          : { *(.hash)		}
-  .dynsym        : { *(.dynsym)		}
-  .dynstr        : { *(.dynstr)		}
-  .gnu.version   : { *(.gnu.version)	}
-  .gnu.version_d   : { *(.gnu.version_d)	}
-  .gnu.version_r   : { *(.gnu.version_r)	}
-  .rel.init      : { *(.rel.init)		}
-  .rela.init     : { *(.rela.init)	}
+  
+  .hash          : { ../user_template.o(.hash)		}
+  .dynsym        : { ../user_template.o(.dynsym)		}
+  .dynstr        : { ../user_template.o(.dynstr)		}
+  .gnu.version   : { ../user_template.o(.gnu.version)	}
+  .gnu.version_d   : { ../user_template.o(.gnu.version_d)	}
+  .gnu.version_r   : { ../user_template.o(.gnu.version_r)	}
+  .rel.init      : { ../user_template.o(.rel.init)		}
+  .rela.init     : { ../user_template.o(.rela.init)	}
   .rel.text      :
     {
-      *(.rel.text)
-      *(.rel.text.*)
-      *(.rel.gnu.linkonce.t*)
+      ../user_template.o(.rel.text)
+      ../user_template.o(.rel.text.*)
+      ../user_template.o(.rel.gnu.linkonce.t*)
     }
   .rela.text     :
     {
-      *(.rela.text)
-      *(.rela.text.*)
-      *(.rela.gnu.linkonce.t*)
+      ../user_template.o(.rela.text)
+      ../user_template.o(.rela.text.*)
+      ../user_template.o(.rela.gnu.linkonce.t*)
     }
-  .rel.fini      : { *(.rel.fini)		}
-  .rela.fini     : { *(.rela.fini)	}
+  .rel.fini      : { ../user_template.o(.rel.fini)		}
+  .rela.fini     : { ../user_template.o(.rela.fini)	}
   .rel.rodata    :
     {
-      *(.rel.rodata)
-      *(.rel.rodata.*)
-      *(.rel.gnu.linkonce.r*)
+      ../user_template.o(.rel.rodata)
+      ../user_template.o(.rel.rodata.*)
+      ../user_template.o(.rel.gnu.linkonce.r*)
     }
   .rela.rodata   :
     {
-      *(.rela.rodata)
-      *(.rela.rodata.*)
-      *(.rela.gnu.linkonce.r*)
+      ../user_template.o(.rela.rodata)
+      ../user_template.o(.rela.rodata.*)
+      ../user_template.o(.rela.gnu.linkonce.r*)
     }
   .rel.data      :
     {
-      *(.rel.data)
-      *(.rel.data.*)
-      *(.rel.gnu.linkonce.d*)
+      ../user_template.o(.rel.data)
+      ../user_template.o(.rel.data.*)
+      ../user_template.o(.rel.gnu.linkonce.d*)
     }
   .rela.data     :
     {
-      *(.rela.data)
-      *(.rela.data.*)
-      *(.rela.gnu.linkonce.d*)
+      ../user_template.o(.rela.data)
+      ../user_template.o(.rela.data.*)
+      ../user_template.o(.rela.gnu.linkonce.d*)
     }
-  .rel.ctors     : { *(.rel.ctors)	}
-  .rela.ctors    : { *(.rela.ctors)	}
-  .rel.dtors     : { *(.rel.dtors)	}
-  .rela.dtors    : { *(.rela.dtors)	}
-  .rel.got       : { *(.rel.got)		}
-  .rela.got      : { *(.rela.got)		}
-  .rel.bss       : { *(.rel.bss)		}
-  .rela.bss      : { *(.rela.bss)		}
-  .rel.plt       : { *(.rel.plt)		}
-  .rela.plt      : { *(.rela.plt)		}
+  .rel.ctors     : { ../user_template.o(.rel.ctors)	}
+  .rela.ctors    : { ../user_template.o(.rela.ctors)	}
+  .rel.dtors     : { ../user_template.o(.rel.dtors)	}
+  .rela.dtors    : { ../user_template.o(.rela.dtors)	}
+  .rel.got       : { ../user_template.o(.rel.got)		}
+  .rela.got      : { ../user_template.o(.rela.got)		}
+  .rel.bss       : { ../user_template.o(.rel.bss)		}
+  .rela.bss      : { ../user_template.o(.rela.bss)		}
+  .rel.plt       : { ../user_template.o(.rel.plt)		}
+  .rela.plt      : { ../user_template.o(.rela.plt)		}
   /* Internal text space or external memory.  */
-  .usrtxt   :
+  
+      
+  .WRAPPER :
+  {
+    PROVIDE (__wrapper_start = .) ;
+    *(.WRAPPER)
+	PROVIDE (__wrapper_end = .) ;
+  } > usrtxt
+  
+  .usrtxt :
   {
     ../user_template.o(.vectors)
     KEEP(../user_template.o(.vectors))
@@ -163,9 +174,102 @@ SECTIONS
     KEEP (../user_template.o(.fini1))
     ../user_template.o(.fini0)  /* Infinite loop after program termination.  */
     KEEP (../user_template.o(.fini0))
-     _etext = . ;
-  }  > usrtxt
-.text   :
+	. = ALIGN(2);
+     _eusrtext = . ;
+  }  > usrtxt  
+ 
+  .usrdata :
+  {
+      PROVIDE (__usrdata_start = .) ;
+	  ../user_template.o(.data)
+      ../user_template.o(.data*)
+	  ../user_template.o(.rodata)
+      ../user_template.o(.rodata*)
+      ../user_template.o(.gnu.linkonce.d*)
+    . = ALIGN(2);
+     _eusrdata = . ;
+     PROVIDE (__usrdata_end = .) ;
+  }  > usrdata
+  
+  .usrbss  ADDR(.usrdata) + SIZEOF (.usrdata)   : AT (ADDR (.usrbss))
+  {
+     PROVIDE (__usrbss_start = .) ;
+     ../user_template.o(.bss)
+     ../user_template.o(.bss*)
+     PROVIDE (__usrbss_end = .) ;
+  }  > usrdata
+  
+   __usrdata_load_start = LOADADDR(.usrdata);
+   __usrdata_load_end = __usrdata_load_start + SIZEOF(.usrdata);
+  /* Global data not cleared after reset.  */
+  .usrnoinit  ADDR(.usrbss) + SIZEOF (.usrbss)  :  AT (ADDR (.usrnoinit))
+  {
+     PROVIDE (__usrnoinit_start = .) ;
+    ../user_template.o(.usrnoinit*)
+     PROVIDE (__usrnoinit_end = .) ;
+     _end = . ;
+     PROVIDE (__usrheap_start = .) ;
+  }  > usrdata
+  
+  .hash          : { *(.hash)		}
+  .dynsym        : { *(.dynsym)		}
+  .dynstr        : { *(.dynstr)		}
+  .gnu.version   : { *(.gnu.version)	}
+  .gnu.version_d   : { *(.gnu.version_d)	}
+  .gnu.version_r   : { *(.gnu.version_r)	}
+  .rel.init      : { *(.rel.init)		}
+  .rela.init     : { *(.rela.init)	}
+  .rel.text      :
+    {
+      *(.rel.text)
+      *(.rel.text.*)
+      *(.rel.gnu.linkonce.t*)
+    }
+  .rela.text     :
+    {
+      *(.rela.text)
+      *(.rela.text.*)
+      *(.rela.gnu.linkonce.t*)
+    }
+  .rel.fini      : { *(.rel.fini)		}
+  .rela.fini     : { *(.rela.fini)	}
+  .rel.rodata    :
+    {
+      *(.rel.rodata)
+      *(.rel.rodata.*)
+      *(.rel.gnu.linkonce.r*)
+    }
+  .rela.rodata   :
+    {
+      *(.rela.rodata)
+      *(.rela.rodata.*)
+      *(.rela.gnu.linkonce.r*)
+    }
+  .rel.data      :
+    {
+      *(.rel.data)
+      *(.rel.data.*)
+      *(.rel.gnu.linkonce.d*)
+    }
+  .rela.data     :
+    {
+      *(.rela.data)
+      *(.rela.data.*)
+      *(.rela.gnu.linkonce.d*)
+    }
+  .rel.ctors     : { *(.rel.ctors)	}
+  .rela.ctors    : { *(.rela.ctors)	}
+  .rel.dtors     : { *(.rel.dtors)	}
+  .rela.dtors    : { *(.rela.dtors)	}
+  .rel.got       : { *(.rel.got)		}
+  .rela.got      : { *(.rela.got)		}
+  .rel.bss       : { *(.rel.bss)		}
+  .rela.bss      : { *(.rela.bss)		}
+  .rel.plt       : { *(.rel.plt)		}
+  .rela.plt      : { *(.rela.plt)		}
+  /* Internal text space or external memory.  */
+  
+  .text   :
   {
     *(.vectors)
     KEEP(*(.vectors))
@@ -247,8 +351,7 @@ SECTIONS
     KEEP (*(.fini0))
      _etext = . ;
   }  > text
-   
-  .data          :
+ .data          :
   {
      PROVIDE (__data_start = .) ;
     *(.data)

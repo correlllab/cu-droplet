@@ -11,7 +11,7 @@
 
 # Target file name (without extension).
 # This should match your AtmelStudio Project Name
-TARGET = My_Droplets
+TARGET = Droplets_1
 
 # The base directory of your Atmel Studio installation folder.
 # This serves as the base location for accessing key #include files.
@@ -170,11 +170,9 @@ LINK_SCRIPT = ../build/DropletsLinkerScript.x
 LDFLAGS = -Wl,-Map=$(TARGET).map,--cref
 LDFLAGS += $(EXTMEMOPTS)
 LDFLAGS += $(PRINTF_LIB) $(SCANF_LIB) $(MATH_LIB)
-LDFLAGS += -Wl,--gc-sections 
-LDFLAGS += -Wl,-section-start=.BOOT=$(BOOTSECTIONSTART)
-LDFLAGS += -Wl,-section-start=.USERCODE=0xc000 
-LDFLAGS += -T $(LINK_SCRIPT)
-
+LDFLAGS += -Wl,--gc-sections -Wl,-section-start=.BOOT=$(BOOTSECTIONSTART)
+#LDFLAGS += -Wl,-section-start=.USERCODE=0xc000 
+LDFLAGS += -Wl, -T $(LINK_SCRIPT)
 
 # Define programs and commands.
 SHELL       = cmd

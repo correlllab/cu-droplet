@@ -1,6 +1,5 @@
 #include "user_template.h"
-#include "sp_driver.h"
-#include <stdio.h>
+
 
 /*uint8_t data[512];
 uint8_t read_data[512];
@@ -10,22 +9,38 @@ uint8_t byte;
  * any code in this function will be run once, when the robot starts.
  */
 
-
-
-
 void init(){
-		
+	/*tmpTime = getTime();
+	for(uint8_t i=0;i<7;i++){
+		printf("%hu ", testData[i]);
+	}
+	printf("\r\n");*/
 	//delayMS(5000);
 	//volatile int dummyArray[512];
 	//memset(dummyArray, 0x55, 512);
 
-	for (int i= 0;i<18;i++)
+	/*int p=0;
+	
+	do 
+	{
+		if(p%3 ==0)
+		{
+		setRGB(0,0,255);	
+		}
+		
+		else setRGB(255,0,0);
+		p++;
+	} while (p<100);*/
+	
+	for (int i= 0;i<16;i++)
 	{
 		setHSV(i*20,200,100);
 		delayMS(2000);
 	}
-	//dummyArray[i] = i;
 	//setRGB(255,0,0);
+	//delayMS(10000);
+	//dummyArray[i] = i;
+	//setRGB(0,255,100);
 	
 }
 
@@ -34,6 +49,15 @@ void init(){
  * the code in this function will be called repeatedly, as fast as it can execute.
  */
 void loop(){
+	
+
+	/*for(uint8_t i=0;i<4;i++){
+		tmpArray[i] = randQuad();
+		printf("%lu\r\n", tmpArray[i]);
+	}
+	
+	printf("%lu", tmpTime);
+	tmpTime = getTime();*/
 	//if(getTime()%2000<1000){
 	//	setHSV()
 	//}

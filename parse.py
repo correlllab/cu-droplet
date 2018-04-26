@@ -20,16 +20,23 @@ def my_func(Port):
 	#time.sleep(1)
 	rec = []
 	with open('C:/Users/niharika/Documents/Atmel Studio/7.0/cu-droplet-master/droplet_code/build/Droplets_1.lss','r') as ref:
+		
 		for linesLSS in ref:
-			if ".usrtxt" in linesLSS:
+			if ".WRAPPER" in linesLSS:
 				store = linesLSS.split()
 				section = store[1]
 				size = store[2]
 				start_address = store[3]
 				start_address = start_address.lstrip('0')
 				start_address = start_address.upper()
-				print(section, size, start_address)
 				size = int(size, 16)
+				print(section, size, start_address)
+				
+			if ".usrtxt" in linesLSS:
+				store2 = linesLSS.split()
+				size1 = store2[2]
+				size += int(size1, 16)
+				print(size)
 				if (size <= 16):
 					offset = 1
 					print(offset)

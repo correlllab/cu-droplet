@@ -322,6 +322,7 @@ static inline void nvm_flash_split_write_app_page(flash_addr_t page_addr)
 static inline void nvm_flash_atomic_write_app_page(flash_addr_t page_addr)
 {
 	nvm_wait_until_ready();
+	printf("\n------- erase write func : addr passed : %lu\n", page_addr);
 	nvm_common_spm(page_addr, NVM_CMD_ERASE_WRITE_APP_PAGE_gc);
 }
 

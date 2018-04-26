@@ -114,7 +114,7 @@ void nvm_flash_read_buffer(flash_addr_t address, void *buf, uint16_t len)
 	uint16_t opt_address = (uint16_t)address;
 #endif
 	nvm_wait_until_ready();
-	printf("opt_addr in nvm : %lu",opt_address);
+	//printf("opt_addr in nvm : %lu",opt_address);
 	
 	while ( len ) {
 		*(uint8_t*)buf = nvm_flash_read_byte(opt_address);
@@ -144,14 +144,16 @@ void nvm_flash_erase_and_write_buffer(flash_addr_t address, const void *buf,
 #if (FLASH_SIZE>0x10000)
 	volatile uint32_t page_address;
 	uint32_t opt_address = address;
+	//printf("\r\n if 32 bit addr : %lu\r\n", opt_address);
 #else
 	uint16_t page_address;
 	uint16_t opt_address = (uint16_t)address;
+	//printf("\r\n if 16 bit addr : %lu\r\n", opt_address);
 #endif
 
 	// Compute the start of the page to be modified
 	page_address = opt_address-(opt_address%FLASH_PAGE_SIZE);
-
+	printf("\r\npage_addr as calculated : %lu\r\n", page_address);
 	// For each page
 	while ( len ) {
 		b_flag_erase = false;
@@ -196,6 +198,7 @@ void nvm_flash_erase_and_write_buffer(flash_addr_t address, const void *buf,
 
 		// Write flash buffer
 		if (b_flag_erase) {
+			printf("\r\n************** Actually passing atomic	page_addr %lu and passed:%lu\r\n", page_address, page_address-FLASH_PAGE_SIZE );
 			nvm_flash_atomic_write_app_page(page_address-FLASH_PAGE_SIZE);
 		}else{
 			nvm_flash_split_write_app_page(page_address-FLASH_PAGE_SIZE);

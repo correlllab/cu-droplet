@@ -32,13 +32,13 @@ void init(){
 		p++;
 	} while (p<100);*/
 	
-	for (int i= 0;i<16;i++)
+	/*for (int i= 0;i<16;i++)
 	{
 		setHSV(i*20,200,100);
 		delayMS(2000);
-	}
+	}*/
 	
-	//setRGB(255,0,0);
+	setRGB(0,255,0);
 	
 	//delayMS(10000);
 	//dummyArray[i] = i;

@@ -55,7 +55,11 @@ Now that we have a custom Makefile, it shouldn't be too hard to get up and runni
         Note: This is a file path relative to the location of the makefile. Thus, '../' should be the same as 'cu-droplet/droplet_code/'
       
 7. Write Code!
+<<<<<<< HEAD
    See the [DropletAPI](documentation/DropletAPI.md) for an introduction to some of the main functions you'll need to use, and [Common Problems](documentation/common_problems.md) for help debugging.
+=======
+   See the [DropletAPI](documentation/DropletAPI.md) for an introduction to some of the main functions you'll need to use, and [Common Problems](documentation/common_problems.md) for additional help.
+>>>>>>> f26063acd552cf1469f24b84132289025a352b6e
 
 8. Compile and Upload  
    1. Plug your Droplet in.

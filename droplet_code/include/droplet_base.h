@@ -3,6 +3,11 @@
 //#define AUDIO_DROPLET
 #define SYNCHRONIZED
 
+#define AUDIO_DROPLET
+#define SYNCHRONIZED
+#define FIX_UNPOWERED_STATE
+
+
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <util/atomic.h>
@@ -10,10 +15,17 @@
 #include <util/crc16.h>
 #include <stdlib.h>
 #include <stdio.h>
+
 #include <stdbool.h>
 #include <math.h>
 #include <avr/pgmspace.h>
 #include <string.h>
+
+#include <math.h>
+#include <avr/pgmspace.h>
+
+#include <ctype.h>
+
 
 typedef uint16_t id_t;
 

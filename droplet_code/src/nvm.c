@@ -114,6 +114,8 @@ void nvm_flash_read_buffer(flash_addr_t address, void *buf, uint16_t len)
 	uint16_t opt_address = (uint16_t)address;
 #endif
 	nvm_wait_until_ready();
+	printf("opt_addr in nvm : %lu",opt_address);
+	
 	while ( len ) {
 		*(uint8_t*)buf = nvm_flash_read_byte(opt_address);
 		buf=(uint8_t*)buf+1;

@@ -37,7 +37,9 @@ void init(){
 		setHSV(i*20,200,100);
 		delayMS(2000);
 	}
+	
 	//setRGB(255,0,0);
+	
 	//delayMS(10000);
 	//dummyArray[i] = i;
 	//setRGB(0,255,100);
@@ -63,9 +65,20 @@ void loop(){
 	//}
 }
 
+
+
 /*
- * after each pass through loop(), the robot checks for all mes sages it has 
- * received, and calls this function once for each message.
+ * This function is called once for every range and bearing measurement this droplet has
+ * received since the last time loop returned.
+ */
+void handleMeas(Rnb* meas){
+
+}
+
+/*
+ * This function is called once for every message this droplet has received since the last
+ * time loop returned, after handleMeas is called for any rnb measurements received.
+>>>>>>> f26063acd552cf1469f24b84132289025a352b6e
  */
 void handleMsg(irMsg* msgStruct){
 
@@ -79,3 +92,25 @@ void handleMsg(irMsg* msgStruct){
 //uint8_t userHandleCommand(char* command_word, char* command_args){
 	//return 0;
 //}
+
+/*
+ * The two functions below are optional; they do not have to be defined. If they are defined, 
+ * they will be called in response to the appropriate events.
+ 
+ optional - commenting it in can be useful for debugging if you want to query
+ *	user variables over a serial connection.
+ */
+
+/* If defined, this function will be called when the microphone detects a sharp rising edge.
+ * In practice, this works well for things like detecting claps or someone tapping on the 
+ * Droplet's shell.
+ */
+//void userMicInterrupt(){}
+
+/*
+ * If defined, this function will be called with any serial commandWords that do not match
+ * other commands serial_handler.c checks for. See the serial_handler documentation for
+ * details on commandWord and commandArgs.
+ */
+//uint8_t userHandleCommand(char* commandWord, char* commandArgs){}
+

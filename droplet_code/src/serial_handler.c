@@ -1,9 +1,7 @@
 #include "serial_handler.h"
 #include "droplet_init.h"
-#include <string.h>
 
 static const char CMD_NOT_RECOGNIZED_STR[] PROGMEM = "\tCommand ( %s ) not recognized.\r\n";
-
 
 
 static void handle_check_collisions(void);
@@ -90,7 +88,8 @@ void handleSerialCommand(char* command, uint16_t command_length){
 		}else if(userHandleCommand){ //First, make sure the function is defined
 			if(!userHandleCommand(command_word, command_args))	printf_P(CMD_NOT_RECOGNIZED_STR,command_word);
 		}
-		else printf_P(CMD_NOT_RECOGNIZED_STR,command_word);
+		else														printf_P(CMD_NOT_RECOGNIZED_STR,command_word);
+
 	}
 }
 

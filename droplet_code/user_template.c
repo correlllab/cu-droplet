@@ -37,19 +37,13 @@ void take_readings(CircleMeas* meas_log,uint8_t count){
 #endif
 
 void calculateRadiusCenter(pointCircle ptCirc){
-
 	int32_t a,b,c;
-
 	a = (((ptCirc.x1)*(ptCirc.y2 - ptCirc.y3)) - ((ptCirc.y1)*(ptCirc.x2 - ptCirc.x3)) + ((ptCirc.x2)*(ptCirc.y3)) - ((ptCirc.x3)*(ptCirc.y2)));
 	b = ((((ptCirc.x1*ptCirc.x1) + (ptCirc.y1*ptCirc.y1))*(ptCirc.y3 - ptCirc.y2)) + (((ptCirc.x2*ptCirc.x2) + (ptCirc.y2*ptCirc.y2))*(ptCirc.y1 - ptCirc.y3)) + (((ptCirc.x3*ptCirc.x3) + (ptCirc.y3*ptCirc.y3))*(ptCirc.y2 - ptCirc.y1)));
 	c = ((((ptCirc.x1*ptCirc.x1) + (ptCirc.y1*ptCirc.y1))*(ptCirc.x2 - ptCirc.x3)) + (((ptCirc.x2*ptCirc.x2) + (ptCirc.y2*ptCirc.y2))*(ptCirc.x3 - ptCirc.x1)) + (((ptCirc.x3*ptCirc.x3) + (ptCirc.y3*ptCirc.y3))*(ptCirc.x1 - ptCirc.x2)));
-	//d = ((((ptCirc.x1*ptCirc.x1) + (ptCirc.y1*ptCirc.y1))*(ptCirc.x3*ptCirc.y2 - ptCirc.x2*ptCirc.y3)) + (((ptCirc.x2*ptCirc.x2) + (ptCirc.y2*ptCirc.y2))*(ptCirc.x1*ptCirc.y3 - ptCirc.x3*ptCirc.y1)) + (((ptCirc.x3*ptCirc.x3) + (ptCirc.y3*ptCirc.y3))*(ptCirc.x2*ptCirc.y1 - ptCirc.x1*ptCirc.y2)));
-
 	x_center = (-(b/(2*a)));
 	y_center = (-(c/(2*a)));
 	c_radius = abs(sqrt((pow(((x_center) - (ptCirc.x1)),2)) + (pow(((y_center) - (ptCirc.y1)),2))));
-
-
 }
 
 void comparePointScore(pointCircle point_Score_Circle){
@@ -76,8 +70,6 @@ void comparePointScore(pointCircle point_Score_Circle){
 
 float inlierRatio(CircleMeas* meas_log, uint8_t count){
 	
-	//CircleMeas meas_temp;
-	
 	int32_t dist;
 	float point_score;
 	uint8_t inlier_count = 0;
@@ -94,46 +86,33 @@ float inlierRatio(CircleMeas* meas_log, uint8_t count){
 	for(uint8_t q=0;q<count;q++){
 		
 		dist = abs(sqrt((pow((x_meas - meas_log[q].x),2)) + (pow((y_meas - meas_log[q].y),2))));
-		//printf("\r\nmeas_log(%ld,%ld) and center(%ld,%ld)",meas_log[q].x,meas_log[q].y,x_meas,y_meas);
-		//printf("\r\ndistance 1 - %ld",dist);
 		dist = abs(dist - rad_meas);
-		//printf("\r\ndistance 2 - %ld",dist);
 		if(dist <= INLIER_BOUND){
 			inlier_count++;
 		}
 		else{
 			outlier_count++;
-		}
-		
+		}	
 	}
 	inlier = (float)(inlier_count);
 	outlier = (float)(outlier_count);
 	total = (float)(total_count);
 	total = inlier + outlier;
 	point_score = ((inlier)/(total));
-	//printf("\r\nPoint Score : %f\tInlier Count : %f\tOutlier Count : %f\tTotal Count : %f\r\n",point_score,inlier,outlier,total);
-	
-	return point_score;
-	
+	return point_score;	
 }
 
 void randCircleIterations(CircleMeas* meas_log, uint8_t count){
 	
 	pt_score_1 = 0;
-	
 	pointCircle point_circ;
 	
-	
 	for(uint8_t l=0;l<200;l++){
-		
 		uint8_t a,b,c;
 		pt_score_0 = 0;
 		uint8_t u = 0;
-		
-		//radiusCenterStruct radc;
-		
-		do{
-			
+	
+		do{		
 			a = (randByte()%count);
 			b = (randByte()%count);
 			c = (randByte()%count);
@@ -142,27 +121,19 @@ void randCircleIterations(CircleMeas* meas_log, uint8_t count){
 			}
 		}
 		while(u != 0x23);
-		
-		//printf("\r\na=%hu\tb=%hu\tc=%hu\r\n",a,b,c);
-		
+
 		point_circ.x1 =  meas_log[a].x;
 		point_circ.x2 =  meas_log[b].x;
 		point_circ.x3 =  meas_log[c].x;
 		point_circ.y1 =  meas_log[a].y;
 		point_circ.y2 =  meas_log[b].y;
 		point_circ.y3 =  meas_log[c].y;
-		
-		
-		//CircleMeas* meas_1;
-		//CircleMeas* meas_2;
-		
+
 		calculateRadiusCenter(point_circ);
-		//printf("\r\nout_center(%ld,%ld)",x_center,y_center);
 		pt_score_0 = inlierRatio(meas_log, count);
 		
 		if(pt_score_0 >= MIN_INLIER_RATIO){
 			comparePointScore(point_circ);
-			//a = 24;
 		}
 	}
 	printf("\r\n\r\nbest fit circle parameters\r\n\r\n");
@@ -200,48 +171,40 @@ int32_t min_Distance(CircleMeas* meas_log, uint8_t count){
 				dist_sq[0] = distance;
 				l = 0;
 				i = 1;
-				//printf("(%ld,%ld) - (%ld,%ld)\t%ld\t(  %ld,  %ld,  %ld), %d\r\n",xcor_1,ycor_1,xcor_2,ycor_2,distance,dist_sq[0],dist_sq[1],dist_sq[2],l);
 			}
 			else{
 
 				if((distance < dist_sq[0]) && (dist_sq[1] == 0) && (dist_sq[2] == 0)){
 					l=1;
 					dist_sq[1]= distance;
-					//printf("(%ld,%ld) - (%ld,%ld)\t%ld\t(  %ld,  %ld,  %ld), %d\r\n",xcor_1,ycor_1,xcor_2,ycor_2,distance,dist_sq[0],dist_sq[1],dist_sq[2],l);
 				}
 				else if((distance < dist_sq[0]) && (distance <= dist_sq[1]) && (dist_sq[2] == 0)){
 					l=2;
 					dist_sq[2] = distance;
-					//printf("(%ld,%ld) - (%ld,%ld)\t%ld\t(  %ld,  %ld,  %ld), %d\r\n",xcor_1,ycor_1,xcor_2,ycor_2,distance,dist_sq[0],dist_sq[1],dist_sq[2],l);
 				}
 				else if((distance <= dist_sq[0]) && (distance >= dist_sq[1]) && (dist_sq[2] == 0)){
 					l=3;
 					dist_sq[2] = dist_sq[1];
 					dist_sq[1] = distance;
-					//printf("(%ld,%ld) - (%ld,%ld)\t%ld\t(  %ld,  %ld,  %ld), %d\r\n",xcor_1,ycor_1,xcor_2,ycor_2,distance,dist_sq[0],dist_sq[1],dist_sq[2],l);
 				}
 				else if((distance <= dist_sq[0]) && (distance >= dist_sq[1]) && (distance > dist_sq[2])){
 					l=4;
 					dist_sq[0] = distance;
-					//printf("(%ld,%ld) - (%ld,%ld)\t%ld\t(  %ld,  %ld,  %ld), %d\r\n",xcor_1,ycor_1,xcor_2,ycor_2,distance,dist_sq[0],dist_sq[1],dist_sq[2],l);
 				}
 				else if((distance < dist_sq[0]) && (distance <= dist_sq[1]) && (distance >= dist_sq[2])){
 					l=5;
 					dist_sq[0] = dist_sq[1];
 					dist_sq[1] = distance;
-					//printf("(%ld,%ld) - (%ld,%ld)\t%ld\t(  %ld,  %ld,  %ld), %d\r\n",xcor_1,ycor_1,xcor_2,ycor_2,distance,dist_sq[0],dist_sq[1],dist_sq[2],l);
 				}
 				else if((distance < dist_sq[0]) && (distance < dist_sq[1]) && (distance <= dist_sq[2])){
 					l=6;
 					dist_sq[0] = dist_sq[1];
 					dist_sq[1] = dist_sq[2];
 					dist_sq[2] = distance;
-					//printf("(%ld,%ld) - (%ld,%ld)\t%ld\t(  %ld,  %ld,  %ld), %d\r\n",xcor_1,ycor_1,xcor_2,ycor_2,distance,dist_sq[0],dist_sq[1],dist_sq[2],l);
 				}
 
 				else{
 					l=7;
-					//printf("(%ld,%ld) - (%ld,%ld)\t%ld\t(  %ld,  %ld,  %ld), %d\r\n",xcor_1,ycor_1,xcor_2,ycor_2,distance,dist_sq[0],dist_sq[1],dist_sq[2],l);
 				}
 			}
 		}
@@ -297,11 +260,8 @@ void mergePoints(CircleMeas* meas_log, uint8_t count,int32_t min_distance){
 						xcor_1 += meas_log[b].x;
 						ycor_1 += meas_log[b].y;
 						merge_count++;
-						//printf("\r\nmerged (%ld,%ld) with (%ld,%ld)\r\n",meas_log[b].x,meas_log[b].y,meas_log[a].x,meas_log[a].y);
 						meas_log[b].x = 0xF0F0;
 						meas_log[b].y = 0xF0F0;
-						//printf(" merged point(%ld,%ld)\r\n",meas_log[b].x,meas_log[b].y);
-
 					}
 				}
 			}
@@ -436,10 +396,8 @@ void handleMsg(irMsg* msgStruct){
 		if(msg->msg_check_flag == STOP_MESSAGE_FLAG &&stop_recieved == 0){
 			stop_msg = STOP_MESSAGE_FLAG;
 			setRGB(0,0,255);
-			//int32_t min_dist;
 			printf("\r\nRNB readings taken.\r\n");
-			
-			
+				
 			////////////// POINT SCORE METHOD (MIN INLIER) //////////////////
 
 			#ifdef POINT_SCORE_MIN_INLIER
@@ -475,22 +433,17 @@ void handleMsg(irMsg* msgStruct){
 			printf("\r\n\n\nPOINT SCORE METHOD WITH MERGE\n\n\n");
 
 			int32_t min;
-			//int min_1;
 			uint8_t p,q;
 
 			min = min_Distance(measLog0,read_count);
-			//min_1 = (int)(min);
 			if(min != 0xAAA){
 				mergePoints(measLog0,read_count,min);
-				//printf("\r\nMerge done");
 			}
 			p = mergeStructSort(measLog0,measLog1,read_count);
 			randCircleIterations(measLog1,p);
-			
 			q = inlierPointsSave(measLog0,measLog1,p);
 			calculate_Center(measLog0, q);
 			calculate_Radius(measLog0, q);
-			
 			
 			#endif
 
@@ -507,10 +460,7 @@ void handleMsg(irMsg* msgStruct){
 			
 			#endif
 			
-			//calculate_Center(measLog, read_count);
-			//calculate_Radius(measLog, read_count);
 			setRGB(0,255,0);
-			//change_axes();
 			printf("\nCenter and Radius calculations done. \r\n");
 
 			printf("Sending radius and center to moving droplet\r\n");
@@ -545,14 +495,9 @@ void take_Rnb_Reading(CircleMeas *meas_log){
 	meas_log->y = ((last_good_rnb.range)*(sin(degToRad(last_good_rnb.bearing)))); //yi = r*sin(theta)
 	(time_data) = getTime();
 	last_heading = last_good_rnb.heading;
-	//last_update->y = meas_log->y;
-	//last_update->x = meas_log->x;
 	last_x = meas_log->x;
 	last_y = meas_log->y;
 	printf("{{%u, %d, %d}, {%ld, %ld}, %lu},\r\n",last_good_rnb.range, last_good_rnb.bearing, last_good_rnb.heading, meas_log->x, meas_log->y, time_data);
-	//printf("\r\nReading %hu\tCoordinates (%d,%d)\tTime - %lu\r\n",read_count,meas_log->x,meas_log->y,time_data);
-	//printf("%d, (%ld, %ld), (%ld, %ld)\r\n", last_heading, last_x, last_y, meas_log->x, meas_log->y);
-
 	rnb_updated = 0;
 }
 
@@ -581,8 +526,6 @@ void calculate_Center(CircleMeas* meas_log, uint8_t count){
 	
 	for(uint8_t i=0;i<count;i++){
 		
-		//if((meas_log->x != 0xF0F0) && (meas_log->x != 0xF0F0)){
-		
 		meas_x = ((int64_t)(meas_log->x));
 		meas_y = ((int64_t)(meas_log->y));
 		
@@ -597,11 +540,7 @@ void calculate_Center(CircleMeas* meas_log, uint8_t count){
 		sum_xiyi += ((meas_x)*(meas_y));
 		sum_xi_yisq += ((meas_x)*(meas_y)*(meas_y));
 		sum_yi_xisq += ((meas_y)*(meas_x)*(meas_x));
-		//}
-		
-		//printf("(%ld, %ld)\r\n", meas_log->x, meas_log->y);
-		meas_log++;
-		
+		meas_log++;	
 	}
 	
 	alpha = (((count)*(xi_sq)) - ((sum_xi)*(sum_xi)));
@@ -613,10 +552,7 @@ void calculate_Center(CircleMeas* meas_log, uint8_t count){
 
 	center_x_coordinate  = ((((delta)*(gamma)) - ((beta)*(epsilon))) / (((alpha)*(gamma)) - ((beta)*(beta))));
 	center_y_coordinate  = ((((alpha)*(epsilon)) - ((beta)*(delta))) / (((alpha)*(gamma)) - ((beta)*(beta))));
-	
-	//center_x_coordinate >>= 1;
-	//center_y_coordinate >>= 1;
-	
+
 	radius_center_calc_struct.center_x  = ((int32_t)(center_x_coordinate));
 	radius_center_calc_struct.center_y  = ((int32_t)(center_y_coordinate));
 	
@@ -625,8 +561,7 @@ void calculate_Center(CircleMeas* meas_log, uint8_t count){
 }
 
 void calculate_Radius(CircleMeas* meas_log, uint8_t count){
-	//uint8_t count = 20;
-	
+
 	int64_t radius_x_sq = 0;
 	int64_t radius_y_sq = 0;
 	int64_t radius_msq = 0;
@@ -637,9 +572,7 @@ void calculate_Radius(CircleMeas* meas_log, uint8_t count){
 	int64_t meas_x,meas_y;
 	
 	for(uint8_t i=0;i<count;i++){
-		
-		//if((meas_log->x != 0xF0F0) && (meas_log->x != 0xF0F0)){
-		
+
 		meas_x = ((int64_t)(meas_log->x));
 		meas_y = ((int64_t)(meas_log->y));
 		
@@ -685,10 +618,7 @@ void startMove(uint8_t dir, uint16_t numSteps){
 /********************** INIT **************************************/
 
 void init(void){
-	
-	//read_count = 15;
-	//take_readings(measLog0,read_count);
-	
+
 	if( getDropletID() == MOVING_DROPLET_ID ){
 		lastMessageTime = 0;
 		motorAdjusts[0][0] = 0;
@@ -701,16 +631,12 @@ void init(void){
 		read_count = 0;
 		setRGB(250,0,0);
 	}
-
-
-	//setRGB(0,200,200);
 }
 
 /********************** LOOP **************************************/
 
 void loop(void){
-	
-	//#if 0
+
 	/********************** MOVING_DROPLET LOOP CODE ******************/
 
 	if(( getDropletID() == MOVING_DROPLET_ID )){
@@ -737,10 +663,7 @@ void loop(void){
 			}
 		}
 	}
-
-	/*****************************************************************/
-	//#endif
-
+	/*****************************************************************************/
 }
 
 

@@ -29,8 +29,6 @@ static volatile uint32_t last_sched =0;
 uint32_t first_attempt;
 #define timeout_PERIOD 30000
 
-static volatile uint16_t listSize=0;
-
 //#define HARDCORE_DEBUG_DIR 0x00
 
 //Add code to pad outgoing message strings with garbage so they reach the next packet length (5, 17, 29, or 41 bytes).
@@ -111,7 +109,8 @@ void irCommInit(){
 	processingCmdFlag = 0;
 	processingFFsyncFlag = 0;
 	incomingMsgHead = NULL;
-	memoryConsumedByBuffer = 0;
+	memoryConsumedByOutgoingMsgBuffer = 0;
+	memoryConsumedByIncomingMsgBuffer = 0;
 	for(uint8_t dir=0; dir<6; dir++) clearIrBuffer(dir); //this initializes the buffer's values to 0.
 
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
@@ -195,16 +194,8 @@ uint32_t getExponentialBackoff(uint8_t c){
 	N= (((uint32_t)1)<<c)-1;
 	
 	k = ((randQuad()%N)+1);
-	#ifdef ADDING_DELAYS
-		if(c == 1)
-		return_value = (25+last_return)%110;
-		else
-		//return_value = k*MS_DROPLET_COMM_TIME;
-		return_value = k*IR_MIN_PACKET_LENGTH;
-	#else
-		//return_value = k*MS_DROPLET_COMM_TIME;
-		return_value = k*IR_MIN_PACKET_LENGTH;
-	#endif
+	//return_value = k*MS_DROPLET_COMM_TIME;
+	return_value = k*IR_MIN_PACKET_LENGTH;
 	last_return = return_value;
 	
 	
@@ -227,7 +218,7 @@ void removeHeadAndUpdate(){
 			outgoingMsgHead->prev = tempNode->prev;
 			tempNode->prev->next = outgoingMsgHead;
 		}
-		listSize = listSize - ( sizeof(OutMsgNode) + tempNode->data_length);
+		memoryConsumedByOutgoingMsgBuffer = memoryConsumedByOutgoingMsgBuffer - ( sizeof(OutMsgNode) + tempNode->data_length);
 		myFree((OutMsgNode*)tempNode);
 		tempNode = NULL;
 }
@@ -241,7 +232,9 @@ void tryAndSendMessage(){//void * msg_temp_node){
 	Msg* data;
 	//msgNode = (NODE *)msg_temp_node;
 	if(irIsBusy(outgoingMsgHead->channel_id)>0){// && (get_time()-first_attempt < timeout_PERIOD) && (BUFFER_HEAD->no_of_tries < 10)){
-		if(outgoingMsgHead->no_of_tries < IR_MAX_MSG_TRIES){
+		
+		//if(outgoingMsgHead->no_of_tries < IR_MAX_MSG_TRIES){
+		if(getTime() - outgoingMsgHead->time_lived < IR_MAX_TIME_LIVED){					
 			uint32_t time_backoff = getExponentialBackoff(outgoingMsgHead->no_of_tries++);
 			#ifdef ADDING_DELAYS
 				scheduleTask(time_backoff+15, tryAndSendMessage, NULL);// (void *)BUFFER_HEAD);		
@@ -271,18 +264,25 @@ void tryAndSendMessage(){//void * msg_temp_node){
 				ir_rxtx[dir].target_ID=outgoingMsgHead->target;
 			}
 		}
-		
-		Msg* msg_sent = (Msg*)(outgoingMsgHead->data);
-		msg_sent->attempts = outgoingMsgHead->no_of_tries;
+		if(outgoingMsgHead->data_length==DESIRED_MSG_LENGTH){
+			Msg* msg_sent = (Msg*)(outgoingMsgHead->data);
+			msg_sent->attempts = outgoingMsgHead->no_of_tries;
+		}
+
 		//printf("\nmsg_sent->time_sent = %u",msg_sent->time_sent);
 		
 		send_msg(outgoingMsgHead->channel_id, outgoingMsgHead->data, outgoingMsgHead->data_length, 0);
 		
 		
-		data = (Msg*)(outgoingMsgHead->data);
-		uint8_t dataSender = (uint8_t)(log((data->msgId)>>12)/log(2));
-		uint16_t printID = (data->msgId)&0x0FFF;
-		printf("\n\rsend success %01hu %u at %lu\r\n", dataSender, printID, getTime());
+		if(outgoingMsgHead->data_length==DESIRED_MSG_LENGTH){
+			printf("send success");
+			data = (Msg*)(outgoingMsgHead->data);
+			uint8_t dataSender = (uint8_t)(log((data->msgId)>>12)/log(2));
+			uint16_t printID = (data->msgId)&0x0FFF;
+			printf("%01hu %u at %lu", dataSender, printID, getTime());
+			printf("\r\n");
+		}
+		
 		uint32_t msgMSlen = expectedMsgDur(outgoingMsgHead);	//RIYA
 		//uint32_t sched_now = (last_sched + msgMSlen)%115;
 		//last_sched = sched_now;
@@ -312,9 +312,9 @@ void printMsgQueue(){
 
 static OutMsgNode* all_ir_sends(uint8_t dir, char * str, uint8_t dataLength, id_t msgTarget, uint8_t cmdFlag){
 	
-	listSize += sizeof(OutMsgNode) + dataLength;
-	if(listSize> 500){
-		listSize = listSize - (sizeof(OutMsgNode) + dataLength);
+	memoryConsumedByOutgoingMsgBuffer += sizeof(OutMsgNode) + dataLength;
+	if(memoryConsumedByOutgoingMsgBuffer> 500){
+		memoryConsumedByOutgoingMsgBuffer = memoryConsumedByOutgoingMsgBuffer - (sizeof(OutMsgNode) + dataLength);
 		return NULL;
 		
 	}
@@ -338,6 +338,7 @@ static OutMsgNode* all_ir_sends(uint8_t dir, char * str, uint8_t dataLength, id_
 	//Msg* msg = (Msg*)(str);
 	//printf("Adding (%u) at %p\r\n", msg->msgId,bufferPointer);
 	bufferPointer->no_of_tries = 1;
+	bufferPointer->time_lived = getTime();
 	//tryAndSendMessage((void *)bufferPointer);
 	
 	//Linked list if required
@@ -453,11 +454,11 @@ static void addMsgToMsgQueue(uint8_t dir){
 		printf_P(PSTR("ERROR! Should NOT be adding 0-length message to queue.\r\n"));
 	}else if(ir_rxtx[dir].data_length > IR_BUFFER_SIZE){
 		printf_P(PSTR("ERROR! Should NOT be adding a message with length greater than buffer size to queue.\r\n"));
-	}else if(memoryConsumedByBuffer > 500){
-		printf_P(PSTR("ERROR! Buffered incoming messages consuming too much memory. Allow handle_msg to be called more frequently.\r\n"));
+	}else if(memoryConsumedByIncomingMsgBuffer > 500){
+		printf_P(PSTR("ERROR! Buffered incoming messages consuming too much memory. Allow loop to return more frequently.\r\n"));
 	}else{
-		volatile IncMsgNode* node = incomingMsgHead;
 		ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+			IncMsgNode* node = (IncMsgNode*)incomingMsgHead;
 			if(incomingMsgHead==NULL){
 				incomingMsgHead = (volatile IncMsgNode*)myMalloc(sizeof(IncMsgNode) + ir_rxtx[dir].data_length);
 				node = (IncMsgNode*)incomingMsgHead;
@@ -468,16 +469,13 @@ static void addMsgToMsgQueue(uint8_t dir){
 				node->next = (IncMsgNode*)myMalloc(sizeof(IncMsgNode) + ir_rxtx[dir].data_length);
 				node = node->next;
 			}
-			char* dataAddr = ((char*)node + sizeof(IncMsgNode));
-			memcpy(dataAddr, (const void*)ir_rxtx[dir].buf, ir_rxtx[dir].data_length);
-			node->msg			= dataAddr;
+			memcpy(node->msg, (const void*)ir_rxtx[dir].buf, ir_rxtx[dir].data_length);
 			node->arrivalTime	= ir_rxtx[dir].last_byte;
 			node->length		= ir_rxtx[dir].data_length;
 			node->senderID		= ir_rxtx[dir].senderID;
 			node->crc			= ir_rxtx[dir].calc_crc;
 			node->next			= NULL;
-			printf("Datalen in handleComplete()=%hu\r\n", ir_rxtx[dir].data_length);	//RIYA
-			memoryConsumedByBuffer += (sizeof(IncMsgNode) + ir_rxtx[dir].data_length);
+			memoryConsumedByIncomingMsgBuffer += (sizeof(IncMsgNode) + ir_rxtx[dir].data_length);
 			numWaitingMsgs++;
 		}
 	}

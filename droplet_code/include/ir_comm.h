@@ -20,6 +20,7 @@ typedef struct msg_struct{
 	uint16_t msgId;
 	char text[];
 }Msg;
+#define DESIRED_MSG_LENGTH 7 // must be at least as big as sizeof(Msg)
 
 #define RTS_BYTE 0xCC
 
@@ -30,10 +31,6 @@ typedef struct msg_struct{
 //		8 KB flash (bootloader memory)
 //		2 KB EEPROM	(permanent variables)
 //		8 KB SRAM (temporary variables)
-
-#define MAX_USER_FACING_MESSAGES 6
-//#define MSG_PERIOD 400
-
 #define KEY_POWER		((uint16_t)0x40BF)
 #define KEY_CH_UP		((uint16_t)0x48B7)
 #define KEY_CH_DOWN		((uint16_t)0xC837)
@@ -47,12 +44,14 @@ typedef struct msg_struct{
 #define KEY_RIGHT		((uint16_t)0x46B9)
 
 #define IR_BUFFER_SIZE			41u //bytes
+
 #define IR_MSG_TIMEOUT			4 // ms  //RIYA
 #define IR_MIN_PACKET_LENGTH 30
-#define IR_MAX_MSG_TRIES		6
+#define IR_MAX_MSG_TRIES		4
 
 #define IR_MAX_MSG_ATTEMPT_DUR   (((1<<(IR_MAX_MSG_TRIES+1))-2)*IR_MSG_TIMEOUT)
 #define IR_EXP_MSG_ATTEMPT_DUR   (((1<<IR_MAX_MSG_TRIES) - 1 + (IR_MAX_MSG_TRIES>>1))*IR_MSG_TIMEOUT)
+
 
 #define IR_STATUS_BUSY_bm				0x01	// 0000 0001				
 #define IR_STATUS_COMPLETE_bm			0x02	// 0000 0010
@@ -98,15 +97,17 @@ typedef struct out_msg_node_struct {
 	id_t target;
 	uint8_t cmd_flag;
 	uint8_t no_of_tries;
+	uint32_t time_lived;
 	struct out_msg_node_struct * next;
 	struct out_msg_node_struct * prev;
 	char data[0];
 } OutMsgNode;
-
 OutMsgNode * outgoingMsgHead;
+uint16_t memoryConsumedByOutgoingMsgBuffer;
 
 uint32_t MSG_PERIOD;
 uint32_t MS_DROPLET_COMM_TIME;
+uint32_t IR_MAX_TIME_LIVED;
 
 
 //If we want to consume less RAM, we could tweak how ir_rxtx stores messages.. 
@@ -127,13 +128,12 @@ typedef struct msg_node{
 	uint32_t			arrivalTime;
 	id_t				senderID;
 	uint16_t			crc;
-	char*				msg;
 	struct msg_node*	next;
 	uint8_t				length;
+	char				msg[0];
 } IncMsgNode;
 volatile IncMsgNode* incomingMsgHead;
-
-uint16_t memoryConsumedByBuffer;
+uint16_t memoryConsumedByIncomingMsgBuffer;
 
 volatile uint8_t hpIrBlock_bm;			//can only be set by other high priority ir things!
 volatile uint8_t numWaitingMsgs;

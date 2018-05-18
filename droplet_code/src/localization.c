@@ -223,7 +223,8 @@ static void updatePos(BotPos* pos, Matrix* yourP){
 		MY_POS_DEBUG_PRINT(" sent me an undefined position.\r\n");
 		return;
 	}
-	MY_POS_DEBUG_PRINT("thinks I'm at {%d, %d, %d}", pos->x, pos->y, pos->o);
+	MY_POS_DEBUG_PRINT("thinks I'm at {%d, %d, %d} ", pos->x, pos->y, pos->o);
+	printMatrixMathematica()
 	Vector xMeFromYou = {pos->x, pos->y, degToRad(pos->o)};
 	Matrix myP;
 	decompressP(&myP, &myPosCovar);

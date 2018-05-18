@@ -1,52 +1,57 @@
 #include "user_template.h"
 
-//This function is called once, after all of the Droplet's systems have been initialized.
 void init(){
-
+	if((LOCALIZATION_DUR)>=SLOT_LENGTH_MS){
+		printf_P(PSTR("Error! Localization requires SLOT_LENGTH_MS to be greater than LOCALIZATION_DUR!\r\n"));
+	}
+	loopID = 0xFFFF;
+	frameCount = 0;
+	frameStart=getTime();
+	mySlot = getSlot(getDropletID());
+	printf("mySlot: %u, frame_length: %lu\r\n\r\n", mySlot, FRAME_LENGTH_MS);
 }
 
-/*
- * This function is called repeatedly, as fast as it can. Note that this droplet can only
- * receive new rnb measurements or ir messages after this function returns. Things work
- * better if you let it return frequently.
- */
 void loop(){
-
+	uint32_t frameTime = getTime()-frameStart;
+	if(frameTime>FRAME_LENGTH_MS){
+		frameTime = frameTime - FRAME_LENGTH_MS;
+		frameStart += FRAME_LENGTH_MS;
+		frameCount++;
+	}
+	if(loopID!=(frameTime/SLOT_LENGTH_MS)){
+		loopID = frameTime/SLOT_LENGTH_MS;
+		if(loopID==mySlot){
+			broadcastRnbData();
+		}else if(loopID==SLOTS_PER_FRAME-1){
+			//printf_P(PSTR("\nID: %04X T: %lu "), get_droplet_id(), get_time());
+			if(POS_DEFINED(&myPos)){
+				printf_P(PSTR("{\r\n\t%lu,\r\n\t{%d, %d, %d},\r\n"), getTime(), myPos.x, myPos.y, myPos.o);
+				printPosCovar(&myPosCovar);
+				printf("},\r\n");
+			}
+		}
+		uint8_t newR = 0, newG = 0, newB = 0;
+		getPosColor(&newR, &newG, &newB);
+		setRGB(newR, newG, newB);
+	}
+	delayMS(LOOP_DELAY_MS);
 }
 
-/*
- * This function is called once for every range and bearing measurement this droplet has
- * received since the last time loop returned.
- */
 void handleMeas(Rnb* meas){
-
+	RNB_DEBUG_PRINT("\t(RNB) ID: %04X | R: %4u B: %4d H: %4d\r\n", meas->id, meas->range, meas->bearing, meas->heading);
+	useRNBmeas(meas);
 }
 
-/*
- * This function is called once for every message this droplet has received since the last
- * time loop returned, after handleMeas is called for any rnb measurements received.
- */
 void handleMsg(irMsg* msgStruct){
-
+	if(((BotMeasMsg*)(msgStruct->msg))->flag==BOT_MEAS_MSG_FLAG && msgStruct->length==sizeof(BotMeasMsg)){
+		handleBotMeasMsg((BotMeasMsg*)(msgStruct->msg), msgStruct->senderID);
+	}
 }
 
-/*
- * The two functions below are optional; they do not have to be defined. If they are defined, 
- * they will be called in response to the appropriate events.
- 
- optional - commenting it in can be useful for debugging if you want to query
- *	user variables over a serial connection.
- */
-
-/* If defined, this function will be called when the microphone detects a sharp rising edge.
- * In practice, this works well for things like detecting claps or someone tapping on the 
- * Droplet's shell.
- */
-//void userMicInterrupt(){}
-
-/*
- * If defined, this function will be called with any serial commandWords that do not match
- * other commands serial_handler.c checks for. See the serial_handler documentation for
- * details on commandWord and commandArgs.
- */
-//uint8_t userHandleCommand(char* commandWord, char* commandArgs){}
+///*
+ //*	The function below is optional - commenting it in can be useful for debugging if you want to query
+ //*	user variables over a serial connection.
+ //*/
+//uint8_t user_handle_command(char* command_word, char* command_args){	
+	//return 0;
+//}

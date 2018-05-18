@@ -74,10 +74,10 @@
  *   constant defining the CPU clock frequency in Hertz).
  *
  */
-#define busy_delay_ns(__ns)     _delay_cycles( (double)(F_CPU)*((double)__ns)/1.0e9 + 0.5 )
-#define busy_delay_us(__us)     _delay_cycles( (double)(F_CPU)*((double)__us)/1.0e6 + 0.5 )
-#define busy_delay_ms(__ms)     _delay_cycles( (double)(F_CPU)*((double)__ms)/1.0e3 + 0.5 )
-#define busy_delay_s(  __s)     _delay_cycles( (double)(F_CPU)*((double)__s )/1.0e0 + 0.5 )
+#define busy_delay_ns(__ns)     _delay_cycles( (double)(F_CPU)*((double)__ns)/1.0e9 + 0.99 )
+#define busy_delay_us(__us)     _delay_cycles( (double)(F_CPU)*((double)__us)/1.0e6 + 0.99 )
+#define busy_delay_ms(__ms)     _delay_cycles( (double)(F_CPU)*((double)__ms)/1.0e3 + 0.99 )
+#define busy_delay_s(  __s)     _delay_cycles( (double)(F_CPU)*((double)__s )/1.0e0 + 0.99 )
 
 /* ==========================================================================*/
 

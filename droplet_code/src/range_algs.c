@@ -68,11 +68,12 @@ float calculate_error(float r, float b, float h);
 static int16_t processBrightMeas(void);
 
 static float magicRangeFunc(float a);
+static void addMeasToMeasQueue(Rnb* meas);
 //static float invMagicRangeFunc(float r);
 
 //static void print_brightMeas(void);
 												
-void range_algs_init(){
+void rangeAlgsInit(){
 	sensorHealthHistory = 0;
 	for(uint8_t i=0 ; i<6 ;i++){
 		for(uint8_t j=0 ; j<6 ; j++){
@@ -80,33 +81,36 @@ void range_algs_init(){
 		}
 	}
 	rnbCmdID=0;
+	incMeasHead = NULL;
+	numWaitingMeas = 0;
+	memoryConsumedByMeasBuffer = 0;
 	processing_rnb_flag=0;
 }
 
 //TODO: handle variable power.
-void broadcast_rnb_data(){
+void broadcastRnbData(){
 	uint8_t power = 255;
 	uint8_t goAhead = 0;
 	uint8_t result = 0;
 	uint8_t irStatus = 0;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-		irStatus = ir_is_busy(ALL_DIRS);
+		irStatus = irIsBusy(ALL_DIRS);
 		if(!processing_rnb_flag){
 			processing_rnb_flag = 1;
 			goAhead = 1;
 		}
 	}
 	if(goAhead){
-		uint32_t rnbCmdSentTime = get_time();
+		uint32_t rnbCmdSentTime = getTime();
 		char c = 'r';
-		result = hp_ir_targeted_cmd(ALL_DIRS, &c, 65, (uint16_t)(rnbCmdSentTime&0xFFFF));
+		result = hpIrTargetedCmd(ALL_DIRS, &c, 65, (uint16_t)(rnbCmdSentTime&0xFFFF));
 		if(result){
 			ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-				hp_ir_block_bm = 0x3F;
+				hpIrBlock_bm = 0x3F;
 			}		
-			ir_range_blast(rnbCmdSentTime, power);
+			irRangeBlast(rnbCmdSentTime, power);
 			ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-				hp_ir_block_bm = 0;
+				hpIrBlock_bm = 0;
 			}
 			//printf("rnb_b\r\n");
 		}
@@ -119,40 +123,69 @@ void broadcast_rnb_data(){
 	}
 }
 
-void use_rnb_data(){
+uint8_t checkErrorAndPrint(float range, float bearing, float heading){
+	float error = calculate_error(range, bearing, heading);
+	//printf("\t[%04X] %4u % 4d % 4d | %6.2f", rnbCmdID, (uint16_t)range, (int16_t)radToDeg(bearing), (int16_t)radToDeg(heading), error);
+	if((range<110 && error>1.0) || (range<200 && error>1.5) || (range>200)){
+		ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+			processing_rnb_flag=0;
+		}
+		//printf(" <!>\r\n");
+		return 0;
+	}else{
+		//printf("\r\n");
+		return 1;
+	}
+}
+
+void useRnbData(){
 	//uint32_t start = get_time();
 	int16_t matrixSum = processBrightMeas();
 	//if(rand_byte()%2) broadcastBrightMeas();
 	float bearing, heading;
-	float error;
 	calculate_bearing_and_heading(&bearing, &heading);
 	float initialRange = magicRangeFunc(matrixSum/2.0739212652);
 	if(initialRange!=0&&!isnanf(initialRange)){	
 		float range = calculate_range(initialRange, bearing, heading);
 		if(!isnanf(range)){
 			if(range<2*DROPLET_RADIUS) range=46;
-			error = calculate_error(range, bearing, heading);
-			//printf("\t[%04X] %4u % 4d % 4d | %6.2f", rnbCmdID, (uint16_t)range, (int16_t)rad_to_deg(bearing), (int16_t)rad_to_deg(heading), error);
-			if((range<110 && error>1.0) || (range<200 && error>1.5) || (range>200)){
-				ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-					processing_rnb_flag=0;
-				}
-				//printf(" <!>\r\n");
-				return;
-			}else{
-				//printf("\r\n");
+			if(checkErrorAndPrint(range, bearing, heading)){
+				Rnb meas;
+				
+				meas.id = rnbCmdID;
+				meas.range		= (uint16_t)(range);
+				meas.bearing	= (int16_t)radToDeg(bearing);
+				meas.heading	= (int16_t)radToDeg(heading);
+				addMeasToMeasQueue(&meas);
 			}
-			
-			last_good_rnb.id = rnbCmdID;
-			last_good_rnb.range		= (uint16_t)(range);
-			last_good_rnb.bearing	= (int16_t)rad_to_deg(bearing);
-			last_good_rnb.heading	= (int16_t)rad_to_deg(heading);
-			//print_brightMeas();
-			rnb_updated=1;
 		}
 	}
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 		processing_rnb_flag=0;
+	}
+}
+
+static void addMeasToMeasQueue(Rnb* meas){
+	if(memoryConsumedByMeasBuffer > 100){
+		printf_P(PSTR("ERROR! Buffered incoming measurements consuming too much memory. Allow loop() to return more frequently!\r\n"), memoryConsumedByMeasBuffer);
+	}else{
+		ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+			MeasNode* node = (MeasNode*)incMeasHead;
+			if(incMeasHead==NULL){
+				incMeasHead = (volatile MeasNode*)myMalloc(sizeof(MeasNode));
+				node = (MeasNode*)incMeasHead;
+			}else{
+				while(node->next != NULL){
+					node = node->next;
+				}
+				node->next = (MeasNode*)myMalloc(sizeof(MeasNode));
+				node = node->next;
+			}
+			node->meas = *meas;
+			node->next = NULL;
+			memoryConsumedByMeasBuffer += (sizeof(MeasNode));
+			numWaitingMeas++;
+		}
 	}
 }
 
@@ -296,58 +329,56 @@ static int16_t processBrightMeas(void){
 		}		
 	}
 	if(problem){
-		warning_light_sequence();
+		warningLightSequence();
 	}	
 	return valSum;
 }
 
-void ir_range_meas(uint32_t rnbCmdSentTime){
+void irRangeMeas(uint32_t rnbCmdSentTime){
 	//int32_t times[16] = {0};
-	cmd_arrival_dir;
-	cmd_sender_dir;
 	//times[0] = get_time();
-	while((get_time()-rnbCmdSentTime+8)<POST_BROADCAST_DELAY);
+	while((getTime()-rnbCmdSentTime+8)<POST_BROADCAST_DELAY);
 	//times[1] = get_time();
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){		
-		uint32_t pre_sync_op = get_time();
-		while((get_time() - pre_sync_op) < TIME_FOR_SET_IR_POWERS) delay_us(500);
+		uint32_t pre_sync_op = getTime();
+		while((getTime() - pre_sync_op) < TIME_FOR_SET_IR_POWERS) delay_us(500);
 		//times[2] = get_time();
 		for(uint8_t emitter_dir = 0; emitter_dir < 6; emitter_dir++){
-			pre_sync_op = get_time();
+			pre_sync_op = getTime();
 			//times[2*emitter_dir+3] = pre_sync_op;
-			while((get_time() - pre_sync_op) < (TIME_FOR_GET_IR_VALS-TIME_FOR_IR_MEAS)/2) delay_us(500);
-			get_ir_sensors(brightMeas[emitter_dir] , 9); //11
+			while((getTime() - pre_sync_op) < (TIME_FOR_GET_IR_VALS-TIME_FOR_IR_MEAS)/2) delay_us(500);
+			getIrSensors(brightMeas[emitter_dir] , 9); //11
 			//times[2*emitter_dir+4] = get_time();			
-			while((get_time() - pre_sync_op) < TIME_FOR_GET_IR_VALS) delay_us(500);		
-			delay_ms(DELAY_BETWEEN_RB_TRANSMISSIONS);
+			while((getTime() - pre_sync_op) < TIME_FOR_GET_IR_VALS) delay_us(500);		
+			delayMS(DELAY_BETWEEN_RB_TRANSMISSIONS);
 		}
 	}
 }
 
-void ir_range_blast(uint32_t rnbCmdSentTime, uint8_t power __attribute__ ((unused))){
+void irRangeBlast(uint32_t rnbCmdSentTime, uint8_t power __attribute__ ((unused))){
 	//int32_t times[16] = {0};
 	//times[0] = get_time();
-	while((get_time() - rnbCmdSentTime) < POST_BROADCAST_DELAY) delay_us(500);
+	while((getTime() - rnbCmdSentTime) < POST_BROADCAST_DELAY) delay_us(500);
 	//times[1] = get_time();
-	uint32_t pre_sync_op = get_time();
+	uint32_t pre_sync_op = getTime();
 	uint16_t prevPower = curr_ir_power;
-	set_all_ir_powers(256);	
+	setAllirPowers(256);	
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){		
-		while((get_time() - pre_sync_op) < TIME_FOR_SET_IR_POWERS) delay_us(500);
+		while((getTime() - pre_sync_op) < TIME_FOR_SET_IR_POWERS) delay_us(500);
 		//times[2] = get_time();
 		for(uint8_t dir = 0; dir < 6; dir++){
-			pre_sync_op = get_time();
+			pre_sync_op = getTime();
 			//set_red_led(255);
 			//times[2*dir+3] = pre_sync_op;			
-			ir_led_on(dir);
-			while((get_time() - pre_sync_op) < TIME_FOR_GET_IR_VALS) delay_us(500);
-			ir_led_off(dir);
+			irLedOn(dir);
+			while((getTime() - pre_sync_op) < TIME_FOR_GET_IR_VALS) delay_us(500);
+			irLedOff(dir);
 			//times[2*dir+4] = get_time();				
 			//set_red_led(0);					
-			delay_ms(DELAY_BETWEEN_RB_TRANSMISSIONS);
+			delayMS(DELAY_BETWEEN_RB_TRANSMISSIONS);
 		}
 	}
-	set_all_ir_powers(prevPower);
+	setAllirPowers(prevPower);
 }
 
 

@@ -1,8 +1,5 @@
-/** \file *********************************************************************
- * \brief Droplet infrared communication subsystem functions are defined here.
- *
- *****************************************************************************/
 #pragma once
+
 #include "droplet_base.h"
 #include "ir_led.h"
 #include "ir_sensor.h"
@@ -20,8 +17,6 @@
 //		2 KB EEPROM	(permanent variables)
 //		8 KB SRAM (temporary variables)
 
-#define MAX_USER_FACING_MESSAGES 6
-
 #define KEY_POWER		((uint16_t)0x40BF)
 #define KEY_CH_UP		((uint16_t)0x48B7)
 #define KEY_CH_DOWN		((uint16_t)0xC837)
@@ -35,8 +30,7 @@
 #define KEY_RIGHT		((uint16_t)0x46B9)
 
 #define IR_BUFFER_SIZE			40u //bytes
-#define IR_UPKEEP_FREQUENCY		16 //Hz
-#define IR_MSG_TIMEOUT			16 //ms
+#define IR_MSG_TIMEOUT			5 //ms
 
 #define IR_STATUS_BUSY_bm				0x01	// 0000 0001				
 #define IR_STATUS_COMPLETE_bm			0x02	// 0000 0010
@@ -62,9 +56,9 @@
 #define HEADER_POS_MSG_LENGTH 4
 #define HEADER_POS_TARGET_ID_LOW 5
 #define HEADER_POS_TARGET_ID_HIGH 6
-#define HEADER_POS_SOURCE_DIR 7
 
-#define HEADER_LEN 8U
+
+#define HEADER_LEN 7U
 
 #define MAX_WAIT_FOR_IR_TIME (5*(IR_BUFFER_SIZE+HEADER_LEN))
 
@@ -79,47 +73,44 @@ volatile struct
 {	
 	volatile uint32_t last_byte;			// TX time or RX time of last received byte	
 	volatile uint16_t data_crc;
-	volatile id_t sender_ID;
-	volatile id_t target_ID;
+	volatile id_t senderID;
+	volatile id_t targetID;
 	volatile uint16_t curr_pos;				// Current position in buffer
 	volatile uint16_t calc_crc;
 	volatile char buf[IR_BUFFER_SIZE];		// Transmit / receive buffer		
 	volatile uint8_t  data_length;	
-	volatile int8_t inc_dir;
 	volatile uint8_t status;		// Transmit:
 } ir_rxtx[6];
 
-#define INC_DIR_KEY 0b11111000
+typedef struct msg_node{
+	uint32_t			arrivalTime;
+	id_t				senderID;
+	uint16_t			crc;
+	struct msg_node*	next;
+	uint8_t				length;
+	char				msg[0];
+} MsgNode;
+volatile MsgNode* incMsgHead;
 
-volatile struct
-{
-	volatile uint32_t	arrival_time;
-	volatile id_t		sender_ID;
-	volatile char		msg[IR_BUFFER_SIZE];		
-	volatile uint8_t	arrival_dir;
-	volatile uint8_t	msg_length;
-	volatile uint8_t	wasTargeted;
-} msg_node[MAX_USER_FACING_MESSAGES];
+uint16_t memoryConsumedByMsgBuffer;
 
-volatile uint8_t hp_ir_block_bm;			//can only be set by other high priority ir things!
-volatile uint8_t num_waiting_msgs;
-volatile uint8_t user_facing_messages_ovf;
+volatile uint8_t hpIrBlock_bm;			//can only be set by other high priority ir things!
+volatile uint8_t numWaitingMsgs;
 
-volatile uint32_t	cmd_arrival_time;
-volatile id_t		cmd_sender_id;
-volatile uint8_t	cmd_arrival_dir;
-volatile uint8_t	cmd_sender_dir;
+volatile uint32_t	cmdArrivalTime;
+volatile id_t		cmdSenderId;
+volatile uint8_t	cmdArrivalDir;
 
-void ir_comm_init(void);
+void irCommInit(void);
 
-void handle_cmd_wrapper(void);
+void handleCmdWrapper(void);
 
-uint8_t ir_targeted_cmd(uint8_t dirs, char *data, uint8_t data_length, id_t target);
-uint8_t ir_cmd(uint8_t dirs, char *data, uint8_t data_length);
-uint8_t ir_targeted_send(uint8_t dirs, char *data, uint8_t data_length, id_t target);
-uint8_t ir_send(uint8_t dirs, char *data, uint8_t data_length);
-uint8_t hp_ir_cmd(uint8_t dirs, char *data, uint8_t data_length);
-uint8_t hp_ir_targeted_cmd(uint8_t dirs, char *data, uint8_t data_length, id_t target);
+uint8_t irTargetedCmd(uint8_t dirs, char *data, uint8_t data_length, id_t target);
+uint8_t irCmd(uint8_t dirs, char *data, uint8_t data_length);
+uint8_t irTargetedSend(uint8_t dirs, char *data, uint8_t data_length, id_t target);
+uint8_t irSend(uint8_t dirs, char *data, uint8_t dataLength);
+uint8_t hpIrCmd(uint8_t dirs, char *data, uint8_t data_length);
+uint8_t hpIrTargetedCmd(uint8_t dirs, char *data, uint8_t data_length, id_t target);
 void waitForTransmission(uint8_t dirs);
 
 /*
@@ -133,5 +124,5 @@ void waitForTransmission(uint8_t dirs);
  * 
  * Using (ir_is_busy(dirs_mask)>1) is equivalent to the old (!ir_is_available(dirs_mask))
  */
-uint8_t ir_is_busy(uint8_t dirs_mask);
+uint8_t irIsBusy(uint8_t dirs_mask);
 //uint8_t wait_for_ir(uint8_t dirs);

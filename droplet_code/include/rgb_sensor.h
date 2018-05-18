@@ -3,7 +3,7 @@
 #include "rgb_led.h"
 #include "i2c.h"
 
-void rgb_sensor_init(void);
+void rgbSensorInit(void);
 
 #ifdef AUDIO_DROPLET
 
@@ -18,11 +18,11 @@ void rgb_sensor_init(void);
 	#define RGB_SENSOR_G_PIN_bm PIN6_bm
 	#define RGB_SENSOR_B_PIN_bm PIN7_bm
 
-	int16_t get_red_sensor(void);
-	int16_t get_green_sensor(void);
-	int16_t get_blue_sensor(void);
+	int16_t getRedSensor(void);
+	int16_t getGreenSensor(void);
+	int16_t getBlueSensor(void);
 #endif
 
-	void get_rgb(int16_t *r, int16_t *g, int16_t *b);
+	void getRGB(int16_t *r, int16_t *g, int16_t *b);
 
-	int16_t meas_find_median(int16_t* meas, uint8_t arr_len); // Helper function for getting the middle of the 3 measurements
+	int16_t measFindMedian(int16_t* meas, uint8_t arr_len); // Helper function for getting the middle of the 3 measurements

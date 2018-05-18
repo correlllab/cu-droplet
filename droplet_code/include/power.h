@@ -1,14 +1,27 @@
 #pragma once
 #include "droplet_base.h"
+#include "rgb_led.h"
+#include "delay_x.h"
+#include "motor.h"
 
-void power_init(void); //just calls cap_monitor and leg_monitor init
-void cap_monitor_init(void);
-void leg_monitor_init(void);
+void powerInit(void); //just calls cap_monitor and leg_monitor init
+void capMonitorInit(void);
+void legMonitorInit(void);
 
-uint8_t cap_status(void);			// Returns 0 if cap is within normal range ( 2.8V -- 5V ),
+void enableLowPowerInterrupt(void);
+void disableLowPowerInterrupt(void);
+
+uint8_t capStatus(void);			// Returns 0 if cap is within normal range ( 2.8V -- 5V ),
 								//         1 if cap voltage is dangerously high ( > 5V )
 								//         -1 if cap voltage is dangerously low ( < 2.8V )
 
-int8_t leg_status(uint8_t leg);
+int8_t legStatus(uint8_t leg);
+uint8_t legsPowered(void);
+uint8_t legsFloating(void);
 
-uint8_t legs_powered(void);
+#ifdef FIX_UNPOWERED_STATE
+	volatile uint8_t failedLegChecks;
+	volatile uint8_t unpoweredFixActive;
+	void stopLowPowerMoveTask(void);
+	void checkLegsTask(void);
+#endif

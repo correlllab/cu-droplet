@@ -2,11 +2,11 @@
 
 #include "droplet_base.h"
 
-void random_init(void);
+void randomInit(void);
 
-uint8_t rand_byte(void);
+uint8_t randByte(void);
 
-uint16_t rand_short(void);
-uint32_t rand_quad(void);
-float rand_real(void);
-float rand_norm(float mean, float stdDev);
+uint16_t randShort(void);
+uint32_t randQuad(void);
+float randReal(void);
+float randNorm(float mean, float stdDev);

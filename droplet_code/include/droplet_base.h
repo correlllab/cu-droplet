@@ -2,6 +2,7 @@
 
 //#define AUDIO_DROPLET
 #define SYNCHRONIZED
+#define FIX_UNPOWERED_STATE
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
@@ -13,6 +14,7 @@
 #include <math.h>
 #include <avr/pgmspace.h>
 #include <string.h>
+#include <ctype.h>
 
 typedef uint16_t id_t;
 
@@ -36,10 +38,10 @@ id_t droplet_ID;
 volatile uint16_t rtc_epoch;
 
 // Returns the number of ms elapsed since the last reset. (Defined in droplet_base_asm.s)
-uint32_t get_time(void);
+uint32_t getTime(void);
 
 // Returns this Droplet's unique 16-bit identifier. 0 will never be an identifier.
-inline id_t get_droplet_id(void){ 
+inline id_t getDropletID(void){ 
 	return droplet_ID;
 }
 
@@ -83,7 +85,7 @@ inline static void delay_us(double __us){ _delay_us(__us); }
 /**
  * \brief Resets the Droplet's program counter and clears all low-level system buffers.
  */
-inline void droplet_reboot(void){
+inline void dropletReboot(void){
 	CPU_CCP=CCP_IOREG_gc;
 	RST.CTRL = 0x1;
 }
@@ -93,4 +95,4 @@ inline void droplet_reboot(void){
  * Delay ms milliseconds
  * (the built-in _delay_ms only takes constant arguments, not variables)
  */
-void delay_ms(uint16_t ms);
+void delayMS(uint16_t ms);

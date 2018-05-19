@@ -38,6 +38,7 @@ uint32_t maxThroughputDuration;
 uint32_t throughputMsgStart;
 uint16_t histogram[NUM_HISTOGRAM_BINS];
 uint16_t numSenders;
+uint32_t lastThroughputMsgSent;
 uint8_t senderThisTime;
 uint16_t msgCount;
 uint8_t throughputStarted;
@@ -75,11 +76,30 @@ static inline uint8_t idMaskHammingWeight(BotIdMask* mask){
 	hammingWeight((*mask)[2])+hammingWeight((*mask)[3]);
 }
 
+//sets a = b;
+static inline void idMaskCopy(BotIdMask* a, BotIdMask* b){
+	for(uint8_t i=0;i<4;i++){
+		(*a)[i] = (*b)[i];
+	}
+}
+
 //sets a = a | b;
-static inline void bitwiseIdMaskOr(BotIdMask* a, BotIdMask* b){
+static inline void bitwiseIdMaskOR(BotIdMask* a, BotIdMask* b){
 	for(uint8_t i=0;i<4;i++){
 		(*a)[i] = (*a)[i] | (*b)[i];
 	}
+}
+
+//sets a = a ^ b;
+static inline void bitwiseIdMaskXOR(BotIdMask* a, BotIdMask* b){
+	for(uint8_t i=0;i<4;i++){
+		(*a)[i] = (*a)[i] ^ (*b)[i];
+	}
+} 
+
+//returns !a;
+static inline uint8_t idMaskLogicalNegation(BotIdMask* a){
+	return ( ( !((*a)[0]) && !((*a)[1]) ) && ( !((*a)[2]) && !((*a)[3]) ) );
 }
 
 static inline void setIdMaskBit(BotIdMask* mask, id_t id){

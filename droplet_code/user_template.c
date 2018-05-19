@@ -88,18 +88,19 @@ void init(){
 		//allIDsMask[bitPos>>5] |= (1<<(bitPos&0x1F));
 	//}
 	//printIdMask(&allIDsMask);
-	setIdMaskBit(&allIDsMask, getDropletID());
+	
 	throughputStarted = 0;
-	scheduleTask(60000,startThroughputMessaging,NULL);	//Comment for Throughput test
+	lastThroughputMsgSent = getTime();
+	scheduleTask(30000,startThroughputMessaging,NULL);	//Comment for Throughput test
 }
 
 void startThroughputMessaging(){
-	if(!throughputStarted){
-		throughputStarted = 1;
-		throughputMsgStart = getTime();
+		if(!throughputStarted){
+			throughputStarted = 1;
+			throughputMsgStart = getTime();
+		}
+		setIdMaskBit(&allIDsMask, getDropletID());		
 		sendThroughputMsg();
-	}
-
 }
 
 void sendThroughputMsg(){
@@ -125,26 +126,32 @@ void handleDurationmsg(DurationMsg* msg){
 }
 
 void handleThroughputMsg(BitMaskMsg* msg){
-	//Code for determining the starting state of the uint128_t mask:
-
-	throughputStarted = 1;												//RIYA
+	//Code for determining the starting state of the uint128_t mask
+	bitwiseIdMaskXOR(&(msg->mask), &allIDsMask);
+	uint8_t informationDifference = !idMaskLogicalNegation(&(msg->mask));
 	
 	uint8_t numberOfOnesBefore = idMaskHammingWeight(&allIDsMask);
-	bitwiseIdMaskOr(&allIDsMask, &(msg->mask));
+	bitwiseIdMaskOR(&allIDsMask, &(msg->mask));
 	uint8_t numberOfOnesAfter = idMaskHammingWeight(&allIDsMask);
-	if(numberOfOnesAfter > numberOfOnesBefore){	
-		sendThroughputMsg();
-		printf("Sending (%hu)\r\n", numberOfOnesAfter);
-		printIdMask(&allIDsMask);
-		
+	
+	if(numberOfOnesAfter > numberOfOnesBefore){
 		if(numberOfOnesAfter==TARGET_HAMMING_WEIGHT){
 			maxThroughputDuration = getTime()-throughputMsgStart;
 			scheduleTask(5000,sendDurationMsg,NULL);
 			setRGB(50,50,50);
 		}else{
 			setHSV((((uint16_t)numberOfOnesAfter)*360)/TARGET_HAMMING_WEIGHT, 255, 255);
-		}	
+		}
 	}
+	if(informationDifference){ //new message gives us information.
+		if(!throughputStarted){
+			throughputStarted = 1;
+			throughputMsgStart = getTime();
+		}
+		sendThroughputMsg();
+		printf("Sending (%hu)\r\n", numberOfOnesAfter);
+		printIdMask(&allIDsMask);
+	}	
 
 	
 }
@@ -197,8 +204,8 @@ void sendMsg(){
 	
 }
 
-void loop(){
 
+void loop(){
 	if(startSending){
 		if(getTime()-lastMessageSent > MSG_PERIOD){
 			
@@ -206,6 +213,12 @@ void loop(){
 			sendMsg();
 		
 			lastMessageSent = getTime();
+		}
+	}else if(!throughputStarted){
+		if((getTime() - lastThroughputMsgSent) < 5000){
+			sendThroughputMsg();
+			lastThroughputMsgSent = getTime();	
+			delayMS(MSG_PERIOD);
 		}
 	}
 	

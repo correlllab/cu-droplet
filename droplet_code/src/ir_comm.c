@@ -424,11 +424,9 @@ static void receivedRnbCmd(uint16_t delay, uint32_t lastByte, id_t senderID){
 			if(delay!=0xFFFF){
 				rnbCmdID = senderID;
 				//printf("%04X: %hu\r\n", rnbCmdID, delay+5);			
-<<<<<<< HEAD
+				
 				if(delay<5) delay = 20-delay;
 
-=======
->>>>>>> f17e9d9dd6bdce99b302266e050ec3cfedc6f5bf
 				rnbCmdSentTime = lastByte-(delay+5);
 
 				processThisRNB = 1;

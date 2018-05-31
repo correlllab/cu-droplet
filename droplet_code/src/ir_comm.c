@@ -416,7 +416,6 @@ static void receivedRnbCmd(uint16_t delay, uint32_t lastByte, id_t senderID){
 			if(delay!=0xFFFF){
 				rnbCmdID = senderID;
 				//printf("%04X: %hu\r\n", rnbCmdID, delay+5);			
-				if(delay<5) delay = 20-delay;
 				rnbCmdSentTime = lastByte-(delay+5);
 				processThisRNB = 1;
 				processing_rnb_flag = 1;
@@ -456,9 +455,9 @@ static void irTransmit(uint8_t dir){
 		case HEADER_POS_TARGET_ID_LOW:	if((ir_rxtx[dir].status&IR_STATUS_TIMED_bm)){
 											uint32_t truncatedTime = getTime()&0xFFFF;
 											uint16_t timeGap = (truncatedTime < ir_rxtx[dir].targetID) ?
-																((truncatedTime+0x10000)-truncatedTime) :
+																((truncatedTime+0x10000)-ir_rxtx[dir].targetID) :
 																(truncatedTime-ir_rxtx[dir].targetID);
-											ir_rxtx[dir].targetID = (timeGap>30000) ? 0xFFFF0 : timeGap;
+											ir_rxtx[dir].targetID = (timeGap>30000) ? 0xFFFF : timeGap;
 										}
 										next_byte  = (uint8_t)(ir_rxtx[dir].targetID&0xFF);		break;
 		case HEADER_POS_TARGET_ID_HIGH:	next_byte = (uint8_t)((ir_rxtx[dir].targetID>>8)&0xFF);	break;											

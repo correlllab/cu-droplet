@@ -24,9 +24,9 @@ static uint8_t ir_carrier_bm[] = { PIN0_bm, PIN1_bm, PIN4_bm, PIN5_bm, PIN6_bm, 
 //#define HARDCORE_DEBUG_DIR 1
 
 static void clearIrBuffer(uint8_t dir){
-	#ifdef AUDIO_DROPLET
-		ir_sense_channels[dir]->INTCTRL = ADC_CH_INTLVL_OFF_gc;
-	#endif
+	//#ifdef AUDIO_DROPLET
+		//ir_sense_channels[dir]->INTCTRL = ADC_CH_INTLVL_OFF_gc;
+	//#endif
 	#ifdef HARDCORE_DEBUG_DIR
 		if(dir==HARDCORE_DEBUG_DIR) printf("\r\n");
 	#endif
@@ -66,20 +66,20 @@ void irCommInit(){
 		channel[i]->CTRLB |= USART_RXEN_bm;		// Enable communication
 		channel[i]->CTRLB |= USART_TXEN_bm;
 	}
-	#ifdef AUDIO_DROPLET
-		PORTC.PIN2CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_FALLING_gc;
-		PORTC.PIN6CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_FALLING_gc;
-		PORTD.PIN2CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_FALLING_gc;
-		PORTE.PIN2CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_FALLING_gc;
-		PORTE.PIN6CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_FALLING_gc;
-		PORTF.PIN2CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_FALLING_gc;
-		EVSYS.CH1MUX = EVSYS_CHMUX_PORTC_PIN2_gc;
-		EVSYS.CH2MUX = EVSYS_CHMUX_PORTC_PIN6_gc;
-		EVSYS.CH3MUX = EVSYS_CHMUX_PORTD_PIN2_gc;
-		EVSYS.CH5MUX = EVSYS_CHMUX_PORTE_PIN2_gc;
-		EVSYS.CH6MUX = EVSYS_CHMUX_PORTE_PIN6_gc;
-		EVSYS.CH7MUX = EVSYS_CHMUX_PORTF_PIN2_gc;
-	#endif	
+	//#ifdef AUDIO_DROPLET
+		//PORTC.PIN2CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_FALLING_gc;
+		//PORTC.PIN6CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_FALLING_gc;
+		//PORTD.PIN2CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_FALLING_gc;
+		//PORTE.PIN2CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_FALLING_gc;
+		//PORTE.PIN6CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_FALLING_gc;
+		//PORTF.PIN2CTRL = PORT_OPC_PULLUP_gc | PORT_ISC_FALLING_gc;
+		//EVSYS.CH1MUX = EVSYS_CHMUX_PORTC_PIN2_gc;
+		//EVSYS.CH2MUX = EVSYS_CHMUX_PORTC_PIN6_gc;
+		//EVSYS.CH3MUX = EVSYS_CHMUX_PORTD_PIN2_gc;
+		//EVSYS.CH5MUX = EVSYS_CHMUX_PORTE_PIN2_gc;
+		//EVSYS.CH6MUX = EVSYS_CHMUX_PORTE_PIN6_gc;
+		//EVSYS.CH7MUX = EVSYS_CHMUX_PORTF_PIN2_gc;
+	//#endif	
 
 	cmdArrivalTime=0;
 	numWaitingMsgs=0;
@@ -318,9 +318,9 @@ static void handleCompletedMsg(uint8_t dir){
 // To be called from interrupt handler only. Do not call.
 static void irReceive(uint8_t dir){
 	uint8_t in_byte = channel[dir]->DATA;				// Some data just came in
-	#ifdef AUDIO_DROPLET
-		//ir_sense_channels[dir]->INTCTRL = ADC_CH_INTLVL_HI_gc;
-	#endif	
+	//#ifdef AUDIO_DROPLET
+		////ir_sense_channels[dir]->INTCTRL = ADC_CH_INTLVL_HI_gc;
+	//#endif	
 	
 	uint32_t now = getTime();
 	if(now-ir_rxtx[dir].last_byte > IR_MSG_TIMEOUT)	clearIrBuffer(dir);	

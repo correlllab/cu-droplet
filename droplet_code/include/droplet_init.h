@@ -49,7 +49,7 @@ extern void userMicInterrupt(void);
 void startupLightSequence(void);
 uint8_t getDropletOrd(id_t id);
 
-extern const id_t OrderedBotIDs[121];
+extern const id_t OrderedBotIDs[93];
 
 inline id_t getIdFromOrd(uint8_t ord){
 	return pgm_read_word(&OrderedBotIDs[ord]);

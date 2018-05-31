@@ -2,8 +2,8 @@
 
 #define NUM_SEEDS 4
 
-const BotPos SEED_POS[NUM_SEEDS] = {{0,0,0}, {0,150,0},{150,0,0},{150,150,0}};
-const id_t   SEED_IDS[NUM_SEEDS] = {0xD913, 0xFFFF, 0xFFFF, 0x1361};
+const BotPos SEED_POS[NUM_SEEDS] = {{159,160,0}, {866,160,0},{159,867,0},{866,867,0}};
+const id_t   SEED_IDS[NUM_SEEDS] = {0xC051, 0x14AA, 0x18A2, 0xA52F};
 
 //const BotPos SEEDS[NUM_SEEDS] = {{100, 600, 0}, {600, 600, 0}, {100, 100, 0}, {600, 100, 0}};
 
@@ -223,8 +223,7 @@ static void updatePos(BotPos* pos, Matrix* yourP){
 		MY_POS_DEBUG_PRINT(" sent me an undefined position.\r\n");
 		return;
 	}
-	MY_POS_DEBUG_PRINT("thinks I'm at {%d, %d, %d} ", pos->x, pos->y, pos->o);
-	printMatrixMathematica()
+	MY_POS_DEBUG_PRINT("{%d, %d, %d}, ", pos->x, pos->y, pos->o);
 	Vector xMeFromYou = {pos->x, pos->y, degToRad(pos->o)};
 	Matrix myP;
 	decompressP(&myP, &myPosCovar);
@@ -234,21 +233,21 @@ static void updatePos(BotPos* pos, Matrix* yourP){
 
 	covarIntersection(&myNewPos, &myNewP, &xMe, &myP, &xMeFromYou, yourP);
 	if(!positiveDefiniteQ(&myNewP)){
-		MY_POS_DEBUG_PRINT(" but covar intersection resulted in non-positive-definite P.\r\n");
+		MY_POS_DEBUG_PRINT(" but covar intersection resulted in non-positive-definite P (*ERROR*)\r\n");
 		return;
 	}
 	float updateDist = updateDistance(&xMe, &myP, &xMeFromYou, yourP);
 	if(updateDist>4.0){
 		//This mDist corresponds to a likelihood (of consistency..?) of ~0.1%
 		//Based on cumulative chi-squared distribution.
-		MY_POS_DEBUG_PRINT(" but the update distance (%5.2f) is too large.\r\n", updateDist);
+		MY_POS_DEBUG_PRINT(" but the update distance (%5.2f) is too large. (*ERROR*)\r\n", updateDist);
 		return;
 	}else if(updateDist>1.0){
 		//This mDist corresponds to a likelihood (of consistency..?) of ~80%
 		//Based on cumulative chi-squared distribution.
-		covarUnion(&myNewPos, &myNewP, &xMe, &myP, &xMeFromYou, yourP);
+		//covarUnion(&myNewPos, &myNewP, &xMe, &myP, &xMeFromYou, yourP);
 		if(!positiveDefiniteQ(&myNewP)){
-			MY_POS_DEBUG_PRINT(" but covar union resulted in non-positive-definite P.\r\n");
+			MY_POS_DEBUG_PRINT(" but covar union resulted in non-positive-definite P. (*ERROR*)\r\n");
 			return;
 		}
 	}
@@ -256,14 +255,17 @@ static void updatePos(BotPos* pos, Matrix* yourP){
 	myPos.x = myNewPos[0]>8191 ? 8191 : (myNewPos[0]<-8192 ? -8192 : myNewPos[0]);
 	myPos.y = myNewPos[1]>8191 ? 8191 : (myNewPos[1]<-8192 ? -8192 : myNewPos[1]);
 	myPos.o = (radToDeg(myNewPos[2]) + 0.5);
-	MY_POS_DEBUG_PRINT(" giving pos {%d, %d, %d}.\r\n", myPos.x, myPos.y, myPos.o);
-	MY_POS_DEBUG_PRINT("\tUpdate Distance: %f\r\n", updateDist);
 	#if defined(MY_POS_DEBUG_MODE) && defined(COVAR_DEBUG_MODE)
-		MY_POS_DEBUG_PRINT("Your Update Covar:\r\n");
 		printMatrixMathematica(yourP);
-		MY_POS_DEBUG_PRINT("My new covar=\r\n");
-		printMatrixMathematica(&myNewP);
+		printf(", ");
 	#endif
+	MY_POS_DEBUG_PRINT("{%d, %d, %d}, ", myPos.x, myPos.y, myPos.o);
+	#if defined(MY_POS_DEBUG_MODE) && defined(COVAR_DEBUG_MODE)
+		printMatrixMathematica(&myNewP);
+		printf(", ");
+	#endif
+	MY_POS_DEBUG_PRINT("%5.3f},\r\n", updateDist);
+
 	compressP(&myNewP, &myPosCovar);
 }
 
@@ -519,7 +521,7 @@ void handleBotMeasMsg(BotMeasMsg* msg, id_t senderID __attribute__ ((unused))){
 	Matrix covar;
 	decompressP(&covar, &(msg->covar));
 	if(!POS_DEFINED(&myPos)){
-		MY_POS_DEBUG_PRINT("%04X initialized me to {%d, %d, %d}.\r\n", senderID, (msg->pos).x, (msg->pos).y, (msg->pos).o);
+		MY_POS_DEBUG_PRINT("(*INIT*) {\"%04X\", {%d, %d, %d}", senderID, (msg->pos).x, (msg->pos).y, (msg->pos).o);
 		myPos.x = (msg->pos).x;
 		myPos.y = (msg->pos).y;
 		myPos.o = (msg->pos).o;
@@ -527,11 +529,12 @@ void handleBotMeasMsg(BotMeasMsg* msg, id_t senderID __attribute__ ((unused))){
 			myPosCovar[i].u = msg->covar[i].u;
 		}
 		#if defined(MY_POS_DEBUG_MODE) && defined(COVAR_DEBUG_MODE)
-			MY_POS_DEBUG_PRINT("His Est Covar:\r\n");
+			printf(", ");
 			printMatrixMathematica(&covar);
 		#endif
+		printf("},\r\n");
 	}else{
-		MY_POS_DEBUG_PRINT("%04X ", senderID);
+		MY_POS_DEBUG_PRINT("(*UPDATE*) {\"%04X\", ", senderID);
 		updatePos(&(msg->pos), &covar);
 	}
 }

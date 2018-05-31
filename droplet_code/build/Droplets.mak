@@ -11,9 +11,7 @@
 
 # Target file name (without extension).
 # This should match your AtmelStudio Project Name
-
 TARGET = Droplets_1
-
 
 # The base directory of your Atmel Studio installation folder.
 # This serves as the base location for accessing key #include files.
@@ -21,9 +19,7 @@ TARGET = Droplets_1
 ATMEL_STUDIO_PATH = "C:/Program Files (x86)/Atmel/Studio/7.0/"
 
 # List your user C source file(s) here.
-
 USER_FILE = ../user_template.c \
-
 
 
 #----------------------------------------------------------------------------
@@ -84,17 +80,14 @@ ASRC =  \
 ../src/droplet_base_asm.S \
 ../src/nvm_asm.S \
 
-
-
 C_INCLUDE_DIRS = \
 -I ../include \
 -I ../ \
 -I ../droplet_programs
 
 SYS_INCLUDE_DIRS = \
--I $(ATMEL_STUDIO_PATH)packs/atmel/XMEGAA_DFP/1.1.68/include \
--B $(ATMEL_STUDIO_PATH)packs/atmel/XMEGAA_DFP/1.1.68/gcc/dev/atxmega128a3u
-
+-I $(ATMEL_STUDIO_PATH)Packs/atmel/XMEGAA_DFP/1.1.68/include \
+-B $(ATMEL_STUDIO_PATH)Packs/atmel/XMEGAA_DFP/1.1.68/gcc/dev/atxmega128a3u
 
 # Debugging format.
 #     Native formats for AVR-GCC's -g are dwarf-2 [default] or stabs.
@@ -133,9 +126,9 @@ CFLAGS += -Wextra
 CFLAGS += -Wstrict-prototypes
 #CFLAGS += -mshort-calls
 #CFLAGS += -fno-unit-at-a-time
-#CFLAGS += -Wundef
-#CFLAGS += -Wunreachable-code
-#CFLAGS += -Wsign-compare
+CFLAGS += -Wundef
+CFLAGS += -Wunreachable-code
+CFLAGS += -Wsign-compare
 CFLAGS += -Wa,-adhlns=$(<:%.c=$(OBJDIR)/%.lst)
 CFLAGS += $(CSTANDARD)
 
@@ -164,9 +157,11 @@ SCANF_LIB = $(SCANF_LIB_FLOAT)
 
 MATH_LIB = -lm
 
-
 BOOTSECTIONSTART = 0x10000
 
+#LINK_SCRIPT = $(ATMEL_STUDIO_PATH)toolchain/avr8/avr8-gnu-toolchain/avr/lib/ldscripts/avrxmega1.x
+#LINK_SCRIPT = ../build/avrxmega1_copy.x
+LINK_SCRIPT = ../build/DropletsLinkerScript.x
 
 #---------------- Linker Options ----------------
 #  -Wl,...:     tell GCC to pass this to linker.
@@ -175,11 +170,9 @@ BOOTSECTIONSTART = 0x10000
 LDFLAGS = -Wl,-Map=$(TARGET).map,--cref
 LDFLAGS += $(EXTMEMOPTS)
 LDFLAGS += $(PRINTF_LIB) $(SCANF_LIB) $(MATH_LIB)
-LDFLAGS += -Wl,--gc-sections -Wl,-section-start=.BOOT=$(BOOTSECTIONSTART),-section-start=.usrtxt=0xc000 
-
-
-
-
+LDFLAGS += -Wl,--gc-sections -Wl,-section-start=.BOOT=$(BOOTSECTIONSTART)
+#LDFLAGS += -Wl,-section-start=.USERCODE=0xc000 
+LDFLAGS += -Wl, -T $(LINK_SCRIPT)
 
 # Define programs and commands.
 SHELL       = cmd

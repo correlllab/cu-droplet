@@ -32,7 +32,17 @@ void send_initial(void){
 //       (which needs to be updated to set that format, among other things).
 void handleReprogMsg(irMsg* msgStruct)
 {
-	
+	char* dat = msgStruct->msg;
+	uint8_t len = msgStruct->length;
+	if(dat[len-1]!='M'){
+		printf("Unexpected reprogram message?\r\n");
+	}else{
+		for(uint8_t i=0;i<(len-1);i++){
+			printf("%02hx", dat[i]);
+		}
+		printf("\r\n");
+	}
+/*	
 	number_of_hex--;
 	uint16_t startaddr[2];
 	char str[3], str1[5];
@@ -59,12 +69,12 @@ void handleReprogMsg(irMsg* msgStruct)
 	 }
 	
 	//nvm_flash_read_buffer(targetAddr, FlashBuffer, Numberofbytes);
-	/*for(int j=0; j<Numberofbytes; j++)
-	{
-		printf("%02hx ", FlashBuffer[j]);
-
-	}
-	printf("\r\n");*/
+	//for(int j=0; j<Numberofbytes; j++)
+	//{
+	//printf("%02hx ", FlashBuffer[j]);
+	//
+	//}
+	//printf("\r\n");
 	
 	
 	// keep on filling the buffer
@@ -110,4 +120,5 @@ void handleReprogMsg(irMsg* msgStruct)
 		dropletReboot();
 		
 	}
+	*/
 }

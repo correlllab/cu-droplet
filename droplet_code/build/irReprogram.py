@@ -2,14 +2,28 @@ import serial
 import time
 import os
 import re
+import traceback
 from collections import OrderedDict
+from serial.threaded import LineReader, ReaderThread
 
 port = "COM14"
 baud = 115200
 
+class PrintLines(LineReader):
+    def connection_made(self, transport):
+        super(PrintLines, self).connection_made(transport)
+        print('port opened\n')
+
+    def handle_line(self, data):
+        print('line received: {}\n'.format(repr(data)))
+    
+    def connection_lost(self, exc):
+        print('port closed\n')
+
 class DropletReprogrammer:
     
-    trackedSections = ['.wrapper', '.usrtxt', '.usrdata']
+    dataMsgLength = 32
+    trackedSections = ['.wrapper', '.usrtxt', '.usrdat']
     sectionsDict = {}
     hexParsingExtendedAddressOffset = 0
     
@@ -20,24 +34,39 @@ class DropletReprogrammer:
         self.getDataFromLinesDict()        
         for section in self.trackedSections:
             print("{}: {}, {} [{}]\r\n\t{}\r\n".format(section, self.sectionsDict[section][0], self.sectionsDict[section][1], len(self.trackedData[section]), self.trackedData[section]))
-        self.port = serial.Serial(portName, 115200, bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE,timeout=2)
+        self.port = serial.Serial(portName, 115200, bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE)
         self.sendData()
         #for (addr, data) in self.linesDict.items():
             #print('{} -> {}'.format(addr, data))
         #print(self.sectionsDict)
     
-    
-    
     def sendData(self):
         ((wrapperAddr, wrapperLen), (txtAddr, txtLen), (dataAddr, dataLen)) = self.sectionsDict.values()
-        (wrapperAddr, wrapperLen, txtAddr, txtLen, dataAddr, dataLen) = map(lambda x: bytearray(x.to_bytes(2, byteorder='little')), (wrapperAddr, wrapperLen, txtAddr, txtLen, dataAddr, dataLen))
-        vals = wrapperAddr + wrapperLen + txtAddr + txtLen + dataAddr + dataLen
-        self.port.write("ir_prog ".encode('utf-8'))
-        self.port.write(vals)
-        self.port.write('D\r\n'.encode('utf-8'))
+        def convert(val):
+            return bytearray(val.to_bytes(2, byteorder='little'))
+        (wrapperAddr, wrapperLen, txtAddr, txtLen, dataAddr, dataLen) = map(convert, (wrapperAddr, wrapperLen, txtAddr, txtLen, dataAddr, dataLen))
+        self.sendStartMessage(wrapperAddr + wrapperLen + txtAddr + txtLen + dataAddr + dataLen)
+        self.sendProgDatSection(self.trackedData['.wrapper'])
+        self.sendProgDatSection(self.trackedData['.usrtxt'])
+        self.sendProgDatSection(self.trackedData['.usrdat'])
+    
+    def sendProgDatSection(self, sectionDat):
+        curPos=0
+        sectionLength = len(sectionDat)
+        while curPos<(sectionLength-32):
+            self.sendProgDatMsg(sectionDat[curPos:curPos+32])
+            curPos += 32
+        self.sendProgDatMsg(sectionDat[curPos:])
+    
+    def sendProgDatMsg(self, dat):
+        self.port.write(bytearray("prog_dat ".encode('utf-8'))+dat+bytearray('\r\n'.encode('utf-8')))
+        time.sleep(0.5)
+        print(self.port.readline())
+    
+    def sendStartMessage(self, vals):
+        self.port.write(bytearray("ir_prog ".encode('utf-8'))+vals+bytearray('D\r\n'.encode('utf-8')))
         time.sleep(2)
-        #TODO: send all of the data in self.trackedData, and update the droplets code to match.
-        
+        print(self.port.readline())
     
     def getDataFromLinesDict(self):
         self.trackedData = OrderedDict()

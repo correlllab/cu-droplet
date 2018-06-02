@@ -18,7 +18,7 @@ MEMORY
 {
   text   (rx)   : ORIGIN = 0x0, LENGTH = __TEXT_REGION_LENGTH__
   data   (rw!x) : ORIGIN = 0x802000, LENGTH = __DATA_REGION_LENGTH__
-  usrtxt (rx)   : ORIGIN = 0x10000, LENGTH = __USRTXT_REGION_LENGTH__
+  usrtxt (rx)   : ORIGIN = 0xC000, LENGTH = __USRTXT_REGION_LENGTH__
   usrdat (rw!x) : ORIGIN = 0x80A000, LENGTH = __USRDAT_REGION_LENGTH__
   eeprom (rw!x) : ORIGIN = 0x810000, LENGTH = __EEPROM_REGION_LENGTH__
   fuse      (rw!x) : ORIGIN = 0x820000, LENGTH = __FUSE_REGION_LENGTH__
@@ -117,7 +117,6 @@ SECTIONS
     . = ALIGN(2);
      _eusrtext = . ;
   }  > usrtxt  
-/*  
   .usrdat :
   {
       PROVIDE (__usrdat_start = .) ;
@@ -130,7 +129,7 @@ SECTIONS
      _eusrdat = . ;
      PROVIDE (__usrdat_end = .) ;
   }  > usrdat AT> usrtxt
-
+/*
   .usrbss  ADDR(.usrdat) + SIZEOF (.usrdat)   : AT (ADDR (.usrbss))
   {
      PROVIDE (__usrbss_start = .) ;

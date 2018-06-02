@@ -1,8 +1,8 @@
 #include "user_template.h"
 
 
-#define START_ID	0x5D61
-#define END_ID		0x1361
+#define START_ID	0xFFFF
+#define END_ID		0xFFFF
 
 /*
  * any code in this function will be run once, when the robot starts.

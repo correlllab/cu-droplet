@@ -4,10 +4,10 @@
  ../include/scheduler.h ../include/ir_sensor.h ../include/ir_comm.h \
  ../include/ir_led.h ../include/i2c.h ../include/firefly_sync.h \
  ../include/random.h ../include/speaker.h ../include/rgb_sensor.h \
- ../include/motor.h ../include/eeprom_driver.h ../include/flash_api.h \
- ../include/sp_driver.h ../include/reprogram.h ../include/nvm.h \
- ../include/droplet_init.h ../include/power.h ../include/delay_x.h \
- ../include/mic.h ../include/matrix_utils.h ../include/localization.h
+ ../include/motor.h ../include/eeprom_driver.h ../include/reprogram.h \
+ ../include/nvm.h ../include/droplet_init.h ../include/power.h \
+ ../include/delay_x.h ../include/mic.h ../include/matrix_utils.h \
+ ../include/localization.h
 
 ../include/serial_handler.h:
 
@@ -40,10 +40,6 @@
 ../include/motor.h:
 
 ../include/eeprom_driver.h:
-
-../include/flash_api.h:
-
-../include/sp_driver.h:
 
 ../include/reprogram.h:
 

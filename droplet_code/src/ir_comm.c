@@ -371,17 +371,16 @@ static OutMsgNode* all_ir_sends(uint8_t dir, char * str, uint8_t dataLength, id_
 			scheduleTask(msgMSlen, tryAndSendMessage, NULL);
 			#endif
 		}
-		else if(dataLength>=64){
-			bufferPointer->next = outgoingMsgHead;
-			bufferPointer->prev = outgoingMsgHead->prev;
-			outgoingMsgHead = bufferPointer;
-		}
 		else
 		{
 			bufferPointer->next = outgoingMsgHead;
 			bufferPointer->prev = outgoingMsgHead->prev;
 			outgoingMsgHead->prev->next = bufferPointer;
 			outgoingMsgHead->prev = bufferPointer;
+			
+			if(dataLength>=64){
+				outgoingMsgHead = bufferPointer;
+			}
 			//if(bufferPointer->next> 0xa000){
 			//printf("!!\r\n!!!\r\n!!\r\n");
 			//}

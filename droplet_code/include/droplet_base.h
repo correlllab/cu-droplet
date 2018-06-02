@@ -42,15 +42,23 @@ typedef uint16_t id_t;
 #define DIR_W		DIR4
 #define DIR_NW		DIR5
 
-id_t droplet_ID;
+id_t dropletID;
 volatile uint16_t rtc_epoch;
+
+typedef struct ir_msg_struct
+{
+	uint32_t arrivalTime;	// Time of message receipt.
+	id_t senderID;		// ID of sending robot.
+	char* msg;				// The message.
+	uint8_t length;			// Message length.
+} irMsg;
 
 // Returns the number of ms elapsed since the last reset. (Defined in droplet_base_asm.s)
 uint32_t getTime(void);
 
 // Returns this Droplet's unique 16-bit identifier. 0 will never be an identifier.
 inline id_t getDropletID(void){ 
-	return droplet_ID;
+	return dropletID;
 }
 
 inline void* myMalloc(size_t size){

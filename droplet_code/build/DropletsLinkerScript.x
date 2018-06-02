@@ -7,6 +7,8 @@ OUTPUT_FORMAT("elf32-avr","elf32-avr","elf32-avr")
 OUTPUT_ARCH(avr:106)
 __TEXT_REGION_LENGTH__ = DEFINED(__TEXT_REGION_LENGTH__) ? __TEXT_REGION_LENGTH__ : 1024K;
 __DATA_REGION_LENGTH__ = DEFINED(__DATA_REGION_LENGTH__) ? __DATA_REGION_LENGTH__ : 0xffa0;
+__USRTXT_REGION_LENGTH__ = DEFINED(__USRTXT_REGION_LENGTH__) ? __USRTXT_REGION_LENGTH__ : 1024K;
+__USRDAT_REGION_LENGTH__ = DEFINED(__USRDAT_REGION_LENGTH__) ? __USRDAT_REGION_LENGTH__ : 0xffa0;
 __EEPROM_REGION_LENGTH__ = DEFINED(__EEPROM_REGION_LENGTH__) ? __EEPROM_REGION_LENGTH__ : 64K;
 __FUSE_REGION_LENGTH__ = DEFINED(__FUSE_REGION_LENGTH__) ? __FUSE_REGION_LENGTH__ : 1K;
 __LOCK_REGION_LENGTH__ = DEFINED(__LOCK_REGION_LENGTH__) ? __LOCK_REGION_LENGTH__ : 1K;
@@ -15,9 +17,9 @@ __USER_SIGNATURE_REGION_LENGTH__ = DEFINED(__USER_SIGNATURE_REGION_LENGTH__) ? _
 MEMORY
 {
   text   (rx)   : ORIGIN = 0x0, LENGTH = __TEXT_REGION_LENGTH__
-  usrtxt (rx)   : ORIGIN = 0xB000, LENGTH = 0xff00
   data   (rw!x) : ORIGIN = 0x802000, LENGTH = __DATA_REGION_LENGTH__
-  usrdata (rw!x): ORIGIN = 0x808000, LENGTH = 0xff00
+  usrtxt (rx)   : ORIGIN = 0x10000, LENGTH = __USRTXT_REGION_LENGTH__
+  usrdat (rw!x) : ORIGIN = 0x80A000, LENGTH = __USRDAT_REGION_LENGTH__
   eeprom (rw!x) : ORIGIN = 0x810000, LENGTH = __EEPROM_REGION_LENGTH__
   fuse      (rw!x) : ORIGIN = 0x820000, LENGTH = __FUSE_REGION_LENGTH__
   lock      (rw!x) : ORIGIN = 0x830000, LENGTH = __LOCK_REGION_LENGTH__
@@ -26,191 +28,6 @@ MEMORY
 }
 SECTIONS
 {
-  /* Read-only sections, merged into text segment: */
-  
-  .hash          : { ../user_template.o(.hash)		}
-  .dynsym        : { ../user_template.o(.dynsym)		}
-  .dynstr        : { ../user_template.o(.dynstr)		}
-  .gnu.version   : { ../user_template.o(.gnu.version)	}
-  .gnu.version_d   : { ../user_template.o(.gnu.version_d)	}
-  .gnu.version_r   : { ../user_template.o(.gnu.version_r)	}
-  .rel.init      : { ../user_template.o(.rel.init)		}
-  .rela.init     : { ../user_template.o(.rela.init)	}
-  .rel.text      :
-    {
-      ../user_template.o(.rel.text)
-      ../user_template.o(.rel.text.*)
-      ../user_template.o(.rel.gnu.linkonce.t*)
-    }
-  .rela.text     :
-    {
-      ../user_template.o(.rela.text)
-      ../user_template.o(.rela.text.*)
-      ../user_template.o(.rela.gnu.linkonce.t*)
-    }
-  .rel.fini      : { ../user_template.o(.rel.fini)		}
-  .rela.fini     : { ../user_template.o(.rela.fini)	}
-  .rel.rodata    :
-    {
-      ../user_template.o(.rel.rodata)
-      ../user_template.o(.rel.rodata.*)
-      ../user_template.o(.rel.gnu.linkonce.r*)
-    }
-  .rela.rodata   :
-    {
-      ../user_template.o(.rela.rodata)
-      ../user_template.o(.rela.rodata.*)
-      ../user_template.o(.rela.gnu.linkonce.r*)
-    }
-  .rel.data      :
-    {
-      ../user_template.o(.rel.data)
-      ../user_template.o(.rel.data.*)
-      ../user_template.o(.rel.gnu.linkonce.d*)
-    }
-  .rela.data     :
-    {
-      ../user_template.o(.rela.data)
-      ../user_template.o(.rela.data.*)
-      ../user_template.o(.rela.gnu.linkonce.d*)
-    }
-  .rel.ctors     : { ../user_template.o(.rel.ctors)	}
-  .rela.ctors    : { ../user_template.o(.rela.ctors)	}
-  .rel.dtors     : { ../user_template.o(.rel.dtors)	}
-  .rela.dtors    : { ../user_template.o(.rela.dtors)	}
-  .rel.got       : { ../user_template.o(.rel.got)		}
-  .rela.got      : { ../user_template.o(.rela.got)		}
-  .rel.bss       : { ../user_template.o(.rel.bss)		}
-  .rela.bss      : { ../user_template.o(.rela.bss)		}
-  .rel.plt       : { ../user_template.o(.rel.plt)		}
-  .rela.plt      : { ../user_template.o(.rela.plt)		}
-  /* Internal text space or external memory.  */
-  
-      
-  .WRAPPER :
-  {
-    PROVIDE (__wrapper_start = .) ;
-    *(.WRAPPER)
-	PROVIDE (__wrapper_end = .) ;
-  } > usrtxt
-  
-  .usrtxt :
-  {
-    ../user_template.o(.vectors)
-    KEEP(../user_template.o(.vectors))
-    /* For data that needs to reside in the lower 64k of progmem.  */
-     ../user_template.o(.progmem.gcc*)
-    /* PR 13812: Placing the trampolines here gives a better chance
-       that they will be in range of the code that uses them.  */
-    . = ALIGN(2);
-     __trampolines_start = . ;
-    /* The jump trampolines for the 16-bit limited relocs will reside here.  */
-    ../user_template.o(.trampolines)
-     ../user_template.o(.trampolines*)
-     __trampolines_end = . ;
-    /* avr-libc expects these data to reside in lower 64K. */
-     *libprintf_flt.a:../user_template.o(.progmem.data)
-     *libc.a:../user_template.o(.progmem.data)
-     ../user_template.o(.progmem*)
-    . = ALIGN(2);
-    /* For future tablejump instruction arrays for 3 byte pc devices.
-       We don't relax jump/call instructions within these sections.  */
-    ../user_template.o(.jumptables)
-     ../user_template.o(.jumptables*)
-    /* For code that needs to reside in the lower 128k progmem.  */
-    ../user_template.o(.lowtext)
-     ../user_template.o(.lowtext*)
-     __ctors_start = . ;
-     ../user_template.o(.ctors)
-     __ctors_end = . ;
-     __dtors_start = . ;
-     ../user_template.o(.dtors)
-     __dtors_end = . ;
-    KEEP(SORT(*)(.ctors))
-    KEEP(SORT(*)(.dtors))
-    /* From this point on, we don't bother about wether the insns are
-       below or above the 16 bits boundary.  */
-    ../user_template.o(.init0)  /* Start here after reset.  */
-    KEEP (../user_template.o(.init0))
-    ../user_template.o(.init1)
-    KEEP (../user_template.o(.init1))
-    ../user_template.o(.init2)  /* Clear __zero_reg__, set up stack pointer.  */
-    KEEP (../user_template.o(.init2))
-    ../user_template.o(.init3)
-    KEEP (../user_template.o(.init3))
-    ../user_template.o(.init4)  /* Initialize data and BSS.  */
-    KEEP (../user_template.o(.init4))
-    ../user_template.o(.init5)
-    KEEP (../user_template.o(.init5))
-    ../user_template.o(.init6)  /* C++ constructors.  */
-    KEEP (../user_template.o(.init6))
-    ../user_template.o(.init7)
-    KEEP (../user_template.o(.init7))
-    ../user_template.o(.init8)
-    KEEP (../user_template.o(.init8))
-    ../user_template.o(.init9)  /* Call main().  */
-    KEEP (../user_template.o(.init9))
-    ../user_template.o(.text)
-    . = ALIGN(2);
-     ../user_template.o(.text.*)
-    . = ALIGN(2);
-    ../user_template.o(.fini9)  /* _exit() starts here.  */
-    KEEP (../user_template.o(.fini9))
-    ../user_template.o(.fini8)
-    KEEP (../user_template.o(.fini8))
-    ../user_template.o(.fini7)
-    KEEP (../user_template.o(.fini7))
-    ../user_template.o(.fini6)  /* C++ destructors.  */
-    KEEP (../user_template.o(.fini6))
-    ../user_template.o(.fini5)
-    KEEP (../user_template.o(.fini5))
-    ../user_template.o(.fini4)
-    KEEP (../user_template.o(.fini4))
-    ../user_template.o(.fini3)
-    KEEP (../user_template.o(.fini3))
-    ../user_template.o(.fini2)
-    KEEP (../user_template.o(.fini2))
-    ../user_template.o(.fini1)
-    KEEP (../user_template.o(.fini1))
-    ../user_template.o(.fini0)  /* Infinite loop after program termination.  */
-    KEEP (../user_template.o(.fini0))
-	. = ALIGN(2);
-     _eusrtext = . ;
-  }  > usrtxt  
- 
-  .usrdata :
-  {
-      PROVIDE (__usrdata_start = .) ;
-	  ../user_template.o(.data)
-      ../user_template.o(.data*)
-	  ../user_template.o(.rodata)
-      ../user_template.o(.rodata*)
-      ../user_template.o(.gnu.linkonce.d*)
-    . = ALIGN(2);
-     _eusrdata = . ;
-     PROVIDE (__usrdata_end = .) ;
-  }  > usrdata
-  
-  .usrbss  ADDR(.usrdata) + SIZEOF (.usrdata)   : AT (ADDR (.usrbss))
-  {
-     PROVIDE (__usrbss_start = .) ;
-     ../user_template.o(.bss)
-     ../user_template.o(.bss*)
-     PROVIDE (__usrbss_end = .) ;
-  }  > usrdata
-  
-   __usrdata_load_start = LOADADDR(.usrdata);
-   __usrdata_load_end = __usrdata_load_start + SIZEOF(.usrdata);
-  /* Global data not cleared after reset.  */
-  .usrnoinit  ADDR(.usrbss) + SIZEOF (.usrbss)  :  AT (ADDR (.usrnoinit))
-  {
-     PROVIDE (__usrnoinit_start = .) ;
-    ../user_template.o(.usrnoinit*)
-     PROVIDE (__usrnoinit_end = .) ;
-     _end = . ;
-     PROVIDE (__usrheap_start = .) ;
-  }  > usrdata
-  
   .hash          : { *(.hash)		}
   .dynsym        : { *(.dynsym)		}
   .dynstr        : { *(.dynstr)		}
@@ -268,7 +85,72 @@ SECTIONS
   .rel.plt       : { *(.rel.plt)		}
   .rela.plt      : { *(.rela.plt)		}
   /* Internal text space or external memory.  */
+  .wrapper :
+  {
+    PROVIDE (__wrapper_start = .) ;
+    *(.wrapper)
+	PROVIDE (__wrapper_end = .) ;
+  } > usrtxt
   
+  .usrtxt :
+  {
+    /* For future tablejump instruction arrays for 3 byte pc devices.
+       We don't relax jump/call instructions within these sections.  */
+    ../user_template.o(.jumptables)
+     ../user_template.o(.jumptables*)
+    /* For code that needs to reside in the lower 128k progmem.  */
+    ../user_template.o(.lowtext)
+     ../user_template.o(.lowtext*)
+     __ctors_start = . ;
+     ../user_template.o(.ctors)
+     __ctors_end = . ;
+     __dtors_start = . ;
+     ../user_template.o(.dtors)
+     __dtors_end = . ;
+    KEEP(SORT(*)(.ctors))
+    KEEP(SORT(*)(.dtors))
+    /* From this point on, we don't bother about wether the insns are
+       below or above the 16 bits boundary.  */
+    ../user_template.o(.text)
+    . = ALIGN(2);
+     ../user_template.o(.text.*)
+    . = ALIGN(2);
+     _eusrtext = . ;
+  }  > usrtxt  
+/*  
+  .usrdat :
+  {
+      PROVIDE (__usrdat_start = .) ;
+	  ../user_template.o(.data)
+      ../user_template.o(.data*)
+	  ../user_template.o(.rodata)
+      ../user_template.o(.rodata*)
+      ../user_template.o(.gnu.linkonce.d*)
+    . = ALIGN(2);
+     _eusrdat = . ;
+     PROVIDE (__usrdat_end = .) ;
+  }  > usrdat AT> usrtxt
+
+  .usrbss  ADDR(.usrdat) + SIZEOF (.usrdat)   : AT (ADDR (.usrbss))
+  {
+     PROVIDE (__usrbss_start = .) ;
+     ../user_template.o(.bss)
+     ../user_template.o(.bss*)
+     PROVIDE (__usrbss_end = .) ;
+  }  > usrdat
+  
+   __usrdat_load_start = LOADADDR(.usrdat);
+   __usrdat_load_end = __usrdat_load_start + SIZEOF(.usrdat);
+
+  .usrnoinit  ADDR(.usrbss) + SIZEOF (.usrbss)  :  AT (ADDR (.usrnoinit))
+  {
+     PROVIDE (__usrnoinit_start = .) ;
+    ../user_template.o(.usrnoinit*)
+     PROVIDE (__usrnoinit_end = .) ;
+     _end = . ;
+     PROVIDE (__usrheap_start = .) ;
+  }  > usrdat
+  */  
   .text   :
   {
     *(.vectors)
@@ -374,7 +256,7 @@ SECTIONS
    __data_load_start = LOADADDR(.data);
    __data_load_end = __data_load_start + SIZEOF(.data);
   /* Global data not cleared after reset.  */
-  .noinit  ADDR(.bss) + SIZEOF (.bss)  :  AT (ADDR (.noinit))
+ .noinit  ADDR(.bss) + SIZEOF (.bss)  :  AT (ADDR (.noinit))
   {
      PROVIDE (__noinit_start = .) ;
     *(.noinit*)

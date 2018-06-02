@@ -397,27 +397,3 @@ static float magicRangeFunc(float a){
 		return result;
 	}
 }
-
-//static float invMagicRangeFunc(float r){
-	//if(r>250){
-		//return 0;
-	//}else{
-		//float logTerm = log((778.0270114700331/(r + 528.0270114700331)) - 1);
-		//float result = 3367.2274479842324/(2.2757149424086466 + logTerm*(7.184767720344338 + logTerm*5.670842845179211));
-		//return result;
-	//}
-//}
-//
-//static void print_brightMeas(void){
-	//printf("{\"%04X\", \"%04X\", {", rnbCmdID, get_droplet_id());
-	//for(uint8_t emitter_num=0 ; emitter_num<6 ; emitter_num++){
-		//printf("{");
-		//for(uint8_t sensor_num=0 ; sensor_num<6 ; sensor_num++){
-			//printf("%d",brightMeas[emitter_num][sensor_num]);
-			//if(sensor_num<5) printf(",");
-		//}
-		//printf("}");		
-		//if(emitter_num<5) printf(",");
-	//}
-	//printf("}},\r\n");
-//}

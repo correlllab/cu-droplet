@@ -4,19 +4,10 @@ static void initAllSystems(void);
 static void calculateIdNumber(void);
 static void enableInterrupts(void);
 
-uint8_t Numberofbytes, message_bytes;
-uint8_t calculate_page_number(uint16_t addressFrmProgramming);
-uint8_t flashBufferPos=0;
-uint32_t tgadd1=0;
-uint16_t addrstart;
-uint32_t targetAddr;
-uint8_t FlashBuffer[512];
 
-uint8_t firstmessage_flag =0;
 
 static void checkMeasurements(void);
 static void checkMessages(void);
-
 
 /**
  * \brief Initializes all the subsystems for this Droplet. This function MUST be called
@@ -39,40 +30,20 @@ static void initAllSystems(void){
 	rangeAlgsInit();			INIT_DEBUG_PRINT("RANGE ALGORITHMS INIT\r\n");
 	rgbSensorInit();			INIT_DEBUG_PRINT("RGB SENSE INIT\r\n");
 	irLedInit();				INIT_DEBUG_PRINT("IR LED INIT\r\n");
-	irSensorInit();			INIT_DEBUG_PRINT("IR SENSE INIT\r\n");
+	irSensorInit();				INIT_DEBUG_PRINT("IR SENSE INIT\r\n");
 	
 	#ifdef AUDIO_DROPLET
 		speakerInit();			INIT_DEBUG_PRINT("SPEAKER INIT\r\n");
 		micInit();				INIT_DEBUG_PRINT("MIC INIT\r\n"); //Must occur after ir_sensor_init.
 	#endif
-
+		
 	motorInit();				INIT_DEBUG_PRINT("MOTOR INIT\r\n");
 	randomInit();				INIT_DEBUG_PRINT("RAND INIT\r\n"); //This uses adc readings for a random seed, and so requires that the adcs have been initialized.
-	localizationInit();		INIT_DEBUG_PRINT("LOCALIZATION INIT\r\n"); 
+	localizationInit();			INIT_DEBUG_PRINT("LOCALIZATION INIT\r\n"); 
 	
 	#ifdef SYNCHRONIZED
 		fireflySyncInit();
 	#endif
-
-
-	reprogramming = 0;
-	
-	setAllirPowers(256);
-
-	startupLightSequence();
-	
-	irCommInit();				INIT_DEBUG_PRINT("IR COM INIT\r\n");
-}
-
-void initWrapper(void){
-	init();
-}
-
-void loopWrapper(void){
-	loop();
-}
-void handleMsgWrapper(irMsg* msg_struct){
-	handleMsg(msg_struct);
 
 	setAllirPowers(256);
 	startupLightSequence();
@@ -81,15 +52,29 @@ void handleMsgWrapper(irMsg* msg_struct){
 	#ifdef AUDIO_DROPLET
 		enableMicInterrupt();
 	#endif
+}
 
+void initWrapper(void){
+	init();
+}
+void loopWrapper(void){
+	loop();
+}
+void handleMeasWrapper(Rnb* meas){
+	handleMeas(meas);
+}
+void handleMsgWrapper(irMsg* msgStruct){
+	handleMsg(msgStruct);
 }
 
 int main(void){
 	initAllSystems();
 	initWrapper();
 	while(1){
-		loopWrapper();
-		checkMeasurements();
+		if(!reprogramming){
+			loopWrapper();
+			checkMeasurements();
+		}
 		checkMessages();
 		if(taskListCheck()){
 			printf_P(PSTR("Error! We got ahead of the task list and now nothing will execute.\r\n"));
@@ -119,7 +104,7 @@ static void checkMeasurements(void){
 			memoryConsumedByMeasBuffer -= sizeof(MeasNode);
 			//While we let user code handle the measurement we want interrupts to be back on. 
 			NONATOMIC_BLOCK(NONATOMIC_RESTORESTATE){ 
-				handleMeas(&meas);
+				handleMeasWrapper(&meas);
 			}
 		}
 	}
@@ -129,7 +114,6 @@ static void checkMeasurements(void){
 /*
  * This function loops through all messages this robot has received since the last call
  * to check messages.
-<<<<<<< HEAD
  * For each message, it populates an ir_msg struct and calls handle_msg with it.
  */
 
@@ -149,19 +133,7 @@ static void checkMessages(void){
 			msgStruct.senderID		= node->senderID;
 			msgStruct.length		= node->length;
 			crc						= node->crc;
-
-			//While we let user code handle the message we want interrupts to be back on. At this point everything relevant has been copied out of the buffer.
-			NONATOMIC_BLOCK(NONATOMIC_RESTORESTATE){
-				if(reprogramming)
-				{
-					setRGB(0,0,250);
-					//handle_serial_comm(&msgStruct);
-					handle_reprogramming(&msgStruct);
-				} 
-				else handleMsgWrapper(&msgStruct);
-			}
 			
-
 			/*
 			 * At this point everything relevant has been copied out of the buffer. To avoid
 			 * problems caused by the changes to the queue while handling the message, we
@@ -188,109 +160,16 @@ static void checkMessages(void){
 			myFree(node);
 
 			//While we let user code handle the message we want interrupts to be back on.
-			NONATOMIC_BLOCK(NONATOMIC_RESTORESTATE){
-				handleMsg(&msgStruct);
-			}	
+			if(!reprogramming){
+				NONATOMIC_BLOCK(NONATOMIC_RESTORESTATE){
+					handleMsgWrapper(&msgStruct);
+				}	
+			}else{
+				NONATOMIC_BLOCK(NONATOMIC_RESTORESTATE){
+					handleReprogMsg(&msgStruct);
+				}
+			}
 		}
-	}
-}
-
-
-void handle_reprogramming(irMsg *msg_struct_hex)
-{
-	
-	number_of_hex--;
-	uint16_t startaddr[2];
-	char str[3], str1[5];
-	int i=0;
-	for(i=0; i<2; i++)
-	{
-		str[i] = msg_struct_hex->msg[i];
-	}
-	str[2] = '\0';
-	message_bytes = strtoul(str, NULL, 16); 
-	Numberofbytes += message_bytes;
-	printf("Got message number = %d\r\n", number_of_hex);
-	for(i=2; i<6; i++)
-	{
-		str1[i-2] = msg_struct_hex->msg[i];
-	}
-	str1[4] = '\0';
-	 startaddr[0] = strtoul(str1, NULL, 16);
-	 if((firstmessage_flag == 0) && (number_of_hex >0))
-	 {
-		 addrstart = startaddr[0];
-		 targetAddr =addrstart;
-		 firstmessage_flag = 1;			//condition indicating first message is already received. following messages won't hold starting address
-	 }
-	
-	//nvm_flash_read_buffer(targetAddr, FlashBuffer, Numberofbytes);
-	/*for(int j=0; j<Numberofbytes; j++)
-	{
-		printf("%02hx ", FlashBuffer[j]);
-
-	}
-	printf("\r\n");*/
-	
-	
-	// keep on filling the buffer
-	for(uint8_t i=6;i<(6+(2*message_bytes));i+=2)    // 0-5 are length and address, the last two char (1 byte) is for checksum
-	{
-		//convert pair of chars to byte.
-		str[0] = msg_struct_hex->msg[i];
-		str[1] = msg_struct_hex->msg[i+1];
-		str[2] = '\0';
-		FlashBuffer[flashBufferPos] = strtoul(str, NULL, 16);
-		flashBufferPos = flashBufferPos + 1;
-		// Converting string to hex value is done successfully
-	}
-	
-
-	if(number_of_hex == 0)
-	{
-		printf("The whole buffer before writing in memory : \r\n\r\n");
-		for(int j=0; j<Numberofbytes; j++)
-		{
-			printf("%02hx ", FlashBuffer[j]);
-			if((j%15 == 0)&&(j != 0)) printf("\r\n");
-		}
-		printf("\r\n");
-		printf("About to write. Address: %lu and line num : %d\r\n\r\n\r\n", targetAddr, number_of_hex);
-		nvm_flash_erase_and_write_buffer(targetAddr, FlashBuffer, Numberofbytes, 1);
-		delayMS(500);
-		printf("About to write. Address: %lu\r\n\r\n", targetAddr);
-		nvm_flash_read_buffer(targetAddr, FlashBuffer, Numberofbytes);
-		for(int j=0; j<Numberofbytes; j++)
-		{
-			printf("%02hx ", FlashBuffer[j]);
-			if((j%15 == 0)&&(j != 0)) printf("\r\n");
-		}
-		printf("\r\n");
-		
-		reprogramming=0;
-		printf("Came in num hex is zero!!!!!!!!!!!!!!!!!!!!");
-		firstmessage_flag =0;			// Done with all messages
-		Numberofbytes=0;
-		flashBufferPos=0;
-		memset(FlashBuffer, 0, 512);
-		dropletReboot();
-		
-	}
-}
-
-void send_hex(void){
-	uint8_t len = strlen(dataHEX);
-	irSend(ALL_DIRS,dataHEX,len);
-	NONATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-		waitForTransmission(ALL_DIRS);
-	}
-}
-
-void send_initial(void){
-	uint8_t len = strlen(initial_msg);
-	irSend(ALL_DIRS,initial_msg,len);
-	NONATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-		waitForTransmission(ALL_DIRS);
 	}
 }
 
@@ -314,7 +193,7 @@ static void calculateIdNumber(void){
 
 	NVM_CMD = NVM_CMD_NO_OPERATION_gc;
 
-	droplet_ID = crc;
+	dropletID = crc;
 }
 
 static void enableInterrupts(void){

@@ -3,7 +3,8 @@
 
 static const char CMD_NOT_RECOGNIZED_STR[] PROGMEM = "\tCommand ( %s ) not recognized.\r\n";
 
-
+static void handle_prog(char* command_args);
+static void handle_ir_prog(char* command_args);
 static void handle_check_collisions(void);
 static void handle_move_steps(char* command_args);
 static void handle_walk(char* command_args);
@@ -61,36 +62,61 @@ void handleSerialCommand(char* command, uint16_t command_length){
 		else if(strcmp_P(command_word,PSTR("print_motor_settings"))==0){
 																		printMotorValues();
 																		printDistPerStep();																	
-		}else if(command_word[0] == 'S'){
-			
-			char *str12;
-			str12 = command_word;
-			str12++;
-			number_of_hex = atoi(str12);
-			reprogramming=1;
-			
-			//delayMS(20000);
-		}else if(command_word[0] == 'R' && command_word[1] == 0){
-			
-			memset(initial_msg, 0, sizeof(initial_msg));
-			strcat(initial_msg, "S");
-			strcat(initial_msg, command_args);
-			int length = strlen(initial_msg);
-			irCmd(ALL_DIRS, initial_msg, length);
-			
-		}else if(command_word[0] == 'M' && command_word[1] == 0){
-			
-			memset(dataHEX, 0, sizeof(dataHEX));
-			strcpy(dataHEX, command_args);
-			scheduleTask(100, send_hex, NULL );
-			delayMS(500);
-			
-		}else if(userHandleCommand){ //First, make sure the function is defined
+		}else if(strcmp_P(command_word,PSTR("prog"))==0)				handle_prog(command_args);
+		else if(strcmp_P(command_word,PSTR("ir_prog"))==0)				handle_ir_prog(command_args);
+		else if(userHandleCommand){ //First, make sure the function is defined
 			if(!userHandleCommand(command_word, command_args))	printf_P(CMD_NOT_RECOGNIZED_STR,command_word);
 		}
 		else														printf_P(CMD_NOT_RECOGNIZED_STR,command_word);
 
 	}
+}
+
+//This cmd is sent by computer to the Droplet which will be sending all the code over IR.
+static void handle_prog(char* command_args){
+	ProgData* progData = (ProgData*)command_args;
+	if(progData->flag != 'D'){
+		printf("Error: Unexpected ir programming data!\r\n");
+		return;
+	}
+	printf("Got ir_prog init command:\r\n");
+	printf("\t%p: %u\r\n", progData->secAaddr, progData->secAsize);
+	printf("\t%p: %u\r\n", progData->secBaddr, progData->secBsize);
+	printf("\t%p: %u\r\n", progData->secCaddr, progData->secCsize);
+
+	ProgMsg msg;
+	strcpy( msg.cmdWord, "ir_prog ");
+	msg.data = *progData;
+
+	irCmd(ALL_DIRS, (char*)(&msg), sizeof(ProgMsg));
+	NONATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+		waitForTransmission(ALL_DIRS);
+		delayMS(500);
+	}
+	irCmd(ALL_DIRS, (char*)(&msg), sizeof(ProgMsg));
+	NONATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+		waitForTransmission(ALL_DIRS);
+		delayMS(500);
+	}
+	irCmd(ALL_DIRS, (char*)(&msg), sizeof(ProgMsg));
+	NONATOMIC_BLOCK(ATOMIC_RESTORESTATE){
+		waitForTransmission(ALL_DIRS);
+		delayMS(500);
+	}
+}
+
+
+// After getting the prog cmd from a computer, the Droplet plugged in to the computer 
+// sends this command over IR to force receiving Droplets to enter programming mode.
+static void handle_ir_prog(char* command_args){
+	ProgData* data = (ProgData*)command_args;
+	if(data->flag != 'D'){
+		setRGB(200,0,0);
+		return;
+	}
+	setRGB(0,50,0);
+	reprogramming = 1;
+	progData = *data;
 }
 
 /*

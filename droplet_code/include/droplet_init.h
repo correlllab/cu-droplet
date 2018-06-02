@@ -29,38 +29,17 @@
 #include "serial_handler.h"
 #include "matrix_utils.h"
 #include "localization.h"
-
-#define CMD_DROPLET_ID	0x8F6D
-
-
-uint8_t reprogramming;
-
-void send_hex(void);
-void send_initial(void);
-
-char dataHEX[64];
-char initial_msg[20];
-uint8_t number_of_hex;
-
-typedef struct ir_msg_struct
-{
-	uint32_t arrivalTime;	// Time of message receipt.
-	id_t senderID;		// ID of sending robot.
-	char* msg;				// The message.
-	uint8_t length;			// Message length.
-} irMsg;
-
-void handle_reprogramming(irMsg *msg_struct_hex);// __attribute__ ((section (".BOOT")));
-void handle_serial_comm(irMsg *msg_struct);
-
-void initWrapper(void) __attribute__ ((section (".WRAPPER")));
-void loopWrapper(void) __attribute__ ((section (".WRAPPER")));
-void handleMsgWrapper(irMsg* msg_struct) __attribute__ ((section (".WRAPPER")));
+#include "reprogram.h"
 
 extern void init(void);//_attribute__ ((section (".usrtxt")));
 extern void loop(void);
 extern void handleMsg(irMsg* msg_struct);
 extern void handleMeas(Rnb* meas);
+void initWrapper(void) __attribute__ ((section (".wrapper"),noinline));
+void loopWrapper(void) __attribute__ ((section (".wrapper"),noinline));
+void handleMsgWrapper(irMsg* msg_struct) __attribute__ ((section (".wrapper"),noinline));
+void handleMeasWrapper(Rnb* meas) __attribute__ ((section (".wrapper"),noinline));
+
 extern uint8_t userHandleCommand(char* commandWord, char* commandArgs);
 extern void userMicInterrupt(void);
 

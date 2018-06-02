@@ -4,7 +4,8 @@
  ../include/rgb_led.h ../include/range_algs.h ../include/scheduler.h \
  ../include/speaker.h ../include/rgb_sensor.h ../include/motor.h \
  ../include/eeprom_driver.h ../include/flash_api.h ../include/sp_driver.h \
- ../include/firefly_sync.h ../include/random.h
+ ../include/reprogram.h ../include/nvm.h ../include/firefly_sync.h \
+ ../include/random.h
 
 ../include/ir_sensor.h:
 
@@ -37,6 +38,10 @@
 ../include/flash_api.h:
 
 ../include/sp_driver.h:
+
+../include/reprogram.h:
+
+../include/nvm.h:
 
 ../include/firefly_sync.h:
 

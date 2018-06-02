@@ -1,6 +1,5 @@
 #pragma once
 
-
 #include "droplet_base.h"
 #include "ir_led.h"
 #include "ir_sensor.h"

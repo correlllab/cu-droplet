@@ -40,7 +40,7 @@ static void handle_serial_input(void){
 		escaped_arrow=0;
 	}else if(escaped){
 		if(data == 91){
-			escaped_arrow=1;	
+			escaped_arrow=1;
 		}
 		escaped=0;
 	}else if(data == '\r' || data == '\n'){ //We got the newline character.
@@ -66,12 +66,12 @@ static void handle_serial_input(void){
 
 static void handle_up_arrow(void){
 	uint8_t temp_index = serial_in_index;
-			
+	
 	while(serial_in_buffer[temp_index] != '\0'){
 		putchar(serial_in_buffer[temp_index]);
 		temp_index++;
 	}
-				
+	
 	serial_in_index = temp_index;
 }
 
@@ -80,4 +80,3 @@ static int pc_comm_putchar(char c, FILE *stream __attribute__ ((unused))){
 	PC_USART.DATA = c;
 	return 1;
 }
- 

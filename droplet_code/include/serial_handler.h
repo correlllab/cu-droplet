@@ -9,6 +9,7 @@
 #include "rgb_sensor.h"
 #include "motor.h"
 #include "ir_comm.h"
+#include "reprogram.h"
 
 void handleSerialCommand(char* command, uint16_t command_length);
 void sendID(void);

@@ -11,7 +11,7 @@
 
 # Target file name (without extension).
 # This should match your AtmelStudio Project Name
-TARGET = Droplets_1
+TARGET = Droplets
 
 # The base directory of your Atmel Studio installation folder.
 # This serves as the base location for accessing key #include files.
@@ -70,6 +70,7 @@ SRC = $(USER_FILE) \
 ../src/power.c \
 ../src/random.c \
 ../src/range_algs.c \
+../src/reprogram.c \
 ../src/rgb_led.c \
 ../src/rgb_sensor.c \
 ../src/scheduler.c \
@@ -157,7 +158,7 @@ SCANF_LIB = $(SCANF_LIB_FLOAT)
 
 MATH_LIB = -lm
 
-BOOTSECTIONSTART = 0x10000
+BOOTSECTIONSTART = 0x1F000
 
 #LINK_SCRIPT = $(ATMEL_STUDIO_PATH)toolchain/avr8/avr8-gnu-toolchain/avr/lib/ldscripts/avrxmega1.x
 #LINK_SCRIPT = ../build/avrxmega1_copy.x

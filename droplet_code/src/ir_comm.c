@@ -256,11 +256,18 @@ void tryAndSendMessage(){//void * msg_temp_node){
 			}
 		}
 	}else{
+		uint8_t timed;
+		if(outgoingMsgHead->data_length >= 64){
+			outgoingMsgHead->data_length-=64;
+			timed=1;
+		}
+		
 		for(uint8_t dir=0;dir<6;dir++){
 			if(outgoingMsgHead->channel_id&(1<<dir)){
 				channel[dir]->CTRLB &= ~USART_RXEN_bm;
 				ir_rxtx[dir].status = IR_STATUS_BUSY_bm;
 				if(outgoingMsgHead->cmd_flag) ir_rxtx[dir].status |= IR_STATUS_COMMAND_bm;
+				ir_rxtx[dir].status |= (timed ? IR_STATUS_TIMED_bm : 0);
 				ir_rxtx[dir].target_ID=outgoingMsgHead->target;
 			}
 		}
@@ -312,14 +319,18 @@ void printMsgQueue(){
 
 static OutMsgNode* all_ir_sends(uint8_t dir, char * str, uint8_t dataLength, id_t msgTarget, uint8_t cmdFlag){
 	
-	memoryConsumedByOutgoingMsgBuffer += sizeof(OutMsgNode) + dataLength;
+	int dataLengthActualMsg = dataLength;
+	if(dataLength>=64)
+		dataLengthActualMsg = dataLength-64;
+		
+	memoryConsumedByOutgoingMsgBuffer += sizeof(OutMsgNode) + dataLengthActualMsg;
 	if(memoryConsumedByOutgoingMsgBuffer> 500){
-		memoryConsumedByOutgoingMsgBuffer = memoryConsumedByOutgoingMsgBuffer - (sizeof(OutMsgNode) + dataLength);
+		memoryConsumedByOutgoingMsgBuffer = memoryConsumedByOutgoingMsgBuffer - (sizeof(OutMsgNode) + dataLengthActualMsg);
 		return NULL;
 		
 	}
 	//printf("\n\rSize of list node = %d", listSize);
-	OutMsgNode* bufferPointer = (OutMsgNode *) myMalloc(sizeof(OutMsgNode)+dataLength);
+	OutMsgNode* bufferPointer = (OutMsgNode *) myMalloc(sizeof(OutMsgNode)+dataLengthActualMsg);
 	
 	//make sure there was enough memory
 	if(bufferPointer == NULL)
@@ -331,7 +342,7 @@ static OutMsgNode* all_ir_sends(uint8_t dir, char * str, uint8_t dataLength, id_
 	bufferPointer->cmd_flag = cmdFlag;
 	bufferPointer->data_length = dataLength;
 	//bufferPointer->data = (((char*)(bufferPointer)) + sizeof(NODE));
-	memcpy(bufferPointer->data, str, dataLength);
+	memcpy(bufferPointer->data, str, dataLengthActualMsg);
 	
 	
 	//printf("\n\rData = %s,Channel_ID = %u", bufferPointer->data, bufferPointer->channel_id);

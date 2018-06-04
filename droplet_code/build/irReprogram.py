@@ -2,39 +2,68 @@ import serial
 import time
 import os
 import re
-import traceback
 from collections import OrderedDict
-from serial.threaded import LineReader, ReaderThread
+from threading import Thread, Lock
 
-port = "COM14"
-baud = 115200
+class SerialHandler:
 
-class PrintLines(LineReader):
-    def connection_made(self, transport):
-        super(PrintLines, self).connection_made(transport)
-        print('port opened\n')
+    encoding='utf-8'
 
-    def handle_line(self, data):
-        print('line received: {}\n'.format(repr(data)))
-    
-    def connection_lost(self, exc):
-        print('port closed\n')
+    def __init__(self, ioLock, portName="COM3", baudRate=115200,byteSize=serial.EIGHTBITS, parity=serial.PARITY_NONE):
+        self.ioLock = ioLock
+        self.port = serial.Serial(portName, baudRate, bytesize=byteSize, parity=parity)
+        self.serialLock = Lock()
+        self.readerThread = Thread(target=self.readerLoop)
+        self.readerThread.start()
+        self.write('\n')
+
+    def writeLine(self, *data):
+        data = list(data)
+        data.append('\n')
+        self.write(*data)
+
+    def write(self, *data):
+        fullString = "".encode(self.encoding)
+        for string in data:
+            if type(string) is bytearray:
+                fullString += bytes(string)
+            elif type(string) is str:
+                fullString += bytes(string.encode('utf-8'))
+            else:
+                fullString += "{}".format(string).encode(self.encoding)
+        self.__write(fullString)
+        with self.ioLock:
+            print('{}> {}'.format(len(fullString), fullString))
+
+    def __write(self, str):
+        with self.serialLock:
+            self.port.write(str)
+
+    def readerLoop(self):
+        while self.port.is_open:
+            while self.port.in_waiting>0:
+                with self.serialLock:
+                    line = self.port.readline()
+                with self.ioLock:
+                    print('  < {}'.format(line))
 
 class DropletReprogrammer:
     
-    dataMsgLength = 32
+    dataMsgLength = 16
     trackedSections = ['.wrapper', '.usrtxt', '.usrdat']
     sectionsDict = {}
     hexParsingExtendedAddressOffset = 0
     
     def __init__(self, portName, buildName=None):
+        self.ioLock = Lock()
         self.getFiles(buildName)
         self.readLSSFile()
         self.readHexFile()
         self.getDataFromLinesDict()        
         for section in self.trackedSections:
-            print("{}: {}, {} [{}]\r\n\t{}\r\n".format(section, self.sectionsDict[section][0], self.sectionsDict[section][1], len(self.trackedData[section]), self.trackedData[section]))
-        self.port = serial.Serial(portName, 115200, bytesize=serial.EIGHTBITS, parity=serial.PARITY_NONE)
+            with self.ioLock:
+                print("{}: {}, {} [{}]\r\n\t{}\r\n".format(section, self.sectionsDict[section][0], self.sectionsDict[section][1], len(self.trackedData[section]), self.trackedData[section]))
+        self.serial = SerialHandler(self.ioLock, portName="COM3")
         self.sendData()
         #for (addr, data) in self.linesDict.items():
             #print('{} -> {}'.format(addr, data))
@@ -42,10 +71,10 @@ class DropletReprogrammer:
     
     def sendData(self):
         ((wrapperAddr, wrapperLen), (txtAddr, txtLen), (dataAddr, dataLen)) = self.sectionsDict.values()
-        def convert(val):
-            return bytearray(val.to_bytes(2, byteorder='little'))
-        (wrapperAddr, wrapperLen, txtAddr, txtLen, dataAddr, dataLen) = map(convert, (wrapperAddr, wrapperLen, txtAddr, txtLen, dataAddr, dataLen))
-        self.sendStartMessage(wrapperAddr + wrapperLen + txtAddr + txtLen + dataAddr + dataLen)
+        #def convert(val):
+            #return bytearray(val.to_bytes(2, byteorder='little'))
+        #(wrapperAddr, wrapperLen, txtAddr, txtLen, dataAddr, dataLen) = map(convert, (wrapperAddr, wrapperLen, txtAddr, txtLen, dataAddr, dataLen))
+        self.sendStartMessage([wrapperAddr,wrapperLen],[txtAddr,txtLen],[dataAddr,dataLen])
         self.sendProgDatSection(self.trackedData['.wrapper'])
         self.sendProgDatSection(self.trackedData['.usrtxt'])
         self.sendProgDatSection(self.trackedData['.usrdat'])
@@ -53,20 +82,23 @@ class DropletReprogrammer:
     def sendProgDatSection(self, sectionDat):
         curPos=0
         sectionLength = len(sectionDat)
-        while curPos<(sectionLength-32):
-            self.sendProgDatMsg(sectionDat[curPos:curPos+32])
-            curPos += 32
-        self.sendProgDatMsg(sectionDat[curPos:])
+        while curPos<(sectionLength-self.dataMsgLength):
+            self.sendProgDatMsg(format(self.dataMsgLength,'02x'), sectionDat[curPos:curPos+self.dataMsgLength].hex())
+            curPos += self.dataMsgLength
+        self.sendProgDatMsg(format(sectionLength-curPos,'02x'),sectionDat[curPos:].hex())
     
-    def sendProgDatMsg(self, dat):
-        self.port.write(bytearray("prog_dat ".encode('utf-8'))+dat+bytearray('\r\n'.encode('utf-8')))
-        time.sleep(0.5)
-        print(self.port.readline())
+    def sendProgDatMsg(self, length, dat):
+        self.serial.writeLine("prgD ", length, " ",dat)
+        time.sleep(1)
     
-    def sendStartMessage(self, vals):
-        self.port.write(bytearray("ir_prog ".encode('utf-8'))+vals+bytearray('D\r\n'.encode('utf-8')))
-        time.sleep(2)
-        print(self.port.readline())
+    def sendStartMessage(self, *args):
+        for pair in args:
+            if pair[0]%2 is not 0:
+                with self.ioLock:
+                    print("Warning! Section Address is Odd!")
+        strings = [" {:04x} {:04x}".format(pair[0]>>1, pair[1]) for pair in args]
+        self.serial.writeLine("prg", *strings)
+        time.sleep(5)
     
     def getDataFromLinesDict(self):
         self.trackedData = OrderedDict()
@@ -156,5 +188,5 @@ class DropletReprogrammer:
         else:
             raise Exception("Error parsing hex line: {}->({}, {}, {}, {}, {}) [{}]".format(line, length, address, type, data, checksum,len(data)))
                 
-DropletReprogrammer("COM3")
+reprogr=DropletReprogrammer("COM3")
 	

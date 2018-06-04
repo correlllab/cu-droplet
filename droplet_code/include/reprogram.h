@@ -5,17 +5,16 @@
 #include "nvm.h"
 
 typedef struct prog_data_struct{
-	void* secAaddr;
+	uint16_t secAaddr;
 	uint16_t secAsize;
-	void* secBaddr;
+	uint16_t secBaddr;
 	uint16_t secBsize;
-	void* secCaddr;
+	uint16_t secCaddr;
 	uint16_t secCsize;
-	char flag;
 }ProgData;
 
 typedef struct prog_msg_struct{
-	char cmdWord[8];
+	char cmdWord[6];
 	ProgData data;
 }ProgMsg;
 

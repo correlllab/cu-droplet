@@ -63,9 +63,9 @@ void handleSerialCommand(char* command, uint16_t command_length){
 		else if(strcmp_P(command_word,PSTR("print_motor_settings"))==0){
 																		printMotorValues();
 																		printDistPerStep();																	
-		}else if(strcmp_P(command_word,PSTR("prog"))==0)				handle_prog(command_args);
-		else if(strcmp_P(command_word,PSTR("ir_prog"))==0)				handle_ir_prog(command_args);
-		else if(strcmp_P(command_word,PSTR("prog_dat"))==0)				handle_prog_dat(command_args);
+		}else if(strcmp_P(command_word,PSTR("prg"))==0)					handle_prog(command_args);
+		else if(strcmp_P(command_word,PSTR("irPrg"))==0)				handle_ir_prog(command_args);
+		else if(strcmp_P(command_word,PSTR("prgD"))==0)					handle_prog_dat(command_args);
 		else if(userHandleCommand){ //First, make sure the function is defined
 			if(!userHandleCommand(command_word, command_args))	printf_P(CMD_NOT_RECOGNIZED_STR,command_word);
 		}
@@ -76,63 +76,67 @@ void handleSerialCommand(char* command, uint16_t command_length){
 
 //This cmd is sent by computer to the Droplet which will be sending all the code over IR.
 static void handle_prog(char* command_args){
-	ProgData* progData = (ProgData*)command_args;
-	if(progData->flag != 'D'){
-		printf("Error: Unexpected ir programming data!\r\n");
-		return;
-	}
 	printf("Got prog init command:\r\n");
-	printf("\t%p: %u\r\n", progData->secAaddr, progData->secAsize);
-	printf("\t%p: %u\r\n", progData->secBaddr, progData->secBsize);
-	printf("\t%p: %u\r\n", progData->secCaddr, progData->secCsize);
+	setRGB(100,50,0);
+	
+	sscanf(command_args, "%4x %4x %4x %4x %4x %4x", &(progData.secAaddr), &(progData.secAsize), &(progData.secBaddr), &(progData.secBsize), &(progData.secCaddr), &(progData.secCsize));
+	
+	
+	printf("\t%04x: %u\r\n", progData.secAaddr, progData.secAsize);
+	printf("\t%04x: %u\r\n", progData.secBaddr, progData.secBsize);
+	printf("\t%04x: %u\r\n", progData.secCaddr, progData.secCsize);
 
-	ProgMsg msg;
-	strcpy( msg.cmdWord, "ir_prog ");
-	msg.data = *progData;
+	scheduleTask(600,sendIrReprogMessage, NULL);
+	scheduleTask(1200,sendIrReprogMessage, NULL);
+	scheduleTask(1800,sendIrReprogMessage, NULL);
+}
 
-	irCmd(ALL_DIRS, (char*)(&msg), sizeof(ProgMsg));
-	NONATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-		waitForTransmission(ALL_DIRS);
-		delayMS(500);
-	}
-	irCmd(ALL_DIRS, (char*)(&msg), sizeof(ProgMsg));
-	NONATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-		waitForTransmission(ALL_DIRS);
-		delayMS(500);
-	}
-	irCmd(ALL_DIRS, (char*)(&msg), sizeof(ProgMsg));
-	NONATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-		waitForTransmission(ALL_DIRS);
-		delayMS(500);
-	}
+void sendIrReprogMessage(void){
+	char msg[36];
+	sprintf(msg, "irPrg %04x %04x %04x %04x %04x %04x",progData.secAaddr,progData.secAsize,progData.secBaddr,progData.secBsize,progData.secCaddr,progData.secCsize);
+	irCmd(ALL_DIRS, msg, 36);
 }
 
 //This cmd is sent by the computer to the connected droplet for each packet of data which needs to be sent.
 static void handle_prog_dat(char* command_args){
-	uint8_t len = strlen(command_args);
-	if(len>32){
-		printf("Length too long in prog_dat!\r\n");
+	setRGB(0,0,150);
+	const char delim[2] = " ";
+	char* token = strtok(command_args,delim);
+	if(token==NULL) return;
+	uint8_t length = strtoul(token, NULL, 16);
+	
+	token = strtok(NULL,delim);
+	if(token==NULL) return;
+	if(strlen(token)!=length*2){
+		printf("Length doesn't match in ir_prog!\r\n");
+		return;
 	}
-	command_args[len] = 'M';
-	irSend(ALL_DIRS, command_args, len+1);
+	uint8_t dataBytes[length+1];
+	char tmp[3]={'\0','\0','\0'};
+	for(uint8_t i=0;i<(length*2);i+=2){
+		memcpy(tmp, &(token[i]), 2);
+		dataBytes[i/2] = strtoul(tmp, NULL, 16);	
+	}
+	dataBytes[length] = 'M';
+	irSend(ALL_DIRS, (char*)dataBytes, length+1);
+	setRGB(0,0,0);
 }
 
 // After getting the prog cmd from a computer, the Droplet plugged in to the computer 
 // sends this command over IR to force receiving Droplets to enter programming mode.
 static void handle_ir_prog(char* command_args){
-	ProgData* data = (ProgData*)command_args;
-	if(data->flag != 'D'){
-		setRGB(200,0,0);
-		return;
+	if(reprogramming){ //if we've already done this once.
+		return; 
 	}
-	progData = *data;
+	sscanf(command_args, "%4x %4x %4x %4x %4x %4x", &(progData.secAaddr), &(progData.secAsize), &(progData.secBaddr), &(progData.secBsize), &(progData.secCaddr), &(progData.secCsize));
+		
 	printf("Got ir_prog init command:\r\n");
-	printf("\t%p: %u\r\n", progData.secAaddr, progData.secAsize);
-	printf("\t%p: %u\r\n", progData.secBaddr, progData.secBsize);
-	printf("\t%p: %u\r\n", progData.secCaddr, progData.secCsize);
+	printf("\t%04x: %u\r\n", progData.secAaddr, progData.secAsize);
+	printf("\t%04x: %u\r\n", progData.secBaddr, progData.secBsize);
+	printf("\t%04x: %u\r\n", progData.secCaddr, progData.secCsize);
+	
 	setRGB(0,50,0);
 	reprogramming = 1;
-
 }
 
 /*

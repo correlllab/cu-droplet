@@ -28,17 +28,16 @@ void send_initial(void){
 	}
 }
 
-// TODO: This function needs to be updated to handle new format of reprogramming messages from python script 
-//       (which needs to be updated to set that format, among other things).
+// TODO: This function needs to be updated to use progData to check for missing packets, and to do something to get missing packets, and then to actually use the acquired data to reprogram.
 void handleReprogMsg(irMsg* msgStruct)
 {
-	char* dat = msgStruct->msg;
+	uint8_t* dat = (uint8_t*)(msgStruct->msg);
 	uint8_t len = msgStruct->length;
 	if(dat[len-1]!='M'){
 		printf("Unexpected reprogram message?\r\n");
 	}else{
 		for(uint8_t i=0;i<(len-1);i++){
-			printf("%02hx", dat[i]);
+			printf("%02hx", (uint8_t)dat[i]);
 		}
 		printf("\r\n");
 	}

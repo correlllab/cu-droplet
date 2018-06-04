@@ -14,3 +14,4 @@
 void handleSerialCommand(char* command, uint16_t command_length);
 void sendID(void);
 
+void sendIrReprogMessage(void);

@@ -415,7 +415,8 @@ static void receivedRnbCmd(uint16_t delay, uint32_t lastByte, id_t senderID){
 		if(!processing_rnb_flag && (irIsBusy(ALL_DIRS)<8)){
 			if(delay!=0xFFFF){
 				rnbCmdID = senderID;
-				//printf("%04X: %hu\r\n", rnbCmdID, delay+5);			
+				//printf("%04X: %hu\r\n", rnbCmdID, delay+5);
+				if(delay<5) delay = 20-delay;
 				rnbCmdSentTime = lastByte-(delay+5);
 				processThisRNB = 1;
 				processing_rnb_flag = 1;

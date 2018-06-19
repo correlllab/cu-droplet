@@ -116,7 +116,7 @@ volatile struct{
 	volatile uint32_t last_byte;			// TX time or RX time of last received byte	
 	volatile uint16_t data_crc;
 	volatile id_t senderID;
-	volatile id_t target_ID;
+	volatile id_t targetID;
 	volatile uint16_t curr_pos;				// Current position in buffer
 	volatile uint16_t calc_crc;
 	volatile char buf[IR_BUFFER_SIZE];		// Transmit / receive buffer		

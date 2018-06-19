@@ -55,7 +55,7 @@ static void clearIrBuffer(uint8_t dir){
 	ir_rxtx[dir].data_crc		= 0;
 	ir_rxtx[dir].senderID		= 0;
 	
-	ir_rxtx[dir].target_ID		= 0;	
+	ir_rxtx[dir].targetID		= 0;	
 	ir_rxtx[dir].curr_pos		= 0;
 	ir_rxtx[dir].calc_crc		= 0;
 	ir_rxtx[dir].data_length	= 0;	
@@ -139,7 +139,7 @@ void send_msg(uint8_t dirs, char *data, uint8_t dataLength, uint8_t hpFlag){
 		if(dirs&(1<<dir)){			
 			crc = _crc16_update(crc, (ir_rxtx[dir].status & IR_STATUS_CRC_BITS_bm));
 			if(!(ir_rxtx[dir].status&IR_STATUS_TIMED_bm)){
-				crc = _crc16_update(crc, ir_rxtx[dir].target_ID);
+				crc = _crc16_update(crc, ir_rxtx[dir].targetID);
 			}
 			break;
 		}	
@@ -268,7 +268,7 @@ void tryAndSendMessage(){//void * msg_temp_node){
 				ir_rxtx[dir].status = IR_STATUS_BUSY_bm;
 				if(outgoingMsgHead->cmd_flag) ir_rxtx[dir].status |= IR_STATUS_COMMAND_bm;
 				ir_rxtx[dir].status |= (timed ? IR_STATUS_TIMED_bm : 0);
-				ir_rxtx[dir].target_ID=outgoingMsgHead->target;
+				ir_rxtx[dir].targetID=outgoingMsgHead->target;
 			}
 		}
 		if(outgoingMsgHead->data_length==DESIRED_MSG_LENGTH){
@@ -433,7 +433,7 @@ static uint8_t all_hp_ir_cmds(uint8_t dirs, char* data, uint8_t dataLength, id_t
 				channel[dir]->CTRLB &= ~USART_RXEN_bm;
 				ir_rxtx[dir].status = IR_STATUS_BUSY_bm | IR_STATUS_COMMAND_bm;
 				ir_rxtx[dir].status |= (timed ? IR_STATUS_TIMED_bm : 0);
-				ir_rxtx[dir].target_ID=target;
+				ir_rxtx[dir].targetID=target;
 			}
 		}
 	}
@@ -497,21 +497,21 @@ static void addMsgToMsgQueue(uint8_t dir){
 }
 
 static void handleCompletedMsg(uint8_t dir){
-	ir_rxtx[dir].status |= ir_rxtx[dir].target_ID ? IR_STATUS_TARGETED_bm : 0;
+	ir_rxtx[dir].status |= ir_rxtx[dir].targetID ? IR_STATUS_TARGETED_bm : 0;
 	//pre checks.
 	const uint8_t crcMismatch = ir_rxtx[dir].calc_crc!=ir_rxtx[dir].data_crc;
 	const uint8_t nullCrc	  = ir_rxtx[dir].calc_crc==0;
 	const uint8_t selfSender  = ir_rxtx[dir].senderID == getDropletID();
 	const uint8_t notTimed	  = !(ir_rxtx[dir].status & IR_STATUS_TIMED_bm);
-	const uint8_t wrongTarget = (notTimed && ir_rxtx[dir].target_ID && ir_rxtx[dir].target_ID!=getDropletID());
+	const uint8_t wrongTarget = (notTimed && ir_rxtx[dir].targetID && ir_rxtx[dir].targetID!=getDropletID());
 	if(!((crcMismatch||nullCrc)||(selfSender||wrongTarget))){
 		if(ir_rxtx[dir].status & IR_STATUS_COMMAND_bm){
 			if(notTimed){
 				receivedIrCmd(dir);
 			}else{
 				switch(ir_rxtx[dir].data_length){
-					case 0: receivedIrSyncCmd(ir_rxtx[dir].target_ID, ir_rxtx[dir].last_byte, ir_rxtx[dir].senderID); break;
-					case 1: receivedRnbCmd(ir_rxtx[dir].target_ID, ir_rxtx[dir].last_byte, ir_rxtx[dir].senderID); break;
+					case 0: receivedIrSyncCmd(ir_rxtx[dir].targetID, ir_rxtx[dir].last_byte, ir_rxtx[dir].senderID); break;
+					case 1: receivedRnbCmd(ir_rxtx[dir].targetID, ir_rxtx[dir].last_byte, ir_rxtx[dir].senderID); break;
 				}
 			}
 		}else{
@@ -556,11 +556,11 @@ static void irReceive(uint8_t dir){
 										ir_rxtx[dir].data_length	= in_byte&DATA_LEN_VAL_bm;
 										if(ir_rxtx[dir].data_length>IR_BUFFER_SIZE) ir_rxtx[dir].data_length=1; //basically, this will cause the message to get aborted.
 																								break;
-		case HEADER_POS_TARGET_ID_LOW:  ir_rxtx[dir].target_ID		= (uint16_t)in_byte;		break;
+		case HEADER_POS_TARGET_ID_LOW:  ir_rxtx[dir].targetID		= (uint16_t)in_byte;		break;
 		case HEADER_POS_TARGET_ID_HIGH:
-										ir_rxtx[dir].target_ID	   |= (((uint16_t)in_byte)<<8);
+										ir_rxtx[dir].targetID	   |= (((uint16_t)in_byte)<<8);
 										if(!(ir_rxtx[dir].status & IR_STATUS_TIMED_bm)){
-											ir_rxtx[dir].calc_crc		= _crc16_update(ir_rxtx[dir].calc_crc, ir_rxtx[dir].target_ID);
+											ir_rxtx[dir].calc_crc		= _crc16_update(ir_rxtx[dir].calc_crc, ir_rxtx[dir].targetID);
 										}
 										break;								
 		default:
@@ -635,7 +635,7 @@ static void receivedRnbCmd(uint16_t delay, uint32_t last_byte, id_t senderID){
 		if(!processing_rnb_flag && (irIsBusy(ALL_DIRS)<8)){
 			if(delay!=0xFFFF){
 				rnbCmdID = senderID;
-				//printf("%04X: %hu\r\n", rnbCmdID, delay+5);			
+				//printf("%04X: %hu\r\n", rnbCmdID, delay+5);
 				if(delay<5) delay = 20-delay;
 				rnbCmdSentTime = last_byte-(delay+5);
 				processThisRNB = 1;
@@ -675,11 +675,18 @@ static void irTransmit(uint8_t dir){
 										next_byte |= (ir_rxtx[dir].status & IR_STATUS_TIMED_bm);	break;
 		case HEADER_POS_TARGET_ID_LOW:	if((ir_rxtx[dir].status&IR_STATUS_TIMED_bm)){
 											uint32_t truncatedTime = getTime()&0xFFFF;
-											uint16_t timeGap = (truncatedTime < ir_rxtx[dir].target_ID) ? ((truncatedTime+0x10000)-truncatedTime) : (truncatedTime-ir_rxtx[dir].target_ID);
-											ir_rxtx[dir].target_ID = (timeGap>30000) ? 0xFFFF0 : timeGap;
+//<<<<<<< HEAD
+											//uint16_t timeGap = (truncatedTime < ir_rxtx[dir].target_ID) ? ((truncatedTime+0x10000)-truncatedTime) : (truncatedTime-ir_rxtx[dir].target_ID);
+											//ir_rxtx[dir].target_ID = (timeGap>30000) ? 0xFFFF0 : timeGap;
+//=======
+											uint16_t timeGap = (truncatedTime < ir_rxtx[dir].targetID) ?
+																((truncatedTime+0x10000)-ir_rxtx[dir].targetID) :
+																(truncatedTime-ir_rxtx[dir].targetID);
+											ir_rxtx[dir].targetID = (timeGap>30000) ? 0xFFFF : timeGap;
+//>>>>>>> e73f9f04bffb06fbf391cf3a52c5da350332e427
 										}
-										next_byte  = (uint8_t)(ir_rxtx[dir].target_ID&0xFF);		break;
-		case HEADER_POS_TARGET_ID_HIGH:	next_byte = (uint8_t)((ir_rxtx[dir].target_ID>>8)&0xFF);	break;
+										next_byte  = (uint8_t)(ir_rxtx[dir].targetID&0xFF);		break;
+		case HEADER_POS_TARGET_ID_HIGH:	next_byte = (uint8_t)((ir_rxtx[dir].targetID>>8)&0xFF);	break;
 		default: next_byte = ir_rxtx[dir].buf[ir_rxtx[dir].curr_pos - HEADER_LEN];
 	}
 	if((ir_rxtx[dir].status & IR_STATUS_TIMED_bm) && (ir_rxtx[dir].status & IR_STATUS_COMMAND_bm) && ir_rxtx[dir].data_length==2){ //SUPER HACKY WAY TO SEND ONE BYTE.
@@ -718,7 +725,7 @@ static void irTransmitComplete(uint8_t dir){
 		ir_rxtx[dir].status = 0;
 		ir_rxtx[dir].data_length = 0;
 		ir_rxtx[dir].curr_pos = 0;
-		ir_rxtx[dir].target_ID = 0;
+		ir_rxtx[dir].targetID = 0;
 		ir_rxtx[dir].senderID = 0;
 		
 		//The line below will keep irIsBusy from reporting that the communication medium is free immediately after a message has finished sending.

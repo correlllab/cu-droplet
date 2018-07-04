@@ -82,7 +82,8 @@ ISR(TCE0_OVF_vect){
 	uint32_t randomWait = (randShort()%32)*20; //between 0 and 640ms
 	//sendPing( (void*)((uint16_t)(get_time()&0xFFFF)));
 	updateRTC();
-	scheduleTask(randomWait, (arg_func_t)sendPing, (void*)((uint16_t)(getTime()&0xFFFF)));
+	scheduleTask(5, (arg_func_t)sendPing, (void*)((uint16_t)(getTime()&0xFFFF)));
+	printf("Sync Msg Out\r\n"); //NEW_TEST
 	//printf("ovf @ %lu\r\n",get_time());
 }
 
@@ -142,10 +143,10 @@ static void updateRTC(void){
 	 * (From observations, changing the calibration by one seemed to effect the change by about 10ms, so if we're within
 	 * 11ms, we won't get any better.)
 	 */
-	if(abs(change)<(FFSYNC_MAX_DEVIATION*5)){
-		if(change>0) OSC.RC32KCAL++;
-		else if(abs(change)<FFSYNC_MAX_DEVIATION) OSC.RC32KCAL--;
-	}
+	//if(abs(change)<(FFSYNC_MAX_DEVIATION*5)){
+		//if(change>0) OSC.RC32KCAL++;
+		//else if(abs(change)<FFSYNC_MAX_DEVIATION) OSC.RC32KCAL--;
+	//}
 	//printf("\t\t%d\r\n",change);
 }
 

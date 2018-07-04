@@ -58,6 +58,9 @@ void startTransmitting(void);
 void setMsgPeriod(uint32_t value);
 void sendThroughputMsg();
 
+void		lightsOn(void);
+void		lightsOff(void);
+
 const uint32_t m1  = 0x55555555; //binary: 0101...
 const uint32_t m2  = 0x33333333; //binary: 00110011..
 const uint32_t m4  = 0x0f0f0f0f; //binary:  4 zeros,  4 ones ...

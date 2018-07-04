@@ -2,6 +2,7 @@
 #include <inttypes.h>
 #include <stdio.h>
 
+
 #define TARGET_HAMMING_WEIGHT 81
 static inline void setIdMaskBit(BotIdMask* mask, id_t id);
 
@@ -55,43 +56,55 @@ void startTransmitting(void){
 	setRGB(20,0,0);
 }
 
+
 /*
  * any code in this function will be run once, when the robot starts.
  */
 void init(){
-	
-	setRGB(6,6,6);
-
-	lastMessageSent = getTime();
-	msgCount=0;
-	dataCollecting=0;
-	startSending=0;
-	//scheduleTask(3000,startTransmitting,NULL);	//Comment for Throughput test
-	for(int i=0; i<121; i++)
-	msgLog[i].msgCount = 0;
-	
 	
 	//GLOBAL VARIABLE INIT
 	recvCount = 0;
 	MSG_PERIOD = 800;
 	MS_DROPLET_COMM_TIME = 8;
 	IR_MAX_TIME_LIVED = 500;
-	//backoffCount = 1;
-	bins = 10;
-	for(int i=0; i<bins; i++)
-		bincounts[i] = 0;
-
-	for(uint8_t i=0; i<4; i++)
-		allIDsMask[i] = 0;
-	//printIdMask(&allIDsMask);
-	//for(uint8_t bitPos=0;bitPos<128;bitPos++){
-		//allIDsMask[bitPos>>5] |= (1<<(bitPos&0x1F));
-	//}
-	//printIdMask(&allIDsMask);
 	
-	throughputStarted = 0;
-	lastThroughputMsgSent = getTime();
-	scheduleTask(30000,startThroughputMessaging,NULL);	//Comment for Throughput test
+	#ifdef SYNCHRONIZED
+		schedulePeriodicTask(2000, lightsOn, NULL);
+	#else
+		setRGB(6,6,6);
+
+		lastMessageSent = getTime();
+		msgCount=0;
+		dataCollecting=0;
+		startSending=0;
+		//scheduleTask(3000,startTransmitting,NULL);	//Comment for Throughput test
+		for(int i=0; i<121; i++)
+		msgLog[i].msgCount = 0;
+	
+	
+	
+		//backoffCount = 1;
+		bins = 10;
+		for(int i=0; i<bins; i++)
+			bincounts[i] = 0;
+
+		for(uint8_t i=0; i<4; i++)
+			allIDsMask[i] = 0;
+		//printIdMask(&allIDsMask);
+		//for(uint8_t bitPos=0;bitPos<128;bitPos++){
+			//allIDsMask[bitPos>>5] |= (1<<(bitPos&0x1F));
+		//}
+		//printIdMask(&allIDsMask);
+	
+		throughputStarted = 0;
+		lastThroughputMsgSent = getTime();
+		scheduleTask(30000,startThroughputMessaging,NULL);	//Comment for Throughput test
+	#endif
+
+	//#ifdef SYNCHRONIZED
+		//schedulePeriodicTask(2000, lightsOn, NULL);
+	//#endif
+
 }
 
 void startThroughputMessaging(){
@@ -110,6 +123,7 @@ void sendThroughputMsg(){
 	irSend(ALL_DIRS, (char*)(&msg), sizeof(BitMaskMsg));
 }
 
+
 void sendDurationMsg(){
 	DurationMsg msg;
 	msg.flag = DURATION_MSG_FLAG;
@@ -117,6 +131,14 @@ void sendDurationMsg(){
 	irSend(ALL_DIRS, (char*)&msg, sizeof(DurationMsg));
 	printf("New Max Duration: %lu.\r\n", maxThroughputDuration);
 }
+/*
+ * the code in this function will be called repeatedly, as fast as it can execute.
+ */
+//void loop(){
+//
+	//delayMS(10);
+
+//}
 
 void handleDurationmsg(DurationMsg* msg){
 	if(msg->dur > maxThroughputDuration){
@@ -183,21 +205,13 @@ void setMsgPeriod(uint32_t value){
 void sendMsg(){
 	Msg* msg;
 	msg = (Msg*)myMalloc(DESIRED_MSG_LENGTH);
-	//msg.text[0]= 'H';
-	//msg.text[1]='i';
-	////msg.text[2]='.';
+
 	
-	//msg.text="Hi.";
-	
-	//senderThisTime= (getDropletID()==RCVR_ID) ? 0 : (randReal()<=(8./16.));
-	
-	memcpy(msg->text, "Hi.", DESIRED_MSG_LENGTH-sizeof(Msg));
+	memcpy(msg->text, "Hi.12345678912", DESIRED_MSG_LENGTH-sizeof(Msg));
 	
 	msgCount = (msgCount + 1)%0x0FFF;/*%2000+4000;// + 2000;//65534;*/
 	msg->msgId = msgCount; //| getBitMask(getDropletID());//++;					//RIYA
-	//char* msg_str;
-	//sprintf(msg_str, "Message=%s, Message_ID=%d", msg.text, msg.msgId);
-	//msg.time_scheduled = getTime();
+
 	msg->attempts = 0;
 	irSend(ALL_DIRS, (char*)msg, DESIRED_MSG_LENGTH);
 	myFree(msg);
@@ -206,23 +220,44 @@ void sendMsg(){
 
 
 void loop(){
-	if(startSending){
+	
+	#ifdef SYNCHRONIZED
+		delayMS(10);
 		if(getTime()-lastMessageSent > MSG_PERIOD){
 			
-			startSending = 0;		//RIYA Uncomment for Throughput test
+			//startSending = 0;		//RIYA Uncomment for Throughput test
 			sendMsg();
-		
+			printf("%lu\r\n",getTime());
 			lastMessageSent = getTime();
 		}
-	}else if(!throughputStarted){
-		if((getTime() - lastThroughputMsgSent) < 5000){
-			sendThroughputMsg();
-			lastThroughputMsgSent = getTime();	
-			delayMS(MSG_PERIOD);
+	#else
+		if(startSending){
+			if(getTime()-lastMessageSent > MSG_PERIOD){
+			
+				startSending = 0;		//RIYA Uncomment for Throughput test
+				sendMsg();
+		
+				lastMessageSent = getTime();
+			}
+		}else if(!throughputStarted){
+			if((getTime() - lastThroughputMsgSent) < 5000){
+				sendThroughputMsg();
+				lastThroughputMsgSent = getTime();	
+				delayMS(MSG_PERIOD);
+			}
 		}
-	}
 	
-	delayMS(10);
+		delayMS(10);
+	#endif
+}
+
+void lightsOn(){
+	setRGB(200,200,200);
+	scheduleTask(1000, lightsOff, NULL);
+}
+
+void lightsOff(){
+	setRGB(0,0,0);
 }
 
 /*
@@ -265,11 +300,9 @@ void handleMsg(irMsg* msgStruct){
 		if(!dataCollecting){
 			return;
 		}
-		//if(getDropletID()!=RECEIVER_ID){
-		//return;
-		//}
+		
 	
-		//printf("\n\rGot %04X %6u at %lu\r\n. Time scheduled: %lu, time sent: %lu", getIdFromOrd(msgSender), msgID, getTime(), msg->time_scheduled, msg->time_sent);
+		
 		printf("Got %04X %6u at %lu. Attempt no.:%hu.MsgText= %s\r\n", getIdFromOrd(msgSender), msgID, getTime(),msg->attempts,msg->text);
 	
 
@@ -289,8 +322,7 @@ void handleMsg(irMsg* msgStruct){
 			float meanSuccessRate = 0;
 			uint8_t numSenders =0;
 		
-			//for(int i=0; i<121; i++)
-			//msgLog[i].msgCount = 0;
+
 		
 			printf("<|");
 			for(uint8_t i=0; i<121; i++){

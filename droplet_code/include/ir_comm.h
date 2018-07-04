@@ -20,7 +20,7 @@ typedef struct msg_struct{
 	uint16_t msgId;
 	char text[];
 }Msg;
-#define DESIRED_MSG_LENGTH 7 // must be at least as big as sizeof(Msg)
+#define DESIRED_MSG_LENGTH 18 // must be at least as big as sizeof(Msg)
 
 #define RTS_BYTE 0xCC
 
@@ -96,6 +96,7 @@ typedef struct out_msg_node_struct {
 	uint8_t channel_id;
 	id_t target;
 	uint8_t cmd_flag;
+	uint8_t hp_flag;
 	uint8_t no_of_tries;
 	uint32_t time_lived;
 	struct out_msg_node_struct * next;

@@ -75,8 +75,8 @@ typedef struct msg_struct{
 #define HEADER_POS_CRC_LOW 2
 #define HEADER_POS_CRC_HIGH 3
 #define HEADER_POS_MSG_LENGTH 4
-#define HEADER_POS_TARGET_ID_HIGH 5
-#define HEADER_POS_TARGET_ID_LOW 6
+#define HEADER_POS_TARGET_ID_HIGH 6
+#define HEADER_POS_TARGET_ID_LOW 5
 
 #define HEADER_LEN 7U
 

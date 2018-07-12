@@ -79,9 +79,9 @@ void fireflySyncInit()
 }
 
 ISR(TCE0_OVF_vect){
-	uint32_t randomWait = (randShort()%32)*20; //between 0 and 640ms
+	updateRTC();	
+	uint32_t randomWait = (randShort()%32)*(FFSYNC_D/31); //between 0 and FFSYNC_D
 	//sendPing( (void*)((uint16_t)(get_time()&0xFFFF)));
-	updateRTC();
 	scheduleTask(randomWait, (arg_func_t)sendPing, (void*)((uint16_t)(getTime()&0xFFFF)));
 	//printf("ovf @ %lu\r\n",get_time());
 }
@@ -91,7 +91,7 @@ void processObsQueue(){
 	ObsQueue* curr = obsStart->next;
 	ObsQueue* tmp;
 	while(curr != obsStart){
-		newStart += (((float)(curr->obs))-newStart)/FFSYNC_EPSILON;
+		newStart += calculatePhaseJump(curr->obs);
 		tmp = curr;
 		curr = curr->next;
 		myFree(tmp);	
@@ -114,6 +114,7 @@ void processObsQueue(){
 }
 
 static void updateRTC(void){
+	//This is being called when TCE0.CNT is 0 (because it gets called from the TCE0 overflow interrupt).
 	int16_t change;
 	uint16_t remainder;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)

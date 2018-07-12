@@ -11,10 +11,12 @@
 								
 #define FFSYNC_MAX_DEVIATION	/*	42		//*/(((uint16_t)(FFSYNC_FULL_PERIOD_MS/182))+1)
 
-#define FFSYNC_EPSILON			60.0
+#define FFSYNC_FFC				50
+#define FFSYNC_EPSILON			(1.0/FFSYNC_FFC)
 
-#define FFSYNC_D				500
-#define FFSYNC_W				200
+
+#define FFSYNC_D				403 //Requirement: FFSYNC_D << FFSYNC_FULL_PERIOD_MS
+#define FFSYNC_W				503 //Requirement: FFSYNC_W > FFSYNC_D  && FFSYNC_W << FFSYNC_FULL_PERIOD_MS
 
 void fireflySyncInit(void);
 
@@ -34,15 +36,19 @@ typedef struct obs_queue_struct{
 
 ObsQueue* obsStart;
 
+inline uint16_t calculatePhaseJump(uint16_t obs){
+	return (uint16_t)(obs/FFSYNC_FFC); //As FFSYNC_FFC = 1/FFSYNC_EPSILON, this is equivalent to obs*FFSYNC_EPSILON.
+}
+
 inline void updateFireflyCounter(volatile uint16_t count, volatile uint16_t delay){
 	//printf("%u\r\n", delay);
-	uint16_t theDelay = delay*FFSYNC_MS_CONVERSION_FACTOR;
+	uint16_t rescaledDelay = delay*FFSYNC_MS_CONVERSION_FACTOR;
 	uint16_t obs;
 	ObsQueue* node;
-	if(count<=theDelay){
-		obs = count + (FFSYNC_FULL_PERIOD-theDelay);
+	if(count<=rescaledDelay){
+		obs = count + (FFSYNC_FULL_PERIOD-rescaledDelay);
 	}else{
-		obs = count - theDelay;
+		obs = count - rescaledDelay;
 	}
 	node = (ObsQueue*)myMalloc(sizeof(ObsQueue));
 	if(node==NULL){
@@ -58,5 +64,5 @@ inline void updateFireflyCounter(volatile uint16_t count, volatile uint16_t dela
 	curr->next = node;
 			
 	node->obs = obs;
-	printf("\r\nGot Sync Msg::%u::",delay);//NEW_TESTs
+	printf("\r\nGot Sync Msg::%u::%u::",delay,count);//NEW_TESTs
 }

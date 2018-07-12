@@ -11,6 +11,7 @@
 
 # Target file name (without extension).
 # This should match your AtmelStudio Project Name
+#This is branch riya
 TARGET = droplet_riya
 
 # The base directory of your Atmel Studio installation folder.

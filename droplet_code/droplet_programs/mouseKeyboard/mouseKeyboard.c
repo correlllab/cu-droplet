@@ -268,6 +268,7 @@ inline static uint8_t targetMaxCount(void){
 }
 
 #define NUM_MAXIMUMS_TRACKED 6
+//TODO: Should update this to use the cholesky decomposition of the covariance, instead of the eigendecomposition.
 void checkPosition(){
 	Matrix covar;
 	decompressP(&covar, &myPosCovar);

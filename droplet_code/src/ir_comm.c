@@ -394,7 +394,8 @@ static void receivedIrSyncCmd(uint16_t delay, uint32_t lastByte, id_t senderID){
 	}
 	if(processThisFFSync){
 		//printf("senderID: %04X\tdelay: %hu\r\n", ir_rxtx[dir].sender_ID, delay);
-		delay = delay+5+(getTime()-lastByte); //The time is measured right before sending and is the last two bytes of the message. Our baud rate means that it takes 5ms to send two bytes.
+		//delay = delay+5+(getTime()-lastByte); //The time is measured right before sending and is the last two bytes of the message. Our baud rate means that it takes 5ms to send two bytes.
+		delay = 27.3552+0.88423*(delay+(getTime()-lastByte));
 		updateFireflyCounter(count, delay);
 		ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 			for(uint8_t dir=0;dir<6;dir++){
@@ -416,7 +417,8 @@ static void receivedRnbCmd(uint16_t delay, uint32_t lastByte, id_t senderID){
 			if(delay!=0xFFFF){
 				rnbCmdID = senderID;
 				//printf("%04X: %hu\r\n", rnbCmdID, delay+5);
-				if(delay<5) delay = 20-delay;
+				delay = 27.3552+0.88423*(delay+(getTime()-lastByte));
+				//if(delay<5) delay = 20-delay;
 				rnbCmdSentTime = lastByte-(delay+5);
 				processThisRNB = 1;
 				processing_rnb_flag = 1;

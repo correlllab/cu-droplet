@@ -36,8 +36,7 @@ static inline uint8_t lengthWithPadding(uint8_t length, uint8_t timed){
 	return ( (timed) ? length : (((((length+(HEADER_LEN-1))/12)+1)*12)-HEADER_LEN) );
 }
 
-//Note! This function will not work correctly if called on a timed message.
-//That is, a message for which (status & IR_STATUS_TIMED_bm) is true.
+/*This function calculates the time taken for the padded message to transmit*/
 static inline uint8_t expectedMsgDur(OutMsgNode* msg, uint8_t timed){
 	return ((lengthWithPadding(msg->data_length, timed) + HEADER_LEN)*5)/2; //multiplying by 2.5ms per byte.	
 }
@@ -194,7 +193,7 @@ uint32_t getExponentialBackoff(uint8_t c){
 	N= (((uint32_t)1)<<c)-1;
 	
 	k = ((randQuad()%N)+1);
-	//return_value = k*MS_DROPLET_COMM_TIME;
+	
 	return_value = k*IR_MIN_PACKET_LENGTH;
 	last_return = return_value;
 	
@@ -218,7 +217,7 @@ void removeHeadAndUpdate(){
 			outgoingMsgHead->prev = tempNode->prev;
 			tempNode->prev->next = outgoingMsgHead;
 		}
-		if(tempNode->data_length>=64)
+		if(tempNode->data_length>=64)				//for zero-length messages like timed messages
 			memoryConsumedByOutgoingMsgBuffer = memoryConsumedByOutgoingMsgBuffer - ( sizeof(OutMsgNode) + tempNode->data_length - 64);
 		else
 			memoryConsumedByOutgoingMsgBuffer = memoryConsumedByOutgoingMsgBuffer - ( sizeof(OutMsgNode) + tempNode->data_length);
@@ -231,25 +230,23 @@ void removeHeadAndUpdate(){
  *   Could extend this so that, if we are busy transmitting, we wait an amount of time based on
  *   how much longer we expect the message to take to send, instead of the exponential backoff.
  */
-void tryAndSendMessage(){//void * msg_temp_node){
+void tryAndSendMessage(){
 	Msg* data;
-	//msgNode = (NODE *)msg_temp_node;
-	if(!(outgoingMsgHead->time_lived)) outgoingMsgHead->time_lived = getTime();
-	if(irIsBusy(outgoingMsgHead->channel_id)>0){// && (get_time()-first_attempt < timeout_PERIOD) && (BUFFER_HEAD->no_of_tries < 10)){	
-		//if(outgoingMsgHead->no_of_tries < IR_MAX_MSG_TRIES){
-		if((getTime() - outgoingMsgHead->time_lived + 5) < IR_MAX_TIME_LIVED){					
+	
+	if(!(outgoingMsgHead->time_lived)) outgoingMsgHead->time_lived = getTime();	
+	
+	/*Check if IR is busy, do exponential back-off if message has lived in the outgoing buffer for less than IR_MAX_TIME_LIVED, discard otherwise. Call send_msg if channel is free*/
+	if(irIsBusy(outgoingMsgHead->channel_id)>0){
+		if((getTime() - outgoingMsgHead->time_lived + 5) < IR_MAX_TIME_LIVED){							
 			uint32_t time_backoff = getExponentialBackoff(outgoingMsgHead->no_of_tries++);
 			#ifdef ADDING_DELAYS
-				scheduleTask(time_backoff+15, tryAndSendMessage, NULL);// (void *)BUFFER_HEAD);		
+				scheduleTask(time_backoff+15, tryAndSendMessage, NULL);
 			#else
-				scheduleTask(time_backoff, tryAndSendMessage, NULL);// (void *)BUFFER_HEAD);		
+				scheduleTask(time_backoff, tryAndSendMessage, NULL);
 			#endif
 			
 		}
 		else{
-			/*Following lines cause LL to break when SYNC is on*/
-			//data = (Msg*)(outgoingMsgHead->data);
-			//printf("\n\rERROR: VERY BUSY! MESSAGE NUMBER %u DISCARDED\n\r", data->msgId);
 			printf("\n\rERROR: VERY BUSY! MESSAGE DISCARDED, time_lived = %lu, %hu (%hu)\n\r", getTime()-outgoingMsgHead->time_lived, outgoingMsgHead->no_of_tries, outgoingMsgHead->data_length >= 64);
 			ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 				removeHeadAndUpdate();
@@ -282,17 +279,11 @@ void tryAndSendMessage(){//void * msg_temp_node){
 		}
 
 		
-		send_msg(outgoingMsgHead->channel_id, outgoingMsgHead->data, outgoingMsgHead->data_length, outgoingMsgHead->hp_flag); //0);
+		send_msg(outgoingMsgHead->channel_id, outgoingMsgHead->data, outgoingMsgHead->data_length, outgoingMsgHead->hp_flag); 
 		
 		
 		if(outgoingMsgHead->data_length==DESIRED_MSG_LENGTH){
 			printf("send success");
-			
-			/*Following lines cause LL to break when SYNC is on, messing up the stack maybe?*/
-			//data = (Msg*)(outgoingMsgHead->data);
-			//uint8_t dataSender = (uint8_t)(log((data->msgId)>>12)/log(2));
-			//uint16_t printID = (data->msgId)&0x0FFF;
-			//printf("%01hu %u at %lu", dataSender, printID, getTime());
 			printf("\r\n");
 		}
 		
@@ -302,12 +293,13 @@ void tryAndSendMessage(){//void * msg_temp_node){
 			 printf("timeToGetSent: %lu (%u)\r\n",getTime()-outgoingMsgHead->time_lived,timeGap);
 		}
 		
-		uint32_t msgMSlen = expectedMsgDur(outgoingMsgHead, timed);	//RIYA
-	
+		uint32_t msgMSlen = expectedMsgDur(outgoingMsgHead, timed);
+		
+		/*Update outgoing buffer*/
 		ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 			removeHeadAndUpdate();
 			if(outgoingMsgHead)
-				scheduleTask(msgMSlen+IR_MSG_TIMEOUT, tryAndSendMessage, NULL);// (void *)BUFFER_HEAD);
+				scheduleTask(msgMSlen+IR_MSG_TIMEOUT, tryAndSendMessage, NULL);
 		}
 	}
 }
@@ -315,14 +307,11 @@ void tryAndSendMessage(){//void * msg_temp_node){
 
 
 void printMsgQueue(){
-	//printf("Msg Queue contains:\r\n");
-	//For debugging:
+
 	uint16_t listLength = 0;
 	volatile OutMsgNode* tmp = outgoingMsgHead;
 	do{
 		listLength++;
-		//printf("\t%p: %hu", tmp, ((Msg*)(tmp->data))->msgId);
-		//printf("\t\tPREV: %p\tNEXT: %p\r\n", tmp->prev, tmp->next);
 		tmp = tmp->next;
 	}while(tmp!=outgoingMsgHead);
 	printf("List Length: %u\r\n", listLength);
@@ -330,6 +319,7 @@ void printMsgQueue(){
 
 static OutMsgNode* all_ir_sends(uint8_t dir, char * str, uint8_t dataLength, id_t msgTarget, uint8_t cmdFlag, uint8_t hpFlag){
 	
+	/*Check if timed message*/
 	int dataLengthActualMsg = dataLength;
 	if(dataLength>=64){
 		dataLengthActualMsg = dataLength-64;
@@ -343,7 +333,7 @@ static OutMsgNode* all_ir_sends(uint8_t dir, char * str, uint8_t dataLength, id_
 		return NULL;
 		
 	}
-	//printf("\n\rSize of list node = %d", listSize);
+	
 	OutMsgNode* bufferPointer = (OutMsgNode *) myMalloc(sizeof(OutMsgNode)+dataLengthActualMsg);
 	
 	//make sure there was enough memory
@@ -356,19 +346,12 @@ static OutMsgNode* all_ir_sends(uint8_t dir, char * str, uint8_t dataLength, id_
 	bufferPointer->cmd_flag = cmdFlag;
 	bufferPointer->hp_flag = hpFlag;
 	bufferPointer->data_length = dataLength;
-	//bufferPointer->data = (((char*)(bufferPointer)) + sizeof(NODE));
+	
 	memcpy(bufferPointer->data, str, dataLengthActualMsg);
 	
-	
-	//printf("\n\rData = %s,Channel_ID = %u", bufferPointer->data, bufferPointer->channel_id);
-	//Msg* msg = (Msg*)(str);
-	//printf("Adding (%u) at %p\r\n", msg->msgId,bufferPointer);
 	bufferPointer->no_of_tries = 1;
 	bufferPointer->time_lived = 0;
-	//tryAndSendMessage((void *)bufferPointer);
-	
-	//Linked list if required
-	
+
 	bufferPointer->next = NULL;
 
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
@@ -381,11 +364,6 @@ static OutMsgNode* all_ir_sends(uint8_t dir, char * str, uint8_t dataLength, id_
 			//tryAndSendMessage();//(void *)BUFFER_HEAD);//bufferPointer);
 			//uint32_t msgMSlen = expectedMsgDur(outgoingMsgHead); //RIYA
 			tryAndSendMessage();
-			//#ifdef ADDING_DELAYS
-			//scheduleTask(msgMSlen+50, tryAndSendMessage, NULL);
-			//#else
-			//scheduleTask(30, tryAndSendMessage, NULL);
-			//#endif
 		}
 		else
 		{
@@ -401,18 +379,12 @@ static OutMsgNode* all_ir_sends(uint8_t dir, char * str, uint8_t dataLength, id_
 			}
 			
 		}
-		
-		//printf("\nSize of data = %d", sizeof(bufferPointer->data));
-		//listSize += sizeof(NODE) + dataLength;
-		//printf("\nSize of list node = %d", listSize);
+	
 		printMsgQueue();
 	}
 	
-	//while(BUFFER_HEAD)
-	//tryAndSendMessage();//(void *)BUFFER_HEAD);//bufferPointer);
-	
 	return bufferPointer;
-	//bufferPointer;
+	
 }
 
 
@@ -691,6 +663,12 @@ static void irTransmit(uint8_t dir){
 										next_byte |= (ir_rxtx[dir].status & IR_STATUS_COMMAND_bm);
 										next_byte |= (ir_rxtx[dir].status & IR_STATUS_TIMED_bm);	break;
 		case HEADER_POS_TARGET_ID_LOW:	if((ir_rxtx[dir].status&IR_STATUS_TIMED_bm)){
+											switch(sendPingPending){
+												case 1: break; //all's well
+												case 0xF1: printf("RTC Mod Error(?)\r\n"); break;
+												case 0: break; //weird. maybe all's well?
+											}
+											sendPingPending = 0;
 											uint32_t truncatedTime = getTime()&0xFFFF;
 											uint16_t timeGap = (truncatedTime < ir_rxtx[dir].targetID) ?
 																((truncatedTime+0x10000)-ir_rxtx[dir].targetID) :

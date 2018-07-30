@@ -13,9 +13,6 @@
 #include "scheduler.h"
 
 typedef struct msg_struct{
-	//char text[2];
-	//uint32_t time_scheduled;
-	//uint32_t time_sent;
 	uint8_t attempts;
 	uint16_t msgId;
 	char text[];
@@ -45,8 +42,8 @@ typedef struct msg_struct{
 
 #define IR_BUFFER_SIZE			41u //bytes
 
-#define IR_MSG_TIMEOUT			4 // ms  //RIYA
-#define IR_MIN_PACKET_LENGTH 30
+#define IR_MSG_TIMEOUT			4 // ms
+#define IR_MIN_PACKET_LENGTH	30 // @2.5ms/byte, 30ms is the transmission time for the smallest user-message packet (12 bytes)
 #define IR_MAX_MSG_TRIES		4
 
 #define IR_MAX_MSG_ATTEMPT_DUR   (((1<<(IR_MAX_MSG_TRIES+1))-2)*IR_MSG_TIMEOUT)
@@ -98,7 +95,7 @@ typedef struct out_msg_node_struct {
 	uint8_t cmd_flag;
 	uint8_t hp_flag;
 	uint8_t no_of_tries;
-	uint32_t time_lived;
+	uint32_t time_lived;					//This is the time in ms that a message lives in the outgoing buffer before it is discarded
 	struct out_msg_node_struct * next;
 	struct out_msg_node_struct * prev;
 	char data[0];

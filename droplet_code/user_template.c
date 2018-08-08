@@ -7,31 +7,12 @@
 static inline void setIdMaskBit(BotIdMask* mask, id_t id);
 
 uint32_t lastMessageSent;
-//#define MSG_PERIOD 400
 #define MAX_RECV_COUNT 100
 
 
 void sendMsg(void);
 
-// uint16_t msg028C;
-// uint16_t msgFCD0;
-// uint16_t msg8625;
-// uint16_t msg6C6F;
-// uint16_t msg5161;
-// 
-// uint16_t msgID028Cinit;
-// uint16_t msgID028Cfinal;
-// uint16_t msgID5161init;
-// uint16_t msgID5161final;
-// uint16_t msgIDFCD0init;
-// uint16_t msgIDFCD0final;
-// uint16_t msgID8625init;
-// uint16_t msgID8625final;
-// uint16_t msgID6C6Finit;
-// uint16_t msgID6C6Ffinal;
-
 uint16_t recvCount;
-//uint8_t backoffCount;
 
 uint8_t bincounts[10];
 uint8_t bins;
@@ -62,7 +43,7 @@ void startTransmitting(void){
  */
 void init(){
 	
-	//GLOBAL VARIABLE INIT
+	//GLOBAL VARIABLE INITIALIZATIONS
 	recvCount = 0;
 	MSG_PERIOD = 800;
 	MS_DROPLET_COMM_TIME = 8;
@@ -77,7 +58,7 @@ void init(){
 		msgCount=0;
 		dataCollecting=0;
 		startSending=0;
-		//scheduleTask(3000,startTransmitting,NULL);	//Comment for Throughput test
+		
 		for(int i=0; i<121; i++)
 		msgLog[i].msgCount = 0;
 	
@@ -90,20 +71,11 @@ void init(){
 
 		for(uint8_t i=0; i<4; i++)
 			allIDsMask[i] = 0;
-		//printIdMask(&allIDsMask);
-		//for(uint8_t bitPos=0;bitPos<128;bitPos++){
-			//allIDsMask[bitPos>>5] |= (1<<(bitPos&0x1F));
-		//}
-		//printIdMask(&allIDsMask);
 	
 		throughputStarted = 0;
 		lastThroughputMsgSent = getTime();
-		scheduleTask(30000,startThroughputMessaging,NULL);	//Comment for Throughput test
+		scheduleTask(30000,startThroughputMessaging,NULL);	
 	#endif
-
-	//#ifdef SYNCHRONIZED
-		//schedulePeriodicTask(2000, lightsOn, NULL);
-	//#endif
 
 }
 
@@ -131,14 +103,7 @@ void sendDurationMsg(){
 	irSend(ALL_DIRS, (char*)&msg, sizeof(DurationMsg));
 	printf("New Max Duration: %lu.\r\n", maxThroughputDuration);
 }
-/*
- * the code in this function will be called repeatedly, as fast as it can execute.
- */
-//void loop(){
-//
-	//delayMS(10);
 
-//}
 
 void handleDurationmsg(DurationMsg* msg){
 	if(msg->dur > maxThroughputDuration){
@@ -209,8 +174,8 @@ void sendMsg(){
 	
 	memcpy(msg->text, "Hi.12345678912", DESIRED_MSG_LENGTH-sizeof(Msg));
 	
-	msgCount = (msgCount + 1)%0x0FFF;/*%2000+4000;// + 2000;//65534;*/
-	msg->msgId = msgCount; //| getBitMask(getDropletID());//++;					//RIYA
+	msgCount = (msgCount + 1)%0x0FFF;
+	msg->msgId = msgCount;
 
 	msg->attempts = 0;
 	irSend(ALL_DIRS, (char*)msg, DESIRED_MSG_LENGTH);
@@ -275,8 +240,6 @@ void handleMeas(Rnb* meas){
 
 
 
-//MAKE CHANGES TO PRINT STATEMENTS
-
 void handleMsg(irMsg* msgStruct){
 	if(((BitMaskMsg*)(msgStruct->msg))->flag==BIT_MASK_MSG_FLAG && msgStruct->length==sizeof(BitMaskMsg)){
 		handleThroughputMsg((BitMaskMsg*)(msgStruct->msg));	
@@ -292,16 +255,9 @@ void handleMsg(irMsg* msgStruct){
 		msgSender = getDropletOrd(msgStruct->senderID);
 		uint16_t msgID = (msg->msgId)&0x0FFF;
 	
-	
-		//throghputTest(msgSender);		//RIYA
-	
-	
-	
 		if(!dataCollecting){
 			return;
 		}
-		
-	
 		
 		printf("Got %04X %6u at %lu. Attempt no.:%hu.MsgText= %s\r\n", getIdFromOrd(msgSender), msgID, getTime(),msg->attempts,msg->text);
 	

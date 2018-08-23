@@ -50,11 +50,11 @@ void loop(){
 			//}else{			
 				printf_P(PSTR("\nID: %04X T: %lu\r\n"), getDropletID(), getTime());
 				printf("Update frame ended.\r\n");
-				//if(POS_DEFINED(&myPos)){
-					//printf_P(PSTR("{\r\n\t%lu,\r\n\t{%d, %d, %d},\r\n"), getTime(), myPos.x, myPos.y, myPos.o);
-					//printPosCovar(&myPosCovar);
-					//printf("},\r\n");
-				//}
+				if(POS_DEFINED(&myPos)){
+					printf_P(PSTR("{\r\n\t%lu,\r\n\t{%d, %d, %d},\r\n"), getTime(), myPos.x, myPos.y, myPos.o);
+					printPosCovar(&myPosCovar);
+					printf("},\r\n");
+				}
 			//}
 		}
 	}

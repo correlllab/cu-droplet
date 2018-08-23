@@ -2,7 +2,7 @@
 
 #include "droplet_init.h"
 
-//#define RNB_DEBUG_MODE
+#define RNB_DEBUG_MODE
 #ifdef RNB_DEBUG_MODE
 #define RNB_DEBUG_PRINT(format, ...) printf_P(PSTR(format), ##__VA_ARGS__)
 #else

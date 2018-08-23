@@ -2,8 +2,8 @@
 
 #define NUM_SEEDS 4
 
-const BotPos SEED_POS[NUM_SEEDS] = {{159,160,0}, {866,160,0},{159,867,0},{866,867,0}};
-const id_t   SEED_IDS[NUM_SEEDS] = {0xC051, 0x14AA, 0x18A2, 0xA52F};
+const BotPos SEED_POS[NUM_SEEDS] = {{175,175,0}, {0,75,0},{175,0,0},{866,867,0}};
+const id_t   SEED_IDS[NUM_SEEDS] = {0x1361, 0x5D61, 0x4327, 0xA52F};
 
 //const BotPos SEEDS[NUM_SEEDS] = {{100, 600, 0}, {600, 600, 0}, {100, 100, 0}, {600, 100, 0}};
 

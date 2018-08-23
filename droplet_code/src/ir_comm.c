@@ -458,7 +458,7 @@ static void irTransmit(uint8_t dir){
 		case HEADER_POS_TARGET_ID_LOW:	if((ir_rxtx[dir].status&IR_STATUS_TIMED_bm)){
 											switch(sendPingPending){
 												case 1: break; //all's well
-												case 0xF1: printf("RTC Mod Error(?)\r\n"); break;
+												case 0xF1: /*printf("RTC Mod Error(?)\r\n");*/ break;
 												case 0: break; //weird. maybe all's well?
 											}
 											sendPingPending = 0;

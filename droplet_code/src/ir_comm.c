@@ -394,7 +394,8 @@ static void receivedIrSyncCmd(uint16_t delay, uint32_t lastByte, id_t senderID){
 	}
 	if(processThisFFSync){
 		//printf("senderID: %04X\tdelay: %hu\r\n", ir_rxtx[dir].sender_ID, delay);
-		delay = delay+5+(getTime()-lastByte); //The time is measured right before sending and is the last two bytes of the message. Our baud rate means that it takes 5ms to send two bytes.
+		//delay = delay+5+(getTime()-lastByte); //The time is measured right before sending and is the last two bytes of the message. Our baud rate means that it takes 5ms to send two bytes.
+		delay = 27.3552+0.88423*(delay+(getTime()-lastByte));
 		updateFireflyCounter(count, delay);
 		ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 			for(uint8_t dir=0;dir<6;dir++){
@@ -415,8 +416,9 @@ static void receivedRnbCmd(uint16_t delay, uint32_t lastByte, id_t senderID){
 		if(!processing_rnb_flag && (irIsBusy(ALL_DIRS)<8)){
 			if(delay!=0xFFFF){
 				rnbCmdID = senderID;
-				//printf("%04X: %hu\r\n", rnbCmdID, delay+5);			
-				if(delay<5) delay = 20-delay;
+				//printf("%04X: %hu\r\n", rnbCmdID, delay+5);
+				delay = 27.3552+0.88423*(delay+(getTime()-lastByte));
+				//if(delay<5) delay = 20-delay;
 				rnbCmdSentTime = lastByte-(delay+5);
 				processThisRNB = 1;
 				processing_rnb_flag = 1;
@@ -454,11 +456,17 @@ static void irTransmit(uint8_t dir){
 										next_byte |= (ir_rxtx[dir].status & IR_STATUS_COMMAND_bm);
 										next_byte |= (ir_rxtx[dir].status & IR_STATUS_TIMED_bm);	break;
 		case HEADER_POS_TARGET_ID_LOW:	if((ir_rxtx[dir].status&IR_STATUS_TIMED_bm)){
+											switch(sendPingPending){
+												case 1: break; //all's well
+												case 0xF1: printf("RTC Mod Error(?)\r\n"); break;
+												case 0: break; //weird. maybe all's well?
+											}
+											sendPingPending = 0;
 											uint32_t truncatedTime = getTime()&0xFFFF;
 											uint16_t timeGap = (truncatedTime < ir_rxtx[dir].targetID) ?
-																((truncatedTime+0x10000)-truncatedTime) :
+																((truncatedTime+0x10000)-ir_rxtx[dir].targetID) :
 																(truncatedTime-ir_rxtx[dir].targetID);
-											ir_rxtx[dir].targetID = (timeGap>30000) ? 0xFFFF0 : timeGap;
+											ir_rxtx[dir].targetID = (timeGap>30000) ? 0xFFFF : timeGap;
 										}
 										next_byte  = (uint8_t)(ir_rxtx[dir].targetID&0xFF);		break;
 		case HEADER_POS_TARGET_ID_HIGH:	next_byte = (uint8_t)((ir_rxtx[dir].targetID>>8)&0xFF);	break;											

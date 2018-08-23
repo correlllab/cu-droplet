@@ -51,8 +51,8 @@ ISR(TCE0_CCB_vect){
 	setRGB(ffsync_blink_prev_r, ffsync_blink_prev_g, ffsync_blink_prev_b);	
 }
 
-void fireflySyncInit()
-{
+void fireflySyncInit(){
+	sendPingPending=0;
 	ffsync_blink_r = 255;
 	ffsync_blink_g = 255;
 	ffsync_blink_b = 255;
@@ -79,9 +79,11 @@ void fireflySyncInit()
 }
 
 ISR(TCE0_OVF_vect){
-	uint32_t randomWait = (randShort()%32)*20; //between 0 and 640ms
+	updateRTC();	
+	uint32_t randomWait = (randShort()%32)*(FFSYNC_D/31); //between 0 and FFSYNC_D
 	//sendPing( (void*)((uint16_t)(get_time()&0xFFFF)));
-	updateRTC();
+	
+	if(!sendPingPending) sendPingPending = 1;
 	scheduleTask(randomWait, (arg_func_t)sendPing, (void*)((uint16_t)(getTime()&0xFFFF)));
 	//printf("ovf @ %lu\r\n",get_time());
 }
@@ -91,7 +93,7 @@ void processObsQueue(){
 	ObsQueue* curr = obsStart->next;
 	ObsQueue* tmp;
 	while(curr != obsStart){
-		newStart += (((float)(curr->obs))-newStart)/FFSYNC_EPSILON;
+		newStart += calculatePhaseJump(curr->obs);
 		tmp = curr;
 		curr = curr->next;
 		myFree(tmp);	
@@ -114,24 +116,25 @@ void processObsQueue(){
 }
 
 static void updateRTC(void){
+	//This is being called when TCE0.CNT is 0 (because it gets called from the TCE0 overflow interrupt).
 	int16_t change;
 	uint16_t remainder;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE)
 	{
 		uint32_t currTime = getTime();
-		uint16_t theCount = currTime&0xFFFF;		
-		remainder = (int16_t)(currTime%FFSYNC_FULL_PERIOD_MS);
+		uint16_t currRTCCount = currTime&0xFFFF;		
+		remainder = (currTime%FFSYNC_FULL_PERIOD_MS); //Since TCE0.CNT is 0, we want this to be 0, too.
 		//printf("%u.\r\n", remainder);
 	
 		if(remainder>(FFSYNC_FULL_PERIOD_MS/2)){
-			change = FFSYNC_FULL_PERIOD_MS-((int16_t)remainder);
-			if((RTC.PER-change)<theCount) rtc_epoch++;			//0xFFFF: RTC.PER
+			change = FFSYNC_FULL_PERIOD_MS-((int16_t)remainder); //smaller change if we increase RTC upwards.
+			if((RTC.PER-change)<currRTCCount) rtc_epoch++;			//0xFFFF: RTC.PER
 		}else{
-			change = -(int16_t)remainder;
-			if(theCount<remainder) rtc_epoch--;
+			change = -(int16_t)remainder; //smaller change if we decrease RTC downwards.
+			if(currRTCCount<remainder) rtc_epoch--;
 		}
 		while(RTC.STATUS & RTC_SYNCBUSY_bm);
-		RTC.CNT =  (theCount+change);
+		RTC.CNT =  (currRTCCount+change);
 		RTC.COMP = (RTC.COMP+change);
 	}	
 	//printf("!! %d !!\r\n", change);
@@ -146,6 +149,7 @@ static void updateRTC(void){
 		if(change>0) OSC.RC32KCAL++;
 		else if(abs(change)<FFSYNC_MAX_DEVIATION) OSC.RC32KCAL--;
 	}
+	if(sendPingPending==1) sendPingPending|=0xF0;
 	//printf("\t\t%d\r\n",change);
 }
 

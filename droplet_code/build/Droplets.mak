@@ -57,7 +57,6 @@ SRC = $(USER_FILE) \
 ../src/droplet_init.c \
 ../src/eeprom_driver.c \
 ../src/firefly_sync.c \
-../src/flash_api.c \
 ../src/i2c.c \
 ../src/ir_comm.c \
 ../src/ir_led.c \
@@ -77,9 +76,7 @@ SRC = $(USER_FILE) \
 ../src/speaker.c
 
 ASRC =  \
-../src/droplet_base_asm.S \
-../src/flash_api_asm.S \
-../src/sp_driver.S
+../src/droplet_base_asm.S
 
 C_INCLUDE_DIRS = \
 -I ../include \

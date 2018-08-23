@@ -61,28 +61,13 @@ void loop(){
 	delayMS(LOOP_DELAY_MS);
 }
 
-void prepPosMsg(id_t id, BotPos pos){
-	PosMsgNode* msgNode = (PosMsgNode*)myMalloc(sizeof(PosMsgNode));
-	msgNode->numTries = 0;
-	(msgNode->msg).flag = POS_MSG_FLAG;
-	(msgNode->msg).pos = pos;
-	(msgNode->msg).id = id;
-	sendPosMsg(msgNode);
-}
-
-void sendPosMsg(PosMsgNode* msgNode){
-	if(irIsBusy(ALL_DIRS)){
-		if(msgNode->numTries>6){
-			myFree(msgNode);
-		}else{
-			scheduleTask(getExponentialBackoff(msgNode->numTries), (arg_func_t)sendPosMsg, msgNode);
-		}
-		msgNode->numTries++;
-	}else{
-		blinkLED(16,0,0,150);
-		irSend(ALL_DIRS, (char*)(&(msgNode->msg)), sizeof(PosMsg));
-		myFree(msgNode);
-	}
+void sendPosMsg(id_t id, BotPos pos){
+	PosMsg msg;
+	msg.flag = POS_MSG_FLAG;
+	msg.pos = pos;
+	msg.id = id;
+	blinkLED(16,0,0,150);
+	irSend(ALL_DIRS, (char*)(&msg), sizeof(PosMsg));
 }
 
 void handlePosMsg(PosMsg* msg){
@@ -92,7 +77,7 @@ void handlePosMsg(PosMsg* msg){
 	uint8_t idOrd = getDropletOrd(msg->id);
 	if(!lastFrameSeen[idOrd]){
 		printf("(*POS*) {\"%04X\", {% 6d, % 6d, % 6d}},\r\n", msg->id, (msg->pos).x, (msg->pos).y, (msg->pos).o);
-		prepPosMsg(msg->id, msg->pos);
+		sendPosMsg(msg->id, msg->pos);
 	}else if(lastFrameSeen[idOrd]!=frameCount){
 		printf("(*POS*) {\"%04X\", {% 6d, % 6d, % 6d}},\r\n", msg->id, (msg->pos).x, (msg->pos).y, (msg->pos).o);		
 		uint32_t frameGap = frameCount - lastFrameSeen[idOrd];
@@ -103,7 +88,7 @@ void handlePosMsg(PosMsg* msg){
 		uint32_t val = randQuad();
 		//printf("Val: %f, Threshold: %f, frameGap: %lu, largestFrameGap: %lu\r\n",(val*1.0)/(0xFFFFFFFF*1.0),(threshold*1.0)/(0xFFFFFFFF*1.0), frameGap, largestFrameGap);
 		if(val<threshold){
-			prepPosMsg(msg->id, msg->pos);
+			sendPosMsg(msg->id, msg->pos);
 		}
 	}
 	lastFrameSeen[idOrd] = frameCount;

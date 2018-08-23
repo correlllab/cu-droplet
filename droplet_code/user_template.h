@@ -23,11 +23,6 @@ typedef struct bot_pos_msg_struct{
 }PosMsg;
 #define IS_POS_MSG(msgStruct) (((PosMsg*)(msgStruct->msg))->flag==POS_MSG_FLAG && msgStruct->length==sizeof(PosMsg))
 
-typedef struct pos_msg_node_struct{
-	PosMsg msg;
-	uint8_t numTries;
-}PosMsgNode;
-
 uint32_t	frameCount;
 uint32_t	frameStart;
 uint16_t	mySlot;
@@ -36,8 +31,7 @@ uint16_t	loopID;
 uint32_t lastFrameSeen[93];
 uint32_t largestFrameGap;
 
-void prepPosMsg(id_t id, BotPos pos);
-void sendPosMsg(PosMsgNode* msgNode);
+void sendPosMsg(id_t id, BotPos pos);
 void handlePosMsg(PosMsg* msg);
 uint8_t isBlinking;
 

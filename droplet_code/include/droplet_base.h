@@ -1,7 +1,7 @@
 #pragma once
 
 //#define AUDIO_DROPLET
-//#define SYNCHRONIZED
+#define SYNCHRONIZED
 //#define FIX_UNPOWERED_STATE
 
 #include <avr/io.h>

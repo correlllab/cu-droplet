@@ -24,9 +24,6 @@ static uint8_t ir_carrier_bm[] = { PIN0_bm, PIN1_bm, PIN4_bm, PIN5_bm, PIN6_bm, 
 //#define HARDCORE_DEBUG_DIR 1
 
 static void clearIrBuffer(uint8_t dir){
-	#ifdef AUDIO_DROPLET
-		ir_sense_channels[dir]->INTCTRL = ADC_CH_INTLVL_OFF_gc;
-	#endif
 	#ifdef HARDCORE_DEBUG_DIR
 		if(dir==HARDCORE_DEBUG_DIR) printf("\r\n");
 	#endif

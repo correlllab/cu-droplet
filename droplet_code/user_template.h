@@ -1,8 +1,99 @@
 #pragma once
 
 #include "droplet_init.h"
+#include "matrix_utils.h"
+#include "role_handler.h"
 
-void		init(void);
-void		loop(void);
-void		handleMeas(Rnb* meas);
-void		handleMsg(irMsg* msg_struct);
+#define SLOT_LENGTH_MS			397
+#define SLOTS_PER_FRAME			38
+#define FRAME_LENGTH_MS			(((uint32_t)SLOT_LENGTH_MS)*((uint32_t)SLOTS_PER_FRAME))
+#define LOOP_DELAY_MS			11
+
+
+void init(void);
+void loop(void);
+void handleMsg( __attribute__ ((unused)) irMsg* msg_struct);
+void handleMeas( __attribute__ ((unused)) Rnb* meas);
+
+uint32_t	frameStart;
+uint16_t	mySlot;
+uint16_t	loopID;
+uint16_t	prevLoopID;
+uint8_t		isBlinking;
+
+static inline uint16_t getSlot(id_t id){
+	return (id%(SLOTS_PER_FRAME-1));
+}
+
+void restoreRedLED(uint16_t val){
+	setRedLED((uint8_t)val);
+	isBlinking = 0;
+}
+void restoreGreenLED(uint16_t val){
+	setGreenLED((uint8_t)val);
+	isBlinking = 0;
+}
+void restoreBlueLED(uint16_t val){
+	setBlueLED((uint8_t)val);
+	isBlinking = 0;
+}
+
+//colorSelect 0: red, 1: green, 2: blue
+inline uint8_t blinkLED(uint8_t whichColor, uint8_t val){
+	uint8_t currentValue;
+	switch(whichColor){
+		case 0: currentValue = getRedLED(); break;
+		case 1: currentValue = getGreenLED(); break;
+		case 2: currentValue = getBlueLED(); break;
+		default: return 0;
+	}
+	if(currentValue == val){
+		return 0;
+	}
+	switch(whichColor){
+		case 0: setRedLED(val);    scheduleTask(100, (arg_func_t)restoreRedLED, (void*)((uint16_t)currentValue)); break;
+		case 1: setGreenLED(val);  scheduleTask(100, (arg_func_t)restoreGreenLED, (void*)((uint16_t)currentValue)); break;
+		case 2: setBlueLED(val);   scheduleTask(100, (arg_func_t)restoreBlueLED, (void*)((uint16_t)currentValue)); break;
+		default: return 0;
+	}
+	isBlinking = 1;
+	return 1;
+}
+
+Region regionsList[NUM_REGIONS] = {
+	{//BODY: 0
+		{{0.01, 0., 0.}, {0., 0.005, 0.}, {0., 0., 1.}},
+		isInUnitSquare,
+		{1<<ROLE_BODY}
+	},	
+	{//EMITTER: 1
+		{{0.01, 0., 0.}, {0., 0.02, -3.}, {0., 0., 1.}},
+		isInUnitSquare,
+		{1<<ROLE_EMTR}
+	},
+	{//POWER: 2
+		{{0.04, 0., -2.}, {0., 0.04, -1.}, {0., 0., 1.}},
+		isInUnitCircle,
+		{1<<ROLE_POWER}
+	},
+	{//CHN_UP: 3
+		{{0.04, 0., -3.}, {0., 0.04, -5.}, {0., 0., 1.}},
+		isInUnitCircle,
+		{1<<ROLE_CHN_UP}
+	},
+	{//CHN_DN: 4
+		{{0.04, 0., -3.}, {0., 0.04, -3.}, {0., 0., 1.}},
+		isInUnitCircle,
+		{1<<ROLE_CHN_DN}
+	},
+	{//VOL_UP: 5
+		{{0.04, 0., -1.}, {0., 0.04, -5.}, {0., 0., 1.}},
+		isInUnitCircle,
+		{1<<ROLE_VOL_UP}
+	},
+	{//VOL_DOWN: 6
+		{{0.04, 0., -1.}, {0., 0.04, -3.}, {0., 0., 1.}},
+		isInUnitCircle,
+		{1<<ROLE_VOL_DN}
+	}
+};

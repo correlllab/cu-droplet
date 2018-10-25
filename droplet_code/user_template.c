@@ -2,7 +2,14 @@
 
 //This function is called once, after all of the Droplet's systems have been initialized.
 void init(){
-
+	clearRoles(&myRoles);
+	isBlinking = 0;
+	frameStart = getTime();
+	mySlot = getSlot(getDropletID());	
+	
+	#ifdef AUDIO_DROPLET
+		enableMicInterrupt();
+	#endif	
 }
 
 /*
@@ -11,7 +18,26 @@ void init(){
  * better if you let it return frequently.
  */
 void loop(){
-
+	uint32_t frameTime = getTime()-frameStart;
+	if(frameTime>FRAME_LENGTH_MS){
+		frameTime = frameTime - FRAME_LENGTH_MS;
+		frameStart += FRAME_LENGTH_MS;
+	}
+	if(loopID!=(frameTime/SLOT_LENGTH_MS)){ //This is a new slot.
+		loopID = frameTime/SLOT_LENGTH_MS;	
+		if(loopID==mySlot){ //This is my slot.
+			broadcastRnbData();			
+		}else if(loopID==SLOTS_PER_FRAME-1){
+			if(POS_DEFINED(&myPos)){
+				printf("\tMy Pos: {%d, %d, %d}\r\n", myPos.x, myPos.y, myPos.o);
+				printPosCovar(&myPosCovar);
+				
+				checkPosition();
+				printRoles(&myRoles);
+			}
+		}
+	}
+	delayMS(LOOP_DELAY_MS);	
 }
 
 /*
@@ -19,7 +45,7 @@ void loop(){
  * received since the last time loop returned.
  */
 void handleMeas(Rnb* meas){
-
+	useRNBmeas(meas);
 }
 
 /*
@@ -42,7 +68,9 @@ void handleMsg(irMsg* msgStruct){
  * In practice, this works well for things like detecting claps or someone tapping on the 
  * Droplet's shell.
  */
-//void userMicInterrupt(){}
+void userMicInterrupt(){
+	blinkLED(0,100);
+}
 
 /*
  * If defined, this function will be called with any serial commandWords that do not match

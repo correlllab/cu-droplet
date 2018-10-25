@@ -4,6 +4,10 @@
 typedef float Vector[3];
 typedef float Matrix[3][3];
 
+Vector lastEigVals;
+Matrix lastEigenVecs;
+
+
 void vectorAdd(Vector* dst, Vector* a, Vector* b);		//dst = a + b
 void vectorSubtract(Vector* dst, Vector* a, Vector* b);	//dst = a - b
 void vectorSquare(Matrix* dst, Vector* a); // = a x b^{tr}
@@ -20,9 +24,11 @@ void matrixTranspose(Matrix* DST, Matrix* A);
 void matrixInplaceTranspose(Matrix* A);
 
 uint8_t positiveDefiniteQ(Matrix* A);
+uint8_t diagonalQ(Matrix* A);
 void choleskyDecomposition(Matrix* L, Matrix* A);
 
-//void ldlDecomposition(Matrix* L, Matrix* D, Matrix* A);
+void getMultinormalSampleTransform(Matrix* dst, Matrix* covar);
+//void multinormalSample(Vector* result, Vector* mean, Matrix* covar);
 void eigenvalues(Vector* eigVals, Matrix* A);
 void eigensystem(Vector* eigVals, Matrix* eigVecs, Matrix* A);
 

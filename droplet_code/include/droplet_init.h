@@ -40,8 +40,8 @@ typedef struct ir_msg_struct
 
 extern void init(void);
 extern void loop(void);
-extern void handleMsg(irMsg* msg_struct);
-extern void handleMeas(Rnb* meas);
+extern void handleMsg( __attribute__ ((unused)) irMsg* msg_struct);
+extern void handleMeas( __attribute__ ((unused)) Rnb* meas);
 extern uint8_t userHandleCommand(char* commandWord, char* commandArgs);
 extern void userMicInterrupt(void);
 

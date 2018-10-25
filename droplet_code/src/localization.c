@@ -2,8 +2,8 @@
 
 #define NUM_SEEDS 4
 
-const BotPos SEED_POS[NUM_SEEDS] = {{225,220,0}, {500,160,0},{350,40,0},{75,100,0}};
-const id_t   SEED_IDS[NUM_SEEDS] = {0xD913, 0x3D6C, 0xAF6A, 0x9261};
+const BotPos SEED_POS[NUM_SEEDS] = {{50,75,0}, {500,160,0},{350,40,0},{75,100,0}};
+const id_t   SEED_IDS[NUM_SEEDS] = {0xC806, 0x3D6C, 0xAF6A, 0x9261};
 
 //The MIN and MAX values below are only needed for getPosColor.
 #define MIN_X 0

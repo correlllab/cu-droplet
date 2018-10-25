@@ -143,6 +143,10 @@ uint8_t positiveDefiniteQ(Matrix* A){
 	return 1;
 }
 
+uint8_t diagonalQ(Matrix* A){
+	return (0==powf((*A)[0][1], 2) + powf((*A)[0][2], 2) + powf((*A)[1][2], 2));
+}
+
 //returns upper triangular.
 void choleskyDecomposition(Matrix* L, Matrix* A){
 	(*L)[0][0] = sqrtf((*A)[0][0]);
@@ -156,12 +160,12 @@ void choleskyDecomposition(Matrix* L, Matrix* A){
 	(*L)[2][2] = sqrtf( (*A)[2][2] - powf((*L)[0][2],2) - powf((*L)[1][2],2) );
 }
 
-/*
- * Basic idea of the following function:
- *     Take a vector of 3 values sampled from a standard normal distribution, and then use
- * eigendecomposition to rotate, scale, and translate those values as needed by our actual
- * distribution. 
- */
+///*
+ //* Basic idea of the following function:
+ //*     Take a vector of 3 values sampled from a standard normal distribution, and then use
+ //* eigendecomposition to rotate, scale, and translate those values as needed by our actual
+ //* distribution. 
+ //*/
 //void multinormalSample(Vector* result, Vector* mean, Matrix* covar){
 	//Vector eigValues;
 	//Matrix eigVectors;
@@ -173,6 +177,14 @@ void choleskyDecomposition(Matrix* L, Matrix* A){
 	//matrixTimesVector(&tmp, &eigVectors, result);
 	//vectorAdd(result, mean, &tmp);
 //}
+
+void getMultinormalSampleTransform(Matrix* dst, Matrix* covar){
+	Vector eigValues;
+	Matrix eigVectors;
+	eigensystem(&eigValues, &eigVectors, covar);
+	Matrix diagSqrtEigValues = {{sqrt(eigValues[0]), 0, 0}, {0, sqrt(eigValues[1]), 0}, {0, 0, sqrt(eigValues[2])}};
+	matrixMultiply(dst, &eigVectors, &diagSqrtEigValues);
+}
 
 //This function assumes that the input Matrix, A, is symmetric.
 //Algorithm from "Eigenvalues of a Symmetric 3x3 Matrix", by Oliver K. Smith
@@ -232,15 +244,28 @@ void getEigenvector(Vector* dst, Matrix* A){
  */
 void eigensystem(Vector* eigVals, Matrix* eigVecs, Matrix* A){
 	eigenvalues(eigVals, A);
+	for(uint8_t i=0;i<3;i++){
+		for(uint8_t j=0;j<3;j++){
+			(*eigVecs)[i][j] = 0;
+		}
+	}
+	if(diagonalQ(A)){
+		//Oh, the matrix is diagonal!
+		//In that case, the eigenvectors are the identity eigenvectors:
+		for(uint8_t i=0;i<3;i++){
+			(*eigVecs)[i][i] = 1;
+		}
+		return;
+	}
 	if( (*eigVals)[0]==(*eigVals)[1] || (*eigVals)[0]==(*eigVals)[2] || (*eigVals)[1]==(*eigVals)[2] ){
-		printf_P("WARNING! Input Matrix A has nondistinct eigenvalues.\r\nI couldn't find a non-trivial example of such a matrix, so couldn't test what my code did with one.\r\nIt will probably break.\r\n");
+		printf_P(PSTR("WARNING! Input Matrix has nondistinct eigenvalues, but is not diagonal. You're on your own.\r\n"));
 	}
 	Matrix charEqn[3] = {{{1,0,0},{0,1,0},{0,0,1}}, {{1,0,0},{0,1,0},{0,0,1}}, {{1,0,0},{0,1,0},{0,0,1}}};
 	for(uint8_t i=0;i<3;i++){
 		matrixScale(&(charEqn[i]), (*eigVals)[i]);
 		matrixSubtract(&(charEqn[i]), A, &(charEqn[i]));
 	}
-	matrixScale(eigVecs, 0);
+
 	Matrix TMP;
 	matrixMultiply(&TMP, &(charEqn[1]), &(charEqn[2]));
 	getEigenvector(&((*eigVecs)[0]), &TMP);

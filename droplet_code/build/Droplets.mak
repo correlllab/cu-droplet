@@ -69,6 +69,7 @@ SRC = $(USER_FILE) \
 ../src/power.c \
 ../src/random.c \
 ../src/range_algs.c \
+../src/role_handler.c \
 ../src/rgb_led.c \
 ../src/rgb_sensor.c \
 ../src/scheduler.c \

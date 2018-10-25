@@ -4,7 +4,9 @@
 void init(){
 	clearRoles(&myRoles);
 	isBlinking = 0;
+	lastMsgTime = getTime();
 	frameStart = getTime();
+	
 	mySlot = getSlot(getDropletID());	
 	
 	#ifdef AUDIO_DROPLET
@@ -40,6 +42,22 @@ void loop(){
 	delayMS(LOOP_DELAY_MS);	
 }
 
+void sendButtonPressMsg(id_t id, Role r, uint8_t hopsLeft){
+	if((hopsLeft==0) || (getTime()-lastMsgTime < ANTI_FLOOD_DELAY)){
+		blinkLED(0, 100); //Won't send yet.
+		return;
+	}else{
+		blinkLED(1, 100); //Sending!
+		lastMsgTime = getTime();
+	}
+	ButtonPressMsg msg;
+	msg.src = id;
+	msg.pressType = r;
+	msg.hopLife = hopsLeft;
+	msg.flag = BUTTON_PRESS_MSG_FLAG;
+	irSend(ALL_DIRS, (char*)(&msg), sizeof(ButtonPressMsg));
+}
+
 /*
  * This function is called once for every range and bearing measurement this droplet has
  * received since the last time loop returned.
@@ -48,12 +66,25 @@ void handleMeas(Rnb* meas){
 	useRNBmeas(meas);
 }
 
+void controlTV(Role r){
+	switch(r){
+		case
+	}
+}
+
 /*
  * This function is called once for every message this droplet has received since the last
  * time loop returned, after handleMeas is called for any rnb measurements received.
  */
 void handleMsg(irMsg* msgStruct){
-
+	if(IS_BUTTON_PRESS_MSG(msgStruct)){
+		ButtonPressMsg* msg = (ButtonPressMsg*)msgStruct;
+		      if(hasRole(&myRoles,ROLE_EMTR)){
+			controlTV(msg->pressType);
+		}else if(hasRole(&myRoles,ROLE_BODY)){ //If we are part of the body.
+			sendButtonPressMsg(msg->src, msg->pressType, msg->hopLife-1);
+		}
+	}
 }
 
 /*
@@ -69,7 +100,19 @@ void handleMsg(irMsg* msgStruct){
  * Droplet's shell.
  */
 void userMicInterrupt(){
-	blinkLED(0,100);
+	uint32_t currTime = getTime();
+		  if(hasRole(&myRoles, ROLE_POWER)){
+		sendButtonPressMsg(getDropletID(),  ROLE_POWER, 3);
+	}else if(hasRole(&myRoles,ROLE_CHN_UP)){
+		sendButtonPressMsg(getDropletID(), ROLE_CHN_UP, 3);
+	}else if(hasRole(&myRoles,ROLE_CHN_DN)){
+		sendButtonPressMsg(getDropletID(), ROLE_CHN_DN, 3);
+	}else if(hasRole(&myRoles,ROLE_VOL_UP)){
+		sendButtonPressMsg(getDropletID(), ROLE_VOL_UP, 3);
+	}else if(hasRole(&myRoles,ROLE_VOL_DN)){
+		sendButtonPressMsg(getDropletID(), ROLE_VOL_DN, 3);
+	}
+	lastMsgTime = currTime;		
 }
 
 /*

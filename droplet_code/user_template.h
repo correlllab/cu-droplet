@@ -4,11 +4,22 @@
 #include "matrix_utils.h"
 #include "role_handler.h"
 
+#define ANTI_FLOOD_DELAY		350
+#define  TIMEOUT_THRESHOLD		2000
+
 #define SLOT_LENGTH_MS			397
 #define SLOTS_PER_FRAME			38
 #define FRAME_LENGTH_MS			(((uint32_t)SLOT_LENGTH_MS)*((uint32_t)SLOTS_PER_FRAME))
 #define LOOP_DELAY_MS			11
 
+#define BUTTON_PRESS_MSG_FLAG 'B'
+typedef struct button_press_msg_struct{
+	id_t		src;
+	Role		pressType;
+	uint8_t		hopLife;
+	uint8_t		flag;
+}ButtonPressMsg;
+#define IS_BUTTON_PRESS_MSG(msgStruct) ( (msgStruct->length==sizeof(ButtonPressMsg)) && (((ButtonPressMsg*)(msgStruct->msg))->flag==BUTTON_PRESS_MSG_FLAG) )
 
 void init(void);
 void loop(void);
@@ -16,6 +27,7 @@ void handleMsg( __attribute__ ((unused)) irMsg* msg_struct);
 void handleMeas( __attribute__ ((unused)) Rnb* meas);
 
 uint32_t	frameStart;
+uint32_t	lastMsgTime;
 uint16_t	mySlot;
 uint16_t	loopID;
 uint16_t	prevLoopID;

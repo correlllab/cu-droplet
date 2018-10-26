@@ -3,6 +3,7 @@
 #include "droplet_init.h"
 #include "matrix_utils.h"
 #include "role_handler.h"
+#include "nec_ir.h"
 
 #define ANTI_FLOOD_DELAY		350
 #define  TIMEOUT_THRESHOLD		2000
@@ -79,7 +80,8 @@ Region regionsList[NUM_REGIONS] = {
 		{1<<ROLE_BODY}
 	},	
 	{//EMITTER: 1
-		{{0.01, 0., 0.}, {0., 0.02, -3.}, {0., 0., 1.}},
+		//{{0.01, 0., 0.}, {0., 0.02, -3.}, {0., 0., 1.}},
+		{{0.01, 0., 0.}, {0., 0.005, 0.}, {0., 0., 1.}}, //(This is the body tfm, here for testing.)
 		isInUnitSquare,
 		{1<<ROLE_EMTR}
 	},

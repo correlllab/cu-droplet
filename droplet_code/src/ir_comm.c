@@ -1,5 +1,4 @@
 #include "ir_comm.h"
-#include "rgb_led.h"
 
 static volatile uint8_t processingCmdFlag;
 static volatile uint8_t processingFFsyncFlag;
@@ -19,7 +18,6 @@ static void irTransmitComplete(uint8_t dir);
 static volatile uint16_t	cmdLength;
 static volatile char		cmdBuffer[SRL_BUFFER_SIZE];
 /* Hardware addresses for the port pins with the carrier wave */
-static uint8_t ir_carrier_bm[] = { PIN0_bm, PIN1_bm, PIN4_bm, PIN5_bm, PIN6_bm, PIN7_bm };
 
 //#define HARDCORE_DEBUG_DIR 1
 
@@ -131,7 +129,7 @@ void send_msg(uint8_t dirs, char *data, uint8_t dataLength, uint8_t hpFlag){
 			ir_rxtx[dir].curr_pos = 0;
 			ir_rxtx[dir].senderID = getDropletID();
 			memcpy((char*)ir_rxtx[dir].buf, data, dataLength);
-			TCF2.CTRLB |= ir_carrier_bm[dir];		// Turn on carrier wave on port dir
+			TCF2.CTRLB |= carrier_wave_pins[dir];		// Turn on carrier wave on port dir
 		}
 	}
 
@@ -497,7 +495,7 @@ static void irTransmitComplete(uint8_t dir){
 	//  Calling this code signals the end of the transmit process
 	//printf("\r\n");
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
-		TCF2.CTRLB &= ~ir_carrier_bm[dir]; //Turn off the carrier wave.
+		TCF2.CTRLB &= ~carrier_wave_pins[dir]; //Turn off the carrier wave.
 
 		ir_rxtx[dir].status = 0;
 		ir_rxtx[dir].data_length = 0;

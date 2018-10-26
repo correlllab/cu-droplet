@@ -8,8 +8,8 @@ USART_t* channel[6] = {
 	&USARTE1,  //   -- Channel 4
 	&USARTF0   //   -- Channel 5
 };
-
-static uint8_t carrier_wave_pins[6] = { PIN0_bm, PIN1_bm, PIN4_bm, PIN5_bm, PIN7_bm, PIN6_bm};
+uint8_t carrier_wave_pins[6] = { PIN0_bm, PIN1_bm, PIN4_bm, PIN5_bm, PIN7_bm, PIN6_bm};
+	
 static uint8_t tx_pins[6] = {PIN3_bm, PIN7_bm, PIN3_bm, PIN3_bm, PIN7_bm, PIN3_bm};
 static PORT_t* uart_ch[6] = {&PORTC, &PORTC, &PORTD, &PORTE, &PORTE, &PORTF};
 static uint8_t saved_usart_ctrlb_vals[6] = {0,0,0,0,0,0};
@@ -58,7 +58,6 @@ void irLedOn(uint8_t direction)
 	channel[direction]->CTRLB  	  =  0;					// disable USART
 	uart_ch[direction]->DIRSET =  tx_pins[direction];			// enable user output on this pin
 	uart_ch[direction]->OUT	 &= ~tx_pins[direction];			// low signal on TX pin (remember: these pins were inverted during init)
-
 }
 
 void irLedOff(uint8_t direction)

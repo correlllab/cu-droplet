@@ -67,9 +67,17 @@ void handleMeas(Rnb* meas){
 }
 
 void controlTV(Role r){
+	static const uint8_t addr = 0;
+	uint8_t cmd;
 	switch(r){
-		case
+		case  ROLE_POWER: cmd = 0x08;
+		case ROLE_CHN_UP: cmd = 0x00;
+		case ROLE_CHN_DN: cmd = 0x01;
+		case ROLE_VOL_UP: cmd = 0x02;
+		case ROLE_VOL_DN: cmd = 0x03;
+		default:		  cmd = 0xAA; //info
 	}
+	sendIRBurst(1, addr, cmd);
 }
 
 /*
@@ -100,19 +108,25 @@ void handleMsg(irMsg* msgStruct){
  * Droplet's shell.
  */
 void userMicInterrupt(){
-	uint32_t currTime = getTime();
-		  if(hasRole(&myRoles, ROLE_POWER)){
-		sendButtonPressMsg(getDropletID(),  ROLE_POWER, 3);
+	Role assocRole;
+	if(hasRole(&myRoles, ROLE_POWER)){
+		assocRole = ROLE_POWER;	
 	}else if(hasRole(&myRoles,ROLE_CHN_UP)){
-		sendButtonPressMsg(getDropletID(), ROLE_CHN_UP, 3);
+		assocRole = ROLE_CHN_UP;
 	}else if(hasRole(&myRoles,ROLE_CHN_DN)){
-		sendButtonPressMsg(getDropletID(), ROLE_CHN_DN, 3);
+		assocRole = ROLE_CHN_DN;
 	}else if(hasRole(&myRoles,ROLE_VOL_UP)){
-		sendButtonPressMsg(getDropletID(), ROLE_VOL_UP, 3);
+		assocRole = ROLE_VOL_UP;
 	}else if(hasRole(&myRoles,ROLE_VOL_DN)){
-		sendButtonPressMsg(getDropletID(), ROLE_VOL_DN, 3);
+		assocRole = ROLE_VOL_DN;
+	}else{
+		return;
 	}
-	lastMsgTime = currTime;		
+	if(hasRole(&myRoles, ROLE_EMTR)){
+		controlTV(assocRole);
+	}else{
+		sendButtonPressMsg(getDropletID(),  assocRole, 3);
+	}
 }
 
 /*

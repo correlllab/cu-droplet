@@ -2,8 +2,8 @@
 
 #define NUM_SEEDS 4
 
-const BotPos SEED_POS[NUM_SEEDS] = {{94,156,0}, {0,60,30},{350,40,0},{75,100,0}};
-const id_t   SEED_IDS[NUM_SEEDS] = {0x43BA, 0x3B49, 0xAF6A, 0x9261};
+const BotPos SEED_POS[NUM_SEEDS] = {{94,156,0}, {94,156,0},{31,94,0},{75,100,0}};
+const id_t   SEED_IDS[NUM_SEEDS] = {0x43BA, 0x2826, 0x3B49, 0xFFFF};
 
 //The MIN and MAX values below are only needed for getPosColor.
 #define MIN_X 0
@@ -260,12 +260,12 @@ static void updatePos(BotPos* pos, Matrix* yourP){
 	}
 	float updateDist = updateDistance(&xMe, &myP, &xMeFromYou, yourP);
 	if(updateDist>4.0){
-		//This mDist corresponds to a likelihood (of consistency..?) of ~0.1%
+		//An updateDist of 4.0 corresponds to a likelihood (of consistency..?) of ~0.1%
 		//Based on cumulative chi-squared distribution.
 		MY_POS_DEBUG_PRINT(" but the update distance (%5.2f) is too large.\r\n", updateDist);
 		return;
 	}else if(updateDist>1.0){
-		//This mDist corresponds to a likelihood (of consistency..?) of ~80%
+		//An updateDist of 1.0 corresponds to a likelihood (of consistency..?) of ~80%
 		//Based on cumulative chi-squared distribution.
 		covarUnion(&myNewPos, &myNewP, &xMe, &myP, &xMeFromYou, yourP);
 		if(!positiveDefiniteQ(&myNewP)){

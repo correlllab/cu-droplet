@@ -10,7 +10,7 @@
 #define ANTI_DOUBLETAP_DELAY	50
 
 #define SLOT_LENGTH_MS			397
-#define SLOTS_PER_FRAME			76
+#define SLOTS_PER_FRAME			38
 #define FRAME_LENGTH_MS			(((uint32_t)SLOT_LENGTH_MS)*((uint32_t)SLOTS_PER_FRAME))
 #define LOOP_DELAY_MS			11
 
@@ -91,27 +91,27 @@ Region regionsList[NUM_REGIONS] = {
 		{1<<ROLE_EMTR}
 	},
 	{//POWER: 2
-		{{0.016, 0., -0.5}, {0., 0.016, 0.}, {0., 0., 1.}},
+		{{0.0106667, 0., -0.166667}, {0., 0.0106667, 0.333333}, {0., 0., 1.}},
 		isInUnitSquare,
 		{1<<ROLE_POWER}
 	},
 	{//CHN_UP: 3
-		{{0.016, 0., -1.}, {0., 0.016, -2.}, {0., 0., 1.}},
+		{{0.0106667, 0., -0.666667}, {0., 0.016, -2.}, {0., 0., 1.}},
 		isInUnitSquare,
 		{1<<ROLE_CHN_UP}
 	},
 	{//CHN_DN: 4
-		{{0.016, 0., -1.}, {0., 0.016, -1.}, {0., 0., 1.}},
+		{{0.0106667, 0., -0.666667}, {0., 0.016, -1.}, {0., 0., 1.}},
 		isInUnitSquare,
 		{1<<ROLE_CHN_DN}
 	},
 	{//VOL_UP: 5
-		{{0.016, 0., 0.}, {0., 0.016, -2.}, {0., 0., 1.}},
+		{{0.0106667, 0., 0.333333}, {0., 0.016, -2.}, {0., 0., 1.}},
 		isInUnitSquare,
 		{1<<ROLE_VOL_UP}
 	},
 	{//VOL_DOWN: 6
-		{{0.016, 0., 0.}, {0., 0.016, -1.}, {0., 0., 1.}},
+		{{0.0106667, 0., 0.333333}, {0., 0.016, -1.}, {0., 0., 1.}},
 		isInUnitSquare,
 		{1<<ROLE_VOL_DN}
 	}

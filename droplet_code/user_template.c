@@ -58,9 +58,9 @@ void loop(){
 void getMyColor(){
 	if(isBlinking) return;
 	if(hasRole(&myRoles,ROLE_EMTR)){
-		setRGB(0,0,0);
+		setRGB(2,2,2);
 	}else if(hasRole(&myRoles, ROLE_POWER)){
-		setRGB(20,40,20);
+		setRGB(34,12,34);
 	}else if(hasRole(&myRoles,ROLE_CHN_UP)){
 		setRGB(0,50,30);
 	}else if(hasRole(&myRoles,ROLE_CHN_DN)){
@@ -71,8 +71,10 @@ void getMyColor(){
 		setRGB(30,50,0);
 	}else if(hasRole(&myRoles,ROLE_MUTE)){
 		setRGB(24,28,28);
+	}else if(hasRole(&myRoles,ROLE_BODY)){
+		setRGB(20,20,20);
 	}else{
-		setRGB(27,27,27);
+		setRGB(0,0,0);
 	}
 }
 

@@ -7,4 +7,4 @@
 extern USART_t* channel[6];
 extern uint8_t carrier_wave_pins[6];
 
-void sendIRBurst(uint8_t dir, uint8_t addr, uint8_t cmd);
+void sendIRBurst(uint8_t addr, uint8_t cmd);

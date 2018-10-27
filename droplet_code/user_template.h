@@ -7,9 +7,10 @@
 
 #define ANTI_FLOOD_DELAY		350
 #define  TIMEOUT_THRESHOLD		2000
+#define ANTI_DOUBLETAP_DELAY	50
 
 #define SLOT_LENGTH_MS			397
-#define SLOTS_PER_FRAME			38
+#define SLOTS_PER_FRAME			76
 #define FRAME_LENGTH_MS			(((uint32_t)SLOT_LENGTH_MS)*((uint32_t)SLOTS_PER_FRAME))
 #define LOOP_DELAY_MS			11
 
@@ -26,8 +27,10 @@ void init(void);
 void loop(void);
 void handleMsg( __attribute__ ((unused)) irMsg* msg_struct);
 void handleMeas( __attribute__ ((unused)) Rnb* meas);
+void getMyColor(void);
 
 uint32_t	frameStart;
+uint32_t	lastTapDetectedTime;
 uint32_t	lastMsgTime;
 uint16_t	mySlot;
 uint16_t	loopID;
@@ -50,6 +53,8 @@ void restoreBlueLED(uint16_t val){
 	setBlueLED((uint8_t)val);
 	isBlinking = 0;
 }
+
+void lessGeneralCheckPosition(void);
 
 //colorSelect 0: red, 1: green, 2: blue
 inline uint8_t blinkLED(uint8_t whichColor, uint8_t val){
@@ -75,39 +80,43 @@ inline uint8_t blinkLED(uint8_t whichColor, uint8_t val){
 
 Region regionsList[NUM_REGIONS] = {
 	{//BODY: 0
-		{{0.01, 0., 0.}, {0., 0.005, 0.}, {0., 0., 1.}},
+		{{0.008, 0., 0.}, {0., 0.004, 0.}, {0., 0., 1.}},
 		isInUnitSquare,
 		{1<<ROLE_BODY}
 	},	
 	{//EMITTER: 1
-		//{{0.01, 0., 0.}, {0., 0.02, -3.}, {0., 0., 1.}},
-		{{0.01, 0., 0.}, {0., 0.005, 0.}, {0., 0., 1.}}, //(This is the body tfm, here for testing.)
+		{{0.008, 0., 0.}, {0., 0.016, -3.}, {0., 0., 1.}},
+		//{{0.01, 0., 0.}, {0., 0.005, 0.}, {0., 0., 1.}}, //(This is the body tfm, here for testing.)
 		isInUnitSquare,
 		{1<<ROLE_EMTR}
 	},
 	{//POWER: 2
-		{{0.04, 0., -2.}, {0., 0.04, -1.}, {0., 0., 1.}},
-		isInUnitCircle,
+		{{0.016, 0., -0.5}, {0., 0.016, 0.}, {0., 0., 1.}},
+		isInUnitSquare,
 		{1<<ROLE_POWER}
 	},
 	{//CHN_UP: 3
-		{{0.04, 0., -3.}, {0., 0.04, -5.}, {0., 0., 1.}},
-		isInUnitCircle,
+		{{0.016, 0., -1.}, {0., 0.016, -2.}, {0., 0., 1.}},
+		isInUnitSquare,
 		{1<<ROLE_CHN_UP}
 	},
 	{//CHN_DN: 4
-		{{0.04, 0., -3.}, {0., 0.04, -3.}, {0., 0., 1.}},
-		isInUnitCircle,
+		{{0.016, 0., -1.}, {0., 0.016, -1.}, {0., 0., 1.}},
+		isInUnitSquare,
 		{1<<ROLE_CHN_DN}
 	},
 	{//VOL_UP: 5
-		{{0.04, 0., -1.}, {0., 0.04, -5.}, {0., 0., 1.}},
-		isInUnitCircle,
+		{{0.016, 0., 0.}, {0., 0.016, -2.}, {0., 0., 1.}},
+		isInUnitSquare,
 		{1<<ROLE_VOL_UP}
 	},
 	{//VOL_DOWN: 6
-		{{0.04, 0., -1.}, {0., 0.04, -3.}, {0., 0., 1.}},
-		isInUnitCircle,
+		{{0.016, 0., 0.}, {0., 0.016, -1.}, {0., 0., 1.}},
+		isInUnitSquare,
 		{1<<ROLE_VOL_DN}
 	}
 };
+
+inline uint8_t conversionFunc(int16_t angleDeg){
+	return (((angleDeg+180)/60))%6;
+}

@@ -3,10 +3,10 @@
 #include "localization.h"
 #include "random.h"
 
-#define NUM_ROLES 7
+#define NUM_ROLES 8
 
 
-#define ROLE_MASK_ARR_SIZE (1+NUM_ROLES/8)
+#define ROLE_MASK_ARR_SIZE (1+(NUM_ROLES-1)/8)
 
 #define NUM_MONTE_CARLO_SAMPLES 100
 
@@ -40,7 +40,8 @@ typedef enum role_enum{
 	ROLE_CHN_UP,
 	ROLE_CHN_DN,
 	ROLE_VOL_UP,
-	ROLE_VOL_DN
+	ROLE_VOL_DN,
+	ROLE_MUTE
 }Role;
 
 #define NUM_REGIONS 7

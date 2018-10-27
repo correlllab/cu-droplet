@@ -2,8 +2,8 @@
 
 #define NUM_SEEDS 4
 
-const BotPos SEED_POS[NUM_SEEDS] = {{50,75,0}, {500,160,0},{350,40,0},{75,100,0}};
-const id_t   SEED_IDS[NUM_SEEDS] = {0xC806, 0x3D6C, 0xAF6A, 0x9261};
+const BotPos SEED_POS[NUM_SEEDS] = {{94,156,0}, {0,60,30},{350,40,0},{75,100,0}};
+const id_t   SEED_IDS[NUM_SEEDS] = {0x43BA, 0x3B49, 0xAF6A, 0x9261};
 
 //The MIN and MAX values below are only needed for getPosColor.
 #define MIN_X 0
@@ -148,8 +148,33 @@ void covarIntersection(Vector* x, Matrix* P, Vector* a, Matrix* A, Vector* b, Ma
 	matrixTimesVector(x, &A_inv, a);
 	Vector tmp;
 	matrixTimesVector(&tmp, &B_inv, b);
+	vectorAdd(&tmp, x, &tmp);	
+	matrixTimesVector(x, P, &tmp);
+	(*x)[2] = prettyAngle((*x)[2]);	
+}
+
+// TODO: I think that there's an issue with angle wraparound when fusing a measurement reporting
+// (for example) -170deg with a state of (say) 170deg.
+void covarIntersectionTest(Vector* x, Matrix* P, Vector* a, Matrix* A, Vector* b, Matrix* B){
+	Matrix A_inv;
+	matrixInverse(&A_inv, A);
+	Matrix B_inv;
+	matrixInverse(&B_inv, B);
+	float omega = chooseOmega(&A_inv, &B_inv);
+	//myNewP = (omega*myPinv + (1-omega)*yourPinv)^{-1}
+	matrixScale(&A_inv, omega);
+	matrixScale(&B_inv, 1.0-omega);
+	matrixAdd(P, &A_inv, &B_inv);
+	matrixInplaceInverse(P);
+	//myNewPos = myNewP*(omega*myPinv*myPrevPos + (1-omega)*yourPinv*yourPos)
+	//TODO: Fix angle wraparound issue!
+	//try converting a[2] and b[2] in to unit vectors and average those, since this IS essentially a weighted average?
+	matrixTimesVector(x, &A_inv, a);
+	Vector tmp;
+	matrixTimesVector(&tmp, &B_inv, b);
 	vectorAdd(&tmp, x, &tmp);
 	matrixTimesVector(x, P, &tmp);
+	(*x)[2] = prettyAngle((*x)[2]);
 }
 
 /*

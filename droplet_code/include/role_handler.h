@@ -34,13 +34,13 @@ static __attribute__((unused)) uint8_t isInUnitSquare(Vector* pt){
 }
 
 typedef enum role_enum{
-	ROLE_BODY,
-	ROLE_EMTR,
-	ROLE_POWER,
-	ROLE_CHN_UP,
-	ROLE_CHN_DN,
-	ROLE_VOL_UP,
-	ROLE_VOL_DN
+	ROLE_BOARD,
+	ROLE_CONTROL,
+	ROLE_PADDLE,
+	ROLE_N_EDGE,
+	ROLE_S_EDGE,
+	ROLE_E_EDGE,
+	ROLE_W_EDGE,
 }Role;
 
 #define NUM_REGIONS 7

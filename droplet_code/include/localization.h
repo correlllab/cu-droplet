@@ -95,6 +95,7 @@ void	updateForMovement(uint8_t dir, uint16_t mag);
 void	relativePosition(uint16_t r, int16_t b, int16_t h, BotPos* pos, Vector* myPos);
 
 void	getPosColor(uint8_t* r, uint8_t* g, uint8_t* b);
+float	posCovarSummary(DensePosCovar* denseP);
 void	printPosCovar(DensePosCovar* denseP);
 void	sendBotMeasMsg(BotMeasMsgNode* mNode);
 

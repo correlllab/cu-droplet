@@ -1,15 +1,24 @@
 #include "localization.h"
 
-#define NUM_SEEDS 4
+#define NUM_SEEDS 16
 
-const BotPos SEED_POS[NUM_SEEDS] = {{50,75,0}, {500,160,0},{350,40,0},{75,100,0}};
-const id_t   SEED_IDS[NUM_SEEDS] = {0xC806, 0x3D6C, 0xAF6A, 0x9261};
+//const BotPos SEED_POS[NUM_SEEDS] = {{25,25,0},{175,25,0},{25,175,0},{175,175,0}};
+//const id_t   SEED_IDS[NUM_SEEDS] = {0x5D61,0x4327,0x8625,0x2826};
+	
+const BotPos SEED_POS[NUM_SEEDS] = {{ 25, 25,0},{ 75, 25,0},{125, 25,0},{175, 25,0},
+									{ 25, 75,0},{ 75, 75,0},{125, 75,0},{175, 25,0},
+									{ 25,125,0},{ 75,125,0},{125,125,0},{175,125,0},
+									{ 25,175,0},{ 75,175,0},{125,175,0},{175,175,0}};
+const id_t   SEED_IDS[NUM_SEEDS] = {0x5D61,0xCB64,0xD766,0x4327,
+									0x3062,0x4ED3,0xA165,0xB41B,
+									0x7D13,0xDD21,0xBC63,0xBCB5,
+									0x8625,0x1562,0xBC6E,0x2826};
 
 //The MIN and MAX values below are only needed for getPosColor.
 #define MIN_X 0
 #define MIN_Y 0
-#define MAX_X 150
-#define MAX_Y 150
+#define MAX_X 175
+#define MAX_Y 175
 
 static float	chooseOmega(Matrix* myPinv, Matrix* yourPinv);
 
@@ -594,10 +603,18 @@ void getPosColor(uint8_t* r, uint8_t* g, uint8_t* b){
 		*g = (uint8_t)(yColVal);
 		*b = 0;
 	}else{
-		*r = 10;
-		*g = 10;
-		*b = 10;
+		*r = 5;
+		*g = 5;
+		*b = 5;
 	}
+}
+
+float posCovarSummary(DensePosCovar* denseP){
+	Matrix P;
+	decompressP(&P, denseP);
+	Vector eigVals;
+	eigenvalues(&eigVals, &P);
+	return sqrt(eigVals[0]);
 }
 
 void printPosCovar(DensePosCovar* denseP){

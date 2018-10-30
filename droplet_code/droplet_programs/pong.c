@@ -323,7 +323,7 @@ void prepBallMsg(){
 	}
 }
 
-void sendBallMsg(BallMsg* msg){
+void sendBallMsg(){
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE){
 		if(!msgHandleLock){
 			schedule_task(5, (arg_func_t)sendBallMsg, msg);

@@ -147,7 +147,7 @@ volatile uint8_t		msgHandleLock;
 
 void		init(void);
 void		loop(void);
-void		handle_msg(ir_msg* msg_struct);
+void		handle_msg(IrMsg* msg_struct);
 float		getPaddleCoverage(void);
 void		checkLightLevel(void);
 void		sendBotPosMsg(void);
@@ -302,7 +302,7 @@ static int nearBotsBearingCmp(const void* a, const void* b){
 }
 
 inline static void killBall(void){
-	set_rgb(255,0,0);
+	setRGB(255,0,0);
 	theBall.id = 0x0F;
 }
 
@@ -324,8 +324,7 @@ static inline uint16_t getSlot(id_t id){
 		case 0x2826: return 13;
 		case 0xA250: return 14;
 		case 0xD913: return 15;
-		default: printf("ID Fetch Error\r\n");
-				 warning_light_sequence();		
+		default: printf("ID Fetch Error\r\n");	
 	}
 	return (id%(SLOTS_PER_FRAME-1));
 }

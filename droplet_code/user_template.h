@@ -124,7 +124,6 @@ typedef struct hard_bot_struct{
 } HardEdge;
 HardEdge* hardEdges;
 
-uint8_t uncommunicatedBounce;
 uint8_t		lastBallID;
 uint8_t		myState;
 uint32_t	lastBallMsg;

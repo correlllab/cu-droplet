@@ -6,12 +6,6 @@
  *    Figure out when I should update my state!
  *
  */
-
- #define MIN_X 0
- #define MIN_Y 0
- #define MAX_X 250
- #define MAX_Y 250
-
 void init(){
 	if((LOCALIZATION_DUR)>=SLOT_LENGTH_MS){
 		printf_P(PSTR("Error! Localization requires SLOT_LENGTH_MS to be greater than LOCALIZATION_DUR!\r\n"));
@@ -26,11 +20,9 @@ void init(){
 	myState = STATE_PIXEL;
 	colorMode = GAME;
 	gameMode = BOUNCE;
-	lastBallID = 0;
 	lastBallMsg = 0;
 	lastPaddleMsg = 0;
 	hardEdges = NULL;
-	uncommunicatedBounce = 0;
 	theBall.lastUpdate = 0;
 	theBall.xPos = NAN;
 	theBall.yPos = NAN;
@@ -63,13 +55,27 @@ void loop(){
 		frameStart += FRAME_LENGTH_MS;
 		frameCount++;
 	}
-	updateBall();
+	if(getTime()-theBall.lastUpdate>100){
+		updateBall();
+	}
 	updateColor();
 	if(loopID!=(frameTime/SLOT_LENGTH_MS)){
 		loopID = frameTime/SLOT_LENGTH_MS;
+		//if(seedFlag && !BALL_VALID() && (getTime()-theBall.lastUpdate)>30000){
+			//if(randReal()>=0.9){ //Only do this ~10% of the time.
+				////This is a pretty dirty hack to try and keep a ball alive on the field somewhere.
+				//char fakeCmdString[6] = "ball";
+				//fakeCmdString[5] = '\0'; //make sure string is null-terminated.
+				//char fakeArgString[1] = "";
+				//fakeArgString[0] = '\0'; //make sure string is nullterminated.
+				//userHandleCommand(fakeCmdString, fakeArgString);
+			//}
+		//}
 		if(loopID==mySlot){
-			reducedBroadcastRnbData();			
-			scheduleTask(RNB_DUR+20, sendBotPosMsg, NULL);
+			reducedBroadcastRnbData();
+			while(irIsBusy(ALL_DIRS)>0); //wait for broadcast to be done.
+			delayMS(20);
+			sendBotPosMsg();
 		}else if(loopID==SLOTS_PER_FRAME-1){
 			qsort(nearBots, NUM_TRACKED_BOTS+1, sizeof(OtherBot), nearBotsBearingCmp);
 			printf_P(PSTR("\nID: %04X T: %lu [ "), getDropletID(), getTime());
@@ -92,23 +98,27 @@ void loop(){
 			}
 			
 		}
-	}
-	if(BALL_VALID() && myDist!=(uint16_t)UNDF){
-		BALL_DEBUG_PRINT("B[%hu]: % 8.2f, % 8.2f (% 6.2f, % 6.2f)\r\n", theBall.id, theBall.xPos, theBall.yPos, theBall.xVel, theBall.yVel);
-		if(myDist<=(2*DROPLET_RADIUS)){
-			uint8_t someoneCloser = 0;
-			qsort(nearBots, NUM_TRACKED_BOTS+1, sizeof(OtherBot), nearBotsBearingCmp);
-			for(int i=0;i<NUM_TRACKED_BOTS;i++){
-				if(POS_DEFINED(&(nearBots[i].pos))){
-					float theirDist = hypot(nearBots[i].pos.x-theBall.xPos,nearBots[i].pos.y-theBall.yPos);
-					if(theirDist<myDist){
-						someoneCloser = 1;
-						break;
+		if(BALL_VALID() && myDist!=(uint16_t)UNDF){
+			BALL_DEBUG_PRINT("B[%hu]: % 8.2f, % 8.2f (% 6.2f, % 6.2f)\r\n", theBall.id, theBall.xPos, theBall.yPos, theBall.xVel, theBall.yVel);
+			if(myDist<=(2*DROPLET_RADIUS)){
+				uint8_t someoneCloser = 0;
+				qsort(nearBots, NUM_TRACKED_BOTS+1, sizeof(OtherBot), nearBotsBearingCmp);
+				printf("\tI am close enough ");
+				for(int i=0;i<NUM_TRACKED_BOTS;i++){
+					if(POS_DEFINED(&(nearBots[i].pos))){
+						float theirDist = hypot(nearBots[i].pos.x-theBall.xPos,nearBots[i].pos.y-theBall.yPos);
+						if(theirDist<myDist){
+							someoneCloser = 1;
+							break;
+						}
 					}
 				}
-			}
-			if(!someoneCloser){
-				sendBallMsg();
+				if(!someoneCloser){
+					printf("and noone is closer than I.\r\n");
+					sendBallMsg();
+					}else{
+					printf("but someone is closer than I. No ballMsg.\r\n");
+				}
 			}
 		}
 	}
@@ -211,7 +221,6 @@ void updateBall(){
 						//break;
 					//}
 				//}
-				uncommunicatedBounce = 1;
 				float distanceToEdge = hypotf(xIntersect-theBall.xPos, yIntersect-theBall.yPos);
 				float overallSpeed = hypotf(theBall.xVel, theBall.yVel);
 				portionOfSpeedRemaining -= distanceToEdge/overallSpeed;
@@ -324,7 +333,6 @@ void sendBallMsg(){
 	msg.xVel		= (int8_t)theBall.xVel;
 	msg.yVel		= (int8_t)theBall.yVel;
 	msg.radius		= theBall.radius;
-	uncommunicatedBounce = 0;
 	irSend(ALL_DIRS, (char*)&msg, sizeof(BallMsg));
 	lastBallMsg=getTime();
 	printf("Ball message sent.\r\n");
@@ -347,16 +355,10 @@ void handleBallMsg(BallMsg* msg, uint32_t arrivalTime, id_t senderID){
 	if(BALL_VALID()){
 		BALL_DEBUG_PRINT("\tBEFORE | Pos: (% 8.2f, % 8.2f)   Vel: (% 6.2f, % 6.2f) | lastUpdate: %lu\r\n", theBall.xPos, theBall.yPos, theBall.xVel, theBall.yVel, theBall.lastUpdate);
 	}
-	if(msg->id == 0x0F && theBall.id!=0x0F){
-		lastBallID = theBall.id;
-		setRGB(255,0,0);
-	}else if(msg->id == lastBallID && theBall.id==0x0F){
+	if(msg->id == lastBallID && theBall.id==0x0F){
 		return; //this is from someone who hasn't realized the ball is dead, yet.
 	}else if(BALL_VALID() && theBall.id==msg->id && (theBall.xVel!=msg->xVel || theBall.yVel!=msg->yVel)){
 		
-	}
-	if(uncommunicatedBounce){
-		return;
 	}
 	theBall.xPos = (float)msg->xPos;
 	theBall.yPos = (float)msg->yPos;

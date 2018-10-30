@@ -1,18 +1,18 @@
 #include "localization.h"
 
-#define NUM_SEEDS 16
+#define NUM_SEEDS 6
 
-//const BotPos SEED_POS[NUM_SEEDS] = {{25,25,0},{175,25,0},{25,175,0},{175,175,0}};
-//const id_t   SEED_IDS[NUM_SEEDS] = {0x5D61,0x4327,0x8625,0x2826};
+const BotPos SEED_POS[NUM_SEEDS] = {{25,25,0},{175,25,0},{25,175,0},{175,175,0}};
+const id_t   SEED_IDS[NUM_SEEDS] = {0x2826,0x5D61,0xCCD1,0xCD6B,0xD2D7,0xDC62};
 	
-const BotPos SEED_POS[NUM_SEEDS] = {{ 25, 25,0},{ 75, 25,0},{125, 25,0},{175, 25,0},
-									{ 25, 75,0},{ 75, 75,0},{125, 75,0},{175, 25,0},
-									{ 25,125,0},{ 75,125,0},{125,125,0},{175,125,0},
-									{ 25,175,0},{ 75,175,0},{125,175,0},{175,175,0}};
-const id_t   SEED_IDS[NUM_SEEDS] = {0x5D61,0xCB64,0xD766,0x4327,
-									0x3062,0x4ED3,0xA165,0xB41B,
-									0x7D13,0xDD21,0xBC63,0xBCB5,
-									0x8625,0x1562,0xBC6E,0x2826};
+//const BotPos SEED_POS[NUM_SEEDS] = {{ 25, 25,0},{ 75, 25,0},{125, 25,0},{175, 25,0},
+									//{ 25, 75,0},{ 75, 75,0},{125, 75,0},{175, 75,0},
+									//{ 25,125,0},{ 75,125,0},{125,125,0},{175,125,0},
+									//{ 25,175,0},{ 75,175,0},{125,175,0},{175,175,0}};
+//const id_t   SEED_IDS[NUM_SEEDS] = {0x5D61,0xCB64,0xD766,0x4327,
+									//0x3062,0x4ED3,0xA165,0xB41B,
+									//0x7D13,0xDD21,0xBC63,0xBCB5,
+									//0x8625,0x1562,0xBC6E,0x2826};
 
 //The MIN and MAX values below are only needed for getPosColor.
 #define MIN_X 0
